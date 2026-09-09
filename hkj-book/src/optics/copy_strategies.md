@@ -143,7 +143,9 @@ Order topUp =
 | `A[]`, `A` a reference type | `Traversals.forArray()` |
 | `Map<K, V>` | `Traversals.forMapValues()` |
 
-Detection reads the focus of the spec's own lens for the field, which is the lens the generated traversal composes with (a spec that declares no lens for the field is refused), and the match is on the interface itself. A lens focusing something narrower, a concrete container (`ArrayList<LineItem>`, `HashSet<Tag>`, `TreeMap<K, V>`) or another interface (`Deque`, `SortedSet`), is refused at the declaration, because each standard traversal promises no more than the interface type (`forList()` hands back an unmodifiable `List`) and the field could not take that value back: the generated traversal would throw `ClassCastException` on first use. (Under the subtype matching of earlier releases a `HashMap` field survived, because the map traversal rebuilds a `HashMap`; that was an implementation detail the promise does not cover, and `HashMap` is refused like any other concrete type.) An array of a primitive (`int[]`) is refused for the same reason, since the array traversal walks an `Object[]`. Name a traversal that rebuilds the declared type, built with `Traversals.forIterableCollecting(ArrayList::new)` for a list-shaped container or `Traversals.forMapValuesCollecting(TreeMap::new)` for a map and exposed as a static method, or, where the type is yours, declare the field as the interface:
+Detection reads the focus of the spec's own lens for the field, which is the lens the generated traversal composes with, so a spec that declares no lens for the field is refused. The match is on the interface itself. A lens focusing something narrower is refused at the declaration: a concrete container (`ArrayList<LineItem>`, `HashSet<Tag>`, `TreeMap<K, V>`, `HashMap<K, V>`) or another interface (`Deque`, `SortedSet`). Each standard traversal promises no more than the interface type, `forList()` hands back an unmodifiable `List`, and the field could not take that value back, so the generated traversal would throw `ClassCastException` on first use. An array of a primitive (`int[]`) is refused for the same reason, since the array traversal walks an `Object[]`.
+
+Two routes get you past a refusal. Where the type is yours, declare the field as the interface. Otherwise name a traversal that rebuilds the declared type, built with `Traversals.forIterableCollecting(ArrayList::new)` for a list-shaped container or `Traversals.forMapValuesCollecting(TreeMap::new)` for a map, exposed as a static method:
 
 <!-- verify -->
 ```java
@@ -151,7 +153,9 @@ Detection reads the focus of the spec's own lens for the field, which is the len
 Traversal<MyType, Entry> eachEntry();
 ```
 
-The method's declared focus is held to what the traversal hands back the same way: the element type, `Map`'s value type, or `Object` where the element sits behind a super- or unbounded wildcard. A focus that does not contain that type could only compile through a cast, throwing `ClassCastException` on first use where it narrows and letting ill-typed writes through where it widens, so it is refused at the declaration; a wildcard focus over the element (`? extends CharSequence` over `String` elements) stays accepted, as it always compiled. Where the lens focus names its own type arguments outright, with no wildcard among them (a nested `List<List<?>>` still qualifies), the auto-detected composition is then generated without a cast or a suppression, so javac checks it end to end; an explicit `traversal` keeps the cast, as the author's undertaking that theirs rebuilds the declared type.
+The method's declared focus is held to what the traversal hands back the same way: the element type, `Map`'s value type, or `Object` where the element sits behind a super- or unbounded wildcard. A focus that does not contain that type could only compile through a cast, which would throw `ClassCastException` on first use where it narrows and let ill-typed writes through where it widens, so it is refused at the declaration. A wildcard focus over the element is accepted, as in `? extends CharSequence` over `String` elements.
+
+Where the lens focus names its own type arguments outright, with no wildcard among them (a nested `List<List<?>>` still qualifies), the auto-detected composition is generated with no cast and no suppression, so javac checks it end to end. An explicit `traversal` keeps the cast, as the author's undertaking that theirs rebuilds the declared type.
 
 ~~~admonish warning title="`Traversal` has no instance `modify`"
 Reads and writes through a bare `Traversal` go through the `Traversals` utility: `Traversals.getAll(traversal, source)` and `Traversals.modify(traversal, f, source)`. The instance methods are `andThen`, `filtered`, `filterBy`, `asFold`, `modifyF`, `modifyWhen` and `branch`; `asFold()` is how you reach the read side, as in `traversal.asFold().foldMap(...)`. (A `TraversalPath` from the [Focus DSL](focus_dsl.md) does carry `getAll` and `modifyAll` directly, which is often the more comfortable surface.)
@@ -207,10 +211,10 @@ interface ConfigOpticsSpec extends OpticsSpec<Config> {
 ~~~admonish warning title="Lens laws and mutable types"
 `@ViaCopyAndSet` copies, then mutates the copy. That is lawful only if the copy constructor really copies everything: a shallow copy that shares a mutable field means a "set" can be seen through the original, which breaks the lens laws in the most confusing way possible. Verify with `LensLaws` on a type where this matters.
 
-`copyConstructor` adds a second way to lose state, and it is quieter. Naming a supertype selects the constructor that takes it, and that constructor can only copy what it can see: if `balance` is declared on `Ledger` and you name `LedgerBase`, every `set` returns a copy with `balance` back at its default. That is a perfectly *deep* copy of everything in scope — the field is simply not in scope. The processor cannot check this for you, so the narrower the type you name, the more `LensLaws` is worth running.
+`copyConstructor` adds a second way to lose state, and it is quieter. Naming a supertype selects the constructor that takes it, and that constructor can only copy what it can see: if `balance` is declared on `Ledger` and you name `LedgerBase`, every `set` returns a copy with `balance` back at its default. That is a perfectly *deep* copy of everything in scope; the field is simply not in scope. The processor cannot check this for you, so the narrower the type you name, the more `LensLaws` is worth running.
 ~~~
 
-`copyConstructor` is for the one case the default cannot express: an overloaded constructor. `new Config(source)` picks the most specific applicable overload, which is what you want almost always — a lone `Config(BaseConfig other)` already takes the source by widening. Name a supertype, fully qualified, and the source is passed under that type instead:
+`copyConstructor` is for the one case the default cannot express: an overloaded constructor. `new Config(source)` picks the most specific applicable overload, which is what you want almost always, since a lone `Config(BaseConfig other)` already takes the source by widening. Name a supertype, fully qualified, and the source is passed under that type instead:
 
 ```java
 public class Endpoint extends BaseEndpoint implements Audited {
@@ -231,7 +235,7 @@ interface EndpointOpticsSpec extends OpticsSpec<Endpoint> {
 }
 ```
 
-The name is a plain string, so it is not resolved against the interface's imports: give it fully qualified, the class alone with no type arguments, and a nested class as `com.example.Outer.Base`. Four names are rejected at the declaration rather than generating a cast javac cannot compile: one that does not resolve, one naming a type `Endpoint` does not extend or implement, one the generated class cannot see, and one no `Endpoint` constructor accepts. What the processor cannot check is whether the constructor it picks copies everything — see the warning above.
+The name is a plain string, so it is not resolved against the interface's imports: give it fully qualified, the class alone with no type arguments, and a nested class as `com.example.Outer.Base`. Four names are rejected at the declaration rather than generating a cast javac cannot compile: one that does not resolve, one naming a type `Endpoint` does not extend or implement, one the generated class cannot see, and one no `Endpoint` constructor accepts. What the processor cannot check is whether the constructor it picks copies everything; see the warning above.
 
 ---
 

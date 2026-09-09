@@ -3,13 +3,136 @@
 ## _Diagnosing what the annotation processor and type checker tell you_
 
 ~~~admonish info title="What You'll Learn"
+- How to find your compiler message in the table below and go straight to its entry.
+- Which messages stop the build, which stop it only under `-Werror`, and which stop nothing.
 - The most common errors from the `@Generate*` annotations and how to fix them.
 - Errors that surface from `@ImportOptics` and `OpticsSpec` interfaces, including the spec-method hint annotations.
 - Type-inference traps when chaining the Focus DSL through `.each()`, `.via()`, and `traverseOver`.
 - Free Monad DSL pitfalls and the witness-type errors they produce.
 ~~~
 
-This page is for the moment a build fails and you want to know what the message means. Errors are grouped by the annotation or feature most likely to have produced them.
+This page is for the moment a build fails and you want to know what the message means. Find the fragment your compiler printed in the table below and follow it to its entry. Every entry says what the message means, gives the fix, and keeps the reasoning in a **Why** you can open if you want it.
+
+~~~admonish info title="Error, warning, or note?"
+- An **error** stops the build. Almost everything here is an error.
+- A **warning** stops the build only under `-Werror`. A processor warning cannot be suppressed, so the remedy is the fix rather than an annotation.
+- A **note** stops nothing. It shows in the compiler output as `Note: ...`, and tells you that something you asked for was quietly not applied.
+
+Rows below and headings on the page say which, wherever it is not an error.
+~~~
+
+---
+
+## Find your message
+
+**From `@GenerateLenses`, `@GenerateFocus`, `@GenerateTraversals` and friends** ([entries](#generatelenses--generatefocus--generatetraversals)):
+
+| The message says | What it means |
+|------------------|---------------|
+| [`cannot find symbol: class XLenses`](#cannot-find-symbol-class-xlenses) | The processor has not run, or the IDE has not indexed the generated sources |
+| [`can only be applied to records`](#generatelenses-can-only-be-applied-to-records-but-foo-is-a-class) | `@GenerateLenses` or a sibling is on a class |
+| [`can only be applied to sealed interfaces or enums`](#the-generateprisms-annotation-can-only-be-applied-to-sealed-interfaces-or-enums) | `@GeneratePrisms` is on something else |
+| [`names a type variable`](#generateisos-the-iso-returned-by-x-names-a-type-variable) | The `@GenerateIsos` method's `Iso` type is not fully concrete |
+| [`'x' is not static`](#generateisos-x-is-not-static) | The `@GenerateIsos` method is an instance method |
+| [`'x' takes parameters`](#generateisos-x-takes-parameters) | The `@GenerateIsos` method takes arguments |
+| [`does not return an Iso with both type arguments`](#generateisos-x-does-not-return-an-iso-with-both-type-arguments) | The `@GenerateIsos` method returns something else |
+| [`cannot be reached from 'p'`](#generateisos-x-cannot-be-reached-from-p) | The `@GenerateIsos` method is not visible from the generated package |
+| [`has a wildcard type argument`, `has a raw Set`](#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t) | A widened container is raw, or has a wildcard type argument |
+| [`no traversal was generated for component`](#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note) | **Note.** `@GenerateTraversals` found no generator for a container |
+| [`Multiple TraversableGenerator SPI providers with equal priority`](#multiple-traversablegenerator-spi-providers-with-equal-priority-n-support-type-x-a-warning) | **Warning.** Two generators claim one type and neither outranks the other |
+| [`the annotation on record component 'X.y' is not applied`](#traversefield-the-annotation-on-record-component-xy-is-not-applied-a-note) | **Note.** `@TraverseField` is on something that is not a `Kind` with a declared witness |
+| [`names a witness the processor does not recognise`](#generatefocus-record-component-xy-names-a-witness-the-processor-does-not-recognise-a-note) | **Note.** A `Kind` field's witness has no registered `Traverse`, so nothing widens it |
+
+**From `@ImportOptics` and spec interfaces** ([entries](#importoptics-and-opticsspec-interfaces)):
+
+| The message says | What it means |
+|------------------|---------------|
+| [`carries no copy strategy annotation`](#importoptics-lens-method-x-carries-no-copy-strategy-annotation) | A spec `Lens` method names none of the four copy strategies |
+| [`is a default method`](#xopticsspecfoo-is-a-default-method) | A spec interface method has a body |
+| [`which is a type variable`](#xopticsspec-declares-opticsspecs-which-is-a-type-variable) | `OpticsSpec<S>` names a type parameter rather than a type |
+| [`which names the raw type 'Box'`](#xopticsspec-declares-opticsspecbox-which-names-the-raw-type-box) | The source type is missing its type arguments |
+| [`rather than as the List interface`](#throughfield--reaches-field-items-which-is-declared-as-arrayliststring-rather-than-as-the-list-interface) | `@ThroughField`'s lens focuses a concrete container, or another interface |
+| [`which the spec does not declare`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` has no lens for the field to compose with |
+| [`hands back as 'String'`](#throughfield--declares-focus-integer-over-field-items-of-type-liststring-whose-elements-the-standard-traversal-hands-back-as-string) | `@ThroughField`'s declared focus is not what the traversal returns |
+| [`is not a subtype of source type`](#instanceof-target-comexamplefoo-is-not-a-subtype-of-source-type-comexamplebase) | `@InstanceOf` names a class outside the hierarchy |
+| [`which the test cannot narrow to`](#instanceof--declares-its-focus-as-circlet-which-the-test-cannot-narrow-to) | The focus promises a type argument `instanceof` cannot check |
+| [`carries type parameters of its own`](#instanceof--names--which-carries-type-parameters-of-its-own-and-is-a-member-of-a-generic-type) | `@InstanceOf` names an `Outer<X>.Inner<Y>`, which `instanceof` cannot write |
+| [`narrows to '...', which is not a '...'`](#instanceof--narrows-to--which-is-not-a-) | The `@InstanceOf` class is not assignable to the declared focus |
+| [`does not resolve to a type`](#viacopyandset-copyconstructor-names--which-does-not-resolve-to-a-type) | `copyConstructor` is not a fully qualified class name |
+| [`which 'S' does not extend or implement`](#viacopyandset-copyconstructor-names--which-s-does-not-extend-or-implement) | `copyConstructor` names a type that is not a supertype |
+| [`is not public and so cannot be named from`](#viacopyandset-copyconstructor-names--which-is-not-public-and-so-cannot-be-named-from-) | `copyConstructor` names a type the generated class cannot see |
+| [`and no constructor accepts`](#viacopyandset-copyconstructor-names--which--reaches-as--and-no-constructor-accepts) | No copy constructor takes the supertype you named |
+| [`is written with a wildcard type argument`](#viacopyandset--is-written-with-a-wildcard-type-argument) | A constructor rebuild cannot be written for a wildcard source type |
+| [`focuses '...', which is not a '...'`](#importoptics--focuses--which-is-not-a-) | A generated prism's focus is a value rather than a variant of the source |
+| [`cannot find symbol`, inside `XPrisms.java`](#cannot-find-symbol-inside-the-generated-xprismsjava-after-using-matchwhen) | A `@MatchWhen` predicate or getter name is misspelt |
+| [`requires a prism hint annotation`](#prism-method-x-requires-a-prism-hint-annotation-instanceof-or-matchwhen) | A spec `Prism` method has neither `@InstanceOf` nor `@MatchWhen` |
+
+**From `@GeneratePathBridge` and `@PathVia`** ([entries](#generatepathbridge-and-pathvia)):
+
+| The message says | What it means |
+|------------------|---------------|
+| [`which no Path wraps`](#pathvia-the-return-type-of-x-is-y-which-no-path-wraps) | The method returns a type outside the bridged set |
+| [`names the raw type 'Y'`](#pathvia-the-signature-of-x-names-the-raw-type-y) | The signature is missing type arguments somewhere |
+| [`is the wildcard '?'`](#pathvia-the-error-type-of-the-validated-returned-by-x-is-the-wildcard-) | A bridged `Validated` names its error type as a wildcard |
+| [`has the same name as 'Y's`](#pathvia-the-type-parameter-t-on-x-has-the-same-name-as-ys) | A method type parameter hides one of the interface's |
+| [`the bridge cannot call 'x'`](#pathvia-the-bridge-cannot-call-x) | The method is `static` or `private` |
+| [`is already taken`](#pathvia-the-bridge-signature-for-x-is-already-taken) | Two `@PathVia` methods produce the same bridge signature |
+| [`is not a method name`](#pathvia-pathvianame---is-not-a-method-name) | `@PathVia(name = ...)` is not a Java identifier |
+| [`cannot be reached from 'p'`](#generatepathbridge-on-x-the-signature-names-y-which-cannot-be-reached-from-p) | Under `targetPackage`, part of the signature is not visible there |
+| [`no @PathVia method was found`](#generatepathbridge-no-pathvia-method-was-found-among-xs-members-a-warning) | **Warning.** The interface has nothing to bridge |
+
+**From javac, on code you wrote** ([Focus DSL chains](#focus-dsl-chains), [Free Monad](#free-monad-dsl-programs)):
+
+| The message says | What it means |
+|------------------|---------------|
+| [ambiguity, or `Object` turning up in a long chain](#traverseover-and-the-higher-kinded-witness-type) | `traverseOver`'s witness type is not pinned |
+| [`Incompatible types`, after `.each().via()`](#incompatible-types-when-chaining-eachvia) | Usually one `.each()` too many |
+| [`Cannot infer type argument(s)`](#cannot-infer-type-arguments-on-an-intermediate-each) | Only the final `each()` in a chain can infer its element type |
+| [`::new` rejected as a `BiFunction`](#method-reference-new-doesnt-work-with-single-field-records-as-bifunction) | A single-component record has no two-argument constructor |
+| [`Sealed or non-sealed local classes are not allowed`](#sealed-or-non-sealed-local-classes-are-not-allowed) | A sealed interface is declared inside a method body |
+| [`Cannot resolve method 'flatMap(...)'`](#cannot-resolve-method-flatmapfunction) | Two `Free` witness types are being mixed |
+| [`Free<F, A> cannot be converted to A`](#type-mismatch-freef-a-cannot-be-converted-to-a) | The program was never handed to an interpreter |
+
+---
+
+## Where the message came from
+
+Three different things can reject your code, and knowing which one spoke narrows the search:
+
+```mermaid
+flowchart TD
+    D["Your declaration<br/>@Generate*, or a spec interface"]
+    P{"Does the processor<br/>accept it?"}
+    R["Refused at your declaration.<br/>Most of this page"]
+    G["Generated file written"]
+    J{"Does javac accept<br/>the generated file?"}
+    JG["cannot find symbol,<br/>inside a class you did not write"]
+    C{"Does javac accept<br/>your call site?"}
+    CC["Focus DSL chain and<br/>Free Monad errors"]
+    OK(["Builds"])
+
+    D --> P
+    P -->|no| R
+    P -->|yes| G
+    G --> J
+    J -->|no| JG
+    J -->|yes| C
+    C -->|yes| OK
+    C -->|no| CC
+
+    classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef error fill:#e78284,stroke:#d20f39,color:#232634
+    classDef ok fill:#a6d189,stroke:#40a02b,color:#232634
+    class D,G step
+    class P,J,C decision
+    class R,JG,CC error
+    class OK ok
+```
+
+Most of this page is the first branch. The processor reads your declaration, finds a shape it cannot write code for, and says so where you wrote it. Those messages name the element they rejected, so reading the processor's own output first is quicker than working backwards from a `cannot find symbol` further down the build.
+
+A `cannot find symbol: class XLenses` sits outside the diagram altogether: it means the processor never ran.
 
 ---
 
@@ -17,15 +140,18 @@ This page is for the moment a build fails and you want to know what the message 
 
 ### "cannot find symbol: class XLenses"
 
-**Cause.** The annotation processor has not run yet, or the IDE has not picked up the generated sources directory.
+The annotation processor has not run yet, or the IDE has not picked up the generated sources directory.
 
 **Fix.** Run a build (`./gradlew build` or `mvn compile`). After the build completes, refresh the project in your IDE so it indexes `build/generated/sources/annotationProcessor/java/main` (Gradle) or `target/generated-sources/annotations` (Maven).
-
 ### "@GenerateLenses: can only be applied to records, but 'Foo' is a class"
 
-**Cause.** `@GenerateLenses`, `@GenerateFocus`, `@GenerateFolds`, `@GenerateGetters`, `@GenerateSetters` and `@GenerateTraversals` only apply to records. The annotations target `TYPE`, so javac itself is happy; the message comes from the processor. The wording varies: `@GenerateLenses` and `@GenerateFocus` name the offending type, while the others emit the shorter "The @GenerateTraversals annotation can only be applied to records."
+`@GenerateLenses`, `@GenerateFocus`, `@GenerateFolds`, `@GenerateGetters`, `@GenerateSetters` and `@GenerateTraversals` only apply to records.
 
 **Fix.** Convert the class to a record. If the type is third-party and you cannot change it, use [`@ImportOptics`](importing_optics.md) on a `package-info.java` or a spec interface instead.
+
+~~~admonish note title="Why" collapsible=true
+The annotations target `TYPE`, so javac itself is happy; the message comes from the processor. The wording varies: `@GenerateLenses` and `@GenerateFocus` name the offending type, while the others emit the shorter "The @GenerateTraversals annotation can only be applied to records."
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "can only be applied to records" -->
@@ -37,7 +163,7 @@ class Order {}
 
 ### "The @GeneratePrisms annotation can only be applied to sealed interfaces or enums."
 
-**Cause.** `@GeneratePrisms` requires a `sealed interface` or an `enum`. A sealed *abstract class* is rejected too, despite being sealed, because the processor tests the element kind rather than the modifier.
+`@GeneratePrisms` requires a `sealed interface` or an `enum`. A sealed *abstract class* is rejected too, despite being sealed, because the processor tests the element kind rather than the modifier.
 
 **Fix.** Make the type a sealed interface and declare its `permits` clause, or convert it to an enum.
 
@@ -55,11 +181,15 @@ abstract class Payment {}
 
 ### "@GenerateIsos: the iso returned by 'x' names a type variable"
 
-**Cause.** One of the returned `Iso`'s two type arguments is, or contains, a type variable — `<T> Iso<Box<T>, T> boxIso()`, or an instance method of a `Holder<X>` returning `Iso<Box<X>, X>`. What gets generated is a `public static final` field, and a field has nowhere to declare one, so it would name a variable nothing brings into scope.
-
-Note this is about what the *iso* names, not what the method declares: `<T> Iso<Box, String> boxIso()` is fine, because `T` is inferred at the call and never reaches the field's type.
+One of the returned `Iso`'s two type arguments is, or contains, a type variable. Both `<T> Iso<Box<T>, T> boxIso()` and an instance method of a `Holder<X>` returning `Iso<Box<X>, X>` do this.
 
 **Fix.** Give the iso concrete type arguments where the method is declared (`Iso<Box<String>, String>`), or drop `@GenerateIsos` and call the method directly.
+
+~~~admonish note title="Why" collapsible=true
+What gets generated is a `public static final` field, and a field has nowhere to declare one, so it would name a variable nothing brings into scope.
+
+Note this is about what the *iso* names, not what the method declares: `<T> Iso<Box, String> boxIso()` is fine, because `T` is inferred at the call and never reaches the field's type.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "names a type variable" -->
@@ -78,7 +208,7 @@ final class BoxIsos {
 
 ### "@GenerateIsos: 'x' is not static"
 
-**Cause.** The annotated method is an instance method. The generated field initialises itself with a static call, and there is no instance to make it on.
+The annotated method is an instance method. The generated field initialises itself with a static call, and there is no instance to make it on.
 
 **Fix.** Make the method `static`.
 
@@ -99,7 +229,7 @@ final class PointIsos {
 
 ### "@GenerateIsos: 'x' takes parameters"
 
-**Cause.** The generated field initialises itself by calling the method with no arguments, and there is nothing for it to pass.
+The annotated method takes arguments. The generated field initialises itself by calling the method with none, and there is nothing for it to pass.
 
 **Fix.** Take the arguments away, or drop `@GenerateIsos` and call the method directly.
 
@@ -120,7 +250,7 @@ final class PointIsos {
 
 ### "@GenerateIsos: 'x' does not return an Iso with both type arguments"
 
-**Cause.** The generated field is typed from the two arguments of the returned `Iso`. A `void`, primitive, array, raw or non-`Iso` return has nothing to read them off.
+The method returns a `void`, a primitive, an array, a raw `Iso`, or something that is not an `Iso` at all. The generated field is typed from the two arguments of the returned `Iso`, and none of those carries them.
 
 **Fix.** Return `Iso<S, A>` naming both, as `Iso<Point, Tuple2<Integer, Integer>>`.
 
@@ -139,7 +269,7 @@ final class PointIsos {
 
 ### "@GenerateIsos: 'x' cannot be reached from 'p'"
 
-**Cause.** The generated class lives in package `p` and calls the method from there, but the method — or a type enclosing it — is `private`, `protected` or package-private somewhere else. Most often seen with `targetPackage`.
+The generated class lives in package `p` and calls the method from there, but the method, or a type enclosing it, is `private`, `protected` or package-private somewhere else. Most often seen with `targetPackage`.
 
 **Fix.** Make the method and its enclosing types public, or generate into the package they are already visible from.
 
@@ -158,9 +288,13 @@ final class LengthIsos {
 
 ### "@GenerateFocus: record component 'X.y' has a wildcard type argument in Set<? extends T>"
 
-**Cause.** Also reported as *"has a raw Set"*, and for `Collection`, `Map`, `Either`, `Try` and every other container the processor widens through an optic **instance**. That instance — `EachInstances.setEach()`, `Affines.eitherRight()` — has its own type arguments inferred from the component's type, and a raw container offers none to infer from while a wildcard has no ground instantiation. `Optional`, `Maybe` and `List` are exempt: they widen through the no-argument `.some()` and `.each()`, whose free type variable takes either without complaint.
+A container that the processor widens through an optic **instance** is declared raw, or with a wildcard type argument. The same error covers `Set`, `Collection`, `Map`, `Either`, `Try` and every other such container, and is also reported as *"has a raw Set"*.
 
-**Fix.** Name the type argument — `Set<Leaf>` rather than `Set<? extends Leaf>` — or drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. See [Custom Containers](focus_containers.md#supported-container-types).
+**Fix.** Name the type argument, `Set<Leaf>` rather than `Set<? extends Leaf>`, or drop `@GenerateFocus` from the record and keep `@GenerateLenses` and `@GenerateTraversals`, which compose no optic instance and take the component as written. See [Custom Containers](focus_containers.md#supported-container-types).
+
+~~~admonish note title="Why" collapsible=true
+That instance, `EachInstances.setEach()` or `Affines.eitherRight()`, has its own type arguments worked out from the component's type. A raw container gives javac nothing to work from, and a wildcard stands for no one type. `Optional`, `Maybe` and `List` are exempt: they widen through the no-argument `.some()` and `.each()`, whose element type is free to be whatever the field says.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has a wildcard type argument" -->
@@ -172,13 +306,17 @@ record Bag<T>(Set<? extends T> items) {}
 
 ### "@GenerateTraversals: no traversal was generated for component 'X.y' of type `Deque<T>`" (a note)
 
-**Cause.** `@GenerateTraversals` asks the `TraversableGenerator` SPI for each record component, and no generator on the annotation processor path claimed this one. The component unmistakably holds elements — it is a `java.util.Collection` or a `java.util.Map` by erasure — so not generating for it is a gap rather than the expected outcome, and the generated class would otherwise compile with the method silently missing. The second sentence names the unsupported type (`No TraversableGenerator on the annotation processor path supports Deque`). The same note is raised, with a different second sentence, for a container a generator *did* claim but cannot read: a raw `List` or `Set` "is written without a type argument, so there is no element type to focus", and a generator whose focused type argument the type does not have says which argument it wanted.
+`@GenerateTraversals` asks the `TraversableGenerator` SPI for each record component, and no generator on the annotation processor path claimed this one.
 
-A component that is not a container at all — a `String`, an `int`, a `java.nio.file.Path` (which implements `Iterable`, and is why a bare `Iterable` is not the bar) — is passed over without comment.
+**Fix.** Declare the component as a container a generator supports: `List`, `Set`, `Collection`, `Map`, `Optional`, an array, or a type one of the [generator plugins](../tooling/generator_plugins.md) covers. For a raw container, give it its element type. For a third-party type, put a `TraversableGenerator` for it on the annotation processor path. A mixed record, one supported container beside one unsupported, keeps the traversals it can have and carries the note for the one it cannot; the note is the reminder, not a gate. A record that wants no traversal for any of its components should not carry `@GenerateTraversals` at all; `@GenerateLenses` on its own still gives every component a lens.
+
+~~~admonish note title="Why" collapsible=true
+The component unmistakably holds elements, being a `java.util.Collection` or a `java.util.Map` by erasure. Not generating for it is a gap rather than the expected outcome, and the generated class would otherwise compile with the method silently missing. The second sentence names the unsupported type (`No TraversableGenerator on the annotation processor path supports Deque`). The same note is raised, with a different second sentence, for a container a generator *did* claim but cannot read: a raw `List` or `Set` "is written without a type argument, so there is no element type to focus", and a generator whose focused type argument the type does not have says which argument it wanted.
+
+A component that is not a container at all is passed over without comment: a `String`, an `int`, or a `java.nio.file.Path`, which implements `Iterable` and is why a bare `Iterable` is not the bar.
 
 It is a note rather than a warning on purpose. `@GenerateTraversals` has no per-component opt-out, and a processor warning cannot be suppressed, so a warning would have failed every `-Werror` build with no remedy short of changing the record. A note shows in the compiler output as `Note: ...` and fails nothing.
-
-**Fix.** Declare the component as a container a generator supports: `List`, `Set`, `Collection`, `Map`, `Optional`, an array, or a type one of the [generator plugins](../tooling/generator_plugins.md) covers. For a raw container, give it its element type. For a third-party type, put a `TraversableGenerator` for it on the annotation processor path. A mixed record — one supported container beside one unsupported — keeps the traversals it can have and carries the note for the one it cannot; the note is the reminder, not a gate. A record that wants no traversal for any of its components should not carry `@GenerateTraversals` at all; `@GenerateLenses` on its own still gives every component a lens.
+~~~
 
 ~~~admonish example title="A declaration that draws it" collapsible=true
 <!-- verify:reports "no traversal was generated for component" -->
@@ -190,17 +328,25 @@ record Pending(Deque<String> queue) {}
 
 ### "Multiple TraversableGenerator SPI providers with equal priority (N) support type X" (a warning)
 
-**Cause.** Two generators on the annotation processor path both claim the type, and neither outranks the other: `supports()` answers true from both at the same `priority()`. Selection is still deterministic, the first registered wins, but which one that is depends on registration order alone, which is what the warning points out. The same warning is raised whichever annotation asks: `@GenerateTraversals`, `@GenerateFocus` widening or `@ImportOptics`.
+Two generators on the annotation processor path both claim the type, and neither outranks the other: `supports()` answers true from both at the same `priority()`.
 
 **Fix.** Rank one of the providers: return `PRIORITY_OVERRIDE` from the one that should win, or `PRIORITY_FALLBACK` from the one that should yield, or drop one from the annotation processor path. The message names both provider classes. A consuming build running javac with `-Werror` turns the warning into an error, so the ranking is the remedy, not optional tidiness. See [How Plugin Discovery Works](../tooling/generator_plugins.md#how-plugin-discovery-works).
 
+~~~admonish note title="Why" collapsible=true
+Selection is still deterministic, the first registered wins, but which one that is depends on registration order alone, which is what the warning points out. The same warning is raised whichever annotation asks: `@GenerateTraversals`, `@GenerateFocus` widening or `@ImportOptics`.
+~~~
+
 ### "@TraverseField: the annotation on record component 'X.y' is not applied" (a note)
 
-**Cause.** `@TraverseField` names a `Traverse` for a `Kind<F, A>` component with a declared witness, and this component is not one. The second sentence says which way: the component is not declared as a `Kind` at all (`List<String> is not declared as a Kind<F, A> component`), the `Kind` is written raw and so names neither a witness nor an element, its witness is a bare or `? super` wildcard (`Kind<?, String>`) that stands for no type and so names no `Traverse` instance, or its witness is one of the record's own type variables (`Kind<F, String>` in a `Holder<F>`, or `Kind<? extends F, String>`, whose wildcard resolves to `F`), which stands for any witness, while a `Traverse` is written for one. The component keeps the path it would have had without the annotation, a plain `FocusPath`, or `.each()` for a `List`, which compiles and is correct as far as it goes; what is missing is the traversal the annotation asked for.
-
-It is a note rather than an error because nothing is broken: the generated class is sound, and the same declaration without the annotation passes without comment. A warning cannot be suppressed and would fail a `-Werror` build with no remedy short of editing the record.
+`@TraverseField` names a `Traverse` for a `Kind<F, A>` component with a declared witness, and this component is not one.
 
 **Fix.** Declare the component as the `Kind<F, A>` the `Traverse` is written for, `Kind<TreeKind.Witness, Tree>` for a `Traverse<TreeKind.Witness>`, with both type arguments given and a witness that is a type rather than a bare or `? super` wildcard, a type variable of the record, or a wildcard bounded by one; or drop the annotation and take the path the component gets on its own, applying `traverseOver` yourself where the witness is known. See [Custom `Kind` Types with `@TraverseField`](kind_field_support.md#custom-kind-types-with-traversefield).
+
+~~~admonish note title="Why" collapsible=true
+The second sentence says which way: the component is not declared as a `Kind` at all (`List<String> is not declared as a Kind<F, A> component`), the `Kind` is written raw and so names neither a witness nor an element, its witness is a bare or `? super` wildcard (`Kind<?, String>`) that stands for no type and so names no `Traverse` instance, or its witness is one of the record's own type variables (`Kind<F, String>` in a `Holder<F>`, or `Kind<? extends F, String>`, whose wildcard resolves to `F`), which stands for any witness, while a `Traverse` is written for one. The component keeps the path it would have had without the annotation, a plain `FocusPath`, or `.each()` for a `List`, which compiles and is correct as far as it goes; what is missing is the traversal the annotation asked for.
+
+It is a note rather than an error because nothing is broken: the generated class is sound, and the same declaration without the annotation passes without comment. A warning cannot be suppressed and would fail a `-Werror` build with no remedy short of editing the record.
+~~~
 
 ~~~admonish example title="A declaration that draws it" collapsible=true
 <!-- verify:reports "the annotation on record component 'Inbox.messages' is not applied" -->
@@ -214,9 +360,13 @@ record Inbox(
 
 ### "@GenerateFocus: record component 'X.y' names a witness the processor does not recognise" (a note)
 
-**Cause.** The component is a `Kind<F, A>` whose witness is one of Higher-Kinded-J's own, but not one the Focus processor has a `Traverse` registered for, so nothing widens it: the generated method is a plain `FocusPath` focusing the `Kind`. A witness of your own draws no note, since not traversing it is an ordinary choice; a library witness with no registered `Traverse` is a gap you would want to hear about. The note is written once for the component, however many navigators reach the record.
+The component is a `Kind<F, A>` whose witness is one of Higher-Kinded-J's own, but not one the Focus processor has a `Traverse` registered for. Nothing widens it, so the generated method is a plain `FocusPath` focusing the `Kind`.
 
 **Fix.** Add `@TraverseField` naming the `Traverse` instance for the witness, or keep the plain path and apply `traverseOver` yourself. See [Kind Field Support](kind_field_support.md#convention-based-detection).
+
+~~~admonish note title="Why" collapsible=true
+A witness of your own draws no note, since not traversing it is an ordinary choice; a library witness with no registered `Traverse` is a gap you would want to hear about. The note is written once for the component, however many navigators reach the record.
+~~~
 
 ~~~admonish example title="A declaration that draws it" collapsible=true
 <!-- verify:reports "names a witness the processor does not recognise" -->
@@ -232,7 +382,7 @@ record Batch(Kind<NonEmptyListKind.Witness, String> items) {}
 
 ### "@ImportOptics: Lens method 'x' carries no copy strategy annotation"
 
-**Cause.** A method on an `OpticsSpec` interface returning `Lens<S, A>` carries none of those four hints, so the processor has no way to know how the external type rebuilds itself.
+A method on an `OpticsSpec` interface returns `Lens<S, A>` but carries none of `@Wither`, `@ViaConstructor`, `@ViaCopyAndSet` or `@ViaBuilder`, so the processor has no way to know how the external type rebuilds itself.
 
 **Fix.** Add the appropriate hint based on how the source type is copied. See [Optics for External Types](importing_optics.md) and [Database Records with JOOQ](copy_strategies.md) for the full strategy table.
 
@@ -256,7 +406,7 @@ interface SessionOpticsSpec extends OpticsSpec<Session> {
 
 ### "'XOpticsSpec.foo' is a default method"
 
-**Cause.** A spec interface declares a `default` method. A method body cannot be read during annotation processing, so there is nothing for the generated class to carry.
+A spec interface declares a `default` method. A method body cannot be read during annotation processing, so there is nothing for the generated class to carry.
 
 **Fix.** Keep the spec interface to annotated abstract methods. Composed optics belong in a `static` method on the interface, or in an ordinary utility class; either one calls the generated statics by name, for example `JsonNodeOptics.object().andThen(...)`.
 
@@ -282,11 +432,14 @@ interface SessionOpticsSpec extends OpticsSpec<Session> {
 
 ### "'XOpticsSpec' declares `OpticsSpec<S>`, which is a type variable"
 
-**Cause.** The spec interface is generic, and its own type parameter is the source type: `interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S>`. Optics are generated against one named type, read for its members and rebuilt through its constructor, wither or setter, so a type parameter standing for whatever a caller picks has nothing to generate from. An array source type produces the same diagnostic with a different opening, `declares OpticsSpec<String[]>, which is an array type`, and the same remedy.
+The spec interface is generic, and its own type parameter is the source type: `interface BoxOpticsSpec<S extends Box> extends OpticsSpec<S>`.
 
 **Fix.** Name the type the optics are for as the type argument, with its own type arguments where it has any: `OpticsSpec<Box>`. Where the bound names a single type that is not raw, the message suggests it for you.
-
 A source type that is itself generic is supported, and the spec names its own type parameters: `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>` generates `static <U> Lens<Box<U>, String> label()`. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces) for which parameters a generated method declares. It is only a bare type variable, standing for the whole source type, that has no source to read.
+
+~~~admonish note title="Why" collapsible=true
+Optics are generated against one named type, read for its members and rebuilt through its constructor, wither or setter, so a type parameter standing for whatever a caller picks has nothing to generate from. An array source type produces the same diagnostic with a different opening, `declares OpticsSpec<String[]>, which is an array type`, and the same remedy.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which is a type variable" -->
@@ -304,9 +457,13 @@ interface SessionOpticsSpec<S extends Session> extends OpticsSpec<S> {
 
 ### "'XOpticsSpec' declares `OpticsSpec<Box>`, which names the raw type 'Box'"
 
-**Cause.** The source type names a generic type without its arguments. Every generated optic repeats the source type verbatim, so the generated file, which you cannot edit, would carry a `[rawtypes]` warning that the `@SuppressWarnings` on your own spec does not cover, and a `@ViaConstructor` rebuild read under a raw type erases its parameters into an `[unchecked]` call besides. Three shapes draw the error: the source type itself written bare (`OpticsSpec<Box>` for a `Box<X>`), a member type behind a generic outer written bare (`OpticsSpec<Outer.Holder>`, raw by JLS 4.8 even though `Holder` declares nothing of its own), and a raw type argument (`OpticsSpec<Box<List>>`). Raw is not the same as bare: a non-generic source type, or a static nested type of a generic outer, has no arguments to supply and is accepted as written.
+The source type names a generic type without its arguments.
 
 **Fix.** Name the raw type's arguments in the `OpticsSpec` clause: `OpticsSpec<Box<String>>`, `OpticsSpec<Outer<String>.Holder>`, `OpticsSpec<Box<List<String>>>`. A spec whose optics should stay generic declares its own type parameters and passes them on, `interface BoxOpticsSpec<U> extends OpticsSpec<Box<U>>`, as above. See [Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces).
+
+~~~admonish note title="Why" collapsible=true
+Every generated optic repeats the source type verbatim, so the generated file, which you cannot edit, would carry a `[rawtypes]` warning that the `@SuppressWarnings` on your own spec does not cover, and a `@ViaConstructor` rebuild read under a raw type erases its parameters into an `[unchecked]` call besides. Three shapes draw the error: the source type itself written bare (`OpticsSpec<Box>` for a `Box<X>`), a member type behind a generic outer written bare (`OpticsSpec<Outer.Holder>`, raw by JLS 4.8 even though `Holder` declares nothing of its own), and a raw type argument (`OpticsSpec<Box<List>>`). Raw is not the same as bare: a non-generic source type, or a static nested type of a generic outer, has no arguments to supply and is accepted as written.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which names the raw type 'Box'" -->
@@ -329,9 +486,13 @@ interface BoxOpticsSpec extends OpticsSpec<Box> {
 
 ### "@ThroughField: '...' reaches field 'items', which is declared as `ArrayList<String>` rather than as the List interface"
 
-**Cause.** `@ThroughField` auto-detects the traversal from the focus of the spec's own lens for the field (the lens the generated traversal composes with), for a focus of `List`, `Set`, `Collection`, `Map`, `Optional` or a reference-type array, and the match is on the interface itself. The type the message names is that lens focus. Each standard traversal promises no more than the interface type (`Traversals.forList()` hands back an unmodifiable `List`), and the composed optic writes that value back into the field through the lens; a field declared as something narrower, a concrete container (`ArrayList`, `HashSet`, `TreeMap`) or another interface (`Deque`, `SortedSet`), cannot take it, so the generated traversal would throw `ClassCastException` on first use, on a read as well as a write. The message names the interface the field's type implements. An array of a primitive (`int[]`) draws the sibling message: the array traversal walks an `Object[]`, which an `int[]` is not.
+The spec's own lens for the field focuses something narrower than a container interface: a concrete container such as `ArrayList`, or another interface such as `Deque`. Auto-detection matches `List`, `Set`, `Collection`, `Map`, `Optional` and reference-type arrays, on the interface itself.
 
 **Fix.** Name a traversal that rebuilds the declared type, `Traversals.forIterableCollecting(ArrayList::new)` for a list-shaped container or `Traversals.forMapValuesCollecting(TreeMap::new)` for a map, exposed as a static method and named fully qualified: `@ThroughField(field = "items", traversal = "com.example.MyTraversals.forArrayList()")`. Where the type is yours, declaring the field as the interface (`List<String>`) is the simpler route. See [`@ThroughField` auto-detection](copy_strategies.md#throughfield-auto-detection).
+
+~~~admonish note title="Why" collapsible=true
+The type the message names is that lens focus. Each standard traversal promises no more than the interface type (`Traversals.forList()` hands back an unmodifiable `List`), and the composed optic writes that value back into the field through the lens; a field declared as something narrower, a concrete container (`ArrayList`, `HashSet`, `TreeMap`) or another interface (`Deque`, `SortedSet`), cannot take it, so the generated traversal would throw `ClassCastException` on first use, on a read as well as a write. The message names the interface the field's type implements. An array of a primitive (`int[]`) draws the sibling message: the array traversal walks an `Object[]`, which an `int[]` is not.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "rather than as the List interface" -->
@@ -361,7 +522,7 @@ interface ShelfOpticsSpec extends OpticsSpec<Shelf> {
 
 ### "@ThroughField: '...' composes through a lens named 'items', which the spec does not declare"
 
-**Cause.** A `@ThroughField` traversal is generated as the spec's own lens for the field composed with the container traversal, `Spec.items().andThen(...)`, so the spec has to declare `Lens<S, F> items()` alongside it (with its copy strategy). Without one the generated file could only fail with `cannot find symbol`, so the processor refuses the declaration instead.
+A `@ThroughField` traversal is generated as the spec's own lens for the field composed with the container traversal, `Spec.items().andThen(...)`. The spec has to declare that `Lens<S, F> items()` alongside it, with its copy strategy, and this one does not. Without the lens the generated file could only fail with `cannot find symbol`, so the processor refuses the declaration instead.
 
 **Fix.** Declare the lens method for the field on the spec, or use `@TraverseWith` to name a traversal over the source type that stands on its own.
 
@@ -386,9 +547,13 @@ interface ShelfOpticsSpec extends OpticsSpec<Shelf> {
 
 ### "@ThroughField: '...' declares focus 'Integer' over field 'items' of type `List<String>`, whose elements the standard traversal hands back as 'String'"
 
-**Cause.** The method's declared focus must contain what the auto-detected traversal hands back: the container's elements, a `Map`'s values, an `Optional`'s element, or `Object` where the element sits behind a super- or unbounded wildcard. A focus that does not contain that type could only compile through a cast, throwing `ClassCastException` on the caller's first `getAll` or `modify` where it narrows, and letting ill-typed writes into the container where it widens. Containment, not sameness: a wildcard focus over the element (`? extends CharSequence` over `CharSequence` elements, or its element's supertype bound) stays accepted, and an extends-wildcard element is held to its bound (`List<? extends CharSequence>` hands back `CharSequence`).
+The method's declared focus does not contain what the auto-detected traversal hands back. That is the container's elements, a `Map`'s values, an `Optional`'s element, or `Object` where the element sits behind a super- or unbounded wildcard.
 
 **Fix.** Declare the focus as the type the message names, or name a traversal of your own with `@ThroughField(field = "items", traversal = "...")`, which is the author's undertaking that it rebuilds the declared shape.
+
+~~~admonish note title="Why" collapsible=true
+A focus that does not contain that type could only compile through a cast, throwing `ClassCastException` on the caller's first `getAll` or `modify` where it narrows, and letting ill-typed writes into the container where it widens. Containment, not sameness: a wildcard focus over the element (`? extends CharSequence` over `CharSequence` elements, or its element's supertype bound) stays accepted, and an extends-wildcard element is held to its bound (`List<? extends CharSequence>` hands back `CharSequence`).
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "hands back as 'String'" -->
@@ -418,7 +583,7 @@ interface ShelfOpticsSpec extends OpticsSpec<Shelf> {
 
 ### "@InstanceOf target 'com.example.Foo' is not a subtype of source type 'com.example.Base'"
 
-**Cause.** The class passed to `@InstanceOf(SubType.class)` is not a subclass of the optic's source type.
+The class passed to `@InstanceOf(SubType.class)` is not a subclass of the optic's source type.
 
 **Fix.** Verify that `SubType` extends or implements the spec's `<S>` parameter. If you are working with sum types that don't use a sealed hierarchy (such as Jackson's pre-3.x `JsonNode`), use `@MatchWhen` with predicate and getter method names instead.
 
@@ -442,9 +607,13 @@ interface PaymentOpticsSpec extends OpticsSpec<Payment> {
 
 ### "@InstanceOf: '...' declares its focus as `Circle<T>`, which the test cannot narrow to"
 
-**Cause.** The prism promises a type argument the test cannot check. `@InstanceOf` takes a class constant, which is raw, and the generated `instanceof` runs after erasure, so the only arguments the narrowed value is known to have are the ones the source type pins down. `class Circle<X> extends Shape` reached from a `Shape` that declares no parameters pins none: every instantiation passes the same test, and a `Prism<Shape, Circle<T>>` would hand any of them back as the `T` the caller asked for, to fail on the first read.
+The prism promises a type argument the test cannot check.
 
-**Fix.** Declare the focus as `Circle<?>`, which is what the test earns, or narrow through a predicate and getter of the source type with `@MatchWhen`, which reads the argument off the source rather than inventing it. Where the source type does carry the argument — `Circle<X> implements Shape<X>`, reached from `Shape<T>` — the prism may promise it, and the generated test names it. See [Spec Interfaces](optics_spec_interfaces.md#parameterised-targets).
+**Fix.** Declare the focus as `Circle<?>`, which is what the test earns, or narrow through a predicate and getter of the source type with `@MatchWhen`, which reads the argument off the source rather than inventing it. Where the source type does carry the argument, as in a `Circle<X> implements Shape<X>` reached from `Shape<T>`, the prism may promise it and the generated test names it. See [Spec Interfaces](optics_spec_interfaces.md#parameterised-targets).
+
+~~~admonish note title="Why" collapsible=true
+`@InstanceOf` takes a class constant, which is raw, and the generated `instanceof` runs after erasure, so the only arguments the narrowed value is known to have are the ones the source type pins down. `class Circle<X> extends Shape` reached from a `Shape` that declares no parameters pins none: every instantiation passes the same test, and a `Prism<Shape, Circle<T>>` would hand any of them back as the `T` the caller asked for, to fail on the first read.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which the test cannot narrow to" -->
@@ -464,9 +633,13 @@ interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
 
 ### "@InstanceOf: '...' names '...', which carries type parameters of its own and is a member of a generic type"
 
-**Cause.** The test has to name the type it checks, and `Outer<X>.Inner<Y>` cannot be written with its own type arguments unless the enclosing type is written with its — which an `instanceof` cannot do. The remaining `Outer.Inner` is raw: it checks nothing about `Y`, and it is a `rawtypes` warning in the consuming build besides. A member of a *non-generic* type is unaffected, since `Outer.Inner<Y>` names itself perfectly well.
+The test has to name the type it checks, and an `instanceof` cannot write `Outer<X>.Inner<Y>`. Naming `Inner`'s type arguments would mean naming the enclosing type's as well, which `instanceof` does not allow.
 
 **Fix.** Declare the member `static`, so it can be named on its own, or narrow through a predicate and getter with `@MatchWhen`.
+
+~~~admonish note title="Why" collapsible=true
+The remaining `Outer.Inner` is raw: it checks nothing about `Y`, and it is a `rawtypes` warning in the consuming build besides. A member of a *non-generic* type is unaffected, since `Outer.Inner<Y>` names itself perfectly well.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "carries type parameters of its own and is a member of a generic type" -->
@@ -489,9 +662,13 @@ interface NodeOpticsSpec<U> extends OpticsSpec<Node<U>> {
 
 ### "@InstanceOf: '...' narrows to '...', which is not a '...'"
 
-**Cause.** The class the annotation names is not one the prism's focus type accepts. Either the two are unrelated, or the source type pins the target's argument to something the focus does not agree with: `OpticsSpec<Node<String>>` narrowed to `Leaf` can only be a `Leaf<String>`, whatever a `Prism<Node<String>, Leaf<U>>` says.
+The class the annotation names is not one the prism's focus type accepts.
 
-**Fix.** Name the class the focus declares, or declare the focus as a supertype of the narrowed type. A prism whose focus is deliberately wider than the test — `@InstanceOf(ArrayList.class) Prism<Collection<T>, List<T>>` — is fine; it is only a focus the narrowed value cannot be assigned to that is rejected.
+**Fix.** Name the class the focus declares, or declare the focus as a supertype of the narrowed type. A prism whose focus is deliberately wider than the test is fine, as in `@InstanceOf(ArrayList.class) Prism<Collection<T>, List<T>>`; it is only a focus the narrowed value cannot be assigned to that is rejected.
+
+~~~admonish note title="Why" collapsible=true
+Either the two are unrelated, or the source type pins the target's argument to something the focus does not agree with: `OpticsSpec<Node<String>>` narrowed to `Leaf` can only be a `Leaf<String>`, whatever a `Prism<Node<String>, Leaf<U>>` says.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "narrows to 'Card', which is not a 'Cash'" -->
@@ -513,9 +690,9 @@ interface PaymentOpticsSpec extends OpticsSpec<Payment> {
 
 ### "@ViaCopyAndSet: copyConstructor names '...', which does not resolve to a type"
 
-**Cause.** `copyConstructor` is a plain string, resolved as a fully qualified class name only: it is not read against the spec interface's imports, and it takes no type arguments.
+`copyConstructor` is a plain string, resolved as a fully qualified class name only: it is not read against the spec interface's imports, and it takes no type arguments.
 
-**Fix.** Give the class's fully qualified name (`com.example.BaseConfig`; a nested class is `com.example.Outer.Base`), the class alone without type arguments — the processor supplies those from the source type's own `extends` clause. Drop the attribute to pass the source unchanged.
+**Fix.** Give the class's fully qualified name (`com.example.BaseConfig`; a nested class is `com.example.Outer.Base`), the class alone without type arguments, since the processor supplies those from the source type's own `extends` clause. Drop the attribute to pass the source unchanged.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which does not resolve to a type" -->
@@ -533,7 +710,7 @@ interface EndpointOpticsSpec extends OpticsSpec<Endpoint> {
 
 ### "@ViaCopyAndSet: copyConstructor names '...', which 'S' does not extend or implement"
 
-**Cause.** The generated setter passes the source to the copy constructor as `(ParameterType) source`, so only a supertype of `S` can be named there.
+The generated setter passes the source to the copy constructor as `(ParameterType) source`, so only a supertype of `S` can be named there.
 
 **Fix.** Name a class or interface `S` extends or implements, or drop the attribute.
 
@@ -551,15 +728,18 @@ interface EndpointOpticsSpec extends OpticsSpec<Endpoint> {
 
 ### "@ViaCopyAndSet: copyConstructor names '...', which is not public and so cannot be named from '...'"
 
-**Cause.** The generated optics class has to write the cast, so it has to be able to name the type. A package-private supertype is invisible from the package the optics class is generated into, even though `new S(source)` — which never names it — would have compiled.
+The generated optics class has to write the cast, so it has to be able to name the type. A package-private supertype is invisible from the package the optics class is generated into, even though `new S(source)`, which never names it, would have compiled.
 
 **Fix.** Name a public supertype, generate into that package with `@ImportOptics(targetPackage = ...)`, or drop the attribute.
-
 ### "@ViaCopyAndSet: copyConstructor names '...', which '...' reaches as '...', and no constructor accepts"
 
-**Cause.** The name is a genuine supertype, but no single-argument constructor of `S` takes the type `S` actually reaches it as — `java.lang.Object` and marker interfaces such as `Serializable` reach this often. The message names both the type you gave and the one `S` reaches, which differ when `S`'s own `extends` clause pins the arguments: `class PNode<X> extends PBase<String>` reaches `PBase` as `PBase<String>`, whatever `X` is.
+The name is a genuine supertype, but no single-argument constructor of `S` takes the type `S` actually reaches it as. `java.lang.Object` and marker interfaces such as `Serializable` reach this often.
 
-**Fix.** Name a supertype of `S` that one of the listed constructors takes, as the class alone without type arguments, or drop the attribute. The list carries type arguments and the attribute does not, so read it to recognise your supertype in it rather than to copy from it — and a listed type that is not a supertype of `S` cannot be named at all. The attribute is only needed when the copy constructor is overloaded — see [Copy Strategies](copy_strategies.md#viacopyandset-legacy-types-with-a-copy-constructor-and-setters).
+**Fix.** Name a supertype of `S` that one of the listed constructors takes, as the class alone without type arguments, or drop the attribute. The list carries type arguments and the attribute does not, so read it to recognise your supertype in it rather than to copy from it, and a listed type that is not a supertype of `S` cannot be named at all. The attribute is only needed when the copy constructor is overloaded; see [Copy Strategies](copy_strategies.md#viacopyandset-legacy-types-with-a-copy-constructor-and-setters).
+
+~~~admonish note title="Why" collapsible=true
+The message names both the type you gave and the one `S` reaches, which differ when `S`'s own `extends` clause pins the arguments: `class PNode<X> extends PBase<String>` reaches `PBase` as `PBase<String>`, whatever `X` is.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "and no constructor accepts" -->
@@ -575,9 +755,13 @@ interface EndpointOpticsSpec extends OpticsSpec<Endpoint> {
 
 ### "@ViaCopyAndSet: '...' is written with a wildcard type argument"
 
-**Cause.** The source type carries a wildcard, `OpticsSpec<Node<?>>`, and the strategy rebuilds it through a constructor. `new Node<?>(...)` is not something that can be written, whatever the arguments. `@ViaConstructor` reports the same thing for the same reason. An inner class draws the sibling message, because its constructor call needs an enclosing instance the generated class has no way to reach.
+The source type carries a wildcard, `OpticsSpec<Node<?>>`, and the strategy rebuilds it through a constructor.
 
-**Fix.** Name the type the wildcard stands for, or switch to `@Wither`, which rebuilds through a method and names no constructor — a wildcard source type is no obstacle there.
+**Fix.** Name the type the wildcard stands for, or switch to `@Wither`, which rebuilds through a method and names no constructor, so a wildcard source type is no obstacle there.
+
+~~~admonish note title="Why" collapsible=true
+`new Node<?>(...)` is not something that can be written, whatever the arguments. `@ViaConstructor` reports the same thing for the same reason. An inner class draws the sibling message, because its constructor call needs an enclosing instance the generated class has no way to reach.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is written with a wildcard type argument" -->
@@ -612,9 +796,13 @@ interface SlotOpticsSpec extends OpticsSpec<Slot<?>> {
 
 ### "@ImportOptics: '...' focuses '...', which is not a '...'"
 
-**Cause.** A prism runs both ways, and the generated one builds back with identity — it returns the value it narrowed. That is only a source when the focus is one, so a focus that is a *value* rather than a variant has no build side the processor could write: `Prism<JsonNode, String>` would need to rebuild a `JsonNode` from a bare `String`, and nothing in the declaration says how. The requirement belongs to the prism rather than to either hint, so `@InstanceOf` and `@MatchWhen` are both held to it — including an `@InstanceOf` whose narrowing is sound but reaches the focus through a supertype the source does not share, `Prism<Base, Marker>` for a `Sub implements Base, Marker`.
+A prism runs both ways, and the generated one builds back with identity: it returns the value it narrowed.
 
-**Fix.** Focus the variant that carries the value — `TextNode` rather than `String` — and read the payload with a further optic. Where the value type is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
+**Fix.** Focus the variant that carries the value, `TextNode` rather than `String`, and read the payload with a further optic. Where the value type is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
+
+~~~admonish note title="Why" collapsible=true
+That is only a source when the focus is one, so a focus that is a *value* rather than a variant has no build side the processor could write: `Prism<JsonNode, String>` would need to rebuild a `JsonNode` from a bare `String`, and nothing in the declaration says how. The requirement belongs to the prism rather than to either hint, so `@InstanceOf` and `@MatchWhen` are both held to it. That includes an `@InstanceOf` whose narrowing is sound but reaches the focus through a supertype the source does not share, `Prism<Base, Marker>` for a `Sub implements Base, Marker`.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "focuses 'String', which is not a 'Payment'" -->
@@ -645,7 +833,7 @@ interface PaymentOpticsSpec extends OpticsSpec<Payment> {
 
 ### "cannot find symbol", inside the generated `XPrisms.java`, after using `@MatchWhen`
 
-**Cause.** The processor does **not** validate the strings in `@MatchWhen(predicate = "isFoo", getter = "asFoo")`. It splices them into the generated source verbatim, so a typo surfaces as an ordinary javac error inside generated code rather than as a processor message.
+The processor does **not** validate the strings in `@MatchWhen(predicate = "isFoo", getter = "asFoo")`. It splices them into the generated source verbatim, so a typo surfaces as an ordinary javac error inside generated code rather than as a processor message.
 
 **Fix.** Check the names against the source type's API. Both methods must take no arguments; the predicate returns `boolean` and the getter returns the prism's target type.
 
@@ -669,7 +857,7 @@ interface PaymentOpticsSpec extends OpticsSpec<Payment> {
 
 ### "Prism method 'x' requires a prism hint annotation: @InstanceOf or @MatchWhen"
 
-**Cause.** A spec-interface method returning `Prism<S, A>` with neither hint.
+A spec-interface method returning `Prism<S, A>` with neither hint.
 
 **Fix.** Add `@InstanceOf` for a real subtype, or `@MatchWhen` for a check-and-extract API. The same rule applies to traversals: "Traversal method 'x' requires a traversal hint annotation: @TraverseWith or @ThroughField".
 
@@ -700,7 +888,7 @@ The bridge is a file you never wrote and cannot edit, so the errors below refuse
 
 ### "@PathVia: the return type of 'x' is 'Y', which no Path wraps"
 
-**Cause.** The method returns a type the bridge has no Path for. The bridged set is `Optional`, `Maybe`, `Either`, `Try`, `Validated` and `IO`; `CompletableFuture` is the type most often met outside it.
+The method returns a type the bridge has no Path for. The bridged set is `Optional`, `Maybe`, `Either`, `Try`, `Validated` and `IO`; `CompletableFuture` is the type most often met outside it.
 
 **Fix.** Return one of the six, or drop `@PathVia` and wrap the call by hand.
 
@@ -718,7 +906,7 @@ interface Orders {
 
 ### "@PathVia: the signature of 'x' names the raw type 'Y'"
 
-**Cause.** A generic type is written without its arguments somewhere the bridge copies verbatim: `Optional` as the return type, `Optional<List>` as its argument, `List` as a parameter. Each becomes a `[rawtypes]` warning in the generated file, and the `@SuppressWarnings` on your own declaration does not cover a file it does not appear in.
+A generic type is written without its arguments somewhere the bridge copies verbatim: `Optional` as the return type, `Optional<List>` as its argument, `List` as a parameter. Each becomes a `[rawtypes]` warning in the generated file, and the `@SuppressWarnings` on your own declaration does not cover a file it does not appear in.
 
 **Fix.** Name the type arguments: `Optional<Item>` rather than `Optional`.
 
@@ -736,11 +924,15 @@ interface Orders {
 
 ### "@PathVia: the error type of the 'Validated' returned by 'x' is the wildcard '?'"
 
-**Cause.** A `Validated` bridge names its error type twice: in the `ValidationPath` it returns, and in the `Semigroup` it asks the caller for. A wildcard is a *different* captured type at each mention, so no argument satisfies both.
-
-Only the error position is affected. `Validated<String, ? extends Number>` is fine, `Validated<List<? extends CharSequence>, String>` is fine because the wildcard is nested and denotes one type at both mentions, and so are wildcards in `Optional`, `Maybe`, `Either` and `Try` returns.
+A `Validated` bridge names its error type twice: in the `ValidationPath` it returns, and in the `Semigroup` it asks the caller for.
 
 **Fix.** Name the error type.
+
+~~~admonish note title="Why" collapsible=true
+A wildcard is a *different* captured type at each mention, so no argument satisfies both.
+
+Only the error position is affected. `Validated<String, ? extends Number>` is fine, `Validated<List<? extends CharSequence>, String>` is fine because the wildcard is nested and denotes one type at both mentions, and so are wildcards in `Optional`, `Maybe`, `Either` and `Try` returns.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is the wildcard" -->
@@ -756,11 +948,15 @@ interface Orders {
 
 ### "@PathVia: the type parameter 'T' on 'x' has the same name as 'Y's"
 
-**Cause.** The bridge declares the interface's type parameters and the method's side by side, which the delegate never does; where the names collide, the method's hides the interface's. An inherited `<T extends U>` on a `Derived<T>` would be written `<T extends T>`, and a parameter typed by the interface's `T` would silently become the method's.
-
-Only a collision the signature actually depends on is refused. `<T> Optional<T> get(T t)` on a `Derived<T>` names nothing it hides, and is generated unchanged.
+The bridge declares the interface's type parameters and the method's side by side, which the delegate never does; where the names collide, the method's hides the interface's.
 
 **Fix.** Rename the method's type parameter.
+
+~~~admonish note title="Why" collapsible=true
+An inherited `<T extends U>` on a `Derived<T>` would be written `<T extends T>`, and a parameter typed by the interface's `T` would silently become the method's.
+
+Only a collision the signature actually depends on is refused. `<T> Optional<T> get(T t)` on a `Derived<T>` names nothing it hides, and is generated unchanged.
+~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has the same name as 'TextNarrower's" -->
@@ -778,7 +974,7 @@ interface TextNarrower<T> extends Narrower<T> {}
 
 ### "@PathVia: the bridge cannot call 'x'"
 
-**Cause.** The method is `static` or `private`. The bridge reaches its delegate through an interface reference, which gets at abstract and `default` members and nothing else.
+The method is `static` or `private`. The bridge reaches its delegate through an interface reference, which gets at abstract and `default` members and nothing else.
 
 **Fix.** Make it an abstract or `default` instance method, or drop `@PathVia` from it.
 
@@ -798,7 +994,7 @@ interface Orders {
 
 ### "@PathVia: the bridge signature for 'x' is already taken"
 
-**Cause.** Two `@PathVia` methods land on the same generated name and parameter types, usually through `@PathVia(name = ...)`. One class cannot declare both.
+Two `@PathVia` methods land on the same generated name and parameter types, usually through `@PathVia(name = ...)`. One class cannot declare both.
 
 **Fix.** Give one of them a distinct name, or drop `@PathVia` from it.
 
@@ -819,7 +1015,7 @@ interface Orders {
 
 ### "@PathVia: @PathVia(name = "...") is not a method name"
 
-**Cause.** The `name` attribute is not a Java identifier, or it is a keyword. The bridge declares a method called exactly that.
+The `name` attribute is not a Java identifier, or it is a keyword. The bridge declares a method called exactly that.
 
 **Fix.** Give a plain identifier, or drop the attribute to keep the delegate's own name.
 
@@ -837,7 +1033,7 @@ interface Orders {
 
 ### "@GeneratePathBridge: on 'X', the signature names 'Y', which cannot be reached from 'p'"
 
-**Cause.** `targetPackage` puts the bridge in package `p`, and something the bridge writes down, a parameter type, a return type, a bound or the delegate itself, is not visible there. The same message names *the bound on 'T'* when the culprit is a type parameter's bound.
+`targetPackage` puts the bridge in package `p`, and something the bridge writes down, a parameter type, a return type, a bound or the delegate itself, is not visible there. The same message names *the bound on 'T'* when the culprit is a type parameter's bound.
 
 **Fix.** Make the type public, or drop `targetPackage` so the bridge is written beside the interface.
 
@@ -857,13 +1053,17 @@ interface Vault {
 
 ### "@GeneratePathBridge: no @PathVia method was found among 'X's members" (a warning)
 
-**Cause.** No `@PathVia` method survives among the interface's members, so the bridge is written with a constructor and nothing else. Usually that means none was ever written; it can also mean one was hidden, which the note below covers.
+No `@PathVia` method survives among the interface's members, so the bridge is written with a constructor and nothing else.
+
+**Fix.** Put `@PathVia` on the methods to bridge, or drop `@GeneratePathBridge`.
+
+~~~admonish note title="Why" collapsible=true
+Usually that means none was ever written; it can also mean one was hidden, which the note below covers.
 
 Inherited methods do count: a bridge for `StringStore extends Store<String>` picks up `Store`'s, read under `String`. But `@PathVia` is *not* inherited by an override, so a method that overrides an annotated one hides it unless it is annotated too, and that is the usual cause of this message on an interface whose parent is annotated.
 
 A processor warning cannot be suppressed, so a build running `-Werror` treats this as an error.
-
-**Fix.** Put `@PathVia` on the methods to bridge, or drop `@GeneratePathBridge`.
+~~~
 
 ~~~admonish example title="A declaration that draws it" collapsible=true
 <!-- verify:reports "no @PathVia method was found among" -->
@@ -882,17 +1082,9 @@ interface Orders {
 
 ### `traverseOver` and the higher-kinded witness type
 
-**Cause.** `traverseOver` is generic in the higher-kinded witness type.
-This is the same phantom-type-parameter family as
-[Effect §1](../effect/compiler_errors.md#1-the-phantom-error-type-e-on-pathright):
-on the supported compiler `javac` usually resolves the witness from
-context rather than emitting a hard `cannot infer type arguments`
-error. The reliable failure mode is not a guaranteed compile error but
-*ambiguity* in long Focus chains, where the witness should be stated
-explicitly for clarity and to avoid `Object` leaking in.
+`traverseOver` is generic in the higher-kinded witness type.
 
-**Fix.** State the type parameters explicitly when the witness is not
-obvious from context:
+**Fix.** State the type parameters explicitly when the witness is not obvious from context:
 
 <!-- verify -->
 ```java
@@ -900,9 +1092,13 @@ TraversalPath<User, Role> allRoles =
     rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
 ```
 
+~~~admonish note title="Why" collapsible=true
+This is the same phantom-type-parameter family as [Effect §1](../effect/compiler_errors.md#1-the-phantom-error-type-e-on-pathright): on the supported compiler `javac` usually resolves the witness from context rather than emitting a hard `cannot infer type arguments` error. The reliable failure mode is not a guaranteed compile error but *ambiguity* in long Focus chains, where the witness should be stated explicitly for clarity and to avoid `Object` leaking in.
+~~~
+
 ### "Incompatible types when chaining .each().via()"
 
-**Cause.** Usually one `.each()` too many. A generated accessor for a collection component is *already* element-level, so `CompanyFocus.departments()` is a `TraversalPath<Company, Department>` and adding `.each()` steps into a `Department` as though it were a list. Long chains can also overflow Java's inference budget.
+Usually one `.each()` too many.
 
 **Fix.** Drop the extra `.each()`, and break long chains into intermediate variables so each carries a concrete type:
 
@@ -913,13 +1109,17 @@ TraversalPath<Company, Employee>   employees = depts.via(DepartmentFocus.employe
 TraversalPath<Company, Integer>    salaries  = employees.via(EmployeeFocus.salary());
 ```
 
+~~~admonish note title="Why" collapsible=true
+A generated accessor for a collection component is *already* element-level, so `CompanyFocus.departments()` is a `TraversalPath<Company, Department>` and adding `.each()` steps into a `Department` as though it were a list. Long chains can also overflow Java's inference budget.
+~~~
+
 ~~~admonish warning title="The extra `.each()` compiles"
 `each()` is `<E> TraversalPath<S, E>` and infers `E` from the assignment target, so a surplus hop type-checks and then fails at runtime when the list traversal is applied to something that is not a list. It is not caught by the compiler, which is why it belongs on this page rather than in a debugging note.
 ~~~
 
 ### "Cannot infer type argument(s)" on an intermediate `.each()`
 
-**Cause.** Only the *final* `each()` in a chain can infer its element type from the target type. An intermediate one has nothing to infer from.
+Only the *final* `each()` in a chain can infer its element type from the target type. An intermediate one has nothing to infer from.
 
 **Fix.** Spell the element type at the intermediate hop:
 
@@ -935,7 +1135,7 @@ TraversalPath<Company, Integer> allSalaries =
 
 ### "Method reference ::new doesn't work with single-field records as BiFunction"
 
-**Cause.** A single-component record has no two-argument constructor, and `Lens.of`'s setter is a `BiFunction<S, A, S>` taking `(source, newValue)`. It is an arity mismatch, not an inference wobble.
+A single-component record has no two-argument constructor, and `Lens.of`'s setter is a `BiFunction<S, A, S>` taking `(source, newValue)`. It is an arity mismatch, not an inference wobble.
 
 **Fix.** Use an explicit lambda:
 
@@ -946,7 +1146,7 @@ Lens<Outer, Inner> lens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
 
 ### "Sealed or non-sealed local classes are not allowed"
 
-**Cause.** Defining a sealed interface inside a method body. Java does not permit this regardless of HKJ.
+Defining a sealed interface inside a method body. Java does not permit this regardless of HKJ.
 
 **Fix.** Hoist the sealed interface to class or top level.
 
@@ -956,13 +1156,12 @@ Lens<Outer, Inner> lens = Lens.of(Outer::inner, (o, i) -> new Outer(i));
 
 ### "Cannot resolve method 'flatMap(Function<...>)'"
 
-**Cause.** The `Free<F, A>` value's witness type does not match what the surrounding interpreter expects, or you are mixing `Free<OpticOpKind.Witness, ...>` with another `Free` instance.
+The `Free<F, A>` value's witness type does not match what the surrounding interpreter expects, or you are mixing `Free<OpticOpKind.Witness, ...>` with another `Free` instance.
 
 **Fix.** Confirm that every step in the program uses the same `OpticPrograms` factory methods, and that interpreter calls are paired with the matching witness.
-
 ### "Type mismatch: Free<F, A> cannot be converted to A"
 
-**Cause.** Forgetting to call an interpreter. A `Free` program is data; you must run it to get a result.
+Forgetting to call an interpreter. A `Free` program is data; you must run it to get a result.
 
 **Fix.** Pass the program to an interpreter:
 
@@ -982,6 +1181,7 @@ Person result = OpticInterpreters.direct().run(program);
 
 ~~~admonish info title="Key Takeaways"
 * **"cannot find symbol: XLenses" is almost always a build problem**, not a code problem: the processor did not run, or the IDE has not indexed the generated sources.
+* **A note is not a failure.** An error always stops the build, a warning stops it only under `-Werror`, and a note stops nothing. The heading says which whenever it is not an error.
 * **The annotations are shape-specific.** `@GenerateLenses` wants a record, `@GeneratePrisms` wants a sealed interface or enum, and using one on the other is rejected at the declaration.
 * **A spec interface needs a copy strategy** for every lens method, because the processor has no way to guess how your external type rebuilds itself.
 * **Most Focus DSL errors are one hop too many, or one witness too few.** A generated collection accessor is already element-level, so an extra `.each()` is the common cause; and only the final `each()` in a chain can infer its element type.
