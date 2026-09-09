@@ -95,7 +95,7 @@ The same rename or the same leaf tends to recur across an API's specs: every wir
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:mixin_usage}}
 ```
 
-An inherited member counts exactly as if it were declared on the spec: renames, leaves *and* derived fields, collected across the whole hierarchy (a mix-in may extend further mix-ins, and a diamond counts once). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides.
+An inherited member counts exactly as if it were declared on the spec: renames, leaves, derived fields *and* `@OptionalBridge` markers, collected across the whole hierarchy (a mix-in may extend further mix-ins, and a diamond counts once). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides.
 
 A mix-in **may be generic**: its members are read under the spec's instantiation, so `Emails<T>` extended as `Emails<EmailAddress>` contributes `ValidatedPrism<String, EmailAddress>`. See [Generic mix-ins](generics.md#generic-mix-ins).
 

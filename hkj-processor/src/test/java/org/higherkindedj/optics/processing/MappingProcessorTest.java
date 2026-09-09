@@ -3537,7 +3537,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("an abstract method that is neither a rename nor a leaf is rejected")
+    @DisplayName("an abstract method that is neither a rename, a leaf nor a bridge is rejected")
     void abstractHelperRejected() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
@@ -3566,7 +3566,7 @@ class MappingProcessorTest {
               spec);
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("abstract method 'helper' is neither a rename nor a leaf");
+          .hadErrorContaining("abstract method 'helper' is neither a rename, a leaf, nor a bridge");
     }
 
     @Test
@@ -6778,7 +6778,7 @@ class MappingProcessorTest {
       Compilation compilation = compile(PAGE, PAGE_DTO, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("abstract method 'items' is neither a rename nor a leaf");
+          .hadErrorContaining("abstract method 'items' is neither a rename, a leaf, nor a bridge");
     }
 
     @Test
@@ -6868,7 +6868,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("an abstract String helper is still neither a rename nor a leaf")
+    @DisplayName("an abstract String helper is still neither a rename, a leaf nor a bridge")
     void abstractStringHelperStaysDiagnosed() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
@@ -6887,7 +6887,7 @@ class MappingProcessorTest {
       Compilation compilation = compile(PAGE, PAGE_DTO, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("abstract method 'label' is neither a rename nor a leaf");
+          .hadErrorContaining("abstract method 'label' is neither a rename, a leaf, nor a bridge");
     }
 
     @Test
@@ -7336,7 +7336,8 @@ class MappingProcessorTest {
       Compilation domainSide = compile(records, domainHalf);
       assertThat(domainSide).failed();
       assertThat(domainSide)
-          .hadErrorContaining("abstract method 'describe' is neither a rename nor a leaf");
+          .hadErrorContaining(
+              "abstract method 'describe' is neither a rename, a leaf, nor a bridge");
 
       JavaFileObject wireHalf =
           JavaFileObjects.forSourceString(
@@ -7355,7 +7356,8 @@ class MappingProcessorTest {
       Compilation wireSide = compile(records, wireHalf);
       assertThat(wireSide).failed();
       assertThat(wireSide)
-          .hadErrorContaining("abstract method 'describe' is neither a rename nor a leaf");
+          .hadErrorContaining(
+              "abstract method 'describe' is neither a rename, a leaf, nor a bridge");
     }
 
     @Test
@@ -9042,8 +9044,8 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename"
-                  + " nor a leaf");
+              "abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename,"
+                  + " a leaf, nor a bridge");
     }
 
     @Test
@@ -9305,9 +9307,14 @@ class MappingProcessorTest {
     }
   }
 
+  /**
+   * One home for {@code @OptionalBridge}, deliberately including the bean-wire and sparse-tier
+   * cases: those are behaviours of the annotation rather than of beans or of updates, and the
+   * automatic bean bridge they contrast with has its own class in {@code MappingProcessorBeanTest}.
+   */
   @Nested
-  @DisplayName("The Optional bridge on a record wire (@OptionalBridge)")
-  class OptionalBridgeOnARecordWire {
+  @DisplayName("The Optional bridge (@OptionalBridge)")
+  class TheOptionalBridge {
 
     private static final JavaFileObject CUSTOMER =
         JavaFileObjects.forSourceString(
@@ -9487,10 +9494,12 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("target field 'CustomerDto.nickname' has no usable source");
-      // and the refusal points at the opt-in rather than at a lossless-looking whole-Optional leaf
+      // and the refusal points at the opt-in rather than at a lossless-looking whole-Optional
+      // leaf, with the declaration to paste
       assertThat(compilation)
           .hadErrorContaining(
-              "Mark 'nickname' @OptionalBridge, so an absent value reads as a null wire component");
+              "Add '@OptionalBridge java.util.Optional<java.lang.String> nickname();' to the"
+                  + " spec, so an absent value reads as a null wire component and back.");
     }
 
     @Test
@@ -9513,8 +9522,9 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "adding a 'default ValidatedPrism<java.lang.String, com.example.EmailAddress>"
-                  + " email()' leaf over the ELEMENT types");
+              "Add '@OptionalBridge default ValidatedPrism<java.lang.String,"
+                  + " com.example.EmailAddress> email()' to the spec, a leaf over the ELEMENT"
+                  + " types");
     }
 
     @Test
@@ -9582,9 +9592,11 @@ class MappingProcessorTest {
       Assertions.assertThat(generatedSource(compilation, "com.example.CustomerMappingImpl"))
           .contains("return new CustomerDto(domain.name(), domain.nickname().orElse(null));")
           .contains(".field(\"nickname\", Validated.validNel(Optional.ofNullable(wire.nick())))")
-          // one method, one stub, named for the rename it also declares
-          .contains("Rename declaration only; not invocable.")
-          .doesNotContain("Bridge declaration only");
+          // one method, one stub, naming both correspondences it declares
+          .contains("Rename and bridge declaration only; not invocable.")
+          .contains(
+              "@MapField and @OptionalBridge methods declare correspondences and are not"
+                  + " invocable");
     }
 
     @Test
@@ -9796,8 +9808,8 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a bridge to an already-Optional wire component is rejected as needless")
-    void aBridgeToAnOptionalWireComponentIsRejected() {
+    @DisplayName("a bridge to an already-Optional wire component is reported as redundant")
+    void aBridgeToAnOptionalWireComponentIsRedundant() {
       JavaFileObject dto =
           JavaFileObjects.forSourceString(
               "com.example.CustomerDto",
@@ -9826,10 +9838,13 @@ class MappingProcessorTest {
               }
               """);
       Compilation compilation = compile(CUSTOMER, dto, spec);
-      assertThat(compilation).failed();
+      assertThat(compilation).succeeded();
       assertThat(compilation)
-          .hadErrorContaining(
-              "@OptionalBridge on 'nickname' bridges to a record component that is already Optional");
+          .hadNoteContaining(
+              "@OptionalBridge on 'nickname' is redundant: 'nickname' is already Optional");
+      // the Optional pair maps by identity, exactly as it would without the annotation
+      Assertions.assertThat(generatedSource(compilation, "com.example.CustomerMappingImpl"))
+          .contains(".field(\"nickname\", hkj$ifPresent(wire.nickname(), Validated::validNel))");
     }
 
     @Test
@@ -10342,6 +10357,386 @@ class MappingProcessorTest {
       assertThat(compilation).hadErrorContaining("has no usable source");
       Assertions.assertThat(compilation.diagnostics())
           .noneMatch(d -> d.toString().contains("@OptionalBridge"));
+    }
+
+    @Test
+    @DisplayName("a same-typed element leaf still wins over the bridge's identity copy")
+    void aSameTypedElementLeafBeatsTheIdentityBridge() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+                @OptionalBridge
+                default ValidatedPrism<String, String> nickname() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.isBlank()
+                              ? Validated.invalidNel(FieldError.of("must not be blank"))
+                              : Validated.validNel(raw),
+                      value -> value);
+                }
+              }
+              """);
+      Compilation compilation = compile(CUSTOMER, CUSTOMER_DTO, spec);
+      assertThat(compilation).succeeded();
+      // the declared prism runs on the present value; the identity copy would have skipped it
+      Assertions.assertThat(generatedSource(compilation, "com.example.CustomerMappingImpl"))
+          .contains("domain.nickname().map(nickname()::build).orElse(null)")
+          .contains("nickname().parse(v)");
+    }
+
+    @Test
+    @DisplayName("a bridged leaf declared over the whole Optional is rejected, never inert")
+    void aBridgedLeafOverTheWholeOptionalIsRejected() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+                @OptionalBridge
+                default ValidatedPrism<String, Optional<String>> nickname() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(Optional.of(raw)), o -> o.orElse(""));
+                }
+              }
+              """);
+      Compilation compilation = compile(CUSTOMER, CUSTOMER_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@OptionalBridge leaf 'nickname' is declared over the whole Optional");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare the leaf as 'ValidatedPrism<java.lang.String, java.lang.String>'");
+    }
+
+    @Test
+    @DisplayName("a wildcard element bridges on its bound rather than dead-ending")
+    void aWildcardElementBridgesOnItsBound() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Reading",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Reading(String id, Optional<? extends Number> value) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.ReadingDto",
+              """
+              package com.example;
+
+              public record ReadingDto(String id, Number value) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ReadingMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              public interface ReadingMapping extends MappingSpec<Reading, ReadingDto> {
+                @OptionalBridge
+                Optional<? extends Number> value();
+              }
+              """);
+      Compilation compilation = compile(domain, dto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ReadingMappingImpl"))
+          .contains("domain.value().orElse(null)")
+          .contains("Validated.validNel(Optional.ofNullable(wire.value()))");
+    }
+
+    @Test
+    @DisplayName("a bridged List keeps the located-null scan its unbridged twin carries")
+    void aBridgedContainerKeepsTheNullScan() throws ReflectiveOperationException {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Album",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+              import java.util.Optional;
+
+              public record Album(String name, Optional<List<String>> tags,
+                  Optional<Map<String, String>> meta) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.AlbumDto",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+
+              public record AlbumDto(String name, List<String> tags, Map<String, String> meta) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AlbumMapping",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              public interface AlbumMapping extends MappingSpec<Album, AlbumDto> {
+                @OptionalBridge
+                Optional<List<String>> tags();
+
+                @OptionalBridge
+                Optional<Map<String, String>> meta();
+              }
+              """);
+      Compilation compilation = compile(domain, dto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.AlbumMappingImpl"))
+          .contains("hkj$allPresent(v)")
+          .contains("hkj$valuesPresent(v)");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.AlbumMappingImpl");
+      var dtoCtor =
+          result
+              .loadClass("com.example.AlbumDto")
+              .getDeclaredConstructor(String.class, List.class, Map.class);
+
+      // absence is the only thing the bridge excuses: a present list holding a null still locates
+      List<String> withNull = new ArrayList<>();
+      withNull.add("jazz");
+      withNull.add(null);
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          parse(impl, dtoCtor.newInstance("Blue", withNull, Map.of()));
+      Assertions.assertThat(parsed.isInvalid()).isTrue();
+      Assertions.assertThat(parsed.getError().toJavaList().stream().map(FieldError::toString))
+          .containsExactly("tags.1: must not be null");
+
+      // and an absent one is still valid emptiness
+      Assertions.assertThat(parse(impl, dtoCtor.newInstance("Blue", null, null)).isValid())
+          .isTrue();
+    }
+
+    @Test
+    @DisplayName("a raw Optional component is refused for the reason that is actually true")
+    void aRawOptionalComponentIsRefusedTruthfully() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Raw",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              @SuppressWarnings("rawtypes")
+              public record Raw(String name, Optional nickname) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.RawMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              @SuppressWarnings("rawtypes")
+              public interface RawMapping extends MappingSpec<Raw, CustomerDto> {
+                @OptionalBridge
+                Optional nickname();
+              }
+              """);
+      Compilation compilation = compile(domain, CUSTOMER_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("@OptionalBridge on 'nickname' names a raw Optional component");
+      assertThat(compilation)
+          .hadErrorContaining("Declare the type argument, for example Optional<String>");
+    }
+
+    @Test
+    @DisplayName("an unbounded wildcard element bridges on Object, which it stands for")
+    void anUnboundedWildcardElementBridgesOnObject() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Slot",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Slot(String id, Optional<? super String> value) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.SlotDto",
+              """
+              package com.example;
+
+              public record SlotDto(String id, Object value) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.SlotMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              public interface SlotMapping extends MappingSpec<Slot, SlotDto> {
+                @OptionalBridge
+                Optional<? super String> value();
+              }
+              """);
+      Compilation compilation = compile(domain, dto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.SlotMappingImpl"))
+          .contains("domain.value().orElse(null)");
+    }
+
+    @Test
+    @DisplayName("a marker declaring its own type parameters is refused as a marker, not a leaf")
+    void aMarkerDeclaringTypeParametersIsRefused() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+                @OptionalBridge
+                <T> Optional<T> nickname();
+              }
+              """);
+      Compilation compilation = compile(CUSTOMER, CUSTOMER_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("abstract method 'nickname' declares type parameters of its own");
+      // the remedy is the marker's, not the element-mapped leaf's
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Give 'nickname' a concrete return type; a marker method declares a correspondence");
+    }
+
+    @Test
+    @DisplayName("an inherited bridge is inert on a sparse UpdateSpec: one mix-in serves both")
+    void anInheritedBridgeIsInertOnASparseUpdate() {
+      JavaFileObject bean =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerPatchDto",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public class CustomerPatchDto {
+                private String name;
+                // The sparse tier's own encoding for 'set to empty': an Optional-typed property,
+                // defaulting to null so an omitted field still means 'leave unchanged'.
+                private Optional<String> nickname;
+
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public Optional<String> getNickname() { return nickname; }
+                public void setNickname(Optional<String> nickname) { this.nickname = nickname; }
+              }
+              """);
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.Nicknames",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              public interface Nicknames {
+                @OptionalBridge
+                Optional<String> nickname();
+              }
+              """);
+      JavaFileObject dense =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CustomerMapping
+                  extends Nicknames, MappingSpec<Customer, CustomerDto> {}
+              """);
+      JavaFileObject sparse =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface CustomerPatchMapping
+                  extends Nicknames, UpdateSpec<Customer, CustomerPatchDto> {}
+              """);
+      // the one vocabulary serves the record spec and its PATCH sibling, as the book promises
+      Compilation compilation = compile(CUSTOMER, CUSTOMER_DTO, bean, vocabulary, dense, sparse);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CustomerMappingImpl"))
+          .contains("domain.nickname().orElse(null)");
+      Assertions.assertThat(generatedSource(compilation, "com.example.CustomerPatchMappingImpl"))
+          .contains("updateFrom");
     }
 
     private static JavaFileObject plainUser() {

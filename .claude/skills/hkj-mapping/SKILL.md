@@ -183,9 +183,14 @@ public interface MemberMapping extends MappingSpec<Member, MemberDto> {
 - A **bean** wire bridges automatically (bean conventions leave `Optional` off property types), so
   the annotation is redundant there and draws a note, not an error — one mix-in can serve both
   wire shapes.
-- Rejected where it cannot mean anything: a non-`Optional` domain component, an already-`Optional`
-  or primitive wire component, a sealed mapping, and an `UpdateSpec` (whose `null` already means
-  *leave unchanged*).
+- Rejected where it cannot mean anything: a non-`Optional` (or raw `Optional`) domain component,
+  a primitive wire component, a leaf declared over the whole `Optional` rather than the element, a
+  sealed mapping, and a locally declared one on an `UpdateSpec` (whose `null` already means *leave
+  unchanged*). An already-`Optional` wire component needs no bridge, so that one is a note.
+- **Inherited bridges stay inert** wherever they cannot apply, so one mix-in serves a record spec,
+  a bean spec and a PATCH sibling.
+- A present **container** is still scanned for null elements (`tags.1: must not be null`): the
+  bridge excuses absence, not a null inside a value that was sent.
 - A bridged component is a non-identity correspondence, so the mapping withholds `asIso()` and a
   bridged projection takes the validated `patch` rather than `asLens()`.
 

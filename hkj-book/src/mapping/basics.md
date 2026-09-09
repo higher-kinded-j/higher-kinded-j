@@ -125,7 +125,7 @@ Compare the alternatives you have debugged before: an NPE with a stack trace poi
 Returned as-is from a controller, this result becomes the single 422 response the introduction showed: [the 422 leg](../spring/spring_boot_integration.md#the-422-leg).
 ~~~
 
-The exact contract (what happens inside containers, and which nulls remain the caller's bug) is in [the fine print](#the-fine-print) below. The one deliberate exception - a field whose `null` *means* something - is the next section.
+The exact contract (what happens inside containers, and which nulls remain the caller's bug) is in [the fine print](#the-fine-print) below. The next section covers the one deliberate exception: a field whose `null` *means* something.
 
 ---
 
@@ -153,19 +153,23 @@ The annotation has **two placements**, and which one a component takes is decide
 
 | The present element | Where the annotation goes | What it declares |
 | --- | --- | --- |
-| Copies as-is | An abstract marker method named after the domain component | `@OptionalBridge Optional<String> nickname();` - the return type restates the component |
-| Converts | That component's own `default` leaf | `@OptionalBridge default ValidatedPrism<String, EmailAddress> altEmail()` - declared over the **element** types |
+| Copies as-is | An abstract marker method named after the domain component | `@OptionalBridge Optional<String> nickname();` (the return type restates the component) |
+| Converts | That component's own `default` leaf | `@OptionalBridge default ValidatedPrism<String, EmailAddress> altEmail()`, declared over the **element** types |
 
 The two can never be combined, and not by choice: a marker and a same-named leaf are one method with two incompatible return types, which javac rejects before the processor sees it.
 
 ~~~admonish warning title="Opt-in, never inferred"
-The processor will not guess this. Without the annotation, `nickname = null` is a located `must not be null`, exactly as [the doctrine above](#null-doctrine) says - and that is the right default, because on most record wires a `null` really is a defect. The bridge is the one place a spec overrides it, one component at a time, in writing.
+The processor will not guess this. Without the annotation, `nickname = null` is a located `must not be null`, exactly as [the doctrine above](#null-doctrine) says, and that is the right default: on most record wires a `null` really is a defect. The bridge is the one place a spec overrides it, one component at a time, in writing.
 
-A [bean wire](beans_patch.md) needs no annotation: bean conventions leave `Optional` off property types, so the bridge is automatic there. Declaring it on a bean spec is redundant, and the processor says so with a note rather than an error - a [shared mix-in vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) may legitimately serve both wire shapes.
+A [bean wire](beans_patch.md) needs no annotation: bean conventions leave `Optional` off property types, so the bridge is automatic there. Declaring it on a bean spec is redundant, and the processor says so with a note rather than an error, because a [shared mix-in vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) may legitimately serve both wire shapes.
+~~~
+
+~~~admonish note title="Under `@NullMarked`"
+The bridged wire component is nullable by construction: `build` writes `null` into it for an absent value. In a JSpecify `@NullMarked` package, declare it `@Nullable String nickname` so the wire record says what the mapping does with it.
 ~~~
 
 ~~~admonish example title="The same pair without the annotation, refused" collapsible=true
-<!-- verify:rejects "Mark 'nickname' @OptionalBridge, so an absent value reads as a null wire component" -->
+<!-- verify:rejects "Add '@OptionalBridge java.util.Optional<java.lang.String> nickname();' to the spec" -->
 ```java
 import java.util.Optional;
 import org.higherkindedj.optics.annotations.GenerateMapping;
@@ -179,7 +183,7 @@ record ReaderDto(String name, String nickname) {}
 interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}
 ```
 
-The refusal names the bridge first, then the whole-`Optional` leaf that would map the pair losslessly instead. Pick the one that says what the field means.
+The refusal names the bridge first, and offers the whole-`Optional` leaf second. The two are not alternatives for the same job: a leaf maps the pair, but leaves `null` a located error, so only the bridge gives the field an absent state. Declaring the annotation *on* such a leaf is refused rather than silently ignored.
 ~~~
 
 ~~~admonish example title="The annotation on a bean wire, reported as redundant" collapsible=true
@@ -212,7 +216,7 @@ interface GuestMapping extends MappingSpec<Guest, GuestBean> {
 A note, not an error: the mapping is generated exactly as it would be without the annotation.
 ~~~
 
-A bridged component is a non-identity correspondence, so the mapping does not gain `asIso()`, and a [projection](tiers.md) carrying one takes the validated `patch(Domain, Wire)` rather than `asLens()` - the same tier arithmetic a bean bridge has always had.
+A bridged component is a non-identity correspondence, so the mapping does not gain `asIso()`, and a [projection](tiers.md) carrying one takes the validated `patch(Domain, Wire)` rather than `asLens()`, which is the same tier arithmetic a bean bridge has always had.
 
 ---
 
@@ -222,15 +226,16 @@ Nothing above requires this section; come back when a corner case finds you.
 
 ### The null contract, precisely
 
-The null guard covers every reference-typed `parse` read, on record and bean wires alike, and reaches inside containers, identity-copied ones included:
+The null guard covers every reference-typed `parse` read that is not [bridged](#optional-bridge), on record and bean wires alike, and reaches inside containers, identity-copied ones included:
 
 - A `null` element or map value locates by its index or key (`emails.1: must not be null`), whether the container lifts through a leaf ([`parseAll`/`parseValues`](../optics/validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity. The index is a plain positional segment, matching the map-key grammar.
 - An identity container still copies by reference; the scan only locates nulls, it never rebuilds.
 - A `null` container *component* is guarded like any reference read (`emails: must not be null`).
+- A [bridged](#optional-bridge) container excuses only the absent case: `null` reads as empty, and a *present* list or map is scanned for null elements exactly as an unbridged one is.
 
 What stays the caller's error (`NullPointerException`), by contract: a `null` *wire* itself, a `null` map *key* (a structurally broken map, not a wrong value), and calling the bulk forms directly with a `null` list or map.
 
-Absence-as-a-meaning is deliberate everywhere it appears. A record component cannot express it by itself - it can only be wrong - so it takes either the [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec), where every `null` means *leave unchanged*, or an [`@OptionalBridge`](#optional-bridge) component, where one named field's `null` means *absent*. Neither is inferred; both are declarations.
+Absence-as-a-meaning is deliberate everywhere it appears. A record component cannot express it by itself (it can only be wrong), so it takes either the [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec), where every `null` means *leave unchanged*, or an [`@OptionalBridge`](#optional-bridge) component, where one named field's `null` means *absent*. Neither is inferred; both are declarations.
 
 ### How the two `default` families are told apart
 
@@ -254,7 +259,7 @@ A spec with any derived field never emits `asIso()`: the wire round trip recompu
 * **Two directions, two shapes**: `build` is total; `parse` reports every bad field at once, each located by a domain-named path
 * **Leaves convert, renames rename, getters derive**: `ValidatedPrism` leaves for type-differing fields, `@MapField` for names, `Getter` defaults for wire-only fields
 * **Null is located, never thrown**: one rule across both wire shapes and inside containers; only a null wire itself stays the caller's error
-* **Absence is declared, never guessed**: `@OptionalBridge` opts one `Optional` component into reading `null` as absent - on a record wire, nothing else does
+* **Absence is declared, never guessed**: `@OptionalBridge` opts one `Optional` component into reading `null` as absent, and on a record wire nothing else does
 ~~~
 
 ~~~admonish tip title="See Also"
