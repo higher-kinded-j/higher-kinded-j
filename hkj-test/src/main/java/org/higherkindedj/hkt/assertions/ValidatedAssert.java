@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.validated.Valid;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Fluent assertion utilities for {@link Validated} types. Provides a convenient API for testing
@@ -208,7 +209,10 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
     return ((Valid<E, A>) actual).value();
   }
 
-  /** Direct accessor for the Invalid error. Caller must have verified the Validated is Invalid. */
+  /**
+   * Direct accessor for the Invalid error, never null: {@link Invalid} rejects a null error. Caller
+   * must have verified the Validated is Invalid.
+   */
   private E invalidError() {
     return ((Invalid<E, A>) actual).error();
   }
@@ -232,11 +236,20 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
         rendered.add(fieldError.toString());
       } else {
         throw failure(
-            "Expected every accumulated error to be a FieldError but element %d was a <%s>: <%s>."
-                + " Accumulated errors: <%s>.",
-            rendered.size(), element.getClass().getSimpleName(), element, error);
+            "Expected every accumulated error to be a FieldError but element %d was <%s> (type"
+                + " <%s>). Accumulated errors: <%s>.",
+            rendered.size(), element, simpleTypeName(element), error);
       }
     }
     return List.copyOf(rendered);
+  }
+
+  /**
+   * The element's simple type name, or {@code "null"}. A {@code NonEmptyList} rejects null
+   * elements, but {@link #hasFieldErrors} accepts any {@link Iterable}, and a plain {@code
+   * Arrays.asList} can hold one.
+   */
+  private static String simpleTypeName(@Nullable Object element) {
+    return element == null ? "null" : element.getClass().getSimpleName();
   }
 }

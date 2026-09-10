@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.assertions;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -68,7 +69,21 @@ class ValidatedAssertContractTest
 
     assertThatExceptionOfType(AssertionError.class)
         .isThrownBy(() -> assertThatValidated(plainLines).hasFieldErrors("e1"))
-        .withMessageContaining("element 0 was a <String>");
+        .withMessageContaining("element 0 was <e1> (type <String>)");
+  }
+
+  /**
+   * A {@code NonEmptyList} rejects null elements, but the assertion accepts any {@code Iterable},
+   * and {@code Arrays.asList} does not: the null must fail as an assertion, not an NPE.
+   */
+  @Test
+  void hasFieldErrors_rejects_a_null_among_the_located_errors() {
+    Validated<List<FieldError>, Integer> withNull =
+        Validated.invalid(Arrays.asList(FieldError.of("first"), null));
+
+    assertThatExceptionOfType(AssertionError.class)
+        .isThrownBy(() -> assertThatValidated(withNull).hasFieldErrors("first"))
+        .withMessageContaining("element 1 was <null> (type <null>)");
   }
 
   @Test
