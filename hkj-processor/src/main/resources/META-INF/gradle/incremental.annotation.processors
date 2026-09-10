@@ -3,7 +3,11 @@
 # Every processor is registered as AGGREGATING. The mapping family (MappingProcessor,
 # MergeProcessor, AssemblyProcessor) genuinely aggregates: nested and sealed resolution reads a
 # same-round registry of other annotated specs, so their outputs may depend on any annotated
-# element in the compilation. The per-type optics generators are likely ISOLATING-safe (one
+# element in the compilation. MappingProcessor and MergeProcessor also read the classpath index
+# (org.higherkindedj.mapping.index) written by dependencies compiled with the processor, which no
+# source in the compilation references; Gradle recompiles the source set on a classpath change,
+# but a dependency gaining a spec that nothing downstream refers to may need a clean downstream
+# build to be seen. The per-type optics generators are likely ISOLATING-safe (one
 # annotated type, one origin per generated file), but an ISOLATING claim that turns out wrong
 # produces silently stale outputs, while AGGREGATING is behaviour-preserving for every processor
 # and already restores incremental compilation for consuming source sets. Refining individual

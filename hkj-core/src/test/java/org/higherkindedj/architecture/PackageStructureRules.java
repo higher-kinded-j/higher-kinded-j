@@ -307,4 +307,15 @@ class PackageStructureRules {
         .allowEmptyShould(true)
         .check(classes);
   }
+
+  /**
+   * The mapping processor writes its classpath index into {@code org.higherkindedj.mapping.index}
+   * inside every consumer's own jar. A library class in that namespace would make each such jar a
+   * split package against the library on a module path, so the namespace stays reserved.
+   */
+  @Test
+  @DisplayName("The org.higherkindedj.mapping namespace is reserved for generated index entries")
+  void mapping_namespace_is_reserved_for_generated_index_entries() {
+    classes().should().resideOutsideOfPackage("org.higherkindedj.mapping..").check(classes);
+  }
 }

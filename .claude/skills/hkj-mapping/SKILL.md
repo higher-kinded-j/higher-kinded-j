@@ -234,6 +234,22 @@ public interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}   //
 
 Recursive records (a `Tree` of `Tree`) work too.
 
+The sibling may live in a **dependency**: every generated Impl of a `MappingSpec` is accompanied
+by an index entry (an empty class in `org.higherkindedj.mapping.index`, in the jar), and a
+downstream compilation reads the index and resolves nested, sealed and merge pairs against those
+specs exactly as against its own, generic ones included. Rules: the dependency must have been
+compiled with `hkj-processor` on its processor path; a spec in the compilation shadows a classpath
+spec for the same pair (a note names the shadowed one); two dependencies mapping one pair are
+ambiguous, listed with `(classpath)` provenance, and a leaf delegating to the one meant settles a
+nested component while a sealed subtype pair, which has no leaf, takes a spec of your own (it
+shadows both); an entry whose Impl has gone missing (a partial build output, a jar that dropped
+it) is never chosen and the failing use site names the dependency to rebuild; named modules (a
+`module-info`) neither write nor read the index, not supported yet, so there the delegating leaf
+is the route; and two spec-carrying jars must not be used as automatic modules together, the
+shared index package being a split package there, so a library bound for such a module path
+turns the index off with the processor option `-Ahkj.mapping.index=false` (no entries written,
+none read).
+
 Generic records map three ways. **Concrete instantiations** (`extends MappingSpec<Page<User>,
 PageDto<UserDto>>`): components classify under the substitution, so leaves/nesting/containers and
 the null doctrine apply unchanged. **Threaded specs** (`PageMapping<T> extends MappingSpec<Page<T>,

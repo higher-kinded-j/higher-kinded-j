@@ -35,6 +35,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -69,20 +70,21 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * by identical name and type — unless an explicit leaf overrides the copy (so a {@code
  * ValidatedPrism<X, X>} can validate or normalise a same-typed component); differing components
  * resolve through a validated leaf (a spec {@code default} method named after the component
- * returning {@code ValidatedPrism<Wire, Domain>}), through another spec in the same compilation
- * (nesting — every generated impl exposes {@code asValidatedPrism()}, so a whole mapping plugs in
- * wherever a leaf does), or lift through {@code List}/{@code Optional} containers of either. {@code
- * Map} components lift their values the same way; keys are identity-only and must match exactly on
- * both sides, and each entry's parse failures are located by its key. {@code @MapField} declares
- * renames. A wire component with no domain counterpart can be a derived field: a spec {@code
- * default} method named after the wire component returning {@code Getter<Domain,
- * WireComponentType>}. {@code build} fills it with the getter applied to the whole domain value;
- * {@code parse} ignores it (the data is derivable), and a spec with any derived field never emits
- * {@code asIso()}. A wire record with fewer components maps as a lossy projection: {@code build}
- * plus a lawful {@code asLens()} write-back when every projected component matches by identity, or
- * a validated {@code patch(domain, wire)} write-back when any component maps through a leaf, nested
- * spec or container; no {@code parse} either way (truthful types). Sealed interface pairs dispatch
- * {@code build}/{@code parse} over their permitted subtype pairs, each delegating to its own spec.
+ * returning {@code ValidatedPrism<Wire, Domain>}), through another spec in this compilation or, via
+ * the classpath index ({@code MappingIndexes}), in a dependency (nesting — every generated impl
+ * exposes {@code asValidatedPrism()}, so a whole mapping plugs in wherever a leaf does), or lift
+ * through {@code List}/{@code Optional} containers of either. {@code Map} components lift their
+ * values the same way; keys are identity-only and must match exactly on both sides, and each
+ * entry's parse failures are located by its key. {@code @MapField} declares renames. A wire
+ * component with no domain counterpart can be a derived field: a spec {@code default} method named
+ * after the wire component returning {@code Getter<Domain, WireComponentType>}. {@code build} fills
+ * it with the getter applied to the whole domain value; {@code parse} ignores it (the data is
+ * derivable), and a spec with any derived field never emits {@code asIso()}. A wire record with
+ * fewer components maps as a lossy projection: {@code build} plus a lawful {@code asLens()}
+ * write-back when every projected component matches by identity, or a validated {@code
+ * patch(domain, wire)} write-back when any component maps through a leaf, nested spec or container;
+ * no {@code parse} either way (truthful types). Sealed interface pairs dispatch {@code
+ * build}/{@code parse} over their permitted subtype pairs, each delegating to its own spec.
  *
  * <p>One null doctrine covers both wire shapes: every reference-typed {@code parse} read is
  * null-guarded into a located {@code FieldError} — an unset bean property is null, and a JSON
@@ -126,6 +128,7 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMapping")
+@SupportedOptions(MappingIndexes.OPTION)
 public class MappingProcessor extends AbstractProcessor {
 
   private static final String TAG = "@GenerateMapping";
@@ -160,64 +163,252 @@ public class MappingProcessor extends AbstractProcessor {
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    List<RegisteredSpec> registry = scanRegistry(processingEnv, roundEnv);
-    for (Element element : roundEnv.getElementsAnnotatedWith(GenerateMapping.class)) {
+    Set<? extends Element> specs = roundEnv.getElementsAnnotatedWith(GenerateMapping.class);
+    if (specs.isEmpty()) {
+      return true;
+    }
+    List<RegisteredSpec> registry = scanRegistry(processingEnv, roundEnv, specs.iterator().next());
+    for (Element element : specs) {
       processSpec(element, registry);
     }
     return true;
   }
 
   /**
-   * Scans the round for valid {@code @GenerateMapping} specs. Shared with {@link MergeProcessor},
-   * whose nested fills resolve against the same parse-capable specs. A record domain may pair with
-   * a record wire or a bean-shaped wire; the bean's parse-capability is computed from its
-   * getter/setter property count.
+   * Scans the round for valid {@code @GenerateMapping} specs, then the classpath index for the
+   * specs compiled into dependencies. Shared with {@link MergeProcessor}, whose nested fills
+   * resolve against the same parse-capable specs. A record domain may pair with a record wire or a
+   * bean-shaped wire; the bean's parse-capability is computed from its getter/setter property
+   * count.
+   *
+   * <p>A classpath spec is read from its class file by the same rules as a spec in the round; the
+   * index only names it (see {@code MappingIndexes}). An entry naming a spec this round recompiles
+   * is the previous build's, and the round's own registration stands. A named module reads no
+   * index, having written none. An entry whose spec has lost its Impl registers as unusable, so
+   * that a use site needing the pair is told why (a diagnostic at scan time would fire whether or
+   * not anything needs the pair, twice when both processors scan, and as an unsuppressable
+   * warning).
+   *
+   * @param inRound any element of the round, whose module is the one being compiled
    */
-  static List<RegisteredSpec> scanRegistry(ProcessingEnvironment env, RoundEnvironment roundEnv) {
+  static List<RegisteredSpec> scanRegistry(
+      ProcessingEnvironment env, RoundEnvironment roundEnv, Element inRound) {
     List<RegisteredSpec> registry = new ArrayList<>();
     BeanPropertyAnalyser beanAnalyser = new BeanPropertyAnalyser(env);
     for (Element element : roundEnv.getElementsAnnotatedWith(GenerateMapping.class)) {
-      if (element.getKind() != ElementKind.INTERFACE) {
-        continue;
+      if (element.getKind() == ElementKind.INTERFACE) {
+        register(env, beanAnalyser, (TypeElement) element, Origin.THIS_COMPILATION, registry);
       }
-      TypeElement spec = (TypeElement) element;
-      // A generic spec registers with its declared mirrors (Page<T>, PageDto<TDto>); use sites
-      // resolve it by unification, an element-mapped one composing its of(...) factory from the
-      // element prisms resolved at the use site.
-      DeclaredType specSuper = findMappingSpec(spec);
-      if (specSuper == null || specSuper.getTypeArguments().size() != 2) {
-        continue;
-      }
-      TypeMirror domainArg = specSuper.getTypeArguments().get(0);
-      TypeMirror wireArg = specSuper.getTypeArguments().get(1);
-      TypeElement domainRecord = asRecord(domainArg);
-      TypeElement wireRecord = asRecord(wireArg);
-      TypeElement wireBean = wireRecord == null ? asBean(wireArg) : null;
-      boolean recordPair = domainRecord != null && wireRecord != null;
-      boolean beanPair = domainRecord != null && wireBean != null;
-      boolean sealedPair = asSealed(domainArg) != null && asSealed(wireArg) != null;
-      if (!recordPair && !beanPair && !sealedPair) {
-        continue;
-      }
-      // Only parse-capable specs may be nested into: equal-count record/bean pairs (derived wire
-      // fields do not count against the wire, since parse ignores them) and sealed pairs.
-      // Projections (smaller wire, no parse) register too, so failed lookups can name them.
-      int wireCount =
-          recordPair
-              ? wireRecord.getRecordComponents().size()
-              : beanPair ? beanAnalyser.propertyCount(spec, wireBean) : 0;
-      boolean parseCapable =
-          sealedPair
-              || domainRecord.getRecordComponents().size()
-                  == wireCount - derivedCandidateCount(env, spec);
-      registry.add(new RegisteredSpec(domainArg, wireArg, implClassName(spec), spec, parseCapable));
     }
-    return registry;
+    Elements elements = env.getElementUtils();
+    if (!(MappingIndexes.indexUse(env, inRound) instanceof MappingIndexes.IndexUse.Usable)) {
+      return List.copyOf(registry);
+    }
+    for (TypeElement spec : MappingIndexes.classpathSpecs(elements)) {
+      if (registry.stream().anyMatch(r -> r.spec().equals(spec))) {
+        continue;
+      }
+      // An entry written in an earlier round of this compilation names a spec of this
+      // compilation's own; a dependency's spec is read from its class file.
+      Origin origin =
+          MappingIndexes.compiledHere(elements, spec)
+              ? Origin.THIS_COMPILATION
+              : elements.getTypeElement(implClassName(spec).canonicalName()) != null
+                  ? Origin.CLASSPATH
+                  : Origin.CLASSPATH_MISSING_IMPL;
+      register(env, beanAnalyser, spec, origin, registry);
+    }
+    return List.copyOf(registry);
   }
 
-  /** A valid spec seen this round; nested components resolve against the parse-capable ones. */
+  /** Registers one spec if it is a mappable pair; a malformed one is left for the diagnostics. */
+  private static void register(
+      ProcessingEnvironment env,
+      BeanPropertyAnalyser beanAnalyser,
+      TypeElement spec,
+      Origin origin,
+      List<RegisteredSpec> registry) {
+    // A generic spec registers with its declared mirrors (Page<T>, PageDto<TDto>); use sites
+    // resolve it by unification, an element-mapped one composing its of(...) factory from the
+    // element prisms resolved at the use site.
+    DeclaredType specSuper = findMappingSpec(spec);
+    if (specSuper == null || specSuper.getTypeArguments().size() != 2) {
+      return;
+    }
+    TypeMirror domainArg = specSuper.getTypeArguments().get(0);
+    TypeMirror wireArg = specSuper.getTypeArguments().get(1);
+    TypeElement domainRecord = asRecord(domainArg);
+    TypeElement wireRecord = asRecord(wireArg);
+    TypeElement wireBean = wireRecord == null ? asBean(wireArg) : null;
+    boolean recordPair = domainRecord != null && wireRecord != null;
+    boolean beanPair = domainRecord != null && wireBean != null;
+    boolean sealedPair = asSealed(domainArg) != null && asSealed(wireArg) != null;
+    if (!recordPair && !beanPair && !sealedPair) {
+      return;
+    }
+    // Only parse-capable specs may be nested into: equal-count record/bean pairs (derived wire
+    // fields do not count against the wire, since parse ignores them) and sealed pairs.
+    // Projections (smaller wire, no parse) register too, so failed lookups can name them.
+    int wireCount =
+        recordPair
+            ? wireRecord.getRecordComponents().size()
+            : beanPair ? beanAnalyser.propertyCount(spec, wireBean) : 0;
+    // A classpath spec whose Impl is missing registers for the hint only: nothing can delegate to
+    // it.
+    boolean parseCapable =
+        origin != Origin.CLASSPATH_MISSING_IMPL
+            && (sealedPair
+                || domainRecord.getRecordComponents().size()
+                    == wireCount - derivedCandidateCount(env, spec));
+    registry.add(
+        new RegisteredSpec(domainArg, wireArg, implClassName(spec), spec, parseCapable, origin));
+  }
+
+  /**
+   * Where a registered spec came from. A spec in this compilation shadows a classpath spec for the
+   * same pair, so adding a dependency never changes a resolution that already worked; two classpath
+   * specs for one pair stay ambiguous. A classpath spec whose Impl is missing is never a candidate,
+   * only a hint.
+   */
+  enum Origin {
+    THIS_COMPILATION,
+    CLASSPATH,
+    CLASSPATH_MISSING_IMPL
+  }
+
+  /**
+   * A valid spec seen this round or named by the classpath index; nested components resolve against
+   * the parse-capable ones. Compare registrations by {@code spec()}: the record's own equality also
+   * covers the two mirrors, whose {@code equals} is identity and says nothing about the types.
+   */
   record RegisteredSpec(
-      TypeMirror domain, TypeMirror wire, ClassName impl, TypeElement spec, boolean parseCapable) {}
+      TypeMirror domain,
+      TypeMirror wire,
+      ClassName impl,
+      TypeElement spec,
+      boolean parseCapable,
+      Origin origin) {
+
+    boolean local() {
+      return origin == Origin.THIS_COMPILATION;
+    }
+
+    /**
+     * The spec as a diagnostic names it: a spec in this compilation by its simple name, a classpath
+     * spec by its qualified name and provenance, so that two same-named specs from two dependencies
+     * read apart.
+     */
+    String describe() {
+      return local() ? spec.getSimpleName().toString() : spec.getQualifiedName() + " (classpath)";
+    }
+
+    /**
+     * Why a registered spec that is not parse-capable cannot serve a use site, for the hint a
+     * failed lookup carries: {@code asProjection} completes the projection sentence ("maps this
+     * pair but is a projection (no parse), so it cannot ..."); a classpath spec whose Impl is
+     * missing explains itself, whatever the site.
+     */
+    String unusable(String asProjection) {
+      if (origin == Origin.CLASSPATH_MISSING_IMPL) {
+        return " '"
+            + describe()
+            + "' maps this pair, but its generated '"
+            + impl.canonicalName()
+            + "' is missing from the classpath: the index entry was written by hkj-processor, so"
+            + " the Impl was generated and then lost (a partial build output, or a jar that dropped"
+            + " it); rebuild that dependency from clean.";
+      }
+      return " '" + describe() + "'" + asProjection;
+    }
+  }
+
+  /**
+   * The candidates a use site resolves among: the matching specs in this compilation when there are
+   * any, else the matching classpath specs. {@code shadowed} holds the classpath specs a local one
+   * displaced, for the note that names them; it is non-empty only when {@code chosen} is.
+   */
+  record Candidates(List<RegisteredSpec> chosen, List<RegisteredSpec> shadowed) {
+
+    Candidates {
+      chosen = List.copyOf(chosen);
+      shadowed = List.copyOf(shadowed);
+    }
+
+    static Candidates nearest(List<RegisteredSpec> matching) {
+      List<RegisteredSpec> local = matching.stream().filter(RegisteredSpec::local).toList();
+      if (local.isEmpty()) {
+        return new Candidates(matching, List.of());
+      }
+      return new Candidates(local, matching.stream().filter(r -> !r.local()).toList());
+    }
+
+    /** The chosen specs as an ambiguity diagnostic lists them. */
+    List<String> names() {
+      return chosen.stream().map(RegisteredSpec::describe).toList();
+    }
+
+    /**
+     * Whether every candidate is a dependency's, so that "remove the duplicate" is no remedy and a
+     * spec declared in this compilation, which shadows them all, is.
+     */
+    boolean allClasspath() {
+      return chosen.stream().noneMatch(RegisteredSpec::local);
+    }
+  }
+
+  /**
+   * Where a use site may declare the spec it lacks, completing a fix sentence: in this compilation
+   * or in a dependency compiled with the processor, unless the index is out of use here, in which
+   * case the sentence says why. Shared with {@link MergeProcessor}.
+   */
+  static String declarationSites(ProcessingEnvironment env, Element inRound) {
+    return switch (MappingIndexes.indexUse(env, inRound)) {
+      case MappingIndexes.IndexUse.Usable _ ->
+          " here or in a dependency compiled with hkj-processor on its processor path";
+      case MappingIndexes.IndexUse.NamedModule _ ->
+          " in this module (a named module reads no classpath index, so a spec in a dependency is"
+              + " not consulted; not supported yet)";
+      case MappingIndexes.IndexUse.Off _ ->
+          " here (the classpath index is off for this compilation: "
+              + MappingIndexes.OPTION
+              + "=false)";
+      case MappingIndexes.IndexUse.OwnedBy owned ->
+          " here (the index package belongs to module '"
+              + owned.module().getQualifiedName()
+              + "' on the module path, so no dependency's spec is consulted; put spec-carrying"
+              + " dependencies on the classpath)";
+    };
+  }
+
+  /**
+   * Notes, once per use site, that a spec in this compilation was preferred to classpath specs for
+   * the same pair. Shared with {@link MergeProcessor}. A note, not a warning: the choice is the
+   * rule, and the author may well intend it.
+   */
+  static void noteShadowed(
+      ProcessingEnvironment env,
+      Element at,
+      String tag,
+      String site,
+      String fix,
+      Candidates candidates) {
+    if (candidates.shadowed().isEmpty()) {
+      return;
+    }
+    Diagnostics.note(
+        env.getMessager(),
+        at,
+        tag,
+        site
+            + " resolves through '"
+            + candidates.chosen().getFirst().describe()
+            + "' in this compilation, not through "
+            + candidates.shadowed().stream().map(RegisteredSpec::describe).toList()
+            + ".",
+        "A spec in the compilation takes precedence over a classpath spec mapping the same pair, so"
+            + " a dependency never changes a resolution that already worked.",
+        fix);
+  }
 
   private static ClassName implClassName(TypeElement spec) {
     ClassName specName = ClassName.get(spec);
@@ -2358,21 +2549,19 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireType,
       TypeMirror domainType,
       List<DeclaredType> active) {
-    List<RegisteredSpec> nested =
-        registry.stream()
-            .filter(RegisteredSpec::parseCapable)
-            .filter(r -> covers(spec, r, domainType, wireType))
-            .toList();
+    Candidates candidates =
+        Candidates.nearest(
+            registry.stream()
+                .filter(RegisteredSpec::parseCapable)
+                .filter(r -> covers(spec, r, domainType, wireType))
+                .toList());
+    List<RegisteredSpec> nested = candidates.chosen();
     if (nested.size() > 1) {
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
           TAG,
-          "field '"
-              + name
-              + "' matches more than one mapping spec: "
-              + nested.stream().map(r -> r.spec().getSimpleName().toString()).toList()
-              + ".",
+          "field '" + name + "' matches more than one mapping spec: " + candidates.names() + ".",
           "A nested component resolves to the single spec mapping ("
               + domainType
               + ", "
@@ -2380,10 +2569,23 @@ public class MappingProcessor extends AbstractProcessor {
               + "); with several, the choice would be arbitrary.",
           "Add a leaf method '"
               + name
-              + "()' delegating to the spec you want, or remove the duplicate spec.");
+              + "()' delegating to the spec you want, or "
+              + (candidates.allClasspath()
+                  ? "declare a @GenerateMapping spec for the pair in this compilation, which takes"
+                      + " precedence over a dependency's."
+                  : "remove the duplicate spec."));
       return new PrismResolution(null, true);
     }
     if (nested.size() == 1) {
+      noteShadowed(
+          processingEnv,
+          spec,
+          TAG,
+          "field '" + name + "'",
+          "Keep it, or delegate explicitly with a leaf '"
+              + name
+              + "()' if the classpath spec is the one meant.",
+          candidates);
       RegisteredSpec match = nested.getFirst();
       if (match.spec().getTypeParameters().isEmpty()) {
         return new PrismResolution(
@@ -2444,7 +2646,7 @@ public class MappingProcessor extends AbstractProcessor {
           "field '"
               + name
               + "' nests the element-mapped '"
-              + match.spec().getSimpleName()
+              + match.describe()
               + "', which maps itself: resolving its leaf returns to the pair ("
               + domainType
               + ", "
@@ -2486,7 +2688,7 @@ public class MappingProcessor extends AbstractProcessor {
           "field '"
               + name
               + "' nests the element-mapped '"
-              + match.spec().getSimpleName()
+              + match.describe()
               + "', but the element pair ("
               + elementDomain
               + ", "
@@ -2495,8 +2697,9 @@ public class MappingProcessor extends AbstractProcessor {
               + leaf.getSimpleName()
               + "' has no mapping.",
           "An element-mapped Impl is built by of(...), one ValidatedPrism per abstract leaf; the"
-              + " prism must come from a leaf on this spec or another mapping in this"
-              + " compilation.",
+              + " prism must come from a leaf on this spec or another mapping,"
+              + declarationSites(processingEnv, spec)
+              + ".",
           "Declare 'default ValidatedPrism<"
               + elementWire
               + ", "
@@ -3164,8 +3367,9 @@ public class MappingProcessor extends AbstractProcessor {
                   + domainType
                   + "> "
                   + name
-                  + "()' to the spec, or declare a @GenerateMapping spec mapping those records in"
-                  + " the same compilation."
+                  + "()' to the spec, or declare a @GenerateMapping spec mapping those records,"
+                  + declarationSites(processingEnv, spec)
+                  + "."
                   + (projection
                       ? " On a projection, adding the leaf makes the write-back fallible: the"
                           + " Impl then emits the validated patch(domain, wire) instead of"
@@ -3426,9 +3630,8 @@ public class MappingProcessor extends AbstractProcessor {
         .findFirst()
         .map(
             r ->
-                " '"
-                    + r.spec().getSimpleName()
-                    + "' maps this pair but is a projection (no parse), so it cannot be nested.")
+                r.unusable(
+                    " maps this pair but is a projection (no parse), so it cannot be nested."))
         .orElse("");
   }
 
@@ -4186,15 +4389,17 @@ public class MappingProcessor extends AbstractProcessor {
     List<? extends TypeMirror> wirePermitted = wire.getPermittedSubclasses();
     List<SealedPair> pairs = new ArrayList<>();
     for (TypeMirror domainSubtype : domain.getPermittedSubclasses()) {
-      List<RegisteredSpec> candidates =
-          registry.stream()
-              .filter(RegisteredSpec::parseCapable)
-              .filter(r -> processingEnv.getTypeUtils().isSameType(r.domain(), domainSubtype))
-              .filter(
-                  r ->
-                      wirePermitted.stream()
-                          .anyMatch(w -> processingEnv.getTypeUtils().isSameType(r.wire(), w)))
-              .toList();
+      Candidates nearest =
+          Candidates.nearest(
+              registry.stream()
+                  .filter(RegisteredSpec::parseCapable)
+                  .filter(r -> processingEnv.getTypeUtils().isSameType(r.domain(), domainSubtype))
+                  .filter(
+                      r ->
+                          wirePermitted.stream()
+                              .anyMatch(w -> processingEnv.getTypeUtils().isSameType(r.wire(), w)))
+                  .toList());
+      List<RegisteredSpec> candidates = nearest.chosen();
       if (candidates.isEmpty()) {
         String projectionHint =
             registry.stream()
@@ -4207,10 +4412,9 @@ public class MappingProcessor extends AbstractProcessor {
                 .findFirst()
                 .map(
                     r ->
-                        " '"
-                            + r.spec().getSimpleName()
-                            + "' maps it but is a projection (no parse), so it cannot take part"
-                            + " in dispatch.")
+                        r.unusable(
+                            " maps it but is a projection (no parse), so it cannot take part in"
+                                + " dispatch."))
                 .orElse("");
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -4226,10 +4430,16 @@ public class MappingProcessor extends AbstractProcessor {
                 + wire.getSimpleName()
                 + "."
                 + projectionHint,
-            "Declare a @GenerateMapping spec for '" + domainSubtype + "' in the same compilation.");
+            "Declare a @GenerateMapping spec for '"
+                + domainSubtype
+                + "',"
+                + declarationSites(processingEnv, spec)
+                + ".");
         return;
       }
       if (candidates.size() > 1) {
+        // Sealed dispatch has no leaf to delegate through, so when every candidate is a
+        // dependency's the one remedy is a spec of this compilation's own, which shadows them.
         Diagnostics.error(
             processingEnv.getMessager(),
             spec,
@@ -4239,12 +4449,22 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' of '"
                 + domain.getSimpleName()
                 + "' matches more than one mapping spec: "
-                + candidates.stream().map(r -> r.spec().getSimpleName().toString()).toList()
+                + nearest.names()
                 + ".",
             "With several specs for one subtype, the dispatch choice would be arbitrary.",
-            "Keep exactly one spec per subtype pair.");
+            nearest.allClasspath()
+                ? "Declare a @GenerateMapping spec for this subtype pair in this compilation, which"
+                    + " takes precedence over a dependency's, or drop one of the two dependencies."
+                : "Keep exactly one spec per subtype pair.");
         return;
       }
+      noteShadowed(
+          processingEnv,
+          spec,
+          TAG,
+          "permitted subtype '" + domainSubtype + "'",
+          "Keep it, or remove the spec in this compilation if the classpath spec is the one meant.",
+          nearest);
       RegisteredSpec match = candidates.getFirst();
       pairs.add(new SealedPair(domainSubtype, match.wire(), match.impl()));
     }
@@ -4678,6 +4898,7 @@ public class MappingProcessor extends AbstractProcessor {
           .addFileComment("Generated by hkj-processor. Do not edit.")
           .build()
           .writeTo(processingEnv.getFiler());
+      writeIndexEntry(spec);
     } catch (FilerException e) {
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -4693,6 +4914,43 @@ public class MappingProcessor extends AbstractProcessor {
           "Rename one of the colliding specs.");
     } catch (IOException e) {
       writeFailure(spec, e);
+    }
+  }
+
+  /**
+   * Indexes a spec for the compilations that will depend on this one: every {@code MappingSpec}
+   * pair (an {@code UpdateSpec} has no parse, so nothing nests it), when the index is in use here
+   * (see {@code MappingIndexes.IndexUse}). Written after the Impl, so an entry never describes an
+   * Impl that failed to write; a collision on the entry's name is reported here, any other write
+   * failure by the caller.
+   */
+  private void writeIndexEntry(TypeElement spec) throws IOException {
+    if (findMappingSpec(spec) == null
+        || !(MappingIndexes.indexUse(processingEnv, spec)
+            instanceof MappingIndexes.IndexUse.Usable)) {
+      return;
+    }
+    try {
+      JavaFile.builder(MappingIndexes.INDEX_PACKAGE, MappingIndexes.entry(spec, GENERATED))
+          .addFileComment("Generated by hkj-processor. Do not edit.")
+          .build()
+          .writeTo(processingEnv.getFiler());
+    } catch (FilerException e) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "could not write the index entry for '"
+              + spec.getSimpleName()
+              + "': '"
+              + MappingIndexes.entryName(spec).canonicalName()
+              + "' already exists.",
+          "An entry is named after the spec's canonical name with '$' for each dot, so a spec whose"
+              + " own name carries a '$' (which the language reserves for generated code) can share"
+              + " an entry with another spec. The filer reported: "
+              + e.getMessage()
+              + ".",
+          "Rename the spec whose name contains '$'.");
     }
   }
 

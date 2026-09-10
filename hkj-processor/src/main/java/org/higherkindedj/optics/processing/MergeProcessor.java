@@ -20,6 +20,7 @@ import javax.annotation.processing.FilerException;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -57,6 +58,7 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMerge")
+@SupportedOptions(MappingIndexes.OPTION)
 public class MergeProcessor extends AbstractProcessor {
 
   private static final String TAG = "@GenerateMerge";
@@ -82,10 +84,15 @@ public class MergeProcessor extends AbstractProcessor {
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    // Nested fills resolve against the same round's @GenerateMapping specs (shared scan).
+    Set<? extends Element> specs = roundEnv.getElementsAnnotatedWith(GenerateMerge.class);
+    if (specs.isEmpty()) {
+      return true;
+    }
+    // Nested fills resolve against the round's @GenerateMapping specs and the classpath index
+    // (shared scan).
     List<MappingProcessor.RegisteredSpec> registry =
-        MappingProcessor.scanRegistry(processingEnv, roundEnv);
-    for (Element element : roundEnv.getElementsAnnotatedWith(GenerateMerge.class)) {
+        MappingProcessor.scanRegistry(processingEnv, roundEnv, specs.iterator().next());
+    for (Element element : specs) {
       processSpec(element, registry);
     }
     return true;
@@ -443,16 +450,20 @@ public class MergeProcessor extends AbstractProcessor {
                 ContainerKind.NONE));
         continue;
       }
-      List<MappingProcessor.RegisteredSpec> nested =
-          registry.stream()
-              .filter(MappingProcessor.RegisteredSpec::parseCapable)
-              .filter(
-                  r ->
-                      processingEnv.getTypeUtils().isSameType(r.wire(), sourceComponent.asType())
-                          && processingEnv
-                              .getTypeUtils()
-                              .isSameType(r.domain(), targetComponent.asType()))
-              .toList();
+      MappingProcessor.Candidates candidates =
+          MappingProcessor.Candidates.nearest(
+              registry.stream()
+                  .filter(MappingProcessor.RegisteredSpec::parseCapable)
+                  .filter(
+                      r ->
+                          processingEnv
+                                  .getTypeUtils()
+                                  .isSameType(r.wire(), sourceComponent.asType())
+                              && processingEnv
+                                  .getTypeUtils()
+                                  .isSameType(r.domain(), targetComponent.asType()))
+                  .toList());
+      List<MappingProcessor.RegisteredSpec> nested = candidates.chosen();
       if (nested.size() > 1) {
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -461,7 +472,7 @@ public class MergeProcessor extends AbstractProcessor {
             "target component '"
                 + name
                 + "' matches more than one mapping spec: "
-                + nested.stream().map(r -> r.spec().getSimpleName().toString()).toList()
+                + candidates.names()
                 + ".",
             "A nested fill resolves to the single spec mapping ("
                 + targetComponent.asType()
@@ -470,10 +481,23 @@ public class MergeProcessor extends AbstractProcessor {
                 + "); with several, the choice would be arbitrary.",
             "Add a leaf method '"
                 + name
-                + "()' delegating to the spec you want, or remove the duplicate spec.");
+                + "()' delegating to the spec you want, or "
+                + (candidates.allClasspath()
+                    ? "declare a @GenerateMapping spec for the pair in this compilation, which"
+                        + " takes precedence over a dependency's."
+                    : "remove the duplicate spec."));
         return null;
       }
       if (nested.size() == 1) {
+        MappingProcessor.noteShadowed(
+            processingEnv,
+            mergeMethod,
+            TAG,
+            "target component '" + name + "'",
+            "Keep it, or delegate explicitly with a leaf '"
+                + name
+                + "()' if the classpath spec is the one meant.",
+            candidates);
         fills.add(
             new Fill(
                 name,
@@ -497,7 +521,9 @@ public class MergeProcessor extends AbstractProcessor {
                   + "> "
                   + name
                   + "()' to the spec (source first, target second), or declare a @GenerateMapping"
-                  + " spec mapping those records in the same compilation.";
+                  + " spec mapping those records,"
+                  + MappingProcessor.declarationSites(processingEnv, spec)
+                  + ".";
       Diagnostics.error(
           processingEnv.getMessager(),
           mergeMethod,
@@ -545,10 +571,8 @@ public class MergeProcessor extends AbstractProcessor {
         .findFirst()
         .map(
             r ->
-                " '"
-                    + r.spec().getSimpleName()
-                    + "' maps this pair but is a projection (no parse), so it cannot fill a"
-                    + " merge.")
+                r.unusable(
+                    " maps this pair but is a projection (no parse), so it cannot fill a merge."))
         .orElse("");
   }
 

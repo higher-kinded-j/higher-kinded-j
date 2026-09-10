@@ -103,6 +103,7 @@ tasks.jacocoTestCoverageVerification {
             includes = listOf(
                 "org.higherkindedj.optics.processing.ErrorEnvelopeProcessor*",
                 "org.higherkindedj.optics.processing.MappingProcessor*",
+                "org.higherkindedj.optics.processing.MappingIndexes*",
                 "org.higherkindedj.optics.processing.MergeProcessor*",
                 "org.higherkindedj.optics.processing.BeanPropertyAnalyser*",
                 "org.higherkindedj.optics.processing.WireShape*",

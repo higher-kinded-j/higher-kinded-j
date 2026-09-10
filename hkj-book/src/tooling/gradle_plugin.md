@@ -26,7 +26,7 @@ plugins {
 }
 ```
 
-That is it. The plugin wires in dependencies, preview flags, compile-time checks, and Javadoc configuration automatically. It also enables "-parameters", which keeps constructor parameter names in the compiled class files: some copy strategies read them today, and the [record mapper](../mapping/ch_intro.md) uses them too.
+That is it. The plugin wires in dependencies, preview flags, compile-time checks, and Javadoc configuration automatically. It also enables "-parameters", which keeps constructor parameter names in the compiled class files: some copy strategies read them today, and the [record mapper](../mapping/ch_intro.md) uses them too. In a multi-module build, apply the plugin to **every** module that declares mapping specs, not only the one that nests them; see [Multi-module builds](manual_setup.md#multi-module-builds).
 
 ### Using SNAPSHOT Versions
 
