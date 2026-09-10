@@ -44,10 +44,6 @@ class ValidatedAssemblyTest {
     return result.fold(nel -> nel.map(FieldError::pathString).toJavaList(), _ -> List.<String>of());
   }
 
-  private static List<String> rendered(Validated<NonEmptyList<FieldError>, ?> result) {
-    return result.fold(nel -> nel.map(FieldError::toString).toJavaList(), _ -> List.<String>of());
-  }
-
   @Nested
   @DisplayName("accumulate(): generic error payload, and() chains")
   class Accumulate {
@@ -1183,7 +1179,7 @@ class ValidatedAssemblyTest {
               .field("email", badF("not an address"))
               .apply((a1, a2) -> a1 + a2);
 
-      assertThat(rendered(result)).containsExactly("just wrong", "email: not an address");
+      assertThatValidated(result).hasFieldErrors("just wrong", "email: not an address");
     }
 
     @Test
@@ -1203,8 +1199,7 @@ class ValidatedAssemblyTest {
               .field("address", address)
               .apply(Customer::new);
 
-      assertThatValidated(customer).isInvalid();
-      assertThat(rendered(customer)).containsExactly("address.zip: not a postcode");
+      assertThatValidated(customer).isInvalid().hasFieldErrors("address.zip: not a postcode");
     }
 
     @Test

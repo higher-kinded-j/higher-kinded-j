@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
@@ -1290,10 +1291,9 @@ class MappingProcessorTest {
         @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> parsed =
             (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", companyDto);
-        Assertions.assertThat(parsed.isInvalid()).isTrue();
-        Assertions.assertThat(
-                parsed.getError().toJavaList().stream().map(FieldError::toString).toList())
-            .containsExactly("customers.1.email: not an email address");
+        assertThatValidated(parsed)
+            .isInvalid()
+            .hasFieldErrors("customers.1.email: not an email address");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -2067,10 +2067,6 @@ class MappingProcessorTest {
       return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "patch", domain, wire);
     }
 
-    private List<String> renderedErrors(Validated<NonEmptyList<FieldError>, Object> result) {
-      return result.getError().toJavaList().stream().map(FieldError::toString).toList();
-    }
-
     @Test
     @DisplayName("a leaf-carrying projection emits build + validated patch, no asLens, no parse")
     void leafProjectionEmitsBuildAndPatch() {
@@ -2166,9 +2162,9 @@ class MappingProcessorTest {
                 .newInstance("nope", null, 44);
 
         Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
-        Assertions.assertThat(patched.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(patched))
-            .containsExactly("email: not an email address", "notes: must not be null");
+        assertThatValidated(patched)
+            .isInvalid()
+            .hasFieldErrors("email: not an email address", "notes: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -2194,9 +2190,9 @@ class MappingProcessorTest {
                 .newInstance(null, null, 44);
 
         Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
-        Assertions.assertThat(patched.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(patched))
-            .containsExactly("email: must not be null", "notes: must not be null");
+        assertThatValidated(patched)
+            .isInvalid()
+            .hasFieldErrors("email: must not be null", "notes: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -2262,8 +2258,7 @@ class MappingProcessorTest {
                 wireClass
                     .getDeclaredConstructor(String.class, String.class)
                     .newInstance("nope", "new memo"));
-        Assertions.assertThat(bad.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(bad)).containsExactly("email: not an email address");
+        assertThatValidated(bad).isInvalid().hasFieldErrors("email: not an email address");
 
         // A valid wire writes the renamed component back to its domain source.
         Validated<NonEmptyList<FieldError>, Object> good =
@@ -2388,9 +2383,7 @@ class MappingProcessorTest {
                 .newInstance(wireAddress);
 
         Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
-        Assertions.assertThat(patched.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(patched))
-            .containsExactly("address.zip: must be 5 digits");
+        assertThatValidated(patched).isInvalid().hasFieldErrors("address.zip: must be 5 digits");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -2466,10 +2459,8 @@ class MappingProcessorTest {
                 .newInstance(List.of("good@example.com", "nope"));
 
         Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
-        Assertions.assertThat(patched.isInvalid()).isTrue();
         // "nope" at position 1: located by index, making this test's name literal.
-        Assertions.assertThat(renderedErrors(patched))
-            .containsExactly("emails.1: not an email address");
+        assertThatValidated(patched).isInvalid().hasFieldErrors("emails.1: not an email address");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -2566,8 +2557,7 @@ class MappingProcessorTest {
                 wireClass
                     .getDeclaredConstructor(java.util.Optional.class)
                     .newInstance(java.util.Optional.of("nope")));
-        Assertions.assertThat(bad.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(bad)).containsExactly("backup: not an email address");
+        assertThatValidated(bad).isInvalid().hasFieldErrors("backup: not an email address");
 
         Validated<NonEmptyList<FieldError>, Object> nullRead =
             patch(
@@ -2576,8 +2566,7 @@ class MappingProcessorTest {
                 wireClass
                     .getDeclaredConstructor(java.util.Optional.class)
                     .newInstance(new Object[] {null}));
-        Assertions.assertThat(nullRead.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(nullRead)).containsExactly("backup: must not be null");
+        assertThatValidated(nullRead).isInvalid().hasFieldErrors("backup: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -2649,11 +2638,9 @@ class MappingProcessorTest {
                 .newInstance(new LinkedHashMap<>(Map.of("work", "nope")));
 
         Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
-        Assertions.assertThat(patched.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(patched)).hasSize(1);
-        Assertions.assertThat(renderedErrors(patched).getFirst())
-            .startsWith("entries")
-            .contains("not an email address");
+        assertThatValidated(patched)
+            .isInvalid()
+            .hasFieldErrors("entries.work: not an email address");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -7765,10 +7752,6 @@ class MappingProcessorTest {
       return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", wire);
     }
 
-    private List<String> renderedErrors(Validated<NonEmptyList<FieldError>, Object> result) {
-      return result.getError().toJavaList().stream().map(FieldError::toString).toList();
-    }
-
     @Test
     @DisplayName(
         "null components are located, accumulated invalids, never an NPE — the guard"
@@ -7786,9 +7769,9 @@ class MappingProcessorTest {
                 .newInstance(null, "not-an-email", 36);
 
         Validated<NonEmptyList<FieldError>, Object> parsed = parse(impl, wire);
-        Assertions.assertThat(parsed.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(parsed))
-            .containsExactly("name: must not be null", "email: not an email address");
+        assertThatValidated(parsed)
+            .isInvalid()
+            .hasFieldErrors("name: must not be null", "email: not an email address");
 
         // A null leaf read never reaches the leaf's prism (which would throw): guard first.
         Object nullLeafWire =
@@ -7796,8 +7779,7 @@ class MappingProcessorTest {
                 .loadClass("com.example.UserDto")
                 .getDeclaredConstructor(String.class, String.class, int.class)
                 .newInstance("Ada", null, 36);
-        Assertions.assertThat(renderedErrors(parse(impl, nullLeafWire)))
-            .containsExactly("email: must not be null");
+        assertThatValidated(parse(impl, nullLeafWire)).hasFieldErrors("email: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -7880,8 +7862,7 @@ class MappingProcessorTest {
                 .getDeclaredConstructor(String.class, result.loadClass("com.example.CustomerDto"))
                 .newInstance("7", innerNull);
 
-        Assertions.assertThat(renderedErrors(parse(impl, wire)))
-            .containsExactly("customer.name: must not be null");
+        assertThatValidated(parse(impl, wire)).hasFieldErrors("customer.name: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -7984,9 +7965,7 @@ class MappingProcessorTest {
         @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> patched =
             (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "patch", domain, wire);
-        Assertions.assertThat(patched.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(patched))
-            .containsExactly("address.zip: must not be null");
+        assertThatValidated(patched).isInvalid().hasFieldErrors("address.zip: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -8051,8 +8030,7 @@ class MappingProcessorTest {
                 .loadClass("com.example.RosterDto")
                 .getDeclaredConstructor(String.class, List.class)
                 .newInstance("7", null);
-        Assertions.assertThat(renderedErrors(parse(impl, nullListWire)))
-            .containsExactly("emails: must not be null");
+        assertThatValidated(parse(impl, nullListWire)).hasFieldErrors("emails: must not be null");
 
         // A null ELEMENT is a located invalid at its index,
         // completing the doctrine inside containers.
@@ -8061,8 +8039,8 @@ class MappingProcessorTest {
                 .loadClass("com.example.RosterDto")
                 .getDeclaredConstructor(String.class, List.class)
                 .newInstance("7", Arrays.asList("a@b.c", null));
-        Assertions.assertThat(renderedErrors(parse(impl, nullElementWire)))
-            .containsExactly("emails.1: must not be null");
+        assertThatValidated(parse(impl, nullElementWire))
+            .hasFieldErrors("emails.1: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -8160,10 +8138,9 @@ class MappingProcessorTest {
         @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> parsed =
             (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", pageDto);
-        Assertions.assertThat(parsed.isInvalid()).isTrue();
-        Assertions.assertThat(
-                parsed.getError().toJavaList().stream().map(FieldError::toString).toList())
-            .containsExactly("items.1.email: not an email address");
+        assertThatValidated(parsed)
+            .isInvalid()
+            .hasFieldErrors("items.1.email: not an email address");
 
         // The null doctrine composes with the substitution too: a null element is located.
         Object nullElementPage =
@@ -8174,9 +8151,7 @@ class MappingProcessorTest {
         @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> nullParsed =
             (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", nullElementPage);
-        Assertions.assertThat(
-                nullParsed.getError().toJavaList().stream().map(FieldError::toString).toList())
-            .containsExactly("items.1: must not be null");
+        assertThatValidated(nullParsed).hasFieldErrors("items.1: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -9552,9 +9527,7 @@ class MappingProcessorTest {
       Object invalid =
           dto.getDeclaredConstructor(String.class, String.class).newInstance("Ada", "nope");
       Validated<NonEmptyList<FieldError>, Object> parsed = parse(impl, invalid);
-      Assertions.assertThat(parsed.isInvalid()).isTrue();
-      Assertions.assertThat(parsed.getError().toJavaList().stream().map(FieldError::toString))
-          .containsExactly("email: not an email address");
+      assertThatValidated(parsed).isInvalid().hasFieldErrors("email: not an email address");
     }
 
     @Test
@@ -10544,9 +10517,7 @@ class MappingProcessorTest {
       withNull.add(null);
       Validated<NonEmptyList<FieldError>, Object> parsed =
           parse(impl, dtoCtor.newInstance("Blue", withNull, Map.of()));
-      Assertions.assertThat(parsed.isInvalid()).isTrue();
-      Assertions.assertThat(parsed.getError().toJavaList().stream().map(FieldError::toString))
-          .containsExactly("tags.1: must not be null");
+      assertThatValidated(parsed).isInvalid().hasFieldErrors("tags.1: must not be null");
 
       // and an absent one is still valid emptiness
       Assertions.assertThat(parse(impl, dtoCtor.newInstance("Blue", null, null)).isValid())

@@ -95,7 +95,7 @@ assertThatEither(result).isRight().hasRightSatisfying(v ->
     assertThat(v).isPositive().isLessThan(100));
 ```
 
-`MaybeAssert` mirrors the shape with `isJust()` / `isNothing()`. `TryAssert` uses `isSuccess()` / `isFailure()`, plus `hasExceptionOfType(...)` and `hasExceptionSatisfying(...)`. `ValidatedAssert` uses `isValid()` / `isInvalid()`, plus `hasValueOfType` / `hasErrorOfType`.
+`MaybeAssert` mirrors the shape with `isJust()` / `isNothing()`. `TryAssert` uses `isSuccess()` / `isFailure()`, plus `hasExceptionOfType(...)` and `hasExceptionSatisfying(...)`. `ValidatedAssert` uses `isValid()` / `isInvalid()`, plus `hasValueOfType` / `hasErrorOfType`, and `hasFieldErrors(...)` for a located accumulation.
 
 ### NonEmptyList
 
@@ -135,17 +135,27 @@ Also `hasLeftSatisfying(...)` / `hasRightSatisfying(...)`.
 
 ### Validation accumulation (FieldError)
 
-There is **no** dedicated "accumulated validation" assertion; `ValidatedAssert` is unchanged. Assert accumulation by taking the `NonEmptyList<FieldError>` off the `Invalid` and asserting on the located errors:
+`hasFieldErrors` on `ValidatedAssert` asserts the whole accumulation at once: each `FieldError` rendered as `"path: message"`, compared in declaration order, which is the accumulation contract. It is the assertion for a codec parse, a mapping `parse`/`patch`, a fallible merge or an assembly companion:
+
+<!-- verify -->
+```java
+Validated<NonEmptyList<FieldError>, Customer> parsed = mapping.parse(dto);
+
+assertThatValidated(parsed)
+    .isInvalid()
+    .hasFieldErrors("customer.email: not an email address", "customer.age: must be positive");
+```
+
+It applies to the located-error channel only: the `Invalid` must carry an `Iterable` of `FieldError`, which `NonEmptyList<FieldError>` is. On any other error type it fails saying so - use `hasError` / `hasErrorSatisfying` there.
+
+To take a single error apart - its segments, or a message matched loosely - `assertThatFieldError` is the per-error assertion:
 
 <!-- verify -->
 ```java
 import static org.higherkindedj.hkt.assertions.FieldErrorAssert.assertThatFieldError;
 import static org.higherkindedj.hkt.assertions.NonEmptyListAssert.assertThatNonEmptyList;
 
-Validated<NonEmptyList<FieldError>, Customer> result = mapping.parse(dto);
-
-assertThatValidated(result).isInvalid();
-NonEmptyList<FieldError> errors = result.getError();
+NonEmptyList<FieldError> errors = mapping.parse(dto).getError();
 
 assertThatNonEmptyList(errors).hasSize(2);
 assertThatFieldError(errors.head()).hasPath("customer.email").hasMessageContaining("not an email");
@@ -417,7 +427,7 @@ Both modules are now in scope; no further imports are required.
 - **Forgetting the `unwrap` function on transformer asserts.** The transformer entry-points take *two* arguments: the Kind itself and an unwrapper of type `Function<Kind<F, X>, Optional<X>>`. For the common Optional-as-outer-monad case, the unwrapper is just `OPTIONAL::narrow`.
 - **Asserting on a Right value when the Either might be Left** (or any other state-mismatch). The assertions throw with a clear message; do not pre-call `.getRight()` outside the assertion chain.
 - **Using `ValidatedAssert.assertThatValidated(v, "description")` then trying `.as(...)` again.** The two-arg factory already calls `as(description)`. Subsequent `.as(...)` calls overwrite it.
-- **Looking for an "accumulated errors" assertion on `ValidatedAssert`.** There isn't one, and it is not an omission. Assert `isInvalid()`, take the `NonEmptyList<FieldError>` via `getError()`, then use `assertThatNonEmptyList` for the shape and `assertThatFieldError` (`hasPath` / `hasSegments` / `isUnlabelled`) for each located error.
+- **Hand-rolling `result.fold(nel -> nel.map(FieldError::toString).toJavaList(), _ -> List.of())` to assert an accumulation.** That is `hasFieldErrors(...)`. Drop to `getError()` plus `assertThatNonEmptyList` / `assertThatFieldError` only when you need one error's segments or a loose message match.
 - **Confusing a `Left` with a defect on `VResultPath`.** A typed domain failure is `isLeft()`; a thrown exception is `hasDefect()`. They are different channels.
 - **Passing duplicate fixtures to `assertLensLaws` / `assertAffineLaws`.** `a1` and `a2` must differ from each other and from the current focus, otherwise the set-set law is untestable. The harness fails fast with that message rather than silently passing.
 

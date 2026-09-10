@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
@@ -305,10 +306,9 @@ class MergeProcessorTest {
         Validated<NonEmptyList<FieldError>, Object> merged =
             (Validated<NonEmptyList<FieldError>, Object>)
                 invoke(assembly, "assemble", user, wrapper);
-        Assertions.assertThat(merged.isInvalid()).isTrue();
-        Assertions.assertThat(
-                merged.getError().toJavaList().stream().map(FieldError::toString).toList())
-            .containsExactly("name: must not be null", "customer.email: must not be null");
+        assertThatValidated(merged)
+            .isInvalid()
+            .hasFieldErrors("name: must not be null", "customer.email: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
@@ -1419,10 +1419,6 @@ class MergeProcessorTest {
           .newInstance("DE00", 5);
     }
 
-    private List<String> renderedErrors(Validated<NonEmptyList<FieldError>, Object> result) {
-      return result.getError().toJavaList().stream().map(FieldError::toString).toList();
-    }
-
     @Test
     @DisplayName(
         "null source components are located, accumulated invalids — the guard beats the" + " leaf")
@@ -1437,17 +1433,16 @@ class MergeProcessorTest {
         Validated<NonEmptyList<FieldError>, Object> merged =
             (Validated<NonEmptyList<FieldError>, Object>)
                 invoke(assembly, "assemble", user(result, null, "not-an-email"), account(result));
-        Assertions.assertThat(merged.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(merged))
-            .containsExactly("name: must not be null", "email: not an email address");
+        assertThatValidated(merged)
+            .isInvalid()
+            .hasFieldErrors("name: must not be null", "email: not an email address");
 
         // A null leaf read never reaches the leaf's prism (which would throw): guard first.
         @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> nullLeaf =
             (Validated<NonEmptyList<FieldError>, Object>)
                 invoke(assembly, "assemble", user(result, "Ada", null), account(result));
-        Assertions.assertThat(nullLeaf.isInvalid()).isTrue();
-        Assertions.assertThat(renderedErrors(nullLeaf)).containsExactly("email: must not be null");
+        assertThatValidated(nullLeaf).isInvalid().hasFieldErrors("email: must not be null");
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }

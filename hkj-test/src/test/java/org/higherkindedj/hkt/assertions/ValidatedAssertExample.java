@@ -7,6 +7,8 @@ import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +42,20 @@ class ValidatedAssertExample {
     assertThatValidated(result)
         .isInvalid()
         .hasErrorSatisfying(errors -> errors.size() == 2, "two errors collected");
+  }
+
+  @Test
+  @DisplayName("hasFieldErrors() asserts the located errors as rendered lines, in order")
+  void locatedErrors() {
+    Validated<NonEmptyList<FieldError>, Integer> result =
+        Validated.invalid(
+            NonEmptyList.of(
+                FieldError.of("not an address").at("email").at("customer"),
+                FieldError.of("must be positive").at("age").at("customer")));
+
+    assertThatValidated(result)
+        .isInvalid()
+        .hasFieldErrors("customer.email: not an address", "customer.age: must be positive");
   }
 
   @Test

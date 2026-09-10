@@ -2,15 +2,19 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.assertions;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Invalid;
 import org.higherkindedj.hkt.validated.Valid;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.hkt.validated.ValidatedKindHelper;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Fluent assertion utilities for {@link Validated} types. Provides a convenient API for testing
@@ -136,6 +140,36 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
     return this;
   }
 
+  /**
+   * Asserts that the Validated is Invalid and its accumulated {@link FieldError}s render, in that
+   * order, as the given lines.
+   *
+   * <p>Each error is rendered by {@link FieldError#toString()}, i.e. {@code "path: message"}, or
+   * just the message for an unlabelled leaf error. Order is asserted because declaration order is
+   * the accumulation doctrine: {@code fields()} reports the errors in the order the fields were
+   * declared.
+   *
+   * <pre>{@code
+   * assertThatValidated(OrderMappingImpl.INSTANCE.parse(badDto))
+   *     .hasFieldErrors(
+   *         "id: not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)",
+   *         "placedOn: not an ISO-8601 date (expected e.g. 2026-07-28)");
+   * }</pre>
+   *
+   * <p>Applies to the located-error channel only: the Invalid must carry an {@link Iterable} of
+   * {@code FieldError}, which is what {@code NonEmptyList<FieldError>} is. For any other error type
+   * use {@link #hasError(Object)} or {@link #hasErrorSatisfying(Predicate, String)}.
+   *
+   * @param expected the rendered errors, in accumulation order
+   */
+  public ValidatedAssert<E, A> hasFieldErrors(String... expected) {
+    isInvalid();
+    Assertions.assertThat(renderedFieldErrors())
+        .as("Validated FieldErrors")
+        .containsExactly(expected);
+    return this;
+  }
+
   /** Asserts that the Validated is Valid and the value is an instance of the expected class. */
   public ValidatedAssert<E, A> hasValueOfType(Class<?> expectedClass) {
     isValid();
@@ -175,8 +209,47 @@ public class ValidatedAssert<E, A> extends AbstractAssert<ValidatedAssert<E, A>,
     return ((Valid<E, A>) actual).value();
   }
 
-  /** Direct accessor for the Invalid error. Caller must have verified the Validated is Invalid. */
+  /**
+   * Direct accessor for the Invalid error, never null: {@link Invalid} rejects a null error. Caller
+   * must have verified the Validated is Invalid.
+   */
   private E invalidError() {
     return ((Invalid<E, A>) actual).error();
+  }
+
+  /**
+   * Renders the accumulated located errors, failing if the Invalid does not carry {@link
+   * FieldError}s. Caller must have verified the Validated is Invalid.
+   */
+  private List<String> renderedFieldErrors() {
+    E error = invalidError();
+    if (!(error instanceof Iterable<?> located)) {
+      throw failure(
+          "Cannot render FieldErrors from an error of type <%s>: <%s>. hasFieldErrors() applies to"
+              + " the located-error channel (NonEmptyList<FieldError>); use hasError() or"
+              + " hasErrorSatisfying() for other error types.",
+          error.getClass().getSimpleName(), error);
+    }
+    List<String> rendered = new ArrayList<>();
+    for (Object element : located) {
+      if (element instanceof FieldError fieldError) {
+        rendered.add(fieldError.toString());
+      } else {
+        throw failure(
+            "Expected every accumulated error to be a FieldError but element %d was <%s> (type"
+                + " <%s>). Accumulated errors: <%s>.",
+            rendered.size(), element, simpleTypeName(element), error);
+      }
+    }
+    return List.copyOf(rendered);
+  }
+
+  /**
+   * The element's simple type name, or {@code "null"}. A {@code NonEmptyList} rejects null
+   * elements, but {@link #hasFieldErrors} accepts any {@link Iterable}, and a plain {@code
+   * Arrays.asList} can hold one.
+   */
+  private static String simpleTypeName(@Nullable Object element) {
+    return element == null ? "null" : element.getClass().getSimpleName();
   }
 }

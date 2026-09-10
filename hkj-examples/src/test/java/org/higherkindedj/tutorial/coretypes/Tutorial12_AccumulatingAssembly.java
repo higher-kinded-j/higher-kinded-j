@@ -93,11 +93,6 @@ public class Tutorial12_AccumulatingAssembly {
     }
   }
 
-  /** Renders each error as {@code "path: message"} so ordering and location are easy to assert. */
-  private static List<String> errorStrings(Validated<NonEmptyList<FieldError>, ?> result) {
-    return result.fold(nel -> nel.map(FieldError::toString).toJavaList(), _ -> List.<String>of());
-  }
-
   // ═════════════════════════════════════════════════════════════════════════
   // Exercise 1: A first assembly
   // ═════════════════════════════════════════════════════════════════════════
@@ -161,8 +156,7 @@ public class Tutorial12_AccumulatingAssembly {
     Validated<NonEmptyList<FieldError>, User> result = answerRequired();
     List<String> expected = answerRequired();
 
-    assertThatValidated(result).isInvalid();
-    assertThat(errorStrings(result)).isEqualTo(expected);
+    assertThatValidated(result).isInvalid().hasFieldErrors(expected.toArray(String[]::new));
     assertThat(expected).hasSize(2);
   }
 
@@ -235,8 +229,7 @@ public class Tutorial12_AccumulatingAssembly {
 
     Validated<NonEmptyList<FieldError>, Customer> result = answerRequired();
 
-    assertThatValidated(result).isInvalid();
-    assertThat(errorStrings(result)).containsExactly("address.zip: not a postcode");
+    assertThatValidated(result).isInvalid().hasFieldErrors("address.zip: not a postcode");
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -319,8 +312,7 @@ public class Tutorial12_AccumulatingAssembly {
 
     Validated<NonEmptyList<FieldError>, Pair> corrected = answerRequired();
 
-    assertThatValidated(corrected).isInvalid();
-    assertThat(errorStrings(corrected)).containsExactly("email: not an address");
+    assertThatValidated(corrected).isInvalid().hasFieldErrors("email: not an address");
   }
 
   /*
