@@ -64,6 +64,11 @@ import java.lang.annotation.Target;
  *       wherever the spec marks the component with {@link OptionalBridge} — on a bare abstract
  *       marker when the element copies, or on that component's leaf when it converts. It is never
  *       inferred on a record wire, where {@code null} stays an error by default.
+ *   <li>A nested domain record component can be spread across the wire's flat components with a
+ *       {@link Flatten} marker named after it: {@code build} fills each flat component from the
+ *       record's same-named component, {@code parse} assembles the record through its own ladder
+ *       and locates failures under the domain path ({@code address.street}), and renames, leaves
+ *       and nested specs apply to the inner components by name.
  *   <li>Sealed interface pairs dispatch over their permitted subtype pairs, one spec per pair.
  *   <li>Generic records map three ways. As concrete instantiations: {@code MappingSpec<Page<User>,
  *       PageDto<UserDto>>} classifies every component under the substitution. As threaded specs:

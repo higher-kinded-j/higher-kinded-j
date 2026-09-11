@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 
 /**
  * Opts one domain {@code Optional<T>} component into the null-as-absent bridge against a
- * <em>record</em> wire (issue #673).
+ * <em>record</em> wire.
  *
  * <p>A bean wire bridges automatically, because bean conventions leave {@code Optional} off
  * property types. A record wire does not: on a record, {@code null} is a defect by default, so a

@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.annotations.Flatten;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.annotations.MapField;
@@ -89,6 +90,19 @@ public final class RecordMappingBook {
     // ANCHOR_END: nesting_usage
     System.out.println(
         InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob", "nope"))));
+
+    // ANCHOR: flatten_usage
+    VendorDto flat =
+        VendorMappingImpl.INSTANCE.build(
+            new Vendor("Acme", new Address("1 High St", "Leeds", "LS1 4AP")));
+    // VendorDto[name=Acme, street=1 High St, city=Leeds, postcode=LS1 4AP]
+    VendorMappingImpl.INSTANCE.parse(new VendorDto("Acme", null, "Leeds", null));
+    // Invalid(NonEmptyList[address.street: must not be null, address.postcode: must not be null])
+    // ANCHOR_END: flatten_usage
+    System.out.println(
+        flat
+            + " / "
+            + VendorMappingImpl.INSTANCE.parse(new VendorDto("Acme", null, "Leeds", null)));
 
     // ANCHOR: generic_usage
     CustomerPageMappingImpl.INSTANCE.parse(
@@ -349,6 +363,21 @@ record InvoiceDto(String id, CustomerDto customer) {}
 interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
 
 // ANCHOR_END: nesting_spec
+
+// ANCHOR: flatten_spec
+record Address(String street, String city, String postcode) {}
+
+record Vendor(String name, Address address) {}
+
+record VendorDto(String name, String street, String city, String postcode) {} // fixed, flat
+
+@GenerateMapping
+interface VendorMapping extends MappingSpec<Vendor, VendorDto> {
+  @Flatten
+  Address address(); // spread by name: street, city and postcode
+}
+
+// ANCHOR_END: flatten_spec
 
 // ANCHOR: generic_spec
 record Page<T>(List<T> items, int total) {}

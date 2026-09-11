@@ -70,6 +70,7 @@ says what is *not* obvious.
 | A component that must be **parsed** (`String` -> `EmailAddress`) | a zero-arg `default` method named after the domain component, returning `ValidatedPrism<Wire, Domain>` |
 | A wire-only field **derived** from the domain | a zero-arg `default` method returning `Getter<Domain, WireType>` |
 | A domain `Optional<T>` against a **nullable record** wire component `T` | `@OptionalBridge` on an abstract marker named after the domain component, or on that component's leaf |
+| A nested domain record against a **flat** wire (`Address` vs `street`, `city`, `postcode`) | `@Flatten` on an abstract marker named after the domain component; the record's components then map by name |
 
 <!-- verify -->
 ```java
@@ -250,6 +251,41 @@ shared index package being a split package there, so a library bound for such a 
 turns the index off with the processor option `-Ahkj.mapping.index=false` (no entries written,
 none read).
 
+### Flattening a nested record onto a flat wire
+
+When the wire is flat where the domain nests (an `Address` record on the domain side, three plain
+fields on a wire someone else fixed), no single wire component carries the address, so a leaf
+cannot map it. `@Flatten` on an abstract marker named after the domain component spreads it by
+**name**, both directions:
+
+<!-- verify -->
+```java
+public record PostalAddress(String street, String city, String postcode) {}
+public record Vendor(String name, PostalAddress address) {}
+public record VendorDto(String name, String street, String city, String postcode) {}  // fixed, flat
+
+@GenerateMapping
+public interface VendorMapping extends MappingSpec<Vendor, VendorDto> {
+  @Flatten
+  PostalAddress address();   // build: street = domain.address().street() ...; parse: assembles it
+}
+```
+
+`parse` assembles the record through its own `fields()` ladder inside the outer one, so failures
+accumulate and locate under the DOMAIN path (`address.street: must not be null`), a name the flat
+wire never sent. The whole vocabulary applies inside the group by name: a `@MapField(to = ...)`
+rename named after an inner component (`String street();`) points it at another wire field, a
+`default ValidatedPrism<...> postcode()` leaf converts one, an `@OptionalBridge` named after an
+inner `Optional` bridges it, an inner record nests through its own spec, containers lift. An
+all-identity group keeps `asIso()`; a mapping carrying a group nests in other specs like any other.
+Names must be unambiguous: an inner component may not share a name with a domain component or
+another group's (so two components of the same record type cannot both be spread), a derived field
+may not be named after one, and a wire component named after the flattened one must be fed by a
+rename from another component. Spreading is one level deep: a record inside the group nests
+through its own spec, and a marker naming an inner component is refused. Not supported yet (each a
+diagnostic): bean wires, generic specs, projections, sparse `UpdateSpec`s, and a group wider than
+one `fields()` ladder (16).
+
 Generic records map three ways. **Concrete instantiations** (`extends MappingSpec<Page<User>,
 PageDto<UserDto>>`): components classify under the substitution, so leaves/nesting/containers and
 the null doctrine apply unchanged. **Threaded specs** (`PageMapping<T> extends MappingSpec<Page<T>,
@@ -272,11 +308,13 @@ its own: a constructor-supplied field and a stub have nowhere to declare them.
 ### Shared vocabulary: mix-in interfaces
 
 A spec may extend plain **mix-in interfaces** alongside `MappingSpec`/`UpdateSpec`; inherited
-renames, leaves and derived fields count as if declared on the spec, collected transitively with
-Java's own precedence (a local override hides the mix-in's member; a diamond counts once;
-unrelated mix-ins agreeing on an abstract rename fold into one stub returning the narrowest
-declared type, conflicting targets are diagnosed naming both interfaces, and a group with no
-narrowest return is refused naming every declaration). Interface statics are not inherited.
+renames, leaves, derived fields, `@OptionalBridge` markers and `@Flatten` markers count as if
+declared on the spec, collected transitively with Java's own precedence (a local override hides
+the mix-in's member; a diamond counts once; unrelated mix-ins agreeing on an abstract rename or
+marker fold into one stub returning the narrowest declared type, conflicting rename targets are
+diagnosed naming both interfaces, and a group with no narrowest return is refused naming every
+declaration). An inherited leaf, bridge or `@Flatten` marker naming no component of the extending
+spec's domain stays inert; a local one is an error. Interface statics are not inherited.
 Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec (directly
 or transitively extends `MappingSpec`/`UpdateSpec`), and a generic mix-in reached raw (a generic
 mix-in used with type arguments is read under the spec's instantiation and is fine). A member

@@ -71,6 +71,10 @@ class MappingGoldenFileTest {
             "com.example.bridge.CustomerMappingImpl",
             "BridgedCustomerMappingImpl.java.golden"),
         new GoldenTestCase(
+            "flattened components (nested ladders, spread build, rename and leaf inside, stubs)",
+            "com.example.flattened.CustomerMappingImpl",
+            "FlattenedCustomerMappingImpl.java.golden"),
+        new GoldenTestCase(
             "identity projection (asLens)",
             "com.example.projection.EmployeeCardMappingImpl",
             "EmployeeCardMappingImpl.java.golden"),
@@ -150,6 +154,7 @@ class MappingGoldenFileTest {
             fallible(),
             beanWire(),
             optionalBridge(),
+            flattened(),
             projection(),
             leafProjection(),
             update(),
@@ -353,6 +358,56 @@ class MappingGoldenFileTest {
                         ? Validated.invalidNel(FieldError.of("must not be blank"))
                         : Validated.validNel(new Nickname(raw)),
                 Nickname::value);
+          }
+        }
+        """);
+  }
+
+  // ---- flattened components: two nested records spread across the flat wire, one with a renamed
+  // and a leaf-converted inner component (which costs the Iso tier), one all-identity ----
+  private static JavaFileObject flattened() {
+    return JavaFileObjects.forSourceString(
+        "com.example.flattened.Fixtures",
+        """
+        package com.example.flattened;
+
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.annotations.Flatten;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.MapField;
+        import org.higherkindedj.optics.annotations.MappingSpec;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record Postcode(String value) {}
+
+        record Address(String street, String city, Postcode postcode) {}
+
+        record Contact(String phone, String email) {}
+
+        record Customer(String name, Address address, Contact contact) {}
+
+        record CustomerDto(
+            String name, String addressLine1, String city, String postcode, String phone, String email) {}
+
+        @GenerateMapping
+        interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+          @Flatten
+          Address address();
+
+          @Flatten
+          Contact contact();
+
+          @MapField(to = "addressLine1")
+          String street();
+
+          default ValidatedPrism<String, Postcode> postcode() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.isBlank()
+                        ? Validated.invalidNel(FieldError.of("must not be blank"))
+                        : Validated.validNel(new Postcode(raw)),
+                Postcode::value);
           }
         }
         """);

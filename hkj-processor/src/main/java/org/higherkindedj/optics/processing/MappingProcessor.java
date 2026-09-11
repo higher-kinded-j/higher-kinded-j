@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.FilerException;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -54,6 +55,7 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.annotations.ArityCeilings;
+import org.higherkindedj.optics.annotations.Flatten;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.OptionalBridge;
@@ -258,10 +260,44 @@ public class MappingProcessor extends AbstractProcessor {
     boolean parseCapable =
         origin != Origin.CLASSPATH_MISSING_IMPL
             && (sealedPair
-                || domainRecord.getRecordComponents().size()
+                || domainSlots(env, spec, domainRecord, (DeclaredType) domainArg)
                     == wireCount - derivedCandidateCount(env, spec));
     registry.add(
         new RegisteredSpec(domainArg, wireArg, implClassName(spec), spec, parseCapable, origin));
+  }
+
+  /**
+   * How many wire components the domain calls for, as the registry's parse-capability arithmetic
+   * needs it before validation has run: one per component, except that a component a
+   * {@code @Flatten} marker names calls for one per component of its record. Tolerant by design,
+   * since a spec this round has not been validated yet: a marker on a non-record component counts
+   * one, and validation reports it. Read from the class file for a classpath spec, which is why the
+   * marker is retained there.
+   */
+  private static int domainSlots(
+      ProcessingEnvironment env,
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared) {
+    Set<String> flattenedNames =
+        specMembers(env.getElementUtils(), spec).stream()
+            .filter(method -> method.getAnnotation(Flatten.class) != null)
+            .map(method -> method.getSimpleName().toString())
+            .collect(Collectors.toSet());
+    boolean generic = !domain.getTypeParameters().isEmpty();
+    int slots = 0;
+    for (RecordComponentElement component : domain.getRecordComponents()) {
+      TypeElement record = null;
+      if (flattenedNames.contains(component.getSimpleName().toString())) {
+        record =
+            asRecord(
+                generic
+                    ? env.getTypeUtils().asMemberOf(domainDeclared, component)
+                    : component.asType());
+      }
+      slots += record == null ? 1 : record.getRecordComponents().size();
+    }
+    return slots;
   }
 
   /**
@@ -477,10 +513,21 @@ public class MappingProcessor extends AbstractProcessor {
                     && method.getAnnotation(OptionalBridge.class) != null);
   }
 
+  /**
+   * A {@code @Flatten} marker: the abstract method named after the domain record component that is
+   * spread across the wire's flat components. Asked only after {@link #validateSpecMethods}, which
+   * has refused a bodied, parameterised or otherwise-annotated one, so the annotation alone
+   * identifies it.
+   */
+  private static boolean isFlattenMarker(ExecutableElement method) {
+    return method.getAnnotation(Flatten.class) != null;
+  }
+
   /** Zero-parameter, {@code ValidatedPrism}-returning and bodiless: an element-mapped leaf. */
   private boolean isAbstractLeaf(TypeElement owner, ExecutableElement method) {
     return method.getModifiers().contains(Modifier.ABSTRACT)
         && method.getAnnotation(MapField.class) == null
+        && method.getAnnotation(Flatten.class) == null
         && method.getParameters().isEmpty()
         && memberTypeIn(owner, method) instanceof DeclaredType returnType
         && ((TypeElement) returnType.asElement()).getQualifiedName().contentEquals(VALIDATED_PRISM)
@@ -843,7 +890,8 @@ public class MappingProcessor extends AbstractProcessor {
    * mix-in vocabulary may carry leaves for components only some extending specs have; helpers
    * belong in {@code private} or {@code static} methods, which are not leaf-shaped.
    */
-  private boolean checkLocalLeavesBind(TypeElement spec, TypeElement domain) {
+  private boolean checkLocalLeavesBind(
+      TypeElement spec, TypeElement domain, Set<String> flattenedInner) {
     List<String> components =
         domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
     for (ExecutableElement method : specMembers(spec)) {
@@ -851,7 +899,8 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       String name = method.getSimpleName().toString();
-      if (components.contains(name)) {
+      // A flattened group's inner components take leaves by their own names, like any other.
+      if (components.contains(name) || flattenedInner.contains(name)) {
         continue;
       }
       // The one leaf-shaped name a generated member also carries: the collision sweep owns it
@@ -859,18 +908,23 @@ public class MappingProcessor extends AbstractProcessor {
       if (name.equals("asValidatedPrism")) {
         continue;
       }
+      // A flattened group's inner components are as nameable as the domain's own, so they join
+      // the suggestion and the listing.
+      List<String> nameable =
+          Stream.concat(components.stream(), flattenedInner.stream().sorted()).toList();
       Diagnostics.error(
           processingEnv.getMessager(),
           method,
           TAG,
           "leaf '" + name + "' names no component of " + domain.getSimpleName() + ".",
-          "A leaf is a zero-parameter 'default' named after the DOMAIN component it parses; an"
-              + " unmatched leaf would silently validate nothing."
-              + didYouMean(name, components)
+          "A leaf is a zero-parameter 'default' named after the DOMAIN component it parses (or an"
+              + " inner component of a flattened one); an unmatched leaf would silently validate"
+              + " nothing."
+              + didYouMean(name, nameable)
               + " Found on "
               + domain.getSimpleName()
               + ": "
-              + components
+              + nameable
               + ".",
           "Rename the method to the component it parses, or make it 'private' or 'static' if it"
               + " is a helper.");
@@ -898,21 +952,23 @@ public class MappingProcessor extends AbstractProcessor {
       TypeElement domain,
       DeclaredType domainDeclared,
       WireShape wire,
-      Map<String, String> renames) {
+      Map<String, String> renames,
+      List<Flattened> flattened) {
     List<String> components =
-        domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
+        Stream.concat(
+                domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()),
+                flattened.stream().flatMap(group -> group.inner().stream()))
+            .toList();
     for (ExecutableElement method : specMembers(spec)) {
       if (method.getAnnotation(OptionalBridge.class) == null) {
         continue;
       }
       String name = method.getSimpleName().toString();
       boolean local = method.getEnclosingElement().equals(spec);
-      RecordComponentElement component =
-          domain.getRecordComponents().stream()
-              .filter(c -> c.getSimpleName().contentEquals(name))
-              .findFirst()
-              .orElse(null);
-      if (component == null) {
+      // An inner component of a flattened group bridges exactly as a top-level one: build reads
+      // through the group and parse assembles it, so only the lookup knows the difference.
+      Owned owned = ownedComponent(domain, domainDeclared, flattened, name);
+      if (owned == null) {
         if (!local) {
           continue;
         }
@@ -933,7 +989,7 @@ public class MappingProcessor extends AbstractProcessor {
             "Rename the method to the component it bridges, or remove the annotation.");
         return false;
       }
-      TypeMirror domainType = componentType(domainDeclared, component);
+      TypeMirror domainType = componentType(owned.ownerDeclared(), owned.component());
       if (containerElement(domainType, "java.util.Optional") == null) {
         boolean raw = isExactly(domainType, "java.util.Optional");
         Diagnostics.error(
@@ -951,7 +1007,7 @@ public class MappingProcessor extends AbstractProcessor {
                 ? "The bridge carries the element of the Optional across, and a raw Optional"
                     + " declares no element type for it to carry."
                 : "The bridge maps an empty Optional to a null wire component and back; '"
-                    + domain.getSimpleName()
+                    + owned.owner().getSimpleName()
                     + "."
                     + name
                     + "' is "
@@ -1018,7 +1074,7 @@ public class MappingProcessor extends AbstractProcessor {
                 + ", not the component's own type.",
             "A marker restates the domain component it bridges, so the spec fails to compile"
                 + " rather than bridging a component that has since changed shape; '"
-                + domain.getSimpleName()
+                + owned.owner().getSimpleName()
                 + "."
                 + name
                 + "' is "
@@ -1039,6 +1095,39 @@ public class MappingProcessor extends AbstractProcessor {
       }
     }
     return true;
+  }
+
+  /**
+   * A record component and the record it belongs to: the domain's own, read under the domain's
+   * instantiation, or an inner component of a flattened group, read under the group's.
+   */
+  private record Owned(
+      TypeElement owner, DeclaredType ownerDeclared, RecordComponentElement component) {}
+
+  private static Owned ownedComponent(
+      TypeElement domain, DeclaredType domainDeclared, List<Flattened> flattened, String name) {
+    RecordComponentElement own = componentNamed(domain, name);
+    if (own != null) {
+      return new Owned(domain, domainDeclared, own);
+    }
+    for (Flattened group : flattened) {
+      RecordComponentElement inner = componentNamed(group.record(), name);
+      if (inner != null) {
+        return new Owned(group.record(), group.type(), inner);
+      }
+    }
+    return null;
+  }
+
+  private static RecordComponentElement componentNamed(TypeElement record, String name) {
+    return record.getRecordComponents().stream()
+        .filter(c -> c.getSimpleName().contentEquals(name))
+        .findFirst()
+        .orElse(null);
+  }
+
+  private static List<String> componentNames(TypeElement record) {
+    return record.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
   }
 
   /**
@@ -1190,6 +1279,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (ExecutableElement method : specMembers(spec)) {
       MapField mapField = method.getAnnotation(MapField.class);
       OptionalBridge bridge = method.getAnnotation(OptionalBridge.class);
+      Flatten flatten = method.getAnnotation(Flatten.class);
       if (!method.getModifiers().contains(Modifier.ABSTRACT)) {
         if (bridge != null && !isLeafShaped(spec, method)) {
           Diagnostics.error(
@@ -1222,6 +1312,22 @@ public class MappingProcessor extends AbstractProcessor {
               "Remove the body, or remove the @MapField annotation.");
           return false;
         }
+        if (flatten != null) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@Flatten method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " must be abstract.",
+              "A flattened component is declared on a marker method the generated Impl stubs out;"
+                  + " a method with a body (default, static or private) would double as callable"
+                  + " code.",
+              "Remove the body, or remove the @Flatten annotation.");
+          return false;
+        }
         continue;
       }
       if (!method.getTypeParameters().isEmpty()) {
@@ -1246,6 +1352,74 @@ public class MappingProcessor extends AbstractProcessor {
                     + method.getEnclosingElement().getSimpleName()
                     + "', where the spec can thread them, or give the method a body.");
         return false;
+      }
+      if (mapField == null && flatten != null) {
+        if (sealedPair) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@Flatten has no meaning on a sealed mapping.",
+              "A flattened component is a record component spread across the wire; a sealed"
+                  + " mapping dispatches over its permitted subtypes and has no components.",
+              "Remove the @Flatten method.");
+          return false;
+        }
+        if (bridge != null) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@Flatten method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " also carries @OptionalBridge.",
+              "A flattened component is a record spread across the wire, and a bridged one is an"
+                  + " Optional matched to a nullable wire component; one component cannot be both.",
+              "Keep one of the two annotations.");
+          return false;
+        }
+        if (!method.getParameters().isEmpty()) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@Flatten method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " must not declare parameters.",
+              "A flatten marker is named after the domain component it spreads; the generated stub"
+                  + " implements it without parameters.",
+              "Remove the parameters.");
+          return false;
+        }
+        // A leaf-shaped marker would be neither: the leaf accessor is emitted only for a generic
+        // spec's abstract leaves, and the stub only for markers, so the Impl would implement
+        // nothing for the name.
+        if (isExactly(memberTypeIn(spec, method), VALIDATED_PRISM)) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@Flatten method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " returns a ValidatedPrism.",
+              "A flatten marker restates the record type of the component it spreads; a leaf"
+                  + " converts one component and is named after it, and one method cannot be"
+                  + " both.",
+              "Declare the marker as '<ComponentRecord> "
+                  + method.getSimpleName()
+                  + "()', and put any conversion in a leaf named after the inner component.");
+          return false;
+        }
+        if (!checkMemberTypeReachable(spec, method, "@Flatten marker")) {
+          return false;
+        }
+        continue;
       }
       if (mapField == null) {
         if (bridge != null && !method.getParameters().isEmpty()) {
@@ -1326,6 +1500,21 @@ public class MappingProcessor extends AbstractProcessor {
                 + " nullable wire one.");
         return false;
       }
+      if (flatten != null) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@MapField method '"
+                + method.getSimpleName()
+                + "'"
+                + inheritedNote(method, spec)
+                + " also carries @Flatten.",
+            "A rename points one domain component at one wire component, and a flattened"
+                + " component spreads across several; one component cannot be both.",
+            "Keep one of the two annotations; rename the group's inner components individually.");
+        return false;
+      }
       if (sealedPair) {
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -1369,6 +1558,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (ExecutableElement method : specMembers(spec)) {
       if (method.getAnnotation(MapField.class) != null
           || isBridgeMarker(spec, method)
+          || isFlattenMarker(method)
           || isAbstractLeaf(spec, method)) {
         groups
             .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
@@ -1694,25 +1884,43 @@ public class MappingProcessor extends AbstractProcessor {
       wireUsed = wireBean.asType();
     }
 
-    if (!checkLocalLeavesBind(spec, domain)) {
+    // Flattened components come first: their inner components join the names leaves and renames
+    // may bind to.
+    List<Flattened> flattened = collectFlattened(spec, domain, domainDeclared, wireShape);
+    if (flattened == null) {
+      return;
+    }
+    Set<String> flattenedInner =
+        flattened.stream().flatMap(group -> group.inner().stream()).collect(Collectors.toSet());
+
+    if (!checkLocalLeavesBind(spec, domain, flattenedInner)) {
       return;
     }
 
-    Map<String, String> renames = collectRenames(spec, domain, wireShape);
+    Map<String, String> renames = collectRenames(spec, domain, wireShape, flattened);
     if (renames == null) {
       return;
     }
 
-    if (!checkBridgesApply(spec, domain, domainDeclared, wireShape, renames)) {
+    if (!checkFlattenedNamesFree(spec, wireShape, renames, flattened)) {
       return;
     }
 
-    List<DerivedField> derived = collectDerived(spec, domain, domainDeclared, wireShape, renames);
+    if (!checkBridgesApply(spec, domain, domainDeclared, wireShape, renames, flattened)) {
+      return;
+    }
+
+    List<DerivedField> derived =
+        collectDerived(spec, domain, domainDeclared, wireShape, renames, flattened);
     if (derived == null) {
       return;
     }
 
-    if (wireShape.componentCount() - derived.size() < domain.getRecordComponents().size()) {
+    if (wireShape.componentCount() - derived.size() < wireSlots(domain, flattened)) {
+      if (!flattened.isEmpty()) {
+        reportProjectionWithFlattened(spec, domain, wireShape, flattened);
+        return;
+      }
       if (!derived.isEmpty()) {
         reportProjectionWithDerived(spec, domain, wireShape, derived);
         return;
@@ -1745,7 +1953,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     List<Correspondence> correspondences =
-        classify(spec, registry, domain, domainDeclared, wireShape, renames, derived);
+        classify(spec, registry, domain, domainDeclared, wireShape, renames, derived, flattened);
     if (correspondences == null) {
       return;
     }
@@ -1794,6 +2002,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (!validateSpecMethods(spec, false, domainArg, wireArg)) {
       return;
     }
+    if (!checkNoFlattened(spec)) {
+      return;
+    }
     if (!checkNoDerivedFields(spec)) {
       return;
     }
@@ -1806,7 +2017,7 @@ public class MappingProcessor extends AbstractProcessor {
       reportUpdateDomainNotRecord(spec, domainArg);
       return;
     }
-    if (!checkLocalLeavesBind(spec, domain)) {
+    if (!checkLocalLeavesBind(spec, domain, Set.of())) {
       return;
     }
 
@@ -1830,7 +2041,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    Map<String, String> renames = collectRenames(spec, domain, wireShape);
+    Map<String, String> renames = collectRenames(spec, domain, wireShape, List.of());
     if (renames == null) {
       return;
     }
@@ -2464,10 +2675,31 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * {@code prism} is an expression yielding the ValidatedPrism for every non-identity kind, except
-   * {@code DERIVED}, where it yields the spec's Getter accessor instead.
+   * The flattened domain component an inner correspondence belongs to: its name and record type.
+   * Membership is the one emission axis beside {@link Kind}; the sparse tier refuses groups ({@code
+   * checkNoFlattened}) as the Kind canary makes it choose an emission for each kind.
    */
-  private record Correspondence(String name, String wireName, Kind kind, CodeBlock prism) {
+  private record Group(String name, TypeName type) {}
+
+  /**
+   * {@code prism} is an expression yielding the ValidatedPrism for every non-identity kind, except
+   * {@code DERIVED}, where it yields the spec's Getter accessor instead. {@code group} is the
+   * flattened domain component this correspondence is an inner component of, or null for a
+   * component of the domain record itself; a group's members are contiguous in classification
+   * order, and read from and assemble into the group's record rather than the domain.
+   */
+  private record Correspondence(
+      String name, String wireName, Kind kind, CodeBlock prism, Group group) {
+
+    Correspondence(String name, String wireName, Kind kind, CodeBlock prism) {
+      this(name, wireName, kind, prism, null);
+    }
+
+    /** The same correspondence as a member of {@code group}. */
+    Correspondence in(Group group) {
+      return new Correspondence(name, wireName, kind, prism, group);
+    }
+
     boolean fallible() {
       return switch (kind) {
         // Identity-container null scans guard hostile bindings, like every identity guard;
@@ -2776,7 +3008,10 @@ public class MappingProcessor extends AbstractProcessor {
     return types.isSameType(declared, actual);
   }
 
-  private Map<String, String> collectRenames(TypeElement spec, TypeElement domain, WireShape wire) {
+  private Map<String, String> collectRenames(
+      TypeElement spec, TypeElement domain, WireShape wire, List<Flattened> flattened) {
+    Set<String> flattenedInner =
+        flattened.stream().flatMap(group -> group.inner().stream()).collect(Collectors.toSet());
     Map<String, String> renames = new LinkedHashMap<>();
     Map<String, ExecutableElement> renameSources = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
@@ -2785,9 +3020,29 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       String name = method.getSimpleName().toString();
+      // A rename and a flatten marker on one method are refused where they meet; split across a
+      // mix-in and the spec they are two legal declarations of one name, so the rename is refused
+      // here rather than silently outranked by the group.
+      if (flattenedNamed(flattened, name) != null) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@MapField method '"
+                + name
+                + "'"
+                + inheritedNote(method, spec)
+                + " names a flattened component.",
+            "A rename points one domain component at one wire component, and a flattened"
+                + " component spreads across several; one component cannot be both.",
+            "Remove the rename; rename the group's inner components individually.");
+        return null;
+      }
+      // A flattened group's inner components are renamed by their own names, like any other.
       boolean onDomain =
-          domain.getRecordComponents().stream()
-              .anyMatch(c -> c.getSimpleName().contentEquals(name));
+          flattenedInner.contains(name)
+              || domain.getRecordComponents().stream()
+                  .anyMatch(c -> c.getSimpleName().contentEquals(name));
       if (!onDomain) {
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -2798,11 +3053,14 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' does not name a component of "
                 + domain.getSimpleName()
                 + ".",
-            "Renames are declared as an abstract method named after the DOMAIN component. Found"
-                + " on "
+            "Renames are declared as an abstract method named after the DOMAIN component (or an"
+                + " inner component of a flattened one). Found on "
                 + domain.getSimpleName()
                 + ": "
-                + wireNames(domain.getRecordComponents())
+                + Stream.concat(
+                        wireNames(domain.getRecordComponents()).stream(),
+                        flattenedInner.stream().sorted())
+                    .toList()
                 + ".",
             "Rename the method to a domain component, or remove @MapField.");
         return null;
@@ -2873,6 +3131,326 @@ public class MappingProcessor extends AbstractProcessor {
     return renames;
   }
 
+  /**
+   * A domain record component spread across the wire's flat components: the marker's name, the
+   * component's record type (under the domain's instantiation), and its components' names. Looked
+   * up by {@code name()} only: the record's own equality covers a mirror, whose {@code equals} is
+   * identity and says nothing about the type.
+   */
+  private record Flattened(String name, DeclaredType type, TypeElement record, List<String> inner) {
+
+    Flattened {
+      inner = List.copyOf(inner);
+    }
+
+    Group group() {
+      return new Group(name, ProcessorUtils.typeNameOf(type));
+    }
+  }
+
+  /**
+   * Collects the spec's {@code @Flatten} markers, each naming a domain record component whose own
+   * components map to the wire's flat components. Runs before renames and leaves are collected,
+   * since a group's inner components join the names those may bind to. A local marker naming no
+   * component is refused (the typo'd-marker hazard); an inherited one stays inert, so a shared
+   * mix-in may carry markers for components only some extending specs have. Bean wires, generic
+   * specs and groups wider than one {@code fields()} ladder are not supported yet. Returns null
+   * after reporting.
+   */
+  private List<Flattened> collectFlattened(
+      TypeElement spec, TypeElement domain, DeclaredType domainDeclared, WireShape wire) {
+    List<String> components =
+        domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
+    // Every name a wire component may be sourced from, and who owns it, so a group's inner
+    // component can be refused for colliding with the domain or with another group.
+    Map<String, String> owners = new LinkedHashMap<>();
+    components.forEach(name -> owners.put(name, domain.getSimpleName().toString()));
+    List<Flattened> groups = new ArrayList<>();
+    List<ExecutableElement> unmatched = new ArrayList<>();
+    for (ExecutableElement method : specMembers(spec)) {
+      if (!isFlattenMarker(method)) {
+        continue;
+      }
+      String name = method.getSimpleName().toString();
+      // Unrelated mix-ins agreeing on a marker declare one fact (JLS 9.4.1).
+      if (flattenedNamed(groups, name) != null) {
+        continue;
+      }
+      RecordComponentElement component = componentNamed(domain, name);
+      if (component == null) {
+        // Judged once every group is known, since the name may be a group's inner component.
+        if (method.getEnclosingElement().equals(spec)) {
+          unmatched.add(method);
+        }
+        continue;
+      }
+      if (!spec.getTypeParameters().isEmpty()) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@Flatten on '" + name + "' is declared on a generic spec (not supported yet).",
+            "A flattened group is classified under the domain's instantiation, which a spec's own"
+                + " type variables leave open.",
+            "Map the pair with a non-generic spec over the concrete instantiation.");
+        return null;
+      }
+      if (wire instanceof WireShape.BeanShape) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@Flatten on '" + name + "' spreads across a bean-shaped wire (not supported yet).",
+            "A flattened group is read from and written to record components; a bean's getters"
+                + " and setters are not wired through it.",
+            "Map the pair with a record wire.");
+        return null;
+      }
+      TypeMirror type = componentType(domainDeclared, component);
+      TypeElement record = asRecord(type);
+      if (record == null) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@Flatten on '"
+                + name
+                + "' names a component of type "
+                + ProcessorUtils.simpleTypeName(type)
+                + ", which is not a record.",
+            "A flattened component is spread by its record's components; only a record has them.",
+            "Make the component a record, or map it through a leaf.");
+        return null;
+      }
+      DeclaredType declaredType = (DeclaredType) type;
+      if (hasWildcardArgument(declaredType) || ProcessorUtils.firstRawIn(type) != null) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@Flatten on '"
+                + name
+                + "' spreads "
+                + ProcessorUtils.simpleTypeName(type)
+                + ", a raw or wildcard-carrying type (not supported yet).",
+            "The group's record is reassembled by name in the generated code ('new "
+                + record.getSimpleName()
+                + "(...)'), which a raw or wildcard type argument cannot be written into.",
+            "Declare the component with exact type arguments, or nest it through its own spec.");
+        return null;
+      }
+      // The marker restates the record it spreads, so a spec that drifts from its domain fails
+      // to compile rather than spreading whatever the component has become (the bridge marker's
+      // rule).
+      TypeMirror declared = memberTypeIn(spec, method);
+      if (!processingEnv.getTypeUtils().isSameType(declared, type)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@Flatten marker '"
+                + name
+                + "'"
+                + inheritedNote(method, spec)
+                + " returns "
+                + ProcessorUtils.simpleTypeName(declared)
+                + ", not the component's own type.",
+            "A marker restates the domain component it spreads, so the spec fails to compile"
+                + " rather than spreading a component that has since changed shape; '"
+                + domain.getSimpleName()
+                + "."
+                + name
+                + "' is "
+                + ProcessorUtils.simpleTypeName(type)
+                + ".",
+            "Declare the marker as '" + ProcessorUtils.simpleTypeName(type) + " " + name + "()'.");
+        return null;
+      }
+      if (record.getRecordComponents().isEmpty()) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@Flatten on '"
+                + name
+                + "' spreads "
+                + record.getSimpleName()
+                + ", which has no components.",
+            "A flattened component is spread by its record's components, and a record with none"
+                + " would leave the domain component with nothing to assemble it from.",
+            "Give the record a component, or map the component through a leaf.");
+        return null;
+      }
+      // One ladder, not a chunked one: a group's ladder is an expression inside the outer
+      // ladder's field(...), while ChunkedAssembly emits locals and a return statement. A wider
+      // group needs a per-group parse helper method whose body can chunk, which is not written
+      // yet.
+      if (record.getRecordComponents().size() > ArityCeilings.ASSEMBLY) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@Flatten on '"
+                + name
+                + "' spreads "
+                + record.getSimpleName()
+                + ", which has more than "
+                + ArityCeilings.ASSEMBLY
+                + " components (not supported yet).",
+            "A flattened group assembles through one fields() ladder, which takes at most "
+                + ArityCeilings.ASSEMBLY
+                + " legs.",
+            "Split the record into two, each spread by its own marker.");
+        return null;
+      }
+      List<String> inner = new ArrayList<>();
+      for (RecordComponentElement innerComponent : record.getRecordComponents()) {
+        String innerName = innerComponent.getSimpleName().toString();
+        String owner = owners.putIfAbsent(innerName, name);
+        if (owner != null) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@Flatten on '"
+                  + name
+                  + "' spreads a component '"
+                  + innerName
+                  + "' that '"
+                  + owner
+                  + "' also has.",
+              "Every wire component takes exactly one source, and a flattened group's components"
+                  + " are sourced by name, so a name shared with the domain or with another group"
+                  + " would claim one wire component twice.",
+              "Rename one of the two record components: every wire component takes one source,"
+                  + " and both would claim the same one.");
+          return null;
+        }
+        inner.add(innerName);
+      }
+      groups.add(new Flattened(name, declaredType, record, inner));
+    }
+    // A local marker naming nothing on the domain: a group's inner component, which would be a
+    // second level of spreading, or a plain typo. An inherited one stayed inert above.
+    for (ExecutableElement method : unmatched) {
+      String name = method.getSimpleName().toString();
+      Flattened enclosing =
+          groups.stream().filter(group -> group.inner().contains(name)).findFirst().orElse(null);
+      if (enclosing != null) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@Flatten on '"
+                + name
+                + "' names a component of the flattened group '"
+                + enclosing.name()
+                + "' (not supported yet).",
+            "Spreading is one level deep: a record inside a flattened group maps through its own"
+                + " @GenerateMapping spec against a nested wire component.",
+            "Give the inner pair its own spec, or flatten '"
+                + name
+                + "' into "
+                + enclosing.record().getSimpleName()
+                + " itself.");
+        return null;
+      }
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "@Flatten on '" + name + "' names no component of " + domain.getSimpleName() + ".",
+          "A flatten marker is named after the DOMAIN record component whose own components"
+              + " spread across the wire; an unmatched one would flatten nothing."
+              + didYouMean(name, components)
+              + " Found on "
+              + domain.getSimpleName()
+              + ": "
+              + components
+              + ".",
+          "Rename the method to the component it spreads, or remove the annotation.");
+      return null;
+    }
+    return List.copyOf(groups);
+  }
+
+  /**
+   * A flattened component has no wire counterpart of its own, so a wire component of its name is
+   * either a mistake (the component was meant to map whole) or another component's rename target.
+   * Decided after renames are collected, so the second reading is not refused.
+   */
+  private boolean checkFlattenedNamesFree(
+      TypeElement spec, WireShape wire, Map<String, String> renames, List<Flattened> flattened) {
+    for (Flattened group : flattened) {
+      if (wire.componentNamed(group.name()).isEmpty() || renames.containsValue(group.name())) {
+        continue;
+      }
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "@Flatten on '"
+              + group.name()
+              + "' spreads a component while the wire also carries a component named '"
+              + group.name()
+              + "'.",
+          "A flattened component has no wire counterpart of its own (its record's components are"
+              + " the wire's), so nothing sources that wire component.",
+          "Remove the annotation to map the component as a whole, remove the wire component, or"
+              + " point a @MapField rename at it from the domain component that feeds it.");
+      return false;
+    }
+    return true;
+  }
+
+  /** A wire with fewer components than the domain's sources cannot carry a flattened group yet. */
+  private void reportProjectionWithFlattened(
+      TypeElement spec, TypeElement domain, WireShape wire, List<Flattened> flattened) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "'"
+            + wire.element().getSimpleName()
+            + "' has fewer components than '"
+            + domain.getSimpleName()
+            + "' spreads (not supported yet).",
+        "A flattened group belongs to the full tier, where every source has a wire counterpart;"
+            + " a wire with fewer components is a projection, whose write-back has no shape for a"
+            + " group yet. Flattened: "
+            + flattened.stream().map(Flattened::name).toList()
+            + ".",
+        "Add the missing wire components, or map the projection without the flattened"
+            + " component.");
+  }
+
+  /**
+   * A sparse update folds present wire properties into single-component edits; a flattened group
+   * has no edit shape yet, so its marker is refused on an {@code UpdateSpec}.
+   */
+  private boolean checkNoFlattened(TypeElement spec) {
+    for (ExecutableElement method : specMembers(spec)) {
+      if (!isFlattenMarker(method)) {
+        continue;
+      }
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "@Flatten on '"
+              + method.getSimpleName()
+              + "'"
+              + inheritedNote(method, spec)
+              + " has no meaning on a sparse UpdateSpec (not supported yet).",
+          "A sparse update folds each present wire property into an edit of one domain component;"
+              + " a flattened group would have to fold several properties into one nested"
+              + " record, which no edit expresses yet.",
+          "Remove the @Flatten method, or map the pair with a full MappingSpec.");
+      return false;
+    }
+    return true;
+  }
+
   /** A derived wire field: a spec default method named after a wire-only component. */
   private record DerivedField(String wireName) {}
 
@@ -2905,13 +3483,39 @@ public class MappingProcessor extends AbstractProcessor {
       TypeElement domain,
       DeclaredType domainDeclared,
       WireShape wire,
-      Map<String, String> renames) {
+      Map<String, String> renames,
+      List<Flattened> flattened) {
     List<DerivedField> derived = new ArrayList<>();
     for (ExecutableElement method : specMembers(spec)) {
       if (!isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
         continue;
       }
       String name = method.getSimpleName().toString();
+      // Every wire component takes exactly one source, and a flattened group sources its record's
+      // components by name; a derived field of one of those names would be a second source.
+      Flattened spreading =
+          flattened.stream().filter(group -> group.inner().contains(name)).findFirst().orElse(null);
+      if (spreading != null) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "derived field '"
+                + name
+                + "' fills a wire component the flattened component '"
+                + spreading.name()
+                + "' already spreads into.",
+            "Every wire component takes exactly one source, and '"
+                + name
+                + "' is a component of "
+                + spreading.record().getSimpleName()
+                + ", which '"
+                + spreading.name()
+                + "' spreads by name.",
+            "Rename the derived field after a wire component no group fills, or remove the @Flatten"
+                + " marker.");
+        return null;
+      }
       if (domain.getRecordComponents().stream()
           .anyMatch(c -> c.getSimpleName().contentEquals(name))) {
         Diagnostics.error(
@@ -3044,13 +3648,12 @@ public class MappingProcessor extends AbstractProcessor {
       DeclaredType domainDeclared,
       WireShape wire,
       Map<String, String> renames,
-      List<DerivedField> derived) {
+      List<DerivedField> derived,
+      List<Flattened> flattened) {
     List<Correspondence> result = new ArrayList<>();
     List<WireShape.WireComponent> wireComponents = wire.components();
-    List<String> domainNames =
-        domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
 
-    if (wireComponents.size() - derived.size() != domain.getRecordComponents().size()) {
+    if (wireComponents.size() - derived.size() != wireSlots(domain, flattened)) {
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -3059,72 +3662,70 @@ public class MappingProcessor extends AbstractProcessor {
               + wire.element().getSimpleName()
               + "' has more components than '"
               + domain.getSimpleName()
-              + "'.",
+              + (flattened.isEmpty()
+                  ? "'."
+                  : "' fills, flattened "
+                      + flattened.stream().map(Flattened::name).toList()
+                      + " included."),
           "build must fill every wire component from a domain source or a derived field, and the"
               + " extras have neither. A wire with fewer components maps as a projection (Lens"
               + " tier).",
-          "Remove the extra wire components, add matching domain components, or declare derived"
+          "Remove the extra wire components, add matching domain components, declare derived"
               + " fields ('default Getter<"
               + domain.getSimpleName()
-              + ", ComponentType>' methods named after the extras).");
+              + ", ComponentType>' methods named after the extras), or spread a nested domain"
+              + " component across the extras with an '@Flatten' marker named after it.");
       return null;
     }
 
     Map<String, String> claimedWire = new LinkedHashMap<>();
+    List<String> domainNames = componentNames(domain);
     for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
       String name = domainComponent.getSimpleName().toString();
-      String wireName = renames.getOrDefault(name, name);
-      WireShape.WireComponent wireComponent = wire.componentNamed(wireName).orElse(null);
-      if (wireComponent == null) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            spec,
-            TAG,
-            "domain field '"
-                + domain.getSimpleName()
-                + "."
-                + name
-                + "' has no wire counterpart named '"
-                + wireName
-                + "'.",
-            "Found on " + wire.element().getSimpleName() + ": " + wire.componentNames() + ".",
-            "Align the component names, or add a '@MapField(to = ...)' rename on the spec.");
-        return null;
+      Flattened group = flattenedNamed(flattened, name);
+      if (group == null) {
+        Correspondence resolved =
+            classifyComponent(
+                spec,
+                registry,
+                domain,
+                domainDeclared,
+                domainNames,
+                null,
+                wire,
+                renames,
+                claimedWire,
+                domainComponent);
+        if (resolved == null) {
+          return null;
+        }
+        result.add(resolved);
+        continue;
       }
-      String previousSource = claimedWire.putIfAbsent(wireName, name);
-      if (previousSource != null) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            spec,
-            TAG,
-            "domain components '"
-                + previousSource
-                + "' and '"
-                + name
-                + "' both map to wire component '"
-                + wireName
-                + "'.",
-            "Each wire component takes exactly one domain source; a @MapField rename may not"
-                + " collide with another component's mapping.",
-            "Point the rename at a distinct wire component.");
-        return null;
+      // A flattened component contributes one correspondence per component of its record, each
+      // resolved against the wire exactly as a top-level component would be, and tagged with the
+      // group so build reads through it and parse assembles it. The members are contiguous and in
+      // the record's declaration order, which is what the group's ladder and constructor need.
+      Group tag = group.group();
+      List<String> innerNames = componentNames(group.record());
+      for (RecordComponentElement inner : group.record().getRecordComponents()) {
+        Correspondence resolved =
+            classifyComponent(
+                spec,
+                registry,
+                group.record(),
+                group.type(),
+                innerNames,
+                tag,
+                wire,
+                renames,
+                claimedWire,
+                inner);
+        if (resolved == null) {
+          return null;
+        }
+        result.add(resolved.in(tag));
       }
-      Correspondence resolved =
-          resolveCorrespondence(
-              spec,
-              registry,
-              domain,
-              wire,
-              name,
-              wireName,
-              wireComponent.type(),
-              componentType(domainDeclared, domainComponent),
-              domainNames,
-              false);
-      if (resolved == null) {
-        return null;
-      }
-      result.add(resolved);
     }
     for (DerivedField field : derived) {
       // Diagnostics in collectDerived guarantee the derived names are disjoint from the
@@ -3137,6 +3738,108 @@ public class MappingProcessor extends AbstractProcessor {
               CodeBlock.of("$L()", field.wireName())));
     }
     return result;
+  }
+
+  /**
+   * Classifies one record component of {@code owner} (the domain, or a flattened component's
+   * record) against the wire: its wire counterpart by name or rename, claimed once, then resolved
+   * by {@link #resolveCorrespondence}. Reports and returns null when the component has no
+   * counterpart or the counterpart is already taken.
+   */
+  private Correspondence classifyComponent(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeElement owner,
+      DeclaredType ownerDeclared,
+      List<String> ownerNames,
+      Group group,
+      WireShape wire,
+      Map<String, String> renames,
+      Map<String, String> claimedWire,
+      RecordComponentElement component) {
+    String name = component.getSimpleName().toString();
+    // The component as an error names it: the domain path, which for a group member runs
+    // through the flattened component (address.street), as its located failures will.
+    String source = group == null ? name : group.name() + "." + name;
+    String wireName = renames.getOrDefault(name, name);
+    TypeMirror domainType = componentType(ownerDeclared, component);
+    WireShape.WireComponent wireComponent = wire.componentNamed(wireName).orElse(null);
+    if (wireComponent == null) {
+      // A record component with no counterpart may be a nested record the wire carries flat:
+      // the shape @Flatten exists for, so the fix names it where it could apply.
+      String flattenOffer =
+          group == null && asRecord(domainType) != null
+              ? " Or, if the wire carries the components of "
+                  + ProcessorUtils.simpleTypeName(domainType)
+                  + " as flat fields, spread it with '@Flatten "
+                  + ProcessorUtils.simpleTypeName(domainType)
+                  + " "
+                  + name
+                  + "();'."
+              : "";
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "domain field '"
+              + owner.getSimpleName()
+              + "."
+              + name
+              + "'"
+              + (group == null ? "" : " (spread from '" + group.name() + "')")
+              + " has no wire counterpart named '"
+              + wireName
+              + "'.",
+          "Found on " + wire.element().getSimpleName() + ": " + wire.componentNames() + ".",
+          "Align the component names, or add a '@MapField(to = ...)' rename on the spec."
+              + flattenOffer);
+      return null;
+    }
+    String previousSource = claimedWire.putIfAbsent(wireName, source);
+    if (previousSource != null) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "domain components '"
+              + previousSource
+              + "' and '"
+              + source
+              + "' both map to wire component '"
+              + wireName
+              + "'.",
+          "Each wire component takes exactly one domain source; a @MapField rename may not"
+              + " collide with another component's mapping.",
+          "Point the rename at a distinct wire component.");
+      return null;
+    }
+    return resolveCorrespondence(
+        spec,
+        registry,
+        owner,
+        wire,
+        name,
+        wireName,
+        wireComponent.type(),
+        domainType,
+        ownerNames,
+        false);
+  }
+
+  /**
+   * How many wire components the domain's sources call for: one per component, except that a
+   * flattened component calls for one per component of its record.
+   */
+  private static int wireSlots(TypeElement domain, List<Flattened> flattened) {
+    int slots = domain.getRecordComponents().size() - flattened.size();
+    for (Flattened group : flattened) {
+      slots += group.inner().size();
+    }
+    return slots;
+  }
+
+  private static Flattened flattenedNamed(List<Flattened> flattened, String name) {
+    return flattened.stream().filter(group -> group.name().equals(name)).findFirst().orElse(null);
   }
 
   /**
@@ -3645,18 +4348,30 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock buildValue(
       WireShape wire, WireShape.WireComponent wc, List<Correspondence> comps) {
+    // Classification claims every wire component exactly once before emission, so the lookup
+    // cannot miss; there is deliberately no fallback to cover.
     Correspondence c =
         comps.stream().filter(x -> x.wireName().equals(wc.name())).findFirst().orElseThrow();
     return switch (c.kind()) {
-      case LEAF -> CodeBlock.of("$L.build(domain.$L())", c.prism(), c.name());
-      case LIST -> CodeBlock.of("$L.buildAll(domain.$L())", c.prism(), c.name());
-      case OPTIONAL -> CodeBlock.of("domain.$L().map($L::build)", c.name(), c.prism());
+      case LEAF -> CodeBlock.of("$L.build($L)", c.prism(), domainRead(c));
+      case LIST -> CodeBlock.of("$L.buildAll($L)", c.prism(), domainRead(c));
+      case OPTIONAL -> CodeBlock.of("$L.map($L::build)", domainRead(c), c.prism());
       // The domain Optional is carried as-is (identity) or its element built through the leaf.
       case OPTIONAL_BRIDGE -> bridgeBuildValue(wire, c);
-      case MAP -> CodeBlock.of("$L.buildValues(domain.$L())", c.prism(), c.name());
-      case IDENTITY, IDENTITY_LIST, IDENTITY_MAP -> CodeBlock.of("domain.$L()", c.name());
+      case MAP -> CodeBlock.of("$L.buildValues($L)", c.prism(), domainRead(c));
+      case IDENTITY, IDENTITY_LIST, IDENTITY_MAP -> domainRead(c);
       case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
     };
+  }
+
+  /**
+   * The domain-side read {@code build} takes a correspondence's value from: the component itself,
+   * or, for a member of a flattened group, the component of the group's record.
+   */
+  private static CodeBlock domainRead(Correspondence c) {
+    return c.group() == null
+        ? CodeBlock.of("domain.$L()", c.name())
+        : CodeBlock.of("domain.$L().$L()", c.group().name(), c.name());
   }
 
   /**
@@ -3668,8 +4383,8 @@ public class MappingProcessor extends AbstractProcessor {
   private static CodeBlock bridgeBuildValue(WireShape wire, Correspondence c) {
     CodeBlock present =
         c.prism() == null
-            ? CodeBlock.of("domain.$L()", c.name())
-            : CodeBlock.of("domain.$L().map($L::build)", c.name(), c.prism());
+            ? domainRead(c)
+            : CodeBlock.of("$L.map($L::build)", domainRead(c), c.prism());
     return switch (wire) {
       case WireShape.RecordShape _ -> CodeBlock.of("$L.orElse(null)", present);
       case WireShape.BeanShape _ -> present;
@@ -3727,6 +4442,78 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock wireRead(WireShape wire, String wireName) {
     return wire.componentNamed(wireName).orElseThrow().readFrom("wire");
+  }
+
+  /**
+   * The parse ladder's legs, one per domain component. A flattened component's members (contiguous
+   * in classification order) fold into one leg carrying their own {@code fields()} ladder, which
+   * assembles the group's record and locates every failure under the component's name ({@code
+   * address.street}): the located-null doctrine and the leaf vocabulary apply inside the group
+   * exactly as at the top level. A derived field contributes no leg.
+   */
+  private List<CodeBlock> parseLegs(WireShape wire, List<Correspondence> comps) {
+    List<CodeBlock> legs = new ArrayList<>();
+    for (List<Correspondence> run : runs(comps)) {
+      Correspondence first = run.getFirst();
+      if (first.group() == null) {
+        // An unset bean property and a Jackson-bound missing record component both read null, so
+        // every reference read is guarded before it reaches a leaf (whose parse rejects null) or
+        // the identity copy; the guard locates the null under the field label.
+        CodeBlock leg =
+            parseLeg(wire, first, wireRead(wire, first.wireName()), guardedRead(first, wire));
+        if (!leg.isEmpty()) {
+          legs.add(leg);
+        }
+        continue;
+      }
+      CodeBlock.Builder inner = CodeBlock.builder().add("$T.fields()$>", VALIDATED);
+      for (Correspondence member : run) {
+        inner.add(
+            parseLeg(wire, member, wireRead(wire, member.wireName()), guardedRead(member, wire)));
+      }
+      inner.add("\n.apply($T::new)$<", first.group().type());
+      legs.add(CodeBlock.of("\n.field($S, $L)", first.group().name(), inner.build()));
+    }
+    return legs;
+  }
+
+  /**
+   * The constructor arguments of {@code asIso()}'s reverse direction, in domain component order,
+   * each read straight from the wire: a lossless mapping copies every component by identity, and a
+   * flattened group's members reassemble its record in place.
+   */
+  private static CodeBlock reverseArgs(WireShape wire, List<Correspondence> comps) {
+    return runs(comps).stream()
+        .map(
+            run ->
+                run.getFirst().group() == null
+                    ? wireRead(wire, run.getFirst().wireName())
+                    : CodeBlock.of(
+                        "new $T($L)",
+                        run.getFirst().group().type(),
+                        run.stream()
+                            .map(member -> wireRead(wire, member.wireName()))
+                            .collect(CodeBlock.joining(", "))))
+        .collect(CodeBlock.joining(", "));
+  }
+
+  /**
+   * The one place a group's contiguity is relied on: consecutive members of the same group fold
+   * into one run, in the group record's component order (which {@link #classify} produces and the
+   * group's ladder and constructor need); every other correspondence is a run of its own.
+   */
+  private static List<List<Correspondence>> runs(List<Correspondence> comps) {
+    List<List<Correspondence>> runs = new ArrayList<>();
+    for (Correspondence c : comps) {
+      if (!runs.isEmpty()
+          && c.group() != null
+          && c.group().equals(runs.getLast().getFirst().group())) {
+        runs.getLast().add(c);
+      } else {
+        runs.add(new ArrayList<>(List.of(c)));
+      }
+    }
+    return runs;
   }
 
   /**
@@ -3951,16 +4738,7 @@ public class MappingProcessor extends AbstractProcessor {
           case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
         };
 
-    List<CodeBlock> parseLegs = new ArrayList<>();
-    for (Correspondence c : comps) {
-      // An unset bean property and a Jackson-bound missing record component both read null, so
-      // every reference read is guarded before it reaches a leaf (whose parse rejects null) or
-      // the identity copy; the guard locates the null under the field label.
-      CodeBlock leg = parseLeg(wire, c, wireRead(wire, c.wireName()), guardedRead(c, wire));
-      if (!leg.isEmpty()) {
-        parseLegs.add(leg);
-      }
-    }
+    List<CodeBlock> parseLegs = parseLegs(wire, comps);
     CodeBlock parseBody;
     if (parseLegs.size() <= ArityCeilings.ASSEMBLY) {
       CodeBlock.Builder parseChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
@@ -3978,15 +4756,7 @@ public class MappingProcessor extends AbstractProcessor {
               values -> CodeBlock.of("new $T($L)", domainName, CodeBlock.join(values, ", ")));
     }
 
-    CodeBlock.Builder reverseArgs = CodeBlock.builder();
-    boolean firstReverse = true;
-    for (Correspondence c : comps) {
-      if (!firstReverse) {
-        reverseArgs.add(", ");
-      }
-      firstReverse = false;
-      reverseArgs.add(wireRead(wire, c.wireName()));
-    }
+    CodeBlock reverseArgs = reverseArgs(wire, comps);
 
     TypeSpec.Builder implBuilder =
         implSkeleton(
@@ -4030,10 +4800,7 @@ public class MappingProcessor extends AbstractProcessor {
                       + " no derived field exists, so the round trip is total (truthful types).\n",
                   iso)
               .addStatement(
-                  "return $T.of(this::build, wire -> new $T($L))",
-                  iso,
-                  domainName,
-                  reverseArgs.build())
+                  "return $T.of(this::build, wire -> new $T($L))", iso, domainName, reverseArgs)
               .build());
     }
     writeFile(spec, specName.packageName(), implBuilder.build());
@@ -4711,7 +5478,7 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   private void addMarkerStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
-    // Only abstract zero-parameter @MapField and @OptionalBridge methods survive
+    // Only abstract zero-parameter @MapField, @OptionalBridge and @Flatten methods survive
     // validateSpecMethods. Unrelated mix-ins agreeing on a marker contribute one stub, whose
     // return has to be return-type-substitutable for every declaration (JLS 8.4.8.3): the
     // subtype-narrowest of the group, which checkGroupsHaveNarrowestReturns has verified exists. A
@@ -4726,7 +5493,10 @@ public class MappingProcessor extends AbstractProcessor {
             .collect(Collectors.toSet());
     Map<String, List<ExecutableElement>> markers = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
-      boolean marker = method.getAnnotation(MapField.class) != null || isBridgeMarker(spec, method);
+      boolean marker =
+          method.getAnnotation(MapField.class) != null
+              || isBridgeMarker(spec, method)
+              || isFlattenMarker(method);
       if (marker && !leafNames.contains(method.getSimpleName().toString())) {
         markers
             .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
@@ -4738,14 +5508,22 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror narrowest = memberTypeIn(spec, narrowestMember(spec, group));
       boolean rename = group.stream().anyMatch(m -> m.getAnnotation(MapField.class) != null);
       boolean bridge = group.stream().anyMatch(m -> m.getAnnotation(OptionalBridge.class) != null);
-      String vocabulary = rename && bridge ? "Rename and bridge" : rename ? "Rename" : "Bridge";
+      // A flatten marker never shares a method with a rename or a bridge (validateSpecMethods
+      // refuses the combination), so its vocabulary stands alone.
+      boolean flatten = group.stream().anyMatch(MappingProcessor::isFlattenMarker);
+      String vocabulary =
+          flatten
+              ? "Flatten"
+              : rename && bridge ? "Rename and bridge" : rename ? "Rename" : "Bridge";
       String message =
-          rename && bridge
-              ? "@MapField and @OptionalBridge methods declare correspondences and are not"
-                  + " invocable"
-              : rename
-                  ? "@MapField methods declare renames and are not invocable"
-                  : "@OptionalBridge markers declare bridges and are not invocable";
+          flatten
+              ? "@Flatten markers declare flattened components and are not invocable"
+              : rename && bridge
+                  ? "@MapField and @OptionalBridge methods declare correspondences and are not"
+                      + " invocable"
+                  : rename
+                      ? "@MapField methods declare renames and are not invocable"
+                      : "@OptionalBridge markers declare bridges and are not invocable";
       implBuilder.addMethod(
           MethodSpec.methodBuilder(marker.getKey())
               .addAnnotation(Override.class)

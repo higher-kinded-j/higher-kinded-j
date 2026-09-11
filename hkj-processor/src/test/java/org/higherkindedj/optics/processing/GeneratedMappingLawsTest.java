@@ -76,6 +76,102 @@ class GeneratedMappingLawsTest {
 
   @Test
   @DisplayName(
+      "flattened component: an all-identity group keeps asIso() lawful, and a leaf inside the"
+          + " group keeps asValidatedPrism() lawful")
+  void flattenedGroupsAreLawful() throws ReflectiveOperationException {
+    JavaFileObject types =
+        JavaFileObjects.forSourceString(
+            "com.example.Flat",
+            """
+            package com.example;
+
+            public final class Flat {
+              public record Address(String street, String city) {}
+
+              public record Customer(String name, Address address) {}
+
+              public record CustomerDto(String name, String street, String city) {}
+
+              public record Coded(String street, EmailAddress email) {}
+
+              public record Contact(String name, Coded coded) {}
+
+              public record ContactDto(String name, String street, String email) {}
+            }
+            """);
+    JavaFileObject identity =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.Flatten;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface CustomerMapping extends MappingSpec<Flat.Customer, Flat.CustomerDto> {
+              @Flatten
+              Flat.Address address();
+            }
+            """);
+    JavaFileObject fallible =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.Flatten;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface ContactMapping extends MappingSpec<Flat.Contact, Flat.ContactDto> {
+              @Flatten
+              Flat.Coded coded();
+
+              default ValidatedPrism<String, EmailAddress> email() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+
+    var result = compileMapping(EMAIL, types, identity, fallible);
+
+    Object customerImpl = result.instance("com.example.CustomerMappingImpl");
+    @SuppressWarnings("unchecked")
+    Iso<Object, Object> iso = (Iso<Object, Object>) invoke(customerImpl, "asIso");
+    MappingLaws.assertMappingLaws(
+        iso,
+        asValidatedPrism(customerImpl),
+        result.newInstance(
+            "com.example.Flat$Customer",
+            "Ada",
+            result.newInstance("com.example.Flat$Address", "1 High St", "Leeds")),
+        result.newInstance("com.example.Flat$CustomerDto", "Grace", "2 Low St", "York"));
+
+    Object contactImpl = result.instance("com.example.ContactMappingImpl");
+    MappingLaws.assertMappingLaws(
+        asValidatedPrism(contactImpl),
+        result.newInstance("com.example.Flat$ContactDto", "Ada", "1 High St", "ada@example.org"),
+        result.newInstance("com.example.Flat$ContactDto", "Ada", "1 High St", "not-an-email"));
+    Validated<NonEmptyList<FieldError>, Object> parsed =
+        asValidatedPrism(contactImpl)
+            .parse(
+                result.newInstance(
+                    "com.example.Flat$ContactDto", "Ada", "1 High St", "not-an-email"));
+    assertThatValidated(parsed).isInvalid().hasFieldErrors("coded.email: not an email address");
+  }
+
+  @Test
+  @DisplayName(
       "lossless tier: asIso() and parse/build satisfy the iso, round-trip and coherence" + " laws")
   void losslessTierIsLawful() throws ReflectiveOperationException {
     JavaFileObject domain =

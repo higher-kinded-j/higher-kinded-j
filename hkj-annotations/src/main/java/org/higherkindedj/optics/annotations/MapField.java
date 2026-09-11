@@ -8,7 +8,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Declares a domain-to-wire field rename on a {@link MappingSpec} method (issue #600).
+ * Declares a domain-to-wire field rename on a {@link MappingSpec} method.
  *
  * <p>The rename is an abstract, zero-parameter method named after the <em>domain</em> component,
  * with {@code to} naming the <em>wire</em> component it maps to:
@@ -22,6 +22,10 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * <p>Each wire component takes exactly one domain source; colliding renames are compile errors.
+ *
+ * <p>A rename may also be named after a component of a record that a {@link Flatten} marker spreads
+ * across the wire, pointing that inner component at a differently named wire component. The
+ * flattened component itself is never renamed: it has no single wire counterpart.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)

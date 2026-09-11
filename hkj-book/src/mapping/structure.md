@@ -6,6 +6,7 @@ Real DTOs are not flat. An order carries a customer, the customer carries an add
 
 ~~~admonish info title="What You'll Learn"
 - How specs nest automatically, in one compilation or across modules, composing failures into dotted paths
+- How a nested domain record spreads across a flat wire with `@Flatten`, and where its failures locate
 - How `List`, `Optional`, and `Map` components lift, and how failing elements are located by index or key
 - Why recursion terminates by construction
 - Dispatching a mapping over two sealed interfaces, exhaustively in both directions
@@ -53,9 +54,36 @@ The rendered path uses each key's `toString()`, so a key containing a dot looks 
 
 ---
 
+## Flattening a nested component onto a flat wire
+
+Nesting assumes the wire nests too. Often it does not: the domain keeps an `Address` record, and the wire format, fixed by someone else, carries `street`, `city` and `postcode` as plain fields. No single wire component holds the address, so a leaf cannot map it; `@Flatten` on a marker named after the component spreads it instead:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:flatten_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:flatten_usage}}
+```
+
+The record's components, spread this way, are the **group**: `street`, `city` and `postcode` here. `build` fills each flat wire component from the group member of the same name. `parse` assembles the record through its own [`Validated.fields()` ladder](../monads/validated_assembly.md) inside the outer one, so every failure accumulates with the rest and locates under the **domain** path: `address.street`, a name the flat wire never sent. That is the [domain-named-paths contract](basics.md#renames-mapfield) reaching a nesting the wire does not have, and it is deliberate: the client learns which part of the address was wrong, not which position in a flat list.
+
+The group is spread by name, and the whole vocabulary applies inside it by name too:
+
+- a `@MapField(to = "addressLine1") String street();` rename points a group member at a differently named wire field,
+- a `default ValidatedPrism<String, Postcode> postcode()` leaf converts one, and makes the mapping fallible exactly as a top-level leaf would,
+- an `@OptionalBridge` named after a member that is `Optional` [bridges it](basics.md#optional-bridge) to a nullable wire field,
+- a member that is itself a record nests through its own spec, and containers lift.
+
+An all-identity group keeps the mapping lossless: `asIso()` survives and reassembles the record on the way back. A mapping carrying a group is nested by other specs like any other, in the same compilation or from a dependency.
+
+Names must be unambiguous, since every wire component takes exactly one source: a group member may not share its name with a domain component or with another group's member (so two components of the same record type cannot both be spread), a derived field may not be named after one, and a wire component named after the flattened component itself must be fed by a rename from another component. Each collision is a compile error naming both sides.
+
+Spreading is one level deep: a record inside the group nests through its own spec against a nested wire component, and a marker naming a group member is refused. Flattening otherwise stays on the full record-record tier for now: a bean-shaped wire, a generic spec, a projection, a sparse `UpdateSpec` and a group wider than one `fields()` ladder are each refused with a diagnostic, not supported yet.
+
+---
+
 ## Across modules
 
-The spec a component nests through may live in another module. Keep `Customer`, `CustomerDto` and `CustomerMapping` in `:orders-api`, put the invoice pair in `:billing`, and the spec above does not change: it stays empty, and the generated Impl delegates to the dependency's exactly as it would to a sibling.
+The spec a component nests through may live in another module. Keep `Customer`, `CustomerDto` and `CustomerMapping` in `:orders-api`, put the invoice pair in `:billing`, and the `InvoiceMapping` from the nesting section does not change: it stays empty, and the generated Impl delegates to the dependency's exactly as it would to a sibling.
 
 <!-- verify -->
 ```java
@@ -122,6 +150,7 @@ A domain subtype without a spec, or a wire subtype nothing produces, is a compil
 * **Error paths are dotted domain names**: `customers.1.email`, `attributes.en.email`
 * **Sealed dispatch is exhaustive both ways**: a missing subtype pair is a compile error, never a runtime surprise
 * **Dependencies count as siblings**: a spec compiled into another module nests, dispatches and merges through the classpath index, and your own spec shadows a dependency's for the same pair
+* **A flat wire can still nest on the domain side**: `@Flatten` spreads a nested record across flat wire fields by name, and failures locate under the domain path (`address.street`)
 ~~~
 
 ~~~admonish tip title="See Also"

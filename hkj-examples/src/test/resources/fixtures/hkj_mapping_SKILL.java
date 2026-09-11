@@ -29,6 +29,7 @@ import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Getter;
+import org.higherkindedj.optics.annotations.Flatten;
 import org.higherkindedj.optics.annotations.GenerateAssembly;
 import org.higherkindedj.optics.annotations.GenerateErrorEnvelope;
 import org.higherkindedj.optics.annotations.GenerateMapping;
