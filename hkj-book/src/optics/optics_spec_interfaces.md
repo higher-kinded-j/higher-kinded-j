@@ -93,7 +93,7 @@ The generated prisms are primitives. Real JSON work wants field access, array tr
 Each is a prism composed with a hand-written `Affine` or `Traversal`, and the result types tell the story: `field` may miss (an `Affine`), `elements` may hit many (a `Traversal`).
 
 ~~~admonish warning title="Composed optics do not belong in the spec interface"
-A `default` method on a spec interface looks like the natural home for these, but it is not: the processor cannot read a method body during annotation processing, so there is nothing for the generated class to carry. The processor rejects one at the declaration ([#712](https://github.com/higher-kinded-j/higher-kinded-j/issues/712)), naming the two homes composition does have. Keep the spec interface to annotated abstract methods, and build everything else either in a `static` method on the interface or, as here, in a normal class; both call the generated statics.
+A `default` method on a spec interface looks like the natural home for these, but it is not: the processor cannot read a method body during annotation processing, so there is nothing for the generated class to carry. The processor rejects one at the declaration, naming the two homes composition does have. Keep the spec interface to annotated abstract methods, and build everything else either in a `static` method on the interface or, as here, in a normal class; both call the generated statics.
 ~~~
 
 ---
