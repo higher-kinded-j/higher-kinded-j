@@ -450,12 +450,16 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
 - **Present + valid** -> set (or parsed through its leaf), folded in. **Present + invalid** -> a
   located `FieldError`, accumulating. **Absent (null)** -> skipped.
 - A **primitive** wire property is rejected (it can never be absent); use a wrapper type. A domain
-  `Optional<T>` bridged from a plain property is rejected too, `@OptionalBridge` on a sparse spec
-  included ("set to empty" has no encoding, and `null` is already spoken for) —
-  an `Optional`-typed wire property expresses it instead: present-empty sets empty, absent (null)
+  `Optional<T>` bridged from a plain property is rejected too, `@OptionalBridge` declared on the
+  sparse spec itself included ("set to empty" has no encoding, and `null` is already spoken for).
+  An `Optional`-typed wire property expresses it instead: present-empty sets empty, absent (null)
   leaves unchanged. Caveats: Jackson binds an explicit JSON `null` to `Optional.empty()` (sent-null
   clears on this property shape), and the bean field must default to `null`, NOT `Optional.empty()`,
   or omitting the field clears the domain value.
+- **Inherited vocabulary stays inert**: a bridge or a derived field arriving from a mix-in is never
+  consulted here, so one mix-in serves a full spec and its PATCH sibling. A derived field the
+  `UpdateSpec` declares itself is refused (there is no `build` for it to feed), as is a `@Flatten`
+  marker either way, and an inherited rename still has to name a property the PATCH bean carries.
 - A present **container** (a pair declared as exactly `List`/`Set`/reference array/`Optional`/
   `Map`) parses through the element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
   serves a full spec and its PATCH sibling. Replacement is wholesale; each failing element is

@@ -11056,12 +11056,13 @@ class MappingProcessorTest {
           compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, ACCOUNT_MAPPING, patchDto, patchMapping);
       assertThat(compilation).succeeded();
       // The full spec still derives 'display'; the PATCH sibling never consults the inherited
-      // derived field and folds the rename and the leaf it can use.
+      // derived field and folds the rename and the leaf it can use. A derived field the
+      // UpdateSpec declares itself is still refused - MappingProcessorUpdateTest holds that half.
       Assertions.assertThat(generatedSource(compilation, "com.example.AccountMappingImpl"))
           .contains("display().get(domain)");
       Assertions.assertThat(generatedSource(compilation, "com.example.AccountPatchMappingImpl"))
           .contains("email()::parse")
-          .doesNotContain("display");
+          .doesNotContain("display()");
     }
   }
 

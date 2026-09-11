@@ -2447,20 +2447,22 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean checkNoDerivedFields(TypeElement spec) {
     for (ExecutableElement method : specMembers(spec)) {
-      if (isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)
-          && method.getEnclosingElement().equals(spec)) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            method,
-            TAG,
-            "the derived-field method '"
-                + method.getSimpleName()
-                + "' has no meaning on a sparse UpdateSpec.",
-            "A derived field feeds build(); a sparse update only writes present wire properties into"
-                + " the domain, so there is nothing to derive.",
-            "Remove the method, or use a full MappingSpec if you need a total build().");
-        return false;
+      if (!method.getEnclosingElement().equals(spec)
+          || !isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
+        continue;
       }
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "the derived-field method '"
+              + method.getSimpleName()
+              + "' has no meaning on a sparse UpdateSpec.",
+          "A derived field feeds build(); a sparse update only writes present wire properties into"
+              + " the domain, so there is nothing to derive.",
+          "Remove the method, move it to a mix-in a full MappingSpec also extends, or use a full"
+              + " MappingSpec here if you need a total build().");
+      return false;
     }
     return true;
   }
@@ -2487,14 +2489,13 @@ public class MappingProcessor extends AbstractProcessor {
           TAG,
           "@OptionalBridge on '"
               + method.getSimpleName()
-              + "'"
-              + inheritedNote(method, spec)
-              + " has no meaning on a sparse UpdateSpec.",
+              + "' has no meaning on a sparse UpdateSpec.",
           "The bridge reads a null wire value as Optional.empty(); a sparse update already reads"
               + " it as absent - leave unchanged - so 'set to empty' has no encoding through a"
               + " plain property.",
-          "Remove the annotation, and declare the PATCH property as Optional<T> if the client"
-              + " needs to set the field empty.");
+          "Remove the annotation, or move the marker to a mix-in a full MappingSpec also extends,"
+              + " and declare the PATCH property as Optional<T> if the client needs to set the"
+              + " field empty.");
       return false;
     }
     return true;
