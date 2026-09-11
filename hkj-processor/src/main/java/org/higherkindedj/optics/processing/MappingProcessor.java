@@ -84,9 +84,11 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * derivable), and a spec with any derived field never emits {@code asIso()}. A wire with fewer
  * components maps as a lossy projection: {@code build} plus a lawful {@code asLens()} write-back
  * when every projected read is total, or a validated {@code patch(domain, wire)} write-back when
- * any component maps through a leaf, nested spec, container or bridge, or reads a bean's reference
- * property; no {@code parse} either way (truthful types). Sealed interface pairs dispatch {@code
- * build}/{@code parse} over their permitted subtype pairs, each delegating to its own spec.
+ * any component maps through a leaf, a nested spec, a container lifting either of those, or a
+ * bridge, or reads a bean's reference property; an identity container copies verbatim, so on a
+ * record wire it keeps the lens; no {@code parse} either way (truthful types). Sealed interface
+ * pairs dispatch {@code build}/{@code parse} over their permitted subtype pairs, each delegating to
+ * its own spec.
  *
  * <p>One null doctrine covers both wire shapes: every reference-typed {@code parse} read is
  * null-guarded into a located {@code FieldError} — an unset bean property is null, and a JSON

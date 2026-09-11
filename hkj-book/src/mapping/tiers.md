@@ -22,7 +22,7 @@ flowchart TD
     S["Your spec interface"] --> U{"extends UpdateSpec<br/>(instead of MappingSpec)?"}
     U -->|yes| UT(["updateFrom() only:<br/>a sparse PATCH fold"])
     U -->|no| W{"wire has fewer components?<br/>(derived fields don't count)"}
-    W -->|yes| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, container, bridge,<br/>or a bean's reference property)"}
+    W -->|yes| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, a container lifting one,<br/>bridge, or a bean's reference property)"}
     F -->|no| LT(["build + asLens():<br/>lawful write-back, no parse"])
     F -->|yes| PT(["build + validated patch():<br/>a write-back that can fail"])
     W -->|no| D{"any fallible leaf, nested spec,<br/>derived field, bridged Optional,<br/>or guarded bean property read?"}
@@ -100,7 +100,7 @@ The annotation sits on *your* spec interface, never on the mapped types, so thir
 
 ## Leaf-carrying projections: the validated `patch`
 
-A projection that also *validates or normalises* a field (a leaf on a projected component) has no lawful total lens: the write-back can fail. Instead of refusing to generate, the mapping emits the **validated `patch` tier**: the total `build` stays, and the write-back returns `Validated`. A bean projection lands here even without a leaf, because a bean's reference property can be left unset ([Bean projections](beans_patch.md#bean-projections)):
+A projection that also *validates or normalises* a field (a leaf on a projected component) has no lawful total lens: the write-back can fail. Instead of refusing to generate, the mapping emits the **validated `patch` tier**: the total `build` stays, and the write-back returns `Validated`. A bean projection with a reference property lands here even without a leaf, because that property can be left unset ([Bean projections](beans_patch.md#bean-projections)):
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_projection_spec}}
