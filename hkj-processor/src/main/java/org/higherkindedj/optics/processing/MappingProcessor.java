@@ -81,12 +81,14 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * component with no domain counterpart can be a derived field: a spec {@code default} method named
  * after the wire component returning {@code Getter<Domain, WireComponentType>}. {@code build} fills
  * it with the getter applied to the whole domain value; {@code parse} ignores it (the data is
- * derivable), and a spec with any derived field never emits {@code asIso()}. A wire record with
- * fewer components maps as a lossy projection: {@code build} plus a lawful {@code asLens()}
- * write-back when every projected component matches by identity, or a validated {@code
- * patch(domain, wire)} write-back when any component maps through a leaf, nested spec or container;
- * no {@code parse} either way (truthful types). Sealed interface pairs dispatch {@code
- * build}/{@code parse} over their permitted subtype pairs, each delegating to its own spec.
+ * derivable), and a spec with any derived field never emits {@code asIso()}. A wire with fewer
+ * components maps as a lossy projection: {@code build} plus a lawful {@code asLens()} write-back
+ * when every projected read is total, or a validated {@code patch(domain, wire)} write-back when
+ * any component maps through a leaf, a nested spec, a container lifting either of those, or a
+ * bridge, or reads a bean's reference property; an identity container copies verbatim, so on a
+ * record wire it keeps the lens; no {@code parse} either way (truthful types). Sealed interface
+ * pairs dispatch {@code build}/{@code parse} over their permitted subtype pairs, each delegating to
+ * its own spec.
  *
  * <p>One null doctrine covers both wire shapes: every reference-typed {@code parse} read is
  * null-guarded into a located {@code FieldError} — an unset bean property is null, and a JSON
@@ -102,8 +104,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *
  * <p>The wire may be a bean-shaped class instead of a record ({@link WireShape}): {@code build}
  * fills it through setters or a builder and {@code parse} reads it through getters; a domain {@code
- * Optional<T>} bridges to a nullable bean property {@code T}. A reference-typed bean projection is
- * deferred (the validated-patch tier); an all-primitive one keeps the {@code asLens()} projection.
+ * Optional<T>} bridges to a nullable bean property {@code T}. A bean projection with a reference
+ * property maps as the validated {@code patch}, since that property can read null; an all-primitive
+ * one keeps the {@code asLens()} projection.
  *
  * <p>The same bridge reaches a <em>record</em> wire by opt-in ({@link OptionalBridge}), never
  * implicitly: a record component is null-is-an-error by default and that stays the default, so a
@@ -1925,30 +1928,17 @@ public class MappingProcessor extends AbstractProcessor {
         reportProjectionWithDerived(spec, domain, wireShape, derived);
         return;
       }
-      // A bean projection with a reference property could read null, which neither the lawful
-      // lens nor the record-shaped patch tier covers yet (the patch tier ships records only) —
-      // deferred
-      // rather than emitted unlawfully. An all-primitive bean can never read null and projects
-      // as a lawful lens.
-      if (wireShape instanceof WireShape.BeanShape && !allPrimitive(wireShape)) {
-        reportBeanProjectionDeferred(spec, domain, wireShape);
-        return;
-      }
       List<Correspondence> projection =
           classifyProjection(spec, registry, domain, domainDeclared, wireShape, renames);
       if (projection == null) {
         return;
       }
-      // An all-identity projection keeps the lawful total asLens(); any fallible correspondence
-      // makes the write-back partial, which maps as the validated patch tier instead.
-      if (projection.stream().noneMatch(Correspondence::fallible)) {
+      // A write-back that can fail is no lens: it maps as the validated patch tier instead.
+      if (totalReads(projection, wireShape)) {
         writeLensImpl(spec, domain, domainDeclared, wireShape, wireUsed, projection);
         return;
       }
-      // Bean projections with reference properties are deferred above, and an all-primitive
-      // bean cannot carry a fallible correspondence, so the patch tier only ever sees a record.
-      writePatchImpl(
-          spec, domain, domainDeclared, (WireShape.RecordShape) wireShape, wireUsed, projection);
+      writePatchImpl(spec, domain, domainDeclared, wireShape, wireUsed, projection);
       return;
     }
 
@@ -3904,7 +3894,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     // Optional bridge: a domain Optional<DE> maps to a nullable wire component PE. Empty <->
     // null/absent; the element is copied (identity) or mapped through a leaf, exactly as an
-    // Optional element would be. (An Optional bridge through a nested spec is a follow-up.)
+    // Optional element would be. (An Optional bridge through a nested spec is not supported yet.)
     //
     // A bean wire takes it automatically, since bean conventions leave Optional off property
     // types. A record wire takes it only where the spec asked, by @OptionalBridge: on a record,
@@ -4074,9 +4064,8 @@ public class MappingProcessor extends AbstractProcessor {
                   + declarationSites(processingEnv, spec)
                   + "."
                   + (projection
-                      ? " On a projection, adding the leaf makes the write-back fallible: the"
-                          + " Impl then emits the validated patch(domain, wire) instead of"
-                          + " asLens()."
+                      ? " On a projection, a leaf's write-back can fail, so the projection"
+                          + " maps through the validated patch(domain, wire), never asLens()."
                       : ""));
       return null;
     }
@@ -4084,11 +4073,11 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Classifies a projection: the wire record is smaller, so it maps lossily, and every wire
-   * component must name a domain component. Each pair then resolves exactly like a full-tier
-   * component (explicit leaf first, identity, nested specs, container lifting) via {@link
-   * #resolveCorrespondence}. All-identity projections keep the lawful total {@code asLens()}
-   * write-back; any fallible correspondence selects the validated {@code patch} tier.
+   * Classifies a projection: the wire is smaller, so it maps lossily, and every wire component must
+   * name a domain component. Each pair then resolves exactly like a full-tier component (explicit
+   * leaf first, identity, nested specs, container lifting) via {@link #resolveCorrespondence}. A
+   * projection whose reads are all total keeps the lawful {@code asLens()} write-back; otherwise it
+   * maps as the validated {@code patch} tier (see {@link #totalReads}).
    */
   private List<Correspondence> classifyProjection(
       TypeElement spec,
@@ -4438,6 +4427,17 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The total {@code build} body on either wire shape: the record constructor or the bean strategy.
+   */
+  private static CodeBlock wireBuildBody(
+      WireShape wire, TypeName wireName, List<Correspondence> comps) {
+    return switch (wire) {
+      case WireShape.RecordShape r -> r.buildStatements(wireName, wc -> buildValue(r, wc, comps));
+      case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
+    };
+  }
+
+  /**
    * The read expression for the wire component named {@code wireName}, from the {@code wire} var.
    */
   private static CodeBlock wireRead(WireShape wire, String wireName) {
@@ -4544,12 +4544,23 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Whether a guarded read costs the Iso tier: only on a bean wire. A bean's reference property is
-   * legitimately unset in normal use, so its guarded read is fallible and {@code asIso()} stays
-   * truthful only for an all-primitive bean. A record wire's guard exists for hostile input (a
-   * null-carrying JSON binding), not for a representable absent state, so a lossless record mapping
-   * keeps {@code asIso()} — the parse-iso coherence law is scoped to wires whose reference
-   * components are non-null.
+   * Whether every correspondence reads totally, so the mapping can be an optic: {@code asIso()} on
+   * a full mapping, {@code asLens()} on a projection. A fallible correspondence, or a guarded read
+   * on a bean wire ({@link #lossyRead}), makes a read partial: the full tier then withholds {@code
+   * asIso()}, and a projection maps as the validated {@code patch}. On a record wire this is
+   * exactly "no fallible correspondence"; an all-primitive bean can never read null, so it keeps
+   * both optics.
+   */
+  private static boolean totalReads(List<Correspondence> comps, WireShape wire) {
+    return comps.stream().noneMatch(c -> c.fallible() || lossyRead(c, wire));
+  }
+
+  /**
+   * Whether a guarded read is partial: only on a bean wire. A bean's reference property is
+   * legitimately unset in normal use, so its guarded read can fail, and {@link #totalReads} counts
+   * it. A record wire's guard exists for hostile input (a null-carrying JSON binding), not for a
+   * representable absent state, so a lossless record mapping keeps {@code asIso()} — the parse-iso
+   * coherence law is scoped to wires whose reference components are non-null.
    */
   private static boolean lossyRead(Correspondence c, WireShape wire) {
     return wire instanceof WireShape.BeanShape && guardedRead(c, wire);
@@ -4711,11 +4722,8 @@ public class MappingProcessor extends AbstractProcessor {
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
 
     // Derived fields are non-identity, so they exclude the Iso tier too: wire -> domain -> wire
-    // recomputes the derived component, an identity only for wire values already consistent. A
-    // bean's null-guarded reference reads are fallible too (an unset property is a representable
-    // state), so only an all-primitive bean stays lossless; a record wire's guards are for
-    // hostile null bindings only and do not cost the Iso tier.
-    boolean lossless = comps.stream().noneMatch(c -> c.fallible() || lossyRead(c, wire));
+    // recomputes the derived component, an identity only for wire values already consistent.
+    boolean lossless = totalReads(comps, wire);
     boolean needsGuardHelper = comps.stream().anyMatch(c -> usesIfPresent(c, wire));
     boolean needsAllPresent = comps.stream().anyMatch(c -> scansList(c, wire));
     boolean needsValuesPresent = comps.stream().anyMatch(c -> scansMap(c, wire));
@@ -4731,12 +4739,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody =
-        switch (wire) {
-          case WireShape.RecordShape r ->
-              r.buildStatements(wireName, wc -> buildValue(r, wc, comps));
-          case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
-        };
+    CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
 
     List<CodeBlock> parseLegs = parseLegs(wire, comps);
     CodeBlock parseBody;
@@ -4892,19 +4895,23 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Emits the validated patch tier: a projection whose wire carries fallible correspondences.
-   * {@code build} stays total; the write-back is {@code patch(domain, wire)} returning {@code
-   * Validated<NonEmptyList<FieldError>, Domain>} — every projected component validates (a null
-   * reference read becomes a located {@code FieldError}, matching the bean-parse convention),
-   * unprojected components are read from the domain argument, and all failures accumulate. Dense
-   * semantics: every projected component applies; contrast {@code UpdateSpec}'s sparse
-   * null-as-absent {@code updateFrom}.
+   * Emits the validated patch tier: a projection whose wire carries fallible correspondences, or,
+   * on a bean wire, a guarded reference read. {@code build} stays total; the write-back is {@code
+   * patch(domain, wire)} returning {@code Validated<NonEmptyList<FieldError>, Domain>} — every
+   * projected component validates (a null reference read becomes a located {@code FieldError}, or
+   * an empty {@code Optional} on a bridged component), unprojected components are read from the
+   * domain argument, and all failures accumulate. Dense semantics: every projected component
+   * applies; contrast {@code UpdateSpec}'s sparse null-as-absent {@code updateFrom}.
+   *
+   * <p>{@code patch} only reads the wire, through record accessors or bean getters, and rebuilds
+   * the domain through its canonical constructor, so the two shapes differ only in {@code build},
+   * which writes the wire through the record constructor or the bean's construction strategy.
    */
   private void writePatchImpl(
       TypeElement spec,
       TypeElement domain,
       DeclaredType domainDeclared,
-      WireShape.RecordShape wire,
+      WireShape wire,
       TypeMirror wireUsed,
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
@@ -4917,7 +4924,7 @@ public class MappingProcessor extends AbstractProcessor {
 
     if (!checkNoEmittedCollisions(
         spec,
-        "a leaf-carrying projection",
+        "a validating projection",
         reserveFactoryIfGeneric(
             spec,
             List.of(
@@ -4926,7 +4933,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody = wire.buildStatements(wireName, wc -> buildValue(wire, wc, comps));
+    CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
 
     List<CodeBlock> patchLegs = new ArrayList<>();
     for (Correspondence c : comps) {
@@ -5005,8 +5012,9 @@ public class MappingProcessor extends AbstractProcessor {
                 implName,
                 specName,
                 "Generated projection mapping for {@link $T}: total {@code build} and a validated"
-                    + " {@code patch} write-back. No {@code parse} is emitted — the dropped"
-                    + " components cannot be reconstructed (truthful types).\n",
+                    + " {@code patch} write-back. No {@code parse} is emitted, since the dropped"
+                    + " components cannot be reconstructed, and no {@code asLens()}, since a"
+                    + " write-back that can fail has no lawful total {@code set} (truthful types).\n",
                 leafFields(spec))
             .addMethod(buildMethod(domainName, wireName, buildBody))
             .addMethod(
@@ -5019,9 +5027,10 @@ public class MappingProcessor extends AbstractProcessor {
                         "Writes the wire's projected components onto {@code domain}, validating"
                             + " each one; every bad field is reported at once, located under its"
                             + " component name, and unprojected components stay untouched. Dense:"
-                            + " every projected component applies, and a {@code null} reference"
-                            + " read is a located error, never absence — contrast {@code"
-                            + " UpdateSpec}'s sparse {@code updateFrom}. Nulls locate through"
+                            + " every projected component is written, never skipped, so a {@code"
+                            + " null} reference read is a located error (a bridged {@code Optional}"
+                            + " component reads it as empty) — contrast {@code UpdateSpec}'s sparse"
+                            + " {@code updateFrom}. Nulls locate through"
                             + " nesting too: a nested wire value delegates to the nested spec's"
                             + " parse, whose reference legs carry the same guard.\n")
                     .addStatement(
@@ -5030,9 +5039,9 @@ public class MappingProcessor extends AbstractProcessor {
                     .addCode(patchBody)
                     .build());
     addMarkerStubs(implBuilder, spec);
-    // A patch tier carries at least one fallible correspondence, but not necessarily a guarded
-    // read: a bridged component is fallible for tier selection and reads its own null as absence,
-    // so a projection whose only fallible leg is a bridge needs no guard emitted.
+    // A patch tier need not carry a guarded read: a bridged component makes the write-back
+    // partial yet reads its own null as empty, so a projection whose only partial reads are
+    // bridges needs no guard emitted.
     if (comps.stream().anyMatch(c -> usesIfPresent(c, wire))) {
       implBuilder.addMethod(ifPresentHelper());
     }
@@ -5095,12 +5104,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody =
-        switch (wire) {
-          case WireShape.RecordShape r ->
-              r.buildStatements(wireName, wc -> buildValue(r, wc, comps));
-          case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
-        };
+    CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
 
     CodeBlock.Builder setArgs = CodeBlock.builder();
     boolean first = true;
@@ -5451,9 +5455,8 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The {@code build} method. {@code body} is the complete, terminated build statement(s): a record
-   * wire supplies them via {@link WireShape.RecordShape#buildStatements}, a bean wire via {@link
-   * #beanBuildBody}, and the sealed path via a terminated {@code return switch} — so all three are
-   * emitted verbatim with {@code addCode}.
+   * or bean wire supplies them via {@link #wireBuildBody}, and the sealed path via a terminated
+   * {@code return switch}, so both are emitted verbatim with {@code addCode}.
    */
   private static MethodSpec buildMethod(TypeName domainName, TypeName wireName, CodeBlock body) {
     return MethodSpec.methodBuilder("build")
@@ -5822,34 +5825,6 @@ public class MappingProcessor extends AbstractProcessor {
         "Records map component-wise; sealed hierarchies map by dispatching over their permitted"
             + " subtype pairs; a record domain may also map to a bean-shaped wire.",
         "Use two record types, two sealed interface types, or a record domain with a bean wire.");
-  }
-
-  /** Whether every wire component is a primitive (so no read can be null). */
-  private static boolean allPrimitive(WireShape wire) {
-    return wire.components().stream().allMatch(c -> c.type().getKind().isPrimitive());
-  }
-
-  /**
-   * A bean projection with a reference property maps as a validated patch rather than a lawful lens
-   * (a null read cannot be written back through a total {@code set}); that tier is a follow-up.
-   */
-  private void reportBeanProjectionDeferred(TypeElement spec, TypeElement domain, WireShape wire) {
-    Diagnostics.error(
-        processingEnv.getMessager(),
-        spec,
-        TAG,
-        "'"
-            + wire.element().getSimpleName()
-            + "' is a bean projection of '"
-            + domain.getSimpleName()
-            + "' with a reference-typed property, which is not yet supported.",
-        "A projection maps as build() plus a lawful asLens() write-back, but a bean's reference"
-            + " property can read null, which a total lens set cannot honour. Record projections"
-            + " map that shape as a validated patch(domain, wire); the bean flavour is a"
-            + " follow-up to the bean mapper. An all-primitive bean projection (no null possible)"
-            + " is supported today.",
-        "Use a record wire for the projection (which supports the validated patch tier), or map"
-            + " the full bean by adding the dropped domain components to it.");
   }
 
   /** The wire (against a record domain) must be a record or a bean-shaped class. */

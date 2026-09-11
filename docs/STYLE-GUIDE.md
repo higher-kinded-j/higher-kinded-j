@@ -13,6 +13,7 @@ This document defines the house style for Higher-Kinded-J documentation. Follow 
 - Do not use decorative emojis in documentation. The one exception is the status markers **✅** (correct, supported, "do this") and **❌** (wrong, unsupported, "avoid this"), used sparingly to label good-versus-bad code examples or supported-versus-unsupported rows in a table. Their plain-text equivalents **✓** and **✗** are equally acceptable. Do not use them as decoration or in prose; reserve them for a clear pass/fail signal.
 - Keep explanations practical and focused on Java developers
 - Avoid academic jargon; prefer accessible explanations
+- Describe behaviour, not provenance: no GitHub issue or pull-request references outside the release history (see [No Issue or PR References](#no-issue-or-pr-references))
 
 ## Page Structure
 
@@ -231,13 +232,21 @@ Pages whose feature has a Spring (or other framework) integration signpost it in
 
 ### Documenting What Does Not Exist
 
-An unsupported capability gets **one sentence and a tracking-issue link**, in prose, never a paragraph or an admonition labouring what cannot be done:
+An unsupported capability gets **one sentence** in prose saying it is "not supported yet": never a paragraph or an admonition labouring what cannot be done, and never a link to the issue tracking it:
 
 ```markdown
-Bean projections with reference properties are not supported yet ([#702](https://github.com/...)).
+One-directional (getter-only or setter-only) beans are not supported yet.
 ```
 
-The issue carries the design discussion; the book carries the pointer. (This mirrors the "not supported yet" comment convention in code.)
+The sentence states what the reader can and cannot do today. When the capability lands, the sentence goes. (This mirrors the "not supported yet" comment convention in code.)
+
+### No Issue or PR References
+
+Book pages, skills, javadoc, code comments, diagnostics and test names describe behaviour and the reason for it, not where it came from. Do not link or cite GitHub issues or pull requests (no "([#654](...))", "the #653 doctrine" or "since #660"), and do not narrate delivery order ("the first slice", "a follow-up", "until the next release"). Name the concept instead: "the collision sweep", not "the #654 sweep".
+
+The test for any reference is whether a reader a year or two from now would find it useful. An issue number almost never passes: it points at a planning discussion that closes, moves or goes stale, while the page it sits in is read long after.
+
+The **release history** (`hkj-book/src/release-history.md`) is the one exception. There, a link from a version to the issue or pull request behind each change is exactly what a reader wants, so release entries keep them.
 
 ### House Terminology Budget
 
@@ -517,6 +526,7 @@ When creating a new documentation page, ensure:
 - [ ] Previous/Next navigation links at the end
 - [ ] British English spelling throughout
 - [ ] No decorative emojis (the ✅/❌ status markers are allowed)
+- [ ] No GitHub issue or pull-request references (the release history is the only exception)
 - [ ] All code examples are properly formatted
 
 ## Checklist for Chapter Introductions

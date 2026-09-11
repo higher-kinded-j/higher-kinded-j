@@ -4,11 +4,18 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -1273,6 +1280,44 @@ class MappingProcessorBeanTest {
   @DisplayName("Projection tier")
   class ProjectionTier {
 
+    private static final JavaFileObject EMPLOYEE =
+        JavaFileObjects.forSourceString(
+            "com.example.Employee",
+            """
+            package com.example;
+
+            public record Employee(String name, String department, int age) {}
+            """);
+
+    private static final JavaFileObject EMPLOYEE_CARD =
+        JavaFileObjects.forSourceString(
+            "com.example.EmployeeCardDto",
+            """
+            package com.example;
+
+            public class EmployeeCardDto {
+              private String name;
+              private int age;
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+              public int getAge() { return age; }
+              public void setAge(int age) { this.age = age; }
+            }
+            """);
+
+    private static final JavaFileObject EMPLOYEE_CARD_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.EmployeeCardMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
+            """);
+
     @Test
     @DisplayName("an all-primitive bean projection gains a lawful asLens")
     void allPrimitiveProjectionAsLens() {
@@ -1319,36 +1364,155 @@ class MappingProcessorBeanTest {
           .contains("ReadingDto wire = new ReadingDto();")
           .contains("wire.setTemperature(domain.temperature());")
           .contains("public Lens<Reading, ReadingDto> asLens()")
+          .doesNotContain("patch(")
           .doesNotContain("parse(")
           .doesNotContain("asValidatedPrism");
     }
 
     @Test
-    @DisplayName("a reference-typed bean projection is deferred to the validated patch tier")
-    void referenceProjectionDeferred() {
+    @DisplayName(
+        "a reference-typed bean projection patches, keeps the rest, and locates an unset property")
+    void referenceProjectionEmitsPatch() throws ReflectiveOperationException {
+      Compilation compilation = compile(EMPLOYEE, EMPLOYEE_CARD, EMPLOYEE_CARD_MAPPING);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.EmployeeCardMappingImpl"))
+          .contains("EmployeeCardDto wire = new EmployeeCardDto();")
+          .contains("wire.setName(domain.name());")
+          .contains("wire.setAge(domain.age());")
+          .contains("public Validated<NonEmptyList<FieldError>, Employee> patch(Employee domain,")
+          .contains("EmployeeCardDto wire) {")
+          // A reference read is guarded into a located error; a primitive read cannot be null.
+          .contains(".field(\"name\", hkj$ifPresent(wire.getName(), Validated::validNel))")
+          .contains(".field(\"age\", Validated.validNel(wire.getAge()))")
+          // The unprojected component is read from the domain argument.
+          .contains(".apply((name, age) -> new Employee(name, domain.department(), age))")
+          .contains("private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(")
+          .doesNotContain("asLens() {")
+          .doesNotContain("parse(")
+          .doesNotContain("asValidatedPrism");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.EmployeeCardMappingImpl");
+      Object employee = result.newInstance("com.example.Employee", "Ada", "Research", 36);
+      Object built = invoke(impl, "build", employee);
+      Assertions.assertThat(invoke(built, "getName")).isEqualTo("Ada");
+      Assertions.assertThat(invoke(built, "getAge")).isEqualTo(36);
+
+      Object promoted =
+          bean(result, "com.example.EmployeeCardDto", "setName", "Grace", "setAge", 41);
+      assertThatValidated(patch(impl, employee, promoted))
+          .isValid()
+          .hasValue(result.newInstance("com.example.Employee", "Grace", "Research", 41));
+
+      // An unset reference property is the ordinary case on a bean: a located error, not absence.
+      Object unset = bean(result, "com.example.EmployeeCardDto", "setAge", 41);
+      assertThatValidated(patch(impl, employee, unset))
+          .isInvalid()
+          .hasFieldErrors("name: must not be null");
+    }
+
+    @Test
+    @DisplayName("a leaf on a bean projection validates, and every bad property accumulates")
+    void leafCarryingBeanProjection() throws ReflectiveOperationException {
       JavaFileObject domain =
           JavaFileObjects.forSourceString(
-              "com.example.Employee",
+              "com.example.Subscriber",
               """
               package com.example;
 
-              public record Employee(String name, String department, int age) {}
+              public record Subscriber(String id, String name, EmailAddress email, int age) {}
               """);
       JavaFileObject wire =
           JavaFileObjects.forSourceString(
-              "com.example.EmployeeCardDto",
+              "com.example.SubscriberBean",
               """
               package com.example;
 
-              public class EmployeeCardDto {
+              public class SubscriberBean {
                 private String name;
+                private String email;
                 public String getName() { return name; }
                 public void setName(String name) { this.name = name; }
+                public String getEmail() { return email; }
+                public void setEmail(String email) { this.email = email; }
               }
               """);
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
-              "com.example.EmployeeCardMapping",
+              "com.example.SubscriberBeanMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface SubscriberBeanMapping extends MappingSpec<Subscriber, SubscriberBean> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.SubscriberBeanMappingImpl"))
+          .contains("wire.setEmail(email().build(domain.email()));")
+          .contains(".field(\"email\", hkj$ifPresent(wire.getEmail(), email()::parse))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.SubscriberBeanMappingImpl");
+      Object subscriber =
+          result.newInstance(
+              "com.example.Subscriber",
+              "7",
+              "Ada",
+              result.newInstance("com.example.EmailAddress", "ada@corp.example"),
+              36);
+      Object broken = bean(result, "com.example.SubscriberBean", "setEmail", "nope");
+      assertThatValidated(patch(impl, subscriber, broken))
+          .isInvalid()
+          .hasFieldErrors("name: must not be null", "email: not an email address");
+    }
+
+    @Test
+    @DisplayName("a domain Optional bridges to a nullable property on a bean projection too")
+    void bridgedBeanProjection() throws ReflectiveOperationException {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Member",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Member(String id, String name, Optional<String> nickname) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.MemberCardBean",
+              """
+              package com.example;
+
+              public class MemberCardBean {
+                private String name;
+                private String nickname;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getNickname() { return nickname; }
+                public void setNickname(String nickname) { this.nickname = nickname; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MemberCardMapping",
               """
               package com.example;
 
@@ -1356,16 +1520,441 @@ class MappingProcessorBeanTest {
               import org.higherkindedj.optics.annotations.MappingSpec;
 
               @GenerateMapping
-              public interface EmployeeCardMapping extends MappingSpec<Employee, EmployeeCardDto> {}
+              public interface MemberCardMapping extends MappingSpec<Member, MemberCardBean> {}
               """);
-
       Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.MemberCardMappingImpl"))
+          .contains("domain.nickname().ifPresent(v -> wire.setNickname(v));")
+          .contains(
+              ".field(\"nickname\", Validated.validNel(Optional.ofNullable(wire.getNickname())))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.MemberCardMappingImpl");
+      Object member = result.newInstance("com.example.Member", "7", "Ada", Optional.of("ace"));
+      // An unset nickname is absence, not an error: the bridge is the one carve-out.
+      Object renamed = bean(result, "com.example.MemberCardBean", "setName", "Grace");
+      assertThatValidated(patch(impl, member, renamed))
+          .isValid()
+          .hasValue(result.newInstance("com.example.Member", "7", "Grace", Optional.empty()));
+    }
+
+    @Test
+    @DisplayName("a builder bean projection builds through the builder and patches through getters")
+    void builderBeanProjection() throws ReflectiveOperationException {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Pin",
+              """
+              package com.example;
+
+              public record Pin(int x, int y, String label) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.PinDto",
+              """
+              package com.example;
+
+              public final class PinDto {
+                private final int x;
+                private final String label;
+                private PinDto(int x, String label) { this.x = x; this.label = label; }
+                public int getX() { return x; }
+                public String getLabel() { return label; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private int x;
+                  private String label;
+                  public Builder x(int x) { this.x = x; return this; }
+                  public Builder label(String label) { this.label = label; return this; }
+                  public PinDto build() { return new PinDto(x, label); }
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.PinMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PinMapping extends MappingSpec<Pin, PinDto> {}
+              """);
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.PinMappingImpl"))
+          .contains("var b = PinDto.builder();")
+          .contains("b.label(domain.label());")
+          .contains("return b.build();")
+          .contains(".field(\"label\", hkj$ifPresent(wire.getLabel(), Validated::validNel))")
+          .contains("new Pin(x, domain.y(), label)");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.PinMappingImpl");
+      Object pin = result.newInstance("com.example.Pin", 1, 2, "home");
+      Object builder = result.invokeStatic("com.example.PinDto", "builder");
+      invoke(builder, "x", 5);
+      invoke(builder, "label", "work");
+      assertThatValidated(patch(impl, pin, invoke(builder, "build")))
+          .isValid()
+          .hasValue(result.newInstance("com.example.Pin", 5, 2, "work"));
+    }
+
+    @Test
+    @DisplayName(
+        "nested specs and identity containers on a bean projection locate their nulls inside")
+    void nestedAndContainerBeanProjection() throws ReflectiveOperationException {
+      JavaFileObject types =
+          JavaFileObjects.forSourceString(
+              "com.example.Orders",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public final class Orders {
+                public record Customer(String name, EmailAddress email) {}
+
+                public record CustomerDto(String name, String email) {}
+
+                public record Order(String id, Customer customer, List<String> tags, int qty) {}
+              }
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.OrderCardBean",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public class OrderCardBean {
+                private Orders.CustomerDto customer;
+                private List<String> tags;
+                public Orders.CustomerDto getCustomer() { return customer; }
+                public void setCustomer(Orders.CustomerDto customer) { this.customer = customer; }
+                public List<String> getTags() { return tags; }
+                public void setTags(List<String> tags) { this.tags = tags; }
+              }
+              """);
+      JavaFileObject customerSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.CustomerMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CustomerMapping
+                  extends MappingSpec<Orders.Customer, Orders.CustomerDto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+      JavaFileObject orderSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.OrderCardMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface OrderCardMapping extends MappingSpec<Orders.Order, OrderCardBean> {}
+              """);
+      Compilation compilation = compile(EMAIL, types, wire, customerSpec, orderSpec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.OrderCardMappingImpl"))
+          .contains(
+              ".field(\"customer\", hkj$ifPresent(wire.getCustomer(),"
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parse))")
+          .contains(".field(\"tags\", hkj$allPresent(wire.getTags()))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.OrderCardMappingImpl");
+      Object customer =
+          result.newInstance(
+              "com.example.Orders$Customer",
+              "Ada",
+              result.newInstance("com.example.EmailAddress", "ada@corp.example"));
+      Object order =
+          result
+              .loadClass("com.example.Orders$Order")
+              .getDeclaredConstructor(String.class, customer.getClass(), List.class, int.class)
+              .newInstance("o-1", customer, List.of("new"), 3);
+      Object customerDto =
+          result
+              .loadClass("com.example.Orders$CustomerDto")
+              .getDeclaredConstructor(String.class, String.class)
+              .newInstance(null, "nope");
+      Object broken =
+          bean(
+              result,
+              "com.example.OrderCardBean",
+              "setCustomer",
+              customerDto,
+              "setTags",
+              Arrays.asList("rush", null));
+      assertThatValidated(patch(impl, order, broken))
+          .isInvalid()
+          .hasFieldErrors(
+              "customer.name: must not be null",
+              "customer.email: not an email address",
+              "tags.1: must not be null");
+    }
+
+    @Test
+    @DisplayName("a bean projection wider than one fields() ladder patches through chunks")
+    void wideBeanProjection() throws ReflectiveOperationException {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.WideCard",
+              "package com.example;\n\npublic record WideCard(String id, "
+                  + IntStream.rangeClosed(1, 17)
+                      .mapToObj(i -> "String f" + i)
+                      .collect(Collectors.joining(", "))
+                  + ") {}\n");
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.WideCardBean",
+              "package com.example;\n\npublic class WideCardBean {\n"
+                  + IntStream.rangeClosed(1, 17)
+                      .mapToObj(
+                          i ->
+                              """
+                                private String f%1$d;
+                                public String getF%1$d() { return f%1$d; }
+                                public void setF%1$d(String f%1$d) { this.f%1$d = f%1$d; }
+                              """
+                                  .formatted(i))
+                      .collect(Collectors.joining())
+                  + "}\n");
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.WideCardMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface WideCardMapping extends MappingSpec<WideCard, WideCardBean> {}
+              """);
+      var result = new RuntimeCompilationHelper.CompiledResult(compile(domain, wire, spec));
+      Object impl = result.instance("com.example.WideCardMappingImpl");
+
+      Object card =
+          result.newInstance(
+              "com.example.WideCard",
+              IntStream.rangeClosed(0, 17).mapToObj(i -> i == 0 ? "id-1" : "old" + i).toArray());
+      Object expected =
+          result.newInstance(
+              "com.example.WideCard",
+              IntStream.rangeClosed(0, 17).mapToObj(i -> i == 0 ? "id-1" : "new" + i).toArray());
+      Object filled =
+          bean(
+              result,
+              "com.example.WideCardBean",
+              IntStream.rangeClosed(1, 17)
+                  .boxed()
+                  .flatMap(i -> Stream.of("setF" + i, "new" + i))
+                  .toArray());
+      // Unset properties in both chunks: the 16-ladder and the trailing singleton.
+      Object gapped =
+          bean(
+              result,
+              "com.example.WideCardBean",
+              IntStream.rangeClosed(1, 17)
+                  .filter(i -> i != 3 && i != 17)
+                  .boxed()
+                  .flatMap(i -> Stream.of("setF" + i, "new" + i))
+                  .toArray());
+      assertThatValidated(patch(impl, card, filled)).isValid().hasValue(expected);
+      assertThatValidated(patch(impl, card, gapped))
+          .isInvalid()
+          .hasFieldErrors("f3: must not be null", "f17: must not be null");
+    }
+
+    @Test
+    @DisplayName(
+        "a bean projection compiles warning-free with a boolean getter, a JAXB list, a map and a"
+            + " property named domain")
+    void beanProjectionCompilesUnderWerror() throws ReflectiveOperationException {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+
+              public record Profile(
+                  String id,
+                  String domain,
+                  boolean active,
+                  List<String> notes,
+                  Map<String, Integer> scores,
+                  List<Tag> tags,
+                  int version) {
+                public record Tag(String value) {}
+              }
+              """);
+      // A JAXB-style getter-only notes list beside setter properties, and an isX() getter.
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfileBean",
+              """
+              package com.example;
+
+              import java.util.ArrayList;
+              import java.util.List;
+              import java.util.Map;
+
+              public class ProfileBean {
+                private String domain;
+                private boolean active;
+                private List<String> notes;
+                private Map<String, Integer> scores;
+                private List<String> tags;
+                public String getDomain() { return domain; }
+                public void setDomain(String domain) { this.domain = domain; }
+                public boolean isActive() { return active; }
+                public void setActive(boolean active) { this.active = active; }
+                public List<String> getNotes() {
+                  if (notes == null) { notes = new ArrayList<>(); }
+                  return notes;
+                }
+                public Map<String, Integer> getScores() { return scores; }
+                public void setScores(Map<String, Integer> scores) { this.scores = scores; }
+                public List<String> getTags() { return tags; }
+                public void setTags(List<String> tags) { this.tags = tags; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfileMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ProfileMapping extends MappingSpec<Profile, ProfileBean> {
+                default ValidatedPrism<String, Profile.Tag> tags() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new Profile.Tag(raw)), Profile.Tag::value);
+                }
+              }
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ProfileMappingImpl"))
+          .contains("wire.setActive(domain.active());")
+          .contains("wire.getNotes().addAll(domain.notes());")
+          .contains(".field(\"domain\", hkj$ifPresent(wire.getDomain(), Validated::validNel))")
+          .contains(".field(\"active\", Validated.validNel(wire.isActive()))")
+          .contains(".field(\"notes\", hkj$allPresent(wire.getNotes()))")
+          .contains(".field(\"scores\", hkj$valuesPresent(wire.getScores()))")
+          .contains(".field(\"tags\", hkj$ifPresent(wire.getTags(), tags()::parseAll))")
+          // A component named after the method parameter takes a suffixed lambda parameter.
+          .contains(
+              "new Profile(domain.id(), domain_, active, notes, scores, tags, domain.version())");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.ProfileMappingImpl");
+      Object profile =
+          result
+              .loadClass("com.example.Profile")
+              .getDeclaredConstructors()[0]
+              .newInstance(
+                  "p-1",
+                  "corp.example",
+                  true,
+                  List.of("vip"),
+                  Map.of("q1", 7),
+                  List.of(result.newInstance("com.example.Profile$Tag", "gold")),
+                  3);
+      // The projection identity law: writing the domain's own projection back changes nothing.
+      assertThatValidated(patch(impl, profile, invoke(impl, "build", profile)))
+          .isValid()
+          .hasValue(profile);
+    }
+
+    @Test
+    @DisplayName(
+        "a getter-only bean projection is refused: no construction strategy fits it, as on a full"
+            + " mapping")
+    void getterOnlyBeanProjectionNeedsAStrategy() {
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ReadOnlyCard",
+              """
+              package com.example;
+
+              public class ReadOnlyCard {
+                private String name;
+                public String getName() { return name; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ReadOnlyCardMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReadOnlyCardMapping extends MappingSpec<Employee, ReadOnlyCard> {}
+              """);
+      Compilation compilation = compile(EMPLOYEE, wire, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "'EmployeeCardDto' is a bean projection of 'Employee' with a reference-typed property");
-      assertThat(compilation)
-          .hadErrorContaining("the bean flavour is a follow-up to the bean mapper");
+              "'ReadOnlyCard' is not a usable bean-shaped wire: no construction strategy fits it");
+    }
+
+    /** A bean from its no-args constructor, with each named setter applied to its value in turn. */
+    private static Object bean(
+        RuntimeCompilationHelper.CompiledResult result, String className, Object... setterValues)
+        throws ReflectiveOperationException {
+      Object bean = result.loadClass(className).getDeclaredConstructor().newInstance();
+      for (int i = 0; i < setterValues.length; i += 2) {
+        invoke(bean, (String) setterValues[i], setterValues[i + 1]);
+      }
+      return bean;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Validated<NonEmptyList<FieldError>, Object> patch(
+        Object impl, Object domain, Object wire) {
+      return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "patch", domain, wire);
     }
   }
 

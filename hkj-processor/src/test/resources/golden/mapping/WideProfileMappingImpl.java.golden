@@ -10,7 +10,7 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.Generated;
 
 /**
- * Generated projection mapping for {@link WideProfileMapping}: total {@code build} and a validated {@code patch} write-back. No {@code parse} is emitted — the dropped components cannot be reconstructed (truthful types).
+ * Generated projection mapping for {@link WideProfileMapping}: total {@code build} and a validated {@code patch} write-back. No {@code parse} is emitted, since the dropped components cannot be reconstructed, and no {@code asLens()}, since a write-back that can fail has no lawful total {@code set} (truthful types).
  */
 @Generated
 public final class WideProfileMappingImpl implements WideProfileMapping {
@@ -25,7 +25,7 @@ public final class WideProfileMappingImpl implements WideProfileMapping {
   }
 
   /**
-   * Writes the wire's projected components onto {@code domain}, validating each one; every bad field is reported at once, located under its component name, and unprojected components stay untouched. Dense: every projected component applies, and a {@code null} reference read is a located error, never absence — contrast {@code UpdateSpec}'s sparse {@code updateFrom}. Nulls locate through nesting too: a nested wire value delegates to the nested spec's parse, whose reference legs carry the same guard.
+   * Writes the wire's projected components onto {@code domain}, validating each one; every bad field is reported at once, located under its component name, and unprojected components stay untouched. Dense: every projected component is written, never skipped, so a {@code null} reference read is a located error (a bridged {@code Optional} component reads it as empty) — contrast {@code UpdateSpec}'s sparse {@code updateFrom}. Nulls locate through nesting too: a nested wire value delegates to the nested spec's parse, whose reference legs carry the same guard.
    */
   public Validated<NonEmptyList<FieldError>, WideProfile> patch(WideProfile domain,
       WideProfilePatchDto wire) {

@@ -1112,6 +1112,84 @@ class GeneratedMappingLawsTest {
 
   @Test
   @DisplayName(
+      "validated-patch tier on a bean wire: identity, idempotence and located validation hold"
+          + " through getter reads")
+  void beanPatchTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Account",
+            """
+            package com.example;
+
+            public record Account(String id, String name, EmailAddress email, int age) {}
+            """);
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.AccountDetailsBean",
+            """
+            package com.example;
+
+            public class AccountDetailsBean {
+              private String name;
+              private String email;
+              private int age;
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+              public String getEmail() { return email; }
+              public void setEmail(String email) { this.email = email; }
+              public int getAge() { return age; }
+              public void setAge(int age) { this.age = age; }
+            }
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.AccountDetailsMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface AccountDetailsMapping extends MappingSpec<Account, AccountDetailsBean> {
+              default ValidatedPrism<String, EmailAddress> email() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = result.instance("com.example.AccountDetailsMappingImpl");
+
+    BiFunction<Object, Object, Validated<NonEmptyList<FieldError>, Object>> patch =
+        (d, w) -> asValidated(invoke(impl, "patch", d, w));
+    Function<Object, Object> build = d -> invoke(impl, "build", d);
+
+    // The laws compare domain values only, so a bean wire (which has no useful equals)
+    // law-checks through the same overload. The unset name is the bean-specific null: an
+    // ordinary state, located.
+    MappingLaws.assertMappingLaws(
+        patch,
+        build,
+        result.newInstance(
+            "com.example.Account",
+            "7",
+            "Ada",
+            result.newInstance("com.example.EmailAddress", "ada@example.org"),
+            36),
+        accountDetails(result, "Grace", "grace@example.org", 41),
+        accountDetails(result, null, "not-an-email", 36));
+  }
+
+  @Test
+  @DisplayName(
       "bridged record-wire tier: empty maps to a null component and back, and the present value"
           + " still validates")
   void bridgedRecordWireTierIsLawful() throws ReflectiveOperationException {
@@ -1202,6 +1280,17 @@ class GeneratedMappingLawsTest {
   @SuppressWarnings("unchecked")
   private static Edits.Accumulated<Object> asAccumulated(Object accumulated) {
     return (Edits.Accumulated<Object>) accumulated;
+  }
+
+  private static Object accountDetails(
+      RuntimeCompilationHelper.CompiledResult result, String name, String email, int age)
+      throws ReflectiveOperationException {
+    Object bean =
+        result.loadClass("com.example.AccountDetailsBean").getDeclaredConstructor().newInstance();
+    invoke(bean, "setName", name);
+    invoke(bean, "setEmail", email);
+    invoke(bean, "setAge", age);
+    return bean;
   }
 
   private static Object patchDto(

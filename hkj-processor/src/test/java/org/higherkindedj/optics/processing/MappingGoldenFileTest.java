@@ -83,6 +83,10 @@ class MappingGoldenFileTest {
             "com.example.patch.SubscriberDetailsMappingImpl",
             "SubscriberDetailsMappingImpl.java.golden"),
         new GoldenTestCase(
+            "bean projection (validated patch: guarded getters, setter build, bridged Optional)",
+            "com.example.beanpatch.MemberDetailsMappingImpl",
+            "BeanMemberDetailsMappingImpl.java.golden"),
+        new GoldenTestCase(
             "sparse update (updateFrom)",
             "com.example.update.UserPatchMappingImpl",
             "UserPatchMappingImpl.java.golden"),
@@ -157,6 +161,7 @@ class MappingGoldenFileTest {
             flattened(),
             projection(),
             leafProjection(),
+            beanProjection(),
             update(),
             updateElementLifting(),
             sealed(),
@@ -453,6 +458,77 @@ class MappingGoldenFileTest {
 
         @GenerateMapping
         interface SubscriberDetailsMapping extends MappingSpec<Subscriber, SubscriberDetailsDto> {
+          default ValidatedPrism<String, EmailAddress> email() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.contains("@")
+                        ? Validated.validNel(new EmailAddress(raw))
+                        : Validated.invalidNel(FieldError.of("not an email address")),
+                EmailAddress::value);
+          }
+        }
+        """);
+  }
+
+  // ---- bean projection: any reference property can read null, so it patches, never a lens ----
+  private static JavaFileObject beanProjection() {
+    return JavaFileObjects.forSourceString(
+        "com.example.beanpatch.Fixtures",
+        """
+        package com.example.beanpatch;
+
+        import java.util.Optional;
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.MappingSpec;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record EmailAddress(String value) {}
+
+        record Member(String id, String name, EmailAddress email, Optional<String> nickname, int age) {}
+
+        class MemberDetailsBean {
+          private String name;
+          private String email;
+          private String nickname;
+          private int age;
+
+          public String getName() {
+            return name;
+          }
+
+          public void setName(String name) {
+            this.name = name;
+          }
+
+          public String getEmail() {
+            return email;
+          }
+
+          public void setEmail(String email) {
+            this.email = email;
+          }
+
+          public String getNickname() {
+            return nickname;
+          }
+
+          public void setNickname(String nickname) {
+            this.nickname = nickname;
+          }
+
+          public int getAge() {
+            return age;
+          }
+
+          public void setAge(int age) {
+            this.age = age;
+          }
+        }
+
+        @GenerateMapping
+        interface MemberDetailsMapping extends MappingSpec<Member, MemberDetailsBean> {
           default ValidatedPrism<String, EmailAddress> email() {
             return ValidatedPrism.of(
                 raw ->

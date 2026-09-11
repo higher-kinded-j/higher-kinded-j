@@ -7,6 +7,7 @@ Not every wire type is a record. Generated clients, JAXB payloads and legacy DTO
 ~~~admonish info title="What You'll Learn"
 - Mapping bean-shaped wire types (setters, builders, JAXB lists) with the same features as records
 - Why a bean mapping withholds `asIso()`, and how `Optional` bridges through `null` here without a declaration
+- Why a bean projection with a reference property takes the validated `patch` rather than `asLens()`
 - What PATCH and *sparse* PATCH actually mean, and why `null` is ambiguous in a PATCH body
 - Opting into sparse semantics with `UpdateSpec`: present fields fold in, absent fields leave the domain alone
 - The rules that keep the null-as-absent contract honest, and how containers patch through the element vocabulary
@@ -36,7 +37,21 @@ The design decisions worth knowing:
 - **Optionality bridges through `null`, automatically here.** On a full mapping, a domain `Optional<T>` maps to a nullable bean property `T` (bean conventions leave `Optional` off property types): empty bridges to absent (`build` skips the write, leaving the property unset; `parse` reads `Optional.ofNullable(...)`), and a present value still validates through its leaf. This is the *only* wire shape where the bridge needs no declaration: a record wire opts in per component with [`@OptionalBridge`](basics.md#optional-bridge), which buys the same correspondence, and declaring it on a bean spec is redundant (a note, not an error, so one mix-in can serve both shapes). The [sparse tier](#sparse-patch-write-back-updatespec) is the deliberate exception in the other direction: there `null` already means "leave unchanged", so a PATCH bean encodes "set to empty" with an `Optional`-typed property instead.
 - **The domain stays a record.** `parse` assembles the domain through its canonical constructor, so only the *wire* may be bean-shaped; a bean domain gets a diagnostic.
 
-Bean *projections* with reference properties and one-directional (parse-only or build-only) beans are not supported yet ([#702](https://github.com/higher-kinded-j/higher-kinded-j/issues/702), [#703](https://github.com/higher-kinded-j/higher-kinded-j/issues/703)); an all-primitive bean projection maps as a lawful `asLens()` today.
+### Bean projections
+
+A bean with *fewer* properties than the domain is a projection, as a smaller record wire is, but the same shape can land on a different tier. A record is constructed whole, so a record projection that copies by identity keeps its lawful `asLens()`: a `null` component there is a hostile binding, not a state the type invites. A bean is constructed empty and filled by setters, which makes an unset reference property an ordinary state, and a lens's `set` cannot fail, so it has no honest answer for one. A bean projection with any reference property therefore takes the [validated `patch`](tiers.md#leaf-carrying-projections-the-validated-patch), even when every property copies by identity:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bean_projection_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bean_projection_usage}}
+```
+
+Everything else is the record-wire tier unchanged: every projected property is validated, every bad one is located and accumulated, and the unprojected components are read from the domain argument, so they survive by construction. Leaves, nested specs and container lifting all apply, and so does the automatic `Optional` bridge: a bridged property left unset reads as empty, so `patch` writes `Optional.empty()` rather than keeping the current value. The same `MappingLaws` patch overload law-checks it; the laws compare domain values only, so the bean needs no `equals`. An all-primitive bean projection, whose reads can never be null, keeps its lawful `asLens()`.
+
+This is not the REST PATCH contract, even when the bean is a PATCH request: an unset property never means "keep the current value". For that, extend `UpdateSpec` ([below](#sparse-patch-write-back-updatespec)).
+
+`patch` only reads the bean, through its getters, but the Impl also carries `build`, which writes one, so a bean projection still needs one of the construction strategies above; a getter-only bean draws the same diagnostic as on a full mapping. One-directional beans (getter-only or setter-only) are not supported yet.
 
 ---
 
@@ -135,7 +150,7 @@ The hkj-spring example app serves `PATCH /api/users/{id}` through exactly this t
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Beans map with the full feature set**: only the read/write mechanics differ, and the tiers stay honest (`asIso` is withheld where unset properties make reads fallible)
+* **Beans map with the full feature set**: only the read/write mechanics differ, and the tiers stay honest (`asIso` is withheld, and a projection takes `patch` rather than `asLens`, where unset properties make reads fallible)
 * **Sparse semantics are an explicit opt-in**: `UpdateSpec` gives a PATCH bean null-as-absent; nothing is inferred from the shape alone
 * **Sparseness never weakens validation**: present fields still parse through their leaves, and every bad one is a located, accumulated `FieldError`
 * **One vocabulary serves both tiers**: the element leaf a full spec lifts is the leaf its PATCH sibling lifts

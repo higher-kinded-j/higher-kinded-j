@@ -3,6 +3,7 @@
 package org.higherkindedj.example.book.mapping;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.List;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -55,6 +56,22 @@ class RecordMappingBookLawsTest {
   }
 
   @Test
+  void transferBeanProjectionObeysThePatchLaws() {
+    Employee ada = new Employee("Ada", "Research", 36);
+    MappingLaws.assertMappingLaws(
+        TransferMappingImpl.INSTANCE::patch,
+        TransferMappingImpl.INSTANCE::build,
+        ada, // the current value
+        transfer("Platform"), // parses and changes the domain
+        transfer(null)); // an unset property: located failure
+
+    // The located error the page shows, exactly:
+    assertThatValidated(TransferMappingImpl.INSTANCE.patch(ada, new TransferBean()))
+        .isInvalid()
+        .hasFieldErrors("department: must not be null");
+  }
+
+  @Test
   void rosterPatchMappingObeysTheSparseLawsOverContainerElements() {
     // ANCHOR: update_container_laws
     MappingLaws.assertMappingLaws(
@@ -79,6 +96,12 @@ class RecordMappingBookLawsTest {
     ContactPatchBean bean = new ContactPatchBean();
     bean.setName(name);
     bean.setEmail(email);
+    return bean;
+  }
+
+  private static TransferBean transfer(String department) {
+    TransferBean bean = new TransferBean();
+    bean.setDepartment(department);
     return bean;
   }
 

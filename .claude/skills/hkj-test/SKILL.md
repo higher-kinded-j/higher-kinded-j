@@ -368,6 +368,14 @@ MappingLaws.assertMappingLaws(spec.asValidatedPrism(), parseableWire, nonParseab
 
 // total-parse mapping (identity components / derived wire fields): round trip only
 MappingLaws.assertMappingLaws(spec.asValidatedPrism(), domainSample);
+
+// validated patch tier (a projection that validates, record or bean wire) -> patch + build
+MappingLaws.assertMappingLaws(
+    Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire);
+
+// sparse update tier (UpdateSpec) -> updateFrom
+MappingLaws.assertMappingLaws(
+    Impl.INSTANCE::updateFrom, current, allAbsentWire, validWire, invalidWire);
 ```
 
 Also `MappingLaws.assertBuildAgreesWithIso(iso, mapping, domainSample)` and `assertParseAgreesWithIso(iso, mapping, wireSample)` for the two halves of the lossless tier. The single-sample overload passes on a genuinely fallible mapping without ever exercising a failure path. If the spec has a fallible leaf, use the two-wire-sample overload with a non-parsing sample.
