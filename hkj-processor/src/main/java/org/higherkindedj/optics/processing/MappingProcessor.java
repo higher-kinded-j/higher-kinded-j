@@ -2437,11 +2437,18 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A spec {@code default} method returning {@code Getter} (a derived field) has no sparse meaning.
+   * A locally declared {@code default} method returning {@code Getter} (a derived field) has no
+   * sparse meaning: a derived field feeds {@code build()}, which the sparse tier does not emit.
+   *
+   * <p>An <em>inherited</em> one stays inert, like every other inherited vocabulary member that
+   * binds to nothing here: one mix-in serves a full spec and its PATCH sibling, which is the whole
+   * point of a shared vocabulary, and the sparse tier simply never consults the method. Refusing it
+   * would report at the mix-in, where both prescribed fixes break the full spec that needs it.
    */
   private boolean checkNoDerivedFields(TypeElement spec) {
     for (ExecutableElement method : specMembers(spec)) {
-      if (isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
+      if (isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)
+          && method.getEnclosingElement().equals(spec)) {
         Diagnostics.error(
             processingEnv.getMessager(),
             method,

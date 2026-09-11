@@ -11019,6 +11019,50 @@ class MappingProcessorTest {
           .contains("public static <T> BoxMappingImpl<T> instance()")
           .contains(".field(\"label\", hkj$ifPresent(wire.tag(), Validated::validNel))");
     }
+
+    @Test
+    @DisplayName("one vocabulary serves a MappingSpec and its UpdateSpec sibling")
+    void oneVocabularyServesBothTiers() {
+      JavaFileObject patchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountPatchDto",
+              """
+              package com.example;
+
+              public class AccountPatchDto {
+                private String fullName;
+                private String email;
+
+                public String getFullName() { return fullName; }
+                public void setFullName(String fullName) { this.fullName = fullName; }
+                public String getEmail() { return email; }
+                public void setEmail(String email) { this.email = email; }
+              }
+              """);
+      JavaFileObject patchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface AccountPatchMapping
+                  extends AccountVocabulary, UpdateSpec<Account, AccountPatchDto> {}
+              """);
+      Compilation compilation =
+          compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, ACCOUNT_MAPPING, patchDto, patchMapping);
+      assertThat(compilation).succeeded();
+      // The full spec still derives 'display'; the PATCH sibling never consults the inherited
+      // derived field and folds the rename and the leaf it can use.
+      Assertions.assertThat(generatedSource(compilation, "com.example.AccountMappingImpl"))
+          .contains("display().get(domain)");
+      Assertions.assertThat(generatedSource(compilation, "com.example.AccountPatchMappingImpl"))
+          .contains("email()::parse")
+          .doesNotContain("display");
+    }
   }
 
   /**
