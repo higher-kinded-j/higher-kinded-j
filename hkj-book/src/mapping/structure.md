@@ -55,9 +55,27 @@ The rendered path uses each key's `toString()`, so a key containing a dot looks 
 
 ## Across modules
 
-The spec a component nests through may have been compiled in another module. A `CustomerMapping` in `:orders-api` and an `InvoiceMapping` in `:billing` that nests the customer pair resolve exactly as they would in one compilation, the generic forms included: a threaded spec instantiates, an element-mapped one composes its `of(...)`, a [sealed pair](#sealed-hierarchies) dispatches to subtype specs in the dependency, and a [`@GenerateMerge`](merge_envelopes.md) fill delegates the same way.
+The spec a component nests through may live in another module. Keep `Customer`, `CustomerDto` and `CustomerMapping` in `:orders-api`, put the invoice pair in `:billing`, and the spec above does not change: it stays empty, and the generated Impl delegates to the dependency's exactly as it would to a sibling.
 
-What makes it work is an **index**: beside every generated `Impl` of a `MappingSpec` the processor writes one empty class into the package `org.higherkindedj.mapping.index`, carrying `@MappingIndexEntry` with the spec's name. Nothing else in a jar says which of its interfaces are mapping specs, and the compiler can list a package but not search a classpath, so that package is what a downstream compilation lists. Each spec it names is then read from its class file, which carries everything registration needs, and registered exactly as if it were declared alongside. The entries are not for hand use, and there is nothing to configure: the dependency only has to have been compiled with `hkj-processor` on its processor path.
+<!-- verify -->
+```java
+// :billing, which depends on :orders-api (Customer, CustomerDto and CustomerMapping live there)
+@GenerateMapping
+interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
+
+// generated InvoiceMappingImpl.parse, the customer leg:
+//   .field("customer", hkj$ifPresent(wire.customer(), CustomerMappingImpl.INSTANCE.asValidatedPrism()::parse))
+```
+
+There is nothing to configure. The one requirement falls on the dependency: `:orders-api` must be compiled with `hkj-processor` on its processor path, as any module that declares specs must be ([Multi-module builds](../tooling/manual_setup.md#multi-module-builds) has the build-side detail). Every kind of spec comes along. A [threaded or element-mapped](generics.md) spec resolves by the same unification, a [sealed pair](#sealed-hierarchies) dispatches to subtype specs in the dependency, and a [`@GenerateMerge`](merge_envelopes.md) fill delegates the same way.
+
+~~~admonish tip title="Why this matters"
+The delegation is an ordinary static reference in generated code, resolved at compile time from the dependency's class files: no runtime registry, no reflection, no service file to keep in step. Rename or remove a spec upstream and the downstream build fails at the use site, with the pair named, rather than a request failing later.
+~~~
+
+### How a dependency's specs are found
+
+Nothing in a jar says which of its interfaces are mapping specs, and the compiler can list a package but not search a classpath. So the processor keeps an **index**: beside every generated `Impl` of a `MappingSpec` it writes one empty class into the package `org.higherkindedj.mapping.index`, carrying `@MappingIndexEntry` with the spec's name. A downstream compilation lists that package, reads each spec it names from its class file (which carries everything registration needs, type arguments included), and registers it exactly as if it were declared alongside. The entries are not for hand use.
 
 ```mermaid
 flowchart LR
@@ -72,11 +90,11 @@ flowchart LR
 
 Three rules keep the resolution predictable:
 
-- **A spec in the compilation shadows a classpath spec for the same pair.** Adding a dependency never changes a resolution that already worked; the shadowed spec is named in a compiler note, and a leaf named after the component delegates to it explicitly if that is the one meant.
-- **Two dependencies mapping one pair are ambiguous**, reported with the same `matches more than one mapping spec` error as two specs in one compilation, each candidate listed by its qualified name and `(classpath)` provenance. For a nested component the remedy is the leaf; for a sealed subtype pair, which has no leaf, declare the spec yourself in this compilation and it shadows both.
-- **A stale entry is passed over.** An entry naming a spec that is no longer on the classpath describes nothing. An entry whose spec is present but whose `Impl` is missing means the Impl was generated and then lost, a partial build output or a jar that dropped it; such a spec is never chosen, and a use site that needed it is told so in its error, with the dependency to rebuild from clean.
+- **Your own spec wins.** A spec in the compilation shadows a classpath spec for the same pair, so adding a dependency never changes a resolution that already worked. The shadowed spec is named in a compiler note; if it is the one you meant, a leaf named after the component delegates to it explicitly.
+- **Two dependencies for one pair are ambiguous.** The error is the same `matches more than one mapping spec` as for two specs in one compilation, each candidate listed by its qualified name with `(classpath)`. For a nested component the remedy is a leaf naming the one you mean; a sealed subtype pair has no leaf, so declare the spec yourself and it shadows both.
+- **A stale entry is passed over.** An entry naming a spec that is no longer on the classpath describes nothing. One whose spec is present but whose `Impl` is missing (a partial build output, or a jar that dropped it) is never chosen, and a use site that needed the pair is told which dependency to rebuild.
 
-A spec compiled inside a named module (a `module-info`) writes no entry and a named module reads none, not supported yet, because the index is one package that two modules cannot share; there, and for the same reason between two spec-carrying jars used as automatic modules, the route is a leaf delegating to the other `Impl`'s `asValidatedPrism()`. A library destined for such a module path turns the index off with the processor option `-Ahkj.mapping.index=false`, which writes no entries and reads none (see [Multi-module builds](../tooling/manual_setup.md#multi-module-builds)).
+The index is classpath-only. A module with a `module-info` writes no entry and reads none, not supported yet, because the index is one package and the module system allows a package in one module only; the same rule keeps two spec-carrying jars from serving as automatic modules side by side. Across a boundary of that kind, delegate with a leaf calling the other `Impl`'s `asValidatedPrism()`, and give a library bound for a module path the processor option `-Ahkj.mapping.index=false`, which writes no entries and reads none.
 
 ---
 
@@ -103,12 +121,14 @@ A domain subtype without a spec, or a wire subtype nothing produces, is a compil
 * **Containers lift**: `List`/`Optional` by element, `Map` by value; failures are located by index or key
 * **Error paths are dotted domain names**: `customers.1.email`, `attributes.en.email`
 * **Sealed dispatch is exhaustive both ways**: a missing subtype pair is a compile error, never a runtime surprise
+* **Dependencies count as siblings**: a spec compiled into another module nests, dispatches and merges through the classpath index, and your own spec shadows a dependency's for the same pair
 ~~~
 
 ~~~admonish tip title="See Also"
 - [Record Mapping Basics](basics.md#null-doctrine) - The null doctrine that also reaches inside containers
 - [The Emission Tiers](tiers.md) - What the composed mapping lawfully offers
 - [Generic Specs](generics.md) - Nesting for generic records
+- [Multi-module builds](../tooling/manual_setup.md#multi-module-builds) - What the build needs when specs span modules
 ~~~
 
 ---
