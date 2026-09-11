@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import com.google.auto.service.AutoService;
 import com.palantir.javapoet.AnnotationSpec;
+import com.palantir.javapoet.ArrayTypeName;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.FieldSpec;
@@ -2062,14 +2063,17 @@ public class MappingProcessor extends AbstractProcessor {
    * element-of-Optional lambda, or — for identity containers, which carry no prism yet still parse
    * — the emitted null-scan helper).
    */
-  private record UpdateEdit(String domainName, String wireName, Kind kind, CodeBlock prism) {
+  private record UpdateEdit(
+      String domainName, String wireName, Kind kind, CodeBlock prism, TypeName domainElement) {
 
     static UpdateEdit identity(String domainName, String wireName, Kind kind) {
-      return new UpdateEdit(domainName, wireName, kind, null);
+      return new UpdateEdit(domainName, wireName, kind, null, null);
     }
 
-    static UpdateEdit validated(String domainName, String wireName, Kind kind, CodeBlock prism) {
-      return new UpdateEdit(domainName, wireName, kind, prism);
+    /** {@code domainElement} is the array constructor's type, and null for every other kind. */
+    static UpdateEdit validated(
+        String domainName, String wireName, Kind kind, CodeBlock prism, TypeName domainElement) {
+      return new UpdateEdit(domainName, wireName, kind, prism, domainElement);
     }
 
     boolean parsed() {
@@ -2147,7 +2151,8 @@ public class MappingProcessor extends AbstractProcessor {
                 domainName,
                 property.name(),
                 Kind.LEAF,
-                CodeBlock.of("$L()", leaf.getSimpleName())));
+                CodeBlock.of("$L()", leaf.getSimpleName()),
+                null));
         continue;
       }
 
@@ -2160,7 +2165,11 @@ public class MappingProcessor extends AbstractProcessor {
       if (containerLeaf != null) {
         edits.add(
             UpdateEdit.validated(
-                domainName, property.name(), containerLeaf.kind(), containerLeaf.prism()));
+                domainName,
+                property.name(),
+                containerLeaf.kind(),
+                containerLeaf.prism(),
+                containerLeaf.domainElement()));
         continue;
       }
 
@@ -2190,7 +2199,8 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       if (nested.accessor() != null) {
-        edits.add(UpdateEdit.validated(domainName, property.name(), Kind.LEAF, nested.accessor()));
+        edits.add(
+            UpdateEdit.validated(domainName, property.name(), Kind.LEAF, nested.accessor(), null));
         continue;
       }
 
@@ -2552,6 +2562,9 @@ public class MappingProcessor extends AbstractProcessor {
         CodeBlock parser =
             switch (edit.kind()) {
               case ELEMENTS -> CodeBlock.of("$L::parseAll", edit.prism());
+              case ARRAY ->
+                  CodeBlock.of(
+                      "v -> $L.parseAll(v, $T[]::new)", edit.prism(), edit.domainElement());
               case MAP -> CodeBlock.of("$L::parseValues", edit.prism());
               case OPTIONAL -> elementOfOptionalParser(edit.prism());
               case IDENTITY_ELEMENTS -> CodeBlock.of("$T::hkj$$allPresent", implName);
@@ -2602,6 +2615,9 @@ public class MappingProcessor extends AbstractProcessor {
     }
     if (edits.stream().anyMatch(e -> scansUpdate(e, wire, "java.util.Set"))) {
       implBuilder.addMethod(allPresentSetHelper());
+    }
+    if (edits.stream().anyMatch(e -> scansUpdateArray(e, wire))) {
+      implBuilder.addMethod(allPresentArrayHelper());
     }
     if (edits.stream().anyMatch(e -> e.kind() == Kind.IDENTITY_MAP)) {
       implBuilder.addMethod(valuesPresentHelper());
@@ -2669,6 +2685,9 @@ public class MappingProcessor extends AbstractProcessor {
     // An element-lifted List or Set. Both emit the same text: ValidatedPrism's parseAll and
     // buildAll are overloaded on the container, so the container's own type picks the form.
     ELEMENTS,
+    // An element-lifted array. Its own kind, not ELEMENTS, because only it needs the array
+    // constructor passed alongside: a generic array cannot be created without one.
+    ARRAY,
     OPTIONAL,
     // A domain Optional<T> bridged to a nullable wire member T: empty <-> null/absent.
     OPTIONAL_BRIDGE,
@@ -2691,15 +2710,29 @@ public class MappingProcessor extends AbstractProcessor {
    * order, and read from and assemble into the group's record rather than the domain.
    */
   private record Correspondence(
-      String name, String wireName, Kind kind, CodeBlock prism, Group group) {
+      String name,
+      String wireName,
+      Kind kind,
+      CodeBlock prism,
+      Group group,
+      TypeName domainElement) {
 
     Correspondence(String name, String wireName, Kind kind, CodeBlock prism) {
-      this(name, wireName, kind, prism, null);
+      this(name, wireName, kind, prism, null, null);
     }
 
     /** The same correspondence as a member of {@code group}. */
     Correspondence in(Group group) {
-      return new Correspondence(name, wireName, kind, prism, group);
+      return new Correspondence(name, wireName, kind, prism, group, domainElement);
+    }
+
+    /**
+     * The same correspondence carrying its domain element type, which only {@code ARRAY} needs: a
+     * generic array cannot be created without its constructor, so the parse leg emits {@code
+     * Domain[]::new} and must name the type.
+     */
+    Correspondence withDomainElement(TypeName element) {
+      return new Correspondence(name, wireName, kind, prism, group, element);
     }
 
     boolean fallible() {
@@ -2714,16 +2747,17 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The sparse tier's identity kind: the null scan applies only where the emitted generic helper
-   * can type — an exactly-{@code List}/{@code Map} component whose type arguments are proper types.
-   * A raw or wildcard-argument container stays a plain identity write ({@code setIfPresent}): the
-   * helper's method reference must produce the component's exact type, and a wildcard captures
-   * differently on the argument and return sides while a raw type erases the call, so either shape
-   * would fail to compile inside the user's generated Impl.
+   * can type — an exactly-{@code List}/{@code Set}/{@code Map} component whose type arguments are
+   * proper types, or a reference array. A raw or wildcard-argument container stays a plain identity
+   * write ({@code setIfPresent}): the helper's method reference must produce the component's exact
+   * type, and a wildcard captures differently on the argument and return sides while a raw type
+   * erases the call, so either shape would fail to compile inside the user's generated Impl. An
+   * array carries its element type in the type itself, so it has neither failure mode.
    */
   private Kind sparseIdentityKind(TypeMirror type) {
     Kind kind = identityKind(type);
-    if (kind == Kind.IDENTITY) {
-      return Kind.IDENTITY;
+    if (kind == Kind.IDENTITY || type instanceof ArrayType) {
+      return kind;
     }
     DeclaredType declared = (DeclaredType) type;
     boolean scanTypable = !declared.getTypeArguments().isEmpty() && !hasWildcardArgument(declared);
@@ -2735,7 +2769,9 @@ public class MappingProcessor extends AbstractProcessor {
    * additionally scans for nulls.
    */
   private Kind identityKind(TypeMirror type) {
-    if (ELEMENT_CONTAINERS.stream().anyMatch(container -> isExactly(type, container))) {
+    if (ELEMENT_CONTAINERS.stream().anyMatch(container -> isExactly(type, container))
+        // A primitive array has no element that could be null, so it needs no scan.
+        || (type instanceof ArrayType array && !array.getComponentType().getKind().isPrimitive())) {
       return Kind.IDENTITY_ELEMENTS;
     }
     if (isExactly(type, "java.util.Map")) {
@@ -3895,6 +3931,18 @@ public class MappingProcessor extends AbstractProcessor {
         return new Correspondence(name, wireName, Kind.ELEMENTS, lifted.accessor());
       }
     }
+    TypeMirror[] arrayElements = arrayPair(wireType, domainType);
+    if (arrayElements != null) {
+      PrismResolution lifted =
+          resolveNestedSpec(spec, registry, name, arrayElements[0], arrayElements[1]);
+      if (lifted.ambiguous()) {
+        return null;
+      }
+      if (lifted.accessor() != null) {
+        return new Correspondence(name, wireName, Kind.ARRAY, lifted.accessor())
+            .withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1]));
+      }
+    }
     TypeMirror wireElement = containerElement(wireType, "java.util.Optional");
     TypeMirror domainElement = containerElement(domainType, "java.util.Optional");
     if (wireElement != null && domainElement != null) {
@@ -4186,6 +4234,15 @@ public class MappingProcessor extends AbstractProcessor {
       return elementLeafCorrespondence(
           spec, name, wireName, Kind.ELEMENTS, elements[0], elements[1]);
     }
+    TypeMirror[] arrayElements = arrayPair(wireType, domainType);
+    if (arrayElements != null) {
+      Correspondence lifted =
+          elementLeafCorrespondence(
+              spec, name, wireName, Kind.ARRAY, arrayElements[0], arrayElements[1]);
+      return lifted == null
+          ? null
+          : lifted.withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1]));
+    }
     TypeMirror wireElement = containerElement(wireType, "java.util.Optional");
     TypeMirror domainElement = containerElement(domainType, "java.util.Optional");
     if (wireElement != null && domainElement != null) {
@@ -4223,6 +4280,23 @@ public class MappingProcessor extends AbstractProcessor {
       }
     }
     return null;
+  }
+
+  /**
+   * The (wire, domain) component types when both sides are arrays of <em>reference</em> elements,
+   * else null.
+   *
+   * <p>A primitive array has no element mapping to do — a {@code ValidatedPrism} cannot focus a
+   * primitive, and a primitive element cannot be null either — so it stays a plain identity copy
+   * rather than reaching a lifting route it could never satisfy.
+   */
+  private static TypeMirror[] arrayPair(TypeMirror wireType, TypeMirror domainType) {
+    return wireType instanceof ArrayType wireArray
+            && domainType instanceof ArrayType domainArray
+            && !wireArray.getComponentType().getKind().isPrimitive()
+            && !domainArray.getComponentType().getKind().isPrimitive()
+        ? new TypeMirror[] {wireArray.getComponentType(), domainArray.getComponentType()}
+        : null;
   }
 
   /**
@@ -4378,6 +4452,13 @@ public class MappingProcessor extends AbstractProcessor {
     return switch (c.kind()) {
       case LEAF -> CodeBlock.of("$L.build($L)", c.prism(), domainRead(c));
       case ELEMENTS -> CodeBlock.of("$L.buildAll($L)", c.prism(), domainRead(c));
+      // The wire element type names the array the build direction renders into.
+      case ARRAY ->
+          CodeBlock.of(
+              "$L.buildAll($L, $T[]::new)",
+              c.prism(),
+              domainRead(c),
+              ProcessorUtils.typeNameOf(((ArrayType) wc.type()).getComponentType()));
       case OPTIONAL -> CodeBlock.of("$L.map($L::build)", domainRead(c), c.prism());
       // The domain Optional is carried as-is (identity) or its element built through the leaf.
       case OPTIONAL_BRIDGE -> bridgeBuildValue(wire, c);
@@ -4690,6 +4771,52 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The {@code hkj$allPresent} overload for identity-copied reference arrays: an array has stable
+   * indices, so a null element locates by its index exactly as a list's does. A primitive array
+   * never reaches here — it has no element that could be null.
+   */
+  static MethodSpec allPresentArrayHelper() {
+    TypeVariableName e = TypeVariableName.get("E");
+    TypeName arrayOfE = ArrayTypeName.of(e);
+    TypeName validatedOfArray =
+        ParameterizedTypeName.get(VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), arrayOfE);
+    TypeName nelOfError = ParameterizedTypeName.get(NEL, FIELD_ERROR);
+    return MethodSpec.methodBuilder("hkj$allPresent")
+        .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+        .addTypeVariable(e)
+        .returns(validatedOfArray)
+        .addParameter(arrayOfE, "values")
+        .addJavadoc(
+            "Guards an identity-copied array: a null element is a located invalid at its index,"
+                + " accumulating.\n")
+        .beginControlFlow("if (values == null)")
+        .addStatement("return $T.invalidNel($T.of($S))", VALIDATED, FIELD_ERROR, "must not be null")
+        .endControlFlow()
+        .addStatement("$T failures = null", nelOfError)
+        .beginControlFlow("for (int i = 0; i < values.length; i++)")
+        .beginControlFlow("if (values[i] == null)")
+        .addStatement(
+            "$T located = $T.of($T.of($S).at($T.valueOf(i)))",
+            nelOfError,
+            NEL,
+            FIELD_ERROR,
+            "must not be null",
+            ClassName.get(String.class))
+        .addStatement(
+            "failures = failures == null ? located : $T.<$T>semigroup().combine(failures,"
+                + " located)",
+            NEL,
+            FIELD_ERROR)
+        .endControlFlow()
+        .endControlFlow()
+        .addStatement(
+            "return failures == null ? $T.valid(values) : $T.invalid(failures)",
+            VALIDATED,
+            VALIDATED)
+        .build();
+  }
+
+  /**
    * The {@code hkj$valuesPresent} guard for identity-copied {@code Map} components: total over a
    * null map, and each null value is a located invalid under its key, accumulating - matching
    * {@code ValidatedPrism#parseValues}. Keys are structural: a null key stays the caller's {@code
@@ -4799,6 +4926,7 @@ public class MappingProcessor extends AbstractProcessor {
     boolean needsGuardHelper = comps.stream().anyMatch(c -> usesIfPresent(c, wire));
     boolean needsAllPresent = comps.stream().anyMatch(c -> scansList(c, wire));
     boolean needsAllPresentSet = comps.stream().anyMatch(c -> scansSet(c, wire));
+    boolean needsAllPresentArray = comps.stream().anyMatch(c -> scansArray(c, wire));
     boolean needsValuesPresent = comps.stream().anyMatch(c -> scansMap(c, wire));
 
     List<EmittedMember> emitted = new ArrayList<>();
@@ -4864,6 +4992,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (needsAllPresentSet) {
       implBuilder.addMethod(allPresentSetHelper());
     }
+    if (needsAllPresentArray) {
+      implBuilder.addMethod(allPresentArrayHelper());
+    }
     if (needsValuesPresent) {
       implBuilder.addMethod(valuesPresentHelper());
     }
@@ -4915,6 +5046,15 @@ public class MappingProcessor extends AbstractProcessor {
           CodeBlock.of("\n.field($S, hkj$$ifPresent($L, $L::parse))", c.name(), read, c.prism());
       case ELEMENTS ->
           CodeBlock.of("\n.field($S, hkj$$ifPresent($L, $L::parseAll))", c.name(), read, c.prism());
+      // The two-argument bulk form cannot be a bare method reference, so the array constructor
+      // rides in a lambda; the domain element type is the one the parse produces.
+      case ARRAY ->
+          CodeBlock.of(
+              "\n.field($S, hkj$$ifPresent($L, v -> $L.parseAll(v, $T[]::new)))",
+              c.name(),
+              read,
+              c.prism(),
+              c.domainElement());
       case OPTIONAL ->
           CodeBlock.of(
               "\n.field($S, hkj$$ifPresent($L, $L))",
@@ -5127,6 +5267,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (comps.stream().anyMatch(c -> scansSet(c, wire))) {
       implBuilder.addMethod(allPresentSetHelper());
     }
+    if (comps.stream().anyMatch(c -> scansArray(c, wire))) {
+      implBuilder.addMethod(allPresentArrayHelper());
+    }
     if (comps.stream().anyMatch(c -> scansMap(c, wire))) {
       implBuilder.addMethod(valuesPresentHelper());
     }
@@ -5154,6 +5297,11 @@ public class MappingProcessor extends AbstractProcessor {
     return isExactly(scannedElementsType(c, wire), "java.util.Set");
   }
 
+  /** Whether a leg emits the {@code hkj$allPresent} array overload. */
+  private boolean scansArray(Correspondence c, WireShape wire) {
+    return scannedElementsType(c, wire) instanceof ArrayType;
+  }
+
   /**
    * The sparse tier's twin of {@link #scansList}/{@link #scansSet}: which {@code hkj$allPresent}
    * overload a scanning edit needs declared. A sparse identity edit matches its wire and domain
@@ -5162,6 +5310,12 @@ public class MappingProcessor extends AbstractProcessor {
   private boolean scansUpdate(UpdateEdit edit, WireShape wire, String container) {
     return edit.kind() == Kind.IDENTITY_ELEMENTS
         && isExactly(wire.componentNamed(edit.wireName()).orElseThrow().type(), container);
+  }
+
+  /** The sparse tier's array twin of {@link #scansUpdate}. */
+  private boolean scansUpdateArray(UpdateEdit edit, WireShape wire) {
+    return edit.kind() == Kind.IDENTITY_ELEMENTS
+        && wire.componentNamed(edit.wireName()).orElseThrow().type() instanceof ArrayType;
   }
 
   /** Whether a leg emits the {@code hkj$valuesPresent} scan: an identity Map, or a bridged one. */

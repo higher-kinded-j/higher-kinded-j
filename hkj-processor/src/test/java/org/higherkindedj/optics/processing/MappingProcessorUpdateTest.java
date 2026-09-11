@@ -1086,6 +1086,7 @@ class MappingProcessorUpdateTest {
               "IDENTITY_MAP",
               "LEAF",
               "ELEMENTS",
+              "ARRAY",
               "OPTIONAL",
               "OPTIONAL_BRIDGE",
               "MAP",

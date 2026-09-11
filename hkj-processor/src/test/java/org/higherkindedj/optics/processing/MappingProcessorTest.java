@@ -399,6 +399,136 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("an array component lifts through the element leaf, located by index")
+    void arrayLiftsWithIndexLocation() throws Exception {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Roster",
+              """
+              package com.example;
+
+              public record Roster(EmailAddress[] members, int[] scores) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.RosterDto",
+              """
+              package com.example;
+
+              public record RosterDto(String[] members, int[] scores) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.RosterMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface RosterMapping extends MappingSpec<Roster, RosterDto> {
+                default ValidatedPrism<String, EmailAddress> members() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.RosterMappingImpl"))
+          .contains("members().buildAll(domain.members(), String[]::new)")
+          .contains(
+              ".field(\"members\", hkj$ifPresent(wire.members(), v -> members().parseAll(v,"
+                  + " EmailAddress[]::new)))")
+          // A primitive array has no element that could be null, so it carries no element
+          // scan - but the component is still a reference, so the read stays null-guarded.
+          .contains(".field(\"scores\", hkj$ifPresent(wire.scores(), Validated::validNel))")
+          .doesNotContain("hkj$allPresent");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.RosterMappingImpl");
+      Object dto =
+          result
+              .loadClass("com.example.RosterDto")
+              .getDeclaredConstructor(String[].class, int[].class)
+              .newInstance(new String[] {"ada@corp", "nope"}, new int[] {1, 2});
+
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      assertThatValidated(parsed).isInvalid();
+      // An array has stable indices, so a failing element locates exactly as a list's does.
+      Assertions.assertThat(parsed.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("members", "1"), "not an email address"));
+    }
+
+    @Test
+    @DisplayName("an identity reference array is scanned by index; a primitive array is not")
+    void identityArrayElementsAreScanned() throws Exception {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Codes",
+              """
+              package com.example;
+
+              public record Codes(String[] tags, int[] counts) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.CodesDto",
+              """
+              package com.example;
+
+              public record CodesDto(String[] tags, int[] counts) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CodesMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CodesMapping extends MappingSpec<Codes, CodesDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CodesMappingImpl"))
+          .contains(".field(\"tags\", hkj$allPresent(wire.tags()))")
+          .contains("Validated<NonEmptyList<FieldError>, E[]> hkj$allPresent(E[] values)")
+          // a primitive array cannot hold a null element, so it takes the plain identity leg
+          .contains(".field(\"counts\", hkj$ifPresent(wire.counts(), Validated::validNel))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.CodesMappingImpl");
+      Object badDto =
+          result
+              .loadClass("com.example.CodesDto")
+              .getDeclaredConstructor(String[].class, int[].class)
+              .newInstance(new String[] {"a", null, null}, new int[] {});
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> rejected =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", badDto);
+      assertThatValidated(rejected).isInvalid();
+      Assertions.assertThat(rejected.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("tags", "1"), "must not be null"),
+              new FieldError(List.of("tags", "2"), "must not be null"));
+    }
+
+    @Test
     @DisplayName(
         "a List against a Set is not a pair: lifting needs the same container on both sides")
     void aListAgainstASetIsNotAPair() {
