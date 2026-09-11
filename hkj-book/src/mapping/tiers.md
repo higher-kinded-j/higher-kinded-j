@@ -22,9 +22,7 @@ flowchart TD
     S["Your spec interface"] --> U{"extends UpdateSpec<br/>(instead of MappingSpec)?"}
     U -->|yes| UT(["updateFrom() only:<br/>a sparse PATCH fold"])
     U -->|no| W{"wire has fewer components?<br/>(derived fields don't count)"}
-    W -->|yes| B{"bean-shaped wire with<br/>any reference property?"}
-    B -->|yes| BX(["rejected: the bean projection<br/>flavour is not supported yet"])
-    B -->|no| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, container, bridge)"}
+    W -->|yes| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, container, bridge,<br/>or a bean's reference property)"}
     F -->|no| LT(["build + asLens():<br/>lawful write-back, no parse"])
     F -->|yes| PT(["build + validated patch():<br/>a write-back that can fail"])
     W -->|no| D{"any fallible leaf, nested spec,<br/>derived field, bridged Optional,<br/>or guarded bean property read?"}
@@ -36,14 +34,12 @@ flowchart TD
     classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
-    classDef error fill:#e78284,stroke:#d20f39,color:#232634
     class S wire
     class UT,LT,PT,IT,VT,VP tier
-    class U,W,B,F,D decision
-    class BX error
+    class U,W,F,D decision
 ```
 
-(The bean-read leg of that last decision: on a bean wire an unset reference property is an ordinary state, so its guarded reads count as fallible and a lossless-*looking* bean mapping still lands on the accumulating branch, withholding `asIso()`; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets). The rejected bean projection is [#702](https://github.com/higher-kinded-j/higher-kinded-j/issues/702); an all-primitive bean projection, whose reads can never be null, takes the `asLens()` branch. And a projection that also declares a [derived field](basics.md#derived-wire-fields) is rejected outright, which is why derived fields do not count towards the wire tally. An [`@OptionalBridge`](basics.md#optional-bridge) component counts as fallible on both branches, on either wire shape: absence is a real correspondence, not a copy, so a mapping carrying one withholds `asIso()` and a projection carrying one takes `patch`.)
+(The bean-read leg of that last decision: on a bean wire an unset reference property is an ordinary state, so its guarded reads count as fallible and a lossless-*looking* bean mapping still lands on the accumulating branch, withholding `asIso()`; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets). The same reads decide a bean projection: any reference property makes it land on `patch`, while an all-primitive bean projection, whose reads can never be null, takes the `asLens()` branch. And a projection that also declares a [derived field](basics.md#derived-wire-fields) is rejected outright, which is why derived fields do not count towards the wire tally. An [`@OptionalBridge`](basics.md#optional-bridge) component counts as fallible on both branches, on either wire shape: absence is a real correspondence, not a copy, so a mapping carrying one withholds `asIso()` and a projection carrying one takes `patch`.)
 
 And as the reference table:
 
@@ -51,8 +47,8 @@ And as the reference table:
 |---|---|
 | All components identity-matched (lossless) | `build`, guarded `parse`, **`asIso()`** |
 | Any fallible leaf, nested spec, derived field or bridged `Optional` | `build`, accumulating `parse`, no `asIso` |
-| Wire record with *fewer* components, all identity (lossy projection) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
-| Wire record with fewer components **and** any fallible correspondence | `build` + a validated **`patch(domain, wire)`** write-back, no `asLens` and no `parse`, [below](#leaf-carrying-projections-the-validated-patch) |
+| Wire with *fewer* components, all identity (lossy projection; on a bean, all primitive) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
+| Wire with fewer components **and** any fallible correspondence (on a bean, any reference property) | `build` + a validated **`patch(domain, wire)`** write-back, no `asLens` and no `parse`, [below](#leaf-carrying-projections-the-validated-patch) |
 | Every parse-capable mapping | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |
 | A spec extending **`UpdateSpec`** (opt-in, bean wire) | only **`updateFrom(Wire)`**: a sparse PATCH fold, [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 
@@ -89,7 +85,7 @@ The overloads follow the tiers:
 
 - **Lossless mapping:** pass `asIso()` plus `asValidatedPrism()` to check the iso laws, both round trips, and the coherence between the two surfaces.
 - **Projection:** pass `asLens()` with a domain value and two wire values.
-- **Validated patch (leaf-carrying projection):** pass the `patch` and `build` method references, a domain value, and a parsing and a non-parsing wire value ([below](#leaf-carrying-projections-the-validated-patch)).
+- **Validated patch (a validating projection, record or bean):** pass the `patch` and `build` method references, a domain value, and a parsing and a non-parsing wire value ([below](#leaf-carrying-projections-the-validated-patch)).
 - **Fallible tier:** pass `asValidatedPrism()` with a parsing and a non-parsing wire value.
 - **Derived-field (total-parse) mapping:** `build` recomputes what `parse` ignores, so only the non-derived components round-trip. The domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger.
 - **Sparse-update (`UpdateSpec`) mapping:** pass the `updateFrom` method reference, a domain value, and an all-absent, a valid and an invalid wire to check the identity, idempotence and validation laws ([Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec)).
@@ -104,7 +100,7 @@ The annotation sits on *your* spec interface, never on the mapped types, so thir
 
 ## Leaf-carrying projections: the validated `patch`
 
-A projection that also *validates or normalises* a field (a leaf on a projected component) has no lawful total lens: the write-back can fail. Instead of refusing to generate, the mapping emits the **validated `patch` tier**: the total `build` stays, and the write-back returns `Validated`:
+A projection that also *validates or normalises* a field (a leaf on a projected component) has no lawful total lens: the write-back can fail. Instead of refusing to generate, the mapping emits the **validated `patch` tier**: the total `build` stays, and the write-back returns `Validated`. A bean projection lands here even without a leaf, because a bean's reference property can be left unset ([Bean projections](beans_patch.md#bean-projections)):
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_projection_spec}}
@@ -117,7 +113,7 @@ A projection that also *validates or normalises* a field (a leaf on a projected 
 ```
 
 ~~~admonish warning title="Dense, not sparse: patch is the opposite of updateFrom"
-`patch` applies **every** projected component: a `null` reference read becomes a located `FieldError` (`must not be null`), never "leave unchanged". The REST-PATCH contract (null means absent, keep the current value) is the [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec) on a bean wire; this tier is its dense, record-shaped complement for writing a validated sub-view onto a bigger record.
+`patch` applies **every** projected component, never "leave unchanged": a `null` reference read becomes a located `FieldError` (`must not be null`), and a [bridged](basics.md#optional-bridge) `Optional` component, automatic on a bean wire, reads `null` as empty and writes that. The REST-PATCH contract (null means absent, keep the current value) is the [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec) on a bean wire; this tier is its dense complement, on a record or a bean wire, for writing a validated sub-view onto a bigger record.
 ~~~
 
 Everything the full tier resolves is available on the projected components: explicit leaves (beating identity, so a `ValidatedPrism<X, X>` can normalise), nested specs (failures compose into dotted paths), and `List`/`Optional`/`Map` lifting. Nulls locate through the nesting too: a nested wire value delegates to the nested spec's `parse`, whose reference legs carry the same guard, so `patch(customer, new CustomerPatchDto(new AddressDto(null)))` reports `address.zip: must not be null` instead of throwing. Only derived fields stay rejected. At the Spring boundary the result is already [the 422 leg](../spring/spring_boot_integration.md#the-422-leg)'s shape: return it as-is. Like every tier, this one is law-checked:

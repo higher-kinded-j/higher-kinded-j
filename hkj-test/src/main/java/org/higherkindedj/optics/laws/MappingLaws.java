@@ -39,12 +39,14 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *   <li>sparse-update tier ({@code updateFrom()} only, from an {@code UpdateSpec}): pass the {@code
  *       updateFrom} method reference, a domain sample, and an all-absent, a valid and an invalid
  *       wire - the identity, idempotence and validation laws.
- *   <li>validated-patch tier ({@code patch(domain, wire)} on a leaf-carrying projection): pass the
- *       {@code patch} and {@code build} method references, a domain sample, and a valid and an
- *       invalid wire - the projection identity, idempotence and located-validation laws. A DENSE
- *       write-back (every projected component applies; null is a located error) - the opposite of
- *       the sparse-update tier above. {@code build} after {@code patch} is deliberately NOT a law:
- *       a normalising leaf rewrites the wire form by design.
+ *   <li>validated-patch tier ({@code patch(domain, wire)} on a validating projection: a
+ *       leaf-carrying one, or a bean projection with a reference property): pass the {@code patch}
+ *       and {@code build} method references, a domain sample, and a valid and an invalid wire - the
+ *       projection identity, idempotence and located-validation laws. A DENSE write-back (every
+ *       projected component applies; null is a located error, or empty on a bridged {@code
+ *       Optional}) - the opposite of the sparse-update tier above. The laws compare domain values
+ *       only, so a bean wire needs no {@code equals}. {@code build} after {@code patch} is
+ *       deliberately NOT a law: a normalising leaf rewrites the wire form by design.
  * </ul>
  *
  * <p>The derived-field reality: {@code build} recomputes a derived wire component and {@code parse}
@@ -211,8 +213,10 @@ public final class MappingLaws {
 
   /**
    * All laws of the validated-patch tier ({@code patch(Domain, Wire) :
-   * Validated<NonEmptyList<FieldError>, Domain>} on a leaf-carrying projection): the projection
-   * identity, idempotence and located-validation laws that make a dense write-back lawful.
+   * Validated<NonEmptyList<FieldError>, Domain>} on a validating projection: a leaf-carrying one,
+   * or a bean projection with a reference property): the projection identity, idempotence and
+   * located-validation laws that make a dense write-back lawful. The laws compare domain values
+   * only, so a bean wire needs no {@code equals}.
    *
    * <ul>
    *   <li><b>Projection identity</b> - {@code patch(d, build(d)) == Valid(d)}: writing the domain's

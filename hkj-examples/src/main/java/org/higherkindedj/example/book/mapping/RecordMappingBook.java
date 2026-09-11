@@ -165,6 +165,24 @@ public final class RecordMappingBook {
         SubscriberDetailsMappingImpl.INSTANCE.patch(
             subscriber, new SubscriberDetailsDto(null, 37)));
 
+    // ANCHOR: bean_projection_usage
+    Employee researcher = new Employee("Ada", "Research", 36);
+    TransferBean transfer = new TransferBean();
+    transfer.setDepartment("Platform");
+
+    // The bean's property can be unset, so the projection validates: patch, never a lens.
+    Validated<NonEmptyList<FieldError>, Employee> transferred =
+        TransferMappingImpl.INSTANCE.patch(researcher, transfer);
+    // Valid(Employee[name=Ada, department=Platform, age=36])
+
+    // Dense, as on a record wire: an unset property is a located error, never "keep the current
+    // value".
+    TransferMappingImpl.INSTANCE.patch(researcher, new TransferBean());
+    // Invalid(NonEmptyList[department: must not be null])
+    // ANCHOR_END: bean_projection_usage
+    System.out.println(transferred);
+    System.out.println(TransferMappingImpl.INSTANCE.patch(researcher, new TransferBean()));
+
     // ANCHOR: bean_usage
     Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
     ContactBean bean =
@@ -508,6 +526,27 @@ interface ContactMapping extends MappingSpec<Customer, ContactBean> {
 }
 
 // ANCHOR_END: bean_spec
+
+// ANCHOR: bean_projection_spec
+// A bean carrying one of Employee's three components: a projection. A record wire of that shape
+// copies by identity and keeps asLens(); a bean's reference property can be unset, which a lens's
+// set could not refuse, so the Impl emits the validated patch instead.
+class TransferBean {
+  private String department;
+
+  public String getDepartment() {
+    return department;
+  }
+
+  public void setDepartment(String department) {
+    this.department = department;
+  }
+}
+
+@GenerateMapping
+interface TransferMapping extends MappingSpec<Employee, TransferBean> {}
+
+// ANCHOR_END: bean_projection_spec
 
 // ANCHOR: update_spec
 // A PATCH request bean. Here null means "not provided, leave unchanged" - the opposite of the bean

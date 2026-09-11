@@ -347,6 +347,8 @@ void statusPrismIsLawful() {
 - **Projection:** pass `asLens()`; delegates to `LensLaws`.
 - **Fallible:** pass `asValidatedPrism()` with a parsing and a non-parsing wire value; delegates to `ValidatedPrismLaws`.
 - **Total-parse** (a mapping with derived wire fields, whose parse cannot fail): pass a domain sample; only the non-derived components round-trip, and the overload asserts exactly that.
+- **Validated patch** (a projection that validates, on a record or a bean wire): pass the `patch` and `build` method references, a domain sample, and a parsing and a non-parsing wire; checks projection identity, idempotence and located validation.
+- **Sparse update** (an `UpdateSpec`): pass the `updateFrom` method reference, a domain sample, and an all-absent, a valid and an invalid wire; checks identity, idempotence and located validation.
 
 ``` java
 import org.higherkindedj.optics.laws.MappingLaws;

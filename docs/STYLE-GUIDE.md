@@ -234,7 +234,7 @@ Pages whose feature has a Spring (or other framework) integration signpost it in
 An unsupported capability gets **one sentence and a tracking-issue link**, in prose, never a paragraph or an admonition labouring what cannot be done:
 
 ```markdown
-Bean projections with reference properties are not supported yet ([#702](https://github.com/...)).
+One-directional (getter-only or setter-only) beans are not supported yet ([#703](https://github.com/...)).
 ```
 
 The issue carries the design discussion; the book carries the pointer. (This mirrors the "not supported yet" comment convention in code.)

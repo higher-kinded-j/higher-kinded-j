@@ -2083,7 +2083,7 @@ class MappingProcessorTest {
           .contains(".field(\"age\", Validated.validNel(wire.age()))")
           // projected components bind by name; unprojected read from the domain argument
           .contains(".apply((email, notes, age) -> new Account(domain.id(), email, notes, age))")
-          .doesNotContain("asLens")
+          .doesNotContain("asLens() {")
           .doesNotContain("asIso")
           .doesNotContain("asValidatedPrism");
     }
@@ -2903,7 +2903,7 @@ class MappingProcessorTest {
           .hadErrorContaining("target field 'BadgeDto.name' has no usable source");
       assertThat(compilation).hadErrorContaining("no matching leaf method was found");
       assertThat(compilation)
-          .hadErrorContaining("emits the validated patch(domain, wire) instead of asLens()");
+          .hadErrorContaining("maps through the validated patch(domain, wire), never asLens()");
     }
 
     @Test
@@ -5045,7 +5045,7 @@ class MappingProcessorTest {
           .hadErrorContaining(
               "'patch(Account, AccountPatchDto)' collides with the 'patch' member the generated"
                   + " AccountPatchMappingImpl emits");
-      assertThat(compilation).hadErrorContaining("a leaf-carrying projection");
+      assertThat(compilation).hadErrorContaining("emits for this tier (a validating projection)");
     }
 
     @Test
@@ -9615,7 +9615,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CustomerCardMappingImpl"))
           .contains("public Validated<NonEmptyList<FieldError>, Customer> patch(")
-          .doesNotContain("asLens");
+          .doesNotContain("asLens() {");
     }
 
     @Test
