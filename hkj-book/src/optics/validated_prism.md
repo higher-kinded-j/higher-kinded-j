@@ -128,9 +128,20 @@ The stock vocabulary in [`StandardCodecs`](../mapping/codecs.md#standard-codecs)
 
 ## The bulk forms: `parseAll` and `parseValues`
 
-One prism lifts over whole containers. `parseAll(List<? extends S>)` parses every element and accumulates **every** failure, each located by its index: a plain positional segment, so a bad second element under a field labelled `emails` renders as `emails.1: not an email address` (through a nested spec, `customers.1.email: ...`). `parseValues(Map<K, ? extends S>)` parses a map's values the same way, each failure located by its key (`attributes.en: ...`); keys pass through untouched.
+One prism lifts over whole containers, accumulating **every** failure and locating each by whatever identifies an element in that container:
 
-The [null doctrine](../mapping/basics.md#null-doctrine) reaches inside both: a `null` element or map value is a located, accumulating `must not be null` at its index or key, never an exception, while a `null` list, map, or map key stays the caller's error. The build direction (`buildAll`, `buildValues`) is total like `build` and rejects nulls outright.
+| Form | Parses | Each failure locates by |
+|---|---|---|
+| `parseAll(List<? extends S>)` | every element | its **index** - `emails.1: not an email address`, or `customers.1.email` through a nested spec |
+| `parseAll(Set<? extends S>)` | every element | the **element's own rendering** - `emails.nope`; a set has no index |
+| `parseAll(S[], IntFunction<A[]>)` | every element | its **index**, as a list. The array constructor supplies the result, since a generic array cannot be created otherwise |
+| `parseValues(Map<K, ? extends S>)` | the values; keys pass through | its **key** - `attributes.en: ...` |
+| `parseKeys(Map<? extends S, V>)` | the keys; values pass through | the **source** key, naming what the caller sent |
+| `parseEntries(Map, ValidatedPrism)` | both sides; the receiver is the **key** prism | the source key, so an entry wrong on both sides reports both reasons there |
+
+The [null doctrine](../mapping/basics.md#null-doctrine) reaches inside all of them: a `null` element or map value is a located, accumulating `must not be null`, never an exception, while a `null` container or map key stays the caller's error. A `null` set element is the unlocated `must not contain a null element`, a set holding at most one. Every build direction (`buildAll`, `buildValues`, `buildKeys`, `buildEntries`) is total like `build` and rejects nulls outright.
+
+Mapping is not injective, so a container can **collapse**. A set collapses silently - the survivors are equal, so nothing is lost. Two map keys parsing to one domain key are a located `duplicates an earlier key` instead: the dropped entry takes its own value with it.
 
 (Bracketed index rendering, `emails[1]`, is deliberately deferred to the future sealed path-segment model; today's paths are flat dotted segments, and the positional segment matches the map-key grammar.)
 

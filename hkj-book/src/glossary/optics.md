@@ -325,7 +325,7 @@ OrderError error = OrderErrors.outOfStock(products)
 
 ## @GenerateMapping
 
-**Definition:** An annotation processor for the record-to-DTO boundary. Annotate an interface extending `MappingSpec<Domain, Wire>` and the processor generates, reflection-free at compile time, a total `build` (domain to wire) plus an accumulating `parse` (wire to domain) returning `Validated<NonEmptyList<FieldError>, Domain>`, so a bad DTO reports every bad field at once. Components match by name and type; `@MapField` declares renames, `@Flatten` spreads a nested record across a flat wire, and `List`/`Optional`/`Map` containers lift automatically. The annotation sits on *your* spec interface, so third-party records map without being annotatable.
+**Definition:** An annotation processor for the record-to-DTO boundary. Annotate an interface extending `MappingSpec<Domain, Wire>` and the processor generates, reflection-free at compile time, a total `build` (domain to wire) plus an accumulating `parse` (wire to domain) returning `Validated<NonEmptyList<FieldError>, Domain>`, so a bad DTO reports every bad field at once. Components match by name and type; `@MapField` declares renames, `@Flatten` spreads a nested record across a flat wire, and `List`, `Set`, array, `Optional` and `Map` containers lift automatically - a map's keys too, with `@MapKey`. The annotation sits on *your* spec interface, so third-party records map without being annotatable.
 
 **Example:**
 <!-- verify -->

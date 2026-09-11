@@ -7,7 +7,8 @@ Real DTOs are not flat. An order carries a customer, the customer carries an add
 ~~~admonish info title="What You'll Learn"
 - How specs nest automatically, in one compilation or across modules, composing failures into dotted paths
 - How a nested domain record spreads across a flat wire with `@Flatten`, and where its failures locate
-- How `List`, `Optional`, and `Map` components lift, and how failing elements are located by index or key
+- How `List`, `Set`, array, `Optional` and `Map` components lift, and what each locates a failure by
+- How `@MapKey` converts a map's keys, and when a collapse is silent or a failure
 - Why recursion terminates by construction
 - Dispatching a mapping over two sealed interfaces, exhaustively in both directions
 ~~~
@@ -26,10 +27,25 @@ A component whose two sides are themselves mapped by **another spec** nests auto
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:nesting_usage}}
 ```
 
-Containers lift the same way:
+Containers lift the same way, and each one locates a failure by whatever identifies an element *in that container*:
 
-- `List` and `Optional` components lift through the element's leaf or spec; each failing list element is located by its index, so a bad second element reports as `emails.1` (`customers.1.email` through a nested spec). Lifting needs the *same* container on both sides; a domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead.
-- `Map` components lift their **values**; keys pass through untouched, and each entry's failures are located by its key, so a bad value under key `en` reports as `attributes.en.email`.
+| Component | Lifts through the element's leaf or spec | A failure locates by |
+| --- | --- | --- |
+| `List<E>` | ✅ | its **index** - `emails.1`, or `customers.1.email` through a nested spec |
+| `E[]` | ✅ | its **index**, exactly as a list |
+| `Set<E>` | ✅ | the **element's own rendering** - `emails.nope`; a set has no index |
+| `Optional<E>` | ✅ | the component itself - there is only one element |
+| `Map<K, V>` | ✅ values, and keys with [`@MapKey`](#converting-map-keys) | the **source key** - `attributes.en.email` |
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_usage}}
+```
+
+Lifting needs the *same* container on both sides. A `List` against a `Set`, or an array against a `List`, is not a pair: it reports as a plain type mismatch rather than silently changing what the collection promises. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead. An array of primitives (`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive, and a primitive element cannot be null.
+
+Locating a set element by its own rendering is the only honest answer available: a set has no index, and its iteration order is not part of its contract, so numbering the elements would name a *different* one on the next run. The value is what identifies the element, so that is what the path says.
 
 A failure deep in the structure surfaces with its full address because each delegating spec prefixes its own component name as the error travels out:
 
@@ -48,8 +64,26 @@ flowchart TD
 
 Because nesting is *delegation* (each spec's `Impl` exposes [`asValidatedPrism()`](tiers.md), so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
 
-~~~admonish note title="Map keys are located by `toString()`"
-The rendered path uses each key's `toString()`, so a key containing a dot looks the same as deeper nesting, and two distinct keys whose renderings collide share a location. The structured `FieldError` path list stays exact regardless, holding the whole key as one segment, and every error is still reported.
+~~~admonish note title="Keys and set elements are located by `toString()`"
+The rendered path uses each key's - or set element's - `toString()`, so one containing a dot looks the same as deeper nesting, and two distinct ones whose renderings collide share a location. The structured `FieldError` path list stays exact regardless, holding the whole rendering as one segment, and every error is still reported.
+~~~
+
+### Converting Map keys {#converting-map-keys}
+
+A `Map` component's value leaf is named after the component, like every other leaf. Its keys need a second leaf, and Java forbids two zero-parameter methods sharing that name - so a key leaf carries `@MapKey`, and the annotation names the component it belongs to. Either side may convert alone: a key leaf without a value leaf converts the keys and copies the values.
+
+Without a key leaf, keys can only pass through, so their types must match exactly; a mismatch is a compile error that offers the annotation as the fix.
+
+A failing key locates by the **source** key, so the path names what the caller sent rather than what it parsed to. An entry that is wrong on both sides therefore reports both reasons at that one place.
+
+~~~admonish warning title="Cardinality can collapse"
+Element mapping is not injective, so two wire values can become one domain value.
+
+In a `Set` the collapse is **silent**: the two survivors are equal, so nothing is lost, and normalising is exactly what an element prism over a set is for.
+
+Two `Map` keys that parse to the same domain key are a **located failure** (`attributes.ab: duplicates an earlier key`): the dropped entry takes its own value with it, and that value need not be equal to anything.
+
+Neither case can reach the lossless [`asIso()`](tiers.md) tier - a collapse needs a leaf, and a leaf already makes the mapping fallible.
 ~~~
 
 ---
@@ -146,7 +180,7 @@ A domain subtype without a spec, or a wire subtype nothing produces, is a compil
 
 ~~~admonish info title="Key Takeaways"
 * **Nesting is delegation**: any spec's Impl is a leaf (`asValidatedPrism()`), so specs nest automatically and recursion terminates by construction
-* **Containers lift**: `List`/`Optional` by element, `Map` by value; failures are located by index or key
+* **Containers lift**: `List`, `Set` and arrays by element, `Optional` by its element, `Map` by value and (with `@MapKey`) by key; each locates by whatever identifies an element in it
 * **Error paths are dotted domain names**: `customers.1.email`, `attributes.en.email`
 * **Sealed dispatch is exhaustive both ways**: a missing subtype pair is a compile error, never a runtime surprise
 * **Dependencies count as siblings**: a spec compiled into another module nests, dispatches and merges through the classpath index, and your own spec shadows a dependency's for the same pair

@@ -62,7 +62,9 @@ Every rejection follows the processor's what/why/fix standard: the message state
 | Named modules neither write nor read the index, and two spec-carrying jars cannot be automatic modules together | [Across modules](structure.md#across-modules) |
 | A mix-in may be generic, but must not be reached raw | [Shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
 | A flattened component stays on the full record-record tier: not on a bean wire, a generic spec, a projection or a sparse `UpdateSpec`; its record fits one `fields()` ladder, and spreading is one level deep (a record inside the group nests through its own spec) | [Flattening a nested component](structure.md#flattening-a-nested-component-onto-a-flat-wire) |
-| `Map` components lift values only; keys are identity, so differing key types, raw `Map`s and wildcards are rejected | [Nesting and containers](structure.md) |
+| `Map` keys are identity unless a `@MapKey` leaf converts them; raw `Map`s and wildcards are rejected either way | [Converting Map keys](structure.md#converting-map-keys) |
+| Lifting needs the same container on both sides: a `List` against a `Set`, or an array against a `List`, is a plain type mismatch | [Nesting and containers](structure.md#nesting-containers-and-recursion) |
+| A record carrying an **array** component has identity `equals`, so `MappingLaws` cannot law-check it; assert the round trip elementwise | [Nesting and containers](structure.md#nesting-containers-and-recursion) |
 | A fallible projection emits the validated `patch`, never a fake `asLens()`; projections cannot carry derived fields | [The Emission Tiers](tiers.md#leaf-carrying-projections-the-validated-patch), [Derived wire fields](basics.md#derived-wire-fields) |
 | Generic mappings come in exactly three forms and stay record-to-record | [Generic Specs](generics.md) |
 | Sparse PATCH is bean-only, wrapper-typed, and never deep-merges | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |

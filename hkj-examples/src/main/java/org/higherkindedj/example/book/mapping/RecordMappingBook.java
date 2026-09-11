@@ -3,7 +3,9 @@
 package org.higherkindedj.example.book.mapping;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -13,6 +15,7 @@ import org.higherkindedj.optics.annotations.Flatten;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.annotations.MapField;
+import org.higherkindedj.optics.annotations.MapKey;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.annotations.UpdateSpec;
@@ -139,6 +142,20 @@ public final class RecordMappingBook {
     // Invalid(NonEmptyList[items.1: not an email address])
     // ANCHOR_END: element_usage
     System.out.println(mail);
+
+    // ANCHOR: widened_usage
+    Validated<NonEmptyList<FieldError>, Crew> crew =
+        CrewMappingImpl.INSTANCE.parse(
+            new CrewDto(
+                Set.of("nope"),
+                new String[] {"ada@example.org", "also-nope"},
+                Map.of("bad-key", "a note")));
+    // Invalid(NonEmptyList[
+    //   members.nope: not an email address,   <- a Set locates by the element itself
+    //   reserves.1: not an email address,     <- an array locates by index
+    //   notes.bad-key: not an email address]) <- a key locates by the key it was sent as
+    // ANCHOR_END: widened_usage
+    System.out.println(crew);
 
     // ANCHOR: projection_usage
     Employee employee = new Employee("Ada", "Research", 36);
@@ -423,6 +440,34 @@ interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> 
 }
 
 // ANCHOR_END: element_spec
+
+// ANCHOR: widened_spec
+record Crew(
+    Set<EmailAddress> members, // a Set lifts like a List
+    EmailAddress[] reserves, // so does an array
+    Map<EmailAddress, String> notes) {} // and a Map's KEYS, with @MapKey
+
+record CrewDto(Set<String> members, String[] reserves, Map<String, String> notes) {}
+
+@GenerateMapping
+interface CrewMapping extends MappingSpec<Crew, CrewDto> {
+  default ValidatedPrism<String, EmailAddress> members() {
+    return EmailCodecs.EMAIL;
+  }
+
+  default ValidatedPrism<String, EmailAddress> reserves() {
+    return EmailCodecs.EMAIL;
+  }
+
+  // A value leaf is named after its component; a key leaf is named BY its annotation,
+  // because the two cannot share the one name Java allows.
+  @MapKey("notes")
+  default ValidatedPrism<String, EmailAddress> noteKey() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: widened_spec
 
 // ANCHOR: sealed_spec
 sealed interface Payment permits Card, Bank {}
