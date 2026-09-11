@@ -15,9 +15,11 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.processing.Filer;
@@ -244,6 +246,206 @@ class MappingProcessorTest {
           .contains(
               ".field(\"lead\", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of))")
           .doesNotContain("asIso");
+    }
+
+    @Test
+    @DisplayName("a Set component lifts through the element leaf, located by the element itself")
+    void setLiftsThroughTheElementLeaf() throws Exception {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Crew",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public record Crew(Set<EmailAddress> members) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.CrewDto",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public record CrewDto(Set<String> members) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CrewMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CrewMapping extends MappingSpec<Crew, CrewDto> {
+                default ValidatedPrism<String, EmailAddress> members() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, domain, wire, spec);
+      assertThat(compilation).succeeded();
+      // The emitted text is the list form's, verbatim: the bulk forms are overloaded on the
+      // container, so the component's own type picks parseAll(Set) and buildAll(Set).
+      Assertions.assertThat(generatedSource(compilation, "com.example.CrewMappingImpl"))
+          .contains("members().buildAll(domain.members())")
+          .contains(".field(\"members\", hkj$ifPresent(wire.members(), members()::parseAll))")
+          .doesNotContain("asIso");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.CrewMappingImpl");
+      Object dto =
+          result
+              .loadClass("com.example.CrewDto")
+              .getDeclaredConstructor(Set.class)
+              .newInstance(new LinkedHashSet<>(List.of("ada@corp", "nope")));
+
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      assertThatValidated(parsed).isInvalid();
+      // A set has no index, so the failing element's own rendering locates it.
+      Assertions.assertThat(parsed.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("members", "nope"), "not an email address"));
+    }
+
+    @Test
+    @DisplayName("an identity Set is scanned: a null element is unlocated, a set holding one")
+    void identitySetElementsAreScanned() throws Exception {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Labels",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public record Labels(Set<String> names) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.LabelsDto",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public record LabelsDto(Set<String> names) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.LabelsMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface LabelsMapping extends MappingSpec<Labels, LabelsDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.LabelsMappingImpl"))
+          .contains(".field(\"names\", hkj$allPresent(wire.names()))")
+          // the Set overload, not the List one
+          .contains("Validated<NonEmptyList<FieldError>, Set<E>> hkj$allPresent(Set<E> values)")
+          .doesNotContain("List<E> values")
+          .contains("public Iso<Labels, LabelsDto> asIso()");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.LabelsMappingImpl");
+
+      Set<String> names = new LinkedHashSet<>(List.of("a", "b"));
+      Object dto =
+          result
+              .loadClass("com.example.LabelsDto")
+              .getDeclaredConstructor(Set.class)
+              .newInstance(names);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      assertThatValidated(parsed).isValid();
+      // Identity legs copy, they do not rebuild: the same set reference passes through.
+      Assertions.assertThat(invoke(parsed.get(), "names")).isSameAs(names);
+
+      Set<String> withNull = new LinkedHashSet<>(List.of("a"));
+      withNull.add(null);
+      Object badDto =
+          result
+              .loadClass("com.example.LabelsDto")
+              .getDeclaredConstructor(Set.class)
+              .newInstance(withNull);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> rejected =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", badDto);
+      assertThatValidated(rejected).isInvalid();
+      Assertions.assertThat(rejected.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("names"), "must not contain a null element"));
+    }
+
+    @Test
+    @DisplayName(
+        "a List against a Set is not a pair: lifting needs the same container on both sides")
+    void aListAgainstASetIsNotAPair() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Mixed",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public record Mixed(Set<EmailAddress> members) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.MixedDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record MixedDto(List<String> members) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MixedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface MixedMapping extends MappingSpec<Mixed, MixedDto> {
+                default ValidatedPrism<String, EmailAddress> members() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("has no usable source");
     }
   }
 

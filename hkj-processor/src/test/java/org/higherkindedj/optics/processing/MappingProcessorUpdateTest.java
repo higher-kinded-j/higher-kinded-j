@@ -8,7 +8,9 @@ import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invok
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -803,6 +805,92 @@ class MappingProcessorUpdateTest {
     }
 
     @Test
+    @DisplayName("a Set patch component lifts and scans on the sparse tier too")
+    void setLiftsAndScansOnTheSparseTier() {
+      JavaFileObject crew =
+          JavaFileObjects.forSourceString(
+              "com.example.Crew",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public record Crew(Set<PhoneNumber> phones, Set<String> tags) {}
+              """);
+      JavaFileObject crewPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CrewPatchDto",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public class CrewPatchDto {
+                private Set<String> phones;
+                private Set<String> tags;
+
+                public Set<String> getPhones() { return phones; }
+                public void setPhones(Set<String> phones) { this.phones = phones; }
+                public Set<String> getTags() { return tags; }
+                public void setTags(Set<String> tags) { this.tags = tags; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CrewPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface CrewPatchMapping
+                  extends PhoneVocabulary, UpdateSpec<Crew, CrewPatchDto> {}
+              """);
+      Compilation compilation = compile(PHONE, PHONE_VOCABULARY, crew, crewPatchDto, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.CrewPatchMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("phones()::parseAll")
+          .contains("CrewPatchMappingImpl::hkj$allPresent")
+          // only the Set overload is declared - the emitted helpers follow the components
+          .contains("Set<E> values")
+          .doesNotContain("List<E> values");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = result.instance("com.example.CrewPatchMappingImpl");
+        Object current =
+            construct(
+                result,
+                "com.example.Crew",
+                new LinkedHashSet<>(List.of(result.newInstance("com.example.PhoneNumber", "+44"))),
+                new LinkedHashSet<>(List.of("vip")));
+
+        Object dto =
+            result.loadClass("com.example.CrewPatchDto").getDeclaredConstructor().newInstance();
+        invoke(dto, "setPhones", new LinkedHashSet<>(List.of("nope", "+1")));
+        Set<String> tagsWithNull = new LinkedHashSet<>(List.of("fine"));
+        tagsWithNull.add(null);
+        invoke(dto, "setTags", tagsWithNull);
+        Object accumulated = invoke(impl, "updateFrom", dto);
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> located =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(accumulated, "apply", current);
+        Assertions.assertThat(located.isInvalid()).isTrue();
+        // The lifted set locates by the element's own rendering; the identity set's null
+        // element is unlocated, a set holding at most one.
+        Assertions.assertThat(located.getError().toJavaList())
+            .containsExactly(
+                new FieldError(List.of("phones", "nope"), "not a phone number"),
+                new FieldError(List.of("tags"), "must not contain a null element"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
     @DisplayName("a leafless container pair reports both leaf forms, element first")
     void leaflessContainerPairSuggestsBothForms() {
       JavaFileObject spec =
@@ -994,10 +1082,10 @@ class MappingProcessorUpdateTest {
       Assertions.assertThat(java.util.Arrays.stream(MappingProcessor.Kind.values()).map(Enum::name))
           .containsExactlyInAnyOrder(
               "IDENTITY",
-              "IDENTITY_LIST",
+              "IDENTITY_ELEMENTS",
               "IDENTITY_MAP",
               "LEAF",
-              "LIST",
+              "ELEMENTS",
               "OPTIONAL",
               "OPTIONAL_BRIDGE",
               "MAP",
