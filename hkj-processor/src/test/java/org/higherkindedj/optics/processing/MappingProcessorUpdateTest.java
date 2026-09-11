@@ -891,6 +891,169 @@ class MappingProcessorUpdateTest {
     }
 
     @Test
+    @DisplayName("arrays and keyed maps carry the same vocabulary onto the sparse tier")
+    void arraysAndKeyedMapsOnTheSparseTier() {
+      JavaFileObject stock =
+          JavaFileObjects.forSourceString(
+              "com.example.Stock",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Stock(
+                  PhoneNumber[] lines,
+                  String[] codes,
+                  Map<PhoneNumber, String> byLine,
+                  Map<PhoneNumber, PhoneNumber> routes) {}
+              """);
+      JavaFileObject stockPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.StockPatchDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public class StockPatchDto {
+                private String[] lines;
+                private String[] codes;
+                private Map<String, String> byLine;
+                private Map<String, String> routes;
+
+                public String[] getLines() { return lines; }
+                public void setLines(String[] lines) { this.lines = lines; }
+                public String[] getCodes() { return codes; }
+                public void setCodes(String[] codes) { this.codes = codes; }
+                public Map<String, String> getByLine() { return byLine; }
+                public void setByLine(Map<String, String> byLine) { this.byLine = byLine; }
+                public Map<String, String> getRoutes() { return routes; }
+                public void setRoutes(Map<String, String> routes) { this.routes = routes; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.StockPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface StockPatchMapping extends UpdateSpec<Stock, StockPatchDto> {
+                default ValidatedPrism<String, PhoneNumber> lines() {
+                  return phone();
+                }
+
+                @MapKey("byLine")
+                default ValidatedPrism<String, PhoneNumber> byLineKey() {
+                  return phone();
+                }
+
+                // both sides of 'routes' convert
+                default ValidatedPrism<String, PhoneNumber> routes() {
+                  return phone();
+                }
+
+                @MapKey("routes")
+                default ValidatedPrism<String, PhoneNumber> routeKey() {
+                  return phone();
+                }
+
+                private static ValidatedPrism<String, PhoneNumber> phone() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.startsWith("+")
+                              ? Validated.validNel(new PhoneNumber(raw))
+                              : Validated.invalidNel(FieldError.of("not a phone number")),
+                      PhoneNumber::value);
+                }
+              }
+              """);
+      Compilation compilation = compile(PHONE, stock, stockPatchDto, spec);
+      assertThat(compilation).succeeded();
+      String generated = generatedSource(compilation, "com.example.StockPatchMappingImpl");
+      Assertions.assertThat(generated)
+          .contains("v -> lines().parseAll(v, PhoneNumber[]::new)")
+          .contains("byLineKey()::parseKeys")
+          .contains("m -> routeKey().parseEntries(m, routes())")
+          // the identity String[] carries the array scan overload
+          .contains("StockPatchMappingImpl::hkj$allPresent")
+          .contains("E[] values");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = result.instance("com.example.StockPatchMappingImpl");
+        Object current =
+            construct(
+                result,
+                "com.example.Stock",
+                java.lang.reflect.Array.newInstance(result.loadClass("com.example.PhoneNumber"), 0),
+                new String[] {"old"},
+                java.util.Map.of(),
+                java.util.Map.of());
+        Object dto =
+            result.loadClass("com.example.StockPatchDto").getDeclaredConstructor().newInstance();
+        invoke(dto, "setLines", (Object) new String[] {"+44", "nope"});
+        invoke(dto, "setCodes", (Object) new String[] {"a", null});
+        java.util.Map<String, String> byLine = new java.util.LinkedHashMap<>();
+        byLine.put("bad", "x");
+        invoke(dto, "setByLine", byLine);
+        java.util.Map<String, String> routes = new java.util.LinkedHashMap<>();
+        routes.put("+1", "alsoBad");
+        invoke(dto, "setRoutes", routes);
+
+        Object accumulated = invoke(impl, "updateFrom", dto);
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> located =
+            (Validated<NonEmptyList<FieldError>, Object>) invoke(accumulated, "apply", current);
+        Assertions.assertThat(located.isInvalid()).isTrue();
+        Assertions.assertThat(located.getError().toJavaList())
+            .containsExactly(
+                new FieldError(List.of("lines", "1"), "not a phone number"),
+                new FieldError(List.of("codes", "1"), "must not be null"),
+                new FieldError(List.of("byLine", "bad"), "not a phone number"),
+                new FieldError(List.of("routes", "+1"), "not a phone number"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName("the sparse tier validates @MapKey placement too")
+    void sparseTierValidatesMapKeys() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.StrayKeyPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface StrayKeyPatchMapping extends UpdateSpec<Contact, ContactPatchDto> {
+                @MapKey("nosuch")
+                default ValidatedPrism<String, String> strayKey() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      Compilation compilation = compile(PHONE, CONTACT, CONTACT_PATCH_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("@MapKey(\"nosuch\") names no component of Contact");
+    }
+
+    @Test
     @DisplayName("a leafless container pair reports both leaf forms, element first")
     void leaflessContainerPairSuggestsBothForms() {
       JavaFileObject spec =
@@ -1090,6 +1253,8 @@ class MappingProcessorUpdateTest {
               "OPTIONAL",
               "OPTIONAL_BRIDGE",
               "MAP",
+              "MAP_KEYS",
+              "MAP_ENTRIES",
               "DERIVED");
     }
 

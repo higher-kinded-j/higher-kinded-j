@@ -59,6 +59,7 @@ import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.Flatten;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
+import org.higherkindedj.optics.annotations.MapKey;
 import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -910,6 +911,11 @@ public class MappingProcessor extends AbstractProcessor {
       if (!method.getEnclosingElement().equals(spec) || !isLeafShaped(spec, method)) {
         continue;
       }
+      // A key leaf binds by its @MapKey, not by its name, so its name is free; checkMapKeysApply
+      // is what holds it to naming a real Map component.
+      if (method.getAnnotation(MapKey.class) != null) {
+        continue;
+      }
       String name = method.getSimpleName().toString();
       // A flattened group's inner components take leaves by their own names, like any other.
       if (components.contains(name) || flattenedInner.contains(name)) {
@@ -959,6 +965,94 @@ public class MappingProcessor extends AbstractProcessor {
    * than wrong: a note, not an error, and silence for an inherited one — a mix-in serving a record
    * spec and a bean spec is exactly the shared vocabulary the book recommends.
    */
+  /**
+   * Validates every {@code @MapKey}: it must name a {@code Map} component of the domain (or of a
+   * flattened group), be leaf-shaped over that component's KEY types, and be the only key leaf for
+   * it. An inherited annotation naming nothing stays inert, as {@code @OptionalBridge}'s does — a
+   * mix-in may carry a key leaf for components a given spec does not have.
+   */
+  private boolean checkMapKeysApply(
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      List<Flattened> flattened) {
+    List<String> components =
+        Stream.concat(
+                domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()),
+                flattened.stream().flatMap(group -> group.inner().stream()))
+            .toList();
+    Set<String> claimed = new LinkedHashSet<>();
+    for (ExecutableElement method : specMembers(spec)) {
+      MapKey declared = method.getAnnotation(MapKey.class);
+      if (declared == null) {
+        continue;
+      }
+      String name = declared.value();
+      boolean local = method.getEnclosingElement().equals(spec);
+      Owned owned = ownedComponent(domain, domainDeclared, flattened, name);
+      if (owned == null) {
+        if (!local) {
+          continue;
+        }
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@MapKey(\"" + name + "\") names no component of " + domain.getSimpleName(),
+            "A key leaf names the DOMAIN Map component whose keys it converts; an unmatched one"
+                + " converts nothing."
+                + didYouMean(name, components)
+                + " Found on "
+                + domain.getSimpleName()
+                + ": "
+                + components
+                + ".",
+            "Point the annotation at the component it converts, or remove it.");
+        return false;
+      }
+      TypeMirror domainType = componentType(owned.ownerDeclared(), owned.component());
+      DeclaredType asMap = asMapType(domainType);
+      if (asMap == null || asMap.getTypeArguments().size() != 2) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@MapKey(\""
+                + name
+                + "\")"
+                + inheritedNote(method, spec)
+                + (asMap == null
+                    ? " names a component that is not a Map."
+                    : " names a raw Map component."),
+            asMap == null
+                ? "A key leaf converts the keys of a Map component; '"
+                    + owned.owner().getSimpleName()
+                    + "."
+                    + name
+                    + "' is "
+                    + domainType
+                    + ", which has no keys."
+                : "A key leaf converts the key type, and a raw Map declares none.",
+            asMap == null
+                ? "Point the annotation at a Map component, or remove it."
+                : "Declare both type arguments, for example Map<Locale, String>.");
+        return false;
+      }
+      if (!claimed.add(name)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "'" + name + "' has more than one @MapKey leaf.",
+            "A Map component's keys convert through exactly one leaf; a second would leave the"
+                + " choice between them arbitrary.",
+            "Keep one @MapKey(\"" + name + "\") method and remove the others.");
+        return false;
+      }
+    }
+    return true;
+  }
+
   private boolean checkBridgesApply(
       TypeElement spec,
       TypeElement domain,
@@ -1922,6 +2016,10 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
+    if (!checkMapKeysApply(spec, domain, domainDeclared, flattened)) {
+      return;
+    }
+
     List<DerivedField> derived =
         collectDerived(spec, domain, domainDeclared, wireShape, renames, flattened);
     if (derived == null) {
@@ -2019,6 +2117,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkLocalLeavesBind(spec, domain, Set.of())) {
       return;
     }
+    if (!checkMapKeysApply(spec, domain, (DeclaredType) domainArg, List.of())) {
+      return;
+    }
 
     // A record wire cannot express "absent" (every component is always present), so sparse PATCH is
     // a bean-only shape; a non-bean, non-record wire is rejected with a sparse-specific message.
@@ -2064,16 +2165,28 @@ public class MappingProcessor extends AbstractProcessor {
    * — the emitted null-scan helper).
    */
   private record UpdateEdit(
-      String domainName, String wireName, Kind kind, CodeBlock prism, TypeName domainElement) {
+      String domainName,
+      String wireName,
+      Kind kind,
+      CodeBlock prism,
+      TypeName domainElement,
+      CodeBlock valuePrism) {
 
     static UpdateEdit identity(String domainName, String wireName, Kind kind) {
-      return new UpdateEdit(domainName, wireName, kind, null, null);
+      return new UpdateEdit(domainName, wireName, kind, null, null, null);
     }
 
-    /** {@code domainElement} is the array constructor's type, and null for every other kind. */
-    static UpdateEdit validated(
-        String domainName, String wireName, Kind kind, CodeBlock prism, TypeName domainElement) {
-      return new UpdateEdit(domainName, wireName, kind, prism, domainElement);
+    static UpdateEdit validated(String domainName, String wireName, Kind kind, CodeBlock prism) {
+      return new UpdateEdit(domainName, wireName, kind, prism, null, null);
+    }
+
+    /**
+     * A container-lifted edit, taking the dense tiers' correspondence whole: the sparse tier
+     * borrows their vocabulary, so it must borrow everything the emission reads from it.
+     */
+    static UpdateEdit lifted(String domainName, Correspondence c) {
+      return new UpdateEdit(
+          domainName, c.wireName(), c.kind(), c.prism(), c.domainElement(), c.valuePrism());
     }
 
     boolean parsed() {
@@ -2151,8 +2264,7 @@ public class MappingProcessor extends AbstractProcessor {
                 domainName,
                 property.name(),
                 Kind.LEAF,
-                CodeBlock.of("$L()", leaf.getSimpleName()),
-                null));
+                CodeBlock.of("$L()", leaf.getSimpleName())));
         continue;
       }
 
@@ -2163,13 +2275,7 @@ public class MappingProcessor extends AbstractProcessor {
       Correspondence containerLeaf =
           containerLeafCorrespondence(spec, domainName, property.name(), wireType, domainType);
       if (containerLeaf != null) {
-        edits.add(
-            UpdateEdit.validated(
-                domainName,
-                property.name(),
-                containerLeaf.kind(),
-                containerLeaf.prism(),
-                containerLeaf.domainElement()));
+        edits.add(UpdateEdit.lifted(domainName, containerLeaf));
         continue;
       }
 
@@ -2199,8 +2305,7 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       if (nested.accessor() != null) {
-        edits.add(
-            UpdateEdit.validated(domainName, property.name(), Kind.LEAF, nested.accessor(), null));
+        edits.add(UpdateEdit.validated(domainName, property.name(), Kind.LEAF, nested.accessor()));
         continue;
       }
 
@@ -2566,6 +2671,9 @@ public class MappingProcessor extends AbstractProcessor {
                   CodeBlock.of(
                       "v -> $L.parseAll(v, $T[]::new)", edit.prism(), edit.domainElement());
               case MAP -> CodeBlock.of("$L::parseValues", edit.prism());
+              case MAP_KEYS -> CodeBlock.of("$L::parseKeys", edit.prism());
+              case MAP_ENTRIES ->
+                  CodeBlock.of("m -> $L.parseEntries(m, $L)", edit.prism(), edit.valuePrism());
               case OPTIONAL -> elementOfOptionalParser(edit.prism());
               case IDENTITY_ELEMENTS -> CodeBlock.of("$T::hkj$$allPresent", implName);
               case IDENTITY_MAP -> CodeBlock.of("$T::hkj$$valuesPresent", implName);
@@ -2692,6 +2800,10 @@ public class MappingProcessor extends AbstractProcessor {
     // A domain Optional<T> bridged to a nullable wire member T: empty <-> null/absent.
     OPTIONAL_BRIDGE,
     MAP,
+    // A Map whose KEYS lift, values copied by identity; and one where both sides lift. The
+    // receiver of both bulk forms is the key prism, with the value prism riding as an argument.
+    MAP_KEYS,
+    MAP_ENTRIES,
     DERIVED
   }
 
@@ -2715,15 +2827,16 @@ public class MappingProcessor extends AbstractProcessor {
       Kind kind,
       CodeBlock prism,
       Group group,
-      TypeName domainElement) {
+      TypeName domainElement,
+      CodeBlock valuePrism) {
 
     Correspondence(String name, String wireName, Kind kind, CodeBlock prism) {
-      this(name, wireName, kind, prism, null, null);
+      this(name, wireName, kind, prism, null, null, null);
     }
 
     /** The same correspondence as a member of {@code group}. */
     Correspondence in(Group group) {
-      return new Correspondence(name, wireName, kind, prism, group, domainElement);
+      return new Correspondence(name, wireName, kind, prism, group, domainElement, valuePrism);
     }
 
     /**
@@ -2732,7 +2845,15 @@ public class MappingProcessor extends AbstractProcessor {
      * Domain[]::new} and must name the type.
      */
     Correspondence withDomainElement(TypeName element) {
-      return new Correspondence(name, wireName, kind, prism, group, element);
+      return new Correspondence(name, wireName, kind, prism, group, element, valuePrism);
+    }
+
+    /**
+     * The same correspondence carrying the value prism {@code MAP_ENTRIES} passes to the key
+     * prism's bulk forms; null for every other kind.
+     */
+    Correspondence withValuePrism(CodeBlock values) {
+      return new Correspondence(name, wireName, kind, prism, group, domainElement, values);
     }
 
     boolean fallible() {
@@ -4046,7 +4167,11 @@ public class MappingProcessor extends AbstractProcessor {
       }
       TypeMirror wireKey = wireMapType.getTypeArguments().getFirst();
       TypeMirror domainKey = domainMapType.getTypeArguments().getFirst();
-      if (!processingEnv.getTypeUtils().isSameType(wireKey, domainKey)) {
+      // A @MapKey leaf converts the keys; without one they can only pass through, so they must
+      // already match. (A key leaf that matched has been classified before identity, so reaching
+      // here with one means only the VALUES still need a source.)
+      ExecutableElement keyLeaf = findKeyLeaf(spec, name, wireKey, domainKey);
+      if (keyLeaf == null && !processingEnv.getTypeUtils().isSameType(wireKey, domainKey)) {
         Diagnostics.error(
             processingEnv.getMessager(),
             spec,
@@ -4058,10 +4183,16 @@ public class MappingProcessor extends AbstractProcessor {
                 + " vs "
                 + domainKey
                 + ").",
-            "Keys pass through as identity; only Map values lift through a leaf or nested spec,"
-                + " so the key types must match exactly.",
-            "Align the key types (mapping the value type through a leaf or spec), or"
-                + " restructure to a List of entry records mapped through their own spec.");
+            "Keys pass through as identity unless a @MapKey leaf converts them.",
+            "Declare '@MapKey(\""
+                + name
+                + "\") default ValidatedPrism<"
+                + wireKey
+                + ", "
+                + domainKey
+                + "> "
+                + name
+                + "Key()' on the spec, or align the key types.");
         return null;
       }
       PrismResolution lifted =
@@ -4075,7 +4206,11 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       if (lifted.accessor() != null) {
-        return new Correspondence(name, wireName, Kind.MAP, lifted.accessor());
+        return keyLeaf == null
+            ? new Correspondence(name, wireName, Kind.MAP, lifted.accessor())
+            : new Correspondence(
+                    name, wireName, Kind.MAP_ENTRIES, CodeBlock.of("$L()", keyLeaf.getSimpleName()))
+                .withValuePrism(lifted.accessor());
       }
       // Values resolving to nothing fall through to the no-usable-source error, like List
       // elements.
@@ -4249,15 +4384,60 @@ public class MappingProcessor extends AbstractProcessor {
       return elementLeafCorrespondence(
           spec, name, wireName, Kind.OPTIONAL, wireElement, domainElement);
     }
-    DeclaredType[] mapPair = liftableMapPair(wireType, domainType);
-    if (mapPair != null) {
-      return elementLeafCorrespondence(
-          spec,
-          name,
-          wireName,
-          Kind.MAP,
-          mapPair[0].getTypeArguments().get(1),
-          mapPair[1].getTypeArguments().get(1));
+    return mapLeafCorrespondence(spec, name, wireName, wireType, domainType);
+  }
+
+  /**
+   * The {@code Map} half of {@link #containerLeafCorrespondence}: a value leaf named after the
+   * component, a key leaf a {@code @MapKey} names, or both.
+   *
+   * <p>Without a key leaf the key types must already match — keys pass through by identity, and a
+   * mismatch falls through to the post-identity diagnostic that offers {@code @MapKey} as the fix.
+   * With one, the keys convert and the values are copied, lifted through their own leaf, or (back
+   * in {@link #resolveCorrespondence}) through a nested spec.
+   */
+  private Correspondence mapLeafCorrespondence(
+      TypeElement spec, String name, String wireName, TypeMirror wireType, TypeMirror domainType) {
+    DeclaredType[] pair = mapPair(wireType, domainType);
+    if (pair == null) {
+      return null;
+    }
+    TypeMirror wireKey = pair[0].getTypeArguments().getFirst();
+    TypeMirror domainKey = pair[1].getTypeArguments().getFirst();
+    TypeMirror wireValue = pair[0].getTypeArguments().get(1);
+    TypeMirror domainValue = pair[1].getTypeArguments().get(1);
+    ExecutableElement keyLeaf = findKeyLeaf(spec, name, wireKey, domainKey);
+    ExecutableElement valueLeaf = findLeaf(spec, name, wireValue, domainValue);
+    if (keyLeaf == null) {
+      return valueLeaf != null && processingEnv.getTypeUtils().isSameType(wireKey, domainKey)
+          ? new Correspondence(
+              name, wireName, Kind.MAP, CodeBlock.of("$L()", valueLeaf.getSimpleName()))
+          : null;
+    }
+    CodeBlock keys = CodeBlock.of("$L()", keyLeaf.getSimpleName());
+    if (valueLeaf != null) {
+      return new Correspondence(name, wireName, Kind.MAP_ENTRIES, keys)
+          .withValuePrism(CodeBlock.of("$L()", valueLeaf.getSimpleName()));
+    }
+    return processingEnv.getTypeUtils().isSameType(wireValue, domainValue)
+        ? new Correspondence(name, wireName, Kind.MAP_KEYS, keys)
+        : null;
+  }
+
+  /**
+   * The key leaf a {@code @MapKey} declares for {@code name}, or null. Its shape is a value leaf's,
+   * over the KEY types; {@link #checkMapKeysApply} has already reported an annotation that names no
+   * {@code Map} component, so a null here means only that the leaf does not convert this pair.
+   */
+  private ExecutableElement findKeyLeaf(
+      TypeElement spec, String name, TypeMirror wireKey, TypeMirror domainKey) {
+    for (ExecutableElement method : specMembers(spec)) {
+      MapKey declared = method.getAnnotation(MapKey.class);
+      if (declared != null
+          && declared.value().equals(name)
+          && leafConverts(spec, method, wireKey, domainKey)) {
+        return method;
+      }
     }
     return null;
   }
@@ -4306,16 +4486,28 @@ public class MappingProcessor extends AbstractProcessor {
    * never offer a value leaf the resolver would refuse to consult.
    */
   private DeclaredType[] liftableMapPair(TypeMirror wireType, TypeMirror domainType) {
+    DeclaredType[] pair = mapPair(wireType, domainType);
+    return pair != null
+            && processingEnv
+                .getTypeUtils()
+                .isSameType(
+                    pair[0].getTypeArguments().getFirst(), pair[1].getTypeArguments().getFirst())
+        ? pair
+        : null;
+  }
+
+  /**
+   * The (wire, domain) pair as parameterised {@code Map} types, else null — key sameness NOT
+   * required, because a {@code @MapKey} leaf may convert them. {@link #liftableMapPair} is this
+   * gate plus that sameness, for the routes where keys can only pass through.
+   */
+  private DeclaredType[] mapPair(TypeMirror wireType, TypeMirror domainType) {
     DeclaredType wireMap = asMapType(wireType);
     DeclaredType domainMap = asMapType(domainType);
     return wireMap != null
             && domainMap != null
             && wireMap.getTypeArguments().size() == 2
             && domainMap.getTypeArguments().size() == 2
-            && processingEnv
-                .getTypeUtils()
-                .isSameType(
-                    wireMap.getTypeArguments().getFirst(), domainMap.getTypeArguments().getFirst())
         ? new DeclaredType[] {wireMap, domainMap}
         : null;
   }
@@ -4336,31 +4528,44 @@ public class MappingProcessor extends AbstractProcessor {
   private ExecutableElement findLeaf(
       TypeElement spec, String name, TypeMirror wireType, TypeMirror domainType) {
     for (ExecutableElement method : specMembers(spec)) {
-      boolean leafShaped = method.isDefault() || method.getModifiers().contains(Modifier.ABSTRACT);
+      // A @MapKey leaf converts the KEY side of the component its annotation names, never the
+      // component its own name would suggest, so it is never a value leaf.
       if (!method.getSimpleName().contentEquals(name)
-          || !leafShaped
           || method.getAnnotation(MapField.class) != null
-          || !method.getParameters().isEmpty()) {
+          || method.getAnnotation(MapKey.class) != null) {
         continue;
       }
-      if (!(memberTypeIn(spec, method) instanceof DeclaredType returnType)) {
-        continue;
-      }
-      TypeElement raw = (TypeElement) returnType.asElement();
-      if (!raw.getQualifiedName().contentEquals(VALIDATED_PRISM)
-          || returnType.getTypeArguments().size() != 2) {
-        continue;
-      }
-      boolean matches =
-          processingEnv.getTypeUtils().isSameType(returnType.getTypeArguments().get(0), wireType)
-              && processingEnv
-                  .getTypeUtils()
-                  .isSameType(returnType.getTypeArguments().get(1), domainType);
-      if (matches) {
+      if (leafConverts(spec, method, wireType, domainType)) {
         return method;
       }
     }
     return null;
+  }
+
+  /**
+   * Whether {@code method} is leaf-shaped and converts exactly this pair: a zero-parameter {@code
+   * default} or abstract method returning {@code ValidatedPrism<wireType, domainType>}. Shared by
+   * the value leaves ({@link #findLeaf}, matched by name) and the key leaves ({@link #findKeyLeaf},
+   * matched by {@code @MapKey}), so the two can never drift on what counts as a leaf.
+   */
+  private boolean leafConverts(
+      TypeElement spec, ExecutableElement method, TypeMirror wireType, TypeMirror domainType) {
+    boolean leafShaped = method.isDefault() || method.getModifiers().contains(Modifier.ABSTRACT);
+    if (!leafShaped || !method.getParameters().isEmpty()) {
+      return false;
+    }
+    if (!(memberTypeIn(spec, method) instanceof DeclaredType returnType)) {
+      return false;
+    }
+    TypeElement raw = (TypeElement) returnType.asElement();
+    if (!raw.getQualifiedName().contentEquals(VALIDATED_PRISM)
+        || returnType.getTypeArguments().size() != 2) {
+      return false;
+    }
+    return processingEnv.getTypeUtils().isSameType(returnType.getTypeArguments().get(0), wireType)
+        && processingEnv
+            .getTypeUtils()
+            .isSameType(returnType.getTypeArguments().get(1), domainType);
   }
 
   private String leafNearMissHint(TypeElement spec, String name) {
@@ -4463,6 +4668,9 @@ public class MappingProcessor extends AbstractProcessor {
       // The domain Optional is carried as-is (identity) or its element built through the leaf.
       case OPTIONAL_BRIDGE -> bridgeBuildValue(wire, c);
       case MAP -> CodeBlock.of("$L.buildValues($L)", c.prism(), domainRead(c));
+      case MAP_KEYS -> CodeBlock.of("$L.buildKeys($L)", c.prism(), domainRead(c));
+      case MAP_ENTRIES ->
+          CodeBlock.of("$L.buildEntries($L, $L)", c.prism(), domainRead(c), c.valuePrism());
       case IDENTITY, IDENTITY_ELEMENTS, IDENTITY_MAP -> domainRead(c);
       case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
     };
@@ -5064,6 +5272,18 @@ public class MappingProcessor extends AbstractProcessor {
       case MAP ->
           CodeBlock.of(
               "\n.field($S, hkj$$ifPresent($L, $L::parseValues))", c.name(), read, c.prism());
+      case MAP_KEYS ->
+          CodeBlock.of(
+              "\n.field($S, hkj$$ifPresent($L, $L::parseKeys))", c.name(), read, c.prism());
+      // The two-prism bulk form cannot be a bare method reference: the key prism is the
+      // receiver and the value prism rides as an argument.
+      case MAP_ENTRIES ->
+          CodeBlock.of(
+              "\n.field($S, hkj$$ifPresent($L, m -> $L.parseEntries(m, $L)))",
+              c.name(),
+              read,
+              c.prism(),
+              c.valuePrism());
       case IDENTITY ->
           guard
               ? CodeBlock.of(

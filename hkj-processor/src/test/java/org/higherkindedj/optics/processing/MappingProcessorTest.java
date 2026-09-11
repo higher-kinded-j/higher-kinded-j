@@ -529,6 +529,119 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("an array of records lifts through the nested spec")
+    void arrayOfNestedRecordsLifts() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Board",
+              """
+              package com.example;
+
+              public record Board(Seat[] seats) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.BoardDto",
+              """
+              package com.example;
+
+              public record BoardDto(SeatDto[] seats) {}
+              """);
+      JavaFileObject seat =
+          JavaFileObjects.forSourceString(
+              "com.example.Seat",
+              """
+              package com.example;
+
+              public record Seat(String label) {}
+              """);
+      JavaFileObject seatDto =
+          JavaFileObjects.forSourceString(
+              "com.example.SeatDto",
+              """
+              package com.example;
+
+              public record SeatDto(String label) {}
+              """);
+      JavaFileObject seatSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.SeatMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface SeatMapping extends MappingSpec<Seat, SeatDto> {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BoardMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BoardMapping extends MappingSpec<Board, BoardDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, seat, seatDto, seatSpec, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.BoardMappingImpl"))
+          .contains(
+              ".field(\"seats\", hkj$ifPresent(wire.seats(), v ->"
+                  + " SeatMappingImpl.INSTANCE.asValidatedPrism().parseAll(v, Seat[]::new)))")
+          .contains(
+              "SeatMappingImpl.INSTANCE.asValidatedPrism().buildAll(domain.seats(),"
+                  + " SeatDto[]::new)");
+    }
+
+    @Test
+    @DisplayName("a primitive array, or an array against a List, never reaches the lifting route")
+    void primitiveAndMismatchedArraysAreNotPairs() {
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ShapesDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record ShapesDto(int[] widths, String[] names, String[] loose) {}
+              """);
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Shapes",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Shapes(Integer[] widths, int[] names, List<String> loose) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ShapesMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ShapesMapping extends MappingSpec<Shapes, ShapesDto> {}
+              """);
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      // int[] vs Integer[] (primitive wire element), String[] vs int[] (primitive domain
+      // element) and String[] vs List<String> (different containers) are all plain mismatches.
+      assertThat(compilation).hadErrorContaining("has no usable source");
+    }
+
+    @Test
     @DisplayName(
         "a List against a Set is not a pair: lifting needs the same container on both sides")
     void aListAgainstASetIsNotAPair() {
@@ -668,6 +781,606 @@ class MappingProcessorTest {
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
+    }
+
+    @Test
+    @DisplayName("@MapKey converts the keys; both sides lift together through parseEntries")
+    void mapKeyLeafConvertsTheKeys() throws Exception {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Profile",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Profile(Map<Tag, EmailAddress> contacts, Map<Tag, String> notes) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfileDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record ProfileDto(Map<String, String> contacts, Map<String, String> notes) {}
+              """);
+      JavaFileObject tag =
+          JavaFileObjects.forSourceString(
+              "com.example.Tag",
+              """
+              package com.example;
+
+              public record Tag(String value) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ProfileMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
+                // values, named after the component
+                default ValidatedPrism<String, EmailAddress> contacts() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+
+                // keys of 'contacts' AND of 'notes', each named by its own annotation
+                @MapKey("contacts")
+                default ValidatedPrism<String, Tag> contactTag() {
+                  return tagPrism();
+                }
+
+                // Named after its OWN component: a @MapKey leaf converts the key side, so it
+                // is never mistaken for the value leaf the same name would otherwise declare.
+                @MapKey("notes")
+                default ValidatedPrism<String, Tag> notes() {
+                  return tagPrism();
+                }
+
+                private static ValidatedPrism<String, Tag> tagPrism() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.startsWith("#")
+                              ? Validated.validNel(new Tag(raw))
+                              : Validated.invalidNel(FieldError.of("not a tag")),
+                      Tag::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, tag, domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ProfileMappingImpl"))
+          // both sides: the key prism is the receiver, the value prism the argument
+          .contains("contactTag().buildEntries(domain.contacts(), contacts())")
+          .contains(
+              ".field(\"contacts\", hkj$ifPresent(wire.contacts(), m ->"
+                  + " contactTag().parseEntries(m, contacts())))")
+          // keys only: the values are copied
+          .contains("notes().buildKeys(domain.notes())")
+          .contains(".field(\"notes\", hkj$ifPresent(wire.notes(), notes()::parseKeys))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.ProfileMappingImpl");
+      Map<String, String> contacts = new LinkedHashMap<>();
+      contacts.put("#work", "ada@corp");
+      contacts.put("nope", "also-not-an-email");
+      Object dto =
+          result
+              .loadClass("com.example.ProfileDto")
+              .getDeclaredConstructor(Map.class, Map.class)
+              .newInstance(contacts, new LinkedHashMap<>(Map.of("#n", "hi")));
+
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      assertThatValidated(parsed).isInvalid();
+      // Both sides of the one entry report, at the SOURCE key's location.
+      Assertions.assertThat(parsed.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("contacts", "nope"), "not a tag"),
+              new FieldError(List.of("contacts", "nope"), "not an email address"));
+    }
+
+    @Test
+    @DisplayName("colliding domain keys are located; without a @MapKey the key types must match")
+    void mapKeyCollisionsAndTheUnliftedRule() throws Exception {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Registry",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Registry(Map<String, String> byCode) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.RegistryDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record RegistryDto(Map<String, String> byCode) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.RegistryMapping",
+              """
+              package com.example;
+
+              import java.util.Locale;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface RegistryMapping extends MappingSpec<Registry, RegistryDto> {
+                // a normalising key prism: same types on both sides, so it beats the identity copy
+                @MapKey("byCode")
+                default ValidatedPrism<String, String> codeKey() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(raw.toLowerCase(Locale.ROOT)), code -> code);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.RegistryMappingImpl");
+      Map<String, String> colliding = new LinkedHashMap<>();
+      colliding.put("AB", "first");
+      colliding.put("ab", "second");
+      Object dto =
+          result
+              .loadClass("com.example.RegistryDto")
+              .getDeclaredConstructor(Map.class)
+              .newInstance(colliding);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      assertThatValidated(parsed).isInvalid();
+      // The second entry would be dropped along with its different value, so it is reported.
+      Assertions.assertThat(parsed.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("byCode", "ab"), "duplicates an earlier key"));
+    }
+
+    @Test
+    @DisplayName("mismatched keys with no @MapKey are refused, and the fix offers the annotation")
+    void mismatchedKeysOfferTheKeyLeaf() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Keyed",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.UUID;
+
+              public record Keyed(Map<UUID, String> byId) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.KeyedDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record KeyedDto(Map<String, String> byId) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.KeyedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface KeyedMapping extends MappingSpec<Keyed, KeyedDto> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("key types differ");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@MapKey(\"byId\") default ValidatedPrism<java.lang.String, java.util.UUID> byIdKey()");
+    }
+
+    @Test
+    @DisplayName("a raw Map, a duplicate key leaf, and an inherited unmatched @MapKey")
+    void mapKeyShapeSweep() {
+      JavaFileObject rawDomain =
+          JavaFileObjects.forSourceString(
+              "com.example.RawKeyed",
+              """
+              package com.example;
+
+              @SuppressWarnings("rawtypes")
+              public record RawKeyed(java.util.Map entries) {}
+              """);
+      JavaFileObject rawSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.RawKeyedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface RawKeyedMapping extends MappingSpec<RawKeyed, RawKeyedDto> {
+                @MapKey("entries")
+                default ValidatedPrism<String, String> entryKey() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      JavaFileObject rawWire =
+          JavaFileObjects.forSourceString(
+              "com.example.RawKeyedDto",
+              """
+              package com.example;
+
+              @SuppressWarnings("rawtypes")
+              public record RawKeyedDto(java.util.Map entries) {}
+              """);
+      Compilation raw = compile(rawDomain, rawWire, rawSpec);
+      assertThat(raw).failed();
+      assertThat(raw).hadErrorContaining("names a raw Map component");
+      assertThat(raw).hadErrorContaining("a raw Map declares none");
+
+      JavaFileObject duplicate =
+          JavaFileObjects.forSourceString(
+              "com.example.DuplicateKeyMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface DuplicateKeyMapping extends MappingSpec<Directory, DirectoryDto> {
+                @MapKey("entries")
+                default ValidatedPrism<String, String> oneKey() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+
+                @MapKey("entries")
+                default ValidatedPrism<String, String> anotherKey() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      Compilation twice = compile(EMAIL, DIRECTORY, DIRECTORY_DTO, duplicate);
+      assertThat(twice).failed();
+      assertThat(twice).hadErrorContaining("'entries' has more than one @MapKey leaf");
+
+      // An INHERITED @MapKey naming nothing stays inert: a mix-in may carry key leaves for
+      // components a given spec does not have.
+      JavaFileObject mixin =
+          JavaFileObjects.forSourceString(
+              "com.example.KeyVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public interface KeyVocabulary {
+                @MapKey("absentHere")
+                default ValidatedPrism<String, String> spareKey() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      JavaFileObject inheriting =
+          JavaFileObjects.forSourceString(
+              "com.example.InheritingMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface InheritingMapping
+                  extends KeyVocabulary, MappingSpec<Directory, DirectoryDto> {
+                default ValidatedPrism<String, EmailAddress> entries() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+      Compilation inherited = compile(EMAIL, DIRECTORY, DIRECTORY_DTO, mixin, inheriting);
+      assertThat(inherited).succeeded();
+    }
+
+    @Test
+    @DisplayName("a key leaf composes with values lifted through a nested spec")
+    void mapKeyComposesWithNestedSpecValues() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Catalogue",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Catalogue(Map<Code, Item> items) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record CatalogueDto(Map<String, ItemDto> items) {}
+              """);
+      JavaFileObject parts =
+          JavaFileObjects.forSourceString(
+              "com.example.Item",
+              """
+              package com.example;
+
+              public record Item(String label) {}
+              """);
+      JavaFileObject partsDto =
+          JavaFileObjects.forSourceString(
+              "com.example.ItemDto",
+              """
+              package com.example;
+
+              public record ItemDto(String label) {}
+              """);
+      JavaFileObject code =
+          JavaFileObjects.forSourceString(
+              "com.example.Code",
+              """
+              package com.example;
+
+              public record Code(String value) {}
+              """);
+      JavaFileObject itemSpec =
+          JavaFileObjects.forSourceString(
+              "com.example.ItemMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ItemMapping extends MappingSpec<Item, ItemDto> {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+                @MapKey("items")
+                default ValidatedPrism<String, Code> itemCode() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(domain, wire, parts, partsDto, code, itemSpec, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CatalogueMappingImpl"))
+          .contains(
+              ".field(\"items\", hkj$ifPresent(wire.items(), m -> itemCode().parseEntries(m,"
+                  + " ItemMappingImpl.INSTANCE.asValidatedPrism())))")
+          .contains(
+              "itemCode().buildEntries(domain.items(),"
+                  + " ItemMappingImpl.INSTANCE.asValidatedPrism())");
+    }
+
+    @Test
+    @DisplayName("a @MapKey that converts the wrong types is not a key leaf")
+    void mapKeyMustConvertTheKeyTypes() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Slots",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.UUID;
+
+              public record Slots(Map<UUID, String> byId) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.SlotsDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record SlotsDto(Map<String, String> byId) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.SlotsMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface SlotsMapping extends MappingSpec<Slots, SlotsDto> {
+                // named at the right component, but over the wrong types: it converts nothing
+                @MapKey("byId")
+                default ValidatedPrism<String, String> idKey() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("key types differ");
+    }
+
+    @Test
+    @DisplayName("a key leaf whose values have no source still reports the values")
+    void keyLeafWithUnmappableValues() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Prices",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Prices(Map<Code, EmailAddress> byCode) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.PricesDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record PricesDto(Map<String, Integer> byCode) {}
+              """);
+      JavaFileObject code =
+          JavaFileObjects.forSourceString(
+              "com.example.Code",
+              """
+              package com.example;
+
+              public record Code(String value) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.PricesMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface PricesMapping extends MappingSpec<Prices, PricesDto> {
+                @MapKey("byCode")
+                default ValidatedPrism<String, Code> codeKey() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, domain, wire, code, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("has no usable source");
+    }
+
+    @Test
+    @DisplayName("a @MapKey naming no Map component is refused")
+    void mapKeyMustNameAMapComponent() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BadKeyMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface BadKeyMapping extends MappingSpec<Directory, DirectoryDto> {
+                @MapKey("nosuch")
+                default ValidatedPrism<String, String> whatever() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      Compilation unmatched = compile(EMAIL, DIRECTORY, DIRECTORY_DTO, spec);
+      assertThat(unmatched).failed();
+      assertThat(unmatched)
+          .hadErrorContaining("@MapKey(\"nosuch\") names no component of Directory");
+
+      JavaFileObject notAMap =
+          JavaFileObjects.forSourceString(
+              "com.example.ScalarKeyMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ScalarKeyMapping extends MappingSpec<User, UserDto> {
+                @MapKey("name")
+                default ValidatedPrism<String, String> nameKey() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      Compilation scalar = compile(EMAIL, DOMAIN, WIRE, notAMap);
+      assertThat(scalar).failed();
+      assertThat(scalar).hadErrorContaining("names a component that is not a Map");
     }
 
     @Test
@@ -882,7 +1595,7 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("differing key types are rejected: keys are identity-only")
+    @DisplayName("differing key types are rejected when no @MapKey converts them")
     void differingKeyTypesRejected() {
       JavaFileObject domain =
           JavaFileObjects.forSourceString(
@@ -899,11 +1612,12 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("field 'entries' maps between Maps whose key types differ");
-      assertThat(compilation).hadErrorContaining("Keys pass through as identity");
+      assertThat(compilation)
+          .hadErrorContaining("Keys pass through as identity unless a @MapKey leaf converts them");
       assertThat(compilation)
           .hadErrorContaining(
-              "Align the key types (mapping the value type through a leaf or spec), or"
-                  + " restructure to a List of entry records mapped through their own spec");
+              "Declare '@MapKey(\"entries\") default ValidatedPrism<java.lang.String,"
+                  + " java.lang.Integer> entriesKey()' on the spec, or align the key types");
     }
 
     @Test
@@ -2799,6 +3513,94 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("a projection scans its identity Set and array components too")
+    void setAndArrayProjectionsAreScanned() throws Exception {
+      JavaFileObject crew =
+          JavaFileObjects.forSourceString(
+              "com.example.Crew",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public record Crew(String id, EmailAddress email, Set<String> tags, String[] codes) {}
+              """);
+      JavaFileObject crewPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CrewPatchDto",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public record CrewPatchDto(String email, Set<String> tags, String[] codes) {}
+              """);
+      JavaFileObject crewPatchMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.CrewPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              // The leaf makes the projection fallible, so it takes the validated patch tier -
+              // where the identity containers beside it still carry their scans.
+              @GenerateMapping
+              public interface CrewPatchMapping extends MappingSpec<Crew, CrewPatchDto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, crew, crewPatchDto, crewPatchMapping);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CrewPatchMappingImpl"))
+          .contains("Set<E> values")
+          .contains("E[] values");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.CrewPatchMappingImpl");
+      Object domain =
+          result
+              .loadClass("com.example.Crew")
+              .getDeclaredConstructor(
+                  String.class,
+                  result.loadClass("com.example.EmailAddress"),
+                  Set.class,
+                  String[].class)
+              .newInstance(
+                  "7",
+                  result
+                      .loadClass("com.example.EmailAddress")
+                      .getDeclaredConstructor(String.class)
+                      .newInstance("keep@example.com"),
+                  Set.of("keep"),
+                  new String[] {"keep"});
+      Set<String> tags = new LinkedHashSet<>(List.of("fine"));
+      tags.add(null);
+      Object wire =
+          result
+              .loadClass("com.example.CrewPatchDto")
+              .getDeclaredConstructor(String.class, Set.class, String[].class)
+              .newInstance("ada@example.com", tags, new String[] {"ok", null});
+
+      Validated<NonEmptyList<FieldError>, Object> patched = patch(impl, domain, wire);
+      assertThatValidated(patched)
+          .isInvalid()
+          .hasFieldErrors("tags: must not contain a null element", "codes.1: must not be null");
+    }
+
+    @Test
     @DisplayName("Optional lifting works in projections: present parses, empty stays, null locates")
     void optionalProjectionLifts() {
       JavaFileObject profile =
@@ -4562,6 +5364,14 @@ class MappingProcessorTest {
               public record MD(java.util.Map<String, EmD> m) {}
 
               public record MW(java.util.Map<String, EmW> m) {}
+
+              public record AD(EmD[] xs) {}
+
+              public record AW(EmW[] xs) {}
+
+              public record UnmappedAD(EmD[] xs) {}
+
+              public record UnmappedAW(String[] xs) {}
             }
             """);
 
@@ -4586,6 +5396,82 @@ class MappingProcessorTest {
                   "public interface ListNestMapping extends MappingSpec<Records.D, Records.W> {}"));
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("field 'xs' matches more than one mapping spec");
+    }
+
+    @Test
+    @DisplayName("ambiguous element specs inside an array are rejected")
+    void ambiguousArrayElementSpecsRejected() {
+      Compilation compilation =
+          compile(
+              ELEMENT_RECORDS,
+              spec(
+                  "EmMappingA",
+                  "public interface EmMappingA extends MappingSpec<Records.EmD, Records.EmW>"
+                      + " {}"),
+              spec(
+                  "EmMappingB",
+                  "public interface EmMappingB extends MappingSpec<Records.EmD, Records.EmW>"
+                      + " {}"),
+              spec(
+                  "ArrayNestMapping",
+                  "public interface ArrayNestMapping extends MappingSpec<Records.AD,"
+                      + " Records.AW> {}"));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("field 'xs' matches more than one mapping spec");
+    }
+
+    @Test
+    @DisplayName("array elements that resolve to nothing fall through")
+    void unresolvableArrayElementsFallThrough() {
+      Compilation compilation =
+          compile(
+              ELEMENT_RECORDS,
+              spec(
+                  "UnmappedArrayMapping",
+                  "public interface UnmappedArrayMapping extends"
+                      + " MappingSpec<Records.UnmappedAD, Records.UnmappedAW> {}"));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target field 'UnmappedAW.xs' has no usable source");
+    }
+
+    @Test
+    @DisplayName("an array against a List, and an array of primitives, are plain mismatches")
+    void arrayShapeMismatchesFallThrough() {
+      JavaFileObject shapes =
+          records(
+              """
+              public final class Records {
+                public record ListD(java.util.List<String> xs) {}
+
+                public record ArrayW(String[] xs) {}
+
+                public record PrimitiveD(int[] xs) {}
+
+                public record ReferenceW(String[] xs) {}
+              }
+              """);
+      // an array wire against a List domain: not a pair, so it never reaches array lifting
+      Compilation againstList =
+          compile(
+              shapes,
+              spec(
+                  "ArrayVsListMapping",
+                  "public interface ArrayVsListMapping extends MappingSpec<Records.ListD,"
+                      + " Records.ArrayW> {}"));
+      assertThat(againstList).failed();
+      assertThat(againstList).hadErrorContaining("has no usable source");
+
+      // a primitive DOMAIN element: a ValidatedPrism cannot focus it, so nothing lifts
+      Compilation primitiveDomain =
+          compile(
+              shapes,
+              spec(
+                  "PrimitiveArrayMapping",
+                  "public interface PrimitiveArrayMapping extends"
+                      + " MappingSpec<Records.PrimitiveD, Records.ReferenceW> {}"));
+      assertThat(primitiveDomain).failed();
+      assertThat(primitiveDomain).hadErrorContaining("has no usable source");
     }
 
     @Test
