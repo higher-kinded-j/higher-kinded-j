@@ -61,6 +61,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 | Nested, sealed and merge resolution sees a dependency's specs only when that module was compiled with `hkj-processor` | [Across modules](structure.md#across-modules) |
 | Named modules neither write nor read the index, and two spec-carrying jars cannot be automatic modules together | [Across modules](structure.md#across-modules) |
 | A mix-in may be generic, but must not be reached raw | [Shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
+| A flattened component stays on the full record-record tier: not on a bean wire, a generic spec, a projection or a sparse `UpdateSpec`; its record fits one `fields()` ladder, and spreading is one level deep (a record inside the group nests through its own spec) | [Flattening a nested component](structure.md#flattening-a-nested-component-onto-a-flat-wire) |
 | `Map` components lift values only; keys are identity, so differing key types, raw `Map`s and wildcards are rejected | [Nesting and containers](structure.md) |
 | A fallible projection emits the validated `patch`, never a fake `asLens()`; projections cannot carry derived fields | [The Emission Tiers](tiers.md#leaf-carrying-projections-the-validated-patch), [Derived wire fields](basics.md#derived-wire-fields) |
 | Generic mappings come in exactly three forms and stay record-to-record | [Generic Specs](generics.md) |

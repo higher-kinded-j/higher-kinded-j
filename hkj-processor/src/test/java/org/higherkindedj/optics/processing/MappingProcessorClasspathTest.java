@@ -93,6 +93,12 @@ class MappingProcessorClasspathTest {
             public sealed interface ShapeDto permits CircleDto {}
 
             public record CircleDto(int radius) implements ShapeDto {}
+
+            public record Address(String street, String city) {}
+
+            public record Vendor(String name, Address address) {}
+
+            public record VendorDto(String name, String street, String city) {}
           }
           """);
 
@@ -158,6 +164,24 @@ class MappingProcessorClasspathTest {
               extends MappingSpec<Upstream.Circle, Upstream.CircleDto> {}
           """);
 
+  /** A spec spreading a nested component across a flat wire: parse-capable, so nestable. */
+  private static final JavaFileObject VENDOR_MAPPING =
+      JavaFileObjects.forSourceString(
+          "com.upstream.VendorMapping",
+          """
+          package com.upstream;
+
+          import org.higherkindedj.optics.annotations.Flatten;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+
+          @GenerateMapping
+          public interface VendorMapping extends MappingSpec<Upstream.Vendor, Upstream.VendorDto> {
+            @Flatten
+            Upstream.Address address();
+          }
+          """);
+
   private static final List<JavaFileObject> UPSTREAM =
       List.of(
           UPSTREAM_TYPES,
@@ -165,7 +189,8 @@ class MappingProcessorClasspathTest {
           CARD_PROJECTION,
           PAGE_MAPPING,
           BATCH_MAPPING,
-          CIRCLE_MAPPING);
+          CIRCLE_MAPPING,
+          VENDOR_MAPPING);
 
   /** The downstream module's records, each nesting one of the upstream pairs. */
   private static final JavaFileObject DOWNSTREAM_TYPES =
@@ -198,6 +223,10 @@ class MappingProcessorClasspathTest {
             public record Named(String name) {}
 
             public record Wrapper(Upstream.CustomerDto customer) {}
+
+            public record Purchase(String id, Upstream.Vendor vendor) {}
+
+            public record PurchaseDto(String id, Upstream.VendorDto vendor) {}
           }
           """);
 
@@ -215,6 +244,9 @@ class MappingProcessorClasspathTest {
 
   private static final JavaFileObject SHAPE_MAPPING =
       downstreamSpec("ShapeMapping", "Upstream.Shape", "Upstream.ShapeDto");
+
+  private static final JavaFileObject PURCHASE_MAPPING =
+      downstreamSpec("PurchaseMapping", "Downstream.Purchase", "Downstream.PurchaseDto");
 
   private static final JavaFileObject PROFILE_ASSEMBLY =
       JavaFileObjects.forSourceString(
@@ -377,6 +409,39 @@ class MappingProcessorClasspathTest {
         Assertions.assertThat(parsed.isInvalid()).isTrue();
         Assertions.assertThat(String.valueOf(parsed.getError()))
             .contains("customer.email: not an email address");
+      }
+    }
+
+    @Test
+    @DisplayName("a spec spreading a flattened component is read as parse-capable, and nests")
+    void flatteningSpecNestsFromTheClasspath() throws Exception {
+      Path upstream = upstream();
+      Compilation compilation = compiler(upstream).compile(DOWNSTREAM_TYPES, PURCHASE_MAPPING);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.PurchaseMappingImpl"))
+          .contains("VendorMappingImpl.INSTANCE.asValidatedPrism()");
+
+      Path downstream = classDirectory("downstream", compilation);
+      try (URLClassLoader loader =
+          new URLClassLoader(
+              new URL[] {upstream.toUri().toURL(), downstream.toUri().toURL()},
+              getClass().getClassLoader())) {
+        Object impl =
+            loader.loadClass("com.downstream.PurchaseMappingImpl").getField("INSTANCE").get(null);
+        Class<?> vendorDto = loader.loadClass("com.upstream.Upstream$VendorDto");
+        Object vendor =
+            vendorDto
+                .getConstructor(String.class, String.class, String.class)
+                .newInstance("Acme", null, "Leeds");
+        Object wire =
+            loader
+                .loadClass("com.downstream.Downstream$PurchaseDto")
+                .getConstructor(String.class, vendorDto)
+                .newInstance("po-1", vendor);
+        Validated<?, ?> parsed = (Validated<?, ?>) invoke(impl, "parse", wire);
+        Assertions.assertThat(parsed.isInvalid()).isTrue();
+        Assertions.assertThat(String.valueOf(parsed.getError()))
+            .contains("vendor.address.street: must not be null");
       }
     }
 

@@ -1122,7 +1122,7 @@ class MappingProcessorTest {
                   """));
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("'W' has more components than 'D'");
-      assertThat(compilation).hadErrorContaining("or declare derived fields");
+      assertThat(compilation).hadErrorContaining("declare derived fields");
     }
   }
 
