@@ -135,9 +135,7 @@ class MappingProcessorBeanTest {
         Assertions.assertThat(invoke(dto, "getEmail")).isEqualTo("ada@corp.example");
         Assertions.assertThat(invoke(dto, "getAge")).isEqualTo(42);
 
-        @SuppressWarnings("unchecked")
-        Validated<NonEmptyList<FieldError>, Object> parsed =
-            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Validated<NonEmptyList<FieldError>, Object> parsed = validated(invoke(impl, "parse", dto));
         Assertions.assertThat(parsed.isValid()).isTrue();
         Assertions.assertThat(parsed.get()).isEqualTo(user);
       } catch (ReflectiveOperationException e) {
@@ -158,9 +156,7 @@ class MappingProcessorBeanTest {
         // (which would throw), proving the guard runs first.
         Object dto = result.loadClass("com.example.UserDto").getDeclaredConstructor().newInstance();
 
-        @SuppressWarnings("unchecked")
-        Validated<NonEmptyList<FieldError>, Object> parsed =
-            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Validated<NonEmptyList<FieldError>, Object> parsed = validated(invoke(impl, "parse", dto));
         Assertions.assertThat(parsed.isInvalid()).isTrue();
         Assertions.assertThat(parsed.getError().toJavaList())
             .containsExactly(
@@ -263,9 +259,7 @@ class MappingProcessorBeanTest {
         invoke(dto, "setEmail", "ada@corp.example");
         invoke(dto, "setAge", 42);
 
-        @SuppressWarnings("unchecked")
-        Validated<NonEmptyList<FieldError>, Object> parsed =
-            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Validated<NonEmptyList<FieldError>, Object> parsed = validated(invoke(impl, "parse", dto));
         Assertions.assertThat(parsed.isInvalid()).isTrue();
         Assertions.assertThat(parsed.getError().toJavaList())
             .containsExactly(new FieldError(List.of("name"), "must not be null"));
@@ -741,9 +735,7 @@ class MappingProcessorBeanTest {
         Assertions.assertThat(invoke(dto, "getX")).isEqualTo(3);
         Assertions.assertThat(invoke(dto, "getLabel")).isEqualTo("origin");
 
-        @SuppressWarnings("unchecked")
-        Validated<NonEmptyList<FieldError>, Object> parsed =
-            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Validated<NonEmptyList<FieldError>, Object> parsed = validated(invoke(impl, "parse", dto));
         Assertions.assertThat(parsed.get()).isEqualTo(point);
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
@@ -867,9 +859,7 @@ class MappingProcessorBeanTest {
         Object dto = invoke(impl, "build", doc);
         Assertions.assertThat((List<?>) invoke(dto, "getTags")).isEqualTo(List.of("a", "b"));
 
-        @SuppressWarnings("unchecked")
-        Validated<NonEmptyList<FieldError>, Object> parsed =
-            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Validated<NonEmptyList<FieldError>, Object> parsed = validated(invoke(impl, "parse", dto));
         Assertions.assertThat(parsed.get()).isEqualTo(doc);
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
@@ -992,9 +982,8 @@ class MappingProcessorBeanTest {
         Object dtoEmpty = invoke(impl, "build", emptyProfile);
         Assertions.assertThat(invoke(dtoEmpty, "getBio")).isNull();
 
-        @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> parsedEmpty =
-            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dtoEmpty);
+            validated(invoke(impl, "parse", dtoEmpty));
         Assertions.assertThat(parsedEmpty.get()).isEqualTo(emptyProfile);
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
@@ -1119,17 +1108,14 @@ class MappingProcessorBeanTest {
         Object dto = result.newInstance("com.example.AccountDto");
         invoke(dto, "setEmail", "not-an-email");
 
-        @SuppressWarnings("unchecked")
-        Validated<NonEmptyList<FieldError>, Object> parsed =
-            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+        Validated<NonEmptyList<FieldError>, Object> parsed = validated(invoke(impl, "parse", dto));
         Assertions.assertThat(parsed.getError().toJavaList())
             .containsExactly(new FieldError(List.of("email"), "not an email address"));
 
         // An absent (null) email is valid: it bridges to Optional.empty.
         Object emptyDto = result.newInstance("com.example.AccountDto");
-        @SuppressWarnings("unchecked")
         Validated<NonEmptyList<FieldError>, Object> parsedEmpty =
-            (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", emptyDto);
+            validated(invoke(impl, "parse", emptyDto));
         Assertions.assertThat(parsedEmpty.isValid()).isTrue();
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
@@ -1273,6 +1259,287 @@ class MappingProcessorBeanTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("target field 'HolderDto.value' has no usable source");
+    }
+
+    /** A domain record with an {@code Optional} list, the shape the bridge would carry. */
+    private static final JavaFileObject BOOKMARKS =
+        JavaFileObjects.forSourceString(
+            "com.example.Bookmarks",
+            """
+            package com.example;
+
+            import java.util.List;
+            import java.util.Optional;
+
+            public record Bookmarks(String owner, Optional<List<String>> urls) {}
+            """);
+
+    /** The JAXB convention: the getter creates the list on first call, and there is no setter. */
+    private static final JavaFileObject LIVE_LIST_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.BookmarksDto",
+            """
+            package com.example;
+
+            import java.util.ArrayList;
+            import java.util.List;
+
+            public class BookmarksDto {
+              private String owner;
+              private List<String> urls;
+              public String getOwner() { return owner; }
+              public void setOwner(String owner) { this.owner = owner; }
+              public List<String> getUrls() {
+                if (urls == null) { urls = new ArrayList<>(); }
+                return urls;
+              }
+            }
+            """);
+
+    @Test
+    @DisplayName("a bridge onto a getter-only List is refused: it has no absence to write into")
+    void getterOnlyListBridgeRejected() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BookmarksMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BookmarksMapping extends MappingSpec<Bookmarks, BookmarksDto> {}
+              """);
+
+      Compilation compilation = compile(BOOKMARKS, LIVE_LIST_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "domain field 'Bookmarks.urls' is Optional<List<String>>, bridged to the getter-only"
+                  + " bean property 'urls' (not supported yet).");
+      assertThat(compilation).hadErrorContaining("whose list is created on first call");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'urls' as List<String>, dropping the Optional, so the property's own empty"
+                  + " list encodes nothing, or give 'urls' a setter and a getter that answers null"
+                  + " until it is called");
+    }
+
+    @Test
+    @DisplayName("a getter-only List refuses a bridge that maps its element through a leaf too")
+    void getterOnlyListBridgeThroughALeafRejected() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Bookmarks",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+
+              public record Bookmarks(String owner, Optional<Urls> urls) {
+
+                public record Urls(List<String> values) {}
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BookmarksMapping",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface BookmarksMapping extends MappingSpec<Bookmarks, BookmarksDto> {
+                default ValidatedPrism<List<String>, Bookmarks.Urls> urls() {
+                  return ValidatedPrism.of(
+                      values -> Validated.validNel(new Bookmarks.Urls(values)),
+                      Bookmarks.Urls::values);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(domain, LIVE_LIST_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "bridged to the getter-only bean property 'urls' (not supported yet)");
+      // The fix names the element the leaf produces, not the property type.
+      assertThat(compilation).hadErrorContaining("Declare 'urls' as Bookmarks.Urls, dropping the");
+    }
+
+    @Test
+    @DisplayName(
+        "a domain Optional whose element cannot reach a getter-only List keeps the element"
+            + " diagnostic, which names both types")
+    void getterOnlyListMismatchKeepsTheElementDiagnostic() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Bookmarks",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Bookmarks(String owner, Optional<String> urls) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BookmarksMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BookmarksMapping extends MappingSpec<Bookmarks, BookmarksDto> {}
+              """);
+
+      Compilation compilation = compile(domain, LIVE_LIST_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("the element types differ and no leaf converts them");
+      Assertions.assertThat(compilation.errors())
+          .as("the getter-only refusal must not displace the more precise diagnostic")
+          .noneMatch(error -> error.getMessage(null).contains("getter-only"));
+    }
+
+    @Test
+    @DisplayName("a projection onto a getter-only List refuses the bridge on the same terms")
+    void getterOnlyListBridgeRejectedOnProjection() {
+      JavaFileObject projection =
+          JavaFileObjects.forSourceString(
+              "com.example.BookmarksProjectionDto",
+              """
+              package com.example;
+
+              import java.util.ArrayList;
+              import java.util.List;
+
+              public class BookmarksProjectionDto {
+                private List<String> urls;
+                public List<String> getUrls() {
+                  if (urls == null) { urls = new ArrayList<>(); }
+                  return urls;
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BookmarksProjectionMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BookmarksProjectionMapping
+                  extends MappingSpec<Bookmarks, BookmarksProjectionDto> {}
+              """);
+
+      Compilation compilation = compile(BOOKMARKS, projection, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "domain field 'Bookmarks.urls' is Optional<List<String>>, bridged to the getter-only"
+                  + " bean property 'urls' (not supported yet).");
+    }
+
+    @Test
+    @DisplayName("a plain List domain component still fills the same getter-only property")
+    void getterOnlyListTakesAPlainDomainList() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Bookmarks",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Bookmarks(String owner, List<String> urls) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BookmarksMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BookmarksMapping extends MappingSpec<Bookmarks, BookmarksDto> {}
+              """);
+
+      Compilation compilation = compile(domain, LIVE_LIST_DTO, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.BookmarksMappingImpl"))
+          .contains("wire.getUrls().addAll(domain.urls());");
+    }
+
+    @Test
+    @DisplayName("a bridge onto a List property with a setter keeps absence across the round trip")
+    void settableListBridgeRoundTripsAbsence() throws ReflectiveOperationException {
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.BookmarksDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public class BookmarksDto {
+                private String owner;
+                private List<String> urls;
+                public String getOwner() { return owner; }
+                public void setOwner(String owner) { this.owner = owner; }
+                public List<String> getUrls() { return urls; }
+                public void setUrls(List<String> urls) { this.urls = urls; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BookmarksMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BookmarksMapping extends MappingSpec<Bookmarks, BookmarksDto> {}
+              """);
+
+      Compilation compilation = compile(BOOKMARKS, wire, spec);
+      assertThat(compilation).succeeded();
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.BookmarksMappingImpl");
+      var constructor =
+          result
+              .loadClass("com.example.Bookmarks")
+              .getDeclaredConstructor(String.class, Optional.class);
+      // Absence, a present empty list and a present non-empty one are three distinct values, and
+      // a settable property keeps them apart where a live list could not.
+      for (Optional<List<String>> urls :
+          List.of(
+              Optional.<List<String>>empty(),
+              Optional.of(List.<String>of()),
+              Optional.of(List.of("a")))) {
+        Object domain = constructor.newInstance("ada", urls);
+        assertThatValidated(validated(invoke(impl, "parse", invoke(impl, "build", domain))))
+            .as("urls = %s", urls)
+            .isValid()
+            .hasValue(domain);
+      }
     }
   }
 
@@ -1951,10 +2218,9 @@ class MappingProcessorBeanTest {
       return bean;
     }
 
-    @SuppressWarnings("unchecked")
     private static Validated<NonEmptyList<FieldError>, Object> patch(
         Object impl, Object domain, Object wire) {
-      return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "patch", domain, wire);
+      return validated(invoke(impl, "patch", domain, wire));
     }
   }
 
@@ -2474,6 +2740,11 @@ class MappingProcessorBeanTest {
               }
             })
         .orElseThrow(() -> new AssertionError("generated source not found: " + qualifiedName));
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Validated<NonEmptyList<FieldError>, Object> validated(Object value) {
+    return (Validated<NonEmptyList<FieldError>, Object>) value;
   }
 
   @Nested

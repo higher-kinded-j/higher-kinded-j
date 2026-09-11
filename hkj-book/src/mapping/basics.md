@@ -233,7 +233,8 @@ The null guard covers every reference-typed `parse` read that is not [bridged](#
 - An array of primitives (`int[]`) carries no element scan: a primitive element cannot be null. The component is still a reference, so a `null` *array* is guarded like any other read.
 - An identity container still copies by reference; the scan only locates nulls, it never rebuilds.
 - A `null` container *component* is guarded like any reference read (`emails: must not be null`).
-- A [bridged](#optional-bridge) container excuses only the absent case: `null` reads as empty, and a *present* list or map is scanned for null elements exactly as an unbridged one is.
+- A **raw** `List`, `Set` or `Map` component keeps that component guard but gives up the element scan: the emitted helper is generic, and a raw argument erases both the call and its result, so no scanning leg it produced would compile. Declare the type arguments to get the scan back. An array is unaffected, naming its element type in the type itself.
+- A [bridged](#optional-bridge) container excuses only the absent case: `null` reads as empty, and a *present* list or map is scanned for null elements as an unbridged one is. The bridged leg has to name the scan's result type rather than let it be inferred, so it scans a narrower set: only a container whose type arguments are proper types, not a wildcard-carrying one.
 
 What stays the caller's error (`NullPointerException`), by contract: a `null` *wire* itself, a `null` map *key* (a structurally broken map, not a wrong value), and calling the bulk forms directly with a `null` list or map.
 

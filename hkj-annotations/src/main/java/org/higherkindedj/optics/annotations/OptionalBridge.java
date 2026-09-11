@@ -61,11 +61,12 @@ import java.lang.annotation.Target;
  * {@code patch(Domain, Wire)} rather than {@code asLens()}.
  *
  * <p>The annotation is refused where it can mean nothing: a domain component that is not {@code
- * Optional}, a wire component that is already {@code Optional} (which needs no bridge), a sealed
- * mapping, and a sparse {@link UpdateSpec} (whose {@code null} already means "leave unchanged"). On
- * a bean wire it is redundant rather than wrong — the bridge is automatic there — and a locally
- * declared one is reported as a note, so a shared mix-in vocabulary can carry it for both wire
- * shapes.
+ * Optional}, a wire component that is already {@code Optional} (which needs no bridge), a bean
+ * property written through its own getter (a getter-only {@code List}, whose getter creates the
+ * list on first call, so it has no unset state to carry absence), a sealed mapping, and a sparse
+ * {@link UpdateSpec} (whose {@code null} already means "leave unchanged"). On a bean wire it is
+ * redundant rather than wrong — the bridge is automatic there — and a locally declared one is
+ * reported as a note, so a shared mix-in vocabulary can carry it for both wire shapes.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)

@@ -72,6 +72,8 @@ Every rejection follows the processor's what/why/fix standard: the message state
 | A leaf, rename or bridge marker must not declare type parameters of its own; the element types go on the spec | [Generic Specs](generics.md#element-mapped-specs) |
 | A rename's, leaf's or marker's type must be visible from the spec's package, where the Impl is generated | [Shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
 | `@OptionalBridge` binds an `Optional` domain component to a nullable, non-primitive wire component; it is redundant on a bean wire and meaningless on a sealed or sparse spec | [Optional fields](basics.md#optional-bridge) |
+| The bridge is refused onto a getter-only `List` property, which has no unset state to carry absence | [Bean-shaped wire targets](beans_patch.md#bean-shaped-wire-targets) |
+| A raw `List`, `Set` or `Map` component keeps its own null guard but gives up the element null scan (an array keeps it, naming its element type in the type itself) | [Null has an address](basics.md#null-doctrine) |
 
 ---
 

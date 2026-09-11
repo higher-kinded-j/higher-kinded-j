@@ -528,6 +528,69 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The write site of a wire property, or null when the wire is a record or names no such property.
+   * Read where a correspondence turns on how the property is <em>written</em>, not just on its
+   * type.
+   */
+  private static WireShape.WriteSite writeSite(WireShape wire, String wireName) {
+    if (!(wire instanceof WireShape.BeanShape bean)) {
+      return null;
+    }
+    return bean.properties().stream()
+        .filter(property -> property.name().equals(wireName))
+        .findFirst()
+        .map(WireShape.BeanProperty::write)
+        .orElse(null);
+  }
+
+  /**
+   * Refuses an {@code Optional} bridge onto a property written through its own getter — the JAXB
+   * collection convention, {@code getX().addAll(...)}, which a getter-only {@code List} property
+   * takes. The bridge exists to carry absence across a wire that has no {@code Optional}, and this
+   * property cannot hold it: an empty domain {@code Optional} writes nothing, and the getter then
+   * answers with a freshly created empty list, so the round trip would silently return a present
+   * empty value. The two fixes each give the pair an honest encoding — a domain {@code List}, where
+   * empty <em>is</em> nothing, or a property the build can genuinely leave unset, which needs both
+   * a setter and a getter that answers {@code null} until one is called.
+   */
+  private void reportGetterOnlyBridge(
+      TypeElement spec,
+      TypeElement domain,
+      String name,
+      String wireName,
+      TypeMirror domainType,
+      TypeMirror element,
+      WireShape.WriteSite.CollectionAdd write) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' is "
+            + ProcessorUtils.simpleTypeName(domainType)
+            + ", bridged to the getter-only bean property '"
+            + wireName
+            + "' (not supported yet).",
+        "The bridge encodes an empty Optional as an unwritten property, and '"
+            + wireName
+            + "' is written through its own getter (the JAXB convention, "
+            + write.getter()
+            + "().addAll(...)), whose list is created on first call — so absence would read back as"
+            + " a present empty list.",
+        "Declare '"
+            + name
+            + "' as "
+            + ProcessorUtils.simpleTypeName(element)
+            + ", dropping the Optional, so the property's own empty list encodes nothing, or give '"
+            + wireName
+            + "' a setter and a getter that answers null until it is called, so absence can leave"
+            + " the property unset.");
+  }
+
+  /**
    * A {@code @Flatten} marker: the abstract method named after the domain record component that is
    * spread across the wire's flat components. Asked only after {@link #validateSpecMethods}, which
    * has refused a bodied, parameterised or otherwise-annotated one, so the annotation alone
@@ -2932,29 +2995,40 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The sparse tier's identity kind: the null scan applies only where the emitted generic helper
-   * can type — an exactly-{@code List}/{@code Set}/{@code Map} component whose type arguments are
-   * proper types, or a reference array. A raw or wildcard-argument container stays a plain identity
-   * write ({@code setIfPresent}): the helper's method reference must produce the component's exact
-   * type, and a wildcard captures differently on the argument and return sides while a raw type
-   * erases the call, so either shape would fail to compile inside the user's generated Impl. An
-   * array carries its element type in the type itself, so it has neither failure mode.
+   * The identity kind for a leg that pins the scan's result to the component's <em>exact</em> type
+   * instead of letting it be inferred: the sparse tier's {@code setIfPresent} method reference, and
+   * the bridged leg, which maps the result into the domain {@code Optional}. It adds one exclusion
+   * to {@link #identityKind}: a wildcard-argument container stays a plain copy, because the helper
+   * captures the wildcard afresh on its argument and return sides, so the capture the leg receives
+   * is not the type the component declares. An array carries its element type in the type itself,
+   * so it has neither this failure mode nor the raw one.
    */
   private Kind sparseIdentityKind(TypeMirror type) {
     Kind kind = identityKind(type);
     if (kind == Kind.IDENTITY || type instanceof ArrayType) {
       return kind;
     }
-    DeclaredType declared = (DeclaredType) type;
-    boolean scanTypable = !declared.getTypeArguments().isEmpty() && !hasWildcardArgument(declared);
-    return scanTypable ? kind : Kind.IDENTITY;
+    return hasWildcardArgument((DeclaredType) type) ? Kind.IDENTITY : kind;
   }
 
   /**
-   * Identity components copy verbatim; a same-typed {@code List}, {@code Set} or {@code Map}
-   * additionally scans for nulls.
+   * Identity components copy verbatim; a same-typed {@code List}, {@code Set}, {@code Map} or
+   * reference array additionally scans for nulls — but only where the emitted generic helper can
+   * type ({@link #scanTypable}). A raw container takes the plain identity leg instead, guarded like
+   * any other reference read ({@code hkj$ifPresent}), giving up only the element scan the helper
+   * cannot express. {@link #sparseIdentityKind} narrows this further where the result's type is
+   * pinned rather than inferred.
    */
   private Kind identityKind(TypeMirror type) {
+    Kind kind = containerKind(type);
+    if (kind == Kind.IDENTITY || type instanceof ArrayType) {
+      return kind;
+    }
+    return scanTypable(type) ? kind : Kind.IDENTITY;
+  }
+
+  /** Which identity container a component is, by type alone, before any typability rule. */
+  private static Kind containerKind(TypeMirror type) {
     if (ELEMENT_CONTAINERS.stream().anyMatch(container -> isExactly(type, container))
         // A primitive array has no element that could be null, so it needs no scan.
         || (type instanceof ArrayType array && !array.getComponentType().getKind().isPrimitive())) {
@@ -2964,6 +3038,21 @@ public class MappingProcessor extends AbstractProcessor {
       return Kind.IDENTITY_MAP;
     }
     return Kind.IDENTITY;
+  }
+
+  /**
+   * The typability rule every tier shares: an identity container carries the emitted null scan only
+   * where it is not raw. The helpers are generic ({@code <E> hkj$allPresent(List<E>)}), and a raw
+   * argument erases both the call and its result, so the ladder the leg feeds no longer types and
+   * the generated Impl does not compile. This is the shared half only — a leg that pins the scan's
+   * result type rather than inferring it excludes a wildcard argument as well ({@link
+   * #sparseIdentityKind}). Asked only of a type {@link #isExactly} has already matched to {@code
+   * List}, {@code Set} or {@code Map}, so it is a declared generic type by then; an array names its
+   * element type in the type itself and is never asked. Shared with {@link MergeProcessor}, whose
+   * identity fills carry the same scan, like the helpers themselves.
+   */
+  static boolean scanTypable(TypeMirror type) {
+    return !ProcessorUtils.isRaw((DeclaredType) type);
   }
 
   /**
@@ -4167,11 +4256,20 @@ public class MappingProcessor extends AbstractProcessor {
       // a ValidatedPrism<X, X> over the element normalises or validates the value the bridge
       // found, which is the placement @OptionalBridge documents.
       ExecutableElement bridgeLeaf = findLeaf(spec, name, wireType, bridged);
+      boolean copies = processingEnv.getTypeUtils().isSameType(wireType, bridged);
+      // A property written through its own getter has no absent state to carry the bridge's
+      // empty. Asked only of a pair the bridge would otherwise take, so a component whose
+      // element does not reach the property keeps the diagnostic that names both types.
+      if ((bridgeLeaf != null || copies)
+          && writeSite(wire, wireName) instanceof WireShape.WriteSite.CollectionAdd write) {
+        reportGetterOnlyBridge(spec, domain, name, wireName, domainType, bridged, write);
+        return null;
+      }
       if (bridgeLeaf != null) {
         return new Correspondence(
             name, wireName, Kind.OPTIONAL_BRIDGE, CodeBlock.of("$L()", bridgeLeaf.getSimpleName()));
       }
-      if (processingEnv.getTypeUtils().isSameType(wireType, bridged)) {
+      if (copies) {
         return new Correspondence(name, wireName, Kind.OPTIONAL_BRIDGE, null);
       }
       // A bridge is the only way to map a domain Optional to a plain nullable component, so a
@@ -4856,9 +4954,10 @@ public class MappingProcessor extends AbstractProcessor {
    * <p>Absence is the only thing the bridge excuses. A wire {@code List} that is present but holds
    * a null element is not absent, and the located-null doctrine applies to it exactly as it does to
    * the same component declared without the {@code Optional}; without this the bridge would be a
-   * hole in the one rule the annotation is documented as the single carve-out from. A raw or
-   * wildcard-argument container stays a plain copy, because the helper's method reference could not
-   * type - the rule the sparse tier already states.
+   * hole in the one rule the annotation is documented as the single carve-out from. The bridged leg
+   * maps the scan's result into the domain {@code Optional}, which pins its type rather than
+   * inferring it, so it takes {@link #sparseIdentityKind} rather than {@link #identityKind}: a raw
+   * container stays a plain copy here as everywhere, and a wildcard-argument one does too.
    */
   private Kind bridgeScanKind(Correspondence c, WireShape wire) {
     if (c.kind() != Kind.OPTIONAL_BRIDGE || c.prism() != null) {
