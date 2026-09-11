@@ -53,8 +53,12 @@ import java.lang.annotation.Target;
  *   <li>A validated leaf is a zero-parameter {@code default} method named after the domain
  *       component, returning {@code ValidatedPrism<WireComponent, DomainComponent>}. An explicit
  *       leaf wins even over a same-typed match, so it can validate or normalise a copied field.
- *   <li>Record components mapped by another spec in the same compilation nest automatically, and
- *       {@code List}/{@code Optional} components lift through the element's leaf or spec.
+ *   <li>Record components mapped by another spec nest automatically, whether that spec is in the
+ *       same compilation or in a dependency compiled with the processor (each generated Impl is
+ *       accompanied by a {@code MappingIndexEntry} that a downstream compilation reads; a spec in
+ *       the compilation shadows a classpath spec for the same pair, and named modules neither write
+ *       nor read the index). {@code List}/{@code Optional} components lift through the element's
+ *       leaf or spec.
  *   <li>A domain {@code Optional<T>} against a nullable wire component {@code T} bridges through
  *       {@code null} (empty maps to absent): automatically on a bean wire, and on a record wire
  *       wherever the spec marks the component with {@link OptionalBridge} — on a bare abstract

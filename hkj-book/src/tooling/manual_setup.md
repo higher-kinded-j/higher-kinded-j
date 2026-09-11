@@ -140,7 +140,16 @@ The [HKJ build plugin](gradle_plugin.md) handles all of the above (dependencies,
 
 ## Incremental compilation
 
-The HKJ annotation processors register with Gradle's incremental annotation processing (as aggregating processors: cross-spec features such as nested mapping resolution may read any annotated element in the compilation). A source set using them keeps incremental compilation; no configuration is needed. Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first.
+The HKJ annotation processors register with Gradle's incremental annotation processing (as aggregating processors: cross-spec features such as nested mapping resolution may read any annotated element in the compilation, and the mapping processors also read the classpath index described below). A source set using them keeps incremental compilation; no configuration is needed. Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first.
+
+## Multi-module builds
+
+A `@GenerateMapping` spec compiled in one module is found by the specs of another through an index the processor writes beside each generated `Impl` ([Across modules](../mapping/structure.md#across-modules) explains the resolution). The index travels in the jar as an empty class in the package `org.higherkindedj.mapping.index`, and four things follow for the build:
+
+- **Every module that declares specs needs `hkj-processor` on its processor path**, not only the one that nests them. A module compiled without it has no `Impl` and no index entry, and a downstream spec reports its pair as having no usable source.
+- **A spec newly added to a dependency may need a clean downstream build.** Gradle recompiles a source set when its classpath changes, but chooses which sources to recompile from what they reference, and no downstream source references an index entry. Until the downstream module is rebuilt from clean, or one of its sources changes, the new spec can go unseen.
+- **The index is classpath-only.** A module with a `module-info` neither writes nor reads it, not supported yet, since the index is one package that two modules cannot share; for the same reason two spec-carrying jars cannot serve as automatic modules side by side. Across such a boundary, delegate with a leaf calling the other `Impl`'s `asValidatedPrism()`.
+- **The index can be turned off.** The processor option `-Ahkj.mapping.index=false` (in Gradle, `options.compilerArgs.add("-Ahkj.mapping.index=false")` on the compile task) makes a compilation write no entries and read none, which is what a library bound for a module path beside other spec-carrying jars wants. A downstream spec that then cannot find a pair says the index is off.
 
 ## Lombok
 

@@ -100,7 +100,7 @@ The Impl carries the prisms as state, so there is no singleton in either spellin
 
 Element-mapped mappings nest as **compositions**. A use site whose pair unifies against one resolves each element pair in turn:
 
-- through a leaf on the using spec named after the component (single-leaf specs; a spec with several abstract leaves resolves each pair against the other specs in the same compilation),
+- through a leaf on the using spec named after the component (single-leaf specs; a spec with several abstract leaves resolves each pair against the other registered specs, whether declared here or in a dependency),
 - or recursively through another registered mapping,
 
 and emits `CodecPageMappingImpl.of(entries()).asValidatedPrism()` in place. Failures locate through the whole composed path (`entries.items.1: not an email address`); an unresolvable element pair is a compile error naming the pair and both ways to supply it (a leaf on the using spec, or another registered mapping).
