@@ -12,6 +12,7 @@ import com.google.testing.compile.JavaFileObjects;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import javax.tools.JavaFileObject;
@@ -716,6 +717,154 @@ class GeneratedMappingLawsTest {
             List.of("ada@example.org", "not-an-email"),
             Optional.of("nope"),
             Map.of("ops", "also-nope")));
+  }
+
+  @Test
+  @DisplayName("widened container tier: Set lifting and a converting Map key stay lawful")
+  void widenedContainerTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Crew",
+            """
+            package com.example;
+
+            import java.util.Map;
+            import java.util.Set;
+
+            public record Crew(
+                Set<EmailAddress> members, Map<EmailAddress, EmailAddress> escalations) {}
+            """);
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.CrewDto",
+            """
+            package com.example;
+
+            import java.util.Map;
+            import java.util.Set;
+
+            public record CrewDto(Set<String> members, Map<String, String> escalations) {}
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.CrewMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MapKey;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface CrewMapping extends MappingSpec<Crew, CrewDto> {
+              default ValidatedPrism<String, EmailAddress> members() {
+                return emailPrism();
+              }
+
+              default ValidatedPrism<String, EmailAddress> escalations() {
+                return emailPrism();
+              }
+
+              @MapKey("escalations")
+              default ValidatedPrism<String, EmailAddress> escalationKey() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = result.instance("com.example.CrewMappingImpl");
+    var dtoConstructor =
+        result.loadClass("com.example.CrewDto").getDeclaredConstructor(Set.class, Map.class);
+
+    MappingLaws.assertMappingLaws(
+        asValidatedPrism(impl),
+        dtoConstructor.newInstance(
+            Set.of("ada@example.org"), Map.of("alan@example.org", "kay@example.org")),
+        dtoConstructor.newInstance(Set.of("not-an-email"), Map.of("bad-key", "bad-value")));
+  }
+
+  @Test
+  @DisplayName("an array-carrying mapping round-trips, compared elementwise")
+  void arrayTierRoundTrips() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Squad",
+            """
+            package com.example;
+
+            public record Squad(EmailAddress[] reserves) {}
+            """);
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.SquadDto",
+            """
+            package com.example;
+
+            public record SquadDto(String[] reserves) {}
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.SquadMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface SquadMapping extends MappingSpec<Squad, SquadDto> {
+              default ValidatedPrism<String, EmailAddress> reserves() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = result.instance("com.example.SquadMappingImpl");
+    Object wireValue =
+        result
+            .loadClass("com.example.SquadDto")
+            .getDeclaredConstructor(String[].class)
+            .newInstance((Object) new String[] {"ada@example.org"});
+
+    // The standard law harness compares with equals, and a record carrying an array compares
+    // that component by IDENTITY - so both round trips are asserted elementwise instead.
+    ValidatedPrism<Object, Object> mapping = asValidatedPrism(impl);
+    Object domainValue = mapping.parse(wireValue).get();
+    Assertions.assertThat((Object[]) invoke(mapping.build(domainValue), "reserves"))
+        .isEqualTo(new String[] {"ada@example.org"});
+
+    // parse-build: the domain value survives a round trip through the wire, elementwise.
+    Validated<NonEmptyList<FieldError>, Object> reparsed =
+        mapping.parse(mapping.build(domainValue));
+    assertThatValidated(reparsed).isValid();
+    Assertions.assertThat((Object[]) invoke(reparsed.get(), "reserves"))
+        .isEqualTo((Object[]) invoke(domainValue, "reserves"));
+
+    // and a bad element is still located by index, through the same array leg.
+    Object badWire =
+        result
+            .loadClass("com.example.SquadDto")
+            .getDeclaredConstructor(String[].class)
+            .newInstance((Object) new String[] {"ada@example.org", "nope"});
+    assertThatValidated(mapping.parse(badWire))
+        .isInvalid()
+        .hasFieldErrors("reserves.1: not an email address");
   }
 
   @Test
