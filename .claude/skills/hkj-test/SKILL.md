@@ -363,7 +363,7 @@ MappingLaws.assertMappingLaws(spec.asIso(), spec.asValidatedPrism(), domainSampl
 // lossy projection tier -> asLens() (delegates to the lens laws, distinct-values guard included)
 MappingLaws.assertMappingLaws(spec.asLens(), domainSample, wireSample1, wireSample2);
 
-// parse-capable tier -> asValidatedPrism()
+// fallible full tier -> asValidatedPrism()
 MappingLaws.assertMappingLaws(spec.asValidatedPrism(), parseableWire, nonParseableWire);
 
 // total-parse mapping (identity components / derived wire fields): round trip only
@@ -376,6 +376,12 @@ MappingLaws.assertMappingLaws(
 // sparse update tier (UpdateSpec) -> updateFrom
 MappingLaws.assertMappingLaws(
     Impl.INSTANCE::updateFrom, current, allAbsentWire, validWire, invalidWire);
+
+// parse-only bean tier -> asValidatedParse(): the first wire parses, the second fails, every error located
+MappingLaws.assertMappingLaws(Impl.INSTANCE.asValidatedParse(), parseableWire, nonParseableWire);
+
+// build-only bean tier -> asValidatedBuild(): build renders the sample without failing
+MappingLaws.assertMappingLaws(Impl.INSTANCE.asValidatedBuild(), domainSample);
 ```
 
 Also `MappingLaws.assertBuildAgreesWithIso(iso, mapping, domainSample)` and `assertParseAgreesWithIso(iso, mapping, wireSample)` for the two halves of the lossless tier. The single-sample overload passes on a genuinely fallible mapping without ever exercising a failure path. If the spec has a fallible leaf, use the two-wire-sample overload with a non-parsing sample.

@@ -2,10 +2,10 @@
 
 _The generated surface only ever offers what the field correspondences can lawfully support; nothing is fabricated._
 
-Most mapping tools generate the same surface for every pair and let the unlawful corners fail at runtime. `@GenerateMapping` does the opposite: it reads the field correspondences and emits only the operations they can honour. A lossless pair earns an `Iso`; a lossy projection (a wire carrying fewer components than the domain) earns a `Lens` write-back but no parse; a validating projection earns a fallible `patch`. The types tell the truth, and the truth is law-checked.
+Most mapping tools generate the same surface for every pair and let the unlawful corners fail at runtime. `@GenerateMapping` does the opposite: it reads the field correspondences and emits only the operations they can honour. A lossless pair earns an `Iso`; a lossy projection (a wire carrying fewer components than the domain) earns a `Lens` write-back but no parse; a validating projection earns a fallible `patch`; a bean that can only be read earns `parse` alone, and one that can only be written earns `build` alone. The types tell the truth, and the truth is law-checked.
 
 ~~~admonish info title="What You'll Learn"
-- Reading the tier table: which spec shapes emit `asIso()`, `asLens()`, `patch`, `asValidatedPrism()`, or `updateFrom`
+- Reading the tier table: which spec shapes emit `asIso()`, `asLens()`, `patch`, `asValidatedPrism()`, `asValidatedParse()`, `asValidatedBuild()`, or `updateFrom`
 - Why a lossless mapping's `parse` is still guarded, and when `reverseGet` is safe
 - The validated `patch` tier for projections that validate or normalise
 - Law-checking your own specs with one `MappingLaws` call per tier
@@ -21,7 +21,10 @@ The field correspondences select what the Impl can lawfully offer. As a decision
 flowchart TD
     S["Your spec interface"] --> U{"extends UpdateSpec<br/>(instead of MappingSpec)?"}
     U -->|yes| UT(["updateFrom() only:<br/>a sparse PATCH fold"])
-    U -->|no| W{"wire has fewer components?<br/>(derived fields don't count)"}
+    U -->|no| B{"a bean wire that is only<br/>read, or only written?"}
+    B -->|"getters, nothing writes it"| PO(["parse + asValidatedParse():<br/>no build"])
+    B -->|"writers, no getters"| BO(["build + asValidatedBuild():<br/>no parse"])
+    B -->|"no: a record, or a bean<br/>read and written"| W{"wire has fewer components?<br/>(derived fields don't count)"}
     W -->|yes| F{"any fallible correspondence<br/>on a projected component?<br/>(leaf, nested spec, a container lifting one,<br/>bridge, or a bean's reference property)"}
     F -->|no| LT(["build + asLens():<br/>lawful write-back, no parse"])
     F -->|yes| PT(["build + validated patch():<br/>a write-back that can fail"])
@@ -35,8 +38,8 @@ flowchart TD
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     class S wire
-    class UT,LT,PT,IT,VT,VP tier
-    class U,W,F,D decision
+    class UT,PO,BO,LT,PT,IT,VT,VP tier
+    class U,B,W,F,D decision
 ```
 
 (The bean-read leg of that last decision: on a bean wire an unset reference property is an ordinary state, so its guarded reads count as fallible and a lossless-*looking* bean mapping still lands on the accumulating branch, withholding `asIso()`; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets). The same reads decide a bean projection: any reference property makes it land on `patch`, while an all-primitive bean projection, whose reads can never be null, takes the `asLens()` branch. And a projection that also declares a [derived field](basics.md#derived-wire-fields) is rejected outright, which is why derived fields do not count towards the wire tally. An [`@OptionalBridge`](basics.md#optional-bridge) component counts as fallible on both branches, on either wire shape: absence is a real correspondence, not a copy, so a mapping carrying one withholds `asIso()` and a projection carrying one takes `patch`.)
@@ -49,7 +52,9 @@ And as the reference table:
 | Any fallible leaf, nested spec, derived field or bridged `Optional` | `build`, accumulating `parse`, no `asIso` |
 | Wire with *fewer* components, all identity (lossy projection; on a bean, all primitive) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
 | Wire with fewer components **and** any fallible correspondence (on a bean, any reference property) | `build` + a validated **`patch(domain, wire)`** write-back, no `asLens` and no `parse`, [below](#leaf-carrying-projections-the-validated-patch) |
-| Every parse-capable mapping | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |
+| Every full mapping (it builds and parses) | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |
+| A bean wire with getters and nothing that writes it (parse-only) | `parse` + **`asValidatedParse()`**, no `build`: [One-directional beans](beans_patch.md#one-directional-beans) |
+| A bean wire that is written and declares no getter (build-only) | `build` + **`asValidatedBuild()`**, no `parse`: [One-directional beans](beans_patch.md#one-directional-beans) |
 | A spec extending **`UpdateSpec`** (opt-in, bean wire; not alongside `MappingSpec`) | only **`updateFrom(Wire)`**: a sparse PATCH fold, [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 
 ``` java
@@ -67,7 +72,7 @@ And as the reference table:
 
 ## Law-checked, in the repo and in your tests
 
-"Lawfully offer" is verified, not promised: every emission tier above (lossless iso, projection lens, fallible leaf, nested spec, container lifting, sealed dispatch, derived fields) is compiled and law-checked in the Higher-Kinded-J build itself, against the published [`hkj-test` law harness](../tooling/test_assertions.md#optic-laws).
+"Lawfully offer" is verified, not promised: every emission tier above (lossless iso, projection lens, fallible leaf, nested spec, container lifting, sealed dispatch, derived fields, one-directional beans) is compiled and law-checked in the Higher-Kinded-J build itself, against the published [`hkj-test` law harness](../tooling/test_assertions.md#optic-laws).
 
 ~~~admonish tip title="Why this matters"
 Every mapping tool promises correctness; this one states laws and runs them. The tier table is not documentation of intent: each row names properties that hold as passing tests (round trip, projection identity, idempotence, coherence between surfaces). They run in this repository on every build, and the one call below runs them in yours. When a record refactor changes what the pair can lawfully support, the generated surface changes with it and the law test tells you at build time, not in production. We know of no other Java mapping generator that law-checks its own output; it is the difference between a mapper you trust and a mapper you audit.
@@ -87,6 +92,8 @@ The overloads follow the tiers:
 - **Projection:** pass `asLens()` with a domain value and two wire values.
 - **Validated patch (a validating projection, record or bean):** pass the `patch` and `build` method references, a domain value, and a parsing and a non-parsing wire value ([below](#leaf-carrying-projections-the-validated-patch)).
 - **Fallible tier:** pass `asValidatedPrism()` with a parsing and a non-parsing wire value.
+- **Parse-only bean:** pass `asValidatedParse()` with a parsing and a non-parsing wire value: the first parses, and the second fails with every error located.
+- **Build-only bean:** pass `asValidatedBuild()` with a domain value: `build` renders it without failing.
 - **Derived-field (total-parse) mapping:** `build` recomputes what `parse` ignores, so only the non-derived components round-trip. The domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger.
 - **Sparse-update (`UpdateSpec`) mapping:** pass the `updateFrom` method reference, a domain value, and an all-absent, a valid and an invalid wire to check the identity, idempotence and validation laws ([Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec)).
 
@@ -127,7 +134,7 @@ The patch laws are projection identity (`patch(d, build(d)) == Valid(d)`), idemp
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **The tiers tell the truth**: `asIso`, `asLens`, `patch`, `asValidatedPrism`, or `updateFrom` exist only where the correspondences lawfully support them
+* **The tiers tell the truth**: `asIso`, `asLens`, `patch`, `asValidatedPrism` and its one-directional halves, or `updateFrom` exist only where the correspondences and the wire lawfully support them
 * **A lossless parse is still guarded**: hostile bindings become located invalids; `reverseGet` is for in-memory round trips only
 * **A validating projection gets `patch`, not a fake lens**: every projected component validated, every bad field located, unprojected components untouched by construction
 * **Every tier is law-checked**: one `MappingLaws` overload per tier, the same harness the library's own build runs

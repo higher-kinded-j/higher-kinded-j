@@ -20,9 +20,10 @@ import javax.lang.model.type.TypeMirror;
  *
  * <p>Classification ({@link MappingProcessor#classify}) and code generation ({@link
  * MappingProcessor#writeImpl}) speak to the wire only through this interface: component enumeration
- * and name lookup, and the per-component read expression ({@link WireComponent#readFrom}). The
- * build body differs per shape (a record's canonical constructor versus a bean's {@link
- * ConstructionStrategy}), so the processor assembles it by switching on the shape.
+ * and name lookup, the {@link Direction} the wire can be crossed in, and the per-component read
+ * expression ({@link WireComponent#readFrom}). The build body differs per shape (a record's
+ * canonical constructor versus a bean's {@link ConstructionStrategy}), so the processor assembles
+ * it by switching on the shape.
  */
 sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
@@ -48,19 +49,45 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   }
 
   /**
+   * The ways a mapping can cross this wire. A record is read through its accessors and constructed
+   * through its canonical constructor, so it is always {@link Direction#BIDIRECTIONAL}; a bean
+   * affords whatever its accessors allow ({@link BeanShape#direction}).
+   */
+  default Direction direction() {
+    return Direction.BIDIRECTIONAL;
+  }
+
+  /**
+   * The directions a wire affords. A bean with getters and no way to be written can be parsed but
+   * never built, and one that can be written but offers no getters can be built but never parsed,
+   * so each maps one way, and its Impl carries only that way's surface.
+   */
+  enum Direction {
+    /** Read and written: {@code build} and {@code parse}. */
+    BIDIRECTIONAL,
+    /** Read only: {@code parse}, and no {@code build}. */
+    PARSE_ONLY,
+    /** Written only: {@code build}, and no {@code parse}. */
+    BUILD_ONLY
+  }
+
+  /**
    * One wire component: its (decapitalised) name, its type, and the accessor that reads it. For a
    * record the accessor is the component name; for a bean it is the getter (for example {@code
-   * getName}).
+   * getName}), absent on a bean that is only ever written.
    */
-  record WireComponent(String name, TypeMirror type, String accessor) {
+  record WireComponent(String name, TypeMirror type, Optional<String> accessor) {
 
-    /** The read expression for this component from the given receiver variable. */
+    /**
+     * The read expression for this component from the given receiver variable. Asked only of a wire
+     * that is read, where every component has its accessor.
+     */
     CodeBlock readFrom(String receiver) {
-      return CodeBlock.of("$L.$L()", receiver, accessor);
+      return CodeBlock.of("$L.$L()", receiver, accessor.orElseThrow());
     }
   }
 
-  /** A record wire: positional accessors and canonical-constructor construction (today's path). */
+  /** A record wire: positional accessors and canonical-constructor construction. */
   record RecordShape(TypeElement element, List<WireComponent> components) implements WireShape {
 
     /** The record build body: {@code return new W(v0, v1, ...)} in component order. */
@@ -84,9 +111,17 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * which the mapping processor guards; only the construction differs from a record. The bean build
    * body is assembled by the processor (per-property writes, which the strategy frames), since an
    * {@code Optional}-bridged property writes conditionally.
+   *
+   * <p>{@code direction} is the reading the analyser chose, and the rest of the shape agrees with
+   * it: a parse-only bean has no {@code strategy} and no write sites, and a build-only one has no
+   * getters. The analyser selects the two-way reading whenever any property allows it, so a bean is
+   * one-directional only when nothing at all crosses the other way.
    */
   record BeanShape(
-      TypeElement element, List<BeanProperty> properties, ConstructionStrategy strategy)
+      TypeElement element,
+      List<BeanProperty> properties,
+      Optional<ConstructionStrategy> strategy,
+      Direction direction)
       implements WireShape {
 
     @Override
@@ -97,9 +132,11 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
   /**
    * One bean property: its (decapitalised) name, type, the getter that reads it and the {@link
-   * WriteSite} that writes it (a setter, a builder setter, or a JAXB collection getter).
+   * WriteSite} that writes it (a setter, a builder setter, or a JAXB collection getter). A bean
+   * read one way only has no getter, or no write site, on any of its properties.
    */
-  record BeanProperty(String name, TypeMirror type, String getter, WriteSite write) {
+  record BeanProperty(
+      String name, TypeMirror type, Optional<String> getter, Optional<WriteSite> write) {
 
     WireComponent asWireComponent() {
       return new WireComponent(name, type, getter);

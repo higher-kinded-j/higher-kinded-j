@@ -210,6 +210,21 @@ public final class RecordMappingBook {
     // ANCHOR_END: bean_usage
     System.out.println(bean.getName() + " / " + fromBean);
 
+    // ANCHOR: one_way_usage
+    // Parse-only: the Impl has parse and asValidatedParse(), and no build.
+    Validated<NonEmptyList<FieldError>, Customer> read =
+        CustomerViewMappingImpl.INSTANCE.parse(new CustomerView("Ada", "ada@corp.example"));
+    // Valid(Customer[name=Ada, email=EmailAddress[value=ada@corp.example]])
+
+    // Build-only: the Impl has build and asValidatedBuild(), and no parse.
+    CustomerRequest request =
+        CustomerRequestMappingImpl.INSTANCE.build(
+            new Customer("Ada", new EmailAddress("ada@corp.example")));
+    // new CustomerRequest(); setName("Ada"); setEmail("ada@corp.example")
+    // ANCHOR_END: one_way_usage
+    System.out.println(read);
+    System.out.println(request.describe());
+
     // ANCHOR: update_usage
     Customer current = new Customer("Ada", new EmailAddress("ada@corp.example"));
 
@@ -592,6 +607,62 @@ class TransferBean {
 interface TransferMapping extends MappingSpec<Employee, TransferBean> {}
 
 // ANCHOR_END: bean_projection_spec
+
+// ANCHOR: one_way_spec
+// A vendor's read model: built once by its own client, then only ever read. It has getters and
+// nothing that writes it, so the mapping is parse-only.
+class CustomerView {
+  private final String name;
+  private final String email;
+
+  CustomerView(String name, String email) {
+    this.name = name;
+    this.email = email;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+}
+
+@GenerateMapping
+interface CustomerViewMapping extends MappingSpec<Customer, CustomerView> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// An outbound request: filled and sent, never read back. It has setters and no getters, so the
+// mapping is build-only.
+class CustomerRequest {
+  private String name;
+  private String email;
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+
+  String describe() {
+    return name + " <" + email + ">";
+  }
+}
+
+@GenerateMapping
+interface CustomerRequestMapping extends MappingSpec<Customer, CustomerRequest> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: one_way_spec
 
 // ANCHOR: update_spec
 // A PATCH request bean. Here null means "not provided, leave unchanged" - the opposite of the bean

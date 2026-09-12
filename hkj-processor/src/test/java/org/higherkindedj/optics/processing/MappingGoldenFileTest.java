@@ -113,7 +113,15 @@ class MappingGoldenFileTest {
         new GoldenTestCase(
             "wide leaf-carrying projection (chunked patch)",
             "com.example.widepatch.WideProfileMappingImpl",
-            "WideProfileMappingImpl.java.golden"));
+            "WideProfileMappingImpl.java.golden"),
+        new GoldenTestCase(
+            "parse-only bean (getters only: parse and asValidatedParse, no build)",
+            "com.example.oneway.CustomerViewMappingImpl",
+            "ParseOnlyCustomerViewMappingImpl.java.golden"),
+        new GoldenTestCase(
+            "build-only bean (setters only: build and asValidatedBuild, no parse)",
+            "com.example.oneway.CustomerRequestMappingImpl",
+            "BuildOnlyCustomerRequestMappingImpl.java.golden"));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -172,7 +180,89 @@ class MappingGoldenFileTest {
             sealed(),
             wideRecord(),
             wideBean(),
-            widePatch());
+            widePatch(),
+            oneWay());
+  }
+
+  // ---- one-directional beans: a read model parsed only, a write model built only ----
+  private static JavaFileObject oneWay() {
+    return JavaFileObjects.forSourceString(
+        "com.example.oneway.Fixtures",
+        """
+        package com.example.oneway;
+
+        import java.util.List;
+        import java.util.Optional;
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.Getter;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.MappingSpec;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record EmailAddress(String value) {}
+
+        record Customer(String name, EmailAddress email, List<String> tags, Optional<String> nickname) {}
+
+        // Constructed whole and never written: parse-only.
+        class CustomerView {
+          private final String name;
+
+          CustomerView(String name) {
+            this.name = name;
+          }
+
+          public String getName() {
+            return name;
+          }
+
+          public String getEmail() {
+            return null;
+          }
+
+          public List<String> getTags() {
+            return null;
+          }
+
+          public String getNickname() {
+            return null;
+          }
+        }
+
+        // Filled and never read back: build-only.
+        class CustomerRequest {
+          public void setName(String name) {}
+
+          public void setEmail(String email) {}
+
+          public void setTags(List<String> tags) {}
+
+          public void setNickname(String nickname) {}
+
+          public void setDisplay(String display) {}
+        }
+
+        interface Emails {
+          default ValidatedPrism<String, EmailAddress> email() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.contains("@")
+                        ? Validated.validNel(new EmailAddress(raw))
+                        : Validated.invalidNel(FieldError.of("not an email address")),
+                EmailAddress::value);
+          }
+        }
+
+        @GenerateMapping
+        interface CustomerViewMapping extends MappingSpec<Customer, CustomerView>, Emails {}
+
+        @GenerateMapping
+        interface CustomerRequestMapping extends MappingSpec<Customer, CustomerRequest>, Emails {
+          default Getter<Customer, String> display() {
+            return Getter.of(c -> c.name() + " <" + c.email().value() + ">");
+          }
+        }
+        """);
   }
 
   // ---- lossless full: identity components on both sides, so asIso is emitted ----

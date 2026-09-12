@@ -337,9 +337,12 @@ inherited members name the declaring interface.
 
 Register the surface you consume as a bean, not the spec or Impl: `ValidatedPrism<Wire, Domain>`
 via `Impl.INSTANCE.asValidatedPrism()` (concrete; threaded specs use `instance()`, element-mapped
-specs build the Impl once with `of(prisms)` in the `@Bean` method) for parse-capable mappings;
-`Function`/`BiFunction` method references for build-only, `patch` and `updateFrom`.
-`ValidatedPrism` is SEALED: fakes are built as values with `ValidatedPrism.of(...)`, never mocked
+specs build the Impl once with `of(prisms)` in the `@Bean` method) for full mappings (they build and parse);
+`ValidatedParse<Wire, Domain>` (`asValidatedParse()`) or `ValidatedBuild<Wire, Domain>`
+(`asValidatedBuild()`) for a one-directional bean mapping; `Function`/`BiFunction` method
+references for a bare `build`, `patch` and `updateFrom`. `ValidatedPrism` is SEALED, and so are
+its two halves: fakes are built as values with `ValidatedPrism.of(...)` (or `ValidatedParse.of`,
+`ValidatedBuild.of`), never mocked
 (Mockito rejects sealed types). Spring resolves the generic type, so per-pair codecs coexist;
 same-pair duplicates need `@Qualifier`. Injection is optional: concrete and threaded Impls are
 stateless pure functions, element-mapped ones immutable values, and calling the Impl directly
@@ -372,12 +375,15 @@ Depending on what the mapping can honour:
 |------------|--------------|
 | Lossless both ways | `asIso()` |
 | A lossy projection (domain -> wire only) | all-identity (on a bean wire, all-primitive too): `asLens()`; any fallible correspondence, or on a bean wire any reference property (it can be unset): validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors, a bridged `Optional` reads empty); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
-| Parse-capable | `asValidatedPrism()` |
+| Full (it builds and parses) | `asValidatedPrism()` |
+| A bean wire with getters and nothing that writes it | `parse` + `asValidatedParse()`, **no** `build` |
+| A bean wire that is written and declares no getter | `build` + `asValidatedBuild()`, **no** `parse` |
 | Carrying **any** derived field | **no `asIso()`**: the round trip recomputes the derived component, so it is not an identity |
 
 Combining a derived field **with** a projection (a wire otherwise smaller than the domain) is
 rejected outright: the projection's `asLens()` write-back could never honour a component that
-`build` recomputes. There is no build-only fallback; drop the derived methods, or widen the wire.
+`build` recomputes; drop the derived methods, or widen the wire. A bean with no getters is another
+matter: it maps build-only whatever its width, derived fields included.
 
 ### Things worth knowing
 
@@ -424,6 +430,14 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   see `reference/mapping-example.md`. A bean projection with a reference
   property takes the validated `patch` (the property can be unset); an all-primitive one keeps
   `asLens()`.
+- **A bean crossed one way maps that way.** Getters and nothing that writes it: parse-only
+  (`parse` + `asValidatedParse()`; every domain component needs a getter, extra getters are
+  ignored, and a derived field declared there is refused). Writers and no getters: build-only
+  (`build` + `asValidatedBuild()`; every writer needs a domain component or a derived field). A
+  note names the direction. It nests only where its direction is used (a parse-only spec in a
+  parse-only mapping, an `UpdateSpec` or a merge; a build-only spec in a build-only mapping), an
+  `UpdateSpec` refuses either as its own PATCH bean, and a bean whose getters and setters never
+  share a name is refused as a likely typo.
 - **No component ceiling** on `parse`, the validated `patch`, or `@GenerateMerge`'s fallible
   merge: each is assembled via `Validated.fields()` ladders, chunked and combined applicatively
   past 16 legs, so a flat 20-30 field DTO maps without nesting. Error semantics are identical to
@@ -652,6 +666,8 @@ before rearranging the spec.
 | Expecting `parse` from a lossy projection | A projection drops data, so it cannot be inverted. You get `asLens()` (all-identity) or the validated `patch` (leaf-carrying, or a bean with a reference property), not `parse` |
 | A PATCH request bean on `MappingSpec` | A bean smaller than the domain compiles as a projection whose `patch` is dense: an unset property is `must not be null`, and an unset bridged `Optional` clears the value. For null-means-keep, extend `UpdateSpec` |
 | One spec extending both `MappingSpec` and `UpdateSpec` | Refused. One Impl carries one tier and the two emit disjoint members. Declare a spec per tier and share renames and leaves through a plain mix-in both extend |
+| Expecting `build` from a getter-only bean | Nothing can write it, so it maps parse-only, and a note says why. Give it a no-args constructor with setters, or a builder, and it maps both ways |
+| A read-only or write-only bean on an `UpdateSpec` | Refused: a sparse update reads `null` as absent, which only a bean that is written can leave unset, and a write-only bean has nothing to read |
 | Expecting `@GenerateMerge` to give you a reverse split | Merging is forward-only by design |
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
 | A JAXB getter-only `List` on an `UpdateSpec` | Its getter creates the list on first call, so it never reads `null`: an omitted field would clear the domain list rather than leave it alone. Rejected; give the property a setter |

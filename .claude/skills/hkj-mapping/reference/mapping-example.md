@@ -217,7 +217,7 @@ void customerMappingObeysTheLaws() {
 Two points that are easy to get wrong:
 
 - **`assertMappingLaws` takes an optic**, never the spec impl. Reach for the tier the mapping
-  actually emits: `asValidatedPrism()` when it can parse, `asIso()` when it is lossless, `asLens()`
+  actually emits: `asValidatedPrism()` when it builds and parses (`asValidatedParse()` or `asValidatedBuild()` for a one-directional bean), `asIso()` when it is lossless, `asLens()`
   for a projection.
 - This mapping has a **fallible leaf** (the email prism), so pass the two-wire-sample overload. The
   single-sample overload would pass without ever exercising the failure path, which is the one

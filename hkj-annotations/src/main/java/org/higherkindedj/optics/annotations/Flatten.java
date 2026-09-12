@@ -52,7 +52,7 @@ import java.lang.annotation.Target;
  * keeps the mapping lossless, so {@code asIso()} survives; one carrying a leaf or a nested spec is
  * fallible, as it would be at the top level. A mapping carrying a group is nested by other specs
  * like any other, in the same compilation or from a dependency; the marker is retained in the class
- * file so that a dependent compilation can tell such a spec is parse-capable.
+ * file so that a dependent compilation can tell such a spec maps both ways, and so nests.
  *
  * <p>Not supported yet: a flattened component on a bean-shaped wire, on a generic spec, on a
  * projection (a wire with fewer components) or on a sparse {@link UpdateSpec} (see below); a group

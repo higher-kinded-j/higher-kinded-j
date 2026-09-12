@@ -99,14 +99,18 @@ import java.lang.annotation.Target;
  *       {@code T} (empty maps to absent), with no declaration, unless that property is written
  *       through its own getter, which leaves it nothing to write absence into; on a record wire the
  *       same bridge is opted into per component with {@link OptionalBridge}. The domain stays a
- *       record.
+ *       record. A bean crossed one way only maps that way: one with getters and nothing that writes
+ *       it generates {@code parse} and {@code asValidatedParse()} and no {@code build}, and one
+ *       that can be written but declares no getter generates {@code build} and {@code
+ *       asValidatedBuild()} and no {@code parse}. A note names the direction, and such a mapping
+ *       nests wherever only its direction is used.
  *   <li>A lossless mapping additionally gets {@code asIso()}; a wire with fewer components maps as
  *       a projection with {@code asLens()} and no {@code parse} (truthful types); a projection
  *       carrying a fallible leaf, or a bean projection with a reference property (which can read
  *       null), swaps the lens for a validated {@code patch(Domain, Wire)} write-back —
  *       <em>dense</em> semantics: every projected component is written, never skipped, so a null is
- *       a located error (a bridged {@code Optional} reads it as empty). Every parse-capable mapping
- *       gets {@code asValidatedPrism()} so it plugs in wherever a leaf does.
+ *       a located error (a bridged {@code Optional} reads it as empty). Every mapping that builds
+ *       and parses gets {@code asValidatedPrism()} so it plugs in wherever a leaf does.
  *   <li>A spec extending {@link UpdateSpec} instead of {@link MappingSpec} opts into
  *       <em>sparse</em> null-as-absent PATCH — the REST {@code PATCH} contract: it generates only
  *       {@code updateFrom(Wire) : Edits.Accumulated<Domain>}, folding the present (non-null) wire

@@ -12,6 +12,8 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.edit.Edits;
+import org.higherkindedj.optics.validated.ValidatedBuild;
+import org.higherkindedj.optics.validated.ValidatedParse;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
@@ -47,6 +49,11 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *       Optional}) - the opposite of the sparse-update tier above. The laws compare domain values
  *       only, so a bean wire needs no {@code equals}. {@code build} after {@code patch} is
  *       deliberately NOT a law: a normalising leaf rewrites the wire form by design.
+ *   <li>parse-only tier ({@code asValidatedParse()} on a bean that is only read): pass a parsing
+ *       and a non-parsing wire value - acceptance, and the located rejection of every failure. With
+ *       no {@code build} there is no round trip to state.
+ *   <li>build-only tier ({@code asValidatedBuild()} on a bean that is only written): pass a domain
+ *       sample - build totality. With no {@code parse} there is nothing to round-trip against.
  * </ul>
  *
  * <p>The derived-field reality: {@code build} recomputes a derived wire component and {@code parse}
@@ -376,5 +383,70 @@ public final class MappingLaws {
     assertThat(result.getError().toJavaList())
         .as("Sparse validation law: every accumulated error must be located (non-empty path)")
         .allSatisfy(error -> assertThat(error.path()).isNotEmpty());
+  }
+
+  /**
+   * All laws of the parse-only tier ({@code asValidatedParse()} on a bean that is only read). With
+   * no {@code build} there is no round trip, so what remains is the parse contract itself.
+   *
+   * <ul>
+   *   <li><b>Acceptance</b> - {@code parse(parseableWire)} is {@code Valid}.
+   *   <li><b>Located rejection</b> - {@code parse(nonParseableWire)} is {@code Invalid}, and every
+   *       accumulated error carries a non-empty path, since a generated parse labels every leg.
+   * </ul>
+   *
+   * @param mapping the generated {@code Impl.INSTANCE.asValidatedParse()}
+   * @param parseableWire a wire that parses
+   * @param nonParseableWire a wire with at least one invalid component
+   */
+  public static <D, W> void assertMappingLaws(
+      ValidatedParse<W, D> mapping, W parseableWire, W nonParseableWire) {
+    assertParseAccepts(mapping, parseableWire);
+    assertParseRejectionLocated(mapping, nonParseableWire);
+  }
+
+  /** Parse acceptance: a wire the mapping should read parses, so {@code parse(wire)} is Valid. */
+  public static <D, W> void assertParseAccepts(ValidatedParse<W, D> mapping, W parseableWire) {
+    Validated<NonEmptyList<FieldError>, D> result = mapping.parse(parseableWire);
+    assertThat(result.isValid())
+        .as("Parse acceptance law: parse(%s) must be Valid; got %s", parseableWire, result)
+        .isTrue();
+  }
+
+  /**
+   * Located rejection: a wire with an invalid component fails, and every accumulated error is
+   * located (a non-empty path), as every generated parse leg is labelled.
+   */
+  public static <D, W> void assertParseRejectionLocated(
+      ValidatedParse<W, D> mapping, W nonParseableWire) {
+    Validated<NonEmptyList<FieldError>, D> result = mapping.parse(nonParseableWire);
+    assertThat(result.isInvalid())
+        .as("Located rejection law: parse(%s) must be Invalid; got %s", nonParseableWire, result)
+        .isTrue();
+    assertThat(result.getError().toJavaList())
+        .as("Located rejection law: every accumulated error must be located (non-empty path)")
+        .allSatisfy(error -> assertThat(error.path()).isNotEmpty());
+  }
+
+  /**
+   * The law of the build-only tier ({@code asValidatedBuild()} on a bean that is only written):
+   * {@code build} is total, rendering the sample without failing. There is no {@code parse} to
+   * round-trip against, and a bean's equality is its own affair, so totality is what can be stated.
+   *
+   * @param mapping the generated {@code Impl.INSTANCE.asValidatedBuild()}
+   * @param domainSample a domain value to render
+   */
+  public static <D, W> void assertMappingLaws(ValidatedBuild<W, D> mapping, D domainSample) {
+    assertBuildTotal(mapping, domainSample);
+  }
+
+  /** Build totality: {@code build(domainSample)} renders a wire value and throws nothing. */
+  public static <D, W> void assertBuildTotal(ValidatedBuild<W, D> mapping, D domainSample) {
+    try {
+      mapping.build(domainSample);
+    } catch (RuntimeException e) {
+      throw new AssertionError(
+          "Build totality law: build(" + domainSample + ") must not fail; it threw " + e, e);
+    }
   }
 }
