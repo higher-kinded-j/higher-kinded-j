@@ -547,6 +547,55 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * Refuses a getter-only {@code List} on a sparse update, whose whole contract is that a {@code
+   * null} read means "leave unchanged". The JAXB convention creates the list on first call, so the
+   * property has no unset state to read as {@code null}: an omitted field arrives as a present
+   * empty list, and the edit faithfully writes it, replacing whatever the domain held. Nothing
+   * fails, at compile time or at run time — the value is simply gone, which is why this is refused
+   * rather than documented.
+   *
+   * <p>The dense tier keeps the same property, filling it through {@code addAll} (see {@link
+   * #checkCollectionGettersFillable}); there absence has no meaning and every component is written.
+   * The two tiers refuse and accept the same shape for opposite reasons, so each asks at its own
+   * entry point rather than in the bean model they share.
+   *
+   * <p>The write site is the only signal available: whether a getter creates on first call cannot
+   * be read from its signature, so a getter-only {@code List} that would in fact answer {@code
+   * null} is refused with the rest. That over-refusal buys a diagnostic in place of silent data
+   * loss, and the setter it asks for is a line.
+   */
+  private boolean checkCollectionGettersCarryAbsence(TypeElement spec, WireShape.BeanShape bean) {
+    for (WireShape.BeanProperty property : bean.properties()) {
+      if (property.write() instanceof WireShape.WriteSite.CollectionAdd write) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "bean property '"
+                + property.name()
+                + "' on '"
+                + bean.element().getSimpleName()
+                + "' is a getter-only "
+                + ProcessorUtils.simpleTypeName(property.type())
+                + ", which cannot carry a sparse update's absence (not supported yet).",
+            "A sparse update reads null as 'not provided, leave unchanged', and "
+                + write.getter()
+                + "() creates its list on first call, so it never answers null: a request that"
+                + " omits '"
+                + property.name()
+                + "' would read as a present empty list and clear the domain value.",
+            "Give '"
+                + property.name()
+                + "' a set"
+                + ProcessorUtils.capitalise(property.name())
+                + " setter, so an omitted field leaves it null.");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
    * Refuses a getter-only {@code List} the build could not fill. Such a property is written by the
    * JAXB convention, {@code getX().addAll(...)}, and {@code addAll(Collection<? extends E>)} needs
    * the element type the declaration withholds: over a raw receiver the call is unchecked, which
@@ -2365,7 +2414,8 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     WireShape wireShape = new BeanPropertyAnalyser(processingEnv).analyse(spec, wireBean, TAG);
-    if (wireShape == null) {
+    if (wireShape == null
+        || !checkCollectionGettersCarryAbsence(spec, (WireShape.BeanShape) wireShape)) {
       return;
     }
 

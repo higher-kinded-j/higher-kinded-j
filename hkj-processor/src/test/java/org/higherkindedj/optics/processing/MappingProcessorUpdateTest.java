@@ -1889,6 +1889,169 @@ class MappingProcessorUpdateTest {
   @DisplayName("Shape diagnostics")
   class ShapeDiagnostics {
 
+    /** The domain a PATCH body edits: a name and a list the client may or may not send. */
+    private static final JavaFileObject TAGGED =
+        JavaFileObjects.forSourceString(
+            "com.example.Tagged",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record Tagged(String name, List<String> tags) {}
+            """);
+
+    private static final JavaFileObject TAGGED_PATCH =
+        JavaFileObjects.forSourceString(
+            "com.example.TaggedPatch",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.UpdateSpec;
+
+            @GenerateMapping
+            public interface TaggedPatch extends UpdateSpec<Tagged, TaggedPatchDto> {}
+            """);
+
+    @Test
+    @DisplayName(
+        "a getter-only List on a PATCH bean is rejected: its getter creates the list, so an"
+            + " omitted field could not read as absent")
+    void getterOnlyListCannotCarryAbsence() {
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.TaggedPatchDto",
+              """
+              package com.example;
+
+              import java.util.ArrayList;
+              import java.util.List;
+
+              public class TaggedPatchDto {
+                private String name;
+                private List<String> tags;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public List<String> getTags() {
+                  if (tags == null) { tags = new ArrayList<>(); }
+                  return tags;
+                }
+              }
+              """);
+
+      Compilation compilation = compile(TAGGED, dto, TAGGED_PATCH);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "is a getter-only List<String>, which cannot carry a sparse update's absence");
+      assertThat(compilation)
+          .hadErrorContaining("a request that omits 'tags' would read as a present empty list");
+      assertThat(compilation)
+          .hadErrorContaining("Give 'tags' a setTags setter, so an omitted field leaves it null");
+      // The element type is not what is wrong here, so the dense tier's remedy must not appear.
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("Declare the type arguments"));
+    }
+
+    @Test
+    @DisplayName(
+        "a setter on the same property keeps the absent signal: an omitted field leaves the"
+            + " domain list untouched, and a sent one replaces it")
+    void aSetterCarriesAbsence() throws ReflectiveOperationException {
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.TaggedPatchDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public class TaggedPatchDto {
+                private String name;
+                private List<String> tags;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public List<String> getTags() { return tags; }
+                public void setTags(List<String> tags) { this.tags = tags; }
+              }
+              """);
+
+      Compilation compilation = compile(TAGGED, dto, TAGGED_PATCH);
+      assertThat(compilation).succeeded();
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.TaggedPatchImpl");
+      // The canonical constructor by declared types: List.of(...) is not List.class at runtime.
+      var tagged =
+          result.loadClass("com.example.Tagged").getDeclaredConstructor(String.class, List.class);
+      Object current = tagged.newInstance("old", List.of("keep", "these"));
+
+      Object omitted = result.newInstance("com.example.TaggedPatchDto");
+      invoke(omitted, "setName", "new");
+      Assertions.assertThat(apply(impl, omitted, current))
+          .as("an omitted field leaves the domain list alone")
+          .isEqualTo(tagged.newInstance("new", List.of("keep", "these")));
+
+      Object sent = result.newInstance("com.example.TaggedPatchDto");
+      invoke(sent, "setTags", List.of("fresh"));
+      Assertions.assertThat(apply(impl, sent, current))
+          .as("a sent field replaces it")
+          .isEqualTo(tagged.newInstance("old", List.of("fresh")));
+    }
+
+    /** {@code updateFrom(wire).apply(current)}, the sparse write-back in one step. */
+    @SuppressWarnings("unchecked")
+    private static Object apply(Object impl, Object wire, Object current) {
+      Object accumulated = invoke(impl, "updateFrom", wire);
+      return ((Validated<NonEmptyList<FieldError>, Object>) invoke(accumulated, "apply", current))
+          .get();
+    }
+
+    @Test
+    @DisplayName(
+        "the dense tier keeps the same getter-only List: it writes every component, so absence"
+            + " has nothing to mean there")
+    void theDenseTierKeepsTheGetterOnlyList() {
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.TaggedDto",
+              """
+              package com.example;
+
+              import java.util.ArrayList;
+              import java.util.List;
+
+              public class TaggedDto {
+                private String name;
+                private List<String> tags;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public List<String> getTags() {
+                  if (tags == null) { tags = new ArrayList<>(); }
+                  return tags;
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.TaggedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface TaggedMapping extends MappingSpec<Tagged, TaggedDto> {}
+              """);
+
+      Compilation compilation = compile(TAGGED, dto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.TaggedMappingImpl"))
+          .contains("wire.getTags().addAll(domain.tags());");
+    }
+
     @Test
     @DisplayName("a raw UpdateSpec (no type arguments) is rejected")
     void rawUpdateSpec() {
