@@ -1384,6 +1384,73 @@ class MergeProcessorTest {
               new FieldError(List.of("scores", "ada"), "must not be null"));
     }
 
+    @Test
+    @DisplayName("a Set and an array fill are scanned too, the same doctrine as a List")
+    void identitySetAndArrayFillsAreScanned() throws Exception {
+      JavaFileObject records =
+          JavaFileObjects.forSourceString(
+              "com.example.Crews",
+              """
+              package com.example;
+
+              import java.util.Set;
+
+              public final class Crews {
+                public record Source(Set<String> tags, String[] codes, int[] ranks) {}
+
+                public record Extra(String note) {}
+
+                public record Target(
+                    Set<String> tags, String[] codes, int[] ranks, String note) {}
+              }
+              """);
+      JavaFileObject spec =
+          spec(
+              "CrewAssembly",
+              """
+              public interface CrewAssembly {
+                Validated<NonEmptyList<FieldError>, Crews.Target> assemble(
+                    Crews.Source source, Crews.Extra extra);
+
+                default ValidatedPrism<String, String> note() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      Compilation compilation = compile(records, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CrewAssemblyImpl"))
+          .contains(".field(\"tags\", hkj$allPresent(source.tags()))")
+          .contains(".field(\"codes\", hkj$allPresent(source.codes()))")
+          // a primitive array has no element that could be null
+          .contains(".field(\"ranks\", hkj$ifPresent(source.ranks(), Validated::validNel))")
+          .contains("Set<E> values")
+          .contains("E[] values");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.CrewAssemblyImpl");
+      java.util.Set<String> tags = new java.util.LinkedHashSet<>(List.of("keep"));
+      tags.add(null);
+      Object source =
+          result
+              .loadClass("com.example.Crews$Source")
+              .getDeclaredConstructor(java.util.Set.class, String[].class, int[].class)
+              .newInstance(tags, new String[] {"a", null}, new int[] {1});
+      Object extra =
+          result
+              .loadClass("com.example.Crews$Extra")
+              .getDeclaredConstructor(String.class)
+              .newInstance("n");
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> merged =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "assemble", source, extra);
+      Assertions.assertThat(merged.isInvalid()).isTrue();
+      Assertions.assertThat(merged.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("tags"), "must not contain a null element"),
+              new FieldError(List.of("codes", "1"), "must not be null"));
+    }
+
     private static final JavaFileObject TYPED_ASSEMBLY =
         spec(
             "TypedAssembly",

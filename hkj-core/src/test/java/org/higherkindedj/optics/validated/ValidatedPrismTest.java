@@ -507,6 +507,13 @@ class ValidatedPrismTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.buildKeys(nullKey))
           .withMessage("values must not contain a null key");
+      // A pass-through value is still a value: parseKeys rejects a null one, so rendering it
+      // would build a wire this same prism refuses to read back.
+      Map<Email, Integer> nullValue = new LinkedHashMap<>();
+      nullValue.put(new Email("a@b"), null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildKeys(nullValue))
+          .withMessage("values[Email[value=a@b]] must not be null");
       Map<Email, Email> nullEntryKey = new HashMap<>();
       nullEntryKey.put(null, new Email("x@y"));
       assertThatNullPointerException()

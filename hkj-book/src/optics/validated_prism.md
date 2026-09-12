@@ -126,7 +126,7 @@ The stock vocabulary in [`StandardCodecs`](../mapping/codecs.md#standard-codecs)
 
 ---
 
-## The bulk forms: `parseAll` and `parseValues`
+## The bulk forms {#the-bulk-forms-parseall-and-parsevalues}
 
 One prism lifts over whole containers, accumulating **every** failure and locating each by whatever identifies an element in that container:
 
@@ -153,7 +153,7 @@ Mapping is not injective, so a container can **collapse**. A set collapses silen
 * **Only build-preserving compositions exist**: `ValidatedPrism`, `Iso`, and `Prism`-with-a-reason; `Lens` deliberately not
 * **Both round-trip laws are published** in `hkj-test`; the section law forbids lossy build-normalisation
 * **`canonical(message, parse, render)` guards the section law per value**: the render defines the canonical form and every spelling it cannot reproduce is rejected; that the parse accepts the renderings, injectively, stays your obligation (check with `ValidatedPrismLaws`)
-* **One prism lifts over containers**: `parseAll`/`parseValues` accumulate every element failure, located by index or key
+* **One prism lifts over containers**: The bulk forms accumulate every element failure, located by index or key
 * **`parsePath` lands on the railway** (`ValidationPath`) directly
 ~~~
 

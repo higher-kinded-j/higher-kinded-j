@@ -178,6 +178,26 @@ class MappingProcessorTest {
   @DisplayName("Container lifting")
   class ContainerLifting {
 
+    private static JavaFileObject records(String body) {
+      return JavaFileObjects.forSourceString(
+          "com.example.Records", "package com.example;\n" + body);
+    }
+
+    private static JavaFileObject spec(String name, String body) {
+      return JavaFileObjects.forSourceString(
+          "com.example." + name,
+          """
+          package com.example;
+
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.higherkindedj.optics.validated.ValidatedPrism;
+
+          @GenerateMapping
+          """
+              + body);
+    }
+
     @Test
     @DisplayName("List and Optional components lift through the element leaf")
     void listAndOptionalLift() {
@@ -639,6 +659,299 @@ class MappingProcessorTest {
       // int[] vs Integer[] (primitive wire element), String[] vs int[] (primitive domain
       // element) and String[] vs List<String> (different containers) are all plain mismatches.
       assertThat(compilation).hadErrorContaining("has no usable source");
+    }
+
+    @Test
+    @DisplayName("an array whose element cannot name a constructor is refused, not miscompiled")
+    void unnameableArrayElementsAreRefused() {
+      JavaFileObject types =
+          records(
+              """
+              public final class Records {
+                public record Email(String value) {}
+
+                public record Page<T>(T[] items) {}
+
+                public record PageDto<TDto>(TDto[] items) {}
+
+                public record Tagged(Email[] items) {}
+
+                public record TaggedDto(java.util.List<String>[] items) {}
+
+                public record Boxed(java.util.List<String>[] items) {}
+
+                public record BoxedDto(String[] items) {}
+
+                public record Deep(Email[][] items) {}
+
+                public record DeepDto(java.util.List<String>[][] items) {}
+              }
+              """);
+
+      // A type variable: the generated Domain[]::new would be generic array creation.
+      Compilation typeVariable =
+          compile(
+              types,
+              spec(
+                  "ElementPageMapping",
+                  "public interface ElementPageMapping<T, TDto> extends"
+                      + " MappingSpec<Records.Page<T>, Records.PageDto<TDto>> {"
+                      + " ValidatedPrism<TDto, T> items(); }"));
+      assertThat(typeVariable).failed();
+      assertThat(typeVariable)
+          .hadErrorContaining(
+              "field 'items' is an array whose element type T cannot name an"
+                  + " array constructor");
+      assertThat(typeVariable).hadErrorContaining("'T[]::new' would not compile");
+      // and it is the ONLY complaint: no misleading no-usable-source beside it
+      Assertions.assertThat(typeVariable.errors()).hasSize(1);
+
+      // A parameterised element on the WIRE side is refused the same way, and named.
+      Compilation parameterised =
+          compile(
+              types,
+              spec(
+                  "TaggedMapping",
+                  "public interface TaggedMapping extends MappingSpec<Records.Tagged,"
+                      + " Records.TaggedDto> {}"));
+      assertThat(parameterised).failed();
+      assertThat(parameterised)
+          .hadErrorContaining("element type java.util.List<java.lang.String> cannot name an");
+
+      // The same refusal when it is the DOMAIN element that cannot be named.
+      Compilation domainSide =
+          compile(
+              types,
+              spec(
+                  "BoxedMapping",
+                  "public interface BoxedMapping extends MappingSpec<Records.Boxed,"
+                      + " Records.BoxedDto> {}"));
+      assertThat(domainSide).failed();
+      assertThat(domainSide)
+          .hadErrorContaining("element type java.util.List<java.lang.String> cannot name an");
+
+      // Nesting does not launder it: an array OF arrays is nameable only if the innermost
+      // element is, so List<String>[][] is refused exactly as List<String>[] is.
+      Compilation nested =
+          compile(
+              types,
+              spec(
+                  "DeepMapping",
+                  "public interface DeepMapping extends MappingSpec<Records.Deep,"
+                      + " Records.DeepDto> {}"));
+      assertThat(nested).failed();
+      assertThat(nested).hadErrorContaining("cannot name an array constructor");
+    }
+
+    @Test
+    @DisplayName("a leaf on a same-typed unnameable array is refused, never silently dropped")
+    void sameTypedUnnameableArrayWithALeafIsRefused() {
+      JavaFileObject types =
+          records(
+              """
+              public final class Records {
+                public record Doc(java.util.List<String>[] sections) {}
+
+                public record DocDto(java.util.List<String>[] sections) {}
+
+                public record Plain(java.util.List<String>[] sections) {}
+
+                public record PlainDto(java.util.List<String>[] sections) {}
+              }
+              """);
+
+      // Both sides are the same unnameable array type, so identity WOULD copy them - but a
+      // declared element leaf cannot be carried, and dropping it would copy unvalidated.
+      Compilation withLeaf =
+          compile(
+              types,
+              spec(
+                  "DocMapping",
+                  "public interface DocMapping extends MappingSpec<Records.Doc,"
+                      + " Records.DocDto> {"
+                      + " default ValidatedPrism<java.util.List<String>,"
+                      + " java.util.List<String>> sections() {"
+                      + " return ValidatedPrism.of("
+                      + " org.higherkindedj.hkt.validated.Validated::validNel, v -> v); } }"));
+      assertThat(withLeaf).failed();
+      assertThat(withLeaf).hadErrorContaining("cannot name an array constructor");
+
+      // Without a leaf the same pair still copies by identity: no array is created, so it
+      // stays legal and is left alone.
+      Compilation leafless =
+          compile(
+              types,
+              spec(
+                  "PlainMapping",
+                  "public interface PlainMapping extends MappingSpec<Records.Plain,"
+                      + " Records.PlainDto> {}"));
+      assertThat(leafless).succeeded();
+      Assertions.assertThat(generatedSource(leafless, "com.example.PlainMappingImpl"))
+          .contains(".field(\"sections\", hkj$allPresent(wire.sections()))");
+    }
+
+    @Test
+    @DisplayName("an unresolved array element leaves the diagnostic to javac")
+    void unresolvedArrayElementStaysQuiet() {
+      JavaFileObject types =
+          records(
+              """
+              public final class Records {
+                public record Holder(Missing[] items) {}
+
+                public record HolderDto(String[] items) {}
+              }
+              """);
+      Compilation compilation =
+          compile(
+              types,
+              spec(
+                  "HolderMapping",
+                  "public interface HolderMapping extends MappingSpec<Records.Holder,"
+                      + " Records.HolderDto> {}"));
+      assertThat(compilation).failed();
+      // javac's cannot-find-symbol is the only thing to fix; we add nothing to it.
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(d -> d.getMessage(null).contains("cannot name an array constructor"));
+    }
+
+    @Test
+    @DisplayName("an unbounded-wildcard element names a constructor; a bounded one does not")
+    void wildcardArrayElements() {
+      JavaFileObject types =
+          records(
+              """
+              public final class Records {
+                public record Bag(java.util.List<?> values) {}
+
+                public record Open(Bag[] items) {}
+
+                public record OpenDto(java.util.List<?>[] items) {}
+
+                public record Bounded(Bag[] items) {}
+
+                public record BoundedDto(java.util.List<? extends Number>[] items) {}
+
+                public record Lower(Bag[] items) {}
+
+                public record LowerDto(java.util.List<? super Number>[] items) {}
+              }
+              """);
+
+      // An unbounded wildcard is reifiable: List<?>[]::new compiles, so the array lifts.
+      Compilation unbounded =
+          compile(
+              types,
+              spec(
+                  "OpenMapping",
+                  "public interface OpenMapping extends MappingSpec<Records.Open,"
+                      + " Records.OpenDto> {"
+                      + " default ValidatedPrism<java.util.List<?>, Records.Bag> items() {"
+                      + " return ValidatedPrism.of(v ->"
+                      + " org.higherkindedj.hkt.validated.Validated.validNel("
+                      + " new Records.Bag(v)), Records.Bag::values); } }"));
+      assertThat(unbounded).succeeded();
+      Assertions.assertThat(generatedSource(unbounded, "com.example.OpenMappingImpl"))
+          .contains("items().parseAll(v, Records.Bag[]::new)")
+          // an unbounded wildcard survives into the constructor reference, and compiles
+          .contains("items().buildAll(domain.items(), List<?>[]::new)");
+
+      // A bounded wildcard is not: List<? extends Number>[]::new is generic array creation.
+      Compilation bounded =
+          compile(
+              types,
+              spec(
+                  "BoundedMapping",
+                  "public interface BoundedMapping extends MappingSpec<Records.Bounded,"
+                      + " Records.BoundedDto> {}"));
+      assertThat(bounded).failed();
+      assertThat(bounded).hadErrorContaining("cannot name an array constructor");
+
+      Compilation lower =
+          compile(
+              types,
+              spec(
+                  "LowerMapping",
+                  "public interface LowerMapping extends MappingSpec<Records.Lower,"
+                      + " Records.LowerDto> {}"));
+      assertThat(lower).failed();
+      assertThat(lower).hadErrorContaining("cannot name an array constructor");
+    }
+
+    @Test
+    @DisplayName("nested and primitive-backed arrays lift: their elements can name constructors")
+    void nestedAndPrimitiveBackedArraysLift() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Grid",
+              """
+              package com.example;
+
+              public record Grid(EmailAddress[][] rows, Digits[] counters) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.GridDto",
+              """
+              package com.example;
+
+              public record GridDto(String[][] rows, int[][] counters) {}
+              """);
+      JavaFileObject digits =
+          JavaFileObjects.forSourceString(
+              "com.example.Digits",
+              """
+              package com.example;
+
+              public record Digits(int[] values) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.GridMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface GridMapping extends MappingSpec<Grid, GridDto> {
+                // an ARRAY element type: String[] names its own constructor
+                default ValidatedPrism<String[], EmailAddress[]> rows() {
+                  return ValidatedPrism.of(
+                      raw -> {
+                        EmailAddress[] out = new EmailAddress[raw.length];
+                        for (int i = 0; i < raw.length; i++) {
+                          out[i] = new EmailAddress(raw[i]);
+                        }
+                        return Validated.validNel(out);
+                      },
+                      values -> {
+                        String[] out = new String[values.length];
+                        for (int i = 0; i < values.length; i++) {
+                          out[i] = values[i].value();
+                        }
+                        return out;
+                      });
+                }
+
+                // an array of PRIMITIVE arrays: int[] names its own constructor too
+                default ValidatedPrism<int[], Digits> counters() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new Digits(raw)), Digits::values);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, digits, domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.GridMappingImpl"))
+          .contains("rows().parseAll(v, EmailAddress[][]::new)")
+          .contains("counters().parseAll(v, Digits[]::new)")
+          .contains("rows().buildAll(domain.rows(), String[][]::new)")
+          .contains("counters().buildAll(domain.counters(), int[][]::new)");
     }
 
     @Test
@@ -1271,7 +1584,10 @@ class MappingProcessorTest {
               """);
       Compilation compilation = compile(domain, wire, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("key types differ");
+      // The placement sweep catches it first, and says more than "key types differ" would:
+      // the leaf is named at the right component but converts to the wrong domain key.
+      assertThat(compilation)
+          .hadErrorContaining("does not declare a leaf over that component's key type");
     }
 
     @Test
@@ -1328,6 +1644,177 @@ class MappingProcessorTest {
       Compilation compilation = compile(EMAIL, domain, wire, code, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("has no usable source");
+    }
+
+    @Test
+    @DisplayName("a @MapKey that is not a leaf over the component's key type is refused")
+    void mapKeyMustBeALeafOverTheKeyType() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MistypedKeyMapping",
+              """
+              package com.example;
+
+              import java.util.Locale;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface MistypedKeyMapping
+                  extends MappingSpec<Directory, DirectoryDto> {
+                default ValidatedPrism<String, EmailAddress> entries() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+
+                // The component's keys are String; this converts to Locale, so it would
+                // convert nothing and the keys would copy unvalidated.
+                @MapKey("entries")
+                default ValidatedPrism<String, Locale> entryKey() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(Locale.of(raw)), Locale::toString);
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, DIRECTORY, DIRECTORY_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("does not declare a leaf over that component's key type");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Return ValidatedPrism<WireKey, java.lang.String> from" + " 'entryKey'");
+    }
+
+    @Test
+    @DisplayName("an abstract @MapKey on a generic spec is a leaf, supplied at of(...) time")
+    void abstractMapKeyIsALeaf() {
+      JavaFileObject types =
+          JavaFileObjects.forSourceString(
+              "com.example.Registry",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public final class Registry {
+                public record Book<K>(Map<K, String> byKey) {}
+
+                public record BookDto<KDto>(Map<KDto, String> byKey) {}
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.OpenKeyMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              // The key mapping is deliberately open: an abstract leaf, supplied at of(...) time.
+              @GenerateMapping
+              public interface OpenKeyMapping<K, KDto>
+                  extends MappingSpec<Registry.Book<K>, Registry.BookDto<KDto>> {
+                @MapKey("byKey")
+                ValidatedPrism<KDto, K> byKeyKey();
+              }
+              """);
+      Compilation compilation = compile(types, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.OpenKeyMappingImpl"))
+          .contains("byKeyKey()::parseKeys")
+          .contains("byKeyKey().buildKeys(domain.byKey())");
+    }
+
+    @Test
+    @DisplayName("a @MapKey that is not leaf-shaped at all is refused, never silently ignored")
+    void mapKeyMustBeLeafShaped() {
+      List<String> shapes =
+          List.of(
+              // not a ValidatedPrism at all
+              "default String entryKey() { return \"\"; }",
+              // not even a class type
+              "default int entryKey() { return 0; }",
+              // leaf-shaped but parameterised
+              "default ValidatedPrism<String, String> entryKey(int n) { return null; }",
+              // a raw ValidatedPrism declares no key type to convert to
+              "@SuppressWarnings(\"rawtypes\") default ValidatedPrism entryKey() { return null; }",
+              // neither default nor abstract, so it is no leaf
+              "static ValidatedPrism<String, String> entryKey() { return null; }");
+      for (String shape : shapes) {
+        JavaFileObject spec =
+            JavaFileObjects.forSourceString(
+                "com.example.ShapelessKeyMapping",
+                "package com.example;\n"
+                    + "import org.higherkindedj.optics.annotations.GenerateMapping;\n"
+                    + "import org.higherkindedj.optics.annotations.MapKey;\n"
+                    + "import org.higherkindedj.optics.annotations.MappingSpec;\n"
+                    + "import org.higherkindedj.optics.validated.ValidatedPrism;\n"
+                    + "@GenerateMapping\n"
+                    + "public interface ShapelessKeyMapping"
+                    + " extends MappingSpec<Directory, DirectoryDto> {\n"
+                    + "  @MapKey(\"entries\") "
+                    + shape
+                    + "\n}\n");
+        Compilation compilation = compile(EMAIL, DIRECTORY, DIRECTORY_DTO, spec);
+        assertThat(compilation).failed();
+        assertThat(compilation)
+            .hadErrorContaining("does not declare a leaf over that component's key type");
+      }
+    }
+
+    @Test
+    @DisplayName("a key leaf matching the domain key but not the wire key is no key leaf")
+    void keyLeafMustConvertTheWireKeyToo() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Numbered",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record Numbered(Map<String, String> byCode) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.NumberedDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public record NumberedDto(Map<Integer, String> byCode) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.NumberedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface NumberedMapping extends MappingSpec<Numbered, NumberedDto> {
+                // produces the right DOMAIN key, but reads a String the wire never sends
+                @MapKey("byCode")
+                default ValidatedPrism<String, String> codeKey() {
+                  return ValidatedPrism.of(Validated::validNel, c -> c);
+                }
+              }
+              """);
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("key types differ");
     }
 
     @Test

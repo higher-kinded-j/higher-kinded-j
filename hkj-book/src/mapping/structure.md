@@ -43,7 +43,7 @@ Containers lift the same way, and each one locates a failure by whatever identif
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_usage}}
 ```
 
-Lifting needs the *same* container on both sides. A `List` against a `Set`, or an array against a `List`, is not a pair: it reports as a plain type mismatch rather than silently changing what the collection promises. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead. An array of primitives (`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive, and a primitive element cannot be null.
+Lifting needs the *same* container on both sides. A `List` against a `Set`, or an array against a `List`, is not a pair: it reports as a plain type mismatch rather than silently changing what the collection promises. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead. An array of primitives (`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive, and a primitive element cannot be null. An array element type must also be able to name its own constructor, since lifting builds a new array: a type variable or a parameterised element (`T[]`, `List<Tag>[]`) is refused, because the generated `T[]::new` is generic array creation.
 
 Locating a set element by its own rendering is the only honest answer available: a set has no index, and its iteration order is not part of its contract, so numbering the elements would name a *different* one on the next run. The value is what identifies the element, so that is what the path says.
 
@@ -77,13 +77,9 @@ Without a key leaf, keys can only pass through, so their types must match exactl
 A failing key locates by the **source** key, so the path names what the caller sent rather than what it parsed to. An entry that is wrong on both sides therefore reports both reasons at that one place.
 
 ~~~admonish warning title="Cardinality can collapse"
-Element mapping is not injective, so two wire values can become one domain value.
+A collapse needs a **non-injective** leaf - two wire values parsing to one domain value - and such a leaf already breaks the `ValidatedPrism` section law (`parse(s) == Valid(a)` implies `build(a) == s`). [`ValidatedPrismLaws`](../tooling/test_assertions.md#optic-laws) catches it, and [`ValidatedPrism.canonical`](../optics/validated_prism.md) rules it out by construction. So neither case below arises from a lawful leaf, and neither can reach the lossless [`asIso()`](tiers.md) tier, which a leaf already excludes.
 
-In a `Set` the collapse is **silent**: the two survivors are equal, so nothing is lost, and normalising is exactly what an element prism over a set is for.
-
-Two `Map` keys that parse to the same domain key are a **located failure** (`attributes.ab: duplicates an earlier key`): the dropped entry takes its own value with it, and that value need not be equal to anything.
-
-Neither case can reach the lossless [`asIso()`](tiers.md) tier - a collapse needs a leaf, and a leaf already makes the mapping fallible.
+Where one does happen, the two containers answer differently because what is lost differs. Collapsed `Set` elements are *equal to each other*, so the set still holds everything it was given: the collapse is **silent**. Two `Map` keys parsing to one domain key discard a whole entry, and the discarded value need not equal the surviving one, so that is a **located failure** (`attributes.ab: duplicates an earlier key`).
 ~~~
 
 ---

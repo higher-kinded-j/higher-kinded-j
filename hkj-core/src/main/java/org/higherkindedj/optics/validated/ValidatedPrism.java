@@ -235,8 +235,10 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
    * distinct from {@code must not be null}, which says the set itself is absent.
    *
    * <p>Mapping a set can <b>collapse</b> it: two sources that parse to equal domain values leave
-   * one element. Nothing is lost (the survivors are equal), and normalising is exactly what an
-   * element prism over a set is for, so the collapse is silent. Iteration order is preserved.
+   * one element. That needs a non-injective prism, which already breaks the section law this type
+   * documents, so no lawful prism collapses; where one does, the survivors are equal and the set
+   * still holds everything it was given, so the collapse is silent rather than a failure with
+   * nothing to report. Iteration order is preserved.
    *
    * @param sources the wire values; the set itself must not be null
    * @return {@code Valid(set)} or every failure from every element, in iteration order (non-null,
@@ -525,17 +527,22 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
    * order is preserved. Domain keys that render to the same wire key collapse to one entry, the
    * total mirror of {@link #parseKeys(Map)}' located collision.
    *
-   * @param values the domain values by key; neither the map nor its keys may be null
+   * @param values the domain values by key; neither the map, its keys, nor its values may be null
    * @param <V> the value type, carried through unchanged
    * @return the rendered keys' map, immutable and in entry order (non-null)
-   * @throws NullPointerException if {@code values} or one of its keys is null
+   * @throws NullPointerException if {@code values}, one of its keys, or one of its values is null
+   *     (the message names the offending key) — a pass-through value is still a value, and {@link
+   *     #parseKeys(Map)} rejects a null one, so rendering it would build a wire the same prism
+   *     refuses to read back
    */
   default <V> Map<S, V> buildKeys(Map<? extends A, V> values) {
     Objects.requireNonNull(values, "values must not be null");
     Map<S, V> built = LinkedHashMap.newLinkedHashMap(values.size());
     for (Map.Entry<? extends A, V> entry : values.entrySet()) {
       A key = Objects.requireNonNull(entry.getKey(), "values must not contain a null key");
-      built.put(build(key), entry.getValue());
+      built.put(
+          build(key),
+          Objects.requireNonNull(entry.getValue(), "values[" + key + "] must not be null"));
     }
     // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
     return Collections.unmodifiableMap(built);

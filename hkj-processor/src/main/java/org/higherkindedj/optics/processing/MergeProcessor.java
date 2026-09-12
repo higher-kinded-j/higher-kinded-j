@@ -29,6 +29,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -352,16 +353,29 @@ public class MergeProcessor extends AbstractProcessor {
     }
   }
 
-  /** Identity fills of List/Map components scan for null elements/values on the fallible path. */
+  /**
+   * Identity fills of container components scan for null elements/values on the fallible path, the
+   * same doctrine {@code MappingProcessor} applies to its own identity containers - and over the
+   * same containers, so the two processors cannot answer a null element differently.
+   */
   private enum ContainerKind {
     NONE,
     LIST,
+    SET,
+    ARRAY,
     MAP
   }
 
   private static ContainerKind containerKind(TypeMirror type) {
     if (MappingProcessor.isExactly(type, "java.util.List")) {
       return ContainerKind.LIST;
+    }
+    if (MappingProcessor.isExactly(type, "java.util.Set")) {
+      return ContainerKind.SET;
+    }
+    // A primitive array has no element that could be null, so it needs no scan.
+    if (type instanceof ArrayType array && !array.getComponentType().getKind().isPrimitive()) {
+      return ContainerKind.ARRAY;
     }
     if (MappingProcessor.isExactly(type, "java.util.Map")) {
       return ContainerKind.MAP;
@@ -639,7 +653,10 @@ public class MergeProcessor extends AbstractProcessor {
                   fill.sourceParam(),
                   fill.component(),
                   fill.prism()));
-        } else if (fill.containerKind() == ContainerKind.LIST) {
+        } else if (fill.containerKind() == ContainerKind.LIST
+            || fill.containerKind() == ContainerKind.SET
+            || fill.containerKind() == ContainerKind.ARRAY) {
+          // One call text for all three: hkj$allPresent is overloaded on the container.
           legs.add(
               CodeBlock.of(
                   "\n.field($S, hkj$$allPresent($L.$L()))",
@@ -730,6 +747,12 @@ public class MergeProcessor extends AbstractProcessor {
       implBuilder.addMethod(MappingProcessor.ifPresentHelper());
       if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.LIST)) {
         implBuilder.addMethod(MappingProcessor.allPresentHelper());
+      }
+      if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.SET)) {
+        implBuilder.addMethod(MappingProcessor.allPresentSetHelper());
+      }
+      if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.ARRAY)) {
+        implBuilder.addMethod(MappingProcessor.allPresentArrayHelper());
       }
       if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.MAP)) {
         implBuilder.addMethod(MappingProcessor.valuesPresentHelper());

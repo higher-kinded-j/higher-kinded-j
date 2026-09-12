@@ -315,7 +315,7 @@ declared on the spec, collected transitively with Java's own precedence (a local
 the mix-in's member; a diamond counts once; unrelated mix-ins agreeing on an abstract rename or
 marker fold into one stub returning the narrowest declared type, conflicting rename targets are
 diagnosed naming both interfaces, and a group with no narrowest return is refused naming every
-declaration). An inherited leaf, bridge or `@Flatten` marker naming no component of the extending
+declaration). An inherited leaf, bridge, `@MapKey` key leaf or `@Flatten` marker naming no component of the extending
 spec's domain stays inert; a local one is an error. Interface statics are not inherited.
 Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec (directly
 or transitively extends `MappingSpec`/`UpdateSpec`), and a generic mix-in reached raw (a generic

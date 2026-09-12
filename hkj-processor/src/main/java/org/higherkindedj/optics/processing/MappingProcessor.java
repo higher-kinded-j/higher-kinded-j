@@ -52,6 +52,7 @@ import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -965,94 +966,6 @@ public class MappingProcessor extends AbstractProcessor {
    * than wrong: a note, not an error, and silence for an inherited one — a mix-in serving a record
    * spec and a bean spec is exactly the shared vocabulary the book recommends.
    */
-  /**
-   * Validates every {@code @MapKey}: it must name a {@code Map} component of the domain (or of a
-   * flattened group), be leaf-shaped over that component's KEY types, and be the only key leaf for
-   * it. An inherited annotation naming nothing stays inert, as {@code @OptionalBridge}'s does — a
-   * mix-in may carry a key leaf for components a given spec does not have.
-   */
-  private boolean checkMapKeysApply(
-      TypeElement spec,
-      TypeElement domain,
-      DeclaredType domainDeclared,
-      List<Flattened> flattened) {
-    List<String> components =
-        Stream.concat(
-                domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()),
-                flattened.stream().flatMap(group -> group.inner().stream()))
-            .toList();
-    Set<String> claimed = new LinkedHashSet<>();
-    for (ExecutableElement method : specMembers(spec)) {
-      MapKey declared = method.getAnnotation(MapKey.class);
-      if (declared == null) {
-        continue;
-      }
-      String name = declared.value();
-      boolean local = method.getEnclosingElement().equals(spec);
-      Owned owned = ownedComponent(domain, domainDeclared, flattened, name);
-      if (owned == null) {
-        if (!local) {
-          continue;
-        }
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            method,
-            TAG,
-            "@MapKey(\"" + name + "\") names no component of " + domain.getSimpleName(),
-            "A key leaf names the DOMAIN Map component whose keys it converts; an unmatched one"
-                + " converts nothing."
-                + didYouMean(name, components)
-                + " Found on "
-                + domain.getSimpleName()
-                + ": "
-                + components
-                + ".",
-            "Point the annotation at the component it converts, or remove it.");
-        return false;
-      }
-      TypeMirror domainType = componentType(owned.ownerDeclared(), owned.component());
-      DeclaredType asMap = asMapType(domainType);
-      if (asMap == null || asMap.getTypeArguments().size() != 2) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            method,
-            TAG,
-            "@MapKey(\""
-                + name
-                + "\")"
-                + inheritedNote(method, spec)
-                + (asMap == null
-                    ? " names a component that is not a Map."
-                    : " names a raw Map component."),
-            asMap == null
-                ? "A key leaf converts the keys of a Map component; '"
-                    + owned.owner().getSimpleName()
-                    + "."
-                    + name
-                    + "' is "
-                    + domainType
-                    + ", which has no keys."
-                : "A key leaf converts the key type, and a raw Map declares none.",
-            asMap == null
-                ? "Point the annotation at a Map component, or remove it."
-                : "Declare both type arguments, for example Map<Locale, String>.");
-        return false;
-      }
-      if (!claimed.add(name)) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            method,
-            TAG,
-            "'" + name + "' has more than one @MapKey leaf.",
-            "A Map component's keys convert through exactly one leaf; a second would leave the"
-                + " choice between them arbitrary.",
-            "Keep one @MapKey(\"" + name + "\") method and remove the others.");
-        return false;
-      }
-    }
-    return true;
-  }
-
   private boolean checkBridgesApply(
       TypeElement spec,
       TypeElement domain,
@@ -1201,6 +1114,143 @@ public class MappingProcessor extends AbstractProcessor {
       }
     }
     return true;
+  }
+
+  /**
+   * Validates every {@code @MapKey}: it must name a {@code Map} component of the domain (or of a
+   * flattened group), be leaf-shaped over that component's KEY types, and be the only key leaf for
+   * it. An inherited annotation naming nothing stays inert, as {@code @OptionalBridge}'s does — a
+   * mix-in may carry a key leaf for components a given spec does not have.
+   */
+  private boolean checkMapKeysApply(
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      List<Flattened> flattened) {
+    List<String> components =
+        Stream.concat(
+                domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()),
+                flattened.stream().flatMap(group -> group.inner().stream()))
+            .toList();
+    Set<String> claimed = new LinkedHashSet<>();
+    for (ExecutableElement method : specMembers(spec)) {
+      MapKey declared = method.getAnnotation(MapKey.class);
+      if (declared == null) {
+        continue;
+      }
+      String name = declared.value();
+      boolean local = method.getEnclosingElement().equals(spec);
+      Owned owned = ownedComponent(domain, domainDeclared, flattened, name);
+      if (owned == null) {
+        if (!local) {
+          continue;
+        }
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@MapKey(\"" + name + "\") names no component of " + domain.getSimpleName(),
+            "A key leaf names the DOMAIN Map component whose keys it converts; an unmatched one"
+                + " converts nothing."
+                + didYouMean(name, components)
+                + " Found on "
+                + domain.getSimpleName()
+                + ": "
+                + components
+                + ".",
+            "Point the annotation at the component it converts, or remove it.");
+        return false;
+      }
+      TypeMirror domainType = componentType(owned.ownerDeclared(), owned.component());
+      DeclaredType asMap = asMapType(domainType);
+      if (asMap == null || asMap.getTypeArguments().size() != 2) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@MapKey(\""
+                + name
+                + "\")"
+                + inheritedNote(method, spec)
+                + (asMap == null
+                    ? " names a component that is not a Map."
+                    : " names a raw Map component."),
+            asMap == null
+                ? "A key leaf converts the keys of a Map component; '"
+                    + owned.owner().getSimpleName()
+                    + "."
+                    + name
+                    + "' is "
+                    + domainType
+                    + ", which has no keys."
+                : "A key leaf converts the key type, and a raw Map declares none.",
+            asMap == null
+                ? "Point the annotation at a Map component, or remove it."
+                : "Declare both type arguments, for example Map<Locale, String>.");
+        return false;
+      }
+      if (!claimed.add(name)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "'" + name + "' has more than one @MapKey leaf.",
+            "A Map component's keys convert through exactly one leaf; a second would leave the"
+                + " choice between them arbitrary.",
+            "Keep one @MapKey(\"" + name + "\") method and remove the others.");
+        return false;
+      }
+      // The shape and the KEY types, checked here rather than left to findKeyLeaf: a key leaf
+      // that does not convert this component's keys would simply not be found, and the keys
+      // would copy by identity - the typo'd-leaf hazard, silent whenever the key types already
+      // match. The wire side is unknown at this point (a spec may map several wires through
+      // mix-ins), so the DOMAIN key is what is pinned.
+      TypeMirror domainKey = asMap.getTypeArguments().getFirst();
+      if (!leafShapedOverDomainKey(spec, method, domainKey)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@MapKey(\""
+                + name
+                + "\")"
+                + inheritedNote(method, spec)
+                + " does not declare a leaf over that component's key type.",
+            "A key leaf is a zero-parameter 'default' method returning exactly"
+                + " ValidatedPrism<WireKey, "
+                + domainKey
+                + "> (wire first, domain second); '"
+                + method.getSimpleName()
+                + "' returns "
+                + memberTypeIn(spec, method)
+                + ", so it would convert nothing and the keys would copy unvalidated.",
+            "Return ValidatedPrism<WireKey, "
+                + domainKey
+                + "> from '"
+                + method.getSimpleName()
+                + "', or point the annotation at the component it does convert.");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Whether a {@code @MapKey} method is leaf-shaped and produces the domain key type. The wire key
+   * is deliberately not pinned: one mix-in may carry a key leaf used against several wires, and
+   * {@link #findKeyLeaf} matches the full pair at the use site.
+   */
+  private boolean leafShapedOverDomainKey(
+      TypeElement spec, ExecutableElement method, TypeMirror domainKey) {
+    boolean leafShaped = method.isDefault() || method.getModifiers().contains(Modifier.ABSTRACT);
+    if (!leafShaped
+        || !method.getParameters().isEmpty()
+        || !(memberTypeIn(spec, method) instanceof DeclaredType returnType)
+        || !((TypeElement) returnType.asElement()).getQualifiedName().contentEquals(VALIDATED_PRISM)
+        || returnType.getTypeArguments().size() != 2) {
+      return false;
+    }
+    return processingEnv.getTypeUtils().isSameType(returnType.getTypeArguments().get(1), domainKey);
   }
 
   /**
@@ -2559,7 +2609,8 @@ public class MappingProcessor extends AbstractProcessor {
             + ").",
         "A sparse update writes a present property by identity (same type, or a wrapper of a"
             + " primitive component), through a leaf named after the domain component, or — for a"
-            + " pair declared as exactly List, Optional or Map — through an element leaf lifted"
+            + " pair declared as exactly List, Set, an array, Optional or Map — through an"
+            + " element leaf lifted"
             + " over the container."
             + leafNearMissHint(spec, domainComp.getSimpleName().toString()),
         // A leaf cannot target a primitive component: a ValidatedPrism's domain arg is a reference
@@ -2584,6 +2635,12 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror domainType = domainComp.asType();
     String name = domainComp.getSimpleName().toString();
     TypeMirror[] elements = elementPair(wireType, domainType);
+    if (elements == null) {
+      // An array lifts here too, but only where its element can name a constructor; suggesting an
+      // element leaf the emission could not carry would send the author down a dead end.
+      TypeMirror[] arrayElements = arrayPair(wireType, domainType);
+      elements = arrayElements != null && nameableArrayPair(arrayElements) ? arrayElements : null;
+    }
     TypeMirror wireElement = elements == null ? null : elements[0];
     TypeMirror domainElement = elements == null ? null : elements[1];
     if (wireElement == null) {
@@ -4053,6 +4110,16 @@ public class MappingProcessor extends AbstractProcessor {
       }
     }
     TypeMirror[] arrayElements = arrayPair(wireType, domainType);
+    if (arrayElements != null && !nameableArrayPair(arrayElements)) {
+      // The sides differ (identity has already been ruled out), so this array would have to
+      // lift - and it cannot. Saying why beats the no-usable-source fall-through, which would
+      // offer an element leaf the emission could never carry. A pair that HAS such a leaf was
+      // already reported by the leaf route, so only the leafless case reports here.
+      if (findLeaf(spec, name, arrayElements[0], arrayElements[1]) == null) {
+        reportUnnameableArray(spec, name, arrayElements);
+      }
+      return null;
+    }
     if (arrayElements != null) {
       PrismResolution lifted =
           resolveNestedSpec(spec, registry, name, arrayElements[0], arrayElements[1]);
@@ -4371,12 +4438,21 @@ public class MappingProcessor extends AbstractProcessor {
     }
     TypeMirror[] arrayElements = arrayPair(wireType, domainType);
     if (arrayElements != null) {
-      Correspondence lifted =
-          elementLeafCorrespondence(
-              spec, name, wireName, Kind.ARRAY, arrayElements[0], arrayElements[1]);
-      return lifted == null
+      ExecutableElement leaf = findLeaf(spec, name, arrayElements[0], arrayElements[1]);
+      if (!nameableArrayPair(arrayElements)) {
+        // A leafless pair falls through: same-typed, it copies by identity, which needs no array
+        // creation and so stays legal. A leaf CANNOT be honoured, and dropping it silently would
+        // leave the component copied unvalidated - the typo'd-leaf hazard, so it is reported.
+        if (leaf != null) {
+          reportUnnameableArray(spec, name, arrayElements);
+        }
+        return null;
+      }
+      return leaf == null
           ? null
-          : lifted.withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1]));
+          : new Correspondence(
+                  name, wireName, Kind.ARRAY, CodeBlock.of("$L()", leaf.getSimpleName()))
+              .withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1]));
     }
     TypeMirror wireElement = containerElement(wireType, "java.util.Optional");
     TypeMirror domainElement = containerElement(domainType, "java.util.Optional");
@@ -4477,6 +4553,67 @@ public class MappingProcessor extends AbstractProcessor {
             && !domainArray.getComponentType().getKind().isPrimitive()
         ? new TypeMirror[] {wireArray.getComponentType(), domainArray.getComponentType()}
         : null;
+  }
+
+  /**
+   * Whether an array of this element type can name its own constructor, which a lifted array's
+   * emission needs on both sides ({@code Domain[]::new} to parse into, {@code Wire[]::new} to build
+   * into).
+   *
+   * <p>Java forbids <em>generic array creation</em>, so a type variable ({@code T[]::new}) and a
+   * parameterised type ({@code List<String>[]::new}) are both rejected by javac — inside the
+   * generated Impl, where the author cannot fix them. Raw and unbounded-wildcard element types are
+   * reifiable and compile, as does an array of anything nameable (or of a primitive).
+   */
+  private static boolean canNameArrayConstructor(TypeMirror element) {
+    return switch (element.getKind()) {
+      // An unresolved element steps aside so javac's cannot-find-symbol is the only diagnostic.
+      case ERROR -> true;
+      case DECLARED ->
+          ((DeclaredType) element)
+              .getTypeArguments().stream()
+                  .allMatch(
+                      argument ->
+                          argument instanceof WildcardType wildcard
+                              && wildcard.getExtendsBound() == null
+                              && wildcard.getSuperBound() == null);
+      case ARRAY -> {
+        TypeMirror component = ((ArrayType) element).getComponentType();
+        yield component.getKind().isPrimitive() || canNameArrayConstructor(component);
+      }
+      default -> false;
+    };
+  }
+
+  /** Whether both sides of an array pair can name their constructors, as lifting needs. */
+  private static boolean nameableArrayPair(TypeMirror[] elements) {
+    return canNameArrayConstructor(elements[0]) && canNameArrayConstructor(elements[1]);
+  }
+
+  /**
+   * The one shape a lifted array cannot emit: an element type no {@code new} can name. Reported
+   * rather than left to the no-usable-source fall-through, which would offer an element leaf the
+   * emission could never carry.
+   */
+  private void reportUnnameableArray(TypeElement spec, String name, TypeMirror[] elements) {
+    TypeMirror offending = canNameArrayConstructor(elements[1]) ? elements[0] : elements[1];
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "field '"
+            + name
+            + "' is an array whose element type "
+            + offending
+            + " cannot name an array constructor.",
+        "Lifting an array builds a new array of the element type, and Java forbids creating an"
+            + " array of a type variable or of a parameterised type, so the generated '"
+            + offending
+            + "[]::new' would not compile.",
+        "Declare the component as a List on both sides, which lifts the same way and needs no"
+            + " array creation, or map the arrays whole through a leaf named '"
+            + name
+            + "' over the array types.");
   }
 
   /**

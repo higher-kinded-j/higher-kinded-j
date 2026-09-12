@@ -1054,6 +1054,95 @@ class MappingProcessorUpdateTest {
     }
 
     @Test
+    @DisplayName("an array whose element cannot be named is not offered an element leaf")
+    void unnameableArrayPairSuggestsTheWholeComponent() {
+      JavaFileObject boxed =
+          JavaFileObjects.forSourceString(
+              "com.example.Boxed",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Boxed(List<String>[] rows) {}
+              """);
+      JavaFileObject boxedPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.BoxedPatchDto",
+              """
+              package com.example;
+
+              public class BoxedPatchDto {
+                private String[] rows;
+
+                public String[] getRows() { return rows; }
+                public void setRows(String[] rows) { this.rows = rows; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BoxedPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface BoxedPatchMapping extends UpdateSpec<Boxed, BoxedPatchDto> {}
+              """);
+      Compilation compilation = compile(boxed, boxedPatchDto, spec);
+      assertThat(compilation).failed();
+      // The element form is withheld: no leaf over those elements could ever be carried.
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(d -> d.getMessage(null).contains("Declare an element leaf"));
+    }
+
+    @Test
+    @DisplayName("a leafless array pair is offered the element leaf the tier lifts")
+    void leaflessArrayPairSuggestsTheElementLeaf() {
+      JavaFileObject squad =
+          JavaFileObjects.forSourceString(
+              "com.example.Squad",
+              """
+              package com.example;
+
+              public record Squad(PhoneNumber[] lines) {}
+              """);
+      JavaFileObject squadPatchDto =
+          JavaFileObjects.forSourceString(
+              "com.example.SquadPatchDto",
+              """
+              package com.example;
+
+              public class SquadPatchDto {
+                private String[] lines;
+
+                public String[] getLines() { return lines; }
+                public void setLines(String[] lines) { this.lines = lines; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.SquadPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface SquadPatchMapping extends UpdateSpec<Squad, SquadPatchDto> {}
+              """);
+      Compilation compilation = compile(PHONE, squad, squadPatchDto, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare an element leaf 'default ValidatedPrism<java.lang.String,"
+                  + " com.example.PhoneNumber> lines()'");
+    }
+
+    @Test
     @DisplayName("a leafless container pair reports both leaf forms, element first")
     void leaflessContainerPairSuggestsBothForms() {
       JavaFileObject spec =
