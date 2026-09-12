@@ -95,7 +95,17 @@ The same rename or the same leaf tends to recur across an API's specs: every wir
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:mixin_usage}}
 ```
 
-An inherited member counts exactly as if it were declared on the spec: renames, leaves, derived fields, `@OptionalBridge` markers, [`@MapKey`](structure.md#converting-map-keys) key leaves *and* [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) markers, collected across the whole hierarchy (a mix-in may extend further mix-ins, and a diamond counts once). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides. An inherited leaf, bridge, key leaf or `@Flatten` marker that names no component of the extending spec's domain stays inert, so one vocabulary can serve specs whose domains differ; the same declaration made locally is an error. A rename is the exception, because it alone is matched against the *wire*: its `to` must name a component of every extending spec's wire, inherited or not, so a vocabulary shared with a projection or a PATCH bean renames only what they all carry.
+An inherited member counts exactly as if it were declared on the spec: renames, leaves, derived fields, `@OptionalBridge` markers, [`@MapKey`](structure.md#converting-map-keys) key leaves *and* [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) markers, collected across the whole hierarchy (a mix-in may extend further mix-ins, and a diamond counts once). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides. An inherited member that binds to nothing here stays inert, so one vocabulary can serve specs whose domains and wires differ; the same declaration made locally is an error, which is what catches a typo. Which side a member binds against decides what "nothing" means:
+
+| Member | Binds against | Inherited, when it binds to nothing |
+|---|---|---|
+| leaf, `@OptionalBridge` marker | the **domain**, by the method's name | inert |
+| `@MapKey` key leaf | the **domain**, by the name in the annotation | inert |
+| derived field | the **wire**, by the method's name | inert |
+| `@MapField` rename | **both**: its method names a domain component, its `to` a wire one | inert when either end is missing |
+| `@Flatten` marker | the **domain**, by the method's name | inert, except on a sealed pair or an [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec), which refuse it outright |
+
+So a projection or a PATCH bean that deliberately carries a subset extends the same vocabulary as the full spec, and simply maps fewer of its members; a sealed dispatch, which has no components at all, inherits the same vocabulary and binds none of it. Nothing is silently mismapped by an inert member, because every wire component still has to name a source: a wire that does carry a rename's target and has no other source for it is reported against that component. The cost is that a `to` typed wrongly *in the mix-in* is now caught only where some spec's wire happens to carry the intended name, which is the same trade the other inherited kinds already make.
 
 A mix-in **may be generic**: its members are read under the spec's instantiation, so `Emails<T>` extended as `Emails<EmailAddress>` contributes `ValidatedPrism<String, EmailAddress>`. See [Generic mix-ins](generics.md#generic-mix-ins).
 

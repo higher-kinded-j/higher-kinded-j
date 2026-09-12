@@ -265,17 +265,20 @@ public class MappingProcessor extends AbstractProcessor {
     // Only parse-capable specs may be nested into: equal-count record/bean pairs (derived wire
     // fields do not count against the wire, since parse ignores them) and sealed pairs.
     // Projections (smaller wire, no parse) register too, so failed lookups can name them.
-    int wireCount =
+    Set<String> wireNames =
         recordPair
-            ? wireRecord.getRecordComponents().size()
-            : beanPair ? beanAnalyser.propertyCount(spec, wireBean) : 0;
+            ? wireRecord.getRecordComponents().stream()
+                .map(c -> c.getSimpleName().toString())
+                .collect(Collectors.toCollection(LinkedHashSet::new))
+            : beanPair ? beanAnalyser.propertyNames(spec, wireBean) : Set.of();
+    int wireCount = wireNames.size();
     // A classpath spec whose Impl is missing registers for the hint only: nothing can delegate to
     // it.
     boolean parseCapable =
         origin != Origin.CLASSPATH_MISSING_IMPL
             && (sealedPair
                 || domainSlots(env, spec, domainRecord, (DeclaredType) domainArg)
-                    == wireCount - derivedCandidateCount(env, spec));
+                    == wireCount - derivedCandidateCount(env, spec, wireNames));
     registry.add(
         new RegisteredSpec(domainArg, wireArg, implClassName(spec), spec, parseCapable, origin));
   }
@@ -1754,6 +1757,13 @@ public class MappingProcessor extends AbstractProcessor {
         return false;
       }
       if (sealedPair) {
+        // A dispatch has no components, so an inherited rename binds to nothing here and stays
+        // inert, as an inherited leaf or bridge on the same spec already does: a sealed spec and
+        // the subtype specs it dispatches to routinely share one vocabulary, and the marker it
+        // still owes is emitted as a stub. Only a rename this spec wrote itself is refused.
+        if (!declaredLocally(method, spec)) {
+          continue;
+        }
         Diagnostics.error(
             processingEnv.getMessager(),
             method,
@@ -3342,6 +3352,19 @@ public class MappingProcessor extends AbstractProcessor {
     return types.isSameType(declared, actual);
   }
 
+  /**
+   * The spec's renames as domain name to wire name, collected from every {@code @MapField} member.
+   *
+   * <p>A rename binds on both sides at once: its method names a domain component and its {@code to}
+   * names a wire component. A <em>locally declared</em> rename that misses either end is refused,
+   * which is the typo'd-rename guard. An <em>inherited</em> one that misses either end is inert and
+   * simply not collected, like every other inherited vocabulary member that binds to nothing here:
+   * one mix-in serves specs whose domains differ and whose wires differ, a projection and a PATCH
+   * bean included, and neither has to carry a component only its siblings have. Nothing is silently
+   * mismapped by the omission, because every wire component still has to name a source, so a wire
+   * that does carry the rename's target and has no other source for it is reported against that
+   * component instead.
+   */
   private Map<String, String> collectRenames(
       TypeElement spec, TypeElement domain, WireShape wire, List<Flattened> flattened) {
     Set<String> flattenedInner =
@@ -3378,6 +3401,12 @@ public class MappingProcessor extends AbstractProcessor {
               || domain.getRecordComponents().stream()
                   .anyMatch(c -> c.getSimpleName().contentEquals(name));
       if (!onDomain) {
+        // An inherited rename for a component this domain does not have is inert, exactly as an
+        // inherited leaf for one is: a shared vocabulary may speak about components only some
+        // extending specs declare.
+        if (!declaredLocally(method, spec)) {
+          continue;
+        }
         Diagnostics.error(
             processingEnv.getMessager(),
             method,
@@ -3401,6 +3430,12 @@ public class MappingProcessor extends AbstractProcessor {
       }
       boolean onWire = wire.componentNamed(mapField.to()).isPresent();
       if (!onWire) {
+        // The wire side is where a shared vocabulary most often cannot bind, since a projection or
+        // a PATCH bean deliberately carries a subset: an inherited rename whose target this wire
+        // omits is inert, and the component it renamed is simply not mapped here.
+        if (!declaredLocally(method, spec)) {
+          continue;
+        }
         Diagnostics.error(
             processingEnv.getMessager(),
             method,
@@ -3798,10 +3833,18 @@ public class MappingProcessor extends AbstractProcessor {
         && ((TypeElement) returnType.asElement()).getQualifiedName().contentEquals(GETTER);
   }
 
-  /** Counts derived candidates for the registry's parse-capability arithmetic. */
-  private static long derivedCandidateCount(ProcessingEnvironment env, TypeElement spec) {
+  /**
+   * Counts the derived fields that bind here, for the registry's parse-capability arithmetic. A
+   * derived field fills the wire component named after it, so a candidate whose name this wire does
+   * not carry is inert and costs the wire nothing; counting it would make an ordinary full mapping
+   * register as a projection and refuse to be nested. The mirror of {@link #domainSlots}'s rule for
+   * a {@code @Flatten} marker, which likewise counts only where the domain has the component.
+   */
+  private static long derivedCandidateCount(
+      ProcessingEnvironment env, TypeElement spec, Set<String> wireNames) {
     return specMembers(env.getElementUtils(), spec).stream()
         .filter(method -> isDerivedCandidate(env.getTypeUtils(), spec, method))
+        .filter(method -> wireNames.contains(method.getSimpleName().toString()))
         .count();
   }
 
@@ -3852,6 +3895,12 @@ public class MappingProcessor extends AbstractProcessor {
       }
       if (domain.getRecordComponents().stream()
           .anyMatch(c -> c.getSimpleName().contentEquals(name))) {
+        // Reading as a leaf is an authoring hazard for the spec that wrote the method, not for one
+        // that merely inherits it: a sibling whose domain happens to carry a component of that
+        // name maps it as usual and never derives anything.
+        if (!declaredLocally(method, spec)) {
+          continue;
+        }
         Diagnostics.error(
             processingEnv.getMessager(),
             method,
@@ -3871,6 +3920,13 @@ public class MappingProcessor extends AbstractProcessor {
       }
       WireShape.WireComponent wireComponent = wire.componentNamed(name).orElse(null);
       if (wireComponent == null) {
+        // A derived field is named for the wire, as a rename's 'to' is, so a shared vocabulary
+        // binds it only where that wire carries the component: an inherited one this wire omits is
+        // inert, and nothing derives it here. A projection stays refused for the derived fields it
+        // does carry, which are the ones this spec can actually fill.
+        if (!declaredLocally(method, spec)) {
+          continue;
+        }
         Diagnostics.error(
             processingEnv.getMessager(),
             method,

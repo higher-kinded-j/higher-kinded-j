@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -132,32 +133,38 @@ final class BeanPropertyAnalyser {
     return null;
   }
 
-  /** The number of mappable properties under the selected strategy, for the parse arithmetic. */
-  int propertyCount(TypeElement spec, TypeElement bean) {
+  /**
+   * The mappable property names under the selected strategy, in declaration order. The registry's
+   * parse arithmetic counts them, and reads them to tell a derived field that fills one of these
+   * from an inherited one that binds to nothing here.
+   */
+  Set<String> propertyNames(TypeElement spec, TypeElement bean) {
     DeclaredType beanType = (DeclaredType) bean.asType();
     Map<String, ExecutableElement> getters = collectGetters(bean);
     if (hasUsableNoArgsConstructor(spec, bean)) {
       Map<String, ExecutableElement> setters = collectSetters(bean);
-      long count =
-          getters.entrySet().stream()
-              .filter(
-                  e ->
-                      setters.containsKey(e.getKey()) || isList(getterType(beanType, e.getValue())))
-              .count();
-      if (count > 0) {
-        return (int) count;
+      Set<String> names = new LinkedHashSet<>();
+      getters.forEach(
+          (name, getter) -> {
+            if (setters.containsKey(name) || isList(getterType(beanType, getter))) {
+              names.add(name);
+            }
+          });
+      if (!names.isEmpty()) {
+        return names;
       }
     }
     BuilderModel builder = findBuilderModel(bean);
     if (builder != null) {
       Map<String, ExecutableElement> builderSetters =
           collectBuilderSetters(builder.builderElement());
-      long count = getters.keySet().stream().filter(builderSetters::containsKey).count();
-      if (count > 0) {
-        return (int) count;
+      Set<String> names = new LinkedHashSet<>();
+      getters.keySet().stream().filter(builderSetters::containsKey).forEach(names::add);
+      if (!names.isEmpty()) {
+        return names;
       }
     }
-    return 0;
+    return Set.of();
   }
 
   private boolean typesDiffer(

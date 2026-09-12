@@ -246,10 +246,10 @@ Leaves are named after *domain* components and return `ValidatedPrism`; derived 
 
 - A zero-parameter `default` returning `Getter` is *always* claimed as a derived field, and validated as one. So give getter-shaped utility helpers a parameter or a different return type, or they will be mistaken for derived fields.
 - A `default` returning `ValidatedPrism` is matched by name against the domain's components (and against the members of any [flattened](structure.md#flattening-a-nested-component-onto-a-flat-wire) group), and a *locally declared* leaf **must** match: an unmatched local leaf is a compile error with a nearest-name hint (`leaf 'emial' names no component of Customer. Did you mean 'email()'?`), because a silently inert leaf would silently stop validating that field. Prism-returning helpers belong in `private` or `static` methods, which are never leaf-shaped.
-- *Inherited* [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) leaves that match nothing stay inert by design: a shared vocabulary may carry leaves for components only some extending specs have.
-- On a **sealed** mapping, locally declared leaves and derived fields are rejected outright (a dispatch has no components); inherited vocabulary stays inert there too.
+- *Inherited* [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) members that match nothing stay inert by design: a shared vocabulary may carry leaves for components only some extending specs have, and likewise derived fields and renames for wire components only some of their wires carry.
+- On a **sealed** mapping, locally declared leaves, derived fields and renames are rejected outright (a dispatch has no components); inherited vocabulary stays inert there too, bar a `@Flatten` marker, which is refused either way.
 
-Four shapes are rejected, each with a what/why/fix diagnostic: a `Getter` named after a *domain* component (ambiguous with a leaf); a `Getter` naming nothing on the wire; a `Getter` with the wrong type arguments; and a `@MapField` rename targeting a component a derived field already fills.
+Four shapes are rejected, each with a what/why/fix diagnostic: a *locally declared* `Getter` named after a *domain* component (ambiguous with a leaf); a *locally declared* `Getter` naming nothing on the wire; a `Getter` with the wrong type arguments; and a `@MapField` rename targeting a component a derived field already fills. The first two are the typo guard, so an inherited `Getter` in either position stays inert instead; the last two catch a member that does bind, and fire wherever it was declared.
 
 ### Derived fields and the emission tiers
 
