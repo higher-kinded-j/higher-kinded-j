@@ -62,7 +62,7 @@ flowchart TD
     class R error
 ```
 
-Because nesting is *delegation* (each spec's `Impl` exposes [`asValidatedPrism()`](tiers.md), so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
+Because nesting is *delegation* (a full mapping's `Impl` exposes [`asValidatedPrism()`](tiers.md), and a [one-directional bean mapping](beans_patch.md#one-directional-beans) the half it has, so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
 
 ~~~admonish note title="Keys and set elements are located by `toString()`"
 The rendered path uses each key's - or set element's - `toString()`, so one containing a dot looks the same as deeper nesting, and two distinct ones whose renderings collide share a location. The structured `FieldError` path list stays exact regardless, holding the whole rendering as one segment, and every error is still reported.

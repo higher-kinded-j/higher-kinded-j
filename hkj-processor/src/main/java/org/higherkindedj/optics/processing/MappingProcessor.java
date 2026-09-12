@@ -77,22 +77,22 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * ValidatedPrism<X, X>} can validate or normalise a same-typed component); differing components
  * resolve through a validated leaf (a spec {@code default} method named after the component
  * returning {@code ValidatedPrism<Wire, Domain>}), through another spec in this compilation or, via
- * the classpath index ({@code MappingIndexes}), in a dependency (nesting — every generated impl
- * exposes {@code asValidatedPrism()}, so a whole mapping plugs in wherever a leaf does), or lift
- * through {@code List}/{@code Optional} containers of either. {@code Map} components lift their
- * values the same way; keys are identity-only and must match exactly on both sides, and each
- * entry's parse failures are located by its key. {@code @MapField} declares renames. A wire
- * component with no domain counterpart can be a derived field: a spec {@code default} method named
- * after the wire component returning {@code Getter<Domain, WireComponentType>}. {@code build} fills
- * it with the getter applied to the whole domain value; {@code parse} ignores it (the data is
- * derivable), and a spec with any derived field never emits {@code asIso()}. A wire with fewer
- * components maps as a lossy projection: {@code build} plus a lawful {@code asLens()} write-back
- * when every projected read is total, or a validated {@code patch(domain, wire)} write-back when
- * any component maps through a leaf, a nested spec, a container lifting either of those, or a
- * bridge, or reads a bean's reference property; an identity container copies verbatim, so on a
- * record wire it keeps the lens; no {@code parse} either way (truthful types). Sealed interface
- * pairs dispatch {@code build}/{@code parse} over their permitted subtype pairs, each delegating to
- * its own spec.
+ * the classpath index ({@code MappingIndexes}), in a dependency (nesting — a full mapping's impl
+ * exposes {@code asValidatedPrism()}, and a one-directional bean mapping's impl the half it has, so
+ * a whole mapping plugs in wherever its direction is used), or lift through {@code List}/{@code
+ * Optional} containers of either. {@code Map} components lift their values the same way; keys are
+ * identity-only and must match exactly on both sides, and each entry's parse failures are located
+ * by its key. {@code @MapField} declares renames. A wire component with no domain counterpart can
+ * be a derived field: a spec {@code default} method named after the wire component returning {@code
+ * Getter<Domain, WireComponentType>}. {@code build} fills it with the getter applied to the whole
+ * domain value; {@code parse} ignores it (the data is derivable), and a spec with any derived field
+ * never emits {@code asIso()}. A wire with fewer components maps as a lossy projection: {@code
+ * build} plus a lawful {@code asLens()} write-back when every projected read is total, or a
+ * validated {@code patch(domain, wire)} write-back when any component maps through a leaf, a nested
+ * spec, a container lifting either of those, or a bridge, or reads a bean's reference property; an
+ * identity container copies verbatim, so on a record wire it keeps the lens; no {@code parse}
+ * either way (truthful types). Sealed interface pairs dispatch {@code build}/{@code parse} over
+ * their permitted subtype pairs, each delegating to its own spec.
  *
  * <p>One null doctrine covers both wire shapes: every reference-typed {@code parse} read is
  * null-guarded into a located {@code FieldError} — an unset bean property is null, and a JSON

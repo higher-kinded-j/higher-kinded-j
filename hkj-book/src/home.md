@@ -239,7 +239,7 @@ Write the records, add the annotations, and the processor writes `StreetLenses`,
 
 ### [Mapping at the Boundary](mapping/ch_intro.md)
 
-One spec interface and one annotation replace the hand-written mapper. `@GenerateMapping` derives both directions at compile time for record, bean-shaped and generic wires of any width: a total `build` out, an accumulating `parse` back that locates every bad field, and both PATCH styles as write-backs. A [stock codec vocabulary](mapping/codecs.md#standard-codecs) covers the standard conversions, so a typical boundary needs no hand-written leaves, and every tier is law-checked and pinned by golden files.
+One spec interface and one annotation replace the hand-written mapper. `@GenerateMapping` derives both directions at compile time for record, bean-shaped and generic wires of any width (the one direction a bean supports, where it can only be read or only be written): a total `build` out, an accumulating `parse` back that locates every bad field, and both PATCH styles as write-backs. A [stock codec vocabulary](mapping/codecs.md#standard-codecs) covers the standard conversions, so a typical boundary needs no hand-written leaves, and every tier is law-checked and pinned by golden files.
 
 ~~~admonish example title="Quick example" collapsible=true
 <!-- verify -->
