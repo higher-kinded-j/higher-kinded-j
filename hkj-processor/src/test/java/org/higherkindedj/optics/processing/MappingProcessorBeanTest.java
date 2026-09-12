@@ -41,6 +41,17 @@ class MappingProcessorBeanTest {
     return javac().withProcessors(new MappingProcessor()).compile(sources);
   }
 
+  /**
+   * Compiles under the lints a user's own build may run with, so a generated write that is merely
+   * unchecked - not a hard error - is still caught.
+   */
+  private Compilation compileLinted(JavaFileObject... sources) {
+    return javac()
+        .withProcessors(new MappingProcessor())
+        .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+        .compile(sources);
+  }
+
   @Nested
   @DisplayName("Mutable JavaBean full tier")
   class MutableFullTier {
@@ -840,7 +851,7 @@ class MappingProcessorBeanTest {
               public interface DocMapping extends MappingSpec<Doc, DocDto> {}
               """);
 
-      Compilation compilation = compile(domain, wire, spec);
+      Compilation compilation = compileLinted(domain, wire, spec);
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.DocMappingImpl");
       Assertions.assertThat(generated)
@@ -864,6 +875,196 @@ class MappingProcessorBeanTest {
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
+    }
+
+    /** A getter-only list property of the given type, with no setter. */
+    private static JavaFileObject listGetterOnly(String listType) {
+      return JavaFileObjects.forSourceString(
+          "com.example.DocDto",
+          """
+          package com.example;
+
+          import java.util.ArrayList;
+          import java.util.List;
+
+          @SuppressWarnings("rawtypes")
+          public class DocDto {
+            private String title;
+            private %1$s tags;
+            public String getTitle() { return title; }
+            public void setTitle(String title) { this.title = title; }
+            public %1$s getTags() {
+              if (tags == null) { tags = new ArrayList<>(); }
+              return tags;
+            }
+          }
+          """
+              .formatted(listType));
+    }
+
+    /** A domain record whose {@code tags} component has the given type. */
+    private static JavaFileObject docWith(String listType) {
+      return JavaFileObjects.forSourceString(
+          "com.example.Doc",
+          """
+          package com.example;
+
+          import java.util.List;
+
+          @SuppressWarnings("rawtypes")
+          public record Doc(String title, %s tags) {}
+          """
+              .formatted(listType));
+    }
+
+    private static JavaFileObject docMapping(String wire) {
+      return JavaFileObjects.forSourceString(
+          "com.example.DocMapping",
+          """
+          package com.example;
+
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+
+          @GenerateMapping
+          public interface DocMapping extends MappingSpec<Doc, %s> {}
+          """
+              .formatted(wire));
+    }
+
+    @Test
+    @DisplayName(
+        "a raw getter-only List is refused, and told to name its element type: addAll cannot be"
+            + " written over a raw receiver")
+    void rawGetterOnlyListRejected() {
+      Compilation compilation =
+          compile(docWith("List"), listGetterOnly("List"), docMapping("DocDto"));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("is a getter-only List, which a build cannot fill");
+      assertThat(compilation).hadErrorContaining("a raw List names none, so the call is unchecked");
+      assertThat(compilation)
+          .hadErrorContaining("Declare the type arguments on 'getTags()', for example List<T>");
+    }
+
+    @Test
+    @DisplayName(
+        "a wildcard getter-only List is refused on its own terms: it has an argument already, so it"
+            + " is told to replace the wildcard, not to add one")
+    void wildcardGetterOnlyListRejected() {
+      Compilation compilation =
+          compile(
+              docWith("List<? extends CharSequence>"),
+              listGetterOnly("List<? extends CharSequence>"),
+              docMapping("DocDto"));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "is a getter-only List<? extends CharSequence>, which a build cannot");
+      assertThat(compilation)
+          .hadErrorContaining("a wildcard argument is a fresh type at each mention");
+      assertThat(compilation)
+          .hadErrorContaining("Replace the wildcard on 'getTags()' with the element type");
+      Assertions.assertThat(compilation.errors())
+          .as("a wildcard author already has an argument, so must not be told to add one")
+          .noneMatch(error -> error.getMessage(null).contains("Declare the type arguments"));
+    }
+
+    @Test
+    @DisplayName(
+        "a sparse UpdateSpec keeps the same getter-only List: it reads the property and never"
+            + " writes it, so no build has to fill it")
+    void aSparseUpdateKeepsTheGetterOnlyList() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.DocPatch",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface DocPatch extends UpdateSpec<Doc, DocDto> {}
+              """);
+      for (String listType : List.of("List", "List<? extends CharSequence>")) {
+        Compilation compilation = compileLinted(docWith(listType), listGetterOnly(listType), spec);
+        assertThat(compilation).succeeded();
+        Assertions.assertThat(generatedSource(compilation, "com.example.DocPatchImpl"))
+            .as("%s reads through the getter, and writes nothing", listType)
+            .contains("wire.getTags()")
+            .doesNotContain("addAll");
+      }
+    }
+
+    @Test
+    @DisplayName("a projection onto the same getter-only List is refused on the same terms")
+    void getterOnlyListWithoutAnElementTypeRejectedOnProjection() {
+      JavaFileObject projection =
+          JavaFileObjects.forSourceString(
+              "com.example.DocProjectionDto",
+              """
+              package com.example;
+
+              import java.util.ArrayList;
+              import java.util.List;
+
+              @SuppressWarnings("rawtypes")
+              public class DocProjectionDto {
+                private List tags;
+                public List getTags() {
+                  if (tags == null) { tags = new ArrayList<>(); }
+                  return tags;
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(docWith("List"), projection, docMapping("DocProjectionDto"));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("is a getter-only List, which a build cannot fill");
+    }
+
+    @Test
+    @DisplayName("a setter takes the same raw and wildcard properties, which is the second fix")
+    void aSetterTakesWhatTheCollectionGetterCannot() {
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.DocDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              @SuppressWarnings("rawtypes")
+              public class DocDto {
+                private String title;
+                private List tags;
+                private List<? extends CharSequence> more;
+                public String getTitle() { return title; }
+                public void setTitle(String title) { this.title = title; }
+                public List getTags() { return tags; }
+                public void setTags(List tags) { this.tags = tags; }
+                public List<? extends CharSequence> getMore() { return more; }
+                public void setMore(List<? extends CharSequence> more) { this.more = more; }
+              }
+              """);
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Doc",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              @SuppressWarnings("rawtypes")
+              public record Doc(String title, List tags, List<? extends CharSequence> more) {}
+              """);
+      Compilation compilation = compileLinted(domain, wire, docMapping("DocDto"));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.DocMappingImpl"))
+          .contains("wire.setTags(domain.tags());")
+          .contains("wire.setMore(domain.more());");
     }
 
     @Test
@@ -1327,6 +1528,251 @@ class MappingProcessorBeanTest {
     }
 
     @Test
+    @DisplayName(
+        "a bridged element carrying a wildcard is named, not inferred, on both leg shapes and"
+            + " through a leaf: Optional is invariant, so a capture is not the declared type")
+    void bridgedWildcardElementIsNamed() throws ReflectiveOperationException {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Wild",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public final class Wild {
+                public record Holder<T>(T value) {}
+
+                // The element is a container carrying a wildcard: the identity leg.
+                public record ListD(String id, Optional<List<? extends CharSequence>> x) {}
+
+                public static class ListW {
+                  private String id;
+                  private List<? extends CharSequence> x;
+                  public String getId() { return id; }
+                  public void setId(String id) { this.id = id; }
+                  public List<? extends CharSequence> getX() { return x; }
+                  public void setX(List<? extends CharSequence> x) { this.x = x; }
+                }
+
+                // The element is not a container at all, so this is not the container rule.
+                public record BoxD(String id, Optional<Holder<? extends Number>> x) {}
+
+                public static class BoxW {
+                  private String id;
+                  private Holder<? extends Number> x;
+                  public String getId() { return id; }
+                  public void setId(String id) { this.id = id; }
+                  public Holder<? extends Number> getX() { return x; }
+                  public void setX(Holder<? extends Number> x) { this.x = x; }
+                }
+
+                // The leaf leg, with no wildcard on the wire side at all.
+                public record LeafD(String id, Optional<List<? extends CharSequence>> x) {}
+
+                public static class LeafW {
+                  private String id;
+                  private String x;
+                  public String getId() { return id; }
+                  public void setId(String id) { this.id = id; }
+                  public String getX() { return x; }
+                  public void setX(String x) { this.x = x; }
+                }
+
+                @GenerateMapping
+                public interface ListMapping extends MappingSpec<ListD, ListW> {}
+
+                @GenerateMapping
+                public interface BoxMapping extends MappingSpec<BoxD, BoxW> {}
+
+                @GenerateMapping
+                public interface LeafMapping extends MappingSpec<LeafD, LeafW> {
+                  default ValidatedPrism<String, List<? extends CharSequence>> x() {
+                    return ValidatedPrism.of(
+                        raw -> Validated.validNel(List.of(raw)), values -> values.getFirst().toString());
+                  }
+                }
+              }
+              """);
+
+      Compilation compilation = compileLinted(sources);
+      assertThat(compilation).succeededWithoutWarnings();
+      // A container element keeps its null scan: naming the Optional's argument is what the
+      // scan's result needed, so the bridge is no longer a hole in the located-null doctrine.
+      Assertions.assertThat(generatedSource(compilation, "com.example.WildListMappingImpl"))
+          .contains("hkj$allPresent(v).map(Optional::<List<? extends CharSequence>>of)");
+      Assertions.assertThat(generatedSource(compilation, "com.example.WildBoxMappingImpl"))
+          .contains("Optional.<Wild.Holder<? extends Number>>ofNullable(wire.getX())");
+      Assertions.assertThat(generatedSource(compilation, "com.example.WildLeafMappingImpl"))
+          .contains("map(Optional::<List<? extends CharSequence>>of)");
+
+      // Absent, present-empty and present are three values the bridge must keep apart.
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.WildListMappingImpl");
+      var constructor =
+          result
+              .loadClass("com.example.Wild$ListD")
+              .getDeclaredConstructor(String.class, Optional.class);
+      for (Optional<List<? extends CharSequence>> x :
+          List.of(
+              Optional.<List<? extends CharSequence>>empty(),
+              Optional.<List<? extends CharSequence>>of(List.of()),
+              Optional.<List<? extends CharSequence>>of(List.of("a")))) {
+        Object domain = constructor.newInstance("id", x);
+        assertThatValidated(validated(invoke(impl, "parse", invoke(impl, "build", domain))))
+            .as("x = %s", x)
+            .isValid()
+            .hasValue(domain);
+      }
+      Object hostile =
+          constructor.newInstance("id", Optional.of(Arrays.asList("a", (CharSequence) null)));
+      assertThatValidated(validated(invoke(impl, "parse", invoke(impl, "build", hostile))))
+          .as("a null element is located, bridged or not")
+          .isInvalid()
+          .hasFieldErrors("x.1: must not be null");
+    }
+
+    @Test
+    @DisplayName(
+        "a wildcard on the element's enclosing type is named too: capture reaches the enclosing"
+            + " link, even where the inner type writes no wildcard of its own")
+    void bridgedEnclosingWildcardIsNamed() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Encl",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Encl {
+                public static class Outer<A> {
+                  public class Inner<B> {}
+                }
+
+                public record D(String id, Optional<Outer<? extends Number>.Inner<String>> x) {}
+
+                public static class W {
+                  private String id;
+                  private Outer<? extends Number>.Inner<String> x;
+                  public String getId() { return id; }
+                  public void setId(String id) { this.id = id; }
+                  public Outer<? extends Number>.Inner<String> getX() { return x; }
+                  public void setX(Outer<? extends Number>.Inner<String> x) { this.x = x; }
+                }
+
+                @GenerateMapping
+                public interface M extends MappingSpec<D, W> {}
+              }
+              """);
+
+      Compilation compilation = compileLinted(sources);
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.EnclMImpl"))
+          .contains("Optional.<Encl.Outer<? extends Number>.Inner<String>>ofNullable(wire.getX())");
+    }
+
+    @Test
+    @DisplayName(
+        "the element is named only where inference would capture it: a wildcard below the"
+            + " element's own arguments, or on the wire side alone, keeps the shorter leg")
+    void onlyACapturingElementIsNamed() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Deep",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public final class Deep {
+                public record Holder<T>(T value) {}
+
+                public record Tag(int size) {}
+
+                // The wildcard is nested below the element's own arguments, so nothing captures.
+                public record NestedD(String id, Optional<Holder<List<? extends CharSequence>>> x) {}
+
+                public static class NestedW {
+                  private String id;
+                  private Holder<List<? extends CharSequence>> x;
+                  public String getId() { return id; }
+                  public void setId(String id) { this.id = id; }
+                  public Holder<List<? extends CharSequence>> getX() { return x; }
+                  public void setX(Holder<List<? extends CharSequence>> x) { this.x = x; }
+                }
+
+                // An inner class element whose enclosing type carries no wildcard: the walk
+                // reaches the enclosing link and finds nothing, so no witness.
+                public record InnerD(String id, Optional<Outer<String>.Inner> x) {}
+
+                public static class Outer<A> {
+                  public class Inner {}
+                }
+
+                public static class InnerW {
+                  private String id;
+                  private Outer<String>.Inner x;
+                  public String getId() { return id; }
+                  public void setId(String id) { this.id = id; }
+                  public Outer<String>.Inner getX() { return x; }
+                  public void setX(Outer<String>.Inner x) { this.x = x; }
+                }
+
+                // The wildcard is on the WIRE side only; the domain element is a plain type.
+                public record WireD(String id, Optional<Tag> x) {}
+
+                public static class WireW {
+                  private String id;
+                  private List<? extends CharSequence> x;
+                  public String getId() { return id; }
+                  public void setId(String id) { this.id = id; }
+                  public List<? extends CharSequence> getX() { return x; }
+                  public void setX(List<? extends CharSequence> x) { this.x = x; }
+                }
+
+                @GenerateMapping
+                public interface NestedMapping extends MappingSpec<NestedD, NestedW> {}
+
+                @GenerateMapping
+                public interface InnerMapping extends MappingSpec<InnerD, InnerW> {}
+
+                @GenerateMapping
+                public interface WireMapping extends MappingSpec<WireD, WireW> {
+                  default ValidatedPrism<List<? extends CharSequence>, Tag> x() {
+                    return ValidatedPrism.of(
+                        values -> Validated.validNel(new Tag(values.size())), _ -> List.of());
+                  }
+                }
+              }
+              """);
+
+      Compilation compilation = compileLinted(sources);
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.DeepNestedMappingImpl"))
+          .contains("Optional.ofNullable(wire.getX())")
+          .doesNotContain("Optional.<");
+      Assertions.assertThat(generatedSource(compilation, "com.example.DeepInnerMappingImpl"))
+          .contains("Optional.ofNullable(wire.getX())")
+          .doesNotContain("Optional.<");
+      Assertions.assertThat(generatedSource(compilation, "com.example.DeepWireMappingImpl"))
+          .contains("map(Optional::of)")
+          .doesNotContain("Optional::<");
+    }
+
+    @Test
     @DisplayName("a getter-only List refuses a bridge that maps its element through a leaf too")
     void getterOnlyListBridgeThroughALeafRejected() {
       JavaFileObject domain =
@@ -1479,7 +1925,7 @@ class MappingProcessorBeanTest {
               public interface BookmarksMapping extends MappingSpec<Bookmarks, BookmarksDto> {}
               """);
 
-      Compilation compilation = compile(domain, LIVE_LIST_DTO, spec);
+      Compilation compilation = compileLinted(domain, LIVE_LIST_DTO, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.BookmarksMappingImpl"))
           .contains("wire.getUrls().addAll(domain.urls());");

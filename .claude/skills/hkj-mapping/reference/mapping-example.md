@@ -188,7 +188,11 @@ located `FieldError` (`email: must not be null`) instead of an NPE, and `parse` 
 accumulating. Three construction shapes are detected: a no-args constructor with setters (above); an
 immutable bean with a static `builder()`/`newBuilder()` (Lombok, Immutables, AutoValue, protobuf),
 where `build` goes through the builder; and the JAXB convention, where a getter-only `List` (its
-getter returns a live mutable list, no setter) is filled with `getItems().addAll(...)`. A domain
+getter returns a live mutable list, no setter) is filled with `getItems().addAll(...)`. That last
+one must name its element type: `addAll` cannot be written over a raw receiver without going
+unchecked, nor over a wildcard one at all, so a raw or wildcard getter-only `List` is refused
+wherever a `build` is emitted - a sparse `UpdateSpec`, which only reads the property, keeps it.
+The diagnostic names the remedy the cause calls for, and a setter answers both. A domain
 `Optional<T>` bridges to a nullable bean property `T` (empty maps to absent), with no declaration;
 a record wire opts into the same bridge per component with `@OptionalBridge`. The bridge is refused
 onto a getter-only `List`: that getter creates the list on first call, so it has no unset state, and

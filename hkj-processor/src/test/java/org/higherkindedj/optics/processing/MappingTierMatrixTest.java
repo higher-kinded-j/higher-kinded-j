@@ -363,6 +363,21 @@ class MappingTierMatrixTest {
             true,
             true,
             false,
+            (_, seed) -> Optional.of(List.of(seed))),
+        // The bridge has to name a wildcard-carrying element rather than infer it: Optional is
+        // invariant, so a captured argument would not be the type the component declares.
+        new Case(
+            "Optional bridge onto a wildcard List",
+            "bridgedwildcard",
+            "Optional<List<? extends CharSequence>>",
+            "List<? extends CharSequence>",
+            "@OptionalBridge Optional<List<? extends CharSequence>> x();\n",
+            "",
+            false,
+            false,
+            true,
+            true,
+            false,
             (_, seed) -> Optional.of(List.of(seed))));
   }
 

@@ -531,6 +531,91 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * A bridged correspondence, carrying the element type when — and only when — the leg has to name
+   * it. The bridged leg wraps the read back into the domain's {@code Optional}, and {@code
+   * Optional} is invariant, so an element whose own type arguments include a wildcard must be
+   * named: inference would capture it, and {@code Optional<List<CAP>>} is not the declared {@code
+   * Optional<List<? extends X>>}. A wildcard deeper than the element's own arguments never
+   * captures, and neither does anything else, so every other pair keeps the shorter inferred leg.
+   */
+  private Correspondence bridgedCorrespondence(
+      String name, String wireName, CodeBlock prism, TypeMirror element) {
+    Correspondence bridged = new Correspondence(name, wireName, Kind.OPTIONAL_BRIDGE, prism);
+    return element instanceof DeclaredType declared && hasWildcardArgument(declared)
+        ? bridged.withDomainElement(ProcessorUtils.typeNameOf(element))
+        : bridged;
+  }
+
+  /**
+   * Refuses a getter-only {@code List} the build could not fill. Such a property is written by the
+   * JAXB convention, {@code getX().addAll(...)}, and {@code addAll(Collection<? extends E>)} needs
+   * the element type the declaration withholds: over a raw receiver the call is unchecked, which
+   * fails any build running {@code -Werror}, and over a wildcard one the receiver and the argument
+   * capture separately, so no argument can satisfy it. The generated Impl is what breaks, and the
+   * author cannot edit it, so the refusal lands on the declaration that can be changed.
+   *
+   * <p>Asked only where a {@code build} is emitted. The sparse tier shares the bean model but reads
+   * the property and never writes it, so the same bean maps there untouched.
+   */
+  private boolean checkCollectionGettersFillable(TypeElement spec, WireShape.BeanShape bean) {
+    for (WireShape.BeanProperty property : bean.properties()) {
+      if (property.write() instanceof WireShape.WriteSite.CollectionAdd write
+          && !hasProperArguments(property.type())) {
+        reportUnfillableCollectionGetter(spec, bean.element(), property, write);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * The two causes read differently to the author who hit them, so they say different things: a raw
+   * property names no element type at all, and a wildcard one names a bound that is a fresh type at
+   * every mention. Only the raw author is told to add type arguments; the wildcard author already
+   * has one. Both are offered the setter, which takes the property's declared type whatever its
+   * arguments, and which a build can also leave unset.
+   */
+  private void reportUnfillableCollectionGetter(
+      TypeElement spec,
+      TypeElement bean,
+      WireShape.BeanProperty property,
+      WireShape.WriteSite.CollectionAdd write) {
+    boolean raw = !scanTypable(property.type());
+    String setter = "set" + ProcessorUtils.capitalise(property.name());
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "bean property '"
+            + property.name()
+            + "' on '"
+            + bean.getSimpleName()
+            + "' is a getter-only "
+            + ProcessorUtils.simpleTypeName(property.type())
+            + ", which a build cannot fill (not supported yet).",
+        "A getter-only List is filled by the JAXB convention, "
+            + write.getter()
+            + "().addAll(...), and addAll needs an element type it can name: "
+            + (raw
+                ? "a raw List names none, so the call is unchecked"
+                : "a wildcard argument is a fresh type at each mention, so the receiver and the"
+                    + " argument never meet")
+            + ".",
+        (raw
+                ? "Declare the type arguments on '"
+                    + write.getter()
+                    + "()', for example List<T>, or"
+                : "Replace the wildcard on '"
+                    + write.getter()
+                    + "()' with the element type it stands for, or")
+            + " give '"
+            + property.name()
+            + "' a "
+            + setter
+            + " setter, which takes the property as declared and lets a build leave it unset.");
+  }
+
+  /**
    * The write site of a wire property, or null when the wire is a record or names no such property.
    * Read where a correspondence turns on how the property is <em>written</em>, not just on its
    * type.
@@ -2126,7 +2211,8 @@ public class MappingProcessor extends AbstractProcessor {
         return;
       }
       wireShape = new BeanPropertyAnalyser(processingEnv).analyse(spec, wireBean, TAG);
-      if (wireShape == null) {
+      if (wireShape == null
+          || !checkCollectionGettersFillable(spec, (WireShape.BeanShape) wireShape)) {
         return;
       }
       wireUsed = wireBean.asType();
@@ -2996,9 +3082,11 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     /**
-     * The same correspondence carrying its domain element type, which only {@code ARRAY} needs: a
-     * generic array cannot be created without its constructor, so the parse leg emits {@code
-     * Domain[]::new} and must name the type.
+     * The same correspondence carrying its domain element type, for the two legs that have to name
+     * it rather than let it be inferred: {@code ARRAY}, because a generic array cannot be created
+     * without its constructor ({@code Domain[]::new}), and a wildcard-carrying {@code
+     * OPTIONAL_BRIDGE}, whose {@code Optional} would otherwise close over a capture (see {@link
+     * MappingProcessor#bridgeParseLeg}). Null wherever inference suffices.
      */
     Correspondence withDomainElement(TypeName element) {
       return new Correspondence(name, wireName, kind, prism, group, element, valuePrism);
@@ -3036,7 +3124,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (kind == Kind.IDENTITY || type instanceof ArrayType) {
       return kind;
     }
-    return hasWildcardArgument((DeclaredType) type) ? Kind.IDENTITY : kind;
+    // Only the wildcard half of the rung can still be false here: identityKind has already
+    // collapsed a raw container to IDENTITY.
+    return hasProperArguments(type) ? kind : Kind.IDENTITY;
   }
 
   /**
@@ -3081,6 +3171,22 @@ public class MappingProcessor extends AbstractProcessor {
    */
   static boolean scanTypable(TypeMirror type) {
     return !ProcessorUtils.isRaw((DeclaredType) type);
+  }
+
+  /**
+   * The stricter rung: whether a container names its element type outright, so a generic call can
+   * be written <em>over</em> that element rather than merely inferred at the call. It adds the
+   * wildcard exclusion to {@link #scanTypable} — a wildcard argument is captured afresh at each
+   * mention, so two mentions of one declaration are two different types. Asked wherever the emitted
+   * code has to relate the element to something else: {@link #sparseIdentityKind}'s pinned scan
+   * result, and the {@code getX().addAll(...)} write, whose receiver and argument must meet.
+   *
+   * <p>Shallow on purpose, like {@link #hasWildcardArgument}: only the container's own arguments
+   * decide, because only they are captured. Asked, like {@link #scanTypable}, of a type already
+   * matched to a declared container, so the cast holds.
+   */
+  static boolean hasProperArguments(TypeMirror type) {
+    return scanTypable(type) && !hasWildcardArgument((DeclaredType) type);
   }
 
   /**
@@ -4340,11 +4446,11 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       if (bridgeLeaf != null) {
-        return new Correspondence(
-            name, wireName, Kind.OPTIONAL_BRIDGE, CodeBlock.of("$L()", bridgeLeaf.getSimpleName()));
+        return bridgedCorrespondence(
+            name, wireName, CodeBlock.of("$L()", bridgeLeaf.getSimpleName()), bridged);
       }
       if (copies) {
-        return new Correspondence(name, wireName, Kind.OPTIONAL_BRIDGE, null);
+        return bridgedCorrespondence(name, wireName, null, bridged);
       }
       // A bridge is the only way to map a domain Optional to a plain nullable component, so a
       // failed one is a dedicated diagnostic that names the ELEMENT types (not the whole
@@ -5028,16 +5134,17 @@ public class MappingProcessor extends AbstractProcessor {
    * <p>Absence is the only thing the bridge excuses. A wire {@code List} that is present but holds
    * a null element is not absent, and the located-null doctrine applies to it exactly as it does to
    * the same component declared without the {@code Optional}; without this the bridge would be a
-   * hole in the one rule the annotation is documented as the single carve-out from. The bridged leg
-   * maps the scan's result into the domain {@code Optional}, which pins its type rather than
-   * inferring it, so it takes {@link #sparseIdentityKind} rather than {@link #identityKind}: a raw
-   * container stays a plain copy here as everywhere, and a wildcard-argument one does too.
+   * hole in the one rule the annotation is documented as the single carve-out from. So the rule
+   * here is {@link #identityKind}, the same one the unbridged leg takes: only a raw container,
+   * which no leg can scan, copies plain. A wildcard-argument container keeps its scan, because the
+   * leg names the {@code Optional}'s argument outright rather than letting the scan's result be
+   * inferred into it.
    */
   private Kind bridgeScanKind(Correspondence c, WireShape wire) {
     if (c.kind() != Kind.OPTIONAL_BRIDGE || c.prism() != null) {
       return Kind.IDENTITY;
     }
-    return sparseIdentityKind(wire.componentNamed(c.wireName()).orElseThrow().type());
+    return identityKind(wire.componentNamed(c.wireName()).orElseThrow().type());
   }
 
   /**
@@ -5633,17 +5740,27 @@ public class MappingProcessor extends AbstractProcessor {
           case IDENTITY_MAP -> CodeBlock.of("hkj$$valuesPresent(v)");
           default -> c.prism() == null ? null : CodeBlock.of("$L.parse(v)", c.prism());
         };
+    // A wildcard-carrying element is named rather than inferred, on whichever shape carries it:
+    // Optional is invariant, so a captured argument would not be the type the component declares.
+    CodeBlock witness =
+        c.domainElement() == null ? CodeBlock.of("") : CodeBlock.of("<$T>", c.domainElement());
     return present == null
         ? CodeBlock.of(
-            "\n.field($S, $T.validNel($T.ofNullable($L)))", c.name(), VALIDATED, optional, read)
+            "\n.field($S, $T.validNel($T.$LofNullable($L)))",
+            c.name(),
+            VALIDATED,
+            optional,
+            witness,
+            read)
         : CodeBlock.of(
-            "\n.field($S, $T.ofNullable($L).map(v -> $L.map($T::of)).orElseGet("
+            "\n.field($S, $T.ofNullable($L).map(v -> $L.map($T::$Lof)).orElseGet("
                 + "() -> $T.validNel($T.empty())))",
             c.name(),
             optional,
             read,
             present,
             optional,
+            witness,
             VALIDATED,
             optional);
   }
@@ -6654,8 +6771,20 @@ public class MappingProcessor extends AbstractProcessor {
     return null;
   }
 
-  private static boolean hasWildcardArgument(DeclaredType map) {
-    return map.getTypeArguments().stream().anyMatch(t -> t.getKind() == TypeKind.WILDCARD);
+  /**
+   * Whether a declared type carries a wildcard argument that capture conversion would replace with
+   * a fresh variable. The enclosing link counts: {@code Outer<? extends Number>.Inner<String>}
+   * captures on the {@code Outer} half even though {@code Inner} writes no wildcard of its own, so
+   * the walk follows {@code getEnclosingType} as {@code ProcessorUtils.firstRawIn} does for raw. An
+   * absent or static enclosing type is a {@code NoType}, which ends the walk. Only the type's own
+   * arguments are read, not theirs: a wildcard nested inside one is never captured.
+   */
+  private static boolean hasWildcardArgument(DeclaredType declared) {
+    if (declared.getTypeArguments().stream().anyMatch(t -> t.getKind() == TypeKind.WILDCARD)) {
+      return true;
+    }
+    return declared.getEnclosingType() instanceof DeclaredType enclosing
+        && hasWildcardArgument(enclosing);
   }
 
   private static List<String> wireNames(List<? extends RecordComponentElement> comps) {
