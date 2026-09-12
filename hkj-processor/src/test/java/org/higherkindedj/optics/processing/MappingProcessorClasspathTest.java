@@ -1202,10 +1202,39 @@ class MappingProcessorClasspathTest {
       Compilation together = compiler().compile(VOCABULARY, ACCOUNT_TYPES, ACCOUNT_SPEC);
       assertThat(together).succeeded();
 
-      // The boundary must not change what the spec means. Under source retention the two differed
-      // silently on the key leaf: 'hkj$valuesPresent(wire.tallies())' against the parse above.
+      // Named first, so a regression reads as the thing that went wrong rather than as a diff of
+      // two whole generated files: under source retention the key leaf vanished from both legs of
+      // the boundary compilation while it still compiled.
+      Assertions.assertThat(generatedSource(across, "com.downstream.AccountMappingImpl"))
+          .contains("tallyKey()::parseKeys")
+          .contains("tallyKey().buildKeys(domain.tallies())");
+
+      // Then the whole-file equality: the boundary must not change what the spec means at all, not
+      // merely on the members this fixture happens to assert. This rides getAllMembers order parity
+      // between javac's source and class-file readers, which holds because the marker stubs are
+      // emitted in the mix-in's declaration order and one interface declares them all.
       Assertions.assertThat(generatedSource(across, "com.downstream.AccountMappingImpl"))
           .isEqualTo(generatedSource(together, "com.downstream.AccountMappingImpl"));
+    }
+
+    @Test
+    @DisplayName("the publishing module needs no annotation processor of its own")
+    void publishingModuleNeedsNoProcessor() throws IOException {
+      // A mix-in is a plain interface, not a spec, so nothing in it is generated from: a module can
+      // export the house vocabulary without putting hkj-processor on its processor path. This is
+      // what the book promises multi-module users, so it is pinned rather than assumed.
+      Compilation upstream =
+          javac().withProcessors().withClasspath(TEST_CLASSPATH).compile(VOCABULARY);
+      assertThat(upstream).succeeded();
+      Assertions.assertThat(upstream.generatedSourceFiles()).isEmpty();
+
+      Compilation downstream =
+          compiler(classDirectory("plain-upstream", upstream)).compile(ACCOUNT_TYPES, ACCOUNT_SPEC);
+      assertThat(downstream).succeeded();
+      Assertions.assertThat(generatedSource(downstream, "com.downstream.AccountMappingImpl"))
+          .contains(".field(\"name\", hkj$ifPresent(wire.fullName()")
+          .contains("domain.nickname().orElse(null)")
+          .contains("tallyKey()::parseKeys");
     }
   }
 }
