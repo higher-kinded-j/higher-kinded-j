@@ -658,7 +658,12 @@ class MappingProcessorFlattenTest {
                   }
                   """));
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("@Flatten has no meaning on a sealed mapping");
+      assertThat(compilation)
+          .hadErrorContaining("@Flatten on 'address' has no meaning on a sealed mapping");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "moving it to a mix-in does not help here, since a sealed mapping refuses an"
+                  + " inherited marker too");
     }
 
     @Test
@@ -1014,7 +1019,7 @@ class MappingProcessorFlattenTest {
     }
 
     @Test
-    @DisplayName("a sparse UpdateSpec is not supported yet")
+    @DisplayName("a locally declared marker on a sparse UpdateSpec is not supported yet")
     void sparseUpdate() {
       JavaFileObject patch =
           JavaFileObjects.forSourceString(
@@ -1046,6 +1051,10 @@ class MappingProcessorFlattenTest {
       assertThat(compilation)
           .hadErrorContaining(
               "@Flatten on 'address' has no meaning on a sparse UpdateSpec (not supported yet)");
+      // This PATCH bean does not spread the group, so the fix line offers the placement that
+      // keeps a full sibling spec working rather than only telling the author to delete.
+      assertThat(compilation)
+          .hadErrorContaining("move it to a mix-in a full MappingSpec also extends");
     }
 
     @Test
@@ -1429,6 +1438,391 @@ class MappingProcessorFlattenTest {
           .hadErrorContaining("@OptionalBridge on 'phone' names a component that is not Optional");
       assertThat(compilation)
           .hadErrorContaining("'Reach.phone' is java.lang.String, which has no absent state");
+    }
+  }
+
+  @Nested
+  @DisplayName("Shared vocabulary")
+  class SharedVocabulary {
+
+    private static final JavaFileObject VOCABULARY =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerVocabulary",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.Flatten;
+
+            public interface CustomerVocabulary {
+              @Flatten
+              Types.Address address();
+            }
+            """);
+
+    private static final JavaFileObject NESTED_PATCH =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerNestedPatch",
+            """
+            package com.example;
+
+            public class CustomerNestedPatch {
+              private String name;
+              private Types.Address address;
+
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+              public Types.Address getAddress() { return address; }
+              public void setAddress(Types.Address address) { this.address = address; }
+            }
+            """);
+
+    private static final JavaFileObject FLAT_PATCH =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerFlatPatch",
+            """
+            package com.example;
+
+            public class CustomerFlatPatch {
+              private String name;
+              private String street;
+              private String city;
+
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+              public String getStreet() { return street; }
+              public void setStreet(String street) { this.street = street; }
+              public String getCity() { return city; }
+              public void setCity(String city) { this.city = city; }
+            }
+            """);
+
+    @Test
+    @DisplayName("one vocabulary serves a MappingSpec and its UpdateSpec sibling")
+    void oneVocabularyServesBothTiers() {
+      Compilation compilation =
+          compile(
+              TYPES,
+              VOCABULARY,
+              NESTED_PATCH,
+              spec(
+                  "SharedCustomerMapping",
+                  """
+                  @GenerateMapping
+                  public interface SharedCustomerMapping
+                      extends CustomerVocabulary, MappingSpec<Types.Customer, Types.CustomerDto> {}
+                  """),
+              spec(
+                  "SharedCustomerPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface SharedCustomerPatchMapping
+                      extends CustomerVocabulary, UpdateSpec<Types.Customer, CustomerNestedPatch> {}
+                  """));
+      assertThat(compilation).succeeded();
+      // The full spec spreads the group; the PATCH sibling never consults the marker, and its
+      // wire declares the component itself, so 'address' patches whole by identity.
+      Assertions.assertThat(generatedSource(compilation, "com.example.SharedCustomerMappingImpl"))
+          .contains(".field(\"address\", Validated.fields()")
+          .contains(".apply(Types.Address::new))");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.example.SharedCustomerPatchMappingImpl"))
+          .contains(
+              "Types.Customer::address, (d, v) -> new Types.Customer(d.name(), v)),"
+                  + " wire.getAddress())")
+          .doesNotContain("Types.Address::new");
+    }
+
+    @Test
+    @DisplayName("an inherited marker this PATCH wire spreads keeps the pointed refusal")
+    void inheritedMarkerSpreadByThisWireIsRefused() {
+      Compilation compilation =
+          compile(
+              TYPES,
+              VOCABULARY,
+              FLAT_PATCH,
+              spec(
+                  "FlatPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface FlatPatchMapping
+                      extends CustomerVocabulary, UpdateSpec<Types.Customer, CustomerFlatPatch> {}
+                  """));
+      assertThat(compilation).failed();
+      // Staying silent here would trade one pointed refusal for a dangling-property error per
+      // spread property, naming neither the marker nor the mix-in it came from.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Flatten on 'address' (inherited from 'CustomerVocabulary') has no meaning on a"
+                  + " sparse UpdateSpec (not supported yet)");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'CustomerFlatPatch' carries [street, city] with nothing else to source them, so the"
+                  + " group is spread here rather than merely unused");
+      // The remedy is a replacement, not an addition: keeping the inner properties beside a new
+      // 'address' one would spread the group still.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Replace [street, city] on 'CustomerFlatPatch' with one 'address' property, a getter"
+                  + " and a setter over Types.Address, which patches the component whole");
+    }
+
+    @Test
+    @DisplayName("a local marker this PATCH wire spreads is refused the same way")
+    void localMarkerSpreadByThisWireIsRefused() {
+      Compilation compilation =
+          compile(
+              TYPES,
+              FLAT_PATCH,
+              spec(
+                  "LocalFlatPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface LocalFlatPatchMapping
+                      extends UpdateSpec<Types.Customer, CustomerFlatPatch> {
+                    @Flatten
+                    Types.Address address();
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Flatten on 'address' has no meaning on a sparse UpdateSpec (not supported yet)");
+      assertThat(compilation)
+          .hadErrorContaining("map the pair with a full MappingSpec against a record wire");
+    }
+
+    @Test
+    @DisplayName("a local marker naming no record component is not offered the mix-in placement")
+    void localMarkerNamingNoComponentIsNotOfferedTheMixin() {
+      JavaFileObject patch =
+          JavaFileObjects.forSourceString(
+              "com.example.TypoPatch",
+              """
+              package com.example;
+
+              public class TypoPatch {
+                private String name;
+
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              """);
+      // An unmatched marker is inert on every tier, so offering the mix-in placement here would
+      // bury the typo rather than fix it. The fix line names the missing component instead.
+      Compilation compilation =
+          compile(
+              TYPES,
+              patch,
+              spec(
+                  "TypoPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface TypoPatchMapping
+                      extends UpdateSpec<Types.Customer, TypoPatch> {
+                    @Flatten
+                    Types.Address adress();
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Remove the @Flatten method: 'Customer' has no record component named 'adress' for"
+                  + " it to spread.");
+      assertThat(compilation).hadErrorContaining("@Flatten on 'adress' has no meaning");
+    }
+
+    @Test
+    @DisplayName("an inherited marker for a component this domain lacks stays inert")
+    void inheritedMarkerOffThisDomainStaysInert() {
+      JavaFileObject patch =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactPatch",
+              """
+              package com.example;
+
+              public class ContactPatch {
+                private String phone;
+
+                public String getPhone() { return phone; }
+                public void setPhone(String phone) { this.phone = phone; }
+              }
+              """);
+      // Contact has no 'address', so the inherited marker speaks about a component this spec does
+      // not declare - inert, exactly as an inherited leaf for an absent component already is.
+      Compilation compilation =
+          compile(
+              TYPES,
+              VOCABULARY,
+              patch,
+              spec(
+                  "ContactPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface ContactPatchMapping
+                      extends CustomerVocabulary, UpdateSpec<Types.Contact, ContactPatch> {}
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ContactPatchMappingImpl"))
+          .contains("Setter.fromGetSet(Types.Contact::phone")
+          .contains("wire.getPhone()")
+          // The marker is stubbed like any other, so the Impl still implements the member.
+          .contains("public Types.Address address()");
+    }
+
+    @Test
+    @DisplayName("an inherited marker naming a component that is not a record stays inert")
+    void inheritedMarkerOnANonRecordComponentStaysInert() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Label",
+              """
+              package com.example;
+
+              public record Label(String address) {}
+              """);
+      JavaFileObject patch =
+          JavaFileObjects.forSourceString(
+              "com.example.LabelPatch",
+              """
+              package com.example;
+
+              public class LabelPatch {
+                private String address;
+
+                public String getAddress() { return address; }
+                public void setAddress(String address) { this.address = address; }
+              }
+              """);
+      // 'address' is a String here, so there is no record to spread and nothing for the marker to
+      // do; the wire property binds to the domain component of that name on its own.
+      Compilation compilation =
+          compile(
+              TYPES,
+              VOCABULARY,
+              domain,
+              patch,
+              spec(
+                  "LabelPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface LabelPatchMapping
+                      extends CustomerVocabulary, UpdateSpec<Label, LabelPatch> {}
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.LabelPatchMappingImpl"))
+          .contains("Setter.fromGetSet(Label::address")
+          .contains("wire.getAddress()");
+    }
+
+    @Test
+    @DisplayName("an inner name another source already fills is not evidence of a spread")
+    void innerNameFilledByARenameIsNotASpread() {
+      JavaFileObject patch =
+          JavaFileObjects.forSourceString(
+              "com.example.RenamedPatch",
+              """
+              package com.example;
+
+              public class RenamedPatch {
+                private String street;
+                private Types.Address address;
+
+                public String getStreet() { return street; }
+                public void setStreet(String street) { this.street = street; }
+                public Types.Address getAddress() { return address; }
+                public void setAddress(Types.Address address) { this.address = address; }
+              }
+              """);
+      // 'street' is where Customer.name is written, not where the group would spread: the same
+      // spec without the mix-in maps it exactly so, and inheriting a vocabulary must not change
+      // that. The group's own component is on the wire beside it, patched whole.
+      Compilation compilation =
+          compile(
+              TYPES,
+              VOCABULARY,
+              patch,
+              spec(
+                  "RenamedPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface RenamedPatchMapping
+                      extends CustomerVocabulary, UpdateSpec<Types.Customer, RenamedPatch> {
+                    @MapField(to = "street")
+                    String name();
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.RenamedPatchMappingImpl"))
+          .contains("Setter.fromGetSet(Types.Customer::name")
+          .contains("wire.getStreet()")
+          .contains("Setter.fromGetSet(Types.Customer::address")
+          .contains("wire.getAddress()");
+    }
+
+    @Test
+    @DisplayName("an inner name the domain also declares is not evidence of a spread")
+    void innerNameSharedWithADomainComponentIsNotASpread() {
+      JavaFileObject roster =
+          JavaFileObjects.forSourceString(
+              "com.example.Roster",
+              """
+              package com.example;
+
+              public final class Roster {
+                public record PersonName(String id, String label) {}
+
+                public record Person(String id, PersonName name) {}
+              }
+              """);
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.PersonVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.Flatten;
+
+              public interface PersonVocabulary {
+                @Flatten
+                Roster.PersonName name();
+              }
+              """);
+      JavaFileObject patch =
+          JavaFileObjects.forSourceString(
+              "com.example.PersonPatch",
+              """
+              package com.example;
+
+              public class PersonPatch {
+                private String id;
+                private Roster.PersonName name;
+
+                public String getId() { return id; }
+                public void setId(String id) { this.id = id; }
+                public Roster.PersonName getName() { return name; }
+                public void setName(Roster.PersonName name) { this.name = name; }
+              }
+              """);
+      // The group's inner 'id' is on the wire, but it is Person's own component the property binds
+      // to; only 'label' would be evidence of a spread, and this wire does not carry it.
+      Compilation compilation =
+          compile(
+              roster,
+              vocabulary,
+              patch,
+              spec(
+                  "PersonPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface PersonPatchMapping
+                      extends PersonVocabulary, UpdateSpec<Roster.Person, PersonPatch> {}
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.PersonPatchMappingImpl"))
+          .contains("Setter.fromGetSet(Roster.Person::id")
+          .contains("wire.getId()")
+          .contains("Setter.fromGetSet(Roster.Person::name")
+          .contains("wire.getName()");
     }
   }
 }
