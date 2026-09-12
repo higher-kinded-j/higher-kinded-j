@@ -477,6 +477,10 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   nested Impl's `asValidatedPrism()`. Same-typed identity containers are null-scanned
   (`tags.1: must not be null`; a set's unlocated, as `tags: must not contain a null element`)
   when properly parameterised; raw/wildcard ones are written as sent. `@MapKey` applies here too.
+- A **getter-only `List`** property is rejected here: its getter creates the list on first call,
+  so it never reads `null` and an omitted field would clear the domain value. Give it a setter.
+  (The dense tier keeps the same property - it writes every component, so absence means nothing
+  there.)
 - Coverage is one-sided: a domain component with no wire property is simply never changed.
 - Law-check it with the sparse overload:
   `MappingLaws.assertMappingLaws(Impl.INSTANCE::updateFrom, current, absentWire, validWire, invalidWire)`.
@@ -642,6 +646,7 @@ before rearranging the spec.
 | A PATCH request bean on `MappingSpec` | A bean smaller than the domain compiles as a projection whose `patch` is dense: an unset property is `must not be null`, and an unset bridged `Optional` clears the value. For null-means-keep, extend `UpdateSpec` |
 | Expecting `@GenerateMerge` to give you a reverse split | Merging is forward-only by design |
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
+| A JAXB getter-only `List` on an `UpdateSpec` | Its getter creates the list on first call, so it never reads `null`: an omitted field would clear the domain list rather than leave it alone. Rejected; give the property a setter |
 | Bridging a domain `Optional<List<T>>` onto a JAXB getter-only `List` | The getter creates the list on first call, so absence has nowhere to live and would read back as a present empty list. Declare the component `List<T>`, where empty *is* nothing, or give the property both a setter and a getter that returns `null` until one is called (a lazily creating getter loses absence on the read even with a setter) |
 | Two nested specs generating the same `Impl` | Nested specs join their enclosing simple names; rename one |
 | Assuming sealed hierarchies are unsupported | They are supported. Give each permitted subtype pair a spec; the parent dispatches |

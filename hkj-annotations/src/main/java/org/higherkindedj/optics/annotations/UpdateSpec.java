@@ -55,6 +55,10 @@ package org.higherkindedj.optics.annotations;
  * is one-sided: every wire property maps to a domain component, but a domain component with no wire
  * property is simply never changed.
  *
+ * <p>A getter-only {@code List} property is rejected: the JAXB convention creates the list on first
+ * call, so the property never reads {@code null} and cannot express <em>not provided</em>. Give it
+ * a setter, which an omitted field leaves {@code null}.
+ *
  * @param <D> the domain type (a record)
  * @param <W> the wire type (a bean-shaped PATCH DTO)
  * @see MappingSpec

@@ -972,10 +972,10 @@ class MappingProcessorBeanTest {
 
     @Test
     @DisplayName(
-        "a sparse UpdateSpec keeps the same getter-only List: it reads the property and never"
-            + " writes it, so no build has to fill it")
-    void aSparseUpdateKeepsTheGetterOnlyList() {
-      JavaFileObject spec =
+        "each tier refuses the getter-only List for its own reason: the dense one cannot fill it,"
+            + " the sparse one cannot read absence from it, and neither message reaches the other")
+    void eachTierRefusesTheGetterOnlyListForItsOwnReason() {
+      JavaFileObject sparse =
           JavaFileObjects.forSourceString(
               "com.example.DocPatch",
               """
@@ -988,12 +988,20 @@ class MappingProcessorBeanTest {
               public interface DocPatch extends UpdateSpec<Doc, DocDto> {}
               """);
       for (String listType : List.of("List", "List<? extends CharSequence>")) {
-        Compilation compilation = compileLinted(docWith(listType), listGetterOnly(listType), spec);
-        assertThat(compilation).succeeded();
-        Assertions.assertThat(generatedSource(compilation, "com.example.DocPatchImpl"))
-            .as("%s reads through the getter, and writes nothing", listType)
-            .contains("wire.getTags()")
-            .doesNotContain("addAll");
+        Compilation dense =
+            compile(docWith(listType), listGetterOnly(listType), docMapping("DocDto"));
+        assertThat(dense).hadErrorContaining("which a build cannot fill");
+        Assertions.assertThat(dense.errors())
+            .as("%s: the dense tier writes the property, so absence is not its complaint", listType)
+            .noneMatch(error -> error.getMessage(null).contains("carry a sparse update's absence"));
+
+        Compilation update = compile(docWith(listType), listGetterOnly(listType), sparse);
+        assertThat(update).hadErrorContaining("cannot carry a sparse update's absence");
+        Assertions.assertThat(update.errors())
+            .as(
+                "%s: the sparse tier never writes the property, so filling is not its complaint",
+                listType)
+            .noneMatch(error -> error.getMessage(null).contains("a build cannot fill"));
       }
     }
 
