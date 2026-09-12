@@ -320,7 +320,7 @@ A generic `@HkjHttpClient` interface is supported **codegen-only**: the native i
 - **Client interfaces outside the component scan.** If your `@HkjHttpClient` interfaces are not under your `@SpringBootApplication`'s scanned packages, the generated configuration is not picked up and Spring never creates the proxy. Add an explicit `@ImportHttpServices(basePackages = "...")`.
 - **Expecting a transport failure to become a `Left`.** Connection-refused and timeout are not domain errors; they propagate. Use the `VTaskPath` variant and `runSafe()` to capture them as the failure arm of `Try<Either<E, T>>`.
 - **Short-circuiting an SSE stream.** Drain it (`toList()`) or bound it (`take(n).toList()`); a `headOption()`/`find(...)` returns before the stream completes and may leave the HTTP response open.
-- **Inheriting methods from a precompiled base.** A super-interface in a dependency jar must be compiled with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. Interfaces compiled in your own build are fine.
+- **Inheriting methods from a precompiled base.** A super-interface in a dependency jar must be compiled with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. Interfaces compiled in your own build are fine. The base's `@OnStatus` overrides carry over either way, and a problem with an inherited method is reported on your client interface, naming the method and the interface it came from.
 - **An `@OnStatus` error type that is not assignable to the method's declared error type.** This is a compile error, by design.
 ~~~
 

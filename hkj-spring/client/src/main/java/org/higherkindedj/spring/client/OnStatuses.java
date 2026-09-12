@@ -11,10 +11,13 @@ import java.lang.annotation.Target;
 /**
  * Container for repeated {@link OnStatus} annotations. Not used directly — declare multiple {@link
  * OnStatus} annotations on a method instead.
+ *
+ * <p>Retained in the class file for the same reason as {@link OnStatus}: two or more overrides on
+ * one method are stored as this container, so an inherited method keeps them only if it survives.
  */
 @Documented
 @Target(ElementType.METHOD)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface OnStatuses {
 
   /**

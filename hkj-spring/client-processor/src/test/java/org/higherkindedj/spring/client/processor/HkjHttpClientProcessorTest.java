@@ -320,19 +320,18 @@ class HkjHttpClientProcessorTest {
     @Test
     @DisplayName("errors when an override type is not assignable to the declared error type")
     void incompatibleOverride() {
-      Compilation compilation =
-          compile(
-              api(
-                  "  @GetExchange(\"/{id}\")",
-                  "  @OnStatus(value = 404, error = UserDto.class)",
-                  "  EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);"),
-              USER_DTO,
-              API_ERR,
-              NOT_FOUND,
-              CONFLICT,
-              GENERIC);
+      JavaFileObject source =
+          api(
+              "  @GetExchange(\"/{id}\")",
+              "  @OnStatus(value = 404, error = UserDto.class)",
+              "  EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);");
+      Compilation compilation = compile(source, USER_DTO, API_ERR, NOT_FOUND, CONFLICT, GENERIC);
 
-      assertThat(compilation).hadErrorContaining("not assignable");
+      // A method the client declares itself is reported at its own declaration.
+      assertThat(compilation)
+          .hadErrorContaining("@OnStatus error type com.example.UserDto is not assignable")
+          .inFile(source)
+          .onLineContaining("getUser");
     }
 
     @Test
