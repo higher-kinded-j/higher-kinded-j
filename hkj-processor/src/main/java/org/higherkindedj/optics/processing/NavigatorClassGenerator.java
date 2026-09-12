@@ -7,7 +7,9 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
@@ -18,6 +20,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
@@ -61,8 +64,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *
  * <p>A navigation method never works a container's widening out for itself: it composes the static
  * Focus method the target record's own companion generated, so the two report the same path type
- * for the same declaration by construction (issue #719). {@link WideningAnalysis} is consulted only
- * for what that method returns, so that this one can declare it.
+ * for the same declaration by construction (issue #719). For a target annotated in this round,
+ * {@link WideningAnalysis} says what that method is about to return; for any other target, the
+ * return type is read from the method its companion actually published.
  */
 public class NavigatorClassGenerator {
 
@@ -187,8 +191,9 @@ public class NavigatorClassGenerator {
    *
    * <p>The declaring record asked for navigators and gets one fewer than the components suggest,
    * which is the same surprise a delegate-name collision produces and is reported the same way.
-   * Every other reason a component has no navigator is visible in what it is: not navigable, or
-   * filtered out by the record's own include/exclude.
+   * Most other reasons a component has no navigator are visible in what it is: not navigable, or
+   * filtered out by the record's own include/exclude. The one that is not, a target with no
+   * companion to compose, is reported the same way.
    *
    * @param recordElement the record declaring the component
    * @param component the component whose navigator was not generated
@@ -225,7 +230,8 @@ public class NavigatorClassGenerator {
 
   /**
    * Says why a component asking for a navigator did not get one, when its target is a record from a
-   * dependency whose module published no companion to compose.
+   * dependency with no companion to compose: none on this module's compile classpath, or one this
+   * module cannot access.
    *
    * <p>Nothing in the declaration shows this: the target visibly carries {@code @GenerateFocus},
    * and the reason is another module's build, so it is the least visible reason a navigator can be
@@ -247,11 +253,12 @@ public class NavigatorClassGenerator {
                 + componentName
                 + "' is not generated: "
                 + unpublished.getQualifiedName()
-                + " carries @GenerateFocus, but "
+                + " carries @GenerateFocus, but no public "
                 + focusClassOf(unpublished).canonicalName()
-                + " is not on the classpath, so the module declaring it did not run hkj-processor."
-                + " Add hkj-processor to that module's annotation processor path and rebuild it;"
-                + " until then "
+                + " is on this module's compile classpath, which usually means the module declaring "
+                + unpublished.getSimpleName()
+                + " did not run hkj-processor. Add hkj-processor to that module's annotation"
+                + " processor path and rebuild it; until then "
                 + focusClassOf(recordElement).simpleName()
                 + "."
                 + componentName
@@ -262,7 +269,7 @@ public class NavigatorClassGenerator {
   /**
    * The record a component would have a navigator for, were its companion published: it reaches,
    * directly or as an SPI container's element, a non-generic record from a dependency that carries
-   * {@code @GenerateFocus} but generated no {@code Focus} class.
+   * {@code @GenerateFocus} but has no companion this module can compose.
    *
    * @param record the record that declares the component
    * @param component the component, which has no navigator
@@ -769,7 +776,7 @@ public class NavigatorClassGenerator {
                     + "."
                     + fieldName
                     + "()) as a workaround.",
-                component);
+                owner);
         continue;
       }
 
@@ -777,7 +784,7 @@ public class NavigatorClassGenerator {
         case FieldShape.Unresolvable unresolvable ->
             reportUnresolvableField(owner, targetFocusClass, fieldName, unresolvable.type());
         case FieldShape.Unrecognised _ ->
-            reportUnrecognisedField(owner, targetFocusClass, fieldName);
+            reportUnrecognisedField(owner, targetRecord, targetFocusClass, fieldName);
         case FieldShape.Path path ->
             navigatorBuilder.addMethod(
                 navigationMethod(
@@ -832,13 +839,13 @@ public class NavigatorClassGenerator {
                 + "' has no '"
                 + fieldName
                 + "' method: "
-                + targetFocusClass.simpleName()
+                + targetFocusClass.canonicalName()
                 + "."
                 + fieldName
                 + "() names "
                 + type
-                + ", which is not on this module's compile classpath. Put the module declaring it"
-                + " on the classpath to navigate through '"
+                + ", which is not on this module's compile classpath. Put the module declaring it on"
+                + " this module's compile classpath to navigate through '"
                 + fieldName
                 + "'.",
             owner);
@@ -846,10 +853,14 @@ public class NavigatorClassGenerator {
 
   /**
    * Says why a navigator has no method for one of its target's fields: the target's companion
-   * publishes no method for it that a navigator can compose.
+   * publishes no method for it that a navigator can compose, so it was not generated from the
+   * record as the record now is.
    */
   private void reportUnrecognisedField(
-      RecordComponentElement owner, ClassName targetFocusClass, String fieldName) {
+      RecordComponentElement owner,
+      TypeElement targetRecord,
+      ClassName targetFocusClass,
+      String fieldName) {
     processingEnv
         .getMessager()
         .printMessage(
@@ -860,10 +871,18 @@ public class NavigatorClassGenerator {
                 + fieldName
                 + "' method: "
                 + targetFocusClass.canonicalName()
-                + " has no generated "
+                + " has no public static "
                 + fieldName
-                + "() to compose, so it was not generated from the record as it now is. Rebuild"
-                + " the module declaring it with hkj-processor.",
+                + "() returning a path or navigator over "
+                + targetRecord.getSimpleName()
+                + ", so hkj-processor did not generate it from "
+                + targetRecord.getSimpleName()
+                + " as it now is. Rebuild the module declaring "
+                + targetRecord.getSimpleName()
+                + " with hkj-processor; if "
+                + targetFocusClass.simpleName()
+                + " is a class of your own, rename it or redirect the generated one with"
+                + " targetPackage.",
             owner);
   }
 
@@ -921,11 +940,12 @@ public class NavigatorClassGenerator {
   /**
    * The shape of the static Focus method a navigation method composes.
    *
-   * <p>A target in this compilation has no companion to read yet, so its shape is worked out by the
-   * same analysis its companion is about to be generated from. A target from a dependency already
-   * has one, so its shape is read from the method that was actually published rather than worked
-   * out again: the dependency may have been built under a different processor path, version or
-   * classpath, and composing anything but what it published would name something that is not there.
+   * <p>A target annotated in this round has no companion to read yet, so its shape is worked out by
+   * the same analysis its companion is about to be generated from. Any other target, from a
+   * dependency or from an earlier round, already has one, so its shape is read from the method that
+   * was actually published rather than worked out again: a dependency may have been built under a
+   * different processor path, version or classpath, and composing anything but what it published
+   * would name something that is not there.
    */
   private FieldShape fieldShape(
       TypeElement targetRecord, ClassName targetFocusClass, RecordComponentElement component) {
@@ -939,63 +959,130 @@ public class NavigatorClassGenerator {
               targetFocusClass.nestedClass(
                   ProcessorUtils.capitalise(component.getSimpleName().toString()) + "Navigator"));
     }
-    return publishedShape(targetFocusClass, component.getSimpleName().toString());
+    return publishedShape(targetRecord, targetFocusClass, component.getSimpleName().toString());
   }
 
   /**
-   * Reads the shape of a dependency's published static Focus method for one field. The companion is
-   * known to exist: a target from a dependency is navigable only once {@link #reach} has found it.
+   * Reads the shape of a target's published static Focus method for one field. The companion is
+   * known to exist and to be public: a target outside this round is navigable only once {@link
+   * #reach} has found it so.
    */
-  private FieldShape publishedShape(ClassName targetFocusClass, String fieldName) {
+  private FieldShape publishedShape(
+      TypeElement targetRecord, ClassName targetFocusClass, String fieldName) {
     TypeElement focus =
         processingEnv.getElementUtils().getTypeElement(targetFocusClass.canonicalName());
     return ElementFilter.methodsIn(focus.getEnclosedElements()).stream()
         .filter(
             method ->
                 method.getSimpleName().contentEquals(fieldName)
-                    && method.getModifiers().contains(Modifier.STATIC)
-                    && method.getParameters().isEmpty())
+                    && publicStatic(method)
+                    && method.getParameters().isEmpty()
+                    && method.getTypeParameters().isEmpty())
         .findFirst()
-        .map(method -> shapeOf(focus, method.getReturnType()))
+        .map(method -> shapeOf(focus, targetRecord, method.getReturnType()))
         .orElseGet(FieldShape.Unrecognised::new);
   }
 
-  /** The shape a published method's return type describes: a path, or a navigator it nests. */
-  private static FieldShape shapeOf(TypeElement focus, TypeMirror returned) {
+  /**
+   * The shape a published method's return type describes: a path over the target, or a navigator
+   * nested in its companion that generated code in another package can name and construct.
+   */
+  private FieldShape shapeOf(TypeElement focus, TypeElement targetRecord, TypeMirror returned) {
+    Optional<TypeMirror> unresolved = unresolvedPart(returned);
+    if (unresolved.isPresent()) {
+      return new FieldShape.Unresolvable(unresolved.orElseThrow());
+    }
     if (!(returned instanceof DeclaredType declared)
         || !declared.asElement().getEnclosingElement().equals(focus)) {
-      return pathShape(returned);
+      return pathShape(targetRecord.asType(), returned);
     }
-    // A navigator says which path it wraps through its own toPath().
     TypeElement navigator = (TypeElement) declared.asElement();
-    FieldShape wrapped =
+    if (!nameableNavigator(navigator, declared, targetRecord)) {
+      return new FieldShape.Unrecognised();
+    }
+    // A navigator says which path it wraps through its own toPath(), and is composed as
+    // `new Navigator<>(path)`, so it must take that path in a public constructor.
+    Optional<ExecutableElement> toPath =
         ElementFilter.methodsIn(navigator.getEnclosedElements()).stream()
             .filter(
                 method ->
                     method.getSimpleName().contentEquals("toPath")
+                        && method.getModifiers().contains(Modifier.PUBLIC)
                         && method.getParameters().isEmpty())
-            .findFirst()
-            .map(method -> pathShape(method.getReturnType()))
-            .orElseGet(FieldShape.Unrecognised::new);
-    return wrapped instanceof FieldShape.Path path
+            .findFirst();
+    if (toPath.isEmpty()) {
+      return new FieldShape.Unrecognised();
+    }
+    TypeMirror wraps = toPath.orElseThrow().getReturnType();
+    FieldShape wrapped = pathShape(navigator.getTypeParameters().getFirst().asType(), wraps);
+    if (!(wrapped instanceof FieldShape.Path path)) {
+      return wrapped;
+    }
+    return constructibleFrom(navigator, wraps)
         ? new FieldShape.Navigator(path.tier(), path.focusType(), ClassName.get(navigator))
-        : wrapped;
+        : new FieldShape.Unrecognised();
   }
 
-  /** A FocusPath, AffinePath or TraversalPath type, as the path shape it names. */
-  private static FieldShape pathShape(TypeMirror type) {
+  /**
+   * Whether a navigator class nested in a companion can be named as {@code Navigator<S>} from
+   * generated code in another package, and was published over the target.
+   */
+  private boolean nameableNavigator(
+      TypeElement navigator, DeclaredType returned, TypeElement targetRecord) {
+    return navigator.getKind() == ElementKind.CLASS
+        && publicStatic(navigator)
+        && navigator.getTypeParameters().size() == 1
+        && returned.getTypeArguments().size() == 1
+        && processingEnv
+            .getTypeUtils()
+            .isSameType(returned.getTypeArguments().getFirst(), targetRecord.asType());
+  }
+
+  /**
+   * Whether a navigator can be constructed from the path its {@code toPath()} returns: it is not
+   * abstract, and a public constructor takes exactly that path.
+   */
+  private boolean constructibleFrom(TypeElement navigator, TypeMirror wraps) {
+    Types types = processingEnv.getTypeUtils();
+    return !navigator.getModifiers().contains(Modifier.ABSTRACT)
+        && ElementFilter.constructorsIn(navigator.getEnclosedElements()).stream()
+            .anyMatch(
+                constructor ->
+                    constructor.getModifiers().contains(Modifier.PUBLIC)
+                        && constructor.getParameters().size() == 1
+                        && types.isSameType(
+                            constructor.getParameters().getFirst().asType(), wraps));
+  }
+
+  /** Whether a member can be named from generated code in another package without an instance. */
+  private static boolean publicStatic(Element element) {
+    return element.getModifiers().containsAll(Set.of(Modifier.PUBLIC, Modifier.STATIC));
+  }
+
+  /**
+   * A FocusPath, AffinePath or TraversalPath from {@code source}, as the path shape it names. The
+   * focus keeps its type-use annotations, so a {@code @Nullable} element reads as the dependency
+   * wrote it.
+   */
+  private FieldShape pathShape(TypeMirror source, TypeMirror type) {
     Optional<TypeMirror> unresolved = unresolvedPart(type);
     if (unresolved.isPresent()) {
       return new FieldShape.Unresolvable(unresolved.orElseThrow());
     }
-    if (!(type instanceof DeclaredType declared) || declared.getTypeArguments().size() != 2) {
+    if (!(type instanceof DeclaredType declared)
+        || declared.getTypeArguments().size() != 2
+        || !processingEnv
+            .getTypeUtils()
+            .isSameType(declared.getTypeArguments().getFirst(), source)) {
       return new FieldShape.Unrecognised();
     }
     String name = ((TypeElement) declared.asElement()).getQualifiedName().toString();
     return Arrays.stream(Tier.values())
         .filter(tier -> tier.pathClass().canonicalName().equals(name))
         .<FieldShape>map(
-            tier -> new FieldShape.Path(tier, TypeName.get(declared.getTypeArguments().get(1))))
+            tier ->
+                new FieldShape.Path(
+                    tier, ProcessorUtils.typeNameOf(declared.getTypeArguments().get(1))))
         .findFirst()
         .orElseGet(FieldShape.Unrecognised::new);
   }
@@ -1097,7 +1184,7 @@ public class NavigatorClassGenerator {
     /** A record whose Focus companion a navigator can compose. */
     record Navigable(TypeElement record) implements Reach {}
 
-    /** A record from a dependency that carries the annotation but published no companion. */
+    /** A record outside this round that carries the annotation but has no companion to compose. */
     record Unpublished(TypeElement record) implements Reach {}
 
     /** Anything else. */
@@ -1105,20 +1192,21 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * How a type relates to navigation: navigable, a record whose companion was never published, or
+   * How a type relates to navigation: navigable, a record whose companion cannot be composed, or
    * neither.
    *
    * <p>Two questions, and both are load-bearing. {@code navigableTypes} holds the records annotated
-   * in this round, whose {@code Focus} classes this compilation is about to write and so cannot yet
-   * look up. A type from a dependency is in neither that set nor this compilation, and is answered
-   * by the annotation instead, which is why {@link GenerateFocus} is retained in the class file: a
-   * record in one module stays navigable from another's {@code Focus}.
+   * in this round, whose {@code Focus} classes this round is about to write and so cannot yet look
+   * up. A type outside that set, from a dependency or from an earlier round, is answered by the
+   * annotation instead, which is why {@link GenerateFocus} is retained in the class file: a record
+   * in one module stays navigable from another's {@code Focus}.
    *
-   * <p>A dependency is held to what it actually published. Navigating into it composes its {@code
-   * Focus} class, so a record annotated in a module that did not run the processor has nothing to
-   * compose and is unpublished rather than navigable. Only a record can be navigable, as in-round:
-   * the annotation is refused on anything else where it is declared, so a class file carrying it
-   * elsewhere came from a module that never checked.
+   * <p>Such a type is held to what was actually published. Navigating into it composes its {@code
+   * Focus} class from generated code in another package, so a record whose module did not run the
+   * processor, or whose companion is not public, has nothing to compose and is unpublished rather
+   * than navigable. Only a record can be navigable, as in-round: the annotation is refused on
+   * anything else where it is declared, so a class file carrying it elsewhere came from a module
+   * that never checked.
    */
   private Reach reach(TypeMirror type) {
     if (type.getKind() != TypeKind.DECLARED) {
@@ -1132,10 +1220,11 @@ public class NavigatorClassGenerator {
         || !(typeElement.getAnnotation(GenerateFocus.class) instanceof GenerateFocus settings)) {
       return new Reach.None();
     }
-    return processingEnv
-                .getElementUtils()
-                .getTypeElement(focusClassOf(typeElement, settings).canonicalName())
-            != null
+    TypeElement companion =
+        processingEnv
+            .getElementUtils()
+            .getTypeElement(focusClassOf(typeElement, settings).canonicalName());
+    return companion != null && companion.getModifiers().contains(Modifier.PUBLIC)
         ? new Reach.Navigable(typeElement)
         : new Reach.Unpublished(typeElement);
   }

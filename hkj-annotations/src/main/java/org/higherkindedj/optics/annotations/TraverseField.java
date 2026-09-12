@@ -67,11 +67,16 @@ import java.lang.annotation.Target;
  * {@code Traverse} is written for one witness, and a type variable stands for any, so no {@code
  * Traverse} instance exists for it.
  *
+ * <p>Retained in the class file for an incremental build. {@link GenerateFocus} is retained, so a
+ * build may reprocess an unchanged record from its class file rather than recompile it, and the
+ * {@code Focus} class regenerated then must widen this component exactly as the one generated from
+ * source did.
+ *
  * @see KindSemantics
  * @see GenerateFocus
  */
 @Target(ElementType.RECORD_COMPONENT)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface TraverseField {
 
   /**

@@ -217,9 +217,9 @@ Not every field does, and knowing which is the difference between a chain that c
 ```mermaid
 flowchart TD
     F{"The field's type is..."}
-    F -->|"a non-generic record<br/>annotated @GenerateFocus"| N(["Navigator<br/>chain with a method call"])
+    F -->|"a non-generic record<br/>annotated @GenerateFocus,<br/>its Focus class generated"| N(["Navigator<br/>chain with a method call"])
     F -->|"Optional, List, Set,<br/>Collection"| W(["Widened path<br/>chain with .via()"])
-    F -->|"an SPI container whose<br/>element type is annotated<br/>and non-generic"| N
+    F -->|"an SPI container whose<br/>element is such a record"| N
     F -->|"a generic record annotated<br/>@GenerateFocus"| P
     F -->|"anything else"| P(["Plain path<br/>chain with .via()"])
 
@@ -233,12 +233,13 @@ The middle branch is the one that surprises people. `Optional`, `List`, `Set` an
 
 A target that declares type parameters of its own does not. A navigator is an inner class parameterised by the source type alone, so it has no way to name them — `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case.
 
-**A target in a dependency is navigable too.** The processor asks the field's type whether it carries `@GenerateFocus`, which is kept in the class file, so a record read from a jar is recognised exactly as a sibling source file is. Navigating into it composes the `Focus` class that record's own module generated, reading each field's path type from the method that module published rather than working it out again, so the navigator agrees with the dependency even when the two modules were built with different processor versions or generator plugins. An API module can therefore own the records, and each consuming module's `Focus` classes chain straight into them.
+**A target in a dependency is navigable too.** The processor asks the field's type whether it carries `@GenerateFocus`, which is kept in the class file, so a record read from a jar is recognised as a sibling source file is. Navigating into it composes the `Focus` class that record's own module generated, reading each field's path type from the method that module published rather than working it out again, so a navigator never composes a method or path type the dependency did not publish, whichever processor version or generator plugins built it. An API module can therefore own the records, and each consuming module's `Focus` classes chain straight into them.
 
-Two things can leave such a navigator short, and the processor says which in a note against the field:
+Three things can keep such a navigator from being generated in full, and the processor says which in a note against the field:
 
 - **The dependency did not run the processor.** Its records carry the annotation but it generated no `Focus` classes, so there is nothing to compose, and the field keeps its plain path.
 - **A field names a type this module cannot see.** A dependency's record may use a type from one of *its* dependencies that is not on this module's compile classpath. That field is left out of the navigator, and the rest are generated as usual.
+- **The dependency's `Focus` class does not match its record.** A companion generated from an older version of the record, or a class of the same name the processor did not write, has no method a navigator can compose for some field. That field is left out, and rebuilding the dependency with the processor restores it.
 
 [Multi-module builds](../tooling/manual_setup.md#multi-module-builds) has the build-side detail.
 

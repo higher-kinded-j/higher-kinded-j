@@ -107,6 +107,11 @@ A navigator method composes the static Focus method for the field it navigates t
 report the same path type: `UserFocus.address().tags()` is whatever `AddressFocus.tags()` is, one
 source type further out.
 
+The nested record may live in a dependency, provided that module ran hkj-processor: the navigator
+composes the `Focus` class the dependency published, whichever processor version built it. A
+dependency without the processor keeps the plain path, and a field whose type is not on this
+module's compile classpath is left out of the navigator; the processor says which in a note.
+
 ---
 
 ## The Three Focus Path Types
