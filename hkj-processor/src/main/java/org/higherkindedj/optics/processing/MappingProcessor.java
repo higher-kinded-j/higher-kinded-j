@@ -3342,6 +3342,19 @@ public class MappingProcessor extends AbstractProcessor {
     return types.isSameType(declared, actual);
   }
 
+  /**
+   * The spec's renames as domain name to wire name, collected from every {@code @MapField} member.
+   *
+   * <p>A rename binds on both sides at once: its method names a domain component and its {@code to}
+   * names a wire component. A <em>locally declared</em> rename that misses either end is refused,
+   * which is the typo'd-rename guard. An <em>inherited</em> one that misses either end is inert and
+   * simply not collected, like every other inherited vocabulary member that binds to nothing here:
+   * one mix-in serves specs whose domains differ and whose wires differ, a projection and a PATCH
+   * bean included, and neither has to carry a component only its siblings have. Nothing is silently
+   * mismapped by the omission, because every wire component still has to name a source, so a wire
+   * that does carry the rename's target and has no other source for it is reported against that
+   * component instead.
+   */
   private Map<String, String> collectRenames(
       TypeElement spec, TypeElement domain, WireShape wire, List<Flattened> flattened) {
     Set<String> flattenedInner =
@@ -3378,6 +3391,12 @@ public class MappingProcessor extends AbstractProcessor {
               || domain.getRecordComponents().stream()
                   .anyMatch(c -> c.getSimpleName().contentEquals(name));
       if (!onDomain) {
+        // An inherited rename for a component this domain does not have is inert, exactly as an
+        // inherited leaf for one is: a shared vocabulary may speak about components only some
+        // extending specs declare.
+        if (!declaredLocally(method, spec)) {
+          continue;
+        }
         Diagnostics.error(
             processingEnv.getMessager(),
             method,
@@ -3401,6 +3420,12 @@ public class MappingProcessor extends AbstractProcessor {
       }
       boolean onWire = wire.componentNamed(mapField.to()).isPresent();
       if (!onWire) {
+        // The wire side is where a shared vocabulary most often cannot bind, since a projection or
+        // a PATCH bean deliberately carries a subset: an inherited rename whose target this wire
+        // omits is inert, and the component it renamed is simply not mapped here.
+        if (!declaredLocally(method, spec)) {
+          continue;
+        }
         Diagnostics.error(
             processingEnv.getMessager(),
             method,
@@ -3871,6 +3896,13 @@ public class MappingProcessor extends AbstractProcessor {
       }
       WireShape.WireComponent wireComponent = wire.componentNamed(name).orElse(null);
       if (wireComponent == null) {
+        // A derived field is named for the wire, as a rename's 'to' is, so a shared vocabulary
+        // binds it only where that wire carries the component: an inherited one this wire omits is
+        // inert, and nothing derives it here. A projection stays refused for the derived fields it
+        // does carry, which are the ones this spec can actually fill.
+        if (!declaredLocally(method, spec)) {
+          continue;
+        }
         Diagnostics.error(
             processingEnv.getMessager(),
             method,

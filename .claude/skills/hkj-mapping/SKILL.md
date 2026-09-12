@@ -316,8 +316,11 @@ declared on the spec, collected transitively with Java's own precedence (a local
 the mix-in's member; a diamond counts once; unrelated mix-ins agreeing on an abstract rename or
 marker fold into one stub returning the narrowest declared type, conflicting rename targets are
 diagnosed naming both interfaces, and a group with no narrowest return is refused naming every
-declaration). An inherited leaf, bridge, `@MapKey` key leaf or `@Flatten` marker naming no component of the extending
-spec's domain stays inert; a local one is an error. Interface statics are not inherited.
+declaration). An inherited member binding to nothing stays inert; a local one is an error. A leaf, bridge,
+`@MapKey` key leaf or `@Flatten` marker binds against the extending spec's **domain**; a derived
+field binds against its **wire**; a rename binds on both, and is inert when either end is missing,
+so a projection or PATCH bean covering a subset extends the same vocabulary. Interface statics are
+not inherited.
 Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec (directly
 or transitively extends `MappingSpec`/`UpdateSpec`), and a generic mix-in reached raw (a generic
 mix-in used with type arguments is read under the spec's instantiation and is fine). A member
@@ -456,10 +459,10 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   leaves unchanged. Caveats: Jackson binds an explicit JSON `null` to `Optional.empty()` (sent-null
   clears on this property shape), and the bean field must default to `null`, NOT `Optional.empty()`,
   or omitting the field clears the domain value.
-- **Inherited vocabulary stays inert**: a bridge or a derived field arriving from a mix-in is never
-  consulted here, so one mix-in serves a full spec and its PATCH sibling. A derived field the
-  `UpdateSpec` declares itself is refused (there is no `build` for it to feed), as is a `@Flatten`
-  marker either way, and an inherited rename still has to name a property the PATCH bean carries.
+- **Inherited vocabulary stays inert**: a bridge, a derived field, or a rename whose `to` this bean
+  does not carry is never consulted here, so one mix-in serves a full spec and its PATCH sibling
+  even when the bean covers a subset. A derived field the `UpdateSpec` declares itself is refused
+  (there is no `build` for it to feed), as is a `@Flatten` marker either way.
 - A present **container** (a pair declared as exactly `List`/`Set`/reference array/`Optional`/
   `Map`) parses through the element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
   serves a full spec and its PATCH sibling. Replacement is wholesale; each failing element is

@@ -11064,6 +11064,173 @@ class MappingProcessorTest {
           .contains("email()::parse")
           .doesNotContain("display()");
     }
+
+    @Test
+    @DisplayName("an inherited rename whose target this wire omits stays inert")
+    void inheritedRenameOffThisWireStaysInert() {
+      JavaFileObject projection =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountEmailDto",
+              """
+              package com.example;
+
+              public record AccountEmailDto(String email) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountEmailMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountEmailMapping
+                  extends AccountVocabulary, MappingSpec<Account, AccountEmailDto> {}
+              """);
+      // A projection deliberately carries a subset, so the inherited rename to 'fullName' binds to
+      // nothing; the component it renamed is simply not mapped here, and the leaf still applies.
+      Compilation compilation = compile(EMAIL, ACCOUNT, VOCABULARY, projection, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.AccountEmailMappingImpl"))
+          .contains("email()::parse")
+          .doesNotContain("fullName");
+    }
+
+    @Test
+    @DisplayName("an inherited rename for a component this domain lacks stays inert")
+    void inheritedRenameOffThisDomainStaysInert() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Ticket",
+              """
+              package com.example;
+
+              public record Ticket(EmailAddress email) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.TicketDto",
+              """
+              package com.example;
+
+              public record TicketDto(String email) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.TicketMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface TicketMapping
+                  extends AccountVocabulary, MappingSpec<Ticket, TicketDto> {}
+              """);
+      // Ticket has no 'name', so the inherited rename speaks about a component this spec does not
+      // declare - inert, exactly as an inherited leaf for an absent component already is. Account
+      // is on the path because the mix-in's own members name it.
+      Compilation compilation = compile(EMAIL, ACCOUNT, domain, VOCABULARY, dto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.TicketMappingImpl"))
+          .contains("email()::parse");
+    }
+
+    @Test
+    @DisplayName("an inherited derived field this wire omits stays inert")
+    void inheritedDerivedFieldOffThisWireStaysInert() {
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.DisplayVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.Getter;
+
+              public interface DisplayVocabulary {
+                default Getter<Account, String> display() {
+                  return Getter.of(a -> a.name() + " <" + a.email().value() + ">");
+                }
+              }
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountPlainDto",
+              """
+              package com.example;
+
+              public record AccountPlainDto(String name, EmailAddress email) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountPlainMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountPlainMapping
+                  extends DisplayVocabulary, MappingSpec<Account, AccountPlainDto> {}
+              """);
+      // A derived field is named for the wire, so a wire without the component simply never
+      // derives it; the spec maps as if the mix-in had not mentioned it.
+      Compilation compilation = compile(EMAIL, ACCOUNT, vocabulary, dto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.AccountPlainMappingImpl"))
+          .doesNotContain("display()");
+    }
+
+    @Test
+    @DisplayName("a rename the spec declares itself is still refused on both ends")
+    void locallyDeclaredRenameIsStillRefused() {
+      JavaFileObject offWire =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping extends AccountVocabulary,
+                  MappingSpec<Account, AccountDto> {
+                @MapField(to = "nope")
+                String email();
+              }
+              """);
+      Compilation offWireCompilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, offWire);
+      assertThat(offWireCompilation).failed();
+      assertThat(offWireCompilation).hadErrorContaining("names no component of AccountDto");
+
+      JavaFileObject offDomain =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping extends AccountVocabulary,
+                  MappingSpec<Account, AccountDto> {
+                @MapField(to = "display")
+                String nickname();
+              }
+              """);
+      Compilation offDomainCompilation =
+          compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, offDomain);
+      assertThat(offDomainCompilation).failed();
+      assertThat(offDomainCompilation).hadErrorContaining("does not name a component of Account");
+    }
   }
 
   /**
