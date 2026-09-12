@@ -95,6 +95,10 @@ class MappingGoldenFileTest {
             "com.example.updatelifting.CustomerPatchMappingImpl",
             "CustomerPatchMappingImpl.java.golden"),
         new GoldenTestCase(
+            "widened containers (Set/array lifting and scans, converting Map keys)",
+            "com.example.widened.CrewMappingImpl",
+            "WidenedCrewMappingImpl.java.golden"),
+        new GoldenTestCase(
             "sealed dispatch",
             "com.example.sealeddispatch.PaymentMappingImpl",
             "PaymentMappingImpl.java.golden"),
@@ -164,6 +168,7 @@ class MappingGoldenFileTest {
             beanProjection(),
             update(),
             updateElementLifting(),
+            widenedContainers(),
             sealed(),
             wideRecord(),
             wideBean(),
@@ -604,6 +609,80 @@ class MappingGoldenFileTest {
 
   // ---- sparse update with element lifting: element leaves over List/Map/Optional properties,
   // plus identity containers carrying the null scans ----
+  // ---- widened containers: Set and array lifting, their identity scans, and Map keys ----
+  private static JavaFileObject widenedContainers() {
+    return JavaFileObjects.forSourceString(
+        "com.example.widened.Fixtures",
+        """
+        package com.example.widened;
+
+        import java.util.Map;
+        import java.util.Set;
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.MapKey;
+        import org.higherkindedj.optics.annotations.MappingSpec;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record Email(String value) {}
+
+        record Crew(
+            Set<Email> members,
+            Email[] reserves,
+            Set<String> tags,
+            String[] codes,
+            int[] ranks,
+            Map<Email, String> notes,
+            Map<Email, Email> escalations) {}
+
+        record CrewDto(
+            Set<String> members,
+            String[] reserves,
+            Set<String> tags,
+            String[] codes,
+            int[] ranks,
+            Map<String, String> notes,
+            Map<String, String> escalations) {}
+
+        @GenerateMapping
+        interface CrewMapping extends MappingSpec<Crew, CrewDto> {
+          default ValidatedPrism<String, Email> members() {
+            return email();
+          }
+
+          default ValidatedPrism<String, Email> reserves() {
+            return email();
+          }
+
+          // keys only: the values are copied
+          @MapKey("notes")
+          default ValidatedPrism<String, Email> noteKey() {
+            return email();
+          }
+
+          // both sides convert
+          default ValidatedPrism<String, Email> escalations() {
+            return email();
+          }
+
+          @MapKey("escalations")
+          default ValidatedPrism<String, Email> escalationKey() {
+            return email();
+          }
+
+          private static ValidatedPrism<String, Email> email() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.contains("@")
+                        ? Validated.validNel(new Email(raw))
+                        : Validated.invalidNel(FieldError.of("not an email address")),
+                Email::value);
+          }
+        }
+        """);
+  }
+
   private static JavaFileObject updateElementLifting() {
     return JavaFileObjects.forSourceString(
         "com.example.updatelifting.Fixtures",

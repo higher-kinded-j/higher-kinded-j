@@ -70,6 +70,7 @@ says what is *not* obvious.
 | A component that must be **parsed** (`String` -> `EmailAddress`) | a zero-arg `default` method named after the domain component, returning `ValidatedPrism<Wire, Domain>` |
 | A wire-only field **derived** from the domain | a zero-arg `default` method returning `Getter<Domain, WireType>` |
 | A domain `Optional<T>` against a **nullable record** wire component `T` | `@OptionalBridge` on an abstract marker named after the domain component, or on that component's leaf |
+| A `Map` whose **keys** differ on the two sides | a zero-arg `default` method returning `ValidatedPrism<WireKey, DomainKey>`, annotated `@MapKey("component")` - the method's own name is free |
 | A nested domain record against a **flat** wire (`Address` vs `street`, `city`, `postcode`) | `@Flatten` on an abstract marker named after the domain component; the record's components then map by name |
 
 <!-- verify -->
@@ -197,7 +198,9 @@ public interface MemberMapping extends MappingSpec<Member, MemberDto> {
 
 ### Nesting and collections come free
 
-A leaf prism declared for a component applies **elementwise** through `List`, `Optional` and `Map`:
+A leaf prism declared for a component applies **elementwise** through `List`, `Set`, reference
+arrays, `Optional` and a `Map`'s values (and, with `@MapKey`, its keys). A primitive array
+(`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive:
 
 <!-- verify -->
 ```java
@@ -313,7 +316,7 @@ declared on the spec, collected transitively with Java's own precedence (a local
 the mix-in's member; a diamond counts once; unrelated mix-ins agreeing on an abstract rename or
 marker fold into one stub returning the narrowest declared type, conflicting rename targets are
 diagnosed naming both interfaces, and a group with no narrowest return is refused naming every
-declaration). An inherited leaf, bridge or `@Flatten` marker naming no component of the extending
+declaration). An inherited leaf, bridge, `@MapKey` key leaf or `@Flatten` marker naming no component of the extending
 spec's domain stays inert; a local one is an error. Interface statics are not inherited.
 Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec (directly
 or transitively extends `MappingSpec`/`UpdateSpec`), and a generic mix-in reached raw (a generic
@@ -374,8 +377,10 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   A JSON binder leaves a missing property `null` on a record component just as on an unset bean
   property, so every reference-typed `parse` read is null-guarded (`must not be null`, accumulating,
   locating through nesting: `customer.name: must not be null`). The doctrine reaches inside
-  containers: a null element or map value locates by index or key (`emails.1: must not be null`),
-  and failing container elements are index- or key-located (`parseAll`/`parseValues`). What stays
+  containers, each locating the way its container does: by index in a `List` or array
+  (`emails.1: must not be null`), by key in a `Map`, and by the element's own rendering in a
+  `Set` (`emails.nope`) - a null set element is the unlocated `emails: must not contain a null
+  element`, a set holding at most one. A primitive array carries no element scan. What stays
   the caller's `NullPointerException`: a null *wire* itself, and a null map *key* (a structurally
   broken map, not a wrong value). A null container *component* is guarded like any reference read
   (`emails: must not be null`); only calling `parseAll`/`parseValues` directly with a null
@@ -384,8 +389,15 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   because an unset bean property is a representable state. The same guard covers every
   reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return
   merge stays total by its declaration).
-- **`Map` components lift values only.** Keys pass through by identity; a failure is located by its
-  key.
+- **A `Map` lifts its values, and its keys through `@MapKey`.** Without a key leaf the keys pass
+  through by identity and their types must match. `@MapKey("component")` names the domain
+  component (the method name is free, since the value leaf already owns the component's name):
+  `@MapKey("notes") default ValidatedPrism<String, Tag> noteKey() { ... }`. Both a failing key
+  and a failing value locate by the SOURCE key. Two keys parsing to one domain key are a located
+  `duplicates an earlier key`; a `Set` that collapses is silent, because its survivors are equal.
+- **Lifting needs the same container on both sides.** A `List` against a `Set`, or an array
+  against a `List`, is a plain type mismatch. A record carrying an array component has identity
+  `equals`, so `MappingLaws` cannot law-check it - assert the round trip elementwise.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args
@@ -440,13 +452,14 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   leaves unchanged. Caveats: Jackson binds an explicit JSON `null` to `Optional.empty()` (sent-null
   clears on this property shape), and the bean field must default to `null`, NOT `Optional.empty()`,
   or omitting the field clears the domain value.
-- A present **container** (a pair declared as exactly `List`/`Optional`/`Map`) parses through the
-  element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
+- A present **container** (a pair declared as exactly `List`/`Set`/reference array/`Optional`/
+  `Map`) parses through the element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
   serves a full spec and its PATCH sibling. Replacement is wholesale; each failing element is
   located (`phones.1`). A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) wins as the
   more specific declaration. Nested specs do not lift here — delegate via an element leaf to the
   nested Impl's `asValidatedPrism()`. Same-typed identity containers are null-scanned
-  (`tags.1: must not be null`) when properly parameterised; raw/wildcard ones are written as sent.
+  (`tags.1: must not be null`; a set's unlocated, as `tags: must not contain a null element`)
+  when properly parameterised; raw/wildcard ones are written as sent. `@MapKey` applies here too.
 - Coverage is one-sided: a domain component with no wire property is simply never changed.
 - Law-check it with the sparse overload:
   `MappingLaws.assertMappingLaws(Impl.INSTANCE::updateFrom, current, absentWire, validWire, invalidWire)`.

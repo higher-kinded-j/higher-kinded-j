@@ -12,10 +12,12 @@ import java.time.Month;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -100,11 +102,12 @@ class ValidatedPrismTest {
       assertThat(EMAIL.buildAll(List.of(new Email("a@b"), new Email("c@d"))))
           .containsExactly("a@b", "c@d");
       assertThatValidated(EMAIL.parseAll(List.of())).isValid().hasValue(List.of());
+      // The container forms are overloaded, so a bare null needs the type it stands for.
       assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.parseAll(null))
+          .isThrownBy(() -> EMAIL.parseAll((List<String>) null))
           .withMessage("sources must not be null");
       assertThatNullPointerException()
-          .isThrownBy(() -> EMAIL.buildAll(null))
+          .isThrownBy(() -> EMAIL.buildAll((List<Email>) null))
           .withMessage("values must not be null");
       // A null element is a located invalid at its index, never an exception; the
       // build direction stays total-and-throwing.
@@ -247,6 +250,310 @@ class ValidatedPrismTest {
           new ValidatedPrism.Of<>(ValidatedPrismTest::parseEmail, Email::value);
       assertThat(leaf.parseFn()).isNotNull();
       assertThat(leaf.buildFn()).isNotNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("Bulk forms over sets, arrays and map keys")
+  class WidenedBulkForms {
+
+    /** A prism whose reason names the offending source, so locations are unambiguous. */
+    private static final ValidatedPrism<String, Email> LOCATED =
+        ValidatedPrism.of(
+            raw ->
+                raw.contains("@")
+                    ? Validated.validNel(new Email(raw))
+                    : Validated.invalidNel(FieldError.of("bad: " + raw)),
+            Email::value);
+
+    /** Normalises, so two distinct sources can parse to one domain value. */
+    private static final ValidatedPrism<String, Email> LOWERCASING =
+        ValidatedPrism.of(
+            raw -> Validated.validNel(new Email(raw.toLowerCase(Locale.ROOT))), Email::value);
+
+    @Test
+    @DisplayName("parseAll(Set) locates each failure by the source element's rendering")
+    void parseAllSetLocatesByElement() {
+      Set<String> wire = new LinkedHashSet<>(List.of("a@b", "c@d"));
+      assertThatValidated(LOCATED.parseAll(wire))
+          .isValid()
+          .hasValue(new LinkedHashSet<>(List.of(new Email("a@b"), new Email("c@d"))));
+
+      Validated<NonEmptyList<FieldError>, Set<Email>> failed =
+          LOCATED.parseAll(new LinkedHashSet<>(List.of("bad-one", "a@b", "bad-two")));
+      assertThatValidated(failed).isInvalid();
+      // A set has no index, so the element's own rendering is what identifies it.
+      assertThat(failed.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("bad-one"), "bad: bad-one"),
+              new FieldError(List.of("bad-two"), "bad: bad-two"));
+
+      assertThatValidated(LOCATED.parseAll(Set.<String>of())).isValid().hasValue(Set.of());
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseAll((Set<String>) null))
+          .withMessage("sources must not be null");
+    }
+
+    @Test
+    @DisplayName(
+        "a null set element is unlocated: a set holds at most one, and it has no rendering")
+    void parseAllSetNullElementIsUnlocated() {
+      Set<String> withNull = new LinkedHashSet<>(List.of("a@b"));
+      withNull.add(null);
+      Validated<NonEmptyList<FieldError>, Set<Email>> parsed = EMAIL.parseAll(withNull);
+      assertThatValidated(parsed).isInvalid();
+      assertThat(parsed.getError().toJavaList())
+          .containsExactly(new FieldError(List.of(), "must not contain a null element"));
+
+      // Accumulation continues past the null, and the two reasons stay distinguishable from
+      // 'must not be null', which says the set itself is absent.
+      Set<String> mixed = new LinkedHashSet<>(List.of("bad-one"));
+      mixed.add(null);
+      assertThat(LOCATED.parseAll(mixed).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("bad-one"), "bad: bad-one"),
+              new FieldError(List.of(), "must not contain a null element"));
+    }
+
+    @Test
+    @DisplayName("a set collapses silently in both directions: the survivors are equal")
+    void setCollapsesSilently() {
+      Set<String> wire = new LinkedHashSet<>(List.of("A@B", "a@b"));
+      assertThatValidated(LOWERCASING.parseAll(wire)).isValid().hasValue(Set.of(new Email("a@b")));
+
+      ValidatedPrism<String, Email> constant =
+          ValidatedPrism.of(raw -> Validated.validNel(new Email(raw)), _ -> "same");
+      assertThat(constant.buildAll(new LinkedHashSet<>(List.of(new Email("x"), new Email("y")))))
+          .containsExactly("same");
+    }
+
+    @Test
+    @DisplayName("buildAll(Set) is total, preserves iteration order and rejects nulls")
+    void buildAllSetIsTotal() {
+      Set<Email> domain = new LinkedHashSet<>(List.of(new Email("c@d"), new Email("a@b")));
+      assertThat(EMAIL.buildAll(domain)).containsExactly("c@d", "a@b");
+      assertThat(EMAIL.buildAll(Set.<Email>of())).isEmpty();
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildAll((Set<Email>) null))
+          .withMessage("values must not be null");
+      Set<Email> withNull = new LinkedHashSet<>(List.of(new Email("a@b")));
+      withNull.add(null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildAll(withNull))
+          .withMessage("values must not contain a null element");
+    }
+
+    @Test
+    @DisplayName("parseAll(array) locates by index, exactly as the list form does")
+    void parseAllArrayLocatesByIndex() {
+      assertThat(LOCATED.parseAll(new String[] {"a@b", "c@d"}, Email[]::new).get())
+          .containsExactly(new Email("a@b"), new Email("c@d"));
+
+      Validated<NonEmptyList<FieldError>, Email[]> failed =
+          LOCATED.parseAll(new String[] {"bad-one", "a@b", null}, Email[]::new);
+      assertThatValidated(failed).isInvalid();
+      assertThat(failed.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("0"), "bad: bad-one"),
+              new FieldError(List.of("2"), "must not be null"));
+
+      assertThat(EMAIL.parseAll(new String[] {}, Email[]::new).get()).isEmpty();
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseAll((String[]) null, Email[]::new))
+          .withMessage("sources must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseAll(new String[] {"a@b"}, null))
+          .withMessage("newArray must not be null");
+    }
+
+    @Test
+    @DisplayName("buildAll(array) is total and rejects nulls by index")
+    void buildAllArrayIsTotal() {
+      assertThat(EMAIL.buildAll(new Email[] {new Email("a@b"), new Email("c@d")}, String[]::new))
+          .containsExactly("a@b", "c@d");
+      assertThat(EMAIL.buildAll(new Email[] {}, String[]::new)).isEmpty();
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildAll((Email[]) null, String[]::new))
+          .withMessage("values must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildAll(new Email[] {new Email("a@b")}, null))
+          .withMessage("newArray must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildAll(new Email[] {new Email("a@b"), null}, String[]::new))
+          .withMessage("values[1] must not be null");
+    }
+
+    @Test
+    @DisplayName("parseKeys converts the keys, locating each failure by its source key")
+    void parseKeysLocatesBySourceKey() {
+      Map<String, Integer> wire = new LinkedHashMap<>();
+      wire.put("a@b", 1);
+      wire.put("c@d", 2);
+      Validated<NonEmptyList<FieldError>, Map<Email, Integer>> parsed = LOCATED.parseKeys(wire);
+      assertThatValidated(parsed).isValid();
+      assertThat(parsed.get())
+          .containsExactly(entry(new Email("a@b"), 1), entry(new Email("c@d"), 2));
+
+      Map<String, Integer> bad = new LinkedHashMap<>();
+      bad.put("bad-one", 1);
+      bad.put("a@b", 2);
+      bad.put("bad-two", 3);
+      assertThat(LOCATED.parseKeys(bad).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("bad-one"), "bad: bad-one"),
+              new FieldError(List.of("bad-two"), "bad: bad-two"));
+
+      assertThatValidated(EMAIL.parseKeys(Map.<String, Integer>of())).isValid().hasValue(Map.of());
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseKeys(null))
+          .withMessage("sources must not be null");
+      Map<String, Integer> nullKey = new HashMap<>();
+      nullKey.put(null, 1);
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseKeys(nullKey))
+          .withMessage("sources must not contain a null key");
+    }
+
+    @Test
+    @DisplayName("colliding domain keys are a located failure, not a silent dropped entry")
+    void parseKeysRejectsCollidingKeys() {
+      Map<String, Integer> wire = new LinkedHashMap<>();
+      wire.put("A@B", 1);
+      wire.put("a@b", 2);
+      Validated<NonEmptyList<FieldError>, Map<Email, Integer>> parsed = LOWERCASING.parseKeys(wire);
+      assertThatValidated(parsed).isInvalid();
+      assertThat(parsed.getError().toJavaList())
+          .containsExactly(new FieldError(List.of("a@b"), "duplicates an earlier key"));
+
+      // A null value is located under its source key too: the doctrine reaches inside a
+      // container whether the contents convert or are copied.
+      Map<String, Integer> nullValue = new LinkedHashMap<>();
+      nullValue.put("a@b", null);
+      assertThat(EMAIL.parseKeys(nullValue).getError().toJavaList())
+          .containsExactly(new FieldError(List.of("a@b"), "must not be null"));
+
+      // A key that fails AND a null value both report, at the one location.
+      Map<String, Integer> both = new LinkedHashMap<>();
+      both.put("bad-one", null);
+      assertThat(LOCATED.parseKeys(both).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("bad-one"), "bad: bad-one"),
+              new FieldError(List.of("bad-one"), "must not be null"));
+
+      // A key is claimed as soon as it PARSES, so a collision reports even when the entry that
+      // claimed it is otherwise wrong - one round trip, not two.
+      Map<String, Integer> collidingWithBadValue = new LinkedHashMap<>();
+      collidingWithBadValue.put("A@B", null);
+      collidingWithBadValue.put("a@b", 2);
+      assertThat(LOWERCASING.parseKeys(collidingWithBadValue).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("A@B"), "must not be null"),
+              new FieldError(List.of("a@b"), "duplicates an earlier key"));
+
+      // And the colliding entry's own failure reports beside the collision.
+      Map<String, Integer> bothWrong = new LinkedHashMap<>();
+      bothWrong.put("A@B", 1);
+      bothWrong.put("a@b", null);
+      assertThat(LOWERCASING.parseKeys(bothWrong).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("a@b"), "duplicates an earlier key"),
+              new FieldError(List.of("a@b"), "must not be null"));
+    }
+
+    @Test
+    @DisplayName("parseEntries converts both sides, accumulating under the source key")
+    void parseEntriesConvertsBothSides() {
+      Map<String, String> wire = new LinkedHashMap<>();
+      wire.put("a@b", "x@y");
+      Validated<NonEmptyList<FieldError>, Map<Email, Email>> parsed =
+          LOCATED.parseEntries(wire, LOCATED);
+      assertThatValidated(parsed).isValid();
+      assertThat(parsed.get()).containsExactly(entry(new Email("a@b"), new Email("x@y")));
+
+      Map<String, String> both = new LinkedHashMap<>();
+      both.put("bad-key", "bad-value");
+      both.put("a@b", null);
+      assertThat(LOCATED.parseEntries(both, LOCATED).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("bad-key"), "bad: bad-key"),
+              new FieldError(List.of("bad-key"), "bad: bad-value"),
+              new FieldError(List.of("a@b"), "must not be null"));
+
+      Map<String, String> colliding = new LinkedHashMap<>();
+      colliding.put("A@B", "x@y");
+      colliding.put("a@b", "x@y");
+      assertThat(LOWERCASING.parseEntries(colliding, LOCATED).getError().toJavaList())
+          .containsExactly(new FieldError(List.of("a@b"), "duplicates an earlier key"));
+
+      // The claiming entry's value being wrong does not hide the collision, and the colliding
+      // entry's own value failure reports beside it.
+      Map<String, String> collidingWithBadValues = new LinkedHashMap<>();
+      collidingWithBadValues.put("A@B", "bad-first");
+      collidingWithBadValues.put("a@b", "bad-second");
+      assertThat(LOWERCASING.parseEntries(collidingWithBadValues, LOCATED).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("A@B"), "bad: bad-first"),
+              new FieldError(List.of("a@b"), "duplicates an earlier key"),
+              new FieldError(List.of("a@b"), "bad: bad-second"));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseEntries(null, EMAIL))
+          .withMessage("sources must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseEntries(Map.of("a@b", "x@y"), null))
+          .withMessage("valuePrism must not be null");
+      Map<String, String> nullKey = new HashMap<>();
+      nullKey.put(null, "x@y");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.parseEntries(nullKey, EMAIL))
+          .withMessage("sources must not contain a null key");
+    }
+
+    @Test
+    @DisplayName("buildKeys and buildEntries are total, preserving entry order")
+    void buildKeysAndEntriesAreTotal() {
+      Map<Email, Integer> domain = new LinkedHashMap<>();
+      domain.put(new Email("c@d"), 2);
+      domain.put(new Email("a@b"), 1);
+      assertThat(EMAIL.buildKeys(domain)).containsExactly(entry("c@d", 2), entry("a@b", 1));
+      assertThat(EMAIL.buildKeys(Map.<Email, Integer>of())).isEmpty();
+
+      Map<Email, Email> entries = new LinkedHashMap<>();
+      entries.put(new Email("a@b"), new Email("x@y"));
+      assertThat(EMAIL.buildEntries(entries, EMAIL)).containsExactly(entry("a@b", "x@y"));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildKeys(null))
+          .withMessage("values must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildEntries(null, EMAIL))
+          .withMessage("values must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildEntries(entries, null))
+          .withMessage("valuePrism must not be null");
+
+      Map<Email, Integer> nullKey = new HashMap<>();
+      nullKey.put(null, 1);
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildKeys(nullKey))
+          .withMessage("values must not contain a null key");
+      // A pass-through value is still a value: parseKeys rejects a null one, so rendering it
+      // would build a wire this same prism refuses to read back.
+      Map<Email, Integer> nullValue = new LinkedHashMap<>();
+      nullValue.put(new Email("a@b"), null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildKeys(nullValue))
+          .withMessage("values[Email[value=a@b]] must not be null");
+      Map<Email, Email> nullEntryKey = new HashMap<>();
+      nullEntryKey.put(null, new Email("x@y"));
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildEntries(nullEntryKey, EMAIL))
+          .withMessage("values must not contain a null key");
+      Map<Email, Email> nullEntryValue = new LinkedHashMap<>();
+      nullEntryValue.put(new Email("a@b"), null);
+      assertThatNullPointerException()
+          .isThrownBy(() -> EMAIL.buildEntries(nullEntryValue, EMAIL))
+          .withMessage("values[Email[value=a@b]] must not be null");
     }
   }
 

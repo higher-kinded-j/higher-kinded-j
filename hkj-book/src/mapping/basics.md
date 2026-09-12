@@ -228,7 +228,9 @@ Nothing above requires this section; come back when a corner case finds you.
 
 The null guard covers every reference-typed `parse` read that is not [bridged](#optional-bridge), on record and bean wires alike, and reaches inside containers, identity-copied ones included:
 
-- A `null` element or map value locates by its index or key (`emails.1: must not be null`), whether the container lifts through a leaf ([`parseAll`/`parseValues`](../optics/validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity. The index is a plain positional segment, matching the map-key grammar.
+- A `null` element or map value locates the way its container locates anything ([lifting grammar](structure.md#nesting-containers-and-recursion)) - by index in a `List` or array (`emails.1: must not be null`), by key in a `Map` - whether the container lifts through a leaf ([the bulk forms](../optics/validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity. The index is a plain positional segment, matching the map-key grammar.
+- A `null` element of a `Set` has no rendering to locate by, and a set holds at most one, so it reports unlocated under the component: `emails: must not contain a null element` - distinct from `must not be null`, which says the set itself is absent.
+- An array of primitives (`int[]`) carries no element scan: a primitive element cannot be null. The component is still a reference, so a `null` *array* is guarded like any other read.
 - An identity container still copies by reference; the scan only locates nulls, it never rebuilds.
 - A `null` container *component* is guarded like any reference read (`emails: must not be null`).
 - A [bridged](#optional-bridge) container excuses only the absent case: `null` reads as empty, and a *present* list or map is scanned for null elements exactly as an unbridged one is.

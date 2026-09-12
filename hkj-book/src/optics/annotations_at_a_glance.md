@@ -65,12 +65,13 @@ External types like `LocalDate`, Jackson's `JsonNode`, JOOQ records, and Protobu
 | [`@GenerateMapping`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) | interface extending `UpdateSpec<Domain, Wire>` (bean wire) | `XMappingImpl` with only `updateFrom(Wire) : Edits.Accumulated<Domain>` | Sparse PATCH write-back: fold the present (non-null) request fields into an update, leave the absent ones |
 | [`@MapField(to = "...")`](../mapping/ch_intro.md) | abstract method on the spec, named after the domain component | a rename in both directions | Domain and wire components with different names |
 | [`@OptionalBridge`](../mapping/basics.md#optional-bridge) | abstract marker method on the spec, or that component's `default` leaf | a domain `Optional<T>` mapped to a nullable wire component `T` | A record wire that encodes absence as `null`, the way a JSON binder writes it |
+| [`@MapKey("component")`](../mapping/structure.md#converting-map-keys) | `default` leaf on the spec, freely named, returning `ValidatedPrism<WireKey, DomainKey>` | the named `Map` component's **keys** converted, alone or beside its value leaf | Two sides that key a map differently (`Map<String, ...>` on the wire, `Map<Locale, ...>` in the domain) |
 | [`@Flatten`](../mapping/structure.md#flattening-a-nested-component-onto-a-flat-wire) | abstract marker method on the spec, named after a nested domain record component | that record's components spread across the wire's flat components by name, both directions | A wire fixed flat (`street`, `city`, `postcode`) where the domain nests an `Address` |
 | [`@GenerateAssembly`](../monads/validated_assembly.md) | `record` | `XAssembly`, a staged builder over `Validated<NonEmptyList<FieldError>, R>` with one method per component | Building a record from independently validated parts, collecting every error, with no arity ceiling |
 | [`@GenerateMerge`](../mapping/merge_envelopes.md) | interface whose abstract method names target and sources | a forward-only assembly of one target record from several sources | Merging several records into one; no inverse is generated, because the multi-source case has none |
 | [`@GenerateErrorEnvelope`](../mapping/merge_envelopes.md) | `sealed interface` whose variants each carry one `ErrorEnvelope<C>` | per-variant factories, a fluent context builder, and a context wither | Giving a sealed error hierarchy a typed context without repeating it on every variant |
 
-Leaves, nesting, `List`/`Optional` lifting, sealed dispatch, the `asIso()`/`asLens()` tiers, and the sparse `UpdateSpec` tier are covered in [Record Mapping](../mapping/ch_intro.md).
+Leaves, nesting, `List`/`Set`/array/`Optional`/`Map` lifting, sealed dispatch, the `asIso()`/`asLens()` tiers, and the sparse `UpdateSpec` tier are covered in [Record Mapping](../mapping/ch_intro.md).
 
 ---
 

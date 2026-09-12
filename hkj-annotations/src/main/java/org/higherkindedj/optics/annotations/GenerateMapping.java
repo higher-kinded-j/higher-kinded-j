@@ -57,8 +57,8 @@ import java.lang.annotation.Target;
  *       same compilation or in a dependency compiled with the processor (each generated Impl is
  *       accompanied by a {@code MappingIndexEntry} that a downstream compilation reads; a spec in
  *       the compilation shadows a classpath spec for the same pair, and named modules neither write
- *       nor read the index). {@code List}/{@code Optional} components lift through the element's
- *       leaf or spec.
+ *       nor read the index). {@code List}, {@code Set}, reference-array, {@code Optional} and
+ *       {@code Map} components lift through the element's leaf or spec.
  *   <li>A domain {@code Optional<T>} against a nullable wire component {@code T} bridges through
  *       {@code null} (empty maps to absent): automatically on a bean wire, and on a record wire
  *       wherever the spec marks the component with {@link OptionalBridge} — on a bare abstract
