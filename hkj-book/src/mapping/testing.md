@@ -21,8 +21,10 @@ A concrete or threaded Impl is a stateless pure function reached through statics
 
 | Tier surface | Injectable shape | From |
 |---|---|---|
-| parse-capable mapping | `ValidatedPrism<UserDto, User>` | `UserMappingImpl.INSTANCE.asValidatedPrism()` |
-| build only | `Function<User, UserDto>` | `UserMappingImpl.INSTANCE::build` |
+| full mapping (it builds and parses) | `ValidatedPrism<UserDto, User>` | `UserMappingImpl.INSTANCE.asValidatedPrism()` |
+| just `build`, from any tier that has one | `Function<User, UserDto>` | `UserMappingImpl.INSTANCE::build` |
+| parse-only bean mapping | `ValidatedParse<CustomerView, Customer>` | `CustomerViewMappingImpl.INSTANCE.asValidatedParse()` |
+| build-only bean mapping | `ValidatedBuild<CustomerRequest, Customer>` | `CustomerRequestMappingImpl.INSTANCE.asValidatedBuild()` |
 | validated `patch` | `BiFunction<User, UserCardDto, Validated<NonEmptyList<FieldError>, User>>` | `UserCardMappingImpl.INSTANCE::patch` |
 | sparse `updateFrom` | `Function<UserPatchDto, Edits.Accumulated<User>>` | `UserPatchMappingImpl.INSTANCE::updateFrom` |
 
@@ -34,7 +36,7 @@ This is the hkj-spring example app's real configuration, included from source:
 
 Spring resolves the full generic type, so codecs for different pairs coexist without ceremony; only two codecs for the *same* pair need a `@Qualifier`. An element-mapped Impl (`of(...)`) carries its prisms as state: construct it once, in the `@Bean` method.
 
-**Fakes are values, not mocks.** `ValidatedPrism` is sealed, so it cannot be hand-implemented, and a mocking framework cannot mock it either (sealed types are unmockable). That is the design, not a limitation: a test double is two lines of `ValidatedPrism.of(...)`, here as the example app's real `@WebMvcTest` substitution:
+**Fakes are values, not mocks.** `ValidatedPrism` is sealed, so it cannot be hand-implemented, and a mocking framework cannot mock it either (sealed types are unmockable). That is the design, not a limitation: a test double is two lines of `ValidatedPrism.of(...)` (or `ValidatedParse.of(...)` and `ValidatedBuild.of(...)` for a one-directional surface, sealed alike), here as the example app's real `@WebMvcTest` substitution:
 
 ```java
 {{#include ../../../hkj-spring/example/src/test/java/org/higherkindedj/spring/example/controller/UserParseFakeCodecSliceTest.java:fake_codec}}
@@ -69,6 +71,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 | A fallible projection emits the validated `patch`, never a fake `asLens()`; projections cannot carry derived fields | [The Emission Tiers](tiers.md#leaf-carrying-projections-the-validated-patch), [Derived wire fields](basics.md#derived-wire-fields) |
 | Generic mappings come in exactly three forms and stay record-to-record | [Generic Specs](generics.md) |
 | Sparse PATCH is bean-only, wrapper-typed, and never deep-merges; a spec names one tier, extending `MappingSpec` or `UpdateSpec` but not both | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
+| A one-directional bean maps only its one direction: it nests only where that direction is used, sealed dispatch needs both, and a sparse `UpdateSpec` needs a bean both read and written | [One-directional beans](beans_patch.md#one-directional-beans) |
 | A leaf, rename or bridge marker must not declare type parameters of its own; the element types go on the spec | [Generic Specs](generics.md#element-mapped-specs) |
 | A rename's, leaf's or marker's type must be visible from the spec's package, where the Impl is generated | [Shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
 | `@OptionalBridge` binds an `Optional` domain component to a nullable, non-primitive wire component; it is redundant on a bean wire, and refused on a sealed or sparse spec that declares it, an inherited one staying inert | [Optional fields](basics.md#optional-bridge) |
@@ -80,7 +83,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Register the surface, not the spec**: `asValidatedPrism()`, `::build`, `::patch`, or `::updateFrom`, per tier
+* **Register the surface, not the spec**: `asValidatedPrism()`, `asValidatedParse()`, `asValidatedBuild()`, `::build`, `::patch`, or `::updateFrom`, per tier
 * **Fakes are two-line values**: `ValidatedPrism.of(...)` replaces the mocking framework, by design
 * **No component ceiling**: chunked `fields()` ladders carry flat 20-or-30-field wires; only the JVM's 254-slot record limit remains
 * **Rejections are what/why/fix**: every limit states what is wrong, why the mapper needs it, and the code to write

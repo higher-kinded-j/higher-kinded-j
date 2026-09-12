@@ -2628,9 +2628,9 @@ class MappingProcessorBeanTest {
 
     @Test
     @DisplayName(
-        "a getter-only bean projection is refused: no construction strategy fits it, as on a full"
-            + " mapping")
-    void getterOnlyBeanProjectionNeedsAStrategy() {
+        "a getter-only bean narrower than the domain maps parse-only, so it misses components"
+            + " rather than projecting")
+    void getterOnlyNarrowBeanMapsParseOnly() {
       JavaFileObject wire =
           JavaFileObjects.forSourceString(
               "com.example.ReadOnlyCard",
@@ -2654,11 +2654,14 @@ class MappingProcessorBeanTest {
               @GenerateMapping
               public interface ReadOnlyCardMapping extends MappingSpec<Employee, ReadOnlyCard> {}
               """);
+      // Nothing writes the bean, so it maps parse-only, and a parse has no projection to fall back
+      // on: every domain component needs a getter.
       Compilation compilation = compile(EMPLOYEE, wire, spec);
       assertThat(compilation).failed();
+      assertThat(compilation).hadNoteContaining("'ReadOnlyCard' maps parse-only");
       assertThat(compilation)
           .hadErrorContaining(
-              "'ReadOnlyCard' is not a usable bean-shaped wire: no construction strategy fits it");
+              "domain field 'Employee.department' has no wire counterpart named 'department'");
     }
 
     /** A bean from its no-args constructor, with each named setter applied to its value in turn. */
@@ -2727,7 +2730,8 @@ class MappingProcessorBeanTest {
     }
 
     @Test
-    @DisplayName("a cross-package bean with a non-public constructor is rejected, not miscompiled")
+    @DisplayName(
+        "a cross-package bean with a non-public constructor is never built, so it maps parse-only")
     void crossPackageNonPublicConstructor() {
       JavaFileObject domain =
           JavaFileObjects.forSourceString(
@@ -2765,9 +2769,16 @@ class MappingProcessorBeanTest {
               public interface ForeignMapping extends MappingSpec<D, com.other.Foreign> {}
               """);
 
+      // The generated Impl could not call `new Foreign()`, so nothing writes the bean: it maps
+      // parse-only rather than miscompiling, and the note names the constructor to change.
       Compilation compilation = compile(domain, wire, spec);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'Foreign' is not a usable bean-shaped wire");
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadNoteContaining(
+              "'Foreign' has setters, but no no-args constructor the generated Impl"
+                  + " can call from package 'com.example'");
+      Assertions.assertThat(generatedSource(compilation, "com.example.ForeignMappingImpl"))
+          .doesNotContain("new Foreign()");
     }
   }
 
@@ -2822,7 +2833,7 @@ class MappingProcessorBeanTest {
     }
 
     @Test
-    @DisplayName("a bean that is neither constructible nor a builder is rejected")
+    @DisplayName("a bean that is neither constructible nor a builder maps parse-only")
     void noConstructionStrategy() {
       JavaFileObject wire =
           JavaFileObjects.forSourceString(
@@ -2839,9 +2850,8 @@ class MappingProcessorBeanTest {
               """);
       Compilation compilation =
           compile(D, wire, spec("public interface M extends MappingSpec<D, WDto> {}"));
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'WDto' is not a usable bean-shaped wire");
-      assertThat(compilation).hadErrorContaining("no construction strategy fits it");
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("'WDto' maps parse-only");
     }
 
     @Test
@@ -3043,6 +3053,7 @@ class MappingProcessorBeanTest {
               """);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("'B10' is not a usable bean-shaped wire");
+      assertThat(compilation).hadErrorContaining("It reads [a] and writes [x].");
     }
 
     @Test
@@ -3061,8 +3072,9 @@ class MappingProcessorBeanTest {
                 public static int builder() { return 0; }
               }
               """);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'B3' is not a usable bean-shaped wire");
+      // Not a builder, so nothing writes the bean: it maps parse-only.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("'B3' maps parse-only");
     }
 
     @Test
@@ -3084,8 +3096,9 @@ class MappingProcessorBeanTest {
                 }
               }
               """);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'B4' is not a usable bean-shaped wire");
+      // Not a builder, so nothing writes the bean: it maps parse-only.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("'B4' maps parse-only");
     }
 
     @Test
@@ -3107,8 +3120,9 @@ class MappingProcessorBeanTest {
                 }
               }
               """);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'B5' is not a usable bean-shaped wire");
+      // Not a builder, so nothing writes the bean: it maps parse-only.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("'B5' maps parse-only");
     }
 
     @Test
@@ -3130,8 +3144,9 @@ class MappingProcessorBeanTest {
                 }
               }
               """);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'B6' is not a usable bean-shaped wire");
+      // Not a builder, so nothing writes the bean: it maps parse-only.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("'B6' maps parse-only");
     }
 
     @Test
@@ -3153,8 +3168,9 @@ class MappingProcessorBeanTest {
                 }
               }
               """);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'B7a' is not a usable bean-shaped wire");
+      // Not a builder, so nothing writes the bean: it maps parse-only.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("'B7a' maps parse-only");
     }
 
     @Test
@@ -3176,8 +3192,9 @@ class MappingProcessorBeanTest {
                 }
               }
               """);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'B7b' is not a usable bean-shaped wire");
+      // Not a builder, so nothing writes the bean: it maps parse-only.
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("'B7b' maps parse-only");
     }
   }
 

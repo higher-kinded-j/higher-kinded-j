@@ -15,6 +15,8 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Setter;
 import org.higherkindedj.optics.edit.Edit;
 import org.higherkindedj.optics.edit.Edits;
+import org.higherkindedj.optics.validated.ValidatedBuild;
+import org.higherkindedj.optics.validated.ValidatedParse;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -120,6 +122,14 @@ class MappingLawsTest {
   private static final Function<Account, AccountPatch> DENSE_BUILD =
       account -> new AccountPatch(account.owner(), account.contact().value());
 
+  // One-directional tiers: the dense patch read with no domain to write onto, and its build
+  // with nothing to read back, each as the half a one-directional bean mapping exposes.
+  private static final ValidatedParse<AccountPatch, Account> PARSE_ONLY =
+      ValidatedParse.of(wire -> LAWFUL_DENSE_PATCH.apply(ACCOUNT, wire));
+
+  private static final ValidatedBuild<AccountPatch, Account> BUILD_ONLY =
+      ValidatedBuild.of(DENSE_BUILD);
+
   @Nested
   @DisplayName("Lawful mappings pass every tier's laws")
   class LawfulMappings {
@@ -179,6 +189,63 @@ class MappingLawsTest {
       assertThatThrownBy(() -> ValidatedPrismLaws.assertBuildParse(DERIVED_MAPPING, inconsistent))
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("build-parse");
+    }
+  }
+
+  @Nested
+  @DisplayName("One-directional surfaces pass the laws their one direction can state")
+  class OneDirectionalMappings {
+
+    @Test
+    @DisplayName("the parse-only tier passes acceptance and located rejection")
+    void parseOnlyTierPasses() {
+      MappingLaws.assertMappingLaws(PARSE_ONLY, VALID_PATCH, INVALID_PATCH);
+    }
+
+    @Test
+    @DisplayName("the build-only tier passes build totality")
+    void buildOnlyTierPasses() {
+      MappingLaws.assertMappingLaws(BUILD_ONLY, ACCOUNT);
+    }
+
+    @Test
+    @DisplayName("a parse rejecting the wire it should read fails the acceptance law")
+    void parseRejectingItsWireFails() {
+      assertThatThrownBy(
+              () -> MappingLaws.assertMappingLaws(PARSE_ONLY, INVALID_PATCH, INVALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("Parse acceptance law");
+    }
+
+    @Test
+    @DisplayName("a parse accepting a wire it should reject fails the located-rejection law")
+    void parseAcceptingABadWireFails() {
+      assertThatThrownBy(() -> MappingLaws.assertMappingLaws(PARSE_ONLY, VALID_PATCH, VALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("Located rejection law");
+    }
+
+    @Test
+    @DisplayName("a parse whose failures carry no location fails the located-rejection law")
+    void parseUnlocatedErrorsFail() {
+      ValidatedParse<AccountPatch, Account> unlocated =
+          ValidatedParse.of(wire -> Validated.invalidNel(FieldError.of("bad")));
+      assertThatThrownBy(() -> MappingLaws.assertParseRejectionLocated(unlocated, INVALID_PATCH))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("every accumulated error must be located");
+    }
+
+    @Test
+    @DisplayName("a build that throws fails the totality law")
+    void throwingBuildFails() {
+      ValidatedBuild<AccountPatch, Account> throwing =
+          ValidatedBuild.of(
+              account -> {
+                throw new IllegalStateException("no wire for " + account);
+              });
+      assertThatThrownBy(() -> MappingLaws.assertMappingLaws(throwing, ACCOUNT))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("Build totality law");
     }
   }
 

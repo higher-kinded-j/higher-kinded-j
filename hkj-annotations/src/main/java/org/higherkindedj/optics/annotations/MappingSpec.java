@@ -23,9 +23,10 @@ package org.higherkindedj.optics.annotations;
  *
  * <p>The wire type {@code W} may be a record or a bean-shaped class: a mutable class with a no-args
  * constructor and getters/setters, or an immutable one with a builder. The bean is read through
- * getters and written through setters or a builder; every reference-typed read is null-guarded, so
- * an unset property parses to a located {@code FieldError} rather than throwing. A component whose
- * {@code null} means <em>absent</em> rather than <em>broken</em> says so with {@link
+ * getters and written through setters or a builder, and one offering only one of the two maps that
+ * way only, with {@code parse} or {@code build} alone; every reference-typed read is null-guarded,
+ * so an unset property parses to a located {@code FieldError} rather than throwing. A component
+ * whose {@code null} means <em>absent</em> rather than <em>broken</em> says so with {@link
  * OptionalBridge}; a bean wire needs no such declaration, because it bridges an {@code Optional}
  * component automatically wherever the property can be left unset. The domain type {@code D} stays
  * a record (or a sealed interface of records), since {@code parse} assembles it through its

@@ -501,7 +501,7 @@ class ValidatedPrismTest {
           .withMessage("sources must not be null");
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseEntries(Map.of("a@b", "x@y"), null))
-          .withMessage("valuePrism must not be null");
+          .withMessage("valueParse must not be null");
       Map<String, String> nullKey = new HashMap<>();
       nullKey.put(null, "x@y");
       assertThatNullPointerException()
@@ -530,7 +530,7 @@ class ValidatedPrismTest {
           .withMessage("values must not be null");
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.buildEntries(entries, null))
-          .withMessage("valuePrism must not be null");
+          .withMessage("valueBuild must not be null");
 
       Map<Email, Integer> nullKey = new HashMap<>();
       nullKey.put(null, 1);

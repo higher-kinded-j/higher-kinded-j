@@ -4,9 +4,9 @@ package org.higherkindedj.optics.processing;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -22,8 +22,8 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
- * Discovers the JavaBeans property model of a bean-shaped wire type for {@code @GenerateMapping} .
- * A bean is read through {@code getX}/{@code isX} getters and constructed through one of a fixed
+ * Discovers the JavaBeans property model of a bean-shaped wire type for {@code @GenerateMapping}. A
+ * bean is read through {@code getX}/{@code isX} getters and constructed through one of a fixed
  * ladder of strategies, tried in order:
  *
  * <ol>
@@ -34,10 +34,18 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * </ol>
  *
  * <p>The mapped property set is the intersection of readable and writable names, so a computed
- * getter with no writer is not treated as a mappable component. Getters and setters are gathered
- * from {@link javax.lang.model.util.Elements#getAllMembers}, so a bean inherits properties from its
- * superclasses (as JAXB-generated beans do); {@link Object} methods and non-public or static
- * accessors are excluded.
+ * getter with no writer is not treated as a mappable component. Where that intersection is empty
+ * under every strategy, the bean maps one way if it offers nothing at all in the other: a bean with
+ * getters and no way to be written maps parse-only over all of its getters, and one that can be
+ * written but declares no getter maps build-only over all of its writers. A bean that reads some
+ * names and writes others is refused, since a misspelt accessor is a likelier story than a wire
+ * meant to be crossed one way. A getter-only {@code List} counts as written only on a bean that
+ * also has a setter, or whose every getter is such a list: a {@code List} getter among read-only
+ * getters belongs to a read model, which maps parse-only.
+ *
+ * <p>Getters and setters are gathered from {@link javax.lang.model.util.Elements#getAllMembers}, so
+ * a bean inherits properties from its superclasses (as JAXB-generated beans do); {@link Object}
+ * methods and non-public or static accessors are excluded.
  */
 final class BeanPropertyAnalyser {
 
@@ -51,17 +59,48 @@ final class BeanPropertyAnalyser {
 
   /**
    * Analyses {@code bean} into a {@link WireShape.BeanShape}, or reports a what/why/fix diagnostic
-   * and returns null. Reports when a getter and its writer disagree on type, or when the bean is
-   * neither a mutable JavaBean nor a builder-based bean with a readable property.
+   * and returns null. Reports when a getter and its writer disagree on type, or when the bean fits
+   * no reading at all: nothing to read or write, or readable and writable properties that never
+   * share a name.
    */
   WireShape.BeanShape analyse(TypeElement spec, TypeElement bean, String tag) {
+    return analyse(spec, bean, tag, true);
+  }
+
+  /**
+   * The same analysis, reporting nothing. The registry reads every spec's wire before any spec is
+   * validated, so a bean this refuses registers as nothing to nest, and its own spec says why. One
+   * analysis serves both, so a spec is never registered as one shape and generated as another.
+   */
+  Optional<WireShape.BeanShape> surface(TypeElement spec, TypeElement bean) {
+    return Optional.ofNullable(analyse(spec, bean, "", false));
+  }
+
+  /**
+   * Whether a bean declares setters at all, for the note naming its parse-only tier. A parse-only
+   * bean that has setters has them out of reach, its no-args constructor being one the generated
+   * Impl cannot call, so the constructor is what the note tells the author to change.
+   */
+  boolean declaresSetters(TypeElement bean) {
+    return !collectSetters(bean).isEmpty();
+  }
+
+  private WireShape.BeanShape analyse(
+      TypeElement spec, TypeElement bean, String tag, boolean report) {
     // A bean inherits properties from its superclasses, so a member read off its declaring element
     // speaks that element's variables: 'T getId()' on BaseDto<T> is String on UserDto.
     DeclaredType beanType = (DeclaredType) bean.asType();
     Map<String, ExecutableElement> getters = collectGetters(bean);
+    boolean constructible = hasUsableNoArgsConstructor(spec, bean);
+    Map<String, ExecutableElement> setters = constructible ? collectSetters(bean) : Map.of();
 
-    if (hasUsableNoArgsConstructor(spec, bean)) {
-      Map<String, ExecutableElement> setters = collectSetters(bean);
+    if (constructible) {
+      // A getter-only List is written through its own getter, the JAXB convention, but only on a
+      // bean that writes something else as well, or nothing but such lists: a List getter among
+      // read-only getters belongs to a read model, which is never filled, and reads parse-only.
+      boolean collectionsWrite =
+          !setters.isEmpty()
+              || getters.values().stream().allMatch(getter -> isList(getterType(beanType, getter)));
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
         String name = entry.getKey();
@@ -70,32 +109,41 @@ final class BeanPropertyAnalyser {
         ExecutableElement setter = setters.get(name);
         if (setter != null) {
           if (typesDiffer(
-              spec, bean, entry.getValue(), tag, name, getterType, paramType(beanType, setter))) {
+              spec,
+              bean,
+              entry.getValue(),
+              tag,
+              name,
+              getterType,
+              paramType(beanType, setter),
+              report)) {
             return null;
           }
           properties.add(
-              new WireShape.BeanProperty(
+              readWrite(
                   name,
                   getterType,
                   getter,
                   new WireShape.WriteSite.Setter(setter.getSimpleName().toString())));
-        } else if (isList(getterType)) {
+        } else if (collectionsWrite && isList(getterType)) {
           properties.add(
-              new WireShape.BeanProperty(
-                  name, getterType, getter, new WireShape.WriteSite.CollectionAdd(getter)));
+              readWrite(name, getterType, getter, new WireShape.WriteSite.CollectionAdd(getter)));
         }
       }
       if (!properties.isEmpty()) {
         return new WireShape.BeanShape(
-            bean, properties, new WireShape.ConstructionStrategy.NoArgsSetters());
+            bean,
+            properties,
+            Optional.of(new WireShape.ConstructionStrategy.NoArgsSetters()),
+            WireShape.Direction.BIDIRECTIONAL);
       }
     }
 
     BuilderModel builder = findBuilderModel(bean);
+    Map<String, ExecutableElement> builderSetters = Map.of();
     if (builder != null) {
+      builderSetters = collectBuilderSetters(bean, builder);
       DeclaredType builderType = builder.builderType();
-      Map<String, ExecutableElement> builderSetters =
-          collectBuilderSetters(builder.builderElement());
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
         String name = entry.getKey();
@@ -111,11 +159,12 @@ final class BeanPropertyAnalyser {
             tag,
             name,
             getterType,
-            paramType(builderType, builderSetter))) {
+            paramType(builderType, builderSetter),
+            report)) {
           return null;
         }
         properties.add(
-            new WireShape.BeanProperty(
+            readWrite(
                 name,
                 getterType,
                 entry.getValue().getSimpleName().toString(),
@@ -123,48 +172,78 @@ final class BeanPropertyAnalyser {
       }
       if (!properties.isEmpty()) {
         return new WireShape.BeanShape(
-            bean,
-            properties,
-            new WireShape.ConstructionStrategy.Builder(builder.factory(), builder.buildMethod()));
+            bean, properties, Optional.of(builder.strategy()), WireShape.Direction.BIDIRECTIONAL);
       }
     }
 
-    reportUnusable(spec, bean, tag);
+    // No property is both read and written, so the bean maps one way or not at all: one way only
+    // when nothing whatever crosses in the other.
+    if (!getters.isEmpty() && setters.isEmpty() && builderSetters.isEmpty()) {
+      return readOnly(bean, beanType, getters);
+    }
+    if (getters.isEmpty() && !setters.isEmpty()) {
+      return writeOnly(bean, beanType, setters, new WireShape.ConstructionStrategy.NoArgsSetters());
+    }
+    if (getters.isEmpty() && !builderSetters.isEmpty()) {
+      return writeOnly(bean, builder.builderType(), builderSetters, builder.strategy());
+    }
+    if (report) {
+      reportUnusable(
+          spec,
+          bean,
+          tag,
+          getters.keySet(),
+          setters.isEmpty() ? builderSetters.keySet() : setters.keySet());
+    }
     return null;
   }
 
+  private static WireShape.BeanProperty readWrite(
+      String name, TypeMirror type, String getter, WireShape.WriteSite write) {
+    return new WireShape.BeanProperty(name, type, Optional.of(getter), Optional.of(write));
+  }
+
+  /** Every getter, read and never written: a bean with no way to be written maps parse-only. */
+  private WireShape.BeanShape readOnly(
+      TypeElement bean, DeclaredType beanType, Map<String, ExecutableElement> getters) {
+    List<WireShape.BeanProperty> properties =
+        getters.entrySet().stream()
+            .map(
+                entry ->
+                    new WireShape.BeanProperty(
+                        entry.getKey(),
+                        getterType(beanType, entry.getValue()),
+                        Optional.of(entry.getValue().getSimpleName().toString()),
+                        Optional.<WireShape.WriteSite>empty()))
+            .toList();
+    return new WireShape.BeanShape(
+        bean, properties, Optional.empty(), WireShape.Direction.PARSE_ONLY);
+  }
+
   /**
-   * The mappable property names under the selected strategy, in declaration order. The registry's
-   * parse arithmetic counts them, and reads them to tell a derived field that fills one of these
-   * from an inherited one that binds to nothing here.
+   * Every writer, written and never read: a bean that declares no getter maps build-only. A writer
+   * speaks its owner's variables, as a getter does, so {@code owner} is the bean for a setter and
+   * the builder as the factory instantiates it for a builder setter.
    */
-  Set<String> propertyNames(TypeElement spec, TypeElement bean) {
-    DeclaredType beanType = (DeclaredType) bean.asType();
-    Map<String, ExecutableElement> getters = collectGetters(bean);
-    if (hasUsableNoArgsConstructor(spec, bean)) {
-      Map<String, ExecutableElement> setters = collectSetters(bean);
-      Set<String> names = new LinkedHashSet<>();
-      getters.forEach(
-          (name, getter) -> {
-            if (setters.containsKey(name) || isList(getterType(beanType, getter))) {
-              names.add(name);
-            }
-          });
-      if (!names.isEmpty()) {
-        return names;
-      }
-    }
-    BuilderModel builder = findBuilderModel(bean);
-    if (builder != null) {
-      Map<String, ExecutableElement> builderSetters =
-          collectBuilderSetters(builder.builderElement());
-      Set<String> names = new LinkedHashSet<>();
-      getters.keySet().stream().filter(builderSetters::containsKey).forEach(names::add);
-      if (!names.isEmpty()) {
-        return names;
-      }
-    }
-    return Set.of();
+  private WireShape.BeanShape writeOnly(
+      TypeElement bean,
+      DeclaredType owner,
+      Map<String, ExecutableElement> writers,
+      WireShape.ConstructionStrategy strategy) {
+    List<WireShape.BeanProperty> properties =
+        writers.entrySet().stream()
+            .map(
+                entry ->
+                    new WireShape.BeanProperty(
+                        entry.getKey(),
+                        paramType(owner, entry.getValue()),
+                        Optional.<String>empty(),
+                        Optional.<WireShape.WriteSite>of(
+                            new WireShape.WriteSite.Setter(
+                                entry.getValue().getSimpleName().toString()))))
+            .toList();
+    return new WireShape.BeanShape(
+        bean, properties, Optional.of(strategy), WireShape.Direction.BUILD_ONLY);
   }
 
   private boolean typesDiffer(
@@ -174,29 +253,32 @@ final class BeanPropertyAnalyser {
       String tag,
       String name,
       TypeMirror getterType,
-      TypeMirror writerType) {
+      TypeMirror writerType,
+      boolean report) {
     if (env.getTypeUtils().isSameType(getterType, writerType)) {
       return false;
     }
-    Diagnostics.error(
-        env.getMessager(),
-        spec,
-        tag,
-        "bean property '"
-            + name
-            + "' on '"
-            + bean.getSimpleName()
-            + "'"
-            + declaredOn(bean, getter)
-            + " is read and written at different types ("
-            + ProcessorUtils.simpleTypeName(getterType)
-            + " vs "
-            + ProcessorUtils.simpleTypeName(writerType)
-            + ").",
-        "A mappable property has one type; the mapper cannot guess which of the two the component"
-            + " should carry.",
-        "Align the getter and its setter (or builder setter) where they are declared, or drop one"
-            + " of them.");
+    if (report) {
+      Diagnostics.error(
+          env.getMessager(),
+          spec,
+          tag,
+          "bean property '"
+              + name
+              + "' on '"
+              + bean.getSimpleName()
+              + "'"
+              + declaredOn(bean, getter)
+              + " is read and written at different types ("
+              + ProcessorUtils.simpleTypeName(getterType)
+              + " vs "
+              + ProcessorUtils.simpleTypeName(writerType)
+              + ").",
+          "A mappable property has one type; the mapper cannot guess which of the two the"
+              + " component should carry.",
+          "Align the getter and its setter (or builder setter) where they are declared, or drop"
+              + " one of them.");
+    }
     return true;
   }
 
@@ -237,13 +319,16 @@ final class BeanPropertyAnalyser {
   /**
    * The builder's setters, keyed by property. Both the property-named convention ({@code name(T)},
    * as Lombok/Immutables/AutoValue emit) and the {@code setX} convention (as protobuf emits) are
-   * accepted; when a property has both, the property-named one wins.
+   * accepted; when a property has both, the property-named one wins. A method taking the bean or
+   * the builder itself copies a whole value in ({@code from(Bean)}, {@code mergeFrom(Builder)}), so
+   * it is no property's setter.
    */
-  private Map<String, ExecutableElement> collectBuilderSetters(TypeElement builderType) {
+  private Map<String, ExecutableElement> collectBuilderSetters(
+      TypeElement bean, BuilderModel builder) {
     Map<String, ExecutableElement> setX = new LinkedHashMap<>();
     Map<String, ExecutableElement> propertyNamed = new LinkedHashMap<>();
-    for (ExecutableElement method : publicInstanceMethods(builderType)) {
-      if (method.getParameters().size() != 1) {
+    for (ExecutableElement method : publicInstanceMethods(builder.builderElement())) {
+      if (method.getParameters().size() != 1 || copiesWhole(method, bean, builder)) {
         continue;
       }
       String methodName = method.getSimpleName().toString();
@@ -256,6 +341,14 @@ final class BeanPropertyAnalyser {
     Map<String, ExecutableElement> merged = new LinkedHashMap<>(setX);
     merged.putAll(propertyNamed);
     return merged;
+  }
+
+  /** Whether a one-argument builder method takes the bean or the builder itself. */
+  private boolean copiesWhole(ExecutableElement method, TypeElement bean, BuilderModel builder) {
+    TypeMirror parameter = env.getTypeUtils().erasure(method.getParameters().getFirst().asType());
+    return env.getTypeUtils().isSameType(parameter, env.getTypeUtils().erasure(bean.asType()))
+        || env.getTypeUtils()
+            .isSameType(parameter, env.getTypeUtils().erasure(builder.builderType()));
   }
 
   /**
@@ -275,6 +368,11 @@ final class BeanPropertyAnalyser {
     /** The builder's element, for the members that are read off the declaration itself. */
     TypeElement builderElement() {
       return (TypeElement) builderType.asElement();
+    }
+
+    /** The construction strategy that fills the bean through this builder. */
+    WireShape.ConstructionStrategy strategy() {
+      return new WireShape.ConstructionStrategy.Builder(factory, buildMethod);
     }
   }
 
@@ -313,20 +411,65 @@ final class BeanPropertyAnalyser {
         .orElse(null);
   }
 
-  private void reportUnusable(TypeElement spec, TypeElement bean, String tag) {
+  /**
+   * Refuses a bean no reading fits. Asked only once the one-way readings are ruled out, so the two
+   * name sets are either both empty, a bean with nothing to read or write, or both non-empty, a
+   * bean whose getters and writers never share a name.
+   */
+  private void reportUnusable(
+      TypeElement spec, TypeElement bean, String tag, Set<String> reads, Set<String> writes) {
+    if (reads.isEmpty() && declaresSetters(bean)) {
+      Diagnostics.error(
+          env.getMessager(),
+          spec,
+          tag,
+          "'"
+              + bean.getSimpleName()
+              + "' is not a usable bean-shaped wire: it has setters but no getters, and no no-args"
+              + " constructor the generated Impl can call from package '"
+              + env.getElementUtils().getPackageOf(spec).getQualifiedName()
+              + "'.",
+          "A bean with no getters maps build-only, and a build needs a way to create the bean: a"
+              + " no-args constructor for its setters, or a builder.",
+          "Give '"
+              + bean.getSimpleName()
+              + "' a no-args constructor the generated Impl can call (public, or package-private"
+              + " beside the spec), or a builder.");
+      return;
+    }
+    if (reads.isEmpty()) {
+      Diagnostics.error(
+          env.getMessager(),
+          spec,
+          tag,
+          "'"
+              + bean.getSimpleName()
+              + "' is not a usable bean-shaped wire: it has no property to read or write.",
+          "The mapper reads a bean through getX/isX getters and writes it through a no-args"
+              + " constructor with setX setters (or a getter-only List, filled with"
+              + " getX().addAll(...)), or through a static builder()/newBuilder() whose setters fill"
+              + " it and whose build() yields the wire; '"
+              + bean.getSimpleName()
+              + "' offers none of them.",
+          "Give it getters, setters or a builder for the properties it carries, or use a record.");
+      return;
+    }
     Diagnostics.error(
         env.getMessager(),
         spec,
         tag,
         "'"
             + bean.getSimpleName()
-            + "' is not a usable bean-shaped wire: no construction strategy fits it.",
-        "The mapper fills a bean through a no-args constructor with getX/setX pairs (or a"
-            + " getter-only List, filled with getX().addAll(...)), or through a static"
-            + " builder()/newBuilder() whose setters fill it and whose build() yields the wire; '"
-            + bean.getSimpleName()
-            + "' matches neither with a readable property.",
-        "Give it a no-args constructor with matching getX/setX pairs, a builder, or use a record.");
+            + "' is not a usable bean-shaped wire: no property it reads is one it can write.",
+        "It reads "
+            + reads
+            + " and writes "
+            + writes
+            + ". A bean maps both ways over the properties it can read and write, and one way only"
+            + " when it offers nothing at all in the other direction, so reading some names and"
+            + " writing others fits neither.",
+        "Align each getter with its setter (or builder setter), which a misspelt accessor usually"
+            + " explains, or remove the accessors of the direction the wire is not crossed in.");
   }
 
   private List<ExecutableElement> publicInstanceMethods(TypeElement type) {

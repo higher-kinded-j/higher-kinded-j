@@ -72,6 +72,20 @@ class RecordMappingBookLawsTest {
   }
 
   @Test
+  void oneDirectionalBeanMappingsObeyTheirLaws() {
+    // ANCHOR: one_way_laws
+    MappingLaws.assertMappingLaws(
+        CustomerViewMappingImpl.INSTANCE.asValidatedParse(),
+        new CustomerView("Ada", "ada@example.org"), // parses
+        new CustomerView("Bob", "not-an-email")); // located failure
+
+    MappingLaws.assertMappingLaws(
+        CustomerRequestMappingImpl.INSTANCE.asValidatedBuild(),
+        new Customer("Ada", new EmailAddress("ada@example.org"))); // renders without failing
+    // ANCHOR_END: one_way_laws
+  }
+
+  @Test
   void rosterPatchMappingObeysTheSparseLawsOverContainerElements() {
     // ANCHOR: update_container_laws
     MappingLaws.assertMappingLaws(

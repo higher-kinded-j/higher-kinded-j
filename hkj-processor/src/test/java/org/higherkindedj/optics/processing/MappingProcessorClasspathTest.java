@@ -472,6 +472,99 @@ class MappingProcessorClasspathTest {
   class Resolution {
 
     @Test
+    @DisplayName(
+        "a one-directional spec registers from its class file with its direction, and nests there")
+    void oneDirectionalSpecNestsFromTheClasspath() throws IOException {
+      JavaFileObject upstreamTypes =
+          JavaFileObjects.forSourceString(
+              "com.oneway.up.Types",
+              """
+              package com.oneway.up;
+
+              public final class Types {
+                public record Item(String sku) {}
+
+                public static class ItemView {
+                  private final String sku;
+                  public ItemView(String sku) { this.sku = sku; }
+                  public String getSku() { return sku; }
+                }
+
+                public static class ItemRequest {
+                  public void setSku(String sku) {}
+                }
+              }
+              """);
+      JavaFileObject viewMapping =
+          JavaFileObjects.forSourceString(
+              "com.oneway.up.ItemViewMapping",
+              """
+              package com.oneway.up;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ItemViewMapping extends MappingSpec<Types.Item, Types.ItemView> {}
+              """);
+      JavaFileObject requestMapping =
+          JavaFileObjects.forSourceString(
+              "com.oneway.up.ItemRequestMapping",
+              """
+              package com.oneway.up;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ItemRequestMapping
+                  extends MappingSpec<Types.Item, Types.ItemRequest> {}
+              """);
+      Path upstream =
+          module("oneway-upstream", List.of(), List.of(upstreamTypes, viewMapping, requestMapping));
+
+      JavaFileObject downstream =
+          JavaFileObjects.forSourceString(
+              "com.oneway.down.Down",
+              """
+              package com.oneway.down;
+
+              import com.oneway.up.Types;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Down {
+                public record Basket(List<Types.Item> items) {}
+
+                public static class BasketView {
+                  private final List<Types.ItemView> items;
+                  public BasketView(List<Types.ItemView> items) { this.items = items; }
+                  public List<Types.ItemView> getItems() { return items; }
+                }
+
+                public static class BasketRequest {
+                  public void setItems(List<Types.ItemRequest> items) {}
+                }
+
+                @GenerateMapping
+                public interface BasketViewMapping extends MappingSpec<Basket, BasketView> {}
+
+                @GenerateMapping
+                public interface BasketRequestMapping extends MappingSpec<Basket, BasketRequest> {}
+              }
+              """);
+      Compilation compilation = compiler(upstream).compile(downstream);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              generatedSource(compilation, "com.oneway.down.DownBasketViewMappingImpl"))
+          .contains("ItemViewMappingImpl.INSTANCE.asValidatedParse()::parseAll");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.oneway.down.DownBasketRequestMappingImpl"))
+          .contains("ItemRequestMappingImpl.INSTANCE.asValidatedBuild().buildAll(domain.items())");
+    }
+
+    @Test
     @DisplayName("a concrete pair nests through the dependency's Impl, and locates its failures")
     void concreteSpecNestsFromTheClasspath() throws Exception {
       Path upstream = upstream();
@@ -581,7 +674,7 @@ class MappingProcessorClasspathTest {
       assertThat(compilation)
           .hadErrorContaining(
               "'com.upstream.CustomerCardMapping (classpath)' maps this pair but is a projection"
-                  + " (no parse), so it cannot be nested");
+                  + " (no parse), so it cannot be nested in a mapping that builds and parses");
       assertThat(compilation)
           .hadErrorContaining(
               "here or in a dependency compiled with hkj-processor on its processor path");

@@ -5560,9 +5560,10 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a record domain with a wire that is neither record nor usable bean is rejected")
-    void recordWithNonRecordWireRejected() {
-      // String is a concrete class (a candidate bean) but exposes no getter/setter property pair.
+    @DisplayName("a concrete class with getters and nothing to write it reads as a parse-only wire")
+    void concreteClassReadsAsParseOnlyWire() {
+      // String is a concrete class, so a candidate bean: it has getters (getBytes, isEmpty) and no
+      // way to be written, so it maps parse-only and fails on the domain component it cannot read.
       Compilation compilation =
           compile(
               PLAIN,
@@ -5570,8 +5571,8 @@ class MappingProcessorTest {
                   "HalfMapping",
                   "public interface HalfMapping extends MappingSpec<Records.D, String> {}"));
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'String' is not a usable bean-shaped wire");
-      assertThat(compilation).hadErrorContaining("no construction strategy fits it");
+      assertThat(compilation).hadNoteContaining("'String' maps parse-only");
+      assertThat(compilation).hadErrorContaining("has no wire counterpart named");
     }
 
     @Test

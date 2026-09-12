@@ -24,6 +24,8 @@ import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.laws.MappingLaws;
+import org.higherkindedj.optics.validated.ValidatedBuild;
+import org.higherkindedj.optics.validated.ValidatedParse;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -865,6 +867,129 @@ class GeneratedMappingLawsTest {
     assertThatValidated(mapping.parse(badWire))
         .isInvalid()
         .hasFieldErrors("reserves.1: not an email address");
+  }
+
+  @Test
+  @DisplayName("parse-only tier: asValidatedParse() accepts a good wire and locates every failure")
+  void parseOnlyTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Contact",
+            """
+            package com.example;
+
+            public record Contact(String name, EmailAddress email) {}
+            """);
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactView",
+            """
+            package com.example;
+
+            public class ContactView {
+              private final String name;
+              private final String email;
+
+              public ContactView(String name, String email) {
+                this.name = name;
+                this.email = email;
+              }
+
+              public String getName() { return name; }
+              public String getEmail() { return email; }
+            }
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactViewMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface ContactViewMapping extends MappingSpec<Contact, ContactView> {
+              default ValidatedPrism<String, EmailAddress> email() { return emailPrism(); }
+            """
+                + EMAIL_PRISM
+                + "}\n");
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = result.instance("com.example.ContactViewMappingImpl");
+    @SuppressWarnings("unchecked")
+    ValidatedParse<Object, Object> parse =
+        (ValidatedParse<Object, Object>) invoke(impl, "asValidatedParse");
+
+    MappingLaws.assertMappingLaws(
+        parse,
+        result.newInstance("com.example.ContactView", "Ada", "ada@corp.example"),
+        result.newInstance("com.example.ContactView", "Ada", "nope"));
+  }
+
+  @Test
+  @DisplayName("build-only tier: asValidatedBuild() renders a domain value totally")
+  void buildOnlyTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Contact",
+            """
+            package com.example;
+
+            public record Contact(String name, EmailAddress email) {}
+            """);
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactRequest",
+            """
+            package com.example;
+
+            public class ContactRequest {
+              private String name;
+              private String email;
+
+              public void setName(String name) { this.name = name; }
+              public void setEmail(String email) { this.email = email; }
+
+              public String describe() { return name + " <" + email + ">"; }
+            }
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactRequestMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface ContactRequestMapping extends MappingSpec<Contact, ContactRequest> {
+              default ValidatedPrism<String, EmailAddress> email() { return emailPrism(); }
+            """
+                + EMAIL_PRISM
+                + "}\n");
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = result.instance("com.example.ContactRequestMappingImpl");
+    @SuppressWarnings("unchecked")
+    ValidatedBuild<Object, Object> build =
+        (ValidatedBuild<Object, Object>) invoke(impl, "asValidatedBuild");
+    Object contact =
+        result.newInstance(
+            "com.example.Contact",
+            "Ada",
+            result.newInstance("com.example.EmailAddress", "ada@corp.example"));
+
+    MappingLaws.assertMappingLaws(build, contact);
+    Assertions.assertThat(invoke(build.build(contact), "describe"))
+        .isEqualTo("Ada <ada@corp.example>");
   }
 
   @Test

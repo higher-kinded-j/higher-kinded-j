@@ -26,6 +26,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.function.Function;
@@ -76,22 +77,22 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * ValidatedPrism<X, X>} can validate or normalise a same-typed component); differing components
  * resolve through a validated leaf (a spec {@code default} method named after the component
  * returning {@code ValidatedPrism<Wire, Domain>}), through another spec in this compilation or, via
- * the classpath index ({@code MappingIndexes}), in a dependency (nesting — every generated impl
- * exposes {@code asValidatedPrism()}, so a whole mapping plugs in wherever a leaf does), or lift
- * through {@code List}/{@code Optional} containers of either. {@code Map} components lift their
- * values the same way; keys are identity-only and must match exactly on both sides, and each
- * entry's parse failures are located by its key. {@code @MapField} declares renames. A wire
- * component with no domain counterpart can be a derived field: a spec {@code default} method named
- * after the wire component returning {@code Getter<Domain, WireComponentType>}. {@code build} fills
- * it with the getter applied to the whole domain value; {@code parse} ignores it (the data is
- * derivable), and a spec with any derived field never emits {@code asIso()}. A wire with fewer
- * components maps as a lossy projection: {@code build} plus a lawful {@code asLens()} write-back
- * when every projected read is total, or a validated {@code patch(domain, wire)} write-back when
- * any component maps through a leaf, a nested spec, a container lifting either of those, or a
- * bridge, or reads a bean's reference property; an identity container copies verbatim, so on a
- * record wire it keeps the lens; no {@code parse} either way (truthful types). Sealed interface
- * pairs dispatch {@code build}/{@code parse} over their permitted subtype pairs, each delegating to
- * its own spec.
+ * the classpath index ({@code MappingIndexes}), in a dependency (nesting — a full mapping's impl
+ * exposes {@code asValidatedPrism()}, and a one-directional bean mapping's impl the half it has, so
+ * a whole mapping plugs in wherever its direction is used), or lift through {@code List}/{@code
+ * Optional} containers of either. {@code Map} components lift their values the same way; keys are
+ * identity-only and must match exactly on both sides, and each entry's parse failures are located
+ * by its key. {@code @MapField} declares renames. A wire component with no domain counterpart can
+ * be a derived field: a spec {@code default} method named after the wire component returning {@code
+ * Getter<Domain, WireComponentType>}. {@code build} fills it with the getter applied to the whole
+ * domain value; {@code parse} ignores it (the data is derivable), and a spec with any derived field
+ * never emits {@code asIso()}. A wire with fewer components maps as a lossy projection: {@code
+ * build} plus a lawful {@code asLens()} write-back when every projected read is total, or a
+ * validated {@code patch(domain, wire)} write-back when any component maps through a leaf, a nested
+ * spec, a container lifting either of those, or a bridge, or reads a bean's reference property; an
+ * identity container copies verbatim, so on a record wire it keeps the lens; no {@code parse}
+ * either way (truthful types). Sealed interface pairs dispatch {@code build}/{@code parse} over
+ * their permitted subtype pairs, each delegating to its own spec.
  *
  * <p>One null doctrine covers both wire shapes: every reference-typed {@code parse} read is
  * null-guarded into a located {@code FieldError} — an unset bean property is null, and a JSON
@@ -110,6 +111,13 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * Optional<T>} bridges to a nullable bean property {@code T}. A bean projection with a reference
  * property maps as the validated {@code patch}, since that property can read null; an all-primitive
  * one keeps the {@code asLens()} projection.
+ *
+ * <p>A bean crossed one way only maps that way. A bean with getters and no way to be written emits
+ * {@code parse} and {@code asValidatedParse()} and no {@code build}; one that can be written but
+ * declares no getter emits {@code build} and {@code asValidatedBuild()} and no {@code parse}. The
+ * bean's shape decides, and a note says which way it maps and why. Such a mapping nests wherever
+ * only its direction is used: a parse-only spec in a parse-only mapping, an {@code UpdateSpec} or a
+ * merge fill, and a build-only spec in a build-only mapping.
  *
  * <p>The same bridge reaches a <em>record</em> wire by opt-in ({@link OptionalBridge}), never
  * implicitly: a record component is null-is-an-error by default and that stays the default, so a
@@ -156,6 +164,10 @@ public class MappingProcessor extends AbstractProcessor {
 
   private static final ClassName VALIDATED_PRISM_TYPE =
       ClassName.get("org.higherkindedj.optics.validated", "ValidatedPrism");
+  private static final ClassName VALIDATED_PARSE_TYPE =
+      ClassName.get("org.higherkindedj.optics.validated", "ValidatedParse");
+  private static final ClassName VALIDATED_BUILD_TYPE =
+      ClassName.get("org.higherkindedj.optics.validated", "ValidatedBuild");
   private static final ClassName EDITS = ClassName.get("org.higherkindedj.optics.edit", "Edits");
   private static final ClassName EDIT = ClassName.get("org.higherkindedj.optics.edit", "Edit");
   private static final ClassName ACCUMULATED =
@@ -195,9 +207,9 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Scans the round for valid {@code @GenerateMapping} specs, then the classpath index for the
    * specs compiled into dependencies. Shared with {@link MergeProcessor}, whose nested fills
-   * resolve against the same parse-capable specs. A record domain may pair with a record wire or a
-   * bean-shaped wire; the bean's parse-capability is computed from its getter/setter property
-   * count.
+   * resolve against the same specs, as sites that only parse. A record domain may pair with a
+   * record wire or a bean-shaped wire; each spec registers with the {@link Surface} its Impl
+   * carries.
    *
    * <p>A classpath spec is read from its class file by the same rules as a spec in the round; the
    * index only names it (see {@code MappingIndexes}). An entry naming a spec this round recompiles
@@ -271,27 +283,63 @@ public class MappingProcessor extends AbstractProcessor {
     if (!recordPair && !beanPair && !sealedPair) {
       return;
     }
-    // Only parse-capable specs may be nested into: equal-count record/bean pairs (derived wire
-    // fields do not count against the wire, since parse ignores them) and sealed pairs.
-    // Projections (smaller wire, no parse) register too, so failed lookups can name them.
-    Set<String> wireNames =
-        recordPair
-            ? wireRecord.getRecordComponents().stream()
-                .map(c -> c.getSimpleName().toString())
-                .collect(Collectors.toCollection(LinkedHashSet::new))
-            : beanPair ? beanAnalyser.propertyNames(spec, wireBean) : Set.of();
-    int wireCount = wireNames.size();
-    // A classpath spec whose Impl is missing registers for the hint only: nothing can delegate to
-    // it.
-    boolean parseCapable =
-        !bothTiers
-            && origin != Origin.CLASSPATH_MISSING_IMPL
-            && (sealedPair
-                || domainSlots(env, spec, domainRecord, (DeclaredType) domainArg)
-                    == wireCount - derivedCandidateCount(env, spec, wireNames));
+    // Every mappable pair registers with the surface its Impl carries, projections included, so a
+    // failed lookup can name them; which sites a surface serves is the registration's to say. A
+    // classpath spec whose Impl is missing registers for the hint only: nothing can delegate to it.
+    Surface surface =
+        bothTiers
+            ? Surface.BOTH_TIERS
+            : sealedPair
+                ? Surface.FULL
+                : pairSurface(
+                    env,
+                    beanAnalyser,
+                    spec,
+                    domainRecord,
+                    (DeclaredType) domainArg,
+                    wireRecord,
+                    wireBean);
     registry.add(
-        new RegisteredSpec(
-            domainArg, wireArg, implClassName(spec), spec, parseCapable, bothTiers, origin));
+        new RegisteredSpec(domainArg, wireArg, implClassName(spec), spec, surface, origin));
+  }
+
+  /**
+   * The surface a record-domain spec's Impl carries, as the registry needs it before validation has
+   * run. A one-directional bean carries its one direction whatever its width, since a mapping with
+   * no reverse has nothing to lose by dropping a component. Any other pair is full when the wire
+   * has a component for every domain slot (derived wire fields do not count against the wire, since
+   * parse ignores them) and a projection otherwise. A bean the analysis refuses reads as having no
+   * property, so it registers as a projection, which nothing nests, and its own spec says why.
+   */
+  private static Surface pairSurface(
+      ProcessingEnvironment env,
+      BeanPropertyAnalyser beanAnalyser,
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      TypeElement wireRecord,
+      TypeElement wireBean) {
+    Set<String> wireNames;
+    if (wireRecord != null) {
+      wireNames =
+          wireRecord.getRecordComponents().stream()
+              .map(c -> c.getSimpleName().toString())
+              .collect(Collectors.toCollection(LinkedHashSet::new));
+    } else {
+      Optional<WireShape.BeanShape> bean = beanAnalyser.surface(spec, wireBean);
+      WireShape.Direction direction =
+          bean.map(WireShape::direction).orElse(WireShape.Direction.BIDIRECTIONAL);
+      if (direction != WireShape.Direction.BIDIRECTIONAL) {
+        return direction == WireShape.Direction.PARSE_ONLY
+            ? Surface.PARSE_ONLY
+            : Surface.BUILD_ONLY;
+      }
+      wireNames = new LinkedHashSet<>(bean.map(WireShape::componentNames).orElse(List.of()));
+    }
+    return domainSlots(env, spec, domain, domainDeclared)
+            == wireNames.size() - derivedCandidateCount(env, spec, wireNames)
+        ? Surface.FULL
+        : Surface.PROJECTION;
   }
 
   /**
@@ -341,21 +389,82 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The surface a registered spec's Impl carries, which decides the use sites it can serve. A full
+   * mapping serves every site. A one-directional bean mapping serves the sites that use only its
+   * direction, exposing itself as the half it has. A projection serves none, its write-back being
+   * no whole mapping to nest. Nor does a spec extending both {@code MappingSpec} and {@code
+   * UpdateSpec}: it belongs to the sparse tier, so its Impl carries {@code updateFrom} alone,
+   * whatever its wire, and {@link RegisteredSpec#unusable} explains it in its own words.
+   */
+  enum Surface {
+    FULL("asValidatedPrism", ""),
+    PARSE_ONLY("asValidatedParse", "is parse-only (no build)"),
+    BUILD_ONLY("asValidatedBuild", "is build-only (no parse)"),
+    PROJECTION("", "is a projection (no parse)"),
+    BOTH_TIERS("", "");
+
+    private final String accessor;
+    private final String shortfall;
+
+    Surface(String accessor, String shortfall) {
+      this.accessor = accessor;
+      this.shortfall = shortfall;
+    }
+
+    /** Whether a site using {@code need} can call a mapping with this surface. */
+    private boolean serves(WireShape.Direction need) {
+      return switch (this) {
+        case FULL -> true;
+        case PARSE_ONLY -> need == WireShape.Direction.PARSE_ONLY;
+        case BUILD_ONLY -> need == WireShape.Direction.BUILD_ONLY;
+        case PROJECTION, BOTH_TIERS -> false;
+      };
+    }
+
+    /**
+     * What this surface lacks for a site using {@code need}, for the hint that names it. A
+     * projection has a {@code build}, so where only a build is needed it lacks the whole-mapping
+     * surface a nesting site calls, not a parse.
+     */
+    private String shortfall(WireShape.Direction need) {
+      return this == PROJECTION && need == WireShape.Direction.BUILD_ONLY
+          ? "is a projection, whose build is not offered for nesting"
+          : shortfall;
+    }
+  }
+
+  /**
    * A valid spec seen this round or named by the classpath index; nested components resolve against
-   * the parse-capable ones. Compare registrations by {@code spec()}: the record's own equality also
-   * covers the two mirrors, whose {@code equals} is identity and says nothing about the types.
+   * the ones serving their site ({@link #serves}). Compare registrations by {@code spec()}: the
+   * record's own equality also covers the two mirrors, whose {@code equals} is identity and says
+   * nothing about the types.
    */
   record RegisteredSpec(
       TypeMirror domain,
       TypeMirror wire,
       ClassName impl,
       TypeElement spec,
-      boolean parseCapable,
-      boolean bothTiers,
+      Surface surface,
       Origin origin) {
 
     boolean local() {
       return origin == Origin.THIS_COMPILATION;
+    }
+
+    /**
+     * Whether this spec can serve a site using {@code need}: its surface carries that direction,
+     * and its Impl is there to call.
+     */
+    boolean serves(WireShape.Direction need) {
+      return origin != Origin.CLASSPATH_MISSING_IMPL && surface.serves(need);
+    }
+
+    /**
+     * The expression a nesting site calls on this spec's non-generic Impl: the surface it exposes.
+     * Asked only of a spec that {@link #serves} the site, so the surface has an accessor.
+     */
+    CodeBlock nestingPrism() {
+      return CodeBlock.of("$T.INSTANCE.$L()", impl, surface.accessor);
     }
 
     /**
@@ -368,13 +477,16 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     /**
-     * Why a registered spec that is not parse-capable cannot serve a use site, for the hint a
-     * failed lookup carries: {@code asProjection} completes the projection sentence ("maps this
-     * pair but is a projection (no parse), so it cannot ..."); a classpath spec whose Impl is
-     * missing, and one declaring both tiers, each explain themselves whatever the site.
+     * Why a registered spec cannot serve a use site, for the hint a failed lookup carries: {@code
+     * maps} and {@code purpose} frame the sentence ("'X' maps this pair but is parse-only (no
+     * build), so it cannot be nested in a mapping that builds and parses"), and the surface says
+     * what it lacks for a site using {@code need}. A classpath spec whose Impl is missing, and one
+     * declaring both tiers, each explain themselves whatever the site. Asked only of a spec that
+     * does not serve the site, so a full surface reaches the sentence only when its Impl is
+     * missing.
      */
-    String unusable(String asProjection) {
-      if (bothTiers) {
+    String unusable(String maps, String purpose, WireShape.Direction need) {
+      if (surface == Surface.BOTH_TIERS) {
         return " '"
             + describe()
             + "' maps this pair but extends both MappingSpec and UpdateSpec, so it belongs to the"
@@ -390,7 +502,15 @@ public class MappingProcessor extends AbstractProcessor {
             + " the Impl was generated and then lost (a partial build output, or a jar that dropped"
             + " it); rebuild that dependency from clean.";
       }
-      return " '" + describe() + "'" + asProjection;
+      return " '"
+          + describe()
+          + "' "
+          + maps
+          + " but "
+          + surface.shortfall(need)
+          + ", so it cannot "
+          + purpose
+          + ".";
     }
   }
 
@@ -585,7 +705,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean checkCollectionGettersCarryAbsence(TypeElement spec, WireShape.BeanShape bean) {
     for (WireShape.BeanProperty property : bean.properties()) {
-      if (property.write() instanceof WireShape.WriteSite.CollectionAdd write) {
+      if (property.write().orElse(null) instanceof WireShape.WriteSite.CollectionAdd write) {
         Diagnostics.error(
             processingEnv.getMessager(),
             spec,
@@ -615,6 +735,102 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * Refuses a PATCH bean that is not both read and written. A sparse update only reads its wire,
+   * but it reads {@code null} as "not provided", and only a bean that is written can leave a
+   * property unset: a read-only bean's getter may answer from its constructor or create its value
+   * on first call, and either reads as present and overwrites the domain value, with nothing in the
+   * signatures to say which. A bean that cannot be read has nothing to fold at all.
+   */
+  private boolean checkPatchBeanTwoWay(TypeElement spec, WireShape.BeanShape bean) {
+    WireShape.Direction direction = bean.direction();
+    if (direction == WireShape.Direction.BIDIRECTIONAL) {
+      return true;
+    }
+    String name = bean.element().getSimpleName().toString();
+    if (direction == WireShape.Direction.PARSE_ONLY) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "'"
+              + name
+              + "' has getters but no way to be written, so it cannot serve as a sparse update's"
+              + " PATCH bean.",
+          "A sparse update reads null as 'not provided, leave unchanged', and only a bean that is"
+              + " written can leave a property unset: a read-only bean's getter may answer from its"
+              + " constructor or create its value on first call, and either reads as present and"
+              + " overwrites the domain value.",
+          "Give '"
+              + name
+              + "' setters or a builder for its properties, so an omitted field stays null, or"
+              + " extend MappingSpec instead, whose dense parse needs no absence.");
+    } else {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "'" + name + "' declares no getters, so a sparse update has nothing to read from it.",
+          "updateFrom reads each property of the PATCH bean and folds in the present ones, and '"
+              + name
+              + "' can be written but not read.",
+          "Give '" + name + "' getX getters for the properties it carries.");
+    }
+    return false;
+  }
+
+  /**
+   * Says which way a one-directional bean maps, once per spec. The bean's shape decides rather than
+   * a declaration, so this note is what keeps an unintended reading in view: a bean meant to be
+   * built whose constructor the Impl cannot call would otherwise lose its {@code build} unremarked.
+   */
+  private void noteOneDirectional(
+      TypeElement spec, WireShape.BeanShape bean, BeanPropertyAnalyser analyser) {
+    String name = bean.element().getSimpleName().toString();
+    if (bean.direction() == WireShape.Direction.PARSE_ONLY) {
+      boolean unreachable = analyser.declaresSetters(bean.element());
+      Diagnostics.note(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "'"
+              + name
+              + "' maps parse-only: the generated Impl carries parse and asValidatedParse(), and no"
+              + " build.",
+          unreachable
+              ? "'"
+                  + name
+                  + "' has setters, but no no-args constructor the generated Impl can call from"
+                  + " package '"
+                  + processingEnv.getElementUtils().getPackageOf(spec).getQualifiedName()
+                  + "', so nothing can write it."
+              : "'"
+                  + name
+                  + "' has getters but no setX setters and no builder that fills it, so nothing"
+                  + " can write it.",
+          unreachable
+              ? "If '"
+                  + name
+                  + "' should be built too, give it a no-args constructor the generated Impl can"
+                  + " call: public, or package-private beside the spec."
+              : "If '"
+                  + name
+                  + "' should be built too, give it a no-args constructor with setX setters"
+                  + " matching its getters, or a builder.");
+      return;
+    }
+    Diagnostics.note(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "'"
+            + name
+            + "' maps build-only: the generated Impl carries build and asValidatedBuild(), and no"
+            + " parse.",
+        "'" + name + "' can be written but declares no getX or isX getter, so nothing can read it.",
+        "If '" + name + "' should be parsed too, give it getters matching its setters.");
+  }
+
+  /**
    * Refuses a getter-only {@code List} the build could not fill. Such a property is written by the
    * JAXB convention, {@code getX().addAll(...)}, and {@code addAll(Collection<? extends E>)} needs
    * the element type the declaration withholds: over a raw receiver the call is unchecked, which
@@ -627,7 +843,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean checkCollectionGettersFillable(TypeElement spec, WireShape.BeanShape bean) {
     for (WireShape.BeanProperty property : bean.properties()) {
-      if (property.write() instanceof WireShape.WriteSite.CollectionAdd write
+      if (property.write().orElse(null) instanceof WireShape.WriteSite.CollectionAdd write
           && !hasProperArguments(property.type())) {
         reportUnfillableCollectionGetter(spec, bean.element(), property, write);
         return false;
@@ -695,7 +911,7 @@ public class MappingProcessor extends AbstractProcessor {
     return bean.properties().stream()
         .filter(property -> property.name().equals(wireName))
         .findFirst()
-        .map(WireShape.BeanProperty::write)
+        .flatMap(WireShape.BeanProperty::write)
         .orElse(null);
   }
 
@@ -2335,11 +2551,15 @@ public class MappingProcessor extends AbstractProcessor {
       if (!checkNotGeneric(spec, domain, wireBean)) {
         return;
       }
-      wireShape = new BeanPropertyAnalyser(processingEnv).analyse(spec, wireBean, TAG);
-      if (wireShape == null
-          || !checkCollectionGettersFillable(spec, (WireShape.BeanShape) wireShape)) {
+      BeanPropertyAnalyser analyser = new BeanPropertyAnalyser(processingEnv);
+      WireShape.BeanShape bean = analyser.analyse(spec, wireBean, TAG);
+      if (bean == null || !checkCollectionGettersFillable(spec, bean)) {
         return;
       }
+      if (bean.direction() != WireShape.Direction.BIDIRECTIONAL) {
+        noteOneDirectional(spec, bean, analyser);
+      }
+      wireShape = bean;
       wireUsed = wireBean.asType();
     }
 
@@ -2379,6 +2599,43 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
+    // A one-way bean has no lossiness to speak of: nothing is read back after a build, and nothing
+    // is written after a parse, so it maps its one direction whatever its width.
+    if (wireShape.direction() == WireShape.Direction.PARSE_ONLY) {
+      List<Correspondence> parsed =
+          classifyDomain(
+              spec,
+              registry,
+              domain,
+              domainDeclared,
+              wireShape,
+              renames,
+              flattened,
+              WireShape.Direction.PARSE_ONLY);
+      if (parsed == null) {
+        return;
+      }
+      writeParseOnlyImpl(spec, domainDeclared, wireShape, wireUsed, parsed);
+      return;
+    }
+    if (wireShape.direction() == WireShape.Direction.BUILD_ONLY) {
+      List<Correspondence> built =
+          classifyWire(
+              spec,
+              registry,
+              domain,
+              domainDeclared,
+              wireShape,
+              renames,
+              derived,
+              WireShape.Direction.BUILD_ONLY);
+      if (built == null) {
+        return;
+      }
+      writeBuildOnlyImpl(spec, domainDeclared, wireShape, wireUsed, built);
+      return;
+    }
+
     if (wireShape.componentCount() - derived.size() < wireSlots(domain, flattened)) {
       if (!flattened.isEmpty()) {
         reportProjectionWithFlattened(spec, domain, wireShape, flattened);
@@ -2389,7 +2646,15 @@ public class MappingProcessor extends AbstractProcessor {
         return;
       }
       List<Correspondence> projection =
-          classifyProjection(spec, registry, domain, domainDeclared, wireShape, renames);
+          classifyWire(
+              spec,
+              registry,
+              domain,
+              domainDeclared,
+              wireShape,
+              renames,
+              List.of(),
+              WireShape.Direction.BIDIRECTIONAL);
       if (projection == null) {
         return;
       }
@@ -2486,9 +2751,11 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    WireShape wireShape = new BeanPropertyAnalyser(processingEnv).analyse(spec, wireBean, TAG);
+    WireShape.BeanShape wireShape =
+        new BeanPropertyAnalyser(processingEnv).analyse(spec, wireBean, TAG);
     if (wireShape == null
-        || !checkCollectionGettersCarryAbsence(spec, (WireShape.BeanShape) wireShape)) {
+        || !checkPatchBeanTwoWay(spec, wireShape)
+        || !checkCollectionGettersCarryAbsence(spec, wireShape)) {
       return;
     }
     Map<String, String> renames = collectRenames(spec, domain, wireShape, List.of());
@@ -2656,7 +2923,9 @@ public class MappingProcessor extends AbstractProcessor {
       }
 
       // A nested record patched wholesale through its own full mapping spec's asValidatedPrism().
-      PrismResolution nested = resolveNestedSpec(spec, registry, domainName, wireType, domainType);
+      PrismResolution nested =
+          resolveNestedSpec(
+              spec, registry, domainName, wireType, domainType, WireShape.Direction.PARSE_ONLY);
       if (nested.ambiguous()) {
         return null;
       }
@@ -3145,7 +3414,7 @@ public class MappingProcessor extends AbstractProcessor {
                     new WireShape.WireComponent(
                         c.getSimpleName().toString(),
                         componentType(declared, c),
-                        c.getSimpleName().toString()))
+                        Optional.of(c.getSimpleName().toString())))
             .toList();
     return new WireShape.RecordShape(wire, components);
   }
@@ -3331,20 +3600,23 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Resolves the ValidatedPrism carrying a (wireType -> domainType) correspondence through a single
-   * same-round mapping spec for the pair (via its generated impl's {@code asValidatedPrism()}).
-   * Explicit leaves are matched by {@link #classify} and {@link #classifyUpdate} before identity
-   * classification ever runs — whole-component leaves directly, container ELEMENT/VALUE leaves
-   * through {@link #containerLeafCorrespondence} — so by the time a nested spec is consulted no
-   * leaf exists for the pair. More than one candidate spec is reported as an error.
+   * Resolves the prism carrying a (wireType -> domainType) correspondence through a single mapping
+   * spec for the pair that serves the site's direction, {@code need}, through the surface its
+   * generated Impl exposes: {@code asValidatedPrism()} for a full mapping, or the one half a
+   * one-directional mapping has. Explicit leaves are matched by {@link #classify} and {@link
+   * #classifyUpdate} before identity classification ever runs — whole-component leaves directly,
+   * container ELEMENT/VALUE leaves through {@link #containerLeafCorrespondence} — so by the time a
+   * nested spec is consulted no leaf exists for the pair. More than one candidate spec is reported
+   * as an error.
    */
   private PrismResolution resolveNestedSpec(
       TypeElement spec,
       List<RegisteredSpec> registry,
       String name,
       TypeMirror wireType,
-      TypeMirror domainType) {
-    return resolveNestedSpec(spec, registry, name, wireType, domainType, List.of());
+      TypeMirror domainType,
+      WireShape.Direction need) {
+    return resolveNestedSpec(spec, registry, name, wireType, domainType, need, List.of());
   }
 
   /**
@@ -3358,11 +3630,12 @@ public class MappingProcessor extends AbstractProcessor {
       String name,
       TypeMirror wireType,
       TypeMirror domainType,
+      WireShape.Direction need,
       List<DeclaredType> active) {
     Candidates candidates =
         Candidates.nearest(
             registry.stream()
-                .filter(RegisteredSpec::parseCapable)
+                .filter(r -> r.serves(need))
                 .filter(r -> covers(spec, r, domainType, wireType))
                 .toList());
     List<RegisteredSpec> nested = candidates.chosen();
@@ -3398,8 +3671,7 @@ public class MappingProcessor extends AbstractProcessor {
           candidates);
       RegisteredSpec match = nested.getFirst();
       if (match.spec().getTypeParameters().isEmpty()) {
-        return new PrismResolution(
-            CodeBlock.of("$T.INSTANCE.asValidatedPrism()", match.impl()), false);
+        return new PrismResolution(match.nestingPrism(), false);
       }
       Map<Element, TypeMirror> bindings = new LinkedHashMap<>();
       unify(match.domain(), domainType, bindings);
@@ -3482,8 +3754,17 @@ public class MappingProcessor extends AbstractProcessor {
         prisms.add(CodeBlock.of("$L()", outerLeaf.getSimpleName()));
         continue;
       }
+      // The element prism goes into of(...), which takes a whole ValidatedPrism, so it needs both
+      // directions whatever the site nesting the outer mapping does.
       PrismResolution nested =
-          resolveNestedSpec(spec, registry, name, elementWire, elementDomain, nestedActive);
+          resolveNestedSpec(
+              spec,
+              registry,
+              name,
+              elementWire,
+              elementDomain,
+              WireShape.Direction.BIDIRECTIONAL,
+              nestedActive);
       if (nested.ambiguous()) {
         return nested;
       }
@@ -4243,6 +4524,15 @@ public class MappingProcessor extends AbstractProcessor {
                 + " component it derives.");
         return null;
       }
+      if (wire.direction() == WireShape.Direction.PARSE_ONLY) {
+        // A derived field fills a wire component on build, and a parse-only mapping builds
+        // nothing, so it has nothing to do. An inherited one stays inert, as everywhere else.
+        if (!declaredLocally(method, spec)) {
+          continue;
+        }
+        reportDerivedOnParseOnly(method, wire);
+        return null;
+      }
       WireShape.WireComponent wireComponent = wire.componentNamed(name).orElse(null);
       if (wireComponent == null) {
         // A derived field is named for the wire, as a rename's 'to' is, so a shared vocabulary
@@ -4332,6 +4622,30 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * A derived field on a parse-only mapping has nothing to fill: it computes a wire component for
+   * {@code build}, which the mapping does not have, and {@code parse} ignores it.
+   */
+  private void reportDerivedOnParseOnly(ExecutableElement method, WireShape wire) {
+    String wireName = wire.element().getSimpleName().toString();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        method,
+        TAG,
+        "derived field '"
+            + method.getSimpleName()
+            + "' has nothing to fill: '"
+            + wireName
+            + "' maps parse-only.",
+        "A default method returning Getter computes a wire component for build, and '"
+            + wireName
+            + "' is never built, having getters and no way to be written; parse ignores a derived"
+            + " field, so this one would never run.",
+        "Remove the method, or give '"
+            + wireName
+            + "' setters or a builder, so the mapping builds it too.");
+  }
+
+  /**
    * A projection cannot carry derived fields: its {@code asLens()} writes wire values straight back
    * into the domain, but {@code build} recomputes a derived component, so the write-back could
    * never honour the value being set (an unlawful lens).
@@ -4365,7 +4679,6 @@ public class MappingProcessor extends AbstractProcessor {
       Map<String, String> renames,
       List<DerivedField> derived,
       List<Flattened> flattened) {
-    List<Correspondence> result = new ArrayList<>();
     List<WireShape.WireComponent> wireComponents = wire.components();
 
     if (wireComponents.size() - derived.size() != wireSlots(domain, flattened)) {
@@ -4393,6 +4706,44 @@ public class MappingProcessor extends AbstractProcessor {
       return null;
     }
 
+    List<Correspondence> result =
+        classifyDomain(
+            spec,
+            registry,
+            domain,
+            domainDeclared,
+            wire,
+            renames,
+            flattened,
+            WireShape.Direction.BIDIRECTIONAL);
+    if (result == null) {
+      return null;
+    }
+    for (DerivedField field : derived) {
+      // Diagnostics in collectDerived guarantee the derived names are disjoint from the
+      // domain-sourced claims, and the count check above that together they cover the wire.
+      result.add(derivedCorrespondence(field));
+    }
+    return result;
+  }
+
+  /**
+   * Classifies every domain component against the wire: its counterpart by name or rename, claimed
+   * once, and a flattened component through each component of its record. Shared by the full tier,
+   * which has already checked that no wire component is left over, and the parse-only tier, which
+   * reads the components the domain needs and ignores any other getter, having nothing to fill.
+   * Nested specs resolve against those serving {@code need}.
+   */
+  private List<Correspondence> classifyDomain(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      Map<String, String> renames,
+      List<Flattened> flattened,
+      WireShape.Direction need) {
+    List<Correspondence> result = new ArrayList<>();
     Map<String, String> claimedWire = new LinkedHashMap<>();
     List<String> domainNames = componentNames(domain);
     for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
@@ -4410,7 +4761,8 @@ public class MappingProcessor extends AbstractProcessor {
                 wire,
                 renames,
                 claimedWire,
-                domainComponent);
+                domainComponent,
+                need);
         if (resolved == null) {
           return null;
         }
@@ -4435,24 +4787,21 @@ public class MappingProcessor extends AbstractProcessor {
                 wire,
                 renames,
                 claimedWire,
-                inner);
+                inner,
+                need);
         if (resolved == null) {
           return null;
         }
         result.add(resolved.in(tag));
       }
     }
-    for (DerivedField field : derived) {
-      // Diagnostics in collectDerived guarantee the derived names are disjoint from the
-      // domain-sourced claims, and the count check above that together they cover the wire.
-      result.add(
-          new Correspondence(
-              field.wireName(),
-              field.wireName(),
-              Kind.DERIVED,
-              CodeBlock.of("$L()", field.wireName())));
-    }
     return result;
+  }
+
+  /** A derived wire field's correspondence: build fills it through the spec's getter. */
+  private static Correspondence derivedCorrespondence(DerivedField field) {
+    return new Correspondence(
+        field.wireName(), field.wireName(), Kind.DERIVED, CodeBlock.of("$L()", field.wireName()));
   }
 
   /**
@@ -4471,7 +4820,8 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       Map<String, String> renames,
       Map<String, String> claimedWire,
-      RecordComponentElement component) {
+      RecordComponentElement component,
+      WireShape.Direction need) {
     String name = component.getSimpleName().toString();
     // The component as an error names it: the domain path, which for a group member runs
     // through the flattened component (address.street), as its located failures will.
@@ -4538,6 +4888,7 @@ public class MappingProcessor extends AbstractProcessor {
         wireComponent.type(),
         domainType,
         ownerNames,
+        need,
         false);
   }
 
@@ -4562,7 +4913,7 @@ public class MappingProcessor extends AbstractProcessor {
    * (beating even a same-typed identity match), container element/value leaves, identity,
    * nested-spec lifting through {@code List}/{@code Optional}/{@code Map}, the Optional bridge,
    * then a direct nested spec — reporting and returning null when nothing usable exists. Shared by
-   * the full tier ({@link #classify}) and the projection tiers ({@link #classifyProjection}), so a
+   * the full tier ({@link #classify}) and the wire-driven tiers ({@link #classifyWire}), so a
    * projection resolves exactly like a full-tier component.
    */
   private Correspondence resolveCorrespondence(
@@ -4575,6 +4926,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireType,
       TypeMirror domainType,
       List<String> domainNames,
+      WireShape.Direction need,
       boolean projection) {
     // An explicit leaf always wins — even over a same-typed identity match, so a
     // ValidatedPrism<X, X> can validate or normalise a component the types alone would copy.
@@ -4597,7 +4949,8 @@ public class MappingProcessor extends AbstractProcessor {
     }
     TypeMirror[] elements = elementPair(wireType, domainType);
     if (elements != null) {
-      PrismResolution lifted = resolveNestedSpec(spec, registry, name, elements[0], elements[1]);
+      PrismResolution lifted =
+          resolveNestedSpec(spec, registry, name, elements[0], elements[1], need);
       if (lifted.ambiguous()) {
         return null;
       }
@@ -4618,7 +4971,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     if (arrayElements != null) {
       PrismResolution lifted =
-          resolveNestedSpec(spec, registry, name, arrayElements[0], arrayElements[1]);
+          resolveNestedSpec(spec, registry, name, arrayElements[0], arrayElements[1], need);
       if (lifted.ambiguous()) {
         return null;
       }
@@ -4630,7 +4983,8 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror wireElement = containerElement(wireType, "java.util.Optional");
     TypeMirror domainElement = containerElement(domainType, "java.util.Optional");
     if (wireElement != null && domainElement != null) {
-      PrismResolution lifted = resolveNestedSpec(spec, registry, name, wireElement, domainElement);
+      PrismResolution lifted =
+          resolveNestedSpec(spec, registry, name, wireElement, domainElement, need);
       if (lifted.ambiguous()) {
         return null;
       }
@@ -4773,7 +5127,8 @@ public class MappingProcessor extends AbstractProcessor {
               registry,
               name,
               wireMapType.getTypeArguments().get(1),
-              domainMapType.getTypeArguments().get(1));
+              domainMapType.getTypeArguments().get(1),
+              need);
       if (lifted.ambiguous()) {
         return null;
       }
@@ -4787,7 +5142,7 @@ public class MappingProcessor extends AbstractProcessor {
       // Values resolving to nothing fall through to the no-usable-source error, like List
       // elements.
     }
-    PrismResolution direct = resolveNestedSpec(spec, registry, name, wireType, domainType);
+    PrismResolution direct = resolveNestedSpec(spec, registry, name, wireType, domainType, need);
     if (direct.ambiguous()) {
       return null;
     }
@@ -4807,7 +5162,7 @@ public class MappingProcessor extends AbstractProcessor {
               + domainType
               + ") and no matching leaf method was found."
               + leafNearMissHint(spec, name)
-              + projectionSpecHint(registry, wireType, domainType)
+              + unusableSpecHint(registry, wireType, domainType, need)
               + " Found on "
               + domain.getSimpleName()
               + ": "
@@ -4842,19 +5197,25 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Classifies a projection: the wire is smaller, so it maps lossily, and every wire component must
-   * name a domain component. Each pair then resolves exactly like a full-tier component (explicit
-   * leaf first, identity, nested specs, container lifting) via {@link #resolveCorrespondence}. A
-   * projection whose reads are all total keeps the lawful {@code asLens()} write-back; otherwise it
-   * maps as the validated {@code patch} tier (see {@link #totalReads}).
+   * Classifies a mapping driven by its wire, where every wire component must name its source: a
+   * projection, whose wire is smaller, so it maps lossily; or a build-only bean, which build fills
+   * whatever its width, a derived field sourcing any component no domain component names ({@code
+   * derived}, empty for a projection, which refuses them). Each pair resolves exactly like a
+   * full-tier component (explicit leaf first, identity, nested specs, container lifting) via {@link
+   * #resolveCorrespondence}, against the specs serving {@code need}. A projection whose reads are
+   * all total keeps the lawful {@code asLens()} write-back; otherwise it maps as the validated
+   * {@code patch} tier (see {@link #totalReads}).
    */
-  private List<Correspondence> classifyProjection(
+  private List<Correspondence> classifyWire(
       TypeElement spec,
       List<RegisteredSpec> registry,
       TypeElement domain,
       DeclaredType domainDeclared,
       WireShape wire,
-      Map<String, String> renames) {
+      Map<String, String> renames,
+      List<DerivedField> derived,
+      WireShape.Direction need) {
+    boolean built = wire.direction() == WireShape.Direction.BUILD_ONLY;
     Map<String, String> domainByWire = new LinkedHashMap<>();
     renames.forEach((domainName, wireName) -> domainByWire.put(wireName, domainName));
     List<String> domainNames =
@@ -4863,6 +5224,9 @@ public class MappingProcessor extends AbstractProcessor {
     List<Correspondence> result = new ArrayList<>();
     for (WireShape.WireComponent wireComponent : wire.components()) {
       String wireName = wireComponent.name();
+      if (derived.stream().anyMatch(field -> field.wireName().equals(wireName))) {
+        continue;
+      }
       String name = domainByWire.getOrDefault(wireName, wireName);
       RecordComponentElement domainComponent =
           domain.getRecordComponents().stream()
@@ -4874,22 +5238,37 @@ public class MappingProcessor extends AbstractProcessor {
             processingEnv.getMessager(),
             spec,
             TAG,
-            "projection field '"
+            (built ? "build-only field '" : "projection field '")
                 + wire.element().getSimpleName()
                 + "."
                 + wireName
                 + "' has no domain source.",
             "'"
                 + wire.element().getSimpleName()
-                + "' is smaller than '"
-                + domain.getSimpleName()
-                + "', so it maps as a projection: every wire component must name a domain"
-                + " component. Found on "
+                + (built
+                    ? "' maps build-only, so build fills each of its components from a domain"
+                        + " component or a derived field."
+                    : "' is smaller than '"
+                        + domain.getSimpleName()
+                        + "', so it maps as a projection: every wire component must name a domain"
+                        + " component.")
+                + " Found on "
                 + domain.getSimpleName()
                 + ": "
                 + wireNames(domain.getRecordComponents())
                 + ".",
-            "Align the component names, or add a @MapField rename.");
+            // A derived field's Getter names the component's type as a type argument, which a
+            // primitive cannot be, so only a reference component is offered one.
+            built && !wireComponent.type().getKind().isPrimitive()
+                ? "Align the component names, add a @MapField rename, or declare a derived field"
+                    + " 'default Getter<"
+                    + domain.getSimpleName()
+                    + ", "
+                    + ProcessorUtils.simpleTypeName(wireComponent.type())
+                    + "> "
+                    + wireName
+                    + "()' that computes it."
+                : "Align the component names, or add a @MapField rename.");
         return null;
       }
       if (!usedDomain.add(name)) {
@@ -4898,11 +5277,17 @@ public class MappingProcessor extends AbstractProcessor {
             spec,
             TAG,
             "domain component '" + name + "' sources more than one wire component.",
-            "The projection write-back (asLens or patch) writes each wire component back to its"
-                + " own domain component; a shared source would discard one wire value on"
-                + " write-back.",
-            "Point the @MapField rename at a different domain component, or drop one wire"
-                + " component.");
+            built
+                ? "Each wire component takes its own source, and a @MapField rename moves its domain"
+                    + " component to the wire component it names, so the same-named one is left"
+                    + " without one."
+                : "The projection write-back (asLens or patch) writes each wire component back to"
+                    + " its own domain component; a shared source would discard one wire value on"
+                    + " write-back.",
+            built
+                ? "Declare a derived field for one of the two wire components, or drop one of them."
+                : "Point the @MapField rename at a different domain component, or drop one wire"
+                    + " component.");
         return null;
       }
       Correspondence resolved =
@@ -4916,12 +5301,15 @@ public class MappingProcessor extends AbstractProcessor {
               wireComponent.type(),
               componentType(domainDeclared, domainComponent),
               domainNames,
-              true);
+              need,
+              !built);
       if (resolved == null) {
         return null;
       }
       result.add(resolved);
     }
+    // A derived field sources the wire component the loop above left to it.
+    derived.stream().map(MappingProcessor::derivedCorrespondence).forEach(result::add);
     return result;
   }
 
@@ -5266,20 +5654,29 @@ public class MappingProcessor extends AbstractProcessor {
             + " wire component and a present one converts. ";
   }
 
-  private String projectionSpecHint(
-      List<RegisteredSpec> registry, TypeMirror wireType, TypeMirror domainType) {
+  private String unusableSpecHint(
+      List<RegisteredSpec> registry,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      WireShape.Direction need) {
     return registry.stream()
-        .filter(r -> !r.parseCapable())
+        .filter(r -> !r.serves(need))
         .filter(
             r ->
                 processingEnv.getTypeUtils().isSameType(r.domain(), domainType)
                     && processingEnv.getTypeUtils().isSameType(r.wire(), wireType))
         .findFirst()
-        .map(
-            r ->
-                r.unusable(
-                    " maps this pair but is a projection (no parse), so it cannot be nested."))
+        .map(r -> r.unusable("maps this pair", "be nested in a mapping that " + site(need), need))
         .orElse("");
+  }
+
+  /** How a nesting site reads in a hint: what the mapping doing the nesting does. */
+  private static String site(WireShape.Direction need) {
+    return switch (need) {
+      case BIDIRECTIONAL -> "builds and parses";
+      case PARSE_ONLY -> "only parses";
+      case BUILD_ONLY -> "only builds";
+    };
   }
 
   /**
@@ -5373,7 +5770,8 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock beanBuildBody(
       WireShape.BeanShape bean, TypeName wireType, List<Correspondence> comps) {
-    WireShape.ConstructionStrategy strategy = bean.strategy();
+    // Only a bean that is written reaches a build body, so it has its strategy and write sites.
+    WireShape.ConstructionStrategy strategy = bean.strategy().orElseThrow();
     String receiver = strategy.receiver();
     CodeBlock.Builder body = CodeBlock.builder().add(strategy.prologue(wireType));
     for (WireShape.BeanProperty property : bean.properties()) {
@@ -5383,11 +5781,11 @@ public class MappingProcessor extends AbstractProcessor {
               .findFirst()
               .orElseThrow();
       CodeBlock value = buildValue(bean, property.asWireComponent(), comps);
+      WireShape.WriteSite write = property.write().orElseThrow();
       if (c.kind() == Kind.OPTIONAL_BRIDGE) {
-        body.addStatement(
-            "$L.ifPresent(v -> $L)", value, property.write().write(receiver, CodeBlock.of("v")));
+        body.addStatement("$L.ifPresent(v -> $L)", value, write.write(receiver, CodeBlock.of("v")));
       } else {
-        body.addStatement("$L", property.write().write(receiver, value));
+        body.addStatement("$L", write.write(receiver, value));
       }
     }
     return body.add(strategy.epilogue()).build();
@@ -5538,7 +5936,7 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The {@code hkj$allPresent} guard for identity-copied {@code List} components: total over a null
    * list ({@code must not be null}, labelled by the ladder), and each null element is a located
-   * invalid at its index, accumulating - the same doctrine {@code ValidatedPrism#parseAll} enforces
+   * invalid at its index, accumulating - the same doctrine {@code ValidatedParse#parseAll} enforces
    * on lifted legs. Valid lists are passed through by reference; identity legs copy, they do not
    * rebuild.
    */
@@ -5591,7 +5989,7 @@ public class MappingProcessor extends AbstractProcessor {
    * index, and a null element has no rendering to locate by either — but a set holds at most one,
    * so the failure needs no location: it reports as {@code must not contain a null element} under
    * the component's own label, distinct from {@code must not be null}, which says the set itself is
-   * absent. Matches {@code ValidatedPrism#parseAll(Set)}, exactly as the list form matches its own.
+   * absent. Matches {@code ValidatedParse#parseAll(Set)}, exactly as the list form matches its own.
    */
   static MethodSpec allPresentSetHelper() {
     TypeVariableName e = TypeVariableName.get("E");
@@ -5671,7 +6069,7 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The {@code hkj$valuesPresent} guard for identity-copied {@code Map} components: total over a
    * null map, and each null value is a located invalid under its key, accumulating - matching
-   * {@code ValidatedPrism#parseValues}. Keys are structural: a null key stays the caller's {@code
+   * {@code ValidatedParse#parseValues}. Keys are structural: a null key stays the caller's {@code
    * NullPointerException}, as in the bulk forms.
    */
   static MethodSpec valuesPresentHelper() {
@@ -5768,18 +6166,9 @@ public class MappingProcessor extends AbstractProcessor {
     ClassName implName = implClassName(spec);
     TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
     TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
-    TypeName parseReturn =
-        ParameterizedTypeName.get(
-            VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
-
     // Derived fields are non-identity, so they exclude the Iso tier too: wire -> domain -> wire
     // recomputes the derived component, an identity only for wire values already consistent.
     boolean lossless = totalReads(comps, wire);
-    boolean needsGuardHelper = comps.stream().anyMatch(c -> usesIfPresent(c, wire));
-    boolean needsAllPresent = comps.stream().anyMatch(c -> scansList(c, wire));
-    boolean needsAllPresentSet = comps.stream().anyMatch(c -> scansSet(c, wire));
-    boolean needsAllPresentArray = comps.stream().anyMatch(c -> scansArray(c, wire));
-    boolean needsValuesPresent = comps.stream().anyMatch(c -> scansMap(c, wire));
 
     List<EmittedMember> emitted = new ArrayList<>();
     emitted.add(EmittedMember.of("build", domainDeclared));
@@ -5794,24 +6183,6 @@ public class MappingProcessor extends AbstractProcessor {
 
     CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
 
-    List<CodeBlock> parseLegs = parseLegs(wire, comps);
-    CodeBlock parseBody;
-    if (parseLegs.size() <= ArityCeilings.ASSEMBLY) {
-      CodeBlock.Builder parseChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
-      parseLegs.forEach(parseChain::add);
-      parseChain.add("\n.apply($T::new)", domainName);
-      parseBody = CodeBlock.builder().addStatement("$L", parseChain.build()).build();
-    } else {
-      // Wider than one fields() ladder: chunked ladders, identical error semantics.
-      parseBody =
-          ChunkedAssembly.emit(
-              parseLegs,
-              VALIDATED,
-              NEL,
-              Set.of("wire"),
-              values -> CodeBlock.of("new $T($L)", domainName, CodeBlock.join(values, ", ")));
-    }
-
     CodeBlock reverseArgs = reverseArgs(wire, comps);
 
     TypeSpec.Builder implBuilder =
@@ -5823,33 +6194,11 @@ public class MappingProcessor extends AbstractProcessor {
                     + " accumulating, located {@code parse}.\n",
                 leafFields(spec))
             .addMethod(buildMethod(domainName, wireName, buildBody))
-            .addMethod(
-                MethodSpec.methodBuilder("parse")
-                    .addModifiers(Modifier.PUBLIC)
-                    .returns(parseReturn)
-                    .addParameter(wireName, "wire")
-                    .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
-                    .addCode(parseBody)
-                    .build())
+            .addMethod(parseMethod(domainName, wireName, parseBody(wire, comps, domainName)))
             .addMethod(asValidatedPrismMethod(wireName, domainName));
 
     addMarkerStubs(implBuilder, spec);
-
-    if (needsGuardHelper) {
-      implBuilder.addMethod(ifPresentHelper());
-    }
-    if (needsAllPresent) {
-      implBuilder.addMethod(allPresentHelper());
-    }
-    if (needsAllPresentSet) {
-      implBuilder.addMethod(allPresentSetHelper());
-    }
-    if (needsAllPresentArray) {
-      implBuilder.addMethod(allPresentArrayHelper());
-    }
-    if (needsValuesPresent) {
-      implBuilder.addMethod(valuesPresentHelper());
-    }
+    addReadHelpers(implBuilder, comps, wire);
 
     if (lossless) {
       ClassName iso = ClassName.get("org.higherkindedj.optics", "Iso");
@@ -5866,6 +6215,137 @@ public class MappingProcessor extends AbstractProcessor {
               .build());
     }
     writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
+   * Emits the parse-only tier: a bean with getters and no way to be written. {@code parse} is the
+   * full tier's, reading each domain component through its getter; there is no {@code build}, so no
+   * {@code asValidatedPrism()} and no {@code asIso()}, and the mapping is exposed for nesting as
+   * the {@code ValidatedParse} it is.
+   */
+  private void writeParseOnlyImpl(
+      TypeElement spec,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      TypeMirror wireUsed,
+      List<Correspondence> comps) {
+    ClassName specName = ClassName.get(spec);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
+    if (!checkNoEmittedCollisions(
+        spec,
+        "a parse-only mapping",
+        List.of(EmittedMember.of("parse", wireUsed), EmittedMember.of("asValidatedParse")))) {
+      return;
+    }
+    TypeSpec.Builder implBuilder =
+        implSkeleton(
+                spec,
+                implClassName(spec),
+                specName,
+                "Generated parse-only mapping for {@link $T}: accumulating, located {@code parse}"
+                    + " and no {@code build}, since the wire offers nothing to write it through"
+                    + " (truthful types).\n",
+                leafFields(spec))
+            .addMethod(parseMethod(domainName, wireName, parseBody(wire, comps, domainName)))
+            .addMethod(asValidatedParseMethod(wireName, domainName));
+    addMarkerStubs(implBuilder, spec);
+    addReadHelpers(implBuilder, comps, wire);
+    writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
+   * Emits the build-only tier: a bean that can be written but declares no getter. {@code build} is
+   * the full tier's, filling each property from its domain component or a derived field; there is
+   * no {@code parse}, so no {@code asValidatedPrism()} and no optic, and the mapping is exposed for
+   * nesting as the {@code ValidatedBuild} it is.
+   */
+  private void writeBuildOnlyImpl(
+      TypeElement spec,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      TypeMirror wireUsed,
+      List<Correspondence> comps) {
+    ClassName specName = ClassName.get(spec);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
+    if (!checkNoEmittedCollisions(
+        spec,
+        "a build-only mapping",
+        List.of(EmittedMember.of("build", domainDeclared), EmittedMember.of("asValidatedBuild")))) {
+      return;
+    }
+    TypeSpec.Builder implBuilder =
+        implSkeleton(
+                spec,
+                implClassName(spec),
+                specName,
+                "Generated build-only mapping for {@link $T}: total {@code build} and no {@code"
+                    + " parse}, since the wire offers nothing to read it back through (truthful"
+                    + " types).\n",
+                leafFields(spec))
+            .addMethod(buildMethod(domainName, wireName, wireBuildBody(wire, wireName, comps)))
+            .addMethod(asValidatedBuildMethod(wireName, domainName));
+    addMarkerStubs(implBuilder, spec);
+    writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
+   * The accumulating {@code parse} body over the correspondences' legs: one {@code
+   * Validated.fields()} ladder, or chunked ladders past the arity ceiling with identical error
+   * semantics. Shared by the full and parse-only tiers, which parse alike.
+   */
+  private CodeBlock parseBody(WireShape wire, List<Correspondence> comps, TypeName domainName) {
+    List<CodeBlock> parseLegs = parseLegs(wire, comps);
+    if (parseLegs.size() <= ArityCeilings.ASSEMBLY) {
+      CodeBlock.Builder parseChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
+      parseLegs.forEach(parseChain::add);
+      parseChain.add("\n.apply($T::new)", domainName);
+      return CodeBlock.builder().addStatement("$L", parseChain.build()).build();
+    }
+    // Wider than one fields() ladder: chunked ladders, identical error semantics.
+    return ChunkedAssembly.emit(
+        parseLegs,
+        VALIDATED,
+        NEL,
+        Set.of("wire"),
+        values -> CodeBlock.of("new $T($L)", domainName, CodeBlock.join(values, ", ")));
+  }
+
+  /** The {@code parse} method over a body from {@link #parseBody}. */
+  private static MethodSpec parseMethod(TypeName domainName, TypeName wireName, CodeBlock body) {
+    return MethodSpec.methodBuilder("parse")
+        .addModifiers(Modifier.PUBLIC)
+        .returns(
+            ParameterizedTypeName.get(
+                VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName))
+        .addParameter(wireName, "wire")
+        .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
+        .addCode(body)
+        .build();
+  }
+
+  /**
+   * Adds the guard and null-scan helpers the legs call, each only where some leg calls it, in the
+   * one order every reading tier emits them.
+   */
+  private void addReadHelpers(
+      TypeSpec.Builder implBuilder, List<Correspondence> comps, WireShape wire) {
+    if (comps.stream().anyMatch(c -> usesIfPresent(c, wire))) {
+      implBuilder.addMethod(ifPresentHelper());
+    }
+    if (comps.stream().anyMatch(c -> scansList(c, wire))) {
+      implBuilder.addMethod(allPresentHelper());
+    }
+    if (comps.stream().anyMatch(c -> scansSet(c, wire))) {
+      implBuilder.addMethod(allPresentSetHelper());
+    }
+    if (comps.stream().anyMatch(c -> scansArray(c, wire))) {
+      implBuilder.addMethod(allPresentArrayHelper());
+    }
+    if (comps.stream().anyMatch(c -> scansMap(c, wire))) {
+      implBuilder.addMethod(valuesPresentHelper());
+    }
   }
 
   /**
@@ -6132,21 +6612,7 @@ public class MappingProcessor extends AbstractProcessor {
     // A patch tier need not carry a guarded read: a bridged component makes the write-back
     // partial yet reads its own null as empty, so a projection whose only partial reads are
     // bridges needs no guard emitted.
-    if (comps.stream().anyMatch(c -> usesIfPresent(c, wire))) {
-      implBuilder.addMethod(ifPresentHelper());
-    }
-    if (comps.stream().anyMatch(c -> scansList(c, wire))) {
-      implBuilder.addMethod(allPresentHelper());
-    }
-    if (comps.stream().anyMatch(c -> scansSet(c, wire))) {
-      implBuilder.addMethod(allPresentSetHelper());
-    }
-    if (comps.stream().anyMatch(c -> scansArray(c, wire))) {
-      implBuilder.addMethod(allPresentArrayHelper());
-    }
-    if (comps.stream().anyMatch(c -> scansMap(c, wire))) {
-      implBuilder.addMethod(valuesPresentHelper());
-    }
+    addReadHelpers(implBuilder, comps, wire);
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -6296,7 +6762,7 @@ public class MappingProcessor extends AbstractProcessor {
       Candidates nearest =
           Candidates.nearest(
               registry.stream()
-                  .filter(RegisteredSpec::parseCapable)
+                  .filter(r -> r.serves(WireShape.Direction.BIDIRECTIONAL))
                   .filter(r -> processingEnv.getTypeUtils().isSameType(r.domain(), domainSubtype))
                   .filter(
                       r ->
@@ -6307,7 +6773,7 @@ public class MappingProcessor extends AbstractProcessor {
       if (candidates.isEmpty()) {
         String projectionHint =
             registry.stream()
-                .filter(r -> !r.parseCapable())
+                .filter(r -> !r.serves(WireShape.Direction.BIDIRECTIONAL))
                 .filter(r -> processingEnv.getTypeUtils().isSameType(r.domain(), domainSubtype))
                 .filter(
                     r ->
@@ -6317,8 +6783,7 @@ public class MappingProcessor extends AbstractProcessor {
                 .map(
                     r ->
                         r.unusable(
-                            " maps it but is a projection (no parse), so it cannot take part in"
-                                + " dispatch."))
+                            "maps it", "take part in dispatch", WireShape.Direction.BIDIRECTIONAL))
                 .orElse("");
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -6610,6 +7075,30 @@ public class MappingProcessor extends AbstractProcessor {
                 + " it through containers.\n",
             VALIDATED_PRISM_TYPE)
         .addStatement("return $T.of(this::parse, this::build)", VALIDATED_PRISM_TYPE)
+        .build();
+  }
+
+  private static MethodSpec asValidatedParseMethod(TypeName wireName, TypeName domainName) {
+    return MethodSpec.methodBuilder("asValidatedParse")
+        .addModifiers(Modifier.PUBLIC)
+        .returns(ParameterizedTypeName.get(VALIDATED_PARSE_TYPE, wireName, domainName))
+        .addJavadoc(
+            "This parse-only mapping as a {@link $T}, so a mapping that only parses can nest it"
+                + " directly or lift it through containers.\n",
+            VALIDATED_PARSE_TYPE)
+        .addStatement("return $T.of(this::parse)", VALIDATED_PARSE_TYPE)
+        .build();
+  }
+
+  private static MethodSpec asValidatedBuildMethod(TypeName wireName, TypeName domainName) {
+    return MethodSpec.methodBuilder("asValidatedBuild")
+        .addModifiers(Modifier.PUBLIC)
+        .returns(ParameterizedTypeName.get(VALIDATED_BUILD_TYPE, wireName, domainName))
+        .addJavadoc(
+            "This build-only mapping as a {@link $T}, so a mapping that only builds can nest it"
+                + " directly or lift it through containers.\n",
+            VALIDATED_BUILD_TYPE)
+        .addStatement("return $T.of(this::build)", VALIDATED_BUILD_TYPE)
         .build();
   }
 

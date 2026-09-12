@@ -12,6 +12,7 @@
 - How composition splits: `andThen` short-circuits into structure while sibling fields accumulate every reason
 - Which compositions preserve the total build (`ValidatedPrism`, `Iso`, and `Prism`-with-a-reason) and why `Lens` cannot
 - Bridging the optic lattice with `fromIso`, `fromPrism`, `toPrism`, and `toAffine`
+- The two halves, `ValidatedParse` and `ValidatedBuild`, for a boundary crossed one way only
 - The two round-trip laws, and why the second forbids a lossy, normalising `build`
 ~~~
 
@@ -98,6 +99,20 @@ Only compositions that preserve the **total build** yield a `ValidatedPrism`:
 
 ---
 
+## One direction at a time {#one-direction-at-a-time}
+
+Each direction is also a type of its own. A `ValidatedPrism<S, A>` is both a **`ValidatedParse<S, A>`**, carrying `parse`, `parsePath` and the parse bulk forms, and a **`ValidatedBuild<S, A>`**, carrying `build` and the build bulk forms. Code that needs only one direction asks for that half, so every prism still fits, and so does a boundary that can only be crossed one way:
+
+| Type | Carries | Made with |
+|---|---|---|
+| `ValidatedPrism<S, A>` | both directions, composition, the lattice bridges | `ValidatedPrism.of(parse, build)`, `canonical`, `fromIso`, `fromPrism` |
+| `ValidatedParse<S, A>` | `parse`, `parsePath`, `parseAll`, `parseValues`, `parseKeys`, `parseEntries` | `ValidatedParse.of(parse)` |
+| `ValidatedBuild<S, A>` | `build`, `buildAll`, `buildValues`, `buildKeys`, `buildEntries` | `ValidatedBuild.of(build)` |
+
+A half has no round trip, so neither law below applies to it, and `andThen`, `toPrism` and `toAffine`, which need both directions, stay on the prism. All three types are sealed, so a test double is a value built with `of`, never a mock. `parseEntries` takes a `ValidatedParse` for the values and `buildEntries` a `ValidatedBuild`, so either side of a map may be one-directional. A [one-directional bean mapping](../mapping/beans_patch.md#one-directional-beans) exposes its surface as the half it has.
+
+---
+
 ## Laws
 
 A lawful validated boundary satisfies both round trips, verified with [`ValidatedPrismLaws`](../tooling/test_assertions.md) from `hkj-test`:
@@ -137,7 +152,7 @@ One prism lifts over whole containers, accumulating **every** failure and locati
 | `parseAll(S[], IntFunction<A[]>)` | every element | its **index**, as a list. The array constructor supplies the result, since a generic array cannot be created otherwise |
 | `parseValues(Map<K, ? extends S>)` | the values; keys pass through | its **key** - `attributes.en: ...` |
 | `parseKeys(Map<? extends S, V>)` | the keys; values pass through | the **source** key, naming what the caller sent |
-| `parseEntries(Map, ValidatedPrism)` | both sides; the receiver is the **key** prism | the source key, so an entry wrong on both sides reports both reasons there |
+| `parseEntries(Map, ValidatedParse)` | both sides; the receiver parses the **keys** | the source key, so an entry wrong on both sides reports both reasons there |
 
 The [null doctrine](../mapping/basics.md#null-doctrine) reaches inside all of them: a `null` element or map value is a located, accumulating `must not be null`, never an exception, while a `null` container or map key stays the caller's error. A `null` set element is the unlocated `must not contain a null element`, a set holding at most one. Every build direction (`buildAll`, `buildValues`, `buildKeys`, `buildEntries`) is total like `build` and rejects nulls outright.
 
@@ -155,6 +170,7 @@ Mapping is not injective, so a container can **collapse**: a prism mapping both 
 * **`canonical(message, parse, render)` guards the section law per value**: the render defines the canonical form and every spelling it cannot reproduce is rejected; that the parse accepts the renderings, injectively, stays your obligation (check with `ValidatedPrismLaws`)
 * **One prism lifts over containers**: The bulk forms accumulate every element failure, located by index or key
 * **`parsePath` lands on the railway** (`ValidationPath`) directly
+* **Each direction is a type of its own**: `ValidatedParse` and `ValidatedBuild` serve a boundary crossed one way, and every prism is both
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

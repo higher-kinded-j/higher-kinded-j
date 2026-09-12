@@ -475,7 +475,7 @@ public class MergeProcessor extends AbstractProcessor {
       MappingProcessor.Candidates candidates =
           MappingProcessor.Candidates.nearest(
               registry.stream()
-                  .filter(MappingProcessor.RegisteredSpec::parseCapable)
+                  .filter(r -> r.serves(WireShape.Direction.PARSE_ONLY))
                   .filter(
                       r ->
                           processingEnv
@@ -524,7 +524,7 @@ public class MergeProcessor extends AbstractProcessor {
             new Fill(
                 name,
                 holder.getSimpleName().toString(),
-                CodeBlock.of("$T.INSTANCE.asValidatedPrism()", nested.getFirst().impl()),
+                nested.getFirst().nestingPrism(),
                 true,
                 ContainerKind.NONE));
         continue;
@@ -557,7 +557,7 @@ public class MergeProcessor extends AbstractProcessor {
               + targetComponent.asType()
               + ") and no matching leaf method was found."
               + leafNearMissHint(spec, name)
-              + projectionSpecHint(registry, sourceComponent.asType(), targetComponent.asType()),
+              + unusableSpecHint(registry, sourceComponent.asType(), targetComponent.asType()),
           fix);
       return null;
     }
@@ -580,21 +580,18 @@ public class MergeProcessor extends AbstractProcessor {
     return "";
   }
 
-  private String projectionSpecHint(
+  private String unusableSpecHint(
       List<MappingProcessor.RegisteredSpec> registry,
       TypeMirror sourceType,
       TypeMirror targetType) {
     return registry.stream()
-        .filter(r -> !r.parseCapable())
+        .filter(r -> !r.serves(WireShape.Direction.PARSE_ONLY))
         .filter(
             r ->
                 processingEnv.getTypeUtils().isSameType(r.wire(), sourceType)
                     && processingEnv.getTypeUtils().isSameType(r.domain(), targetType))
         .findFirst()
-        .map(
-            r ->
-                r.unusable(
-                    " maps this pair but is a projection (no parse), so it cannot fill a merge."))
+        .map(r -> r.unusable("maps this pair", "fill a merge", WireShape.Direction.PARSE_ONLY))
         .orElse("");
   }
 

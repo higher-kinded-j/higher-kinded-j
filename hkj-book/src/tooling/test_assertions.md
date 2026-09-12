@@ -349,6 +349,8 @@ void statusPrismIsLawful() {
 - **Total-parse** (a mapping with derived wire fields, whose parse cannot fail): pass a domain sample; only the non-derived components round-trip, and the overload asserts exactly that.
 - **Validated patch** (a projection that validates, on a record or a bean wire): pass the `patch` and `build` method references, a domain sample, and a parsing and a non-parsing wire; checks projection identity, idempotence and located validation.
 - **Sparse update** (an `UpdateSpec`): pass the `updateFrom` method reference, a domain sample, and an all-absent, a valid and an invalid wire; checks identity, idempotence and located validation.
+- **Parse-only** (a bean that is only read): pass `asValidatedParse()` with a parsing and a non-parsing wire; checks that the first parses and the second fails with every error located.
+- **Build-only** (a bean that is only written): pass `asValidatedBuild()` with a domain sample; checks that `build` renders it without failing.
 
 ``` java
 import org.higherkindedj.optics.laws.MappingLaws;

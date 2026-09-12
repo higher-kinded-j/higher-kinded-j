@@ -235,7 +235,7 @@ Pages whose feature has a Spring (or other framework) integration signpost it in
 An unsupported capability gets **one sentence** in prose saying it is "not supported yet": never a paragraph or an admonition labouring what cannot be done, and never a link to the issue tracking it:
 
 ```markdown
-One-directional (getter-only or setter-only) beans are not supported yet.
+Mapping to a spreadsheet row is not supported yet.
 ```
 
 The sentence states what the reader can and cannot do today. When the capability lands, the sentence goes. (This mirrors the "not supported yet" comment convention in code.)
