@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
@@ -11,7 +12,6 @@ import com.google.testing.compile.Compiler;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.net.URL;
@@ -19,7 +19,6 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -54,11 +53,6 @@ import org.junit.jupiter.api.io.TempDir;
 class MappingProcessorClasspathTest {
 
   private static final String INDEX_PACKAGE_DIR = "org/higherkindedj/mapping/index/";
-
-  private static final List<File> TEST_CLASSPATH =
-      Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
-          .map(File::new)
-          .toList();
 
   /** The upstream module's types: records, generic records and a sealed pair, in one holder. */
   private static final JavaFileObject UPSTREAM_TYPES =
@@ -406,13 +400,9 @@ class MappingProcessorClasspathTest {
 
   /** Both processors, over the test classpath plus the given class directories. */
   private static Compiler compiler(Path... classDirs) {
-    List<File> classpath = new ArrayList<>(TEST_CLASSPATH);
-    for (Path dir : classDirs) {
-      classpath.add(dir.toFile());
-    }
     return javac()
         .withProcessors(new MappingProcessor(), new MergeProcessor())
-        .withClasspath(classpath);
+        .withClasspath(classpathWith(classDirs));
   }
 
   /**
@@ -427,21 +417,7 @@ class MappingProcessorClasspathTest {
   }
 
   private Path classDirectory(String name, Compilation compilation) throws IOException {
-    Path dir = tmp.resolve(name);
-    for (JavaFileObject file : compilation.generatedFiles()) {
-      if (file.getKind() != JavaFileObject.Kind.CLASS) {
-        continue;
-      }
-      // /CLASS_OUTPUT/com/upstream/Upstream.class -> com/upstream/Upstream.class
-      String path = file.getName();
-      String marker = StandardLocation.CLASS_OUTPUT.getName() + "/";
-      Path target = dir.resolve(path.substring(path.indexOf(marker) + marker.length()));
-      Files.createDirectories(target.getParent());
-      try (InputStream in = file.openInputStream()) {
-        Files.copy(in, target);
-      }
-    }
-    return dir;
+    return GeneratorTestHelper.classDirectory(compilation, tmp.resolve(name));
   }
 
   private Path upstream() throws IOException {
@@ -1206,7 +1182,7 @@ class MappingProcessorClasspathTest {
         files.add(
             write(src, source.getName().substring(1), source.getCharContent(true).toString()));
       }
-      List<File> classpath = new ArrayList<>(TEST_CLASSPATH);
+      List<File> classpath = new ArrayList<>(classpathWith());
       classDirs.forEach(dir -> classpath.add(dir.toFile()));
       List<String> options =
           List.of(
@@ -1430,7 +1406,7 @@ class MappingProcessorClasspathTest {
       // export the house vocabulary without putting hkj-processor on its processor path. This is
       // what the book promises multi-module users, so it is pinned rather than assumed.
       Compilation upstream =
-          javac().withProcessors().withClasspath(TEST_CLASSPATH).compile(VOCABULARY);
+          javac().withProcessors().withClasspath(classpathWith()).compile(VOCABULARY);
       assertThat(upstream).succeeded();
       Assertions.assertThat(upstream.generatedSourceFiles()).isEmpty();
 

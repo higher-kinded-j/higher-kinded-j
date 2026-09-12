@@ -55,11 +55,18 @@ import java.lang.annotation.Target;
  * <p>By default, the generated class is placed in the same package as the annotated record. Use the
  * {@link #targetPackage()} element to specify a different package for the generated class.
  *
+ * <p>Retained in the class file so that a record in one module stays navigable from another's
+ * {@code Focus}. Navigability is decided by asking the component's type whether it carries this
+ * annotation, which a type read from a jar can only answer if the annotation outlived the
+ * compilation that declared it. The module declaring the record must also run the processor: a
+ * navigator composes the {@code Focus} class that module generated, and keeps the plain path, with
+ * a note, when there is none.
+ *
  * @see GenerateFocus#generateNavigators()
  * @see GenerateFocus#maxNavigatorDepth()
  */
 @Target(ElementType.TYPE)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface GenerateFocus {
 
   /**
@@ -75,7 +82,8 @@ public @interface GenerateFocus {
    *
    * <p>This enables patterns like {@code PersonFocus.address().city()} without explicit {@code
    * .via()} calls. Navigator classes are generated for fields whose types are also annotated with
-   * {@code @GenerateFocus} and declare no type parameters of their own; a field whose type is
+   * {@code @GenerateFocus} and declare no type parameters of their own. A record from another
+   * module qualifies once that module has generated its {@code Focus} class. A field whose type is
    * generic keeps its plain {@code FocusPath} method, composed with {@code .via()}.
    *
    * <p>The navigator classes:

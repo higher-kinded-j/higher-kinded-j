@@ -6,11 +6,66 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.testing.compile.Compilation;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import javax.tools.JavaFileObject;
+import javax.tools.StandardLocation;
 
 public final class GeneratorTestHelper {
+
+  /**
+   * Lays a compilation's class files out under {@code dir}, the shape a jar dependency has on a
+   * downstream classpath, and returns it. Pair with {@link #classpathWith} to compile a second
+   * module against the first, which is how a processor is held to reading a type it did not
+   * compile.
+   *
+   * @param compilation the upstream compilation, already asserted to have succeeded
+   * @param dir the directory to lay the class files out under
+   * @return {@code dir}, for chaining into {@link #classpathWith}
+   * @throws IOException if a class file cannot be read or written
+   */
+  public static Path classDirectory(final Compilation compilation, final Path dir)
+      throws IOException {
+    for (final JavaFileObject file : compilation.generatedFiles()) {
+      if (file.getKind() != JavaFileObject.Kind.CLASS) {
+        continue;
+      }
+      // /CLASS_OUTPUT/com/upstream/Upstream.class -> com/upstream/Upstream.class
+      final String path = file.getName();
+      final String marker = StandardLocation.CLASS_OUTPUT.getName() + "/";
+      final Path target = dir.resolve(path.substring(path.indexOf(marker) + marker.length()));
+      Files.createDirectories(target.getParent());
+      try (InputStream in = file.openInputStream()) {
+        Files.copy(in, target);
+      }
+    }
+    return dir;
+  }
+
+  /**
+   * The test classpath plus the given class directories, for compiling against a laid-out module.
+   *
+   * @param classDirs directories holding a module's class files
+   * @return the classpath to hand to {@code Compiler.withClasspath}
+   */
+  public static List<File> classpathWith(final Path... classDirs) {
+    final List<File> classpath =
+        new ArrayList<>(
+            Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
+                .map(File::new)
+                .toList());
+    for (final Path dir : classDirs) {
+      classpath.add(dir.toFile());
+    }
+    return classpath;
+  }
 
   /**
    * Asserts that the generated file contains the expected raw text (without normalisation). This is

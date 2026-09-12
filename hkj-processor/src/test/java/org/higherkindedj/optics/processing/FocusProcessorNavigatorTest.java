@@ -6,13 +6,21 @@ import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContainsRaw;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectory;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 @DisplayName("FocusProcessor Navigator Generation Tests")
 public class FocusProcessorNavigatorTest {
@@ -1032,6 +1040,875 @@ public class FocusProcessorNavigatorTest {
           compilation,
           "org.example.people.PersonFocus",
           "import org.example.contact.AddressFocus;");
+    }
+  }
+
+  /**
+   * A record annotated in one module stays navigable from another module's {@code Focus}, because
+   * {@code @GenerateFocus} is retained in the class file. A navigator into such a record composes
+   * what that record's own module published, read from its generated {@code Focus} class, so it
+   * agrees with the dependency however the dependency was built. Where it cannot be completed the
+   * processor says why in a note against the field.
+   */
+  @Nested
+  @DisplayName("Across a class-file boundary")
+  class AcrossAClassFileBoundary {
+
+    @TempDir Path tmp;
+
+    private static final JavaFileObject ADDRESS =
+        JavaFileObjects.forSourceString(
+            "com.upstream.Address",
+            """
+            package com.upstream;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Address(String street, String city) {}
+            """);
+
+    private static final JavaFileObject COMPANY =
+        JavaFileObjects.forSourceString(
+            "com.downstream.Company",
+            """
+            package com.downstream;
+
+            import com.upstream.Address;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Company(String name, Address headquarters) {}
+            """);
+
+    private static final JavaFileObject LEAF =
+        JavaFileObjects.forSourceString(
+            "com.up.Leaf",
+            """
+            package com.up;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Leaf(String value) {}
+            """);
+
+    private static final JavaFileObject NODE =
+        JavaFileObjects.forSourceString(
+            "com.up.Node",
+            """
+            package com.up;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Node(String name, Leaf leaf) {}
+            """);
+
+    private static final JavaFileObject ROOT =
+        JavaFileObjects.forSourceString(
+            "com.down.Root",
+            """
+            package com.down;
+
+            import com.up.Node;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Root(String id, Node node) {}
+            """);
+
+    private static final JavaFileObject MONEY =
+        JavaFileObjects.forSourceString(
+            "com.a.Money",
+            """
+            package com.a;
+
+            public record Money(long cents) {}
+            """);
+
+    /** Compiles one module, with or without the processor, against other modules' class files. */
+    private static Compilation compile(
+        boolean processor, List<Path> dependencies, JavaFileObject... sources) {
+      return (processor ? javac().withProcessors(new FocusProcessor()) : javac().withProcessors())
+          .withClasspath(classpathWith(dependencies.toArray(Path[]::new)))
+          .compile(sources);
+    }
+
+    /** Compiles a module that must succeed and lays its class files out as a jar would be. */
+    private Path module(
+        String name, boolean processor, List<Path> dependencies, JavaFileObject... sources)
+        throws IOException {
+      Compilation compilation = compile(processor, dependencies, sources);
+      assertThat(compilation).succeeded();
+      return classDirectory(compilation, tmp.resolve(name));
+    }
+
+    private static String source(Compilation compilation, String name) throws IOException {
+      return compilation.generatedSourceFile(name).orElseThrow().getCharContent(true).toString();
+    }
+
+    @Test
+    @DisplayName("a dependency's annotated record is navigable, as a sibling source file is")
+    void aDependencysRecordIsNavigable() throws IOException {
+      Compilation downstream =
+          compile(true, List.of(module("upstream", true, List.of(), ADDRESS)), COMPANY);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.downstream.CompanyFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public static HeadquartersNavigator<Company> headquarters() {");
+      assertGeneratedCodeContains(
+          downstream, focus, "public static final class HeadquartersNavigator<S> {");
+      assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> street() {");
+      assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> city() {");
+    }
+
+    @Test
+    @DisplayName("a navigator across the boundary is the one a single compilation generates")
+    void aNavigatorAgreesWithOneCompilation() throws IOException {
+      JavaFileObject node =
+          JavaFileObjects.forSourceString(
+              "com.up.Node",
+              """
+              package com.up;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.jspecify.annotations.Nullable;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Node(
+                  String name,
+                  Leaf leaf,
+                  List<String> tags,
+                  Optional<Leaf> spare,
+                  List<@Nullable String> maybes) {}
+              """);
+      Compilation across =
+          compile(true, List.of(module("upstream", true, List.of(), LEAF, node)), ROOT);
+      Compilation together = compile(true, List.of(), LEAF, node, ROOT);
+      assertThat(across).succeeded();
+      assertThat(together).succeeded();
+
+      // The dependency's own nested navigator is composed by the name it published, every tier
+      // reads the same from its companion as from the analysis a single compilation runs, and a
+      // type-use annotation on an element survives the read.
+      assertGeneratedCodeContains(
+          across, "com.down.RootFocus", "public NodeFocus.LeafNavigator<S> leaf() {");
+      Assertions.assertThat(source(across, "com.down.RootFocus"))
+          .contains("TraversalPath<S, @Nullable String> maybes()")
+          .isEqualTo(source(together, "com.down.RootFocus"));
+    }
+
+    @Test
+    @DisplayName("a widened component of a dependency's record keeps its own path type")
+    void aWidenedComponentKeepsItsPathType() throws IOException {
+      JavaFileObject depot =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Depot",
+              """
+              package com.upstream;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Depot(String code, List<String> tags, Optional<String> note) {}
+              """);
+      JavaFileObject region =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Region",
+              """
+              package com.downstream;
+
+              import com.upstream.Depot;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Region(Depot depot) {}
+              """);
+      Compilation downstream =
+          compile(true, List.of(module("upstream", true, List.of(), depot)), region);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.downstream.RegionFocus";
+      assertGeneratedCodeContains(downstream, focus, "public TraversalPath<S, String> tags() {");
+      assertGeneratedCodeContains(downstream, focus, "public AffinePath<S, String> note() {");
+    }
+
+    @Test
+    @DisplayName("a Kind component composes the path type its own module's @TraverseField decided")
+    void aKindComponentComposesThePublishedPathType() throws IOException {
+      JavaFileObject crate =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Crate",
+              """
+              package com.upstream;
+
+              import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.list.ListKind;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.optics.annotations.KindSemantics;
+              import org.higherkindedj.optics.annotations.TraverseField;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Crate(
+                  String label,
+                  @TraverseField(
+                      traverse = "org.higherkindedj.hkt.list.ListTraverse.INSTANCE",
+                      semantics = KindSemantics.ZERO_OR_ONE)
+                  Kind<ListKind.Witness, String> items) {}
+              """);
+      JavaFileObject yard =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Yard",
+              """
+              package com.downstream;
+
+              import com.upstream.Crate;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Yard(Crate crate) {}
+              """);
+      Compilation upstream = compile(true, List.of(), crate);
+      assertThat(upstream).succeeded();
+      // The semantics override makes the dependency's own method an AffinePath, where the
+      // registry alone would say TraversalPath.
+      assertGeneratedCodeContains(
+          upstream, "com.upstream.CrateFocus", "public static AffinePath<Crate, String> items() {");
+
+      Compilation downstream =
+          compile(true, List.of(classDirectory(upstream, tmp.resolve("upstream"))), yard);
+      // The consumer reads the path type from the method the dependency published rather than
+      // analysing the component again.
+      assertThat(downstream).succeeded();
+      assertGeneratedCodeContains(
+          downstream, "com.downstream.YardFocus", "public AffinePath<S, String> items() {");
+    }
+
+    @Test
+    @DisplayName("a dependency's own settings decide what a consumer composes")
+    void aDependencysSettingsReachItsConsumers() throws IOException {
+      JavaFileObject node =
+          JavaFileObjects.forSourceString(
+              "com.up.Node",
+              """
+              package com.up;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true, excludeFields = "leaf")
+              public record Node(String name, Leaf leaf) {}
+              """);
+      Compilation downstream =
+          compile(true, List.of(module("upstream", true, List.of(), LEAF, node)), ROOT);
+      assertThat(downstream).succeeded();
+
+      // The dependency chose no navigator for 'leaf', so it published a plain path, and that is
+      // what the consumer composes.
+      assertGeneratedCodeContains(
+          downstream, "com.down.RootFocus", "public FocusPath<S, Leaf> leaf() {");
+      assertGeneratedCodeDoesNotContain(downstream, "com.down.RootFocus", "LeafNavigator");
+    }
+
+    @Test
+    @DisplayName("a dependency that published a plain path is composed as one")
+    void aPublishedPlainPathIsComposedAsOne() throws IOException {
+      Compilation node =
+          compile(true, List.of(module("leaf-without", false, List.of(), LEAF)), NODE);
+      assertThat(node).succeeded();
+      // Leaf had no companion when Node was built, so Node published a plain path for it.
+      assertGeneratedCodeContains(
+          node, "com.up.NodeFocus", "public static FocusPath<Node, Leaf> leaf() {");
+
+      Compilation downstream =
+          compile(
+              true,
+              List.of(
+                  classDirectory(node, tmp.resolve("node")),
+                  module("leaf-with", true, List.of(), LEAF)),
+              ROOT);
+      // Leaf is navigable from here, so working the shape out again would compose a
+      // LeafNavigator that Node's companion does not have.
+      assertThat(downstream).succeeded();
+      assertGeneratedCodeContains(
+          downstream, "com.down.RootFocus", "public FocusPath<S, Leaf> leaf() {");
+      assertGeneratedCodeDoesNotContain(downstream, "com.down.RootFocus", "LeafNavigator");
+    }
+
+    @Test
+    @DisplayName("a dependency that published a navigator is composed as one")
+    void aPublishedNavigatorIsComposedAsOne() throws IOException {
+      Compilation node = compile(true, List.of(module("leaf-with", true, List.of(), LEAF)), NODE);
+      assertThat(node).succeeded();
+      assertGeneratedCodeContains(
+          node, "com.up.NodeFocus", "public static LeafNavigator<Node> leaf() {");
+
+      Compilation downstream =
+          compile(
+              true,
+              List.of(
+                  classDirectory(node, tmp.resolve("node")),
+                  module("leaf-without", false, List.of(), LEAF)),
+              ROOT);
+      // LeafFocus is not visible from here, so working the shape out again would compose a plain
+      // path over a method that returns a navigator.
+      assertThat(downstream).succeeded();
+      assertGeneratedCodeContains(
+          downstream, "com.down.RootFocus", "public NodeFocus.LeafNavigator<S> leaf() {");
+    }
+
+    @Test
+    @DisplayName("a field naming a type this module cannot see is left out, with a note")
+    void aFieldThisModuleCannotSeeIsLeftOut() throws IOException {
+      JavaFileObject invoice =
+          JavaFileObjects.forSourceString(
+              "com.b.Invoice",
+              """
+              package com.b;
+
+              import com.a.Money;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Invoice(String reference, Money total) {}
+              """);
+      JavaFileObject ledger =
+          JavaFileObjects.forSourceString(
+              "com.c.Ledger",
+              """
+              package com.c;
+
+              import com.b.Invoice;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Ledger(String id, Invoice invoice) {}
+              """);
+      Path money = module("a", false, List.of(), MONEY);
+      // Only Invoice's module is on the consumer's classpath: Money is its implementation detail.
+      Compilation downstream =
+          compile(true, List.of(module("b", true, List.of(money), invoice)), ledger);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.c.LedgerFocus";
+      assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> reference() {");
+      assertGeneratedCodeDoesNotContain(downstream, focus, "total()");
+      assertThat(downstream)
+          .hadNoteContaining(
+              "Navigator for field 'invoice' has no 'total' method: com.b.InvoiceFocus.total()"
+                  + " names com.a.Money, which is not on this module's compile classpath");
+    }
+
+    @Test
+    @DisplayName("a companion older than its record leaves the new field out, with a note")
+    void aStaleCompanionLeavesTheNewFieldOut() throws IOException {
+      JavaFileObject before =
+          JavaFileObjects.forSourceString(
+              "com.up.Parcel",
+              """
+              package com.up;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Parcel(String label) {}
+              """);
+      JavaFileObject after =
+          JavaFileObjects.forSourceString(
+              "com.up.Parcel",
+              """
+              package com.up;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Parcel(String label, String weight) {}
+              """);
+      JavaFileObject depot =
+          JavaFileObjects.forSourceString(
+              "com.down.Depot",
+              """
+              package com.down;
+
+              import com.up.Parcel;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Depot(Parcel parcel) {}
+              """);
+      Path published = module("published", true, List.of(), before);
+      // Parcel changed and was recompiled without regenerating its companion; the newer record
+      // comes first on the classpath.
+      Path recompiled = module("recompiled", false, List.of(), after);
+      Compilation downstream = compile(true, List.of(recompiled, published), depot);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.down.DepotFocus";
+      assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> label() {");
+      assertGeneratedCodeDoesNotContain(downstream, focus, "weight()");
+      assertThat(downstream)
+          .hadNoteContaining(
+              "Navigator for field 'parcel' has no 'weight' method: com.up.ParcelFocus has no"
+                  + " public static weight() returning a path or navigator over Parcel");
+    }
+
+    @Test
+    @DisplayName("a companion of another shape is read for what it publishes, not assumed")
+    void aCompanionOfAnotherShapeIsReadNotAssumed() throws IOException {
+      JavaFileObject box =
+          JavaFileObjects.forSourceString(
+              "com.h.Box",
+              """
+              package com.h;
+
+              public record Box(String value) {}
+              """);
+      JavaFileObject crate =
+          JavaFileObjects.forSourceString(
+              "com.h.Crate",
+              """
+              package com.h;
+
+              public record Crate(String value) {}
+              """);
+      JavaFileObject thing =
+          JavaFileObjects.forSourceString(
+              "com.h.Thing",
+              """
+              package com.h;
+
+              import com.a.Money;
+              import java.util.List;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Thing(
+                  String label,
+                  List<?> anything,
+                  int count,
+                  List<String> names,
+                  Map<String, String> pairs,
+                  String elsewhere,
+                  String remark,
+                  String generic,
+                  Money[] amounts,
+                  List<? extends Money> upper,
+                  List<? super Money> lower,
+                  Box box,
+                  Crate crate,
+                  String shelf,
+                  String inner,
+                  String pair,
+                  String raw,
+                  String spare,
+                  String hidden,
+                  String tag,
+                  String sketch,
+                  String mark) {}
+              """);
+      // Stands in for a companion something other than hkj-processor wrote: each method meets one
+      // way a published method can fail to be named, or composed, from generated code elsewhere.
+      JavaFileObject thingFocus =
+          JavaFileObjects.forSourceString(
+              "com.h.ThingFocus",
+              """
+              package com.h;
+
+              import com.a.Money;
+              import java.util.List;
+              import java.util.Map;
+              import org.higherkindedj.optics.focus.AffinePath;
+              import org.higherkindedj.optics.focus.FocusPath;
+
+              public final class ThingFocus {
+                private ThingFocus() {}
+
+                public static FocusPath<Thing, Integer> label(String ignored) { return null; }
+                public static FocusPath<Thing, String> label() { return null; }
+                public static FocusPath<Thing, List<?>> anything() { return null; }
+
+                public static int count() { return 0; }
+                public static List<String> names() { return null; }
+                public static Map<Thing, String> pairs() { return null; }
+                public static FocusPath<Box, String> elsewhere() { return null; }
+                public FocusPath<Thing, String> remark() { return null; }
+                public static <T> FocusPath<Thing, T> generic() { return null; }
+
+                public static FocusPath<Thing, Money[]> amounts() { return null; }
+                public static FocusPath<Thing, List<? extends Money>> upper() { return null; }
+                public static FocusPath<Thing, List<? super Money>> lower() { return null; }
+
+                public static BoxNavigator<Thing> box() { return null; }
+                public static CrateNavigator<Thing> crate() { return null; }
+                public static ShelfNavigator<Thing> shelf() { return null; }
+                public static InnerNavigator<Thing> inner() { return null; }
+                public static PairNavigator<Thing, Thing> pair() { return null; }
+                @SuppressWarnings("rawtypes")
+                public static RawNavigator raw() { return null; }
+                public static SpareNavigator<Box> spare() { return null; }
+                public static HiddenNavigator<Thing> hidden() { return null; }
+                public static TagNavigator<Thing> tag() { return null; }
+                public static SketchNavigator<Thing> sketch() { return null; }
+                public static MarkNavigator<Thing> mark() { return null; }
+
+                public static final class BoxNavigator<S> {}
+
+                public static final class CrateNavigator<S> {
+                  public String get() { return null; }
+                  public FocusPath<S, Integer> toPath(int ignored) { return null; }
+                  public FocusPath<S, Money> toPath() { return null; }
+                }
+
+                public interface ShelfNavigator<S> {
+                  FocusPath<S, String> toPath();
+                }
+
+                public final class InnerNavigator<S> {
+                  public FocusPath<S, String> toPath() { return null; }
+                }
+
+                public static final class PairNavigator<S, T> {
+                  public FocusPath<S, String> toPath() { return null; }
+                }
+
+                public static final class RawNavigator<S> {
+                  public FocusPath<S, String> toPath() { return null; }
+                }
+
+                public static final class SpareNavigator<S> {
+                  public SpareNavigator(FocusPath<S, String> path) {}
+                  public FocusPath<S, String> toPath() { return null; }
+                }
+
+                public static final class HiddenNavigator<S> {
+                  FocusPath<S, String> toPath() { return null; }
+                }
+
+                public static final class TagNavigator<S> {
+                  private TagNavigator(FocusPath<S, String> path) {}
+                  public TagNavigator(FocusPath<S, String> first, FocusPath<S, String> second) {}
+                  public TagNavigator(AffinePath<S, String> path) {}
+                  public FocusPath<S, String> toPath() { return null; }
+                }
+
+                public abstract static class SketchNavigator<S> {
+                  public SketchNavigator(FocusPath<S, String> path) {}
+                  public FocusPath<S, String> toPath() { return null; }
+                }
+
+                public static final class MarkNavigator<S> {
+                  public MarkNavigator(FocusPath<S, Integer> path) {}
+                  public FocusPath<S, String> toPath() { return null; }
+                }
+              }
+              """);
+      JavaFileObject holder =
+          JavaFileObjects.forSourceString(
+              "com.c.Holder",
+              """
+              package com.c;
+
+              import com.h.Thing;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Holder(Thing thing) {}
+              """);
+      Path money = module("a", false, List.of(), MONEY);
+      Path things = module("h", false, List.of(money), box, crate, thing, thingFocus);
+      Compilation downstream = compile(true, List.of(things), holder);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.c.HolderFocus";
+      assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> label() {");
+      assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, List<?>> anything() {");
+      for (String unrecognised :
+          List.of(
+              "count",
+              "names",
+              "pairs",
+              "elsewhere",
+              "remark",
+              "generic",
+              "box",
+              "shelf",
+              "inner",
+              "pair",
+              "raw",
+              "spare",
+              "hidden",
+              "tag",
+              "sketch",
+              "mark")) {
+        assertGeneratedCodeDoesNotContain(downstream, focus, " " + unrecognised + "()");
+        assertThat(downstream)
+            .hadNoteContaining(
+                "has no '"
+                    + unrecognised
+                    + "' method: com.h.ThingFocus has no public static "
+                    + unrecognised
+                    + "() returning a path or navigator over Thing");
+      }
+      for (String unresolvable : List.of("amounts", "upper", "lower", "crate")) {
+        assertGeneratedCodeDoesNotContain(downstream, focus, " " + unresolvable + "()");
+        assertThat(downstream)
+            .hadNoteContaining(
+                "has no '"
+                    + unresolvable
+                    + "' method: com.h.ThingFocus."
+                    + unresolvable
+                    + "() names com.a.Money");
+      }
+    }
+
+    @Test
+    @DisplayName("a dependency that never ran the processor keeps the plain path, with a note")
+    void aDependencyWithoutTheProcessorKeepsThePlainPath() throws IOException {
+      // The annotation survives compilation, so it is present on a record whose module never
+      // generated a Focus class. Navigating into it would compose a class nobody wrote.
+      Compilation downstream =
+          compile(true, List.of(module("upstream", false, List.of(), ADDRESS)), COMPANY);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.downstream.CompanyFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public static FocusPath<Company, Address> headquarters() {");
+      assertGeneratedCodeDoesNotContain(downstream, focus, "HeadquartersNavigator");
+      assertThat(downstream)
+          .hadNoteContaining(
+              "Navigator for field 'headquarters' is not generated: com.upstream.Address carries"
+                  + " @GenerateFocus, but no public com.upstream.AddressFocus is on this module's"
+                  + " compile classpath");
+    }
+
+    @Test
+    @DisplayName("a companion this module cannot access is not composed, with a note")
+    void aCompanionThisModuleCannotAccessIsNotComposed() throws IOException {
+      JavaFileObject spot =
+          JavaFileObjects.forSourceString(
+              "com.hid.Spot",
+              """
+              package com.hid;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Spot(String name) {}
+              """);
+      // Present, but package-private, so generated code in another package cannot name it.
+      JavaFileObject spotFocus =
+          JavaFileObjects.forSourceString(
+              "com.hid.SpotFocus",
+              """
+              package com.hid;
+
+              import org.higherkindedj.optics.focus.FocusPath;
+
+              final class SpotFocus {
+                private SpotFocus() {}
+
+                static FocusPath<Spot, String> name() { return null; }
+              }
+              """);
+      JavaFileObject atlas =
+          JavaFileObjects.forSourceString(
+              "com.down.Atlas",
+              """
+              package com.down;
+
+              import com.hid.Spot;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Atlas(Spot spot) {}
+              """);
+      Compilation downstream =
+          compile(true, List.of(module("hid", false, List.of(), spot, spotFocus)), atlas);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.down.AtlasFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public static FocusPath<Atlas, Spot> spot() {");
+      assertGeneratedCodeDoesNotContain(downstream, focus, "SpotNavigator");
+      assertThat(downstream)
+          .hadNoteContaining(
+              "but no public com.hid.SpotFocus is on this module's compile classpath");
+    }
+
+    @Test
+    @DisplayName("an unpublished record inside a container draws the same note")
+    void anUnpublishedElementDrawsTheSameNote() throws IOException {
+      JavaFileObject directory =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Directory",
+              """
+              package com.downstream;
+
+              import com.upstream.Address;
+              import java.util.Map;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Directory(Map<String, Address> offices) {}
+              """);
+      Compilation downstream =
+          compile(true, List.of(module("upstream", false, List.of(), ADDRESS)), directory);
+      assertThat(downstream).succeeded();
+
+      assertGeneratedCodeDoesNotContain(
+          downstream, "com.downstream.DirectoryFocus", "OfficesNavigator");
+      assertThat(downstream)
+          .hadNoteContaining(
+              "Navigator for field 'offices' is not generated: com.upstream.Address carries"
+                  + " @GenerateFocus, but no public com.upstream.AddressFocus");
+    }
+
+    @Test
+    @DisplayName("a field the record itself excludes draws no note over an unpublished record")
+    void anExcludedFieldDrawsNoNote() throws IOException {
+      JavaFileObject company =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Company",
+              """
+              package com.downstream;
+
+              import com.upstream.Address;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true, excludeFields = "headquarters")
+              public record Company(String name, Address headquarters) {}
+              """);
+      Compilation downstream =
+          compile(true, List.of(module("upstream", false, List.of(), ADDRESS)), company);
+      assertThat(downstream).succeeded();
+
+      // The record turned this navigator off itself, so there is nothing to explain.
+      Assertions.assertThat(downstream.notes())
+          .noneMatch(note -> note.getMessage(null).contains("is not generated"));
+    }
+
+    @Test
+    @DisplayName("an unpublished generic record draws no note, since it would never be navigable")
+    void anUnpublishedGenericRecordDrawsNoNote() throws IOException {
+      JavaFileObject boxed =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Boxed",
+              """
+              package com.upstream;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Boxed<T>(T value) {}
+              """);
+      JavaFileObject shelf =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Shelf",
+              """
+              package com.downstream;
+
+              import com.upstream.Boxed;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Shelf(Boxed<String> boxed) {}
+              """);
+      Compilation downstream =
+          compile(true, List.of(module("upstream", false, List.of(), boxed)), shelf);
+      assertThat(downstream).succeeded();
+
+      // A generic record gets no navigator even when its companion is published, so telling the
+      // author to publish one would be advice that changes nothing.
+      Assertions.assertThat(downstream.notes())
+          .noneMatch(note -> note.getMessage(null).contains("is not generated"));
+    }
+
+    @Test
+    @DisplayName("an unannotated record from a dependency is not navigable")
+    void anUnannotatedRecordIsNotNavigable() throws IOException {
+      JavaFileObject plain =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Plain",
+              """
+              package com.upstream;
+
+              public record Plain(String value) {}
+              """);
+      JavaFileObject holder =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Holder",
+              """
+              package com.downstream;
+
+              import com.upstream.Plain;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Holder(Plain plain) {}
+              """);
+      Compilation downstream =
+          compile(true, List.of(module("upstream", true, List.of(), plain)), holder);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.downstream.HolderFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public static FocusPath<Holder, Plain> plain() {");
+      assertGeneratedCodeDoesNotContain(downstream, focus, "PlainNavigator");
+    }
+
+    @Test
+    @DisplayName("an annotated non-record read from a class file is not navigable")
+    void anAnnotatedNonRecordIsNotNavigable() throws IOException {
+      // The annotation is refused on anything but a record where it is declared, so a class file
+      // carrying it elsewhere came from a module that never checked. A companion is present too,
+      // so only the record check keeps the enum from being navigated into.
+      JavaFileObject colour =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Colour",
+              """
+              package com.upstream;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public enum Colour { RED, BLUE }
+              """);
+      JavaFileObject colourFocus =
+          JavaFileObjects.forSourceString(
+              "com.upstream.ColourFocus",
+              """
+              package com.upstream;
+
+              public final class ColourFocus {
+                private ColourFocus() {}
+              }
+              """);
+      JavaFileObject paint =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Paint",
+              """
+              package com.downstream;
+
+              import com.upstream.Colour;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Paint(Colour colour) {}
+              """);
+      Compilation downstream =
+          compile(true, List.of(module("upstream", false, List.of(), colour, colourFocus)), paint);
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.downstream.PaintFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public static FocusPath<Paint, Colour> colour() {");
+      assertGeneratedCodeDoesNotContain(downstream, focus, "ColourNavigator");
     }
   }
 }
