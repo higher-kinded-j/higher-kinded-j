@@ -24,7 +24,7 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 | Annotation | Place On | Generates |
 |------------|----------|-----------|
 | `@GenerateLenses` | `record` | `{Record}Lenses` class with `Lens<S, A>` for each field |
-| `@GenerateFocus` | `record` (requires `@GenerateLenses`) | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders. Add `(generateNavigators = true)` for cross-type chaining |
+| `@GenerateFocus` | `record` | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders. Add `(generateNavigators = true)` for cross-type chaining |
 | `@GenerateTraversals` | `record` with collection fields | `{Record}Traversals` with `Traversal<S, A>` for collection fields; a component that holds elements but has no generator (`Deque`, `SortedMap`, a raw `List`) draws a processor note (a note, not a warning: there is no per-component opt-out) |
 | `@GeneratePrisms` | `sealed interface` | `{Interface}Prisms` class with `Prism<S, A>` for each permitted record |
 | `@GenerateIsos` | `record` with single field | `{Record}Isos` class with `Iso<S, A>` |
@@ -372,7 +372,7 @@ Optics compose according to the hierarchy: Lens + Lens = Lens, Lens + Prism = Af
 
 ## Common Mistakes
 
-1. **Missing `@GenerateLenses` alongside `@GenerateFocus`**: Focus generation requires lenses. Always use both annotations together.
+1. **Expecting `@GenerateFocus` to need `@GenerateLenses`**: it builds its own lenses inline, so either annotation works alone. Add `@GenerateLenses` when you also want the classic `{Record}Lenses` class and its `withFoo` helpers.
 2. **Wrong composition order**: `A.andThen(B)` means "first focus with A, then within that focus with B." Order matters.
 3. **Using `map` instead of `focus`**: On Effect Paths, use `.focus(optic)` to navigate structure; `.map()` transforms the value. See `/hkj-bridge`.
 4. **Forgetting to rebuild after adding annotations**: Generated classes appear in `build/generated/sources/annotationProcessor/`.

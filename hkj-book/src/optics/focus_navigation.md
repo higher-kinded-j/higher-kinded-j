@@ -233,9 +233,14 @@ The middle branch is the one that surprises people. `Optional`, `List`, `Set` an
 
 A target that declares type parameters of its own does not. A navigator is an inner class parameterised by the source type alone, so it has no way to name them — `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case.
 
-**A target in a dependency is navigable, on one condition.** The processor asks the field's type whether it carries `@GenerateFocus`, and both that annotation and `@TraverseField` are kept in the class file, so a record read from a jar answers exactly as a sibling source file does: the same navigator, and the same path type per component. An API module can therefore own the records and each consuming module's `Focus` classes chain straight into them.
+**A target in a dependency is navigable too.** The processor asks the field's type whether it carries `@GenerateFocus`, which is kept in the class file, so a record read from a jar is recognised exactly as a sibling source file is. Navigating into it composes the `Focus` class that record's own module generated, reading each field's path type from the method that module published rather than working it out again, so the navigator agrees with the dependency even when the two modules were built with different processor versions or generator plugins. An API module can therefore own the records, and each consuming module's `Focus` classes chain straight into them.
 
-The condition is that the dependency **ran the processor too**. Navigating into a record composes its own `Focus` class by name, so a module that declares the records without generating their companions has nothing to compose; such a target keeps the plain path, as it did before the annotation began to cross the boundary. [Multi-module builds](../tooling/manual_setup.md#multi-module-builds) has the build-side detail.
+Two things can leave such a navigator short, and the processor says which in a note against the field:
+
+- **The dependency did not run the processor.** Its records carry the annotation but it generated no `Focus` classes, so there is nothing to compose, and the field keeps its plain path.
+- **A field names a type this module cannot see.** A dependency's record may use a type from one of *its* dependencies that is not on this module's compile classpath. That field is left out of the navigator, and the rest are generated as usual.
+
+[Multi-module builds](../tooling/manual_setup.md#multi-module-builds) has the build-side detail.
 
 <!-- verify -->
 ```java

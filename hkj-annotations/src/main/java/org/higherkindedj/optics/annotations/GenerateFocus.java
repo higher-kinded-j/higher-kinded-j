@@ -57,9 +57,10 @@ import java.lang.annotation.Target;
  *
  * <p>Retained in the class file so that a record in one module stays navigable from another's
  * {@code Focus}. Navigability is decided by asking the component's type whether it carries this
- * annotation, and a type read from a jar can only answer if the annotation outlived the compilation
- * that declared it; without that, a dependency's record silently mapped to a plain {@code
- * FocusPath} instead of a navigator.
+ * annotation, which a type read from a jar can only answer if the annotation outlived the
+ * compilation that declared it. The module declaring the record must also run the processor: a
+ * navigator composes the {@code Focus} class that module generated, and keeps the plain path, with
+ * a note, when there is none.
  *
  * @see GenerateFocus#generateNavigators()
  * @see GenerateFocus#maxNavigatorDepth()
