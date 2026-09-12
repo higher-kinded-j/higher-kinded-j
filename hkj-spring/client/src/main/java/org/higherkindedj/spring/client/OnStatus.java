@@ -27,7 +27,7 @@ import java.lang.annotation.Target;
  *
  * <p>Retained in the class file so that a client interface extending a base interface from a jar
  * keeps the base's overrides. A method read from a class file would otherwise carry none, and the
- * generated client would decode every status into the declared error type with no diagnostic.
+ * generated client would ignore them with no diagnostic.
  */
 @Documented
 @Repeatable(OnStatuses.class)

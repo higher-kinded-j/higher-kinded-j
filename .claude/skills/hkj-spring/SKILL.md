@@ -416,7 +416,7 @@ Either<ApiError, UserDto> result =
 - Client interfaces outside the component scan: the generated config is not picked up, so no proxy is created. Add `@ImportHttpServices(basePackages = "...")`.
 - A generic `@HkjHttpClient` interface is **codegen-only** (no bean, since a generic client cannot be a singleton): instantiate the facade for a concrete type yourself.
 - `VStreamPath` is not generated automatically; consume SSE via `HkjClientExchange.vstream(...)`.
-- A super-interface from a precompiled dependency jar must be built with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. Its `@OnStatus` overrides carry over, and a problem with an inherited method is reported on the client interface, naming the method and the interface it came from.
+- A super-interface from a precompiled dependency jar must be built with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. Its `@OnStatus` overrides carry over, but a jar built against 0.4.10 or earlier has none to carry (they were discarded when it was compiled), so its methods ignore their overrides until it is rebuilt. A problem with an inherited method is reported on the client interface, naming the method and the interface it came from. A module declaring `@OnStatus` on an interface other modules use should expose `hkj-spring-boot-client` as `api`, or a consumer without it warns under `-Xlint:all` (fatal with `-Werror`).
 
 ---
 

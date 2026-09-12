@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
@@ -37,7 +38,9 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
 import org.higherkindedj.spring.client.OnStatus;
 import org.jspecify.annotations.Nullable;
 
@@ -131,16 +134,16 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     if (marker == null) {
       return false;
     }
-    for (Element element : roundEnv.getElementsAnnotatedWith(marker)) {
-      if (element.getKind() != ElementKind.INTERFACE) {
-        error("@HkjHttpClient can only be applied to interfaces.", element);
+    for (TypeElement type : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(marker))) {
+      if (type.getKind() != ElementKind.INTERFACE) {
+        error("@HkjHttpClient can only be applied to interfaces.", type);
         continue;
       }
       try {
-        generateClient((TypeElement) element);
+        generateClient(type);
       } catch (RuntimeException e) {
         // Never abort the whole round with an internal stack trace: report and move on.
-        error("Failed to generate @HkjHttpClient client: " + e, element);
+        error("Failed to generate @HkjHttpClient client: " + e, type);
       }
     }
     return true;
@@ -171,14 +174,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
     ClassName nativeName = ClassName.get(packageName, simpleName + "HttpExchange");
     ClassName facadeName = ClassName.get(packageName, simpleName + "Client");
-    TypeName ifaceType = parameterise(ClassName.get(iface), typeVars);
     TypeName nativeType = parameterise(nativeName, typeVars);
 
     writeFile(
         packageName, buildNativeInterface(iface, nativeName, typeVars, methods, infos), iface);
     writeFile(
         packageName,
-        buildFacade(iface, ifaceType, nativeName, nativeType, facadeName, typeVars, methods, infos),
+        buildFacade(iface, nativeName, nativeType, facadeName, typeVars, methods, infos),
         iface);
 
     // A generic client cannot be a singleton bean (no concrete type argument), so the
@@ -267,7 +269,6 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
   private TypeSpec buildFacade(
       TypeElement iface,
-      TypeName ifaceType,
       ClassName nativeName,
       TypeName nativeType,
       ClassName facadeName,
@@ -279,7 +280,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addAnnotation(GENERATED)
             .addTypeVariables(typeVars)
-            .addSuperinterface(ifaceType)
+            .addSuperinterface(parameterise(ClassName.get(iface), typeVars))
             .addJavadoc("Generated Effect-Path client. Do not edit.\n")
             .addField(nativeType, "http", Modifier.PRIVATE, Modifier.FINAL);
 
@@ -399,16 +400,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     Set<Integer> seen = new HashSet<>();
     for (OnStatus annotation : method.getAnnotationsByType(OnStatus.class)) {
       TypeMirror errorType = onStatusErrorType(annotation);
-      // An override read from a class file can name a type the base interface's module could see
-      // and this compilation cannot. javac has nothing to say about a class literal it only read,
-      // and the checks below would call it not assignable.
-      if (errorType.getKind() == TypeKind.ERROR) {
-        error(
-            "@OnStatus error type "
-                + errorType
-                + " is not on this compilation's classpath; add the dependency that declares it.",
-            iface,
-            method);
+      // Checked first: the assignability check below would call a missing type not assignable.
+      if (isMissingFromClasspath(errorType, method)) {
+        error(notOnClasspath("@OnStatus", errorType), iface, method);
         continue;
       }
       if (!isConcreteClass(errorType)) {
@@ -644,6 +638,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       ExecutableElement method,
       TypeMirror error,
       TypeMirror success) {
+    if (isMissingFromClasspath(error, method)) {
+      error(notOnClasspath("@HkjHttpClient", error), iface, method);
+      return null;
+    }
     if (error.getKind() == TypeKind.TYPEVAR) {
       error(
           "@HkjHttpClient error type cannot be a type variable; it must be a concrete class so the "
@@ -670,6 +668,27 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   /** A concrete, non-generic class/interface — bindable as {@code E.class} by the decoder. */
   private static boolean isConcreteClass(TypeMirror type) {
     return type instanceof DeclaredType declared && declared.getTypeArguments().isEmpty();
+  }
+
+  /**
+   * Whether a type a method names is absent from this compilation's classpath where only the
+   * processor can say so. A method read from a class file can name a type its own module could see
+   * and this one cannot, and javac reports nothing about it. In source, javac reports an
+   * unresolvable name itself, so a source method is never treated as missing a type here.
+   */
+  private boolean isMissingFromClasspath(TypeMirror type, ExecutableElement method) {
+    return type.getKind() == TypeKind.ERROR
+        && Optional.ofNullable(processingEnv.getElementUtils().getFileObjectOf(method))
+            .map(JavaFileObject::getKind)
+            .filter(JavaFileObject.Kind.CLASS::equals)
+            .isPresent();
+  }
+
+  private static String notOnClasspath(String annotation, TypeMirror type) {
+    return annotation
+        + " error type "
+        + type
+        + " is not on this compilation's classpath; add the dependency that declares it.";
   }
 
   private @Nullable ReturnInfo unsupported(TypeElement iface, ExecutableElement method) {
@@ -741,7 +760,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     return Character.toLowerCase(value.charAt(0)) + value.substring(1);
   }
 
-  private void writeFile(String packageName, TypeSpec type, Element originating) {
+  private void writeFile(String packageName, TypeSpec type, TypeElement originating) {
     try {
       JavaFile.builder(packageName, type)
           .addFileComment("Generated by hkj-spring-client-processor. Do not edit.")
@@ -752,8 +771,8 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     }
   }
 
-  private void error(String message, Element element) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, message, element);
+  private void error(String message, TypeElement type) {
+    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, message, type);
   }
 
   private void error(String message, TypeElement iface, ExecutableElement method) {
@@ -767,10 +786,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   /**
    * Reports a problem with one of a client's methods somewhere the author can navigate to.
    *
-   * <p>An inherited method can come from a compiled dependency, where a diagnostic has no file and
-   * no line and the author is told what is wrong but not where. The annotated interface is the
-   * declaration they wrote, so an inherited method is reported there and the message names the
-   * method and the interface it came from.
+   * <p>A method the client declares is reported at its declaration. An inherited method is reported
+   * on the client interface, naming the method and the interface it came from: one read from a
+   * compiled dependency has no file and no line of its own, and a base compiled alongside follows
+   * the same rule, so where an inherited method's problem appears never depends on how its base was
+   * built.
    */
   private void report(
       Diagnostic.Kind kind, String message, TypeElement iface, ExecutableElement method) {
@@ -792,7 +812,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     }
   }
 
-  private void note(String message, Element element) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, message, element);
+  private void note(String message, TypeElement type) {
+    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, message, type);
   }
 }

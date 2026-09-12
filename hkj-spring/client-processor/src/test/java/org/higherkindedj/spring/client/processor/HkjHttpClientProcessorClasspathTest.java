@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import org.assertj.core.api.Assertions;
@@ -91,8 +92,7 @@ class HkjHttpClientProcessorClasspathTest {
 
   /** The base module's sources: its types and a base interface with the given members. */
   private static List<JavaFileObject> baseSources(String members) {
-    List<JavaFileObject> sources = new ArrayList<>(BASE_TYPES);
-    sources.add(
+    JavaFileObject baseApi =
         JavaFileObjects.forSourceString(
             "com.upstream.BaseApi",
             """
@@ -108,8 +108,8 @@ class HkjHttpClientProcessorClasspathTest {
             %s
             }
             """
-                .formatted(members)));
-    return sources;
+                .formatted(members));
+    return Stream.concat(BASE_TYPES.stream(), Stream.of(baseApi)).toList();
   }
 
   /** The processor, over the test classpath plus the given class directories. */
@@ -122,9 +122,9 @@ class HkjHttpClientProcessorClasspathTest {
   }
 
   /**
-   * Compiles the base module and lays its class files out on a directory. It runs no processor, as
-   * a shared base interface carries no {@code @HkjHttpClient} of its own, and it passes {@code
-   * -parameters}, which the book requires of a base in a jar.
+   * Compiles the base module and lays its class files out on a fresh directory. It runs no
+   * processor, as a shared base interface carries no {@code @HkjHttpClient} of its own, and it
+   * passes {@code -parameters}, which the book requires of a base in a jar.
    */
   private Path baseModule(String members) throws IOException {
     Compilation compilation =
@@ -134,7 +134,7 @@ class HkjHttpClientProcessorClasspathTest {
             .withClasspath(TEST_CLASSPATH)
             .compile(baseSources(members));
     assertThat(compilation).succeeded();
-    Path dir = tmp.resolve("base");
+    Path dir = Files.createTempDirectory(tmp, "base");
     for (JavaFileObject file : compilation.generatedFiles()) {
       if (file.getKind() != JavaFileObject.Kind.CLASS) {
         continue;
@@ -164,13 +164,13 @@ class HkjHttpClientProcessorClasspathTest {
   }
 
   @Test
-  @DisplayName("its @OnStatus overrides generate the client a base compiled alongside generates")
+  @DisplayName("its @OnStatus overrides generate the same client as a base compiled alongside")
   void overridesCrossTheBoundary() throws IOException {
     Compilation across = compiler(baseModule(OVERRIDES)).compile(CHILD);
     assertThat(across).succeeded();
-    List<JavaFileObject> sources = new ArrayList<>(baseSources(OVERRIDES));
-    sources.add(CHILD);
-    Compilation together = compiler().compile(sources);
+    Compilation together =
+        compiler()
+            .compile(Stream.concat(baseSources(OVERRIDES).stream(), Stream.of(CHILD)).toList());
     assertThat(together).succeeded();
 
     // Named first, so a regression reads as the override that went missing rather than as a diff
@@ -251,6 +251,31 @@ class HkjHttpClientProcessorClasspathTest {
         .hadErrorContaining(
             "'getUser', inherited from 'BaseApi': @OnStatus error type com.upstream.errors.Gone is"
                 + " not on this compilation's classpath; add the dependency that declares it.")
+        .inFile(CHILD);
+    assertThat(compilation).hadErrorCount(1);
+  }
+
+  @Test
+  @DisplayName("an inherited method whose error type is missing from the classpath says so")
+  void inheritedMethodWithAMissingErrorTypeSaysSo() throws IOException {
+    Path base =
+        baseModule(
+            """
+              @GetExchange("/{id}")
+              @OnStatus(value = 404, error = NotFound.class)
+              EitherPath<com.upstream.errors.Gone, UserDto> getUser(@PathVariable String id);
+            """);
+    Files.delete(base.resolve("com/upstream/errors/Gone.class"));
+    Compilation compilation = compiler(base).compile(CHILD);
+
+    // Not the override's "not assignable", and not a failure inside generated code naming a class
+    // the author never wrote: the declared type itself is what the classpath lacks.
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining(
+            "'getUser', inherited from 'BaseApi': @HkjHttpClient error type"
+                + " com.upstream.errors.Gone is not on this compilation's classpath; add the"
+                + " dependency that declares it.")
         .inFile(CHILD);
     assertThat(compilation).hadErrorCount(1);
   }
