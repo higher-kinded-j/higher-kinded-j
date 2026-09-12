@@ -24,11 +24,15 @@ import java.lang.annotation.Target;
  *
  * <p>Each {@code error()} type must be assignable to the method's declared error type. Statuses
  * with no override fall back to decoding into the declared type.
+ *
+ * <p>Retained in the class file so that a client interface extending a base interface from a jar
+ * keeps the base's overrides. A method read from a class file would otherwise carry none, and the
+ * generated client would decode every status into the declared error type with no diagnostic.
  */
 @Documented
 @Repeatable(OnStatuses.class)
 @Target(ElementType.METHOD)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface OnStatus {
 
   /**
