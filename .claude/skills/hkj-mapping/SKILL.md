@@ -411,8 +411,11 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args
   constructor with `setX` setters; an immutable bean with a static `builder()`/`newBuilder()`
-  (Lombok, Immutables, AutoValue, protobuf); or the JAXB convention, where a getter-only `List` is
-  filled with `getItems().addAll(...)`. `build` fills through setters or the builder, `parse` reads
+  (Lombok, Immutables, AutoValue, protobuf); or the JAXB convention, where a getter-only `List`
+  is filled with `getItems().addAll(...)` - that one must name its element type, since `addAll`
+  cannot be written over a raw or wildcard receiver, so a raw or wildcard getter-only `List` is
+  refused on a mapping that builds (a sparse `UpdateSpec` only reads it, and keeps working).
+  `build` fills through setters or the builder, `parse` reads
   through getters under the same null guard as a record wire, and a domain `Optional<T>` bridges to
   a nullable bean property `T` with no declaration (a record wire opts in per component with
   `@OptionalBridge`), except onto a getter-only `List`, which has no unset state to carry absence;
