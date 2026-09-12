@@ -235,10 +235,11 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
    * distinct from {@code must not be null}, which says the set itself is absent.
    *
    * <p>Mapping a set can <b>collapse</b> it: two sources that parse to equal domain values leave
-   * one element. That needs a non-injective prism, which already breaks the section law this type
-   * documents, so no lawful prism collapses; where one does, the survivors are equal and the set
-   * still holds everything it was given, so the collapse is silent rather than a failure with
-   * nothing to report. Iteration order is preserved.
+   * one element, and the two source spellings ({@code "1"} and {@code "01"}, say) can no longer be
+   * told apart. That needs a non-injective prism, which already breaks the section law this type
+   * documents, so no lawful prism collapses. Where one does, the duplicate is dropped
+   * <em>silently</em>: the element that remains is equal to the one dropped, so the set still holds
+   * every distinct value it was given. Iteration order is preserved.
    *
    * @param sources the wire values; the set itself must not be null
    * @return {@code Valid(set)} or every failure from every element, in iteration order (non-null,
@@ -428,8 +429,9 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
    *
    * <p>Two source keys that parse to <b>equal</b> domain keys are a located failure, not a silent
    * collapse: a map holds one entry per key, so the second entry would be dropped along with its
-   * value. (A {@link #parseAll(Set)} collapse is silent because the collapsed elements are equal
-   * and nothing is lost; here the discarded value need not be.)
+   * value. A key counts as claimed as soon as it parses, even where the rest of its entry is wrong,
+   * so a collision is reported in the same pass as the other failures rather than surfacing only
+   * after they are fixed.
    *
    * <p>Values pass through, but a {@code null} one is still a located {@code must not be null}
    * under its source key — the null doctrine reaches inside a container whether that container's
@@ -445,6 +447,7 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
       Map<? extends S, V> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
     Map<A, V> values = LinkedHashMap.newLinkedHashMap(sources.size());
+    Set<A> claimed = LinkedHashSet.newLinkedHashSet(sources.size());
     NonEmptyList<FieldError> failures = null;
     for (Map.Entry<? extends S, V> entry : sources.entrySet()) {
       S source = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
@@ -453,6 +456,8 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
       NonEmptyList<FieldError> located = null;
       if (!parsedKey.isValid()) {
         located = parsedKey.getError().map(err -> err.at(source.toString()));
+      } else if (!claimed.add(parsedKey.get())) {
+        located = NonEmptyList.of(collision(source));
       }
       if (value == null) {
         located =
@@ -460,9 +465,8 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
                 located, NonEmptyList.of(FieldError.of("must not be null").at(source.toString())));
       }
       if (located == null) {
-        located = claimKey(values, parsedKey.get(), value, source);
-      }
-      if (located != null) {
+        values.put(parsedKey.get(), value);
+      } else {
         failures = accumulate(failures, located);
       }
     }
@@ -494,6 +498,7 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
     Objects.requireNonNull(sources, "sources must not be null");
     Objects.requireNonNull(valuePrism, "valuePrism must not be null");
     Map<A, V> values = LinkedHashMap.newLinkedHashMap(sources.size());
+    Set<A> claimed = LinkedHashSet.newLinkedHashSet(sources.size());
     NonEmptyList<FieldError> failures = null;
     for (Map.Entry<? extends S, ? extends SV> entry : sources.entrySet()) {
       S source = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
@@ -506,14 +511,15 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
       NonEmptyList<FieldError> located = null;
       if (!parsedKey.isValid()) {
         located = parsedKey.getError().map(err -> err.at(source.toString()));
+      } else if (!claimed.add(parsedKey.get())) {
+        located = NonEmptyList.of(collision(source));
       }
       if (!parsedValue.isValid()) {
         located = accumulate(located, parsedValue.getError().map(err -> err.at(source.toString())));
       }
       if (located == null) {
-        located = claimKey(values, parsedKey.get(), parsedValue.get(), source);
-      }
-      if (located != null) {
+        values.put(parsedKey.get(), parsedValue.get());
+      } else {
         failures = accumulate(failures, located);
       }
     }
@@ -578,17 +584,15 @@ public sealed interface ValidatedPrism<S, A> permits ValidatedPrism.Of {
   }
 
   /**
-   * Puts a parsed entry under its parsed key, or says why it cannot: a domain key already claimed
-   * by an earlier entry would discard this one, so the collision is reported, located by the source
-   * key that produced it. Null when the entry was stored.
+   * The collision failure for a domain key an earlier entry already claimed, located by the source
+   * key that produced it.
+   *
+   * <p>A key is claimed as soon as it <em>parses</em>, not once its whole entry is valid: an entry
+   * whose value is also wrong would otherwise reserve nothing, hiding the collision until the value
+   * was fixed and the map resubmitted - two round trips where accumulation promises one.
    */
-  private static <K, V> NonEmptyList<FieldError> claimKey(
-      Map<K, V> target, K key, V value, Object sourceKey) {
-    if (target.containsKey(key)) {
-      return NonEmptyList.of(FieldError.of("duplicates an earlier key").at(sourceKey.toString()));
-    }
-    target.put(key, value);
-    return null;
+  private static FieldError collision(Object sourceKey) {
+    return FieldError.of("duplicates an earlier key").at(sourceKey.toString());
   }
 
   /** Folds one entry's located failures into the accumulated ones; either side may be null. */

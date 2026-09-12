@@ -1370,18 +1370,26 @@ public class MappingProcessor extends AbstractProcessor {
       }
       boolean leaf = isLeafShaped(spec, method);
       boolean bridge = method.getAnnotation(OptionalBridge.class) != null;
-      if (!leaf && !bridge && !isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
+      // A key leaf is checked by its annotation, not its shape: a malformed one would otherwise
+      // slip past every test here and sit inert on a spec that has no components to key.
+      boolean key = method.getAnnotation(MapKey.class) != null;
+      if (!leaf
+          && !bridge
+          && !key
+          && !isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
         continue;
       }
       Diagnostics.error(
           processingEnv.getMessager(),
           method,
           TAG,
-          (bridge ? "@OptionalBridge on '" : leaf ? "leaf '" : "derived field '")
+          (key
+                  ? "@MapKey on '"
+                  : bridge ? "@OptionalBridge on '" : leaf ? "leaf '" : "derived field '")
               + method.getSimpleName()
               + "' has no meaning on a sealed mapping.",
-          "Leaves, derived fields and bridges bind to record components; a sealed mapping"
-              + " dispatches over its permitted subtypes and has no components.",
+          "Leaves, derived fields, bridges and key leaves bind to record components; a sealed"
+              + " mapping dispatches over its permitted subtypes and has no components.",
           "Move the method onto the subtype pair's own spec.");
       return false;
     }

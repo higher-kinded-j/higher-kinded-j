@@ -198,8 +198,9 @@ public interface MemberMapping extends MappingSpec<Member, MemberDto> {
 
 ### Nesting and collections come free
 
-A leaf prism declared for a component applies **elementwise** through `List`, `Set`, arrays,
-`Optional` and a `Map`'s values (and, with `@MapKey`, its keys):
+A leaf prism declared for a component applies **elementwise** through `List`, `Set`, reference
+arrays, `Optional` and a `Map`'s values (and, with `@MapKey`, its keys). A primitive array
+(`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive:
 
 <!-- verify -->
 ```java
@@ -451,8 +452,8 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   leaves unchanged. Caveats: Jackson binds an explicit JSON `null` to `Optional.empty()` (sent-null
   clears on this property shape), and the bean field must default to `null`, NOT `Optional.empty()`,
   or omitting the field clears the domain value.
-- A present **container** (a pair declared as exactly `List`/`Set`/array/`Optional`/`Map`) parses
-  through the element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
+- A present **container** (a pair declared as exactly `List`/`Set`/reference array/`Optional`/
+  `Map`) parses through the element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
   serves a full spec and its PATCH sibling. Replacement is wholesale; each failing element is
   located (`phones.1`). A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) wins as the
   more specific declaration. Nested specs do not lift here — delegate via an element leaf to the

@@ -3330,6 +3330,40 @@ class MappingProcessorTest {
       assertThat(getter).failed();
       assertThat(getter)
           .hadErrorContaining("derived field 'display' has no meaning on a sealed mapping");
+
+      // A key leaf is caught by its annotation rather than its shape, so even a malformed one
+      // is refused instead of sitting inert on a mapping that has no components to key.
+      JavaFileObject keySpec =
+          JavaFileObjects.forSourceString(
+              "com.example.PaymentMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {
+                @MapKey("nothing")
+                default String stray() {
+                  return "";
+                }
+              }
+              """);
+      Compilation key =
+          compile(
+              PAYMENT,
+              CARD,
+              BANK,
+              PAYMENT_DTO,
+              CARD_DTO,
+              BANK_DTO,
+              CARD_MAPPING,
+              BANK_MAPPING,
+              keySpec);
+      assertThat(key).failed();
+      assertThat(key).hadErrorContaining("@MapKey on 'stray' has no meaning on a sealed mapping");
     }
 
     @Test

@@ -439,6 +439,25 @@ class ValidatedPrismTest {
           .containsExactly(
               new FieldError(List.of("bad-one"), "bad: bad-one"),
               new FieldError(List.of("bad-one"), "must not be null"));
+
+      // A key is claimed as soon as it PARSES, so a collision reports even when the entry that
+      // claimed it is otherwise wrong - one round trip, not two.
+      Map<String, Integer> collidingWithBadValue = new LinkedHashMap<>();
+      collidingWithBadValue.put("A@B", null);
+      collidingWithBadValue.put("a@b", 2);
+      assertThat(LOWERCASING.parseKeys(collidingWithBadValue).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("A@B"), "must not be null"),
+              new FieldError(List.of("a@b"), "duplicates an earlier key"));
+
+      // And the colliding entry's own failure reports beside the collision.
+      Map<String, Integer> bothWrong = new LinkedHashMap<>();
+      bothWrong.put("A@B", 1);
+      bothWrong.put("a@b", null);
+      assertThat(LOWERCASING.parseKeys(bothWrong).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("a@b"), "duplicates an earlier key"),
+              new FieldError(List.of("a@b"), "must not be null"));
     }
 
     @Test
@@ -465,6 +484,17 @@ class ValidatedPrismTest {
       colliding.put("a@b", "x@y");
       assertThat(LOWERCASING.parseEntries(colliding, LOCATED).getError().toJavaList())
           .containsExactly(new FieldError(List.of("a@b"), "duplicates an earlier key"));
+
+      // The claiming entry's value being wrong does not hide the collision, and the colliding
+      // entry's own value failure reports beside it.
+      Map<String, String> collidingWithBadValues = new LinkedHashMap<>();
+      collidingWithBadValues.put("A@B", "bad-first");
+      collidingWithBadValues.put("a@b", "bad-second");
+      assertThat(LOWERCASING.parseEntries(collidingWithBadValues, LOCATED).getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("A@B"), "bad: bad-first"),
+              new FieldError(List.of("a@b"), "duplicates an earlier key"),
+              new FieldError(List.of("a@b"), "bad: bad-second"));
 
       assertThatNullPointerException()
           .isThrownBy(() -> EMAIL.parseEntries(null, EMAIL))

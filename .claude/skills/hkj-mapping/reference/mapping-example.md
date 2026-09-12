@@ -87,10 +87,11 @@ A failure inside the nested customer locates itself as a dotted path: `customer.
 
 ## Collections Lift Elementwise
 
-Declare the leaf prism once per component; `List`, `Set`, arrays, `Optional` and `Map` lift it for
-you. A `List` or array locates a failure by index, a `Set` by the element's own rendering, a `Map`
-by its key. A map's values lift by default; its keys lift too when a `@MapKey("component")` leaf
-converts them, otherwise the key types must match.
+Declare the leaf prism once per component; `List`, `Set`, reference arrays, `Optional` and `Map`
+lift it for you (a primitive array like `int[]` is copied whole). A `List` or array locates a
+failure by index, a `Set` by the element's own rendering, a `Map` by its key. A map's values lift
+by default; its keys lift too when a `@MapKey("component")` leaf converts them, otherwise the key
+types must match.
 
 <!-- verify -->
 ```java
