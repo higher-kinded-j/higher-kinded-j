@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.processing.AbstractProcessor;
@@ -37,7 +38,9 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
 import org.higherkindedj.spring.client.OnStatus;
 import org.jspecify.annotations.Nullable;
 
@@ -131,16 +134,16 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     if (marker == null) {
       return false;
     }
-    for (Element element : roundEnv.getElementsAnnotatedWith(marker)) {
-      if (element.getKind() != ElementKind.INTERFACE) {
-        error("@HkjHttpClient can only be applied to interfaces.", element);
+    for (TypeElement type : ElementFilter.typesIn(roundEnv.getElementsAnnotatedWith(marker))) {
+      if (type.getKind() != ElementKind.INTERFACE) {
+        error("@HkjHttpClient can only be applied to interfaces.", type);
         continue;
       }
       try {
-        generateClient((TypeElement) element);
+        generateClient(type);
       } catch (RuntimeException e) {
         // Never abort the whole round with an internal stack trace: report and move on.
-        error("Failed to generate @HkjHttpClient client: " + e, element);
+        error("Failed to generate @HkjHttpClient client: " + e, type);
       }
     }
     return true;
@@ -151,7 +154,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     List<ReturnInfo> infos = new ArrayList<>();
     boolean valid = true;
     for (ExecutableElement method : methods) {
-      ReturnInfo info = analyseReturnType(method);
+      ReturnInfo info = analyseReturnType(iface, method);
       if (info == null) {
         valid = false;
       }
@@ -171,14 +174,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
     ClassName nativeName = ClassName.get(packageName, simpleName + "HttpExchange");
     ClassName facadeName = ClassName.get(packageName, simpleName + "Client");
-    TypeName ifaceType = parameterise(ClassName.get(iface), typeVars);
     TypeName nativeType = parameterise(nativeName, typeVars);
 
     writeFile(
         packageName, buildNativeInterface(iface, nativeName, typeVars, methods, infos), iface);
     writeFile(
         packageName,
-        buildFacade(ifaceType, nativeName, nativeType, facadeName, typeVars, methods, infos),
+        buildFacade(iface, nativeName, nativeType, facadeName, typeVars, methods, infos),
         iface);
 
     // A generic client cannot be a singleton bean (no concrete type argument), so the
@@ -266,7 +268,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
   // ---- the …Client facade -------------------------------------------------------------------
 
   private TypeSpec buildFacade(
-      TypeName ifaceType,
+      TypeElement iface,
       ClassName nativeName,
       TypeName nativeType,
       ClassName facadeName,
@@ -278,7 +280,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addAnnotation(GENERATED)
             .addTypeVariables(typeVars)
-            .addSuperinterface(ifaceType)
+            .addSuperinterface(parameterise(ClassName.get(iface), typeVars))
             .addJavadoc("Generated Effect-Path client. Do not edit.\n")
             .addField(nativeType, "http", Modifier.PRIVATE, Modifier.FINAL);
 
@@ -310,20 +312,21 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
           fieldName,
           Modifier.PRIVATE,
           Modifier.FINAL);
-      constructor.addStatement("this.$L = $L", fieldName, decoderExpression(method, info));
+      constructor.addStatement("this.$L = $L", fieldName, decoderExpression(iface, method, info));
       decoderFields.add(fieldName);
     }
 
     builder.addMethod(constructor.build());
 
     for (int i = 0; i < methods.size(); i++) {
-      builder.addMethod(buildFacadeMethod(methods.get(i), infos.get(i), decoderFields.get(i)));
+      builder.addMethod(
+          buildFacadeMethod(iface, methods.get(i), infos.get(i), decoderFields.get(i)));
     }
     return builder.build();
   }
 
   private MethodSpec buildFacadeMethod(
-      ExecutableElement method, ReturnInfo info, @Nullable String decoderField) {
+      TypeElement iface, ExecutableElement method, ReturnInfo info, @Nullable String decoderField) {
     String name = method.getSimpleName().toString();
     MethodSpec.Builder facadeMethod =
         MethodSpec.methodBuilder(name)
@@ -345,7 +348,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     }
 
     if (info.kind() == PathKind.MAYBE && method.getAnnotationsByType(OnStatus.class).length > 0) {
-      warn("@OnStatus has no effect on a MaybePath method (it has no error channel).", method);
+      warn(
+          "@OnStatus has no effect on a MaybePath method (it has no error channel).",
+          iface,
+          method);
     }
 
     CodeBlock call = CodeBlock.of("() -> this.http.$L($L)", name, args);
@@ -367,9 +373,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * decoderFactory.create(E.class)} by default, or a {@code ResponseErrorDecoders} status-dispatch
    * chain when the method carries {@link org.higherkindedj.spring.client.OnStatus} overrides.
    */
-  private CodeBlock decoderExpression(ExecutableElement method, ReturnInfo info) {
+  private CodeBlock decoderExpression(
+      TypeElement iface, ExecutableElement method, ReturnInfo info) {
     ClassName errorRaw = rawClass(info.error());
-    List<StatusOverride> overrides = readStatusOverrides(method, info.error());
+    List<StatusOverride> overrides = readStatusOverrides(iface, method, info.error());
     if (overrides.isEmpty()) {
       return CodeBlock.of("decoderFactory.create($T.class)", errorRaw);
     }
@@ -388,16 +395,22 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
   /** Reads valid {@link org.higherkindedj.spring.client.OnStatus} overrides off a method. */
   private List<StatusOverride> readStatusOverrides(
-      ExecutableElement method, TypeMirror declaredError) {
+      TypeElement iface, ExecutableElement method, TypeMirror declaredError) {
     List<StatusOverride> result = new ArrayList<>();
     Set<Integer> seen = new HashSet<>();
     for (OnStatus annotation : method.getAnnotationsByType(OnStatus.class)) {
       TypeMirror errorType = onStatusErrorType(annotation);
+      // Checked first: the assignability check below would call a missing type not assignable.
+      if (isMissingFromClasspath(errorType, method)) {
+        error(notOnClasspath("@OnStatus", errorType), iface, method);
+        continue;
+      }
       if (!isConcreteClass(errorType)) {
         error(
             "@OnStatus error type must be a concrete, non-generic class (so the decoder can bind it "
                 + "with E.class); found: "
                 + errorType,
+            iface,
             method);
         continue;
       }
@@ -408,12 +421,14 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
                 + " is not assignable to the method's declared error type "
                 + declaredError
                 + ".",
+            iface,
             method);
         continue;
       }
       if (!seen.add(annotation.value())) {
         warn(
             "Duplicate @OnStatus for status " + annotation.value() + "; the last one wins.",
+            iface,
             method);
       }
       result.add(new StatusOverride(annotation.value(), errorType));
@@ -570,17 +585,17 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     return qualifiedName((DeclaredType) mirror.getAnnotationType()).equals("java.lang.Override");
   }
 
-  private @Nullable ReturnInfo analyseReturnType(ExecutableElement method) {
+  private @Nullable ReturnInfo analyseReturnType(TypeElement iface, ExecutableElement method) {
     TypeMirror returnType = method.getReturnType();
     if (!(returnType instanceof DeclaredType declared)) {
-      return unsupported(method);
+      return unsupported(iface, method);
     }
     String qualified = qualifiedName(declared);
     List<? extends TypeMirror> args = declared.getTypeArguments();
     switch (qualified) {
       case EITHER_PATH:
         if (args.size() == 2) {
-          return eitherInfo(PathKind.EITHER, method, args.get(0), args.get(1));
+          return eitherInfo(PathKind.EITHER, iface, method, args.get(0), args.get(1));
         }
         break;
       case MAYBE_PATH:
@@ -593,6 +608,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
           if (qualifiedName(inner).equals(EITHER) && inner.getTypeArguments().size() == 2) {
             return eitherInfo(
                 PathKind.EITHER_VTASK,
+                iface,
                 method,
                 inner.getTypeArguments().get(0),
                 inner.getTypeArguments().get(1));
@@ -603,12 +619,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         error(
             "VStreamPath is not generated automatically. Consume the server's SSE stream directly "
                 + "with HkjClientExchange.vstream(source, ElementType.class, jsonMapper).",
+            iface,
             method);
         return null;
       default:
         break;
     }
-    return unsupported(method);
+    return unsupported(iface, method);
   }
 
   /**
@@ -616,11 +633,20 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * variable — the decoder needs a concrete {@code E.class}, which a type variable cannot provide.
    */
   private @Nullable ReturnInfo eitherInfo(
-      PathKind kind, ExecutableElement method, TypeMirror error, TypeMirror success) {
+      PathKind kind,
+      TypeElement iface,
+      ExecutableElement method,
+      TypeMirror error,
+      TypeMirror success) {
+    if (isMissingFromClasspath(error, method)) {
+      error(notOnClasspath("@HkjHttpClient", error), iface, method);
+      return null;
+    }
     if (error.getKind() == TypeKind.TYPEVAR) {
       error(
           "@HkjHttpClient error type cannot be a type variable; it must be a concrete class so the "
               + "decoder can bind it.",
+          iface,
           method);
       return null;
     }
@@ -632,6 +658,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
           "@HkjHttpClient error type must be a concrete, non-generic class (so the decoder can bind "
               + "it with E.class); found: "
               + error,
+          iface,
           method);
       return null;
     }
@@ -643,10 +670,32 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     return type instanceof DeclaredType declared && declared.getTypeArguments().isEmpty();
   }
 
-  private @Nullable ReturnInfo unsupported(ExecutableElement method) {
+  /**
+   * Whether a type a method names is absent from this compilation's classpath where only the
+   * processor can say so. A method read from a class file can name a type its own module could see
+   * and this one cannot, and javac reports nothing about it. In source, javac reports an
+   * unresolvable name itself, so a source method is never treated as missing a type here.
+   */
+  private boolean isMissingFromClasspath(TypeMirror type, ExecutableElement method) {
+    return type.getKind() == TypeKind.ERROR
+        && Optional.ofNullable(processingEnv.getElementUtils().getFileObjectOf(method))
+            .map(JavaFileObject::getKind)
+            .filter(JavaFileObject.Kind.CLASS::equals)
+            .isPresent();
+  }
+
+  private static String notOnClasspath(String annotation, TypeMirror type) {
+    return annotation
+        + " error type "
+        + type
+        + " is not on this compilation's classpath; add the dependency that declares it.";
+  }
+
+  private @Nullable ReturnInfo unsupported(TypeElement iface, ExecutableElement method) {
     error(
         "Unsupported @HkjHttpClient return type. Expected EitherPath<E, T>, "
             + "VTaskPath<Either<E, T>>, or MaybePath<T>.",
+        iface,
         method);
     return null;
   }
@@ -711,7 +760,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     return Character.toLowerCase(value.charAt(0)) + value.substring(1);
   }
 
-  private void writeFile(String packageName, TypeSpec type, Element originating) {
+  private void writeFile(String packageName, TypeSpec type, TypeElement originating) {
     try {
       JavaFile.builder(packageName, type)
           .addFileComment("Generated by hkj-spring-client-processor. Do not edit.")
@@ -722,15 +771,48 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     }
   }
 
-  private void error(String message, Element element) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, message, element);
+  private void error(String message, TypeElement type) {
+    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, message, type);
   }
 
-  private void warn(String message, Element element) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, message, element);
+  private void error(String message, TypeElement iface, ExecutableElement method) {
+    report(Diagnostic.Kind.ERROR, message, iface, method);
   }
 
-  private void note(String message, Element element) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, message, element);
+  private void warn(String message, TypeElement iface, ExecutableElement method) {
+    report(Diagnostic.Kind.WARNING, message, iface, method);
+  }
+
+  /**
+   * Reports a problem with one of a client's methods somewhere the author can navigate to.
+   *
+   * <p>A method the client declares is reported at its declaration. An inherited method is reported
+   * on the client interface, naming the method and the interface it came from: one read from a
+   * compiled dependency has no file and no line of its own, and a base compiled alongside follows
+   * the same rule, so where an inherited method's problem appears never depends on how its base was
+   * built.
+   */
+  private void report(
+      Diagnostic.Kind kind, String message, TypeElement iface, ExecutableElement method) {
+    Element declaring = method.getEnclosingElement();
+    if (iface.equals(declaring)) {
+      processingEnv.getMessager().printMessage(kind, message, method);
+    } else {
+      processingEnv
+          .getMessager()
+          .printMessage(
+              kind,
+              "'"
+                  + method.getSimpleName()
+                  + "', inherited from '"
+                  + declaring.getSimpleName()
+                  + "': "
+                  + message,
+              iface);
+    }
+  }
+
+  private void note(String message, TypeElement type) {
+    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, message, type);
   }
 }
