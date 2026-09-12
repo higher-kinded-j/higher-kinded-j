@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
@@ -825,10 +826,20 @@ public class NavigatorClassGenerator {
    * a declared type can be navigable, so a caller holding a navigable type already holds its
    * element.
    *
-   * <p>Two questions, because {@code navigableTypes} covers only the records annotated in this
-   * round. A component whose type comes from a dependency is not in that set and is answered by the
-   * annotation instead, which is why {@link GenerateFocus} is retained in the class file: a record
-   * in one module stays navigable from another's {@code Focus}.
+   * <p>Two questions, and both are load-bearing. {@code navigableTypes} holds the records annotated
+   * in this round, whose {@code Focus} classes this compilation is about to write and so cannot yet
+   * look up. A component whose type comes from a dependency is in neither that set nor this
+   * compilation, and is answered by the annotation instead, which is why {@link GenerateFocus} is
+   * retained in the class file: a record in one module stays navigable from another's {@code
+   * Focus}.
+   *
+   * <p>A dependency is held to what it actually published. Navigating into it composes its {@code
+   * Focus} class by name, so a target annotated in a module that did not run the processor would
+   * put a reference to a class nobody generated inside generated code, where javac reports it
+   * against a file the author did not write. Such a target keeps the plain path instead, which is
+   * what it had before the annotation began to cross the boundary. Only a record can be navigable,
+   * as in-round: the annotation is refused on anything else where it is declared, so a class file
+   * carrying it elsewhere came from a module that never checked.
    */
   // Package-private for tests, which exercise the annotation fallback with an empty set.
   TypeElement navigableTypeElement(TypeMirror type) {
@@ -838,8 +849,20 @@ public class NavigatorClassGenerator {
     TypeElement typeElement = (TypeElement) ((DeclaredType) type).asElement();
     boolean navigable =
         navigableTypes.contains(typeElement.getQualifiedName().toString())
-            || typeElement.getAnnotation(GenerateFocus.class) != null;
+            || (typeElement.getKind() == ElementKind.RECORD
+                && typeElement.getAnnotation(GenerateFocus.class) != null
+                && publishedFocusClass(typeElement));
     return navigable ? typeElement : null;
+  }
+
+  /**
+   * Whether the {@code Focus} class this target's module should have generated is on the classpath.
+   * Asked only of a target outside this compilation, since a target inside it has no {@code Focus}
+   * class yet, by construction.
+   */
+  private boolean publishedFocusClass(TypeElement record) {
+    return processingEnv.getElementUtils().getTypeElement(focusClassOf(record).canonicalName())
+        != null;
   }
 
   /**

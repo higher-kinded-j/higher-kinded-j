@@ -7,19 +7,14 @@ import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContainsRaw;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectory;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import javax.tools.JavaFileObject;
-import javax.tools.StandardLocation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1048,9 +1043,9 @@ public class FocusProcessorNavigatorTest {
 
   /**
    * A record annotated in one module stays navigable from another module's {@code Focus}, because
-   * {@code @GenerateFocus} is retained in the class file. Navigability is decided by asking the
-   * component's type for the annotation, so while the annotation was discarded after compilation a
-   * dependency's record fell back to a plain {@code FocusPath}, silently.
+   * {@code @GenerateFocus} and {@code @TraverseField} are retained in the class file. Navigability
+   * is decided by asking the component's type for the annotation, so while it was discarded after
+   * compilation a dependency's record fell back to a plain {@code FocusPath}, silently.
    */
   @Nested
   @DisplayName("Across a class-file boundary")
@@ -1058,7 +1053,7 @@ public class FocusProcessorNavigatorTest {
 
     @TempDir Path tmp;
 
-    private final JavaFileObject address =
+    private static final JavaFileObject ADDRESS =
         JavaFileObjects.forSourceString(
             "com.upstream.Address",
             """
@@ -1070,7 +1065,7 @@ public class FocusProcessorNavigatorTest {
             public record Address(String street, String city) {}
             """);
 
-    private final JavaFileObject company =
+    private static final JavaFileObject COMPANY =
         JavaFileObjects.forSourceString(
             "com.downstream.Company",
             """
@@ -1083,41 +1078,24 @@ public class FocusProcessorNavigatorTest {
             public record Company(String name, Address headquarters) {}
             """);
 
-    /** Lays a compilation's class files out on a directory, as a jar dependency would be. */
-    private Path classDirectory(Compilation compilation) throws IOException {
-      Path dir = tmp.resolve("upstream");
-      for (JavaFileObject file : compilation.generatedFiles()) {
-        if (file.getKind() != JavaFileObject.Kind.CLASS) {
-          continue;
-        }
-        String path = file.getName();
-        String marker = StandardLocation.CLASS_OUTPUT.getName() + "/";
-        Path target = dir.resolve(path.substring(path.indexOf(marker) + marker.length()));
-        Files.createDirectories(target.getParent());
-        try (InputStream in = file.openInputStream()) {
-          Files.copy(in, target);
-        }
-      }
-      return dir;
+    private Compilation upstream(JavaFileObject... sources) {
+      Compilation compilation = javac().withProcessors(new FocusProcessor()).compile(sources);
+      assertThat(compilation).succeeded();
+      return compilation;
     }
 
-    private Compilation downstreamAgainst(Path upstream) {
-      List<File> classpath =
-          new ArrayList<>(
-              Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
-                  .map(File::new)
-                  .toList());
-      classpath.add(upstream.toFile());
-      return javac().withProcessors(new FocusProcessor()).withClasspath(classpath).compile(company);
+    private Compilation downstreamAgainst(Compilation upstream, JavaFileObject source)
+        throws IOException {
+      return javac()
+          .withProcessors(new FocusProcessor())
+          .withClasspath(classpathWith(classDirectory(upstream, tmp.resolve("upstream"))))
+          .compile(source);
     }
 
     @Test
     @DisplayName("a dependency's annotated record is navigable, as a sibling source file is")
     void aDependencysRecordIsNavigable() throws IOException {
-      Compilation upstream = javac().withProcessors(new FocusProcessor()).compile(address);
-      assertThat(upstream).succeeded();
-
-      Compilation downstream = downstreamAgainst(classDirectory(upstream));
+      Compilation downstream = downstreamAgainst(upstream(ADDRESS), COMPANY);
       assertThat(downstream).succeeded();
 
       final String focus = "com.downstream.CompanyFocus";
@@ -1125,13 +1103,184 @@ public class FocusProcessorNavigatorTest {
           downstream, focus, "public static HeadquartersNavigator<Company> headquarters() {");
       assertGeneratedCodeContains(
           downstream, focus, "public static final class HeadquartersNavigator<S> {");
-      // The navigator's own members are read off the dependency's record, which a class file
-      // answers as readily as a source file.
+      // The navigator's members are read off the dependency's record, which a class file answers
+      // as readily as a source file.
       assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> street() {");
       assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> city() {");
-      // The plain-FocusPath fallback is what the defect produced, so pin its absence.
-      assertGeneratedCodeDoesNotContain(
+    }
+
+    @Test
+    @DisplayName("a widened component of a dependency's record keeps its own path type")
+    void aWidenedComponentKeepsItsPathType() throws IOException {
+      JavaFileObject depot =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Depot",
+              """
+              package com.upstream;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Depot(String code, List<String> tags, Optional<String> note) {}
+              """);
+      JavaFileObject region =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Region",
+              """
+              package com.downstream;
+
+              import com.upstream.Depot;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Region(Depot depot) {}
+              """);
+      Compilation downstream = downstreamAgainst(upstream(depot), region);
+      assertThat(downstream).succeeded();
+
+      // A navigation method declares what the target's own Focus method returns (#719), and the
+      // target's widening is read from its class file exactly as from its source.
+      final String focus = "com.downstream.RegionFocus";
+      assertGeneratedCodeContains(downstream, focus, "public TraversalPath<S, String> tags() {");
+      assertGeneratedCodeContains(downstream, focus, "public AffinePath<S, String> note() {");
+    }
+
+    @Test
+    @DisplayName("a dependency's @TraverseField still decides the path type it declares")
+    void aTraverseFieldSurvivesTheBoundary() throws IOException {
+      JavaFileObject crate =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Crate",
+              """
+              package com.upstream;
+
+              import org.higherkindedj.hkt.Kind;
+              import org.higherkindedj.hkt.list.ListKind;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              import org.higherkindedj.optics.annotations.KindSemantics;
+              import org.higherkindedj.optics.annotations.TraverseField;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Crate(
+                  String label,
+                  @TraverseField(
+                      traverse = "org.higherkindedj.hkt.list.ListTraverse.INSTANCE",
+                      semantics = KindSemantics.ZERO_OR_ONE)
+                  Kind<ListKind.Witness, String> items) {}
+              """);
+      JavaFileObject yard =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Yard",
+              """
+              package com.downstream;
+
+              import com.upstream.Crate;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Yard(Crate crate) {}
+              """);
+      Compilation upstream = upstream(crate);
+      // The semantics override makes the target's own method an AffinePath, where the registry
+      // alone would have said TraversalPath.
+      assertGeneratedCodeContains(
+          upstream, "com.upstream.CrateFocus", "public static AffinePath<Crate, String> items() {");
+
+      Compilation downstream = downstreamAgainst(upstream, yard);
+      // Read without the annotation the navigator declared a TraversalPath over the AffinePath it
+      // composes, which javac rejects inside the generated file rather than at any declaration.
+      assertThat(downstream).succeeded();
+      assertGeneratedCodeContains(
+          downstream, "com.downstream.YardFocus", "public AffinePath<S, String> items() {");
+    }
+
+    @Test
+    @DisplayName("a dependency that never ran the processor keeps the plain path")
+    void aDependencyWithoutTheProcessorKeepsThePlainPath() throws IOException {
+      // The annotation now survives compilation, so it is present on a record whose module never
+      // generated a Focus class. Navigating into it would compose a class nobody wrote.
+      Compilation withoutProcessor = javac().withProcessors().compile(ADDRESS);
+      assertThat(withoutProcessor).succeeded();
+
+      Compilation downstream = downstreamAgainst(withoutProcessor, COMPANY);
+      assertThat(downstream).succeeded();
+      final String focus = "com.downstream.CompanyFocus";
+      assertGeneratedCodeContains(
           downstream, focus, "public static FocusPath<Company, Address> headquarters() {");
+      assertGeneratedCodeDoesNotContain(downstream, focus, "HeadquartersNavigator");
+    }
+
+    @Test
+    @DisplayName("an unannotated record is not navigable, from a class file or from source")
+    void anUnannotatedRecordIsNotNavigable() throws IOException {
+      JavaFileObject plain =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Plain",
+              """
+              package com.upstream;
+
+              public record Plain(String value) {}
+              """);
+      JavaFileObject holder =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Holder",
+              """
+              package com.downstream;
+
+              import com.upstream.Plain;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Holder(Plain plain) {}
+              """);
+      Compilation downstream = downstreamAgainst(upstream(plain), holder);
+      assertThat(downstream).succeeded();
+      final String focus = "com.downstream.HolderFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public static FocusPath<Holder, Plain> plain() {");
+      assertGeneratedCodeDoesNotContain(downstream, focus, "PlainNavigator");
+    }
+
+    @Test
+    @DisplayName("an annotated non-record read from a class file is not navigable")
+    void anAnnotatedNonRecordIsNotNavigable() throws IOException {
+      // The annotation is refused on anything but a record where it is declared, so a class file
+      // carrying it elsewhere came from a module that never checked. Compiled without the
+      // processor for exactly that reason.
+      JavaFileObject colour =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Colour",
+              """
+              package com.upstream;
+
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public enum Colour { RED, BLUE }
+              """);
+      JavaFileObject paint =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Paint",
+              """
+              package com.downstream;
+
+              import com.upstream.Colour;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+
+              @GenerateFocus(generateNavigators = true)
+              public record Paint(Colour colour) {}
+              """);
+      Compilation withoutProcessor = javac().withProcessors().compile(colour);
+      assertThat(withoutProcessor).succeeded();
+
+      Compilation downstream = downstreamAgainst(withoutProcessor, paint);
+      assertThat(downstream).succeeded();
+      final String focus = "com.downstream.PaintFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public static FocusPath<Paint, Colour> colour() {");
+      assertGeneratedCodeDoesNotContain(downstream, focus, "ColourNavigator");
     }
   }
 }

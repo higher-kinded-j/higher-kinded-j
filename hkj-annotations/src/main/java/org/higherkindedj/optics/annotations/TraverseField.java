@@ -67,11 +67,17 @@ import java.lang.annotation.Target;
  * {@code Traverse} is written for one witness, and a type variable stands for any, so no {@code
  * Traverse} instance exists for it.
  *
+ * <p>Retained in the class file, for the same reason {@link GenerateFocus} is and inseparably from
+ * it. A navigator into a record from another module declares what that record's own {@code Focus}
+ * method returns, and this annotation is what decides it; read without it, the navigator would
+ * declare one path type while composing a method that returns another, which javac rejects inside
+ * generated code.
+ *
  * @see KindSemantics
  * @see GenerateFocus
  */
 @Target(ElementType.RECORD_COMPONENT)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface TraverseField {
 
   /**

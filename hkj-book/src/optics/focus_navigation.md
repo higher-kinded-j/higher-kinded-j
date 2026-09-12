@@ -233,7 +233,9 @@ The middle branch is the one that surprises people. `Optional`, `List`, `Set` an
 
 A target that declares type parameters of its own does not. A navigator is an inner class parameterised by the source type alone, so it has no way to name them — `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case.
 
-**Where the target is declared makes no difference.** A record annotated in a dependency is navigable exactly as a sibling source file is: the processor asks the field's type whether it carries `@GenerateFocus`, and the annotation is kept in the class file so a type read from a jar can answer. So an API module can own the records, and each consuming module's `Focus` classes chain straight into them.
+**A target in a dependency is navigable, on one condition.** The processor asks the field's type whether it carries `@GenerateFocus`, and both that annotation and `@TraverseField` are kept in the class file, so a record read from a jar answers exactly as a sibling source file does: the same navigator, and the same path type per component. An API module can therefore own the records and each consuming module's `Focus` classes chain straight into them.
+
+The condition is that the dependency **ran the processor too**. Navigating into a record composes its own `Focus` class by name, so a module that declares the records without generating their companions has nothing to compose; such a target keeps the plain path, as it did before the annotation began to cross the boundary. [Multi-module builds](../tooling/manual_setup.md#multi-module-builds) has the build-side detail.
 
 <!-- verify -->
 ```java

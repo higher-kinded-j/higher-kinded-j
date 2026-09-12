@@ -21,18 +21,18 @@ import org.junit.jupiter.api.Test;
  * Direct unit tests for {@link NavigatorClassGenerator} internals that are unreachable through
  * compile-testing fixtures.
  *
- * <p>{@code navigableTypeElement} asks {@code navigableTypes} first and the annotation second. The
- * FocusProcessor pre-populates the set with every {@code @GenerateFocus} record <em>in this
- * round</em>, so an empty set is what isolates the annotation arm here. That arm is not dead: it is
- * how a record from a dependency is recognised, which the cross-module test in {@code
- * FocusProcessorNavigatorTest} covers.
+ * <p>{@code navigableTypeElement} asks {@code navigableTypes} first and the annotation second, and
+ * both arms carry their weight. The FocusProcessor pre-populates the set with every
+ * {@code @GenerateFocus} record <em>in this round</em>, whose companion this compilation has not
+ * written yet; the annotation arm answers for a record from a dependency, and holds it to the
+ * companion its own module published. An empty set is what isolates that arm here.
  */
 @DisplayName("NavigatorClassGenerator internals")
 class NavigatorClassGeneratorUnitTest {
 
   @Test
-  @DisplayName("should recognise @GenerateFocus types via the annotation fallback")
-  void shouldRecogniseGenerateFocusViaAnnotationFallback() {
+  @DisplayName("the annotation arm holds a target to the Focus class its module published")
+  void theAnnotationArmRequiresAPublishedFocusClass() {
     final var annotated =
         JavaFileObjects.forSourceString(
             "com.test.Annotated",
@@ -79,6 +79,9 @@ class NavigatorClassGeneratorUnitTest {
     Compilation compilation = javac().withProcessors(probe).compile(annotated);
 
     assertThat(compilation).succeeded();
-    assertThat(probe.navigable).isTrue();
+    // Annotated, and a record, but nothing generated its companion: navigating into it would
+    // compose a class that does not exist. The positive case needs a real Focus class on the
+    // classpath, so it is pinned across a class-file boundary in FocusProcessorNavigatorTest.
+    assertThat(probe.navigable).isFalse();
   }
 }
