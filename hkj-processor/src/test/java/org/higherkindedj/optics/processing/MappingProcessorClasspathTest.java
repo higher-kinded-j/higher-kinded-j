@@ -1092,4 +1092,149 @@ class MappingProcessorClasspathTest {
                       .contains("in this module (a named module reads no classpath index"));
     }
   }
+
+  /**
+   * A shared mix-in vocabulary is an ordinary interface, so it may be published by one module and
+   * extended by specs in another. Its annotated members only survive that boundary because
+   * {@code @MapField}, {@code @OptionalBridge} and {@code @MapKey} are retained in the class file;
+   * under source retention a downstream spec saw bare methods, and the key leaf lost its validation
+   * silently.
+   */
+  @Nested
+  @DisplayName("A vocabulary published as class files")
+  class PublishedVocabulary {
+
+    private static final JavaFileObject VOCABULARY =
+        JavaFileObjects.forSourceString(
+            "com.upstream.AccountVocabulary",
+            """
+            package com.upstream;
+
+            import java.util.Optional;
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.MapField;
+            import org.higherkindedj.optics.annotations.MapKey;
+            import org.higherkindedj.optics.annotations.OptionalBridge;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            public interface AccountVocabulary {
+              @MapField(to = "fullName")
+              String name();
+
+              @OptionalBridge
+              Optional<String> nickname();
+
+              // Both key types are String, so this leaf normalises rather than converts: losing it
+              // cannot surface as a key-type mismatch.
+              @MapKey("tallies")
+              default ValidatedPrism<String, String> tallyKey() {
+                return ValidatedPrism.of(
+                    raw ->
+                        raw.equals(raw.toUpperCase())
+                            ? Validated.validNel(raw)
+                            : Validated.invalidNel(FieldError.of("key must be upper case")),
+                    key -> key);
+              }
+            }
+            """);
+
+    private static final JavaFileObject ACCOUNT_TYPES =
+        JavaFileObjects.forSourceString(
+            "com.downstream.Accounts",
+            """
+            package com.downstream;
+
+            import java.util.Map;
+            import java.util.Optional;
+
+            public final class Accounts {
+              public record Account(
+                  String name, Optional<String> nickname, Map<String, Integer> tallies) {}
+
+              public record AccountDto(
+                  String fullName, String nickname, Map<String, Integer> tallies) {}
+            }
+            """);
+
+    private static final JavaFileObject ACCOUNT_SPEC =
+        JavaFileObjects.forSourceString(
+            "com.downstream.AccountMapping",
+            """
+            package com.downstream;
+
+            import com.upstream.AccountVocabulary;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface AccountMapping
+                extends AccountVocabulary,
+                    MappingSpec<Accounts.Account, Accounts.AccountDto> {}
+            """);
+
+    @Test
+    @DisplayName("its renames, bridges and key leaves bind downstream exactly as they do at home")
+    void annotatedVocabularyCrossesTheBoundary() throws IOException {
+      Path upstream = module("upstream", List.of(), List.of(VOCABULARY));
+      Compilation compilation = compiler(upstream).compile(ACCOUNT_TYPES, ACCOUNT_SPEC);
+      assertThat(compilation).succeeded();
+
+      String impl = generatedSource(compilation, "com.downstream.AccountMappingImpl");
+      // The rename binds: the wire component is 'fullName', sourced from the domain's 'name'.
+      Assertions.assertThat(impl).contains(".field(\"name\", hkj$ifPresent(wire.fullName()");
+      // The bridge binds: an empty Optional builds to a null wire value.
+      Assertions.assertThat(impl).contains("domain.nickname().orElse(null)");
+      // The key leaf binds, so the keys are still validated rather than passed through.
+      Assertions.assertThat(impl)
+          .contains("tallyKey()::parseKeys")
+          .contains("tallyKey().buildKeys(domain.tallies())");
+      // The rename still owes its marker stub.
+      Assertions.assertThat(impl).contains("public String name()");
+    }
+
+    @Test
+    @DisplayName("the same vocabulary compiled alongside the spec generates the same Impl")
+    void oneCompilationAgrees() throws IOException {
+      Path upstream = module("upstream", List.of(), List.of(VOCABULARY));
+      Compilation across = compiler(upstream).compile(ACCOUNT_TYPES, ACCOUNT_SPEC);
+      assertThat(across).succeeded();
+      Compilation together = compiler().compile(VOCABULARY, ACCOUNT_TYPES, ACCOUNT_SPEC);
+      assertThat(together).succeeded();
+
+      // Named first, so a regression reads as the thing that went wrong rather than as a diff of
+      // two whole generated files: under source retention the key leaf vanished from both legs of
+      // the boundary compilation while it still compiled.
+      Assertions.assertThat(generatedSource(across, "com.downstream.AccountMappingImpl"))
+          .contains("tallyKey()::parseKeys")
+          .contains("tallyKey().buildKeys(domain.tallies())");
+
+      // Then the whole-file equality: the boundary must not change what the spec means at all, not
+      // merely on the members this fixture happens to assert. This rides getAllMembers order parity
+      // between javac's source and class-file readers, which holds because the marker stubs are
+      // emitted in the mix-in's declaration order and one interface declares them all.
+      Assertions.assertThat(generatedSource(across, "com.downstream.AccountMappingImpl"))
+          .isEqualTo(generatedSource(together, "com.downstream.AccountMappingImpl"));
+    }
+
+    @Test
+    @DisplayName("the publishing module needs no annotation processor of its own")
+    void publishingModuleNeedsNoProcessor() throws IOException {
+      // A mix-in is a plain interface, not a spec, so nothing in it is generated from: a module can
+      // export the house vocabulary without putting hkj-processor on its processor path. This is
+      // what the book promises multi-module users, so it is pinned rather than assumed.
+      Compilation upstream =
+          javac().withProcessors().withClasspath(TEST_CLASSPATH).compile(VOCABULARY);
+      assertThat(upstream).succeeded();
+      Assertions.assertThat(upstream.generatedSourceFiles()).isEmpty();
+
+      Compilation downstream =
+          compiler(classDirectory("plain-upstream", upstream)).compile(ACCOUNT_TYPES, ACCOUNT_SPEC);
+      assertThat(downstream).succeeded();
+      Assertions.assertThat(generatedSource(downstream, "com.downstream.AccountMappingImpl"))
+          .contains(".field(\"name\", hkj$ifPresent(wire.fullName()")
+          .contains("domain.nickname().orElse(null)")
+          .contains("tallyKey()::parseKeys");
+    }
+  }
 }

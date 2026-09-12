@@ -67,7 +67,11 @@ import java.lang.annotation.Target;
  * {@link UpdateSpec} (whose {@code null} already means "leave unchanged"). On a bean wire it is
  * redundant rather than wrong — the bridge is automatic there — and a locally declared one is
  * reported as a note, so a shared mix-in vocabulary can carry it for both wire shapes.
+ *
+ * <p>Retained in the class file so that such a vocabulary keeps its markers when a dependent
+ * compilation extends it from a jar; a spec reading the interface from a class file would otherwise
+ * see a bare abstract method and refuse it.
  */
 @Target(ElementType.METHOD)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface OptionalBridge {}

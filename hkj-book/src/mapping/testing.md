@@ -58,7 +58,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 
 | Limit | Where it is explained |
 |---|---|
-| Nested, sealed and merge resolution sees a dependency's specs only when that module was compiled with `hkj-processor` | [Across modules](structure.md#across-modules) |
+| Nested, sealed and merge resolution sees a dependency's specs only when that module was compiled with `hkj-processor`; a shared vocabulary interface is not a spec, so a module may export one without the processor | [Across modules](structure.md#across-modules) |
 | Named modules neither write nor read the index, and two spec-carrying jars cannot be automatic modules together | [Across modules](structure.md#across-modules) |
 | A mix-in may be generic, but must not be reached raw | [Shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
 | A flattened component stays on the full record-record tier: not on a bean wire, a generic spec, a projection or a sparse `UpdateSpec`; its record fits one `fields()` ladder, and spreading is one level deep (a record inside the group nests through its own spec) | [Flattening a nested component](structure.md#flattening-a-nested-component-onto-a-flat-wire) |

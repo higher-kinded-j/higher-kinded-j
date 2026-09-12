@@ -26,9 +26,13 @@ import java.lang.annotation.Target;
  * <p>A rename may also be named after a component of a record that a {@link Flatten} marker spreads
  * across the wire, pointing that inner component at a differently named wire component. The
  * flattened component itself is never renamed: it has no single wire counterpart.
+ *
+ * <p>Retained in the class file so that a shared vocabulary interface keeps its renames when a
+ * dependent compilation extends it from a jar; a spec reading the interface from a class file would
+ * otherwise see a bare abstract method and refuse it.
  */
 @Target(ElementType.METHOD)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface MapField {
   /**
    * The wire-side field name this domain field maps to.
