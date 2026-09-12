@@ -11,6 +11,7 @@ import com.google.testing.compile.JavaFileObjects;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -1914,6 +1915,53 @@ class MappingProcessorUpdateTest {
             public interface TaggedPatch extends UpdateSpec<Tagged, TaggedPatchDto> {}
             """);
 
+    private static final JavaFileObject ROLE =
+        JavaFileObjects.forSourceString(
+            "com.example.Role",
+            """
+            package com.example;
+
+            public record Role(String name) {}
+            """);
+
+    private static final JavaFileObject ROLE_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.RoleDto",
+            """
+            package com.example;
+
+            public record RoleDto(String name) {}
+            """);
+
+    private static final JavaFileObject ROLE_PATCH_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.RolePatchDto",
+            """
+            package com.example;
+
+            public class RolePatchDto {
+              private String name;
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+            }
+            """);
+
+    /** Both clauses at once: a full mapping to the record wire, a sparse patch to the bean. */
+    private static final JavaFileObject BOTH_TIERS_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.RoleMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.UpdateSpec;
+
+            @GenerateMapping
+            public interface RoleMapping
+                extends MappingSpec<Role, RoleDto>, UpdateSpec<Role, RolePatchDto> {}
+            """);
+
     @Test
     @DisplayName(
         "a getter-only List on a PATCH bean is rejected: its getter creates the list, so an"
@@ -2198,6 +2246,81 @@ class MappingProcessorUpdateTest {
       Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("mix-in 'BasePatch' is itself a mapping spec");
+    }
+
+    @Test
+    @DisplayName("a spec extending both MappingSpec and UpdateSpec is rejected on its own")
+    void bothTiersRejected() {
+      Compilation compilation = compile(ROLE, ROLE_DTO, ROLE_PATCH_DTO, BOTH_TIERS_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'RoleMapping' extends both 'MappingSpec<Role, RoleDto>' and 'UpdateSpec<Role,"
+                  + " RolePatchDto>'");
+      // The refusal is the whole story: neither tier runs, so nothing else follows from it.
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a spec extending both tiers is never offered to a parent that nests its pair")
+    void bothTiersNotNestable() {
+      JavaFileObject account =
+          JavaFileObjects.forSourceString(
+              "com.example.Account",
+              """
+              package com.example;
+
+              public record Account(Role role) {}
+              """);
+      JavaFileObject accountDto =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountDto",
+              """
+              package com.example;
+
+              public record AccountDto(RoleDto role) {}
+              """);
+      JavaFileObject accountMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountMapping extends MappingSpec<Account, AccountDto> {}
+              """);
+      Compilation compilation =
+          compile(
+              ROLE,
+              ROLE_DTO,
+              ROLE_PATCH_DTO,
+              BOTH_TIERS_MAPPING,
+              account,
+              accountDto,
+              accountMapping);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'RoleMapping' extends both");
+      // The parent resolves nothing for the pair and says so at its own field, naming the spec
+      // that maps it and why it cannot serve, rather than generating a call to a parse the
+      // refused spec never emitted.
+      assertThat(compilation).hadErrorContaining("target field 'AccountDto.role' has no usable");
+      assertThat(compilation)
+          .hadErrorContaining("'RoleMapping' maps this pair but extends both MappingSpec and");
+      assertThat(compilation).hadErrorCount(2);
+      // Every error is the processor's own. This pins the shape of the refusal rather than the
+      // absence of the javac errors #837 was about: once a processor reports an error javac
+      // never compiles the generated sources, so in one compilation those are unobservable.
+      // The classpath route, where no refusal fires, is what pins them - see
+      // MappingProcessorClasspathTest.
+      Assertions.assertThat(compilation.diagnostics())
+          .filteredOn(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
+          .allSatisfy(
+              diagnostic ->
+                  Assertions.assertThat(diagnostic.getMessage(null))
+                      .startsWith("@GenerateMapping:"));
     }
 
     @Test

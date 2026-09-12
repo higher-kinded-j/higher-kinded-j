@@ -230,6 +230,96 @@ class MappingProcessorClasspathTest {
           }
           """);
 
+  /**
+   * A dependency as a release before the one-tier rule left it: a spec extending both {@code
+   * MappingSpec} and {@code UpdateSpec}, an Impl carrying the sparse tier alone, and an index entry
+   * naming the spec. The shape compiled then, so a published jar can hold it; it is written by hand
+   * because the processor now refuses it, and the spec carries no {@code @GenerateMapping} for the
+   * same reason. What matters downstream is that the Impl exists (so the entry is not the
+   * missing-Impl case) and has no {@code asValidatedPrism}.
+   */
+  private static final List<JavaFileObject> LEGACY_JAR =
+      List.of(
+          JavaFileObjects.forSourceString(
+              "com.legacy.Legacy",
+              """
+              package com.legacy;
+
+              public final class Legacy {
+                public record Role(String name) {}
+
+                public record RoleDto(String name) {}
+
+                public static class RolePatchDto {
+                  private String name;
+
+                  public String getName() {
+                    return name;
+                  }
+
+                  public void setName(String name) {
+                    this.name = name;
+                  }
+                }
+              }
+              """),
+          JavaFileObjects.forSourceString(
+              "com.legacy.RoleMapping",
+              """
+              package com.legacy;
+
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              public interface RoleMapping
+                  extends MappingSpec<Legacy.Role, Legacy.RoleDto>,
+                      UpdateSpec<Legacy.Role, Legacy.RolePatchDto> {}
+              """),
+          JavaFileObjects.forSourceString(
+              "com.legacy.RoleMappingImpl",
+              """
+              package com.legacy;
+
+              public final class RoleMappingImpl implements RoleMapping {
+                public static final RoleMappingImpl INSTANCE = new RoleMappingImpl();
+
+                private RoleMappingImpl() {}
+              }
+              """),
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.mapping.index.com$legacy$RoleMapping",
+              """
+              package org.higherkindedj.mapping.index;
+
+              import org.higherkindedj.optics.annotations.MappingIndexEntry;
+
+              @MappingIndexEntry(spec = "com.legacy.RoleMapping")
+              public final class com$legacy$RoleMapping {
+                private com$legacy$RoleMapping() {}
+              }
+              """));
+
+  /** A downstream spec nesting the pair the legacy jar's both-tiers spec claims. */
+  private static final JavaFileObject LEGACY_NESTER =
+      JavaFileObjects.forSourceString(
+          "com.downstream.AccountMapping",
+          """
+          package com.downstream;
+
+          import com.legacy.Legacy;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+
+          public final class AccountMapping {
+            public record Account(Legacy.Role role) {}
+
+            public record AccountDto(Legacy.RoleDto role) {}
+
+            @GenerateMapping
+            public interface Spec extends MappingSpec<Account, AccountDto> {}
+          }
+          """);
+
   private static final JavaFileObject INVOICE_MAPPING =
       downstreamSpec("InvoiceMapping", "Downstream.Invoice", "Downstream.InvoiceDto");
 
@@ -825,6 +915,29 @@ class MappingProcessorClasspathTest {
           .hadErrorContaining(
               "'com.upstream.CircleMapping (classpath)' maps this pair, but its generated"
                   + " 'com.upstream.CircleMappingImpl' is missing from the classpath");
+    }
+
+    @Test
+    @DisplayName("a dependency's spec declaring both tiers is named, not silently passed over")
+    void aBothTiersSpecFromADependencyIsExplainedAtTheUseSite() throws Exception {
+      Path legacy = module("legacy", List.of(), LEGACY_JAR);
+      Compilation compilation = compiler(legacy).compile(LEGACY_NESTER);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadWarningCount(0);
+      assertThat(compilation)
+          .hadErrorContaining("target field 'AccountDto.role' has no usable source");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'com.legacy.RoleMapping (classpath)' maps this pair but extends both MappingSpec"
+                  + " and UpdateSpec, so it belongs to the sparse tier and has no parse to nest");
+      // The point of the registry guard: this is the one route where no refusal fires to stop
+      // javac first, so an unguarded registry reaches the generated file (#837).
+      Assertions.assertThat(compilation.diagnostics())
+          .filteredOn(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
+          .allSatisfy(
+              diagnostic ->
+                  Assertions.assertThat(diagnostic.getMessage(null))
+                      .doesNotContain("cannot find symbol"));
     }
   }
 
