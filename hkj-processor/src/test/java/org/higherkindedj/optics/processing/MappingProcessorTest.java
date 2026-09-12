@@ -12229,6 +12229,8 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("has no meaning on a sparse UpdateSpec");
       assertThat(compilation).hadErrorContaining("declare the PATCH property as Optional<T>");
+      assertThat(compilation)
+          .hadErrorContaining("with the field defaulting to null rather than Optional.empty()");
     }
 
     @Test

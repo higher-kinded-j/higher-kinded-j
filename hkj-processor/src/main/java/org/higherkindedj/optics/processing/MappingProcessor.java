@@ -2997,8 +2997,8 @@ public class MappingProcessor extends AbstractProcessor {
               + " it as absent - leave unchanged - so 'set to empty' has no encoding through a"
               + " plain property.",
           "Remove the annotation, or move the marker to a mix-in a full MappingSpec also extends,"
-              + " and declare the PATCH property as Optional<T> if the client needs to set the"
-              + " field empty.");
+              + " and declare the PATCH property as Optional<T>, with the field defaulting to null"
+              + " rather than Optional.empty(), if the client needs to set the field empty.");
       return false;
     }
     return true;
@@ -3115,10 +3115,12 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * A domain {@code Optional<T>} component bridged from a non-Optional wire property under
-   * sparseness: null already means absent, so "set to empty" is inexpressible (and null-clears
-   * would be JSON Merge Patch's opposite contract). An Optional-typed wire property never lands
-   * here — it patches by identity or elementwise through an element leaf, and leafless it reaches
-   * the no-update-source diagnostic instead.
+   * sparseness: null already means absent, so "set to empty" is inexpressible (a plain property has
+   * only null and a value, one state short of JSON Merge Patch's three). The remedy names the wire
+   * property's own type, so an element leaf the author already has lifts over the Optional instead
+   * of being bypassed by an identity match. An Optional-typed wire property never lands here — it
+   * patches by identity or elementwise through an element leaf, and leafless it reaches the
+   * no-update-source diagnostic instead.
    */
   private void reportOptionalBridge(
       TypeElement spec,
@@ -3138,13 +3140,15 @@ public class MappingProcessor extends AbstractProcessor {
             + " ("
             + domainComp.asType()
             + "), which a sparse update cannot express.",
-        "Under null-as-absent a null property means 'leave unchanged', so setting the component to"
-            + " an empty Optional has no encoding; a null-clears rule would be the opposite contract"
-            + " (JSON Merge Patch).",
-        "Model the field as a nested record or a sentinel value instead of Optional, or declare the"
-            + " PATCH property as Optional<"
-            + containerElement(domainComp.asType(), "java.util.Optional")
-            + "> (a present empty Optional then encodes 'set to empty').");
+        "Under null-as-absent a null property means 'leave unchanged', so a plain property has no"
+            + " state left to set the component to an empty Optional.",
+        "Declare '"
+            + property.name()
+            + "' as Optional<"
+            + property.type()
+            + "> with the field defaulting to null, not Optional.empty(), which would read every"
+            + " omitted property as a clear: null then leaves the component unchanged, and a present"
+            + " empty Optional sets it empty.");
   }
 
   /** Two wire properties resolve to the same domain component (a same-named one and a rename). */
