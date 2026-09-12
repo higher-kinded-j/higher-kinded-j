@@ -2819,6 +2819,64 @@ class MappingProcessorUpdateTest {
       Compilation compilation = compile(domain, dto, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("which a sparse update cannot express");
+      // The fix offers the property shape that expresses 'set to empty' without changing the wire
+      // contract, and steers off the Optional.empty() field default, which would lose absence.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'nickname' as Optional<java.lang.String> with the field defaulting to null,"
+                  + " not Optional.empty()");
+    }
+
+    @Test
+    @DisplayName("the Optional remedy keeps the wire property's own type, so an element leaf lifts")
+    void optionalBridgeRemedyKeepsTheWireType() {
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.SubscriberPatchDto",
+              """
+              package com.example;
+
+              public class SubscriberPatchDto {
+                private String email;
+                public String getEmail() { return email; }
+                public void setEmail(String email) { this.email = email; }
+              }
+              """);
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Subscriber",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Subscriber(Optional<EmailAddress> email) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.SubscriberPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface SubscriberPatchMapping
+                  extends UpdateSpec<Subscriber, SubscriberPatchDto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, domain, dto, spec);
+      assertThat(compilation).failed();
+      // Naming the domain element type would steer the author to Optional<EmailAddress>, which
+      // matches by identity and bypasses this leaf; the wire's own type keeps the leaf lifting.
+      assertThat(compilation).hadErrorContaining("Declare 'email' as Optional<java.lang.String>");
     }
 
     @Test

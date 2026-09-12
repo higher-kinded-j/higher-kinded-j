@@ -59,6 +59,12 @@ package org.higherkindedj.optics.annotations;
  * call, so the property never reads {@code null} and cannot express <em>not provided</em>. Give it
  * a setter, which an omitted field leaves {@code null}.
  *
+ * <p>A domain {@code Optional<T>} component takes an {@code Optional}-typed property whose field
+ * defaults to {@code null}: {@code null} leaves the component unchanged and a present empty {@code
+ * Optional} clears it. A plain property is rejected unless a whole-component leaf converts it,
+ * because its {@code null} already means leave unchanged; and a field defaulting to {@code
+ * Optional.empty()} would clear the component on every request that omits it.
+ *
  * <p>A spec names one tier: an interface extending {@code UpdateSpec} must not also extend {@link
  * MappingSpec}, and declaring both is rejected with a diagnostic. One interface generates one Impl,
  * and the two tiers emit disjoint members, so nothing an Impl could carry answers both clauses. A
