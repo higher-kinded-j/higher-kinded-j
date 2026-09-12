@@ -691,9 +691,20 @@ public class MappingProcessor extends AbstractProcessor {
         .toList();
   }
 
+  /**
+   * Whether the spec declares this member itself rather than inheriting it from a mix-in. The
+   * distinction is load-bearing rather than incidental: every rule that refuses vocabulary it
+   * cannot use refuses only a local declaration, so one shared vocabulary serves specs the rule
+   * does not reach alike, and a member the spec re-declares counts as its own ({@link #specMembers}
+   * applies Java's override precedence before this is asked).
+   */
+  private static boolean declaredLocally(ExecutableElement method, TypeElement spec) {
+    return method.getEnclosingElement().equals(spec);
+  }
+
   /** Names a member for diagnostics, noting its declaring mix-in when inherited. */
   private static String inheritedNote(ExecutableElement method, TypeElement spec) {
-    return method.getEnclosingElement().equals(spec)
+    return declaredLocally(method, spec)
         ? ""
         : " (inherited from '" + method.getEnclosingElement().getSimpleName() + "')";
   }
@@ -972,7 +983,7 @@ public class MappingProcessor extends AbstractProcessor {
     List<String> components =
         domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
     for (ExecutableElement method : specMembers(spec)) {
-      if (!method.getEnclosingElement().equals(spec) || !isLeafShaped(spec, method)) {
+      if (!declaredLocally(method, spec) || !isLeafShaped(spec, method)) {
         continue;
       }
       // A key leaf binds by its @MapKey, not by its name, so its name is free; checkMapKeysApply
@@ -1046,7 +1057,7 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       String name = method.getSimpleName().toString();
-      boolean local = method.getEnclosingElement().equals(spec);
+      boolean local = declaredLocally(method, spec);
       // An inner component of a flattened group bridges exactly as a top-level one: build reads
       // through the group and parse assembles it, so only the lookup knows the difference.
       Owned owned = ownedComponent(domain, domainDeclared, flattened, name);
@@ -1202,7 +1213,7 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       String name = declared.value();
-      boolean local = method.getEnclosingElement().equals(spec);
+      boolean local = declaredLocally(method, spec);
       Owned owned = ownedComponent(domain, domainDeclared, flattened, name);
       if (owned == null) {
         if (!local) {
@@ -1428,7 +1439,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean checkNoSealedVocabulary(TypeElement spec) {
     for (ExecutableElement method : specMembers(spec)) {
-      if (!method.getEnclosingElement().equals(spec)) {
+      if (!declaredLocally(method, spec)) {
         continue;
       }
       boolean leaf = isLeafShaped(spec, method);
@@ -2447,7 +2458,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean checkNoDerivedFields(TypeElement spec) {
     for (ExecutableElement method : specMembers(spec)) {
-      if (!method.getEnclosingElement().equals(spec)
+      if (!declaredLocally(method, spec)
           || !isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
         continue;
       }
@@ -2479,8 +2490,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private boolean checkNoBridges(TypeElement spec) {
     for (ExecutableElement method : specMembers(spec)) {
-      if (method.getAnnotation(OptionalBridge.class) == null
-          || !method.getEnclosingElement().equals(spec)) {
+      if (method.getAnnotation(OptionalBridge.class) == null || !declaredLocally(method, spec)) {
         continue;
       }
       Diagnostics.error(
@@ -3503,7 +3513,7 @@ public class MappingProcessor extends AbstractProcessor {
       RecordComponentElement component = componentNamed(domain, name);
       if (component == null) {
         // Judged once every group is known, since the name may be a group's inner component.
-        if (method.getEnclosingElement().equals(spec)) {
+        if (declaredLocally(method, spec)) {
           unmatched.add(method);
         }
         continue;
