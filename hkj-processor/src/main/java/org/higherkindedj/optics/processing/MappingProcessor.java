@@ -1801,10 +1801,15 @@ public class MappingProcessor extends AbstractProcessor {
               processingEnv.getMessager(),
               method,
               TAG,
-              "@Flatten has no meaning on a sealed mapping.",
+              "@Flatten on '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " has no meaning on a sealed mapping.",
               "A flattened component is a record component spread across the wire; a sealed"
                   + " mapping dispatches over its permitted subtypes and has no components.",
-              "Remove the @Flatten method.");
+              "Remove the @Flatten method; moving it to a mix-in does not help here, since a"
+                  + " sealed mapping refuses an inherited marker too.");
           return false;
         }
         if (bridge != null) {
@@ -2486,14 +2491,14 @@ public class MappingProcessor extends AbstractProcessor {
         || !checkCollectionGettersCarryAbsence(spec, (WireShape.BeanShape) wireShape)) {
       return;
     }
-    // Asked once the wire is known: whether an inherited @Flatten marker is inert or refused
-    // turns on the properties this PATCH bean carries.
-    if (!checkNoFlattened(spec, domain, (DeclaredType) domainArg, wireShape)) {
-      return;
-    }
-
     Map<String, String> renames = collectRenames(spec, domain, wireShape, List.of());
     if (renames == null) {
+      return;
+    }
+    // Asked once the wire and the sources it already has are both known: whether an inherited
+    // @Flatten marker is inert or refused turns on which of the group's inner properties this
+    // PATCH bean carries with nothing else to fill them.
+    if (!checkNoFlattened(spec, domain, (DeclaredType) domainArg, wireShape, renames)) {
       return;
     }
 
@@ -4030,33 +4035,43 @@ public class MappingProcessor extends AbstractProcessor {
    * <p>A <em>locally declared</em> marker is refused whatever this wire looks like: it is
    * vocabulary written for a spec that cannot use it, exactly as a local derived field or
    * {@code @OptionalBridge} is. An <em>inherited</em> one is judged against the wire rather than
-   * waved through, which is where this rule parts company with those two. A PATCH bean that
-   * declares the group's own component - {@code Address getAddress()} - never spreads it, so the
-   * marker is inert and the component patches whole by identity, and refusing it would report at a
-   * mix-in whose full spec needs the marker. A PATCH bean that carries the group's inner names
-   * instead is asking for the spread, and staying silent there would trade one pointed refusal for
-   * a dangling-property error per inner property, which names neither the marker nor the reason.
+   * waved through, which is where this rule parts company with those two. Refusing it outright
+   * would report at a mix-in whose full spec needs the marker, and both remedies would break that
+   * spec; staying silent whatever the wire looks like would trade one pointed refusal for a
+   * dangling-property error per spread property, naming neither the marker nor the reason.
    *
-   * <p>An inner name the domain also declares is not evidence of a spread: the wire property binds
-   * to the domain component of that name on its own, and the marker is still unused.
+   * <p>What separates the two is whether this bean carries any of the group's inner names with
+   * nothing else to fill them. A bean declaring the group's own component instead, or omitting the
+   * group altogether, carries none, so the marker is unused: inert, and the component patches whole
+   * by identity wherever the bean has it. A bean carrying one is asking for the spread, and keeps
+   * the refusal - including a bean that declares the component and an inner name both, which asks
+   * for two readings of one component. What counts as filled is read under the renames in force, so
+   * a property an unrelated rename points at is no evidence of a spread even where the group
+   * happens to have a component of that name.
    */
   private boolean checkNoFlattened(
-      TypeElement spec, TypeElement domain, DeclaredType domainDeclared, WireShape wire) {
-    Set<String> domainNames =
-        domain.getRecordComponents().stream()
-            .map(c -> c.getSimpleName().toString())
-            .collect(Collectors.toSet());
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      Map<String, String> renames) {
+    Set<String> sourced =
+        componentNames(domain).stream()
+            .map(name -> renames.getOrDefault(name, name))
+            .collect(Collectors.toUnmodifiableSet());
     for (ExecutableElement method : specMembers(spec)) {
       if (!isFlattenMarker(method)) {
         continue;
       }
-      boolean local = declaredLocally(method, spec);
+      MarkerGroup group = markerGroup(domain, domainDeclared, method);
       List<String> spread =
-          flattenedInner(domain, domainDeclared, method).stream()
-              .filter(inner -> !domainNames.contains(inner))
-              .filter(inner -> wire.componentNamed(inner).isPresent())
-              .toList();
-      if (!local && spread.isEmpty()) {
+          group == null
+              ? List.of()
+              : componentNames(group.record()).stream()
+                  .filter(inner -> !sourced.contains(inner))
+                  .filter(inner -> wire.componentNamed(inner).isPresent())
+                  .toList();
+      if (!declaredLocally(method, spec) && spread.isEmpty()) {
         continue;
       }
       Diagnostics.error(
@@ -4077,35 +4092,57 @@ public class MappingProcessor extends AbstractProcessor {
                       + wire.element().getSimpleName()
                       + "' carries "
                       + spread
-                      + ", so the group is spread here rather than merely unused."),
-          spread.isEmpty()
-              ? "Remove the @Flatten method, or move it to a mix-in a full MappingSpec also"
-                  + " extends: an inherited marker this PATCH wire does not spread is inert."
-              : "Map the pair with a full MappingSpec, or declare '"
+                      + " with nothing else to source them, so the group is spread here rather"
+                      + " than merely unused."),
+          !spread.isEmpty()
+              ? "Replace "
+                  + spread
+                  + " on '"
+                  + wire.element().getSimpleName()
+                  + "' with one '"
                   + method.getSimpleName()
-                  + "' on the PATCH wire as its own property, which patches the component whole.");
+                  + "' property, a getter and a setter over "
+                  + ProcessorUtils.simpleTypeName(group.type())
+                  + ", which patches the component whole; or map the pair with a full MappingSpec"
+                  + " against a record wire, where the group can spread."
+              : group == null
+                  // Offering the mix-in placement here would bury a typo: an unmatched marker is
+                  // inert on every tier, so the move would silence the mistake rather than fix it.
+                  ? "Remove the @Flatten method: '"
+                      + domain.getSimpleName()
+                      + "' has no record component named '"
+                      + method.getSimpleName()
+                      + "' for it to spread."
+                  : "Remove the @Flatten method, or move it to a mix-in a full MappingSpec also"
+                      + " extends: an inherited marker this PATCH wire does not spread is inert.");
       return false;
     }
     return true;
   }
 
+  /** The record a {@code @Flatten} marker would spread: the domain component's type and element. */
+  private record MarkerGroup(TypeMirror type, TypeElement record) {}
+
   /**
-   * The component names a {@code @Flatten} marker would spread here, or empty when it names no
-   * record component of this domain - a marker speaking about a component only its sibling specs
-   * declare, or one whose component is not a record. Either way there is nothing for this wire to
-   * spread; {@link #collectFlattened} judges the same two shapes on the tiers that flatten, where a
-   * group really is formed.
+   * The record a {@code @Flatten} marker would spread here, or null when it names no record
+   * component of this domain - a marker speaking about a component only its sibling specs declare,
+   * or one whose component is not a record. Either way there is nothing for this wire to spread;
+   * {@link #collectFlattened} judges the same two shapes on the tiers that flatten, where a group
+   * really is formed.
+   *
+   * <p>{@code domainDeclared} carries no substitution on the sparse path, where a generic domain is
+   * already refused; it is threaded so the lookup reads the component's type the one way the rest
+   * of the processor does.
    */
-  private List<String> flattenedInner(
+  private MarkerGroup markerGroup(
       TypeElement domain, DeclaredType domainDeclared, ExecutableElement marker) {
     RecordComponentElement component = componentNamed(domain, marker.getSimpleName().toString());
     if (component == null) {
-      return List.of();
+      return null;
     }
-    TypeElement record = asRecord(componentType(domainDeclared, component));
-    return record == null
-        ? List.of()
-        : record.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
+    TypeMirror type = componentType(domainDeclared, component);
+    TypeElement record = asRecord(type);
+    return record == null ? null : new MarkerGroup(type, record);
   }
 
   /** A derived wire field: a spec default method named after a wire-only component. */

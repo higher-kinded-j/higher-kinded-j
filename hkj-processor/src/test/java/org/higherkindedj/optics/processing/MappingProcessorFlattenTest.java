@@ -658,7 +658,12 @@ class MappingProcessorFlattenTest {
                   }
                   """));
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("@Flatten has no meaning on a sealed mapping");
+      assertThat(compilation)
+          .hadErrorContaining("@Flatten on 'address' has no meaning on a sealed mapping");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "moving it to a mix-in does not help here, since a sealed mapping refuses an"
+                  + " inherited marker too");
     }
 
     @Test
@@ -1551,12 +1556,14 @@ class MappingProcessorFlattenTest {
                   + " sparse UpdateSpec (not supported yet)");
       assertThat(compilation)
           .hadErrorContaining(
-              "'CustomerFlatPatch' carries [street, city], so the group is spread here rather than"
-                  + " merely unused");
+              "'CustomerFlatPatch' carries [street, city] with nothing else to source them, so the"
+                  + " group is spread here rather than merely unused");
+      // The remedy is a replacement, not an addition: keeping the inner properties beside a new
+      // 'address' one would spread the group still.
       assertThat(compilation)
           .hadErrorContaining(
-              "declare 'address' on the PATCH wire as its own property, which patches the"
-                  + " component whole");
+              "Replace [street, city] on 'CustomerFlatPatch' with one 'address' property, a getter"
+                  + " and a setter over Types.Address, which patches the component whole");
     }
 
     @Test
@@ -1580,7 +1587,48 @@ class MappingProcessorFlattenTest {
       assertThat(compilation)
           .hadErrorContaining(
               "@Flatten on 'address' has no meaning on a sparse UpdateSpec (not supported yet)");
-      assertThat(compilation).hadErrorContaining("Map the pair with a full MappingSpec");
+      assertThat(compilation)
+          .hadErrorContaining("map the pair with a full MappingSpec against a record wire");
+    }
+
+    @Test
+    @DisplayName("a local marker naming no record component is not offered the mix-in placement")
+    void localMarkerNamingNoComponentIsNotOfferedTheMixin() {
+      JavaFileObject patch =
+          JavaFileObjects.forSourceString(
+              "com.example.TypoPatch",
+              """
+              package com.example;
+
+              public class TypoPatch {
+                private String name;
+
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              """);
+      // An unmatched marker is inert on every tier, so offering the mix-in placement here would
+      // bury the typo rather than fix it. The fix line names the missing component instead.
+      Compilation compilation =
+          compile(
+              TYPES,
+              patch,
+              spec(
+                  "TypoPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface TypoPatchMapping
+                      extends UpdateSpec<Types.Customer, TypoPatch> {
+                    @Flatten
+                    Types.Address adress();
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Remove the @Flatten method: 'Customer' has no record component named 'adress' for"
+                  + " it to spread.");
+      assertThat(compilation).hadErrorContaining("@Flatten on 'adress' has no meaning");
     }
 
     @Test
@@ -1615,9 +1663,8 @@ class MappingProcessorFlattenTest {
                   """));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.ContactPatchMappingImpl"))
-          .contains(
-              "Types.Contact::phone, (d, v) -> new Types.Contact(v, d.email())),"
-                  + " wire.getPhone())")
+          .contains("Setter.fromGetSet(Types.Contact::phone")
+          .contains("wire.getPhone()")
           // The marker is stubbed like any other, so the Impl still implements the member.
           .contains("public Types.Address address()");
     }
@@ -1663,7 +1710,53 @@ class MappingProcessorFlattenTest {
                   """));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.LabelPatchMappingImpl"))
-          .contains("Label::address, (d, v) -> new Label(v)), wire.getAddress())");
+          .contains("Setter.fromGetSet(Label::address")
+          .contains("wire.getAddress()");
+    }
+
+    @Test
+    @DisplayName("an inner name another source already fills is not evidence of a spread")
+    void innerNameFilledByARenameIsNotASpread() {
+      JavaFileObject patch =
+          JavaFileObjects.forSourceString(
+              "com.example.RenamedPatch",
+              """
+              package com.example;
+
+              public class RenamedPatch {
+                private String street;
+                private Types.Address address;
+
+                public String getStreet() { return street; }
+                public void setStreet(String street) { this.street = street; }
+                public Types.Address getAddress() { return address; }
+                public void setAddress(Types.Address address) { this.address = address; }
+              }
+              """);
+      // 'street' is where Customer.name is written, not where the group would spread: the same
+      // spec without the mix-in maps it exactly so, and inheriting a vocabulary must not change
+      // that. The group's own component is on the wire beside it, patched whole.
+      Compilation compilation =
+          compile(
+              TYPES,
+              VOCABULARY,
+              patch,
+              spec(
+                  "RenamedPatchMapping",
+                  """
+                  @GenerateMapping
+                  public interface RenamedPatchMapping
+                      extends CustomerVocabulary, UpdateSpec<Types.Customer, RenamedPatch> {
+                    @MapField(to = "street")
+                    String name();
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.RenamedPatchMappingImpl"))
+          .contains("Setter.fromGetSet(Types.Customer::name")
+          .contains("wire.getStreet()")
+          .contains("Setter.fromGetSet(Types.Customer::address")
+          .contains("wire.getAddress()");
     }
 
     @Test
@@ -1726,9 +1819,10 @@ class MappingProcessorFlattenTest {
                   """));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.PersonPatchMappingImpl"))
-          .contains("Roster.Person::id, (d, v) -> new Roster.Person(v, d.name())), wire.getId())")
-          .contains(
-              "Roster.Person::name, (d, v) -> new Roster.Person(d.id(), v)), wire.getName())");
+          .contains("Setter.fromGetSet(Roster.Person::id")
+          .contains("wire.getId()")
+          .contains("Setter.fromGetSet(Roster.Person::name")
+          .contains("wire.getName()");
     }
   }
 }

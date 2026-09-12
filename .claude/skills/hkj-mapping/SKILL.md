@@ -321,9 +321,10 @@ one is an error. A leaf, bridge, `@MapKey` key leaf or `@Flatten` marker binds a
 extending spec's **domain** (the key leaf by the name in its annotation, the rest by the method
 name); a derived field binds against its **wire**; a rename binds on both, and is inert when either
 end is missing, so a projection, a PATCH bean covering a subset, or a sealed dispatch with no
-components at all extends the same vocabulary. Only a `@Flatten` marker is refused rather than
-inert where it cannot bind: on a sealed pair, and on an `UpdateSpec` whose PATCH bean carries the
-group's inner properties (a bean that does not spread the group leaves it inert). Interface statics are not
+components at all extends the same vocabulary. Only a `@Flatten` marker is refused rather than left
+inert: on a sealed pair, where it cannot bind at all, and on an `UpdateSpec` whose PATCH bean
+carries inner properties of the group that nothing else fills, where it binds but the sparse tier
+has no edit for the spread. Interface statics are not
 inherited.
 Rejected with diagnostics naming the offender: a mix-in that is itself a mapping spec (directly
 or transitively extends `MappingSpec`/`UpdateSpec`), and a generic mix-in reached raw (a generic
@@ -473,7 +474,8 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   does not carry is never consulted here, so one mix-in serves a full spec and its PATCH sibling
   even when the bean covers a subset. A derived field the `UpdateSpec` declares itself is refused
   (there is no `build` for it to feed), as is a `@Flatten` marker it declares itself; an inherited
-  `@Flatten` marker is refused only when this bean carries the group's inner properties.
+  `@Flatten` marker is refused only when this bean carries inner properties of the group that
+  nothing else fills.
 - A present **container** (a pair declared as exactly `List`/`Set`/reference array/`Optional`/
   `Map`) parses through the element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
   serves a full spec and its PATCH sibling. Replacement is wholesale; each failing element is
