@@ -1167,6 +1167,12 @@ class MappingProcessorUpdateTest {
       assertThat(compilation).hadErrorContaining("whole-container leaf");
     }
 
+    /**
+     * The sparse half of the shared typability rule. A raw container gives the scan up in every
+     * tier; a wildcard one gives it up only here, where {@code setIfPresent}'s method reference
+     * must produce the component's exact type. {@code MappingTierMatrixTest} pins the dense half,
+     * which keeps the scan for a wildcard.
+     */
     @Test
     @DisplayName(
         "raw and wildcard identity containers stay plain identity writes: the scan helper cannot"

@@ -384,7 +384,10 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   the caller's `NullPointerException`: a null *wire* itself, and a null map *key* (a structurally
   broken map, not a wrong value). A null container *component* is guarded like any reference read
   (`emails: must not be null`); only calling `parseAll`/`parseValues` directly with a null
-  list/map is the caller's error. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
+  list/map is the caller's error. A **raw** `List`/`Set`/`Map` component keeps the component
+  guard but gives up the element scan (the emitted helper is generic, and a raw argument erases
+  it) - declare the type arguments to get the scan back; an array names its element type in the
+  type itself and keeps the scan. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
   parse-iso coherence scoped to non-null wires); a bean's guarded reads still cost the Iso tier,
   because an unset bean property is a representable state. The same guard covers every
   reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return
@@ -406,7 +409,8 @@ rejected outright: the projection's `asLens()` write-back could never honour a c
   filled with `getItems().addAll(...)`. `build` fills through setters or the builder, `parse` reads
   through getters under the same null guard as a record wire, and a domain `Optional<T>` bridges to
   a nullable bean property `T` with no declaration (a record wire opts in per component with
-  `@OptionalBridge`); see `reference/mapping-example.md`. A bean projection with a reference
+  `@OptionalBridge`), except onto a getter-only `List`, which has no unset state to carry absence;
+  see `reference/mapping-example.md`. A bean projection with a reference
   property takes the validated `patch` (the property can be unset); an all-primitive one keeps
   `asLens()`.
 - **No component ceiling** on `parse`, the validated `patch`, or `@GenerateMerge`'s fallible
@@ -625,6 +629,7 @@ before rearranging the spec.
 | A PATCH request bean on `MappingSpec` | A bean smaller than the domain compiles as a projection whose `patch` is dense: an unset property is `must not be null`, and an unset bridged `Optional` clears the value. For null-means-keep, extend `UpdateSpec` |
 | Expecting `@GenerateMerge` to give you a reverse split | Merging is forward-only by design |
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
+| Bridging a domain `Optional<List<T>>` onto a JAXB getter-only `List` | The getter creates the list on first call, so absence has nowhere to live and would read back as a present empty list. Declare the component `List<T>`, where empty *is* nothing, or give the property both a setter and a getter that returns `null` until one is called (a lazily creating getter loses absence on the read even with a setter) |
 | Two nested specs generating the same `Impl` | Nested specs join their enclosing simple names; rename one |
 | Assuming sealed hierarchies are unsupported | They are supported. Give each permitted subtype pair a spec; the parent dispatches |
 | `@GenerateAssembly` on a **generic** record | Not supported. Use the hand-written `fields()` ladder |

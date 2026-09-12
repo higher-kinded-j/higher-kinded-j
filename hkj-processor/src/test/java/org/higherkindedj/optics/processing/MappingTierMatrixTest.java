@@ -12,9 +12,11 @@ import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Constructor;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -47,6 +49,14 @@ import org.junit.jupiter.params.provider.MethodSource;
  * then exercised at runtime: every write-back round-trips a domain value, and an unset reference
  * component either locates as {@code must not be null} or, when bridged from an {@code Optional},
  * reads as empty, on every shape alike.
+ *
+ * <p>The raw and wildcard identity containers are here for the second rule the dense tiers carry:
+ * an identity {@code List}, {@code Set} or {@code Map} adds the element null scan only where the
+ * emitted generic helper can type. A raw container erases the call, so it gives the scan up in
+ * every tier and takes the plain guarded leg; a wildcard argument is only a problem where the
+ * scan's result type is pinned rather than inferred, which is the sparse tier and the bridged leg,
+ * so the dense tiers keep the scan for it. {@code MappingProcessorUpdateTest} pins the sparse half
+ * of the same rule.
  */
 @DisplayName("MappingProcessor - tier selection across correspondence kinds and wire shapes")
 class MappingTierMatrixTest {
@@ -93,7 +103,21 @@ class MappingTierMatrixTest {
     String qualified(String simpleName) {
       return ROOT + "." + pkg + "." + simpleName;
     }
+
+    /**
+     * The suppression the case's own sources need. A raw container warns wherever it is declared,
+     * and the holder owns those declarations; the generated Impls are separate compilation units,
+     * so they stay held to {@code -Xlint:rawtypes -Werror} on their own.
+     */
+    String suppression() {
+      return Stream.of(domainType, wireType).anyMatch(RAW_CONTAINERS::contains)
+          ? "@SuppressWarnings(\"rawtypes\")\n"
+          : "";
+    }
   }
+
+  /** The container types a case may declare raw, which its own sources must then suppress. */
+  private static final List<String> RAW_CONTAINERS = List.of("List", "Set", "Map");
 
   private static final String TAG_LEAF =
       """
@@ -180,6 +204,49 @@ class MappingTierMatrixTest {
             false,
             false,
             (_, seed) -> List.of(seed)),
+        // A raw container gives up the element scan the generic helper cannot type, and takes the
+        // plain guarded leg instead - the rule the sparse tier states too (see
+        // MappingProcessorUpdateTest). It stays an identity copy, so it selects the same tier the
+        // parameterised List does, and its null reference still locates.
+        new Case(
+            "raw identity List",
+            "rawlist",
+            "List",
+            "List",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> List.of(seed)),
+        new Case(
+            "raw identity Set",
+            "rawset",
+            "Set",
+            "Set",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> Set.of(seed)),
+        new Case(
+            "raw identity Map",
+            "rawmap",
+            "Map",
+            "Map",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> Map.of(seed, 1)),
         new Case(
             "converting leaf",
             "leaf",
@@ -341,6 +408,7 @@ class MappingTierMatrixTest {
         import java.util.List;
         import java.util.Map;
         import java.util.Optional;
+        import java.util.Set;
         import org.higherkindedj.hkt.validated.FieldError;
         import org.higherkindedj.hkt.validated.Validated;
         import org.higherkindedj.optics.annotations.GenerateMapping;
@@ -348,7 +416,7 @@ class MappingTierMatrixTest {
         import org.higherkindedj.optics.annotations.OptionalBridge;
         import org.higherkindedj.optics.validated.ValidatedPrism;
 
-        public final class M {
+        %8$spublic final class M {
           public record Tag(String value) {}
         %2$s
           public record D(int id, %3$s x) {}
@@ -390,13 +458,68 @@ class MappingTierMatrixTest {
                 c.wireType(),
                 beanProperties,
                 c.recordVocabulary(),
-                c.beanVocabulary()));
+                c.beanVocabulary(),
+                c.suppression()));
   }
 
   @Test
   @DisplayName("every generated Impl in the matrix compiles without a warning")
   void matrixCompilesWithoutWarnings() {
     assertThat(compilation).succeededWithoutWarnings();
+  }
+
+  @Test
+  @DisplayName(
+      "the identity null scan follows what the emitted helper can type: a raw container takes the"
+          + " plain guarded leg, a wildcard-argument one keeps the scan")
+  void identityScanFollowsTypability() {
+    // Only these three specs read: the record projection is total on all three cases, so it
+    // copies by lens and parses nothing.
+    for (String spec : List.of("RecordFullMapping", "BeanFullMapping", "BeanProjectionMapping")) {
+      Assertions.assertThat(generatedImpl(caseNamed("raw identity List"), spec))
+          .as("raw List, %s", spec)
+          .contains("hkj$ifPresent(")
+          .doesNotContain("hkj$allPresent");
+      Assertions.assertThat(generatedImpl(caseNamed("raw identity Set"), spec))
+          .as("raw Set, %s", spec)
+          .contains("hkj$ifPresent(")
+          .doesNotContain("hkj$allPresent");
+      Assertions.assertThat(generatedImpl(caseNamed("raw identity Map"), spec))
+          .as("raw Map, %s", spec)
+          .contains("hkj$ifPresent(")
+          .doesNotContain("hkj$valuesPresent");
+      Assertions.assertThat(
+              generatedImpl(caseNamed("identity List with a wildcard argument"), spec))
+          .as("wildcard List, %s", spec)
+          .contains("hkj$allPresent(");
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "what the raw container gives up is only the element scan: a null element parses valid, and"
+          + " the list is still copied by reference")
+  void aRawContainerCopiesByReferenceWithoutScanning() throws ReflectiveOperationException {
+    Case c = caseNamed("raw identity List");
+    List<String> withNull = Arrays.asList("a", null);
+    Object impl = impl(c, "RecordFullMapping");
+    Validated<NonEmptyList<FieldError>, Object> parsed =
+        parse(impl, recordWire(c, "RecordFull", 7, withNull));
+    assertThatValidated(parsed).isValid().hasValue(domain(c, withNull));
+    Assertions.assertThat(component(parsed.get(), "x"))
+        .as("identity legs copy, they do not rebuild")
+        .isSameAs(withNull);
+  }
+
+  private static Object component(Object record, String name) throws ReflectiveOperationException {
+    return record.getClass().getMethod(name).invoke(record);
+  }
+
+  private static Case caseNamed(String name) {
+    return cases()
+        .filter(c -> c.name().equals(name))
+        .findFirst()
+        .orElseThrow(() -> new AssertionError("no case named: " + name));
   }
 
   @ParameterizedTest(name = "{0}")

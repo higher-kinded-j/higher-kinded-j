@@ -86,16 +86,18 @@ import java.lang.annotation.Target;
  *       and unify structurally.
  *   <li>Every reference-typed {@code parse} read is null-guarded into a located {@code FieldError}
  *       (inside containers too: a null element or map value locates by index or key, identity
- *       copies included), on both wire shapes: an unset bean property is null, and a JSON binder
- *       leaves a missing record component null just the same. A bean's guarded reads make {@code
- *       asIso()} truthful only for an all-primitive bean; a lossless record mapping keeps {@code
- *       asIso()}, its guards covering hostile bindings only.
+ *       copies included, except that a raw {@code List}, {@code Set} or {@code Map} keeps only its
+ *       own guard), on both wire shapes: an unset bean property is null, and a JSON binder leaves a
+ *       missing record component null just the same. A bean's guarded reads make {@code asIso()}
+ *       truthful only for an all-primitive bean; a lossless record mapping keeps {@code asIso()},
+ *       its guards covering hostile bindings only.
  *   <li>The wire may be a bean-shaped class instead of a record: a mutable class with a no-args
  *       constructor and getters/setters, or an immutable one with a builder. {@code build} fills it
  *       through setters or a builder and {@code parse} reads it through getters. A domain {@code
  *       Optional<T>} bridges to a nullable bean property {@code T} (empty maps to absent), with no
- *       declaration; on a record wire the same bridge is opted into per component with {@link
- *       OptionalBridge}. The domain stays a record.
+ *       declaration, unless that property is written through its own getter, which leaves it
+ *       nothing to write absence into; on a record wire the same bridge is opted into per component
+ *       with {@link OptionalBridge}. The domain stays a record.
  *   <li>A lossless mapping additionally gets {@code asIso()}; a wire with fewer components maps as
  *       a projection with {@code asLens()} and no {@code parse} (truthful types); a projection
  *       carrying a fallible leaf, or a bean projection with a reference property (which can read

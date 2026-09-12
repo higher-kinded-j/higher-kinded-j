@@ -69,6 +69,17 @@ class MergeProcessorTest {
     return javac().withProcessors(new MergeProcessor()).compile(sources);
   }
 
+  /**
+   * Compiles under the lints a user's own build may run with, so a generated fill that is merely
+   * unchecked - not a hard error - is still caught.
+   */
+  private Compilation compileLinted(JavaFileObject... sources) {
+    return javac()
+        .withProcessors(new MergeProcessor())
+        .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+        .compile(sources);
+  }
+
   private static String generatedSource(Compilation compilation, String qualifiedName) {
     Optional<JavaFileObject> file =
         compilation.generatedFile(
@@ -1449,6 +1460,75 @@ class MergeProcessorTest {
           .containsExactly(
               new FieldError(List.of("tags"), "must not contain a null element"),
               new FieldError(List.of("codes", "1"), "must not be null"));
+    }
+
+    @Test
+    @DisplayName(
+        "a raw identity container fill gives up the element scan and stays a guarded read: the"
+            + " generic helper cannot type a raw argument")
+    void rawIdentityContainerFillsStayGuardedReads() throws Exception {
+      JavaFileObject records =
+          JavaFileObjects.forSourceString(
+              "com.example.RawBags",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+              import java.util.Set;
+
+              @SuppressWarnings("rawtypes")
+              public final class RawBags {
+                public record Source(List tags, Set codes, Map scores) {}
+
+                public record Extra(String note) {}
+
+                public record Target(List tags, Set codes, Map scores, String note) {}
+              }
+              """);
+      JavaFileObject spec =
+          spec(
+              "RawBagAssembly",
+              """
+              public interface RawBagAssembly {
+                Validated<NonEmptyList<FieldError>, RawBags.Target> assemble(
+                    RawBags.Source source, RawBags.Extra extra);
+
+                default ValidatedPrism<String, String> note() {
+                  return ValidatedPrism.of(Validated::validNel, s -> s);
+                }
+              }
+              """);
+      Compilation compilation = compileLinted(records, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.RawBagAssemblyImpl"))
+          .contains(".field(\"tags\", hkj$ifPresent(source.tags(), Validated::validNel))")
+          .contains(".field(\"codes\", hkj$ifPresent(source.codes(), Validated::validNel))")
+          .contains(".field(\"scores\", hkj$ifPresent(source.scores(), Validated::validNel))")
+          .doesNotContain("hkj$allPresent")
+          .doesNotContain("hkj$valuesPresent");
+
+      // The component guard survives the lost element scan: a null container still locates.
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.RawBagAssemblyImpl");
+      Object source =
+          result
+              .loadClass("com.example.RawBags$Source")
+              .getDeclaredConstructor(List.class, java.util.Set.class, java.util.Map.class)
+              .newInstance(null, null, null);
+      Object extra =
+          result
+              .loadClass("com.example.RawBags$Extra")
+              .getDeclaredConstructor(String.class)
+              .newInstance("n");
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> merged =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "assemble", source, extra);
+      Assertions.assertThat(merged.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("tags"), "must not be null"),
+              new FieldError(List.of("codes"), "must not be null"),
+              new FieldError(List.of("scores"), "must not be null"));
     }
 
     private static final JavaFileObject TYPED_ASSEMBLY =

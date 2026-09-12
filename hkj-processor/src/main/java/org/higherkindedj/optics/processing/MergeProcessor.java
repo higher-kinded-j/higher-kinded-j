@@ -366,19 +366,27 @@ public class MergeProcessor extends AbstractProcessor {
     MAP
   }
 
+  /**
+   * A raw container gives up the scan, the rule {@link MappingProcessor#scanTypable} states for the
+   * mapping tiers: the helper is generic, and a raw argument erases the call and its result, so a
+   * scanning fill would leave the {@code fields()} ladder untypable. It falls back to the plain
+   * guarded read, giving up only the element scan. A wildcard argument keeps the scan here, as it
+   * does on the dense mapping tiers, because the ladder infers the leg's result type; an array
+   * names its element type in the type itself, so neither rule touches it.
+   */
   private static ContainerKind containerKind(TypeMirror type) {
     if (MappingProcessor.isExactly(type, "java.util.List")) {
-      return ContainerKind.LIST;
+      return MappingProcessor.scanTypable(type) ? ContainerKind.LIST : ContainerKind.NONE;
     }
     if (MappingProcessor.isExactly(type, "java.util.Set")) {
-      return ContainerKind.SET;
+      return MappingProcessor.scanTypable(type) ? ContainerKind.SET : ContainerKind.NONE;
     }
     // A primitive array has no element that could be null, so it needs no scan.
     if (type instanceof ArrayType array && !array.getComponentType().getKind().isPrimitive()) {
       return ContainerKind.ARRAY;
     }
     if (MappingProcessor.isExactly(type, "java.util.Map")) {
-      return ContainerKind.MAP;
+      return MappingProcessor.scanTypable(type) ? ContainerKind.MAP : ContainerKind.NONE;
     }
     return ContainerKind.NONE;
   }

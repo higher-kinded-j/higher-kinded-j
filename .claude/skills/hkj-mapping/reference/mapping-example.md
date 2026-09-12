@@ -190,7 +190,10 @@ immutable bean with a static `builder()`/`newBuilder()` (Lombok, Immutables, Aut
 where `build` goes through the builder; and the JAXB convention, where a getter-only `List` (its
 getter returns a live mutable list, no setter) is filled with `getItems().addAll(...)`. A domain
 `Optional<T>` bridges to a nullable bean property `T` (empty maps to absent), with no declaration;
-a record wire opts into the same bridge per component with `@OptionalBridge`.
+a record wire opts into the same bridge per component with `@OptionalBridge`. The bridge is refused
+onto a getter-only `List`: that getter creates the list on first call, so it has no unset state, and
+an empty `Optional` would read back as a present empty list. Declare the component `List<T>` there,
+where the empty list is the natural encoding of nothing, or give the property both a setter and a getter that returns `null` until one is called - a lazily creating getter loses absence on the read even when a setter exists.
 
 ## Prove the Round-Trip
 

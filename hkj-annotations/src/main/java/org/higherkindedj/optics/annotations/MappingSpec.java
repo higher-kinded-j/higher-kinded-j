@@ -26,9 +26,10 @@ package org.higherkindedj.optics.annotations;
  * getters and written through setters or a builder; every reference-typed read is null-guarded, so
  * an unset property parses to a located {@code FieldError} rather than throwing. A component whose
  * {@code null} means <em>absent</em> rather than <em>broken</em> says so with {@link
- * OptionalBridge}; a bean wire needs no such declaration, because it bridges every {@code Optional}
- * component automatically. The domain type {@code D} stays a record (or a sealed interface of
- * records), since {@code parse} assembles it through its canonical constructor.
+ * OptionalBridge}; a bean wire needs no such declaration, because it bridges an {@code Optional}
+ * component automatically wherever the property can be left unset. The domain type {@code D} stays
+ * a record (or a sealed interface of records), since {@code parse} assembles it through its
+ * canonical constructor.
  *
  * @param <D> the domain type (a record or a sealed interface of records)
  * @param <W> the wire type (a record or a bean-shaped class)
