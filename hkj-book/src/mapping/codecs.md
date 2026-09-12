@@ -122,6 +122,8 @@ Conflicting inherited `default` methods are already a javac error before the pro
 
 Mix-ins compose with the rest of the feature: [threaded generic specs](generics.md) can extend mix-ins, generic ones included, at their own type parameters, and [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) mappings inherit vocabulary the same way, element leaves included, so the leaf a full spec lifts over a `List` serves its PATCH sibling unchanged. An inherited member the sparse tier cannot use is inert rather than refused: a derived field feeds a `build()` an `UpdateSpec` never emits, and an `@OptionalBridge` marker reads a `null` the sparse tier has already read as *absent*, so neither is ever consulted, and only a spec that declares one itself is told so. An inherited [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) marker is refused either way, a flattened group having no sparse edit shape yet. [`@GenerateMerge`](merge_envelopes.md) specs still declare everything directly.
 
+A vocabulary also crosses a **module boundary**. It is a plain interface rather than a spec, so the module publishing it needs only `hkj-annotations` on its compile path, not the processor, and a downstream spec extends it from the jar exactly as from a sibling source file: the annotations that give its members meaning are kept in the class file. One API module can therefore own the house vocabulary that every service module's specs extend. See [Across modules](structure.md#across-modules).
+
 ---
 
 ~~~admonish info title="Key Takeaways"

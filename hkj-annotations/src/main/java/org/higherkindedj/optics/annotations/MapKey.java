@@ -45,9 +45,15 @@ import java.lang.annotation.Target;
  *
  * <p>Without a key leaf a {@code Map} pair's key types must match exactly — keys pass through by
  * identity, and mismatched ones are a compile error that offers this annotation as the fix.
+ *
+ * <p>Retained in the class file so that a shared vocabulary interface keeps its key leaves when a
+ * dependent compilation extends it from a jar. This one matters most: a key leaf whose two key
+ * types already agree normalises rather than converts, so an annotation lost at the class-file
+ * boundary would leave the method looking like an ordinary leaf that binds to nothing, and the keys
+ * would pass through unvalidated with no diagnostic at all.
  */
 @Target(ElementType.METHOD)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface MapKey {
   /**
    * The domain {@code Map} component whose keys this leaf converts.
