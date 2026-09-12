@@ -21,9 +21,11 @@ import org.junit.jupiter.api.Test;
  * Direct unit tests for {@link NavigatorClassGenerator} internals that are unreachable through
  * compile-testing fixtures.
  *
- * <p>{@code navigableTypeElement}'s annotation fallback is dead in production because the
- * FocusProcessor pre-populates {@code navigableTypes} with every {@code @GenerateFocus} record, so
- * an empty set exercises it.
+ * <p>{@code navigableTypeElement} asks {@code navigableTypes} first and the annotation second. The
+ * FocusProcessor pre-populates the set with every {@code @GenerateFocus} record <em>in this
+ * round</em>, so an empty set is what isolates the annotation arm here. That arm is not dead: it is
+ * how a record from a dependency is recognised, which the cross-module test in {@code
+ * FocusProcessorNavigatorTest} covers.
  */
 @DisplayName("NavigatorClassGenerator internals")
 class NavigatorClassGeneratorUnitTest {

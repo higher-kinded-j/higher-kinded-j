@@ -233,6 +233,8 @@ The middle branch is the one that surprises people. `Optional`, `List`, `Set` an
 
 A target that declares type parameters of its own does not. A navigator is an inner class parameterised by the source type alone, so it has no way to name them — `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case.
 
+**Where the target is declared makes no difference.** A record annotated in a dependency is navigable exactly as a sibling source file is: the processor asks the field's type whether it carries `@GenerateFocus`, and the annotation is kept in the class file so a type read from a jar can answer. So an API module can own the records, and each consuming module's `Focus` classes chain straight into them.
+
 <!-- verify -->
 ```java
 // headquarters is a plain navigable field: navigator, so .city() chains

@@ -824,8 +824,13 @@ public class NavigatorClassGenerator {
    * <p>Navigability and the element are answered together because they are never useful apart: only
    * a declared type can be navigable, so a caller holding a navigable type already holds its
    * element.
+   *
+   * <p>Two questions, because {@code navigableTypes} covers only the records annotated in this
+   * round. A component whose type comes from a dependency is not in that set and is answered by the
+   * annotation instead, which is why {@link GenerateFocus} is retained in the class file: a record
+   * in one module stays navigable from another's {@code Focus}.
    */
-  // Package-private for tests: the annotation fallback below is unreachable in production.
+  // Package-private for tests, which exercise the annotation fallback with an empty set.
   TypeElement navigableTypeElement(TypeMirror type) {
     if (type.getKind() != TypeKind.DECLARED) {
       return null;

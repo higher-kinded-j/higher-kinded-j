@@ -6,13 +6,24 @@ import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContainsRaw;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import javax.tools.JavaFileObject;
+import javax.tools.StandardLocation;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 @DisplayName("FocusProcessor Navigator Generation Tests")
 public class FocusProcessorNavigatorTest {
@@ -1032,6 +1043,95 @@ public class FocusProcessorNavigatorTest {
           compilation,
           "org.example.people.PersonFocus",
           "import org.example.contact.AddressFocus;");
+    }
+  }
+
+  /**
+   * A record annotated in one module stays navigable from another module's {@code Focus}, because
+   * {@code @GenerateFocus} is retained in the class file. Navigability is decided by asking the
+   * component's type for the annotation, so while the annotation was discarded after compilation a
+   * dependency's record fell back to a plain {@code FocusPath}, silently.
+   */
+  @Nested
+  @DisplayName("Across a class-file boundary")
+  class AcrossAClassFileBoundary {
+
+    @TempDir Path tmp;
+
+    private final JavaFileObject address =
+        JavaFileObjects.forSourceString(
+            "com.upstream.Address",
+            """
+            package com.upstream;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Address(String street, String city) {}
+            """);
+
+    private final JavaFileObject company =
+        JavaFileObjects.forSourceString(
+            "com.downstream.Company",
+            """
+            package com.downstream;
+
+            import com.upstream.Address;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @GenerateFocus(generateNavigators = true)
+            public record Company(String name, Address headquarters) {}
+            """);
+
+    /** Lays a compilation's class files out on a directory, as a jar dependency would be. */
+    private Path classDirectory(Compilation compilation) throws IOException {
+      Path dir = tmp.resolve("upstream");
+      for (JavaFileObject file : compilation.generatedFiles()) {
+        if (file.getKind() != JavaFileObject.Kind.CLASS) {
+          continue;
+        }
+        String path = file.getName();
+        String marker = StandardLocation.CLASS_OUTPUT.getName() + "/";
+        Path target = dir.resolve(path.substring(path.indexOf(marker) + marker.length()));
+        Files.createDirectories(target.getParent());
+        try (InputStream in = file.openInputStream()) {
+          Files.copy(in, target);
+        }
+      }
+      return dir;
+    }
+
+    private Compilation downstreamAgainst(Path upstream) {
+      List<File> classpath =
+          new ArrayList<>(
+              Arrays.stream(System.getProperty("java.class.path").split(File.pathSeparator))
+                  .map(File::new)
+                  .toList());
+      classpath.add(upstream.toFile());
+      return javac().withProcessors(new FocusProcessor()).withClasspath(classpath).compile(company);
+    }
+
+    @Test
+    @DisplayName("a dependency's annotated record is navigable, as a sibling source file is")
+    void aDependencysRecordIsNavigable() throws IOException {
+      Compilation upstream = javac().withProcessors(new FocusProcessor()).compile(address);
+      assertThat(upstream).succeeded();
+
+      Compilation downstream = downstreamAgainst(classDirectory(upstream));
+      assertThat(downstream).succeeded();
+
+      final String focus = "com.downstream.CompanyFocus";
+      assertGeneratedCodeContains(
+          downstream, focus, "public static HeadquartersNavigator<Company> headquarters() {");
+      assertGeneratedCodeContains(
+          downstream, focus, "public static final class HeadquartersNavigator<S> {");
+      // The navigator's own members are read off the dependency's record, which a class file
+      // answers as readily as a source file.
+      assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> street() {");
+      assertGeneratedCodeContains(downstream, focus, "public FocusPath<S, String> city() {");
+      // The plain-FocusPath fallback is what the defect produced, so pin its absence.
+      assertGeneratedCodeDoesNotContain(
+          downstream, focus, "public static FocusPath<Company, Address> headquarters() {");
     }
   }
 }

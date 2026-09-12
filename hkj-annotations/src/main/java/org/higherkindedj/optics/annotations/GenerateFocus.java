@@ -55,11 +55,17 @@ import java.lang.annotation.Target;
  * <p>By default, the generated class is placed in the same package as the annotated record. Use the
  * {@link #targetPackage()} element to specify a different package for the generated class.
  *
+ * <p>Retained in the class file so that a record in one module stays navigable from another's
+ * {@code Focus}. Navigability is decided by asking the component's type whether it carries this
+ * annotation, and a type read from a jar can only answer if the annotation outlived the compilation
+ * that declared it; without that, a dependency's record silently mapped to a plain {@code
+ * FocusPath} instead of a navigator.
+ *
  * @see GenerateFocus#generateNavigators()
  * @see GenerateFocus#maxNavigatorDepth()
  */
 @Target(ElementType.TYPE)
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.CLASS)
 public @interface GenerateFocus {
 
   /**
