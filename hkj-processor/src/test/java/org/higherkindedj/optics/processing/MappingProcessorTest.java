@@ -3454,8 +3454,8 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("an inherited @MapField is just as meaningless on a sealed mapping")
-    void inheritedMapFieldOnSealedRejected() {
+    @DisplayName("an inherited @MapField stays inert on a sealed mapping; a local one is refused")
+    void mapFieldOnSealedIsRefusedOnlyWhenLocal() {
       JavaFileObject vocabulary =
           JavaFileObjects.forSourceString(
               "com.example.RenameVocabulary",
@@ -3469,7 +3469,7 @@ class MappingProcessorTest {
                 String number();
               }
               """);
-      JavaFileObject spec =
+      JavaFileObject inheriting =
           JavaFileObjects.forSourceString(
               "com.example.PaymentMapping",
               """
@@ -3482,7 +3482,9 @@ class MappingProcessorTest {
               public interface PaymentMapping
                   extends RenameVocabulary, MappingSpec<Payment, PaymentDto> {}
               """);
-      Compilation compilation =
+      // A dispatch has no components, so the inherited rename binds to nothing and stays inert,
+      // exactly as an inherited leaf on the same spec does; the stub is still owed.
+      Compilation inherited =
           compile(
               PAYMENT,
               CARD,
@@ -3493,9 +3495,41 @@ class MappingProcessorTest {
               CARD_MAPPING,
               BANK_MAPPING,
               vocabulary,
-              spec);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("@MapField has no meaning on a sealed mapping");
+              inheriting);
+      assertThat(inherited).succeeded();
+      Assertions.assertThat(generatedSource(inherited, "com.example.PaymentMappingImpl"))
+          .contains("public String number()");
+
+      JavaFileObject local =
+          JavaFileObjects.forSourceString(
+              "com.example.PaymentMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {
+                @MapField(to = "anything")
+                String number();
+              }
+              """);
+      Compilation localCompilation =
+          compile(
+              PAYMENT,
+              CARD,
+              BANK,
+              PAYMENT_DTO,
+              CARD_DTO,
+              BANK_DTO,
+              CARD_MAPPING,
+              BANK_MAPPING,
+              local);
+      assertThat(localCompilation).failed();
+      assertThat(localCompilation)
+          .hadErrorContaining("@MapField has no meaning on a sealed mapping");
     }
 
     @Test
@@ -11186,6 +11220,204 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("a spec inheriting an inert derived field is still nestable")
+    void inertDerivedFieldLeavesTheSpecNestable() {
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.DisplayVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.Getter;
+
+              public interface DisplayVocabulary {
+                default Getter<Account, String> display() {
+                  return Getter.of(a -> a.name() + " <" + a.email().value() + ">");
+                }
+              }
+              """);
+      JavaFileObject innerDto =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountPlainDto",
+              """
+              package com.example;
+
+              public record AccountPlainDto(String name, EmailAddress email) {}
+              """);
+      JavaFileObject inner =
+          JavaFileObjects.forSourceString(
+              "com.example.AccountPlainMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface AccountPlainMapping
+                  extends DisplayVocabulary, MappingSpec<Account, AccountPlainDto> {}
+              """);
+      JavaFileObject outerTypes =
+          JavaFileObjects.forSourceString(
+              "com.example.Holder",
+              """
+              package com.example;
+
+              public final class Holder {
+                public record Owner(Account account) {}
+
+                public record OwnerDto(AccountPlainDto account) {}
+              }
+              """);
+      JavaFileObject outer =
+          JavaFileObjects.forSourceString(
+              "com.example.OwnerMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface OwnerMapping
+                  extends MappingSpec<Holder.Owner, Holder.OwnerDto> {}
+              """);
+      // The inert derived field fills no wire component, so it must not count against the wire in
+      // the registry's parse arithmetic; counting it would register this full mapping as a
+      // projection and refuse to nest it.
+      Compilation compilation =
+          compile(EMAIL, ACCOUNT, vocabulary, innerDto, inner, outerTypes, outer);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.OwnerMappingImpl"))
+          .contains("AccountPlainMappingImpl.INSTANCE.asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("an inherited rename is inert on a sealed dispatch, as an inherited leaf is")
+    void inheritedRenameOnSealedStaysInert() {
+      JavaFileObject types =
+          JavaFileObjects.forSourceString(
+              "com.example.Shapes",
+              """
+              package com.example;
+
+              public final class Shapes {
+                public sealed interface Shape permits Circle {}
+
+                public record Circle(double size) implements Shape {}
+
+                public sealed interface ShapeDto permits CircleDto {}
+
+                public record CircleDto(double radius) implements ShapeDto {}
+              }
+              """);
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.ShapeVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+
+              public interface ShapeVocabulary {
+                @MapField(to = "radius")
+                double size();
+              }
+              """);
+      JavaFileObject circle =
+          JavaFileObjects.forSourceString(
+              "com.example.CircleMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface CircleMapping
+                  extends ShapeVocabulary, MappingSpec<Shapes.Circle, Shapes.CircleDto> {}
+              """);
+      JavaFileObject dispatch =
+          JavaFileObjects.forSourceString(
+              "com.example.ShapeMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ShapeMapping
+                  extends ShapeVocabulary, MappingSpec<Shapes.Shape, Shapes.ShapeDto> {}
+              """);
+      // A dispatch has no components, so the rename binds to nothing and stays inert; the subtype
+      // spec that shares the vocabulary is what actually uses it.
+      Compilation compilation = compile(types, vocabulary, circle, dispatch);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.CircleMappingImpl"))
+          .contains("radius");
+      // The dispatch still owes the inherited abstract marker a stub.
+      Assertions.assertThat(generatedSource(compilation, "com.example.ShapeMappingImpl"))
+          .contains("public double size()");
+    }
+
+    @Test
+    @DisplayName("an inherited derived field named after this domain's component stays inert")
+    void inheritedDerivedFieldNamedAfterThisDomainStaysInert() {
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.DisplayVocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.Getter;
+
+              public interface DisplayVocabulary {
+                default Getter<Account, String> display() {
+                  return Getter.of(a -> a.name() + " <" + a.email().value() + ">");
+                }
+              }
+              """);
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Badge",
+              """
+              package com.example;
+
+              public record Badge(String display, String code) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.BadgeDto",
+              """
+              package com.example;
+
+              public record BadgeDto(String display, String code) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.BadgeMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface BadgeMapping
+                  extends DisplayVocabulary, MappingSpec<Badge, BadgeDto> {}
+              """);
+      // 'display' is a wire-only derived field for Account and an ordinary component of Badge;
+      // reading it as a misnamed leaf is a hazard for the mix-in's author, not for this spec,
+      // which maps its own component by identity.
+      Compilation compilation = compile(EMAIL, ACCOUNT, vocabulary, domain, dto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.BadgeMappingImpl"))
+          .contains("domain.display()")
+          .doesNotContain("display().get(");
+    }
+
+    @Test
     @DisplayName("a rename the spec declares itself is still refused on both ends")
     void locallyDeclaredRenameIsStillRefused() {
       JavaFileObject offWire =
@@ -11202,7 +11434,7 @@ class MappingProcessorTest {
               public interface AccountMapping extends AccountVocabulary,
                   MappingSpec<Account, AccountDto> {
                 @MapField(to = "nope")
-                String email();
+                String name();
               }
               """);
       Compilation offWireCompilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, VOCABULARY, offWire);
