@@ -458,6 +458,9 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
 
 - **Present + valid** -> set (or parsed through its leaf), folded in. **Present + invalid** -> a
   located `FieldError`, accumulating. **Absent (null)** -> skipped.
+- One spec names **one tier**: extending both `MappingSpec` and `UpdateSpec` is rejected, since one
+  Impl carries one tier and the two emit disjoint members. A pair is two specs, each with its own
+  wire, sharing a mix-in.
 - A **primitive** wire property is rejected (it can never be absent); use a wrapper type. A domain
   `Optional<T>` bridged from a plain property is rejected too, `@OptionalBridge` declared on the
   sparse spec itself included ("set to empty" has no encoding, and `null` is already spoken for).

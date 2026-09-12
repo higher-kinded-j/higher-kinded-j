@@ -124,7 +124,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * {@code updateFrom(Wire) : Edits.Accumulated<Domain>}, folding the present (non-null) properties
  * into an {@code Update} via {@code Edits.accumulate} — no {@code build}, {@code parse}, or {@code
  * as*} tier. A primitive wire property (which can never be absent) is rejected with a diagnostic,
- * and an {@code UpdateSpec} never registers for nesting (it has no {@code parse}).
+ * and an {@code UpdateSpec} never registers for nesting (it has no {@code parse}). The two clauses
+ * are exclusive: a spec declaring both is refused at the declaration, since one Impl carries one
+ * tier and the sparse one would win.
  *
  * <p>A spec method that collides with a member the Impl emits for the classified tier is rejected
  * with a diagnostic at the spec: a colliding {@code default} would otherwise be silently overridden
@@ -249,6 +251,13 @@ public class MappingProcessor extends AbstractProcessor {
     // element prisms resolved at the use site.
     DeclaredType specSuper = findMappingSpec(spec);
     if (specSuper == null || specSuper.getTypeArguments().size() != 2) {
+      return;
+    }
+    // The registry offers the tier the Impl actually carries. A spec declaring an UpdateSpec
+    // supertype too is dispatched to the sparse tier — which emits no parse — and is refused
+    // there; registering it on the strength of its MappingSpec clause would let a parent nest
+    // a pair whose Impl was never written.
+    if (findUpdateSpec(spec) != null) {
       return;
     }
     TypeMirror domainArg = specSuper.getTypeArguments().get(0);
@@ -844,6 +853,44 @@ public class MappingProcessor extends AbstractProcessor {
     return declaredLocally(method, spec)
         ? ""
         : " (inherited from '" + method.getEnclosingElement().getSimpleName() + "')";
+  }
+
+  /**
+   * Tier gate: a spec names one tier, so it extends {@code MappingSpec} or {@code UpdateSpec}, not
+   * both. One spec generates one Impl, and the two tiers emit disjoint members — a full mapping
+   * emits {@code build}/{@code parse}/{@code as*}, a sparse update {@code updateFrom} alone — so
+   * nothing an Impl could emit satisfies both clauses.
+   *
+   * <p>Asked of the sparse arm, since that is where a spec declaring both is dispatched. The shape
+   * is refused rather than silently sparse because the {@code MappingSpec} clause is then written
+   * for nothing; {@link #register} skips such a spec in step, so a parent nesting the pair reports
+   * the missing mapping instead of generating a call to a {@code parse} the Impl never emitted.
+   *
+   * <p>Only the two direct clauses: a spec reaching either supertype through another interface is
+   * already refused by {@link #checkMixins}, which lets no mapping spec be a mix-in.
+   */
+  private boolean checkOneTier(TypeElement spec, DeclaredType updateSuper) {
+    DeclaredType mappingSuper = findMappingSpec(spec);
+    if (mappingSuper == null) {
+      return true;
+    }
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "'"
+            + spec.getSimpleName()
+            + "' extends both '"
+            + ProcessorUtils.simpleTypeName(mappingSuper)
+            + "' and '"
+            + ProcessorUtils.simpleTypeName(updateSuper)
+            + "'.",
+        "A spec generates one Impl on one tier, and the tiers emit disjoint members: a full"
+            + " MappingSpec emits build/parse/as*, a sparse UpdateSpec emits updateFrom alone. No"
+            + " Impl answers both clauses, and the sparse one would win.",
+        "Declare one spec per tier, each naming its own wire; shared renames and leaves can live on"
+            + " a mix-in both extend.");
+    return false;
   }
 
   /**
@@ -2186,10 +2233,14 @@ public class MappingProcessor extends AbstractProcessor {
     TypeElement spec = (TypeElement) element;
 
     // A spec extending UpdateSpec<Domain, Wire> opts into sparse null-as-absent PATCH: it
-    // emits updateFrom() and nothing else. It never reaches scanRegistry (which matches the direct
-    // MappingSpec supertype only), so an UpdateSpec is never nestable — it has no parse.
+    // emits updateFrom() and nothing else, and register() skips it, so an UpdateSpec is never
+    // nestable — it has no parse. A spec declaring both supertypes is refused before either tier
+    // runs: register() would otherwise have to guess which one the Impl carries.
     DeclaredType updateSuper = findUpdateSpec(spec);
     if (updateSuper != null) {
+      if (!checkOneTier(spec, updateSuper)) {
+        return;
+      }
       processUpdateSpec(spec, updateSuper, registry);
       return;
     }

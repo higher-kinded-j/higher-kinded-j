@@ -68,7 +68,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 | A **lifted** array's element type must name its own constructor, so a type variable or parameterised element (`T[]`, `List<Tag>[]`) is refused | [Nesting and containers](structure.md#nesting-containers-and-recursion) |
 | A fallible projection emits the validated `patch`, never a fake `asLens()`; projections cannot carry derived fields | [The Emission Tiers](tiers.md#leaf-carrying-projections-the-validated-patch), [Derived wire fields](basics.md#derived-wire-fields) |
 | Generic mappings come in exactly three forms and stay record-to-record | [Generic Specs](generics.md) |
-| Sparse PATCH is bean-only, wrapper-typed, and never deep-merges | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
+| Sparse PATCH is bean-only, wrapper-typed, and never deep-merges; a spec names one tier, extending `MappingSpec` or `UpdateSpec` but not both | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 | A leaf, rename or bridge marker must not declare type parameters of its own; the element types go on the spec | [Generic Specs](generics.md#element-mapped-specs) |
 | A rename's, leaf's or marker's type must be visible from the spec's package, where the Impl is generated | [Shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
 | `@OptionalBridge` binds an `Optional` domain component to a nullable, non-primitive wire component; it is redundant on a bean wire, and refused on a sealed or sparse spec that declares it, an inherited one staying inert | [Optional fields](basics.md#optional-bridge) |
