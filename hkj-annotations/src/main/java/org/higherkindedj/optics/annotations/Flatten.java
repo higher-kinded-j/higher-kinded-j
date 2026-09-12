@@ -58,6 +58,11 @@ import java.lang.annotation.Target;
  * projection (a wire with fewer components) or on a sparse {@link UpdateSpec}; a group wider than
  * one {@code fields()} ladder; a raw or wildcard-carrying record type; and a second level of
  * spreading (a record inside the group nests through its own spec instead).
+ *
+ * <p>On a sparse {@code UpdateSpec} the refusal reaches a marker the spec declares itself, and one
+ * it inherits from a shared mix-in only when the PATCH bean carries the group's inner properties. A
+ * bean that declares the group's own component instead patches it whole by identity, so the marker
+ * is inert there and one vocabulary serves a full spec and its PATCH sibling.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.CLASS)

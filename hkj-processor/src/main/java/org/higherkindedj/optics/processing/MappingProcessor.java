@@ -2447,9 +2447,6 @@ public class MappingProcessor extends AbstractProcessor {
     if (!validateSpecMethods(spec, false, domainArg, wireArg)) {
       return;
     }
-    if (!checkNoFlattened(spec)) {
-      return;
-    }
     if (!checkNoDerivedFields(spec)) {
       return;
     }
@@ -2487,6 +2484,11 @@ public class MappingProcessor extends AbstractProcessor {
     WireShape wireShape = new BeanPropertyAnalyser(processingEnv).analyse(spec, wireBean, TAG);
     if (wireShape == null
         || !checkCollectionGettersCarryAbsence(spec, (WireShape.BeanShape) wireShape)) {
+      return;
+    }
+    // Asked once the wire is known: whether an inherited @Flatten marker is inert or refused
+    // turns on the properties this PATCH bean carries.
+    if (!checkNoFlattened(spec, domain, (DeclaredType) domainArg, wireShape)) {
       return;
     }
 
@@ -3172,8 +3174,8 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The flattened domain component an inner correspondence belongs to: its name and record type.
-   * Membership is the one emission axis beside {@link Kind}; the sparse tier refuses groups ({@code
-   * checkNoFlattened}) as the Kind canary makes it choose an emission for each kind.
+   * Membership is the one emission axis beside {@link Kind}; the sparse tier never forms a group
+   * ({@code checkNoFlattened}) as the Kind canary makes it choose an emission for each kind.
    */
   private record Group(String name, TypeName type) {}
 
@@ -4022,11 +4024,39 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * A sparse update folds present wire properties into single-component edits; a flattened group
-   * has no edit shape yet, so its marker is refused on an {@code UpdateSpec}.
+   * has no edit shape yet, so an {@code UpdateSpec} never forms one. Whether its marker is refused
+   * or left inert depends on where the marker was written and on what this PATCH wire carries.
+   *
+   * <p>A <em>locally declared</em> marker is refused whatever this wire looks like: it is
+   * vocabulary written for a spec that cannot use it, exactly as a local derived field or
+   * {@code @OptionalBridge} is. An <em>inherited</em> one is judged against the wire rather than
+   * waved through, which is where this rule parts company with those two. A PATCH bean that
+   * declares the group's own component - {@code Address getAddress()} - never spreads it, so the
+   * marker is inert and the component patches whole by identity, and refusing it would report at a
+   * mix-in whose full spec needs the marker. A PATCH bean that carries the group's inner names
+   * instead is asking for the spread, and staying silent there would trade one pointed refusal for
+   * a dangling-property error per inner property, which names neither the marker nor the reason.
+   *
+   * <p>An inner name the domain also declares is not evidence of a spread: the wire property binds
+   * to the domain component of that name on its own, and the marker is still unused.
    */
-  private boolean checkNoFlattened(TypeElement spec) {
+  private boolean checkNoFlattened(
+      TypeElement spec, TypeElement domain, DeclaredType domainDeclared, WireShape wire) {
+    Set<String> domainNames =
+        domain.getRecordComponents().stream()
+            .map(c -> c.getSimpleName().toString())
+            .collect(Collectors.toSet());
     for (ExecutableElement method : specMembers(spec)) {
       if (!isFlattenMarker(method)) {
+        continue;
+      }
+      boolean local = declaredLocally(method, spec);
+      List<String> spread =
+          flattenedInner(domain, domainDeclared, method).stream()
+              .filter(inner -> !domainNames.contains(inner))
+              .filter(inner -> wire.componentNamed(inner).isPresent())
+              .toList();
+      if (!local && spread.isEmpty()) {
         continue;
       }
       Diagnostics.error(
@@ -4040,11 +4070,42 @@ public class MappingProcessor extends AbstractProcessor {
               + " has no meaning on a sparse UpdateSpec (not supported yet).",
           "A sparse update folds each present wire property into an edit of one domain component;"
               + " a flattened group would have to fold several properties into one nested"
-              + " record, which no edit expresses yet.",
-          "Remove the @Flatten method, or map the pair with a full MappingSpec.");
+              + " record, which no edit expresses yet."
+              + (spread.isEmpty()
+                  ? ""
+                  : " '"
+                      + wire.element().getSimpleName()
+                      + "' carries "
+                      + spread
+                      + ", so the group is spread here rather than merely unused."),
+          spread.isEmpty()
+              ? "Remove the @Flatten method, or move it to a mix-in a full MappingSpec also"
+                  + " extends: an inherited marker this PATCH wire does not spread is inert."
+              : "Map the pair with a full MappingSpec, or declare '"
+                  + method.getSimpleName()
+                  + "' on the PATCH wire as its own property, which patches the component whole.");
       return false;
     }
     return true;
+  }
+
+  /**
+   * The component names a {@code @Flatten} marker would spread here, or empty when it names no
+   * record component of this domain - a marker speaking about a component only its sibling specs
+   * declare, or one whose component is not a record. Either way there is nothing for this wire to
+   * spread; {@link #collectFlattened} judges the same two shapes on the tiers that flatten, where a
+   * group really is formed.
+   */
+  private List<String> flattenedInner(
+      TypeElement domain, DeclaredType domainDeclared, ExecutableElement marker) {
+    RecordComponentElement component = componentNamed(domain, marker.getSimpleName().toString());
+    if (component == null) {
+      return List.of();
+    }
+    TypeElement record = asRecord(componentType(domainDeclared, component));
+    return record == null
+        ? List.of()
+        : record.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
   }
 
   /** A derived wire field: a spec default method named after a wire-only component. */
