@@ -59,6 +59,12 @@ package org.higherkindedj.optics.annotations;
  * call, so the property never reads {@code null} and cannot express <em>not provided</em>. Give it
  * a setter, which an omitted field leaves {@code null}.
  *
+ * <p>A spec names one tier: an interface extending {@code UpdateSpec} must not also extend {@link
+ * MappingSpec}, and declaring both is rejected with a diagnostic. One interface generates one Impl,
+ * and the two tiers emit disjoint members, so nothing an Impl could carry answers both clauses. A
+ * domain needing both is a pair of specs, which may share their renames and leaves through a plain
+ * mix-in interface both extend.
+ *
  * @param <D> the domain type (a record)
  * @param <W> the wire type (a bean-shaped PATCH DTO)
  * @see MappingSpec

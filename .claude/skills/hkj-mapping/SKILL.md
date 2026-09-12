@@ -459,8 +459,8 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
 - **Present + valid** -> set (or parsed through its leaf), folded in. **Present + invalid** -> a
   located `FieldError`, accumulating. **Absent (null)** -> skipped.
 - One spec names **one tier**: extending both `MappingSpec` and `UpdateSpec` is rejected, since one
-  Impl carries one tier and the two emit disjoint members. A pair is two specs, each with its own
-  wire, sharing a mix-in.
+  Impl carries one tier and the two emit disjoint members. A pair of tiers is a pair of specs
+  sharing a mix-in.
 - A **primitive** wire property is rejected (it can never be absent); use a wrapper type. A domain
   `Optional<T>` bridged from a plain property is rejected too, `@OptionalBridge` declared on the
   sparse spec itself included ("set to empty" has no encoding, and `null` is already spoken for).
@@ -647,6 +647,7 @@ before rearranging the spec.
 | Annotating the *record* with `@GenerateMapping` | It goes on the **spec interface**. That is what lets you map records you do not own |
 | Expecting `parse` from a lossy projection | A projection drops data, so it cannot be inverted. You get `asLens()` (all-identity) or the validated `patch` (leaf-carrying, or a bean with a reference property), not `parse` |
 | A PATCH request bean on `MappingSpec` | A bean smaller than the domain compiles as a projection whose `patch` is dense: an unset property is `must not be null`, and an unset bridged `Optional` clears the value. For null-means-keep, extend `UpdateSpec` |
+| One spec extending both `MappingSpec` and `UpdateSpec` | Refused. One Impl carries one tier and the two emit disjoint members. Declare a spec per tier and share renames and leaves through a plain mix-in both extend |
 | Expecting `@GenerateMerge` to give you a reverse split | Merging is forward-only by design |
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
 | A JAXB getter-only `List` on an `UpdateSpec` | Its getter creates the list on first call, so it never reads `null`: an omitted field would clear the domain list rather than leave it alone. Rejected; give the property a setter |

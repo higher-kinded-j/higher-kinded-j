@@ -31,7 +31,13 @@ package org.higherkindedj.optics.annotations;
  * a record (or a sealed interface of records), since {@code parse} assembles it through its
  * canonical constructor.
  *
+ * <p>A spec names one tier: an interface extending {@code MappingSpec} must not also extend {@link
+ * UpdateSpec}, whose sparse null-as-absent tier emits {@code updateFrom} alone, and declaring both
+ * is rejected with a diagnostic. A domain needing both is a pair of specs, which may share their
+ * renames and leaves through a plain mix-in interface both extend.
+ *
  * @param <D> the domain type (a record or a sealed interface of records)
  * @param <W> the wire type (a record or a bean-shaped class)
+ * @see UpdateSpec
  */
 public interface MappingSpec<D, W> {}

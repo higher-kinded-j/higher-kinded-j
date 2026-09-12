@@ -1915,6 +1915,53 @@ class MappingProcessorUpdateTest {
             public interface TaggedPatch extends UpdateSpec<Tagged, TaggedPatchDto> {}
             """);
 
+    private static final JavaFileObject ROLE =
+        JavaFileObjects.forSourceString(
+            "com.example.Role",
+            """
+            package com.example;
+
+            public record Role(String name) {}
+            """);
+
+    private static final JavaFileObject ROLE_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.RoleDto",
+            """
+            package com.example;
+
+            public record RoleDto(String name) {}
+            """);
+
+    private static final JavaFileObject ROLE_PATCH_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.RolePatchDto",
+            """
+            package com.example;
+
+            public class RolePatchDto {
+              private String name;
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+            }
+            """);
+
+    /** Both clauses at once: a full mapping to the record wire, a sparse patch to the bean. */
+    private static final JavaFileObject BOTH_TIERS_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.RoleMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.UpdateSpec;
+
+            @GenerateMapping
+            public interface RoleMapping
+                extends MappingSpec<Role, RoleDto>, UpdateSpec<Role, RolePatchDto> {}
+            """);
+
     @Test
     @DisplayName(
         "a getter-only List on a PATCH bean is rejected: its getter creates the list, so an"
@@ -2201,53 +2248,6 @@ class MappingProcessorUpdateTest {
       assertThat(compilation).hadErrorContaining("mix-in 'BasePatch' is itself a mapping spec");
     }
 
-    private static final JavaFileObject ROLE =
-        JavaFileObjects.forSourceString(
-            "com.example.Role",
-            """
-            package com.example;
-
-            public record Role(String name) {}
-            """);
-
-    private static final JavaFileObject ROLE_DTO =
-        JavaFileObjects.forSourceString(
-            "com.example.RoleDto",
-            """
-            package com.example;
-
-            public record RoleDto(String name) {}
-            """);
-
-    private static final JavaFileObject ROLE_PATCH_DTO =
-        JavaFileObjects.forSourceString(
-            "com.example.RolePatchDto",
-            """
-            package com.example;
-
-            public class RolePatchDto {
-              private String name;
-              public String getName() { return name; }
-              public void setName(String name) { this.name = name; }
-            }
-            """);
-
-    /** Both clauses at once: a full mapping to the record wire, a sparse patch to the bean. */
-    private static final JavaFileObject BOTH_TIERS_MAPPING =
-        JavaFileObjects.forSourceString(
-            "com.example.RoleMapping",
-            """
-            package com.example;
-
-            import org.higherkindedj.optics.annotations.GenerateMapping;
-            import org.higherkindedj.optics.annotations.MappingSpec;
-            import org.higherkindedj.optics.annotations.UpdateSpec;
-
-            @GenerateMapping
-            public interface RoleMapping
-                extends MappingSpec<Role, RoleDto>, UpdateSpec<Role, RolePatchDto> {}
-            """);
-
     @Test
     @DisplayName("a spec extending both MappingSpec and UpdateSpec is rejected on its own")
     void bothTiersRejected() {
@@ -2303,10 +2303,18 @@ class MappingProcessorUpdateTest {
               accountMapping);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("'RoleMapping' extends both");
-      // The parent resolves nothing for the pair and says so at its own field, rather than
-      // generating a call to a parse the refused spec never emitted.
+      // The parent resolves nothing for the pair and says so at its own field, naming the spec
+      // that maps it and why it cannot serve, rather than generating a call to a parse the
+      // refused spec never emitted.
+      assertThat(compilation).hadErrorContaining("target field 'AccountDto.role' has no usable");
       assertThat(compilation)
-          .hadErrorContaining("target field 'AccountDto.role' has no usable" + " source");
+          .hadErrorContaining("'RoleMapping' maps this pair but extends both MappingSpec and");
+      assertThat(compilation).hadErrorCount(2);
+      // Every error is the processor's own. This pins the shape of the refusal rather than the
+      // absence of the javac errors #837 was about: once a processor reports an error javac
+      // never compiles the generated sources, so in one compilation those are unobservable.
+      // The classpath route, where no refusal fires, is what pins them - see
+      // MappingProcessorClasspathTest.
       Assertions.assertThat(compilation.diagnostics())
           .filteredOn(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
           .allSatisfy(
