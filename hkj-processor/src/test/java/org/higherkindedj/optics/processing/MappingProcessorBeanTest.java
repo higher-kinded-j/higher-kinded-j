@@ -1859,7 +1859,8 @@ class MappingProcessorBeanTest {
       Compilation compilation = compile(domain, LIVE_LIST_DTO, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("the element types differ and no leaf converts them");
+          .hadErrorContaining(
+              "the element types differ and neither a leaf nor a mapping spec converts them");
       Assertions.assertThat(compilation.errors())
           .as("the getter-only refusal must not displace the more precise diagnostic")
           .noneMatch(error -> error.getMessage(null).contains("getter-only"));

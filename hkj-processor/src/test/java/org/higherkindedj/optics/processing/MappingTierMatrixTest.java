@@ -378,7 +378,21 @@ class MappingTierMatrixTest {
             true,
             true,
             false,
-            (_, seed) -> Optional.of(List.of(seed))));
+            (_, seed) -> Optional.of(List.of(seed))),
+        // The bridged element nests through its own spec, as an unbridged Tag component would.
+        new Case(
+            "Optional bridge through a nested spec",
+            "bridgednested",
+            "Optional<Tag>",
+            "TagDto",
+            "@OptionalBridge Optional<Tag> x();\n",
+            "",
+            false,
+            false,
+            true,
+            true,
+            true,
+            (tag, seed) -> Optional.of(tag.apply(seed))));
   }
 
   private static Compilation compilation;

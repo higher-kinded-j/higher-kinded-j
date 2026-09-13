@@ -677,9 +677,10 @@ class MappingProcessorClasspathTest {
                   + " (classpath), com.upstream.CustomerMapping (classpath)]");
       assertThat(compilation)
           .hadErrorContaining(
-              "Add a leaf method 'customer()' delegating to the spec you want, or declare a"
-                  + " @GenerateMapping spec for the pair in this compilation, which takes"
-                  + " precedence over a dependency's.");
+              "customer()' delegating to the spec you want, or declare a @GenerateMapping spec"
+                  + " for the pair in this compilation, which takes precedence over a"
+                  + " dependency's.");
+      assertThat(compilation).hadErrorContaining("Add the leaf 'default ValidatedPrism<");
     }
 
     @Test
@@ -755,8 +756,9 @@ class MappingProcessorClasspathTest {
                   + " through [com.upstream.CustomerMapping (classpath)]");
       assertThat(compilation)
           .hadNoteContaining(
-              "Keep it, or delegate explicitly with a leaf 'customer()' if the classpath spec is"
-                  + " the one meant");
+              "Keep it, or delegate explicitly with the leaf 'default ValidatedPrism<");
+      assertThat(compilation)
+          .hadNoteContaining("customer()' if the classpath spec is the one meant");
     }
 
     @Test

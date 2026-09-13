@@ -634,6 +634,104 @@ class GeneratedMappingLawsTest {
   }
 
   @Test
+  @DisplayName(
+      "bridged nested spec tier: an optional nested object stays lawful absent and present alike")
+  void bridgedNestedSpecTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject contact =
+        JavaFileObjects.forSourceString(
+            "com.example.Contact",
+            """
+            package com.example;
+
+            public record Contact(String label, EmailAddress email) {}
+            """);
+    JavaFileObject contactDto =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactDto",
+            """
+            package com.example;
+
+            public record ContactDto(String label, String email) {}
+            """);
+    JavaFileObject contactMapping =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+              default ValidatedPrism<String, EmailAddress> email() {
+                return emailPrism();
+              }
+
+            """
+                + EMAIL_PRISM
+                + """
+            }
+            """);
+    JavaFileObject referral =
+        JavaFileObjects.forSourceString(
+            "com.example.Referral",
+            """
+            package com.example;
+
+            import java.util.Optional;
+
+            public record Referral(String code, Optional<Contact> contact) {}
+            """);
+    JavaFileObject referralDto =
+        JavaFileObjects.forSourceString(
+            "com.example.ReferralDto",
+            """
+            package com.example;
+
+            public record ReferralDto(String code, ContactDto contact) {}
+            """);
+    JavaFileObject referralMapping =
+        JavaFileObjects.forSourceString(
+            "com.example.ReferralMapping",
+            """
+            package com.example;
+
+            import java.util.Optional;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.OptionalBridge;
+
+            @GenerateMapping
+            public interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {
+              @OptionalBridge
+              Optional<Contact> contact();
+            }
+            """);
+
+    var result =
+        compileMapping(
+            EMAIL, contact, contactDto, contactMapping, referral, referralDto, referralMapping);
+    ValidatedPrism<Object, Object> prism =
+        asValidatedPrism(result.instance("com.example.ReferralMappingImpl"));
+    // The canonical constructor, since an absent contact is a null argument.
+    var referralWire = result.loadClass("com.example.ReferralDto").getDeclaredConstructors()[0];
+    Object invalid =
+        referralWire.newInstance(
+            "r-1", result.newInstance("com.example.ContactDto", "work", "not-an-email"));
+
+    MappingLaws.assertMappingLaws(prism, referralWire.newInstance("r-1", null), invalid);
+    MappingLaws.assertMappingLaws(
+        prism,
+        referralWire.newInstance(
+            "r-1", result.newInstance("com.example.ContactDto", "work", "ada@example.org")),
+        invalid);
+  }
+
+  @Test
   @DisplayName("container tier: List, Optional and Map lifting all stay lawful in one spec")
   void containerTierIsLawful() throws ReflectiveOperationException {
     JavaFileObject domain =

@@ -94,6 +94,17 @@ public final class RecordMappingBook {
     System.out.println(
         InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob", "nope"))));
 
+    // ANCHOR: bridge_nesting_usage
+    ReferralMappingImpl.INSTANCE.parse(new ReferralDto("R-7", null));
+    // Valid(Referral[code=R-7, referrer=Optional.empty])
+
+    ReferralMappingImpl.INSTANCE.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope")));
+    // Invalid(NonEmptyList[referrer.email: not an email address])
+    // ANCHOR_END: bridge_nesting_usage
+    System.out.println(ReferralMappingImpl.INSTANCE.parse(new ReferralDto("R-7", null)));
+    System.out.println(
+        ReferralMappingImpl.INSTANCE.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope"))));
+
     // ANCHOR: flatten_usage
     VendorDto flat =
         VendorMappingImpl.INSTANCE.build(
@@ -413,6 +424,21 @@ record InvoiceDto(String id, CustomerDto customer) {}
 interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
 
 // ANCHOR_END: nesting_spec
+
+// ANCHOR: bridge_nesting_spec
+record Referral(String code, Optional<Customer> referrer) {}
+
+// A client with no referrer leaves the object out, which the JSON binder reads as null.
+record ReferralDto(String code, CustomerDto referrer) {}
+
+@GenerateMapping
+interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {
+  // CustomerMapping maps the element pair, so the marker is all this component needs.
+  @OptionalBridge
+  Optional<Customer> referrer();
+}
+
+// ANCHOR_END: bridge_nesting_spec
 
 // ANCHOR: flatten_spec
 record Address(String street, String city, String postcode) {}

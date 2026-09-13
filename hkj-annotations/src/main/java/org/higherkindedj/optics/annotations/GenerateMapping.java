@@ -62,8 +62,9 @@ import java.lang.annotation.Target;
  *   <li>A domain {@code Optional<T>} against a nullable wire component {@code T} bridges through
  *       {@code null} (empty maps to absent): automatically on a bean wire, and on a record wire
  *       wherever the spec marks the component with {@link OptionalBridge} — on a bare abstract
- *       marker when the element copies, or on that component's leaf when it converts. It is never
- *       inferred on a record wire, where {@code null} stays an error by default.
+ *       marker when the element copies or its pair has a spec of its own, or on that component's
+ *       leaf when a leaf converts it. It is never inferred on a record wire, where {@code null}
+ *       stays an error by default.
  *   <li>A nested domain record component can be spread across the wire's flat components with a
  *       {@link Flatten} marker named after it: {@code build} fills each flat component from the
  *       record's same-named component, {@code parse} assembles the record through its own ladder

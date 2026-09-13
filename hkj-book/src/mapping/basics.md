@@ -142,21 +142,23 @@ Say so per component with `@OptionalBridge`, and the pair maps in both direction
 ```
   build : empty ──▶ null                parse : null ──▶ Optional.empty()
           present ──▶ the value                 value ──▶ Optional.of(value)
-                                                          (through the leaf, if there is one)
+                                                          (through its leaf or spec, if any)
 ```
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_usage}}
 ```
 
-The annotation has **two placements**, and which one a component takes is decided by one question: does the present value need converting?
+The annotation has **two placements**, and which one a component takes is decided by one question: does the present value need a leaf?
 
 | The present element | Where the annotation goes | What it declares |
 | --- | --- | --- |
-| Copies as-is | An abstract marker method named after the domain component | `@OptionalBridge Optional<String> nickname();` (the return type restates the component) |
-| Converts | That component's own `default` leaf | `@OptionalBridge default ValidatedPrism<String, EmailAddress> altEmail()`, declared over the **element** types |
+| Copies as-is, or is mapped by its own spec | An abstract marker method named after the domain component | `@OptionalBridge Optional<String> nickname();` (the return type restates the component) |
+| Converts through a leaf | That component's own `default` leaf | `@OptionalBridge default ValidatedPrism<String, EmailAddress> altEmail()`, declared over the **element** types |
 
 The two can never be combined, and not by choice: a marker and a same-named leaf are one method with two incompatible return types, which javac rejects before the processor sees it.
+
+An element pair that already has a `@GenerateMapping` spec needs no leaf: the marker is enough, and a present value [nests through that spec](structure.md#optional-nested-objects) exactly as an unbridged component of that pair would.
 
 ~~~admonish warning title="Opt-in, never inferred"
 The processor will not guess this. Without the annotation, `nickname = null` is a located `must not be null`, exactly as [the doctrine above](#null-doctrine) says, and that is the right default: on most record wires a `null` really is a defect. The bridge is the one place a spec overrides it, one component at a time, in writing.
