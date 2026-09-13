@@ -2936,7 +2936,9 @@ class MappingProcessorTest {
       assertThat(compilation)
           .hadErrorContaining("field 'customer' matches more than one mapping spec");
       assertThat(compilation)
-          .hadErrorContaining("Add a leaf method 'customer()' delegating to the spec you want");
+          .hadErrorContaining(
+              "Add the leaf 'default ValidatedPrism<com.example.CustomerDto, com.example.Customer>"
+                  + " customer()' delegating to the spec you want");
     }
   }
 
@@ -11561,6 +11563,89 @@ class MappingProcessorTest {
             }
             """);
 
+    /** An element pair with a spec of its own, whose leaf fails, so a nested failure locates. */
+    private static final JavaFileObject CONTACT =
+        JavaFileObjects.forSourceString(
+            "com.example.Contact",
+            """
+            package com.example;
+
+            public record Contact(String label, EmailAddress email) {}
+            """);
+
+    private static final JavaFileObject CONTACT_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactDto",
+            """
+            package com.example;
+
+            public record ContactDto(String label, String email) {}
+            """);
+
+    private static final JavaFileObject CONTACT_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+              default ValidatedPrism<String, EmailAddress> email() {
+                return ValidatedPrism.of(
+                    raw ->
+                        raw.contains("@")
+                            ? Validated.validNel(new EmailAddress(raw))
+                            : Validated.invalidNel(FieldError.of("not an email address")),
+                    EmailAddress::value);
+              }
+            }
+            """);
+
+    /** An optional nested object: the domain Optional against the element pair's nullable wire. */
+    private static final JavaFileObject REFERRAL =
+        JavaFileObjects.forSourceString(
+            "com.example.Referral",
+            """
+            package com.example;
+
+            import java.util.Optional;
+
+            public record Referral(String code, Optional<Contact> contact) {}
+            """);
+
+    private static final JavaFileObject REFERRAL_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.ReferralDto",
+            """
+            package com.example;
+
+            public record ReferralDto(String code, ContactDto contact) {}
+            """);
+
+    private static final JavaFileObject REFERRAL_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.ReferralMapping",
+            """
+            package com.example;
+
+            import java.util.Optional;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.OptionalBridge;
+
+            @GenerateMapping
+            public interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {
+              @OptionalBridge
+              Optional<Contact> contact();
+            }
+            """);
+
     @SuppressWarnings("unchecked")
     private Validated<NonEmptyList<FieldError>, Object> parse(Object impl, Object wire) {
       return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", wire);
@@ -12031,6 +12116,473 @@ class MappingProcessorTest {
               "bridged to the nullable record component 'email' of type java.lang.String");
       assertThat(compilation)
           .hadErrorContaining("ValidatedPrism<java.lang.String, com.example.EmailAddress>");
+    }
+
+    @Test
+    @DisplayName("a marker nests through the element pair's own spec, and a failure locates inside")
+    void aMarkerNestsThroughTheElementSpec() throws ReflectiveOperationException {
+      Compilation compilation =
+          compile(
+              EMAIL,
+              CONTACT,
+              CONTACT_DTO,
+              CONTACT_MAPPING,
+              REFERRAL,
+              REFERRAL_DTO,
+              REFERRAL_MAPPING);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ReferralMappingImpl"))
+          .contains(
+              "domain.contact().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::build)"
+                  + ".orElse(null)")
+          .contains(
+              ".field(\"contact\", Optional.ofNullable(wire.contact()).map(v ->"
+                  + " ContactMappingImpl.INSTANCE.asValidatedPrism().parse(v).map(Optional::of))");
+
+      // Absent and present round trips are law-checked in GeneratedMappingLawsTest; what is pinned
+      // here is the absent write and where a failure inside the nested value locates.
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.ReferralMappingImpl");
+      Object absent =
+          result
+              .loadClass("com.example.Referral")
+              .getDeclaredConstructor(String.class, Optional.class)
+              .newInstance("r-1", Optional.empty());
+      Object absentWire = invoke(impl, "build", absent);
+      Assertions.assertThat(invoke(absentWire, "contact")).isNull();
+      assertThatValidated(parse(impl, absentWire)).isValid().hasValue(absent);
+
+      Object invalid =
+          result.newInstance(
+              "com.example.ReferralDto",
+              "r-1",
+              result.newInstance("com.example.ContactDto", "work", "nope"));
+      assertThatValidated(parse(impl, invalid))
+          .isInvalid()
+          .hasFieldErrors("contact.email: not an email address");
+    }
+
+    @Test
+    @DisplayName("a self-recursive bridged pair terminates: the impl delegates to itself")
+    void aSelfRecursiveBridgeTerminates() throws ReflectiveOperationException {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Node",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Node(String id, Optional<Node> parent) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.NodeDto",
+              """
+              package com.example;
+
+              public record NodeDto(String id, NodeDto parent) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.NodeMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              public interface NodeMapping extends MappingSpec<Node, NodeDto> {
+                @OptionalBridge
+                Optional<Node> parent();
+              }
+              """);
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.NodeMappingImpl"))
+          .contains(
+              "domain.parent().map(NodeMappingImpl.INSTANCE.asValidatedPrism()::build).orElse(null)");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.NodeMappingImpl");
+      var node =
+          result.loadClass("com.example.Node").getDeclaredConstructor(String.class, Optional.class);
+      Object root = node.newInstance("root", Optional.empty());
+      Object leaf =
+          node.newInstance("leaf", Optional.of(node.newInstance("mid", Optional.of(root))));
+      Object built = invoke(impl, "build", leaf);
+      Assertions.assertThat(invoke(invoke(invoke(built, "parent"), "parent"), "parent")).isNull();
+      assertThatValidated(parse(impl, built)).isValid().hasValue(leaf);
+    }
+
+    @Test
+    @DisplayName("two specs for the element pair make a bridged component ambiguous")
+    void twoSpecsForTheElementPairAreAmbiguous() {
+      JavaFileObject duplicate =
+          JavaFileObjects.forSourceString(
+              "com.example.LenientContactMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface LenientContactMapping extends MappingSpec<Contact, ContactDto> {
+                default ValidatedPrism<String, EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(
+              EMAIL,
+              CONTACT,
+              CONTACT_DTO,
+              CONTACT_MAPPING,
+              duplicate,
+              REFERRAL,
+              REFERRAL_DTO,
+              REFERRAL_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "field 'contact' matches more than one mapping spec: [ContactMapping,"
+                  + " LenientContactMapping]");
+      // the leaf that chooses carries the annotation and replaces the marker, or javac refuses it
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add the leaf '@OptionalBridge default ValidatedPrism<com.example.ContactDto,"
+                  + " com.example.Contact> contact()', as the component's only spec method,"
+                  + " delegating to the spec you want, or remove the duplicate spec.");
+      // the ambiguity is the whole report: the bridge adds no refusal of its own on top
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(d -> d.getMessage(null).contains("neither a leaf nor a mapping spec"));
+    }
+
+    @Test
+    @DisplayName("a bridged element leaf wins over a spec for the same pair")
+    void aBridgedLeafWinsOverTheElementSpec() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ReferralMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {
+                @OptionalBridge
+                default ValidatedPrism<ContactDto, Contact> contact() {
+                  return ValidatedPrism.of(
+                      dto -> Validated.validNel(
+                          new Contact(dto.label(), new EmailAddress(dto.email()))),
+                      c -> new ContactDto(c.label(), c.email().value()));
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(EMAIL, CONTACT, CONTACT_DTO, CONTACT_MAPPING, REFERRAL, REFERRAL_DTO, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ReferralMappingImpl"))
+          .contains("domain.contact().map(contact()::build).orElse(null)")
+          .contains("contact().parse(v)")
+          .doesNotContain("ContactMappingImpl");
+    }
+
+    @Test
+    @DisplayName("the refusal names a spec that maps the element pair but cannot be nested")
+    void theRefusalNamesAnUnusableElementSpec() {
+      JavaFileObject card =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactCardDto",
+              """
+              package com.example;
+
+              public record ContactCardDto(String label) {}
+              """);
+      JavaFileObject cardMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.ContactCardMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ContactCardMapping extends MappingSpec<Contact, ContactCardDto> {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.ReferralCardDto",
+              """
+              package com.example;
+
+              public record ReferralCardDto(String code, ContactCardDto contact) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.ReferralCardMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              public interface ReferralCardMapping extends MappingSpec<Referral, ReferralCardDto> {
+                @OptionalBridge
+                Optional<Contact> contact();
+              }
+              """);
+      Compilation compilation = compile(EMAIL, CONTACT, card, cardMapping, REFERRAL, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "bridged to the nullable record component 'contact' of type"
+                  + " com.example.ContactCardDto, but the element types differ and neither a leaf"
+                  + " nor a mapping spec converts them.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ContactCardMapping' maps this pair but is a projection (no parse), so it cannot be"
+                  + " nested in a mapping that builds and parses.");
+      // a record pair is one a full spec could map, so the fix offers declaring one
+      assertThat(compilation)
+          .hadErrorContaining(
+              "replacing any marker for it, declare a @GenerateMapping spec mapping those records");
+    }
+
+    @Test
+    @DisplayName("left unmarked, the refusal offers the bare marker when a spec maps the elements")
+    void theUnmarkedRefusalOffersTheMarkerWhenASpecMapsTheElements() {
+      JavaFileObject bare =
+          JavaFileObjects.forSourceString(
+              "com.example.ReferralMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {}
+              """);
+      Compilation compilation =
+          compile(EMAIL, CONTACT, CONTACT_DTO, CONTACT_MAPPING, REFERRAL, REFERRAL_DTO, bare);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add '@OptionalBridge java.util.Optional<com.example.Contact> contact();' to the"
+                  + " spec, so an absent value reads as a null wire component and back.");
+    }
+
+    @Test
+    @DisplayName("a same-typed element copies by identity even when a spec maps that pair")
+    void theIdentityCopyWinsOverASameTypedSpec() {
+      JavaFileObject tag =
+          JavaFileObjects.forSourceString(
+              "com.example.Tag",
+              """
+              package com.example;
+
+              public record Tag(String value) {}
+              """);
+      JavaFileObject tagMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.TagMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface TagMapping extends MappingSpec<Tag, Tag> {}
+              """);
+      JavaFileObject labelled =
+          JavaFileObjects.forSourceString(
+              "com.example.Labelled",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Labelled(String id, Optional<Tag> tag) {}
+              """);
+      JavaFileObject labelledDto =
+          JavaFileObjects.forSourceString(
+              "com.example.LabelledDto",
+              """
+              package com.example;
+
+              public record LabelledDto(String id, Tag tag) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.LabelledMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              public interface LabelledMapping extends MappingSpec<Labelled, LabelledDto> {
+                @OptionalBridge
+                Optional<Tag> tag();
+              }
+              """);
+      Compilation compilation = compile(tag, tagMapping, labelled, labelledDto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.LabelledMappingImpl"))
+          .contains("domain.tag().orElse(null)")
+          .doesNotContain("TagMappingImpl");
+    }
+
+    @Test
+    @DisplayName(
+        "an element-mapped spec whose element has no mapping asks for the bridged leaf supplying it")
+    void anElementMappedSpecAsksForTheBridgedLeaf() {
+      JavaFileObject page =
+          JavaFileObjects.forSourceString(
+              "com.example.Page",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Page<T>(String id, List<T> items) {}
+              """);
+      JavaFileObject pageDto =
+          JavaFileObjects.forSourceString(
+              "com.example.PageDto",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record PageDto<T>(String id, List<T> items) {}
+              """);
+      JavaFileObject pageMapping =
+          JavaFileObjects.forSourceString(
+              "com.example.PageMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface PageMapping<T, D> extends MappingSpec<Page<T>, PageDto<D>> {
+                ValidatedPrism<D, T> items();
+              }
+              """);
+      JavaFileObject member =
+          JavaFileObjects.forSourceString(
+              "com.example.Member",
+              """
+              package com.example;
+
+              public record Member(String name) {}
+              """);
+      JavaFileObject memberDto =
+          JavaFileObjects.forSourceString(
+              "com.example.MemberDto",
+              """
+              package com.example;
+
+              public record MemberDto(String name) {}
+              """);
+      JavaFileObject catalogue =
+          JavaFileObjects.forSourceString(
+              "com.example.Catalogue",
+              """
+              package com.example;
+
+              import java.util.Optional;
+
+              public record Catalogue(Optional<Page<Member>> entries) {}
+              """);
+      JavaFileObject catalogueDto =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueDto",
+              """
+              package com.example;
+
+              public record CatalogueDto(PageDto<MemberDto> entries) {}
+              """);
+      JavaFileObject marked =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueMapping",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              @GenerateMapping
+              public interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+                @OptionalBridge
+                Optional<Page<Member>> entries();
+              }
+              """);
+      Compilation refused =
+          compile(page, pageDto, pageMapping, member, memberDto, catalogue, catalogueDto, marked);
+      assertThat(refused).failed();
+      assertThat(refused)
+          .hadErrorContaining(
+              "Declare '@OptionalBridge default ValidatedPrism<com.example.MemberDto,"
+                  + " com.example.Member> entries()', as the component's only spec method, on this"
+                  + " spec, or map the pair with its own @GenerateMapping spec.");
+
+      // the fix, followed: the leaf replaces the marker and is supplied to the element-mapped spec
+      JavaFileObject leafed =
+          JavaFileObjects.forSourceString(
+              "com.example.CatalogueMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+                @OptionalBridge
+                default ValidatedPrism<MemberDto, Member> entries() {
+                  return ValidatedPrism.of(
+                      dto -> Validated.validNel(new Member(dto.name())),
+                      m -> new MemberDto(m.name()));
+                }
+              }
+              """);
+      Compilation compiled =
+          compile(page, pageDto, pageMapping, member, memberDto, catalogue, catalogueDto, leafed);
+      assertThat(compiled).succeeded();
+      Assertions.assertThat(generatedSource(compiled, "com.example.CatalogueMappingImpl"))
+          .contains(
+              "domain.entries().map(PageMappingImpl.of(entries()).asValidatedPrism()::build)");
     }
 
     @Test

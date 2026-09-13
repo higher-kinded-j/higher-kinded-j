@@ -424,7 +424,8 @@ class MappingGoldenFileTest {
         """);
   }
 
-  // ---- record wire, opted into the Optional bridge: a marker component and a leaf one ----
+  // ---- record wire, opted into the Optional bridge: a marker component, a leaf one, and a marker
+  // one whose element nests through its own spec ----
   private static JavaFileObject optionalBridge() {
     return JavaFileObjects.forSourceString(
         "com.example.bridge.Fixtures",
@@ -441,14 +442,26 @@ class MappingGoldenFileTest {
 
         record Nickname(String value) {}
 
-        record Customer(String name, Optional<String> alias, Optional<Nickname> nickname) {}
+        record Referrer(String name) {}
 
-        record CustomerDto(String name, String alias, String nickname) {}
+        record ReferrerDto(String name) {}
+
+        @GenerateMapping
+        interface ReferrerMapping extends MappingSpec<Referrer, ReferrerDto> {}
+
+        record Customer(
+            String name, Optional<String> alias, Optional<Nickname> nickname,
+            Optional<Referrer> referrer) {}
+
+        record CustomerDto(String name, String alias, String nickname, ReferrerDto referrer) {}
 
         @GenerateMapping
         interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
           @OptionalBridge
           Optional<String> alias();
+
+          @OptionalBridge
+          Optional<Referrer> referrer();
 
           @OptionalBridge
           default ValidatedPrism<String, Nickname> nickname() {

@@ -997,6 +997,103 @@ class MappingProcessorOneDirectionalTest {
     }
 
     @Test
+    @DisplayName("a parse-only mapping bridges an optional parse-only one, located inside it")
+    void parseOnlyBridgesParseOnly() throws ReflectiveOperationException {
+      JavaFileObject shelf =
+          source("Shelf", "public record Shelf(String id, Optional<Item> top) {}");
+      JavaFileObject vendorShelf =
+          source(
+              "VendorShelf",
+              """
+              public class VendorShelf {
+                private final String id;
+                private final VendorItem top;
+                public VendorShelf(String id, VendorItem top) {
+                  this.id = id;
+                  this.top = top;
+                }
+                public String getId() { return id; }
+                public VendorItem getTop() { return top; }
+              }
+              """);
+      JavaFileObject spec =
+          source(
+              "VendorShelfMapping",
+              """
+              @GenerateMapping
+              public interface VendorShelfMapping extends MappingSpec<Shelf, VendorShelf> {}
+              """);
+      Compilation compilation =
+          compile(EMAIL, EMAILS, ITEM, VENDOR_ITEM, VENDOR_ITEM_MAPPING, shelf, vendorShelf, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "VendorShelfMappingImpl"))
+          .contains(
+              "Optional.ofNullable(wire.getTop()).map(v ->"
+                  + " VendorItemMappingImpl.INSTANCE.asValidatedParse().parse(v).map(Optional::of))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance(PKG + ".VendorShelfMappingImpl");
+      assertThatValidated(parse(impl, create(result, "VendorShelf", "s-1", null)))
+          .isValid()
+          .hasValue(create(result, "Shelf", "s-1", Optional.empty()));
+      assertThatValidated(
+              parse(
+                  impl,
+                  create(result, "VendorShelf", "s-1", create(result, "VendorItem", "a", "nope"))))
+          .isInvalid()
+          .hasFieldErrors("top.owner: not an email address");
+    }
+
+    @Test
+    @DisplayName(
+        "a build-only mapping bridges an optional build-only one, writing only a present one")
+    void buildOnlyBridgesBuildOnly() throws ReflectiveOperationException {
+      JavaFileObject ticket =
+          source("Ticket", "public record Ticket(String id, Optional<Line> first) {}");
+      JavaFileObject ticketRequest =
+          source(
+              "TicketRequest",
+              """
+              public class TicketRequest {
+                private String id;
+                private LineRequest first;
+
+                public void setId(String id) { this.id = id; }
+                public void setFirst(LineRequest first) { this.first = first; }
+
+                public String describe() {
+                  return id + ": " + (first == null ? "none" : first.describe());
+                }
+              }
+              """);
+      JavaFileObject spec =
+          source(
+              "TicketRequestMapping",
+              """
+              @GenerateMapping
+              public interface TicketRequestMapping extends MappingSpec<Ticket, TicketRequest> {}
+              """);
+      Compilation compilation =
+          compile(LINE, LINE_REQUEST, LINE_REQUEST_MAPPING, ticket, ticketRequest, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "TicketRequestMappingImpl"))
+          .contains(
+              "domain.first().map(LineRequestMappingImpl.INSTANCE.asValidatedBuild()::build)"
+                  + ".ifPresent(v -> wire.setFirst(v));");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance(PKG + ".TicketRequestMappingImpl");
+      Object present =
+          invoke(
+              impl,
+              "build",
+              create(result, "Ticket", "t-1", Optional.of(create(result, "Line", "sku", 2))));
+      Assertions.assertThat(invoke(present, "describe")).isEqualTo("t-1: sku x2");
+      Object absent = invoke(impl, "build", create(result, "Ticket", "t-1", Optional.empty()));
+      Assertions.assertThat(invoke(absent, "describe")).isEqualTo("t-1: none");
+    }
+
+    @Test
     @DisplayName("a build-only mapping lifts a build-only one through every container")
     void buildOnlyNestsBuildOnly() throws ReflectiveOperationException {
       JavaFileObject cart =

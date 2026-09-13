@@ -122,9 +122,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>The same bridge reaches a <em>record</em> wire by opt-in ({@link OptionalBridge}), never
  * implicitly: a record component is null-is-an-error by default and that stays the default, so a
  * domain {@code Optional<T>} against a nullable record component {@code T} bridges only where the
- * spec marks the component — on a bare abstract marker when the element copies, or on the
- * component's {@code default} leaf when it converts. Either way the correspondence is the bean
- * bridge's, so the two wire shapes share one emission and one law.
+ * spec marks the component — on a bare abstract marker when the element copies or nests through the
+ * element pair's own spec, or on the component's {@code default} leaf when a leaf converts it.
+ * Either way the correspondence is the bean bridge's, so the two wire shapes share one emission and
+ * one law.
  *
  * <p>A spec extending {@code UpdateSpec<Domain, Wire>} ({@link
  * org.higherkindedj.optics.annotations.UpdateSpec}) opts into the opposite null contract: a null
@@ -627,9 +628,10 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * A bare {@code @OptionalBridge} marker: the abstract placement, named after the domain component
-   * whose {@code Optional} bridges by identity, and the one placement the Impl owes a stub. The
-   * other is the component's own leaf, which stays leaf-shaped and is matched as one — the two can
-   * never coexist, since a marker and a same-named leaf declare one method with incompatible return
+   * whose {@code Optional} bridges without a leaf (its element copies, or nests through the spec
+   * mapping the element pair), and the one placement the Impl owes a stub. The other is the
+   * component's own leaf, which stays leaf-shaped and is matched as one — the two can never
+   * coexist, since a marker and a same-named leaf declare one method with incompatible return
    * types. Asked only after {@link #validateSpecMethods}, which has already refused a parameterised
    * bridge, so the zero-parameter half of the shape is a precondition rather than a test.
    */
@@ -3600,6 +3602,51 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * How a use site's fix lines declare the leaf that would stand in for a nested spec: named after
+   * the component, over the pair being resolved. A component carrying an {@code @OptionalBridge}
+   * marker needs the annotation on that leaf, and the leaf must be the component's only spec
+   * method, since a marker and a same-named leaf are one method with incompatible return types;
+   * every other site declares a bare leaf.
+   */
+  private record LeafSite(String annotation, String placement) {
+    static final LeafSite PLAIN = new LeafSite("", "");
+    static final LeafSite BRIDGE_MARKER =
+        new LeafSite("@OptionalBridge ", ", as the component's only spec method,");
+
+    String declaration(String name, TypeMirror wireType, TypeMirror domainType) {
+      return "'"
+          + annotation
+          + "default ValidatedPrism<"
+          + wireType
+          + ", "
+          + domainType
+          + "> "
+          + name
+          + "()'"
+          + placement;
+    }
+  }
+
+  /**
+   * The specs a use site resolves a pair among: those serving the site's direction whose declared
+   * pair covers it, this compilation's first. Shared by {@link #resolveNestedSpec} and {@link
+   * #bridgeOffer}, so the bridge is offered as a bare marker exactly when resolution would find a
+   * single spec.
+   */
+  private Candidates servingCandidates(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      WireShape.Direction need) {
+    return Candidates.nearest(
+        registry.stream()
+            .filter(r -> r.serves(need))
+            .filter(r -> covers(spec, r, domainType, wireType))
+            .toList());
+  }
+
+  /**
    * Resolves the prism carrying a (wireType -> domainType) correspondence through a single mapping
    * spec for the pair that serves the site's direction, {@code need}, through the surface its
    * generated Impl exposes: {@code asValidatedPrism()} for a full mapping, or the one half a
@@ -3616,13 +3663,15 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireType,
       TypeMirror domainType,
       WireShape.Direction need) {
-    return resolveNestedSpec(spec, registry, name, wireType, domainType, need, List.of());
+    return resolveNestedSpec(
+        spec, registry, name, wireType, domainType, need, LeafSite.PLAIN, List.of());
   }
 
   /**
-   * The guarded overload: {@code active} carries the (domain, wire) pairs already being composed on
-   * the current element-mapped recursion, so a spec whose leaf pair covers itself is caught instead
-   * of overflowing the stack.
+   * The full overload: {@code site} is how a fix line declares the leaf that would stand in for the
+   * spec, and {@code active} carries the (domain, wire) pairs already being composed on the current
+   * element-mapped recursion, so a spec whose leaf pair covers itself is caught instead of
+   * overflowing the stack.
    */
   private PrismResolution resolveNestedSpec(
       TypeElement spec,
@@ -3631,13 +3680,9 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireType,
       TypeMirror domainType,
       WireShape.Direction need,
+      LeafSite site,
       List<DeclaredType> active) {
-    Candidates candidates =
-        Candidates.nearest(
-            registry.stream()
-                .filter(r -> r.serves(need))
-                .filter(r -> covers(spec, r, domainType, wireType))
-                .toList());
+    Candidates candidates = servingCandidates(spec, registry, wireType, domainType, need);
     List<RegisteredSpec> nested = candidates.chosen();
     if (nested.size() > 1) {
       Diagnostics.error(
@@ -3650,9 +3695,9 @@ public class MappingProcessor extends AbstractProcessor {
               + ", "
               + wireType
               + "); with several, the choice would be arbitrary.",
-          "Add a leaf method '"
-              + name
-              + "()' delegating to the spec you want, or "
+          "Add the leaf "
+              + site.declaration(name, wireType, domainType)
+              + " delegating to the spec you want, or "
               + (candidates.allClasspath()
                   ? "declare a @GenerateMapping spec for the pair in this compilation, which takes"
                       + " precedence over a dependency's."
@@ -3665,9 +3710,9 @@ public class MappingProcessor extends AbstractProcessor {
           spec,
           TAG,
           "field '" + name + "'",
-          "Keep it, or delegate explicitly with a leaf '"
-              + name
-              + "()' if the classpath spec is the one meant.",
+          "Keep it, or delegate explicitly with the leaf "
+              + site.declaration(name, wireType, domainType)
+              + " if the classpath spec is the one meant.",
           candidates);
       RegisteredSpec match = nested.getFirst();
       if (match.spec().getTypeParameters().isEmpty()) {
@@ -3688,7 +3733,7 @@ public class MappingProcessor extends AbstractProcessor {
             CodeBlock.of("$T.<$L>instance().asValidatedPrism()", match.impl(), arguments), false);
       }
       return elementMappedComposition(
-          spec, registry, name, match, bindings, leaves, domainType, wireType, active);
+          spec, registry, name, match, bindings, leaves, domainType, wireType, site, active);
     }
     return PrismResolution.NONE;
   }
@@ -3709,6 +3754,7 @@ public class MappingProcessor extends AbstractProcessor {
       List<ExecutableElement> leaves,
       TypeMirror domainType,
       TypeMirror wireType,
+      LeafSite site,
       List<DeclaredType> active) {
     Types types = processingEnv.getTypeUtils();
     DeclaredType instantiated =
@@ -3736,8 +3782,9 @@ public class MappingProcessor extends AbstractProcessor {
               + ").",
           "An of(...) composition needs a prism for every leaf; a self-covering element mapping"
               + " would need its own prism as that input, so the composition never terminates.",
-          "Break the cycle with a leaf on this spec for the pair, or map the element with a"
-              + " non-recursive spec.");
+          "Break the cycle with the leaf "
+              + site.declaration(name, wireType, domainType)
+              + " on this spec, or map the element with a non-recursive spec.");
       return new PrismResolution(null, true);
     }
     List<DeclaredType> nestedActive = new ArrayList<>(active);
@@ -3764,6 +3811,7 @@ public class MappingProcessor extends AbstractProcessor {
               elementWire,
               elementDomain,
               WireShape.Direction.BIDIRECTIONAL,
+              site,
               nestedActive);
       if (nested.ambiguous()) {
         return nested;
@@ -3791,13 +3839,9 @@ public class MappingProcessor extends AbstractProcessor {
               + " prism must come from a leaf on this spec or another mapping,"
               + declarationSites(processingEnv, spec)
               + ".",
-          "Declare 'default ValidatedPrism<"
-              + elementWire
-              + ", "
-              + elementDomain
-              + "> "
-              + name
-              + "()' on this spec, or map the pair with its own @GenerateMapping spec.");
+          "Declare "
+              + site.declaration(name, elementWire, elementDomain)
+              + " on this spec, or map the pair with its own @GenerateMapping spec.");
       return new PrismResolution(null, true);
     }
     return new PrismResolution(
@@ -4911,7 +4955,8 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Resolves one domain-component/wire-component pair to its correspondence: an explicit leaf first
    * (beating even a same-typed identity match), container element/value leaves, identity,
-   * nested-spec lifting through {@code List}/{@code Optional}/{@code Map}, the Optional bridge,
+   * nested-spec lifting through {@code List}/{@code Set}/array/{@code Optional}/{@code Map}, the
+   * Optional bridge (whose element resolves the same way: a leaf, identity, then a nested spec),
    * then a direct nested spec — reporting and returning null when nothing usable exists. Shared by
    * the full tier ({@link #classify}) and the wire-driven tiers ({@link #classifyWire}), so a
    * projection resolves exactly like a full-tier component.
@@ -4993,8 +5038,8 @@ public class MappingProcessor extends AbstractProcessor {
       }
     }
     // Optional bridge: a domain Optional<DE> maps to a nullable wire component PE. Empty <->
-    // null/absent; the element is copied (identity) or mapped through a leaf, exactly as an
-    // Optional element would be. (An Optional bridge through a nested spec is not supported yet.)
+    // null/absent; the element is copied (identity), mapped through a leaf, or nested through
+    // the mapping registered for the element pair, exactly as an Optional element would be.
     //
     // A bean wire takes it automatically, since bean conventions leave Optional off property
     // types. A record wire takes it only where the spec asked, by @OptionalBridge: on a record,
@@ -5025,6 +5070,21 @@ public class MappingProcessor extends AbstractProcessor {
       if (copies) {
         return bridgedCorrespondence(name, wireName, null, bridged);
       }
+      // The rung every other container takes before giving up: the mapping registered for the
+      // element pair, found and disambiguated exactly as an unbridged nested component's is. It
+      // never pre-empts the leaf or the identity copy above, the order the scalar precedent sets.
+      // A registered wire is a record, a bean or a sealed type, never a List, so the getter-only
+      // refusal above has no pair to add from here. A component carrying the marker needs any leaf
+      // a fix line offers in the spec's place to carry the annotation too, and to replace it.
+      LeafSite site = declaresBridge(spec, name) ? LeafSite.BRIDGE_MARKER : LeafSite.PLAIN;
+      PrismResolution nested =
+          resolveNestedSpec(spec, registry, name, wireType, bridged, need, site, List.of());
+      if (nested.ambiguous()) {
+        return null;
+      }
+      if (nested.accessor() != null) {
+        return bridgedCorrespondence(name, wireName, nested.accessor(), bridged);
+      }
       // A bridge is the only way to map a domain Optional to a plain nullable component, so a
       // failed one is a dedicated diagnostic that names the ELEMENT types (not the whole
       // Optional) — a leaf over Optional<DE> would be matched as a plain leaf and bypass the
@@ -5045,24 +5105,32 @@ public class MappingProcessor extends AbstractProcessor {
               + wireName
               + "' of type "
               + wireType
-              + ", but the element types differ and no leaf converts them.",
+              + ", but the element types differ and neither a leaf nor a mapping spec converts"
+              + " them.",
           "A domain Optional bridges to a nullable "
               + wireMemberTerm(wire)
-              + " (empty maps to absent); the"
-              + " present element is copied when the types match, or mapped through a leaf named"
-              + " after the domain component returning ValidatedPrism<"
+              + " (empty maps to absent); the present element is copied when the types match,"
+              + " nested through a @GenerateMapping spec for the element pair, or mapped through"
+              + " a leaf named after the domain component returning ValidatedPrism<"
               + wireType
               + ", "
               + bridged
-              + "> (the element types, not the Optional).",
+              + "> (the element types, not the Optional)."
+              + unusableSpecHint(registry, wireType, bridged, need),
           "Declare '@OptionalBridge default ValidatedPrism<"
               + wireType
               + ", "
               + bridged
               + "> "
               + name
-              + "()' as the component's only spec method, replacing any marker for it, or align"
-              + " the element types.");
+              + "()' as the component's only spec method, replacing any marker for it"
+              // A spec is offered only for a record pair: the commonest refusal is a value type
+              // against a String, which no spec can map, and every pair reads the spec in the why.
+              + (asRecord(bridged) != null && asRecord(wireType) != null
+                  ? ", declare a @GenerateMapping spec mapping those records"
+                      + declarationSites(processingEnv, spec)
+                  : "")
+              + ", or align the element types.");
       return null;
     }
     DeclaredType wireMapType = asMapType(wireType);
@@ -5177,7 +5245,7 @@ public class MappingProcessor extends AbstractProcessor {
                   + name
                   + "' a wrapper type (a ValidatedPrism cannot focus a primitive component), or"
                   + " align the component types."
-              : bridgeOffer(name, wireType, domainType)
+              : bridgeOffer(spec, registry, name, wireType, domainType, need)
                   + "Add 'default ValidatedPrism<"
                   + wireType
                   + ", "
@@ -5628,9 +5696,18 @@ public class MappingProcessor extends AbstractProcessor {
    * {@code null} encoding absence. The alternative the generic fix goes on to offer is a leaf over
    * the whole {@code Optional}, which maps the pair without giving it an absent state, so the
    * declaration that does is named first, and in full: both offers are pasteable, and the author
-   * chooses by what the field means. Empty when the shape cannot bridge.
+   * chooses by what the field means. The bare marker is offered wherever the present element needs
+   * no leaf: it copies, or a single mapping serving the site covers the element pair, which the
+   * bridge nests through. With two, the element leaf that chooses between them is offered instead.
+   * Empty when the shape cannot bridge.
    */
-  private String bridgeOffer(String name, TypeMirror wireType, TypeMirror domainType) {
+  private String bridgeOffer(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      String name,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      WireShape.Direction need) {
     TypeMirror declaredElement = containerElement(domainType, "java.util.Optional");
     if (declaredElement == null
         || wireType.getKind().isPrimitive()
@@ -5638,7 +5715,10 @@ public class MappingProcessor extends AbstractProcessor {
       return "";
     }
     TypeMirror element = bridgeElement(declaredElement);
-    return processingEnv.getTypeUtils().isSameType(wireType, element)
+    boolean needsNoLeaf =
+        processingEnv.getTypeUtils().isSameType(wireType, element)
+            || servingCandidates(spec, registry, wireType, element, need).chosen().size() == 1;
+    return needsNoLeaf
         ? "Add '@OptionalBridge "
             + domainType
             + " "
@@ -5704,7 +5784,8 @@ public class MappingProcessor extends AbstractProcessor {
               domainRead(c),
               ProcessorUtils.typeNameOf(((ArrayType) wc.type()).getComponentType()));
       case OPTIONAL -> CodeBlock.of("$L.map($L::build)", domainRead(c), c.prism());
-      // The domain Optional is carried as-is (identity) or its element built through the leaf.
+      // The domain Optional is carried as-is (identity) or its element built through the leaf or
+      // nested spec.
       case OPTIONAL_BRIDGE -> bridgeBuildValue(wire, c);
       case MAP -> CodeBlock.of("$L.buildValues($L)", c.prism(), domainRead(c));
       case MAP_KEYS -> CodeBlock.of("$L.buildKeys($L)", c.prism(), domainRead(c));
@@ -5726,10 +5807,10 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The bridged build value: the domain {@code Optional}, its element built through the leaf when
-   * one converts it. On a record wire the component is positional, so the Optional is unwrapped to
-   * the {@code null} that encodes absence; on a bean wire it stays an {@code Optional}, which
-   * {@link #beanBuildBody} writes conditionally.
+   * The bridged build value: the domain {@code Optional}, its element built through the leaf or the
+   * nested spec that maps it. On a record wire the component is positional, so the Optional is
+   * unwrapped to the {@code null} that encodes absence; on a bean wire it stays an {@code
+   * Optional}, which {@link #beanBuildBody} writes conditionally.
    */
   private static CodeBlock bridgeBuildValue(WireShape wire, Correspondence c) {
     CodeBlock present =
@@ -6350,8 +6431,8 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The element-of-Optional parser lambda, shared by the dense {@code OPTIONAL} leg and the sparse
-   * {@code OPTIONAL} edit so the two tiers cannot drift: a present element parses through the leaf,
-   * an empty Optional is valid emptiness.
+   * {@code OPTIONAL} edit so the two tiers cannot drift: a present element parses through its leaf
+   * or nested spec, an empty Optional is valid emptiness.
    */
   private static CodeBlock elementOfOptionalParser(CodeBlock prism) {
     ClassName optional = ClassName.get("java.util", "Optional");
@@ -6419,7 +6500,8 @@ public class MappingProcessor extends AbstractProcessor {
       case IDENTITY_MAP -> CodeBlock.of("\n.field($S, hkj$$valuesPresent($L))", c.name(), read);
       // A nullable read bridges to the domain Optional: null becomes Optional.empty, so it is
       // never guarded and never fails on absence. A present value still goes through whatever the
-      // unbridged component would have used - its leaf, or an identity container's null scan.
+      // unbridged component would have used - its leaf or nested spec, or an identity container's
+      // null scan.
       case OPTIONAL_BRIDGE -> bridgeParseLeg(wire, c, read, optional);
       // A derived component carries no domain data; parse reconstructs without it.
       case DERIVED -> CodeBlock.of("");
@@ -6428,8 +6510,8 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The bridged leg: an absent (null) read is valid emptiness, and a present one parses through the
-   * leaf, through the identity container's null scan, or straight through. The three share one
-   * shape so the bridge cannot drift from the legs it stands in for.
+   * leaf or nested spec, through the identity container's null scan, or straight through. The three
+   * share one shape so the bridge cannot drift from the legs it stands in for.
    */
   private CodeBlock bridgeParseLeg(
       WireShape wire, Correspondence c, CodeBlock read, ClassName optional) {

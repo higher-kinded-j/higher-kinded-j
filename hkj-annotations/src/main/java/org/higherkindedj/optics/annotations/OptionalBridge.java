@@ -31,23 +31,27 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * <p><b>Two placements, one meaning.</b> Which one a component uses is decided by whether its
- * element needs converting, and the two can never be combined — a bare marker and a same-named leaf
+ * element needs a leaf, and the two can never be combined — a bare marker and a same-named leaf
  * declare the same method with incompatible return types, which javac rejects:
  *
  * <ul>
  *   <li><b>On a bare abstract method</b> named after the domain component, as above, when the
- *       present element copies by identity. The method is a marker the generated Impl stubs out,
- *       exactly like a {@link MapField} rename, and its return type declares the domain component's
- *       type, so a spec that drifts from its domain fails to compile rather than bridging the wrong
+ *       present element needs no leaf: it copies by identity, or another {@link GenerateMapping}
+ *       spec maps the element pair and the present value nests through it, as an unbridged
+ *       component of that pair would. The method is a marker the generated Impl stubs out, exactly
+ *       like a {@link MapField} rename, and its return type declares the domain component's type,
+ *       so a spec that drifts from its domain fails to compile rather than bridging the wrong
  *       component.
- *   <li><b>On that component's {@code default} leaf</b> when the present element converts, so the
- *       leaf validates the value the bridge found:
+ *   <li><b>On that component's {@code default} leaf</b> when a leaf converts the present element,
+ *       so the leaf validates the value the bridge found, and wins over any spec for the pair:
  *       <pre>{@code
  * @OptionalBridge
  * default ValidatedPrism<String, Nickname> nickname() { return NICKNAME; }
  * }</pre>
  *       The leaf is declared over the <em>element</em> types ({@code ValidatedPrism<WireComponent,
- *       OptionalElement>}), not over the {@code Optional}, matching the bean bridge.
+ *       OptionalElement>}), not over the {@code Optional}, matching the bean bridge. Where the
+ *       element is mapped by an element-mapped generic spec, the leaf is declared over that spec's
+ *       own element pair instead and supplied to it, as it would be for an unbridged component.
  * </ul>
  *
  * <p><b>The contract.</b> {@code build} maps an empty {@code Optional} to a {@code null} wire

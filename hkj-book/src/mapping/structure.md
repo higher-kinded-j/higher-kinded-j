@@ -8,6 +8,7 @@ Real DTOs are not flat. An order carries a customer, the customer carries an add
 - How specs nest automatically, in one compilation or across modules, composing failures into dotted paths
 - How a nested domain record spreads across a flat wire with `@Flatten`, and where its failures locate
 - How `List`, `Set`, array, `Optional` and `Map` components lift, and what each locates a failure by
+- How an optional nested object, `null` on the wire, nests through its own spec
 - How `@MapKey` converts a map's keys, and when a collapse is silent or a failure
 - Why recursion terminates by construction
 - Dispatching a mapping over two sealed interfaces, exhaustively in both directions
@@ -43,7 +44,7 @@ Containers lift the same way, and each one locates a failure by whatever identif
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_usage}}
 ```
 
-Lifting needs the *same* container on both sides. A `List` against a `Set`, or an array against a `List`, is not a pair: it reports as a plain type mismatch rather than silently changing what the collection promises. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead. An array of primitives (`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive, and a primitive element cannot be null. An array element type must also be able to name its own constructor, since lifting builds a new array: a type variable or a parameterised element (`T[]`, `List<Tag>[]`) is refused, because the generated `T[]::new` is generic array creation.
+Lifting needs the *same* container on both sides. A `List` against a `Set`, or an array against a `List`, is not a pair: it reports as a plain type mismatch rather than silently changing what the collection promises. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead, and it [nests through the element's spec](#optional-nested-objects) all the same. An array of primitives (`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive, and a primitive element cannot be null. An array element type must also be able to name its own constructor, since lifting builds a new array: a type variable or a parameterised element (`T[]`, `List<Tag>[]`) is refused, because the generated `T[]::new` is generic array creation.
 
 Locating a set element by its own rendering is the only honest answer available: a set has no index, and its iteration order is not part of its contract, so numbering the elements would name a *different* one on the next run. The value is what identifies the element, so that is what the path says.
 
@@ -67,6 +68,20 @@ Because nesting is *delegation* (a full mapping's `Impl` exposes [`asValidatedPr
 ~~~admonish note title="Keys and set elements are located by `toString()`"
 The rendered path uses each key's - or set element's - `toString()`, so one containing a dot looks the same as deeper nesting, and two distinct ones whose renderings collide share a location. The structured `FieldError` path list stays exact regardless, holding the whole rendering as one segment, and every error is still reported.
 ~~~
+
+### Optional nested objects {#optional-nested-objects}
+
+When a JSON client leaves an object out, or sends `null` for it, the binder leaves a plain nullable `CustomerDto` where the domain holds an `Optional<Customer>`. That pair is the [`@OptionalBridge`](basics.md#optional-bridge) shape, and it nests like every other: when a spec maps the element pair, the marker is all the component needs.
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_nesting_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_nesting_usage}}
+```
+
+`build` writes the nested build of a present value and `null` for an empty one. `parse` reads `null` as empty and hands a present value to the nested spec, so its failures locate under the component, exactly as through a `List`. The usual order holds: a bridged [element leaf](basics.md#optional-bridge) on the component wins over the spec, and two specs for the pair are ambiguous until such a leaf delegates to the one you mean. A bean wire bridges automatically, so there the same pair nests with no marker at all.
+
+The bridge nests one level. A bridged container of mapped elements, an `Optional<List<Customer>>` against a nullable `List<CustomerDto>`, is not supported yet; a `List<Customer>` component, where an empty list already says there are none, lifts through the spec as usual.
 
 ### Converting Map keys {#converting-map-keys}
 

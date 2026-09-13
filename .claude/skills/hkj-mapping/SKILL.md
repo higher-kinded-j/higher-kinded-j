@@ -162,11 +162,11 @@ public record MemberDto(String name, String nickname, String altEmail) {}   // n
 @GenerateMapping
 public interface MemberMapping extends MappingSpec<Member, MemberDto> {
 
-  // Element copies: a bare abstract marker, whose return type restates the component.
+  // Element copies, or its pair has its own spec: a bare abstract marker restating the component.
   @OptionalBridge
   Optional<String> nickname();
 
-  // Element converts: the SAME annotation on that component's leaf, over the ELEMENT types.
+  // A leaf converts it: the SAME annotation on that component's leaf, over the ELEMENT types.
   @OptionalBridge
   default ValidatedPrism<String, EmailAddress> altEmail() {
     return ValidatedPrism.of(
@@ -176,11 +176,15 @@ public interface MemberMapping extends MappingSpec<Member, MemberDto> {
         EmailAddress::value);
   }
 }
-// build: empty -> null, present -> the value.  parse: null -> Optional.empty(), value -> through the leaf.
+// build: empty -> null, present -> the value.  parse: null -> Optional.empty(), value -> through its leaf or spec.
 ```
 
 - The two placements **cannot be combined**: a marker and a same-named leaf are one method with
   incompatible return types, which javac rejects.
+- An element pair with its **own spec nests through it**: `@OptionalBridge Optional<Address>
+  address();` against a nullable `AddressDto` needs no leaf when an `AddressMapping` exists (a bean
+  wire needs nothing at all), and failures locate inside (`address.city: must not be null`). An
+  element leaf wins over the spec.
 - **Never inferred.** Without the annotation the component is `must not be null`, as usual.
 - A **bean** wire bridges automatically (bean conventions leave `Optional` off property types), so
   the annotation is redundant there and draws a note, not an error — one mix-in can serve both

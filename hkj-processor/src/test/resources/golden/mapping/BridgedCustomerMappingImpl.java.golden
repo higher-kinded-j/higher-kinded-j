@@ -25,7 +25,7 @@ public final class CustomerMappingImpl implements CustomerMapping {
 
   public CustomerDto build(Customer domain) {
     Objects.requireNonNull(domain, "domain must not be null");
-    return new CustomerDto(domain.name(), domain.alias().orElse(null), domain.nickname().map(nickname()::build).orElse(null));
+    return new CustomerDto(domain.name(), domain.alias().orElse(null), domain.nickname().map(nickname()::build).orElse(null), domain.referrer().map(ReferrerMappingImpl.INSTANCE.asValidatedPrism()::build).orElse(null));
   }
 
   public Validated<NonEmptyList<FieldError>, Customer> parse(CustomerDto wire) {
@@ -34,6 +34,7 @@ public final class CustomerMappingImpl implements CustomerMapping {
         .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
         .field("alias", Validated.validNel(Optional.ofNullable(wire.alias())))
         .field("nickname", Optional.ofNullable(wire.nickname()).map(v -> nickname().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
+        .field("referrer", Optional.ofNullable(wire.referrer()).map(v -> ReferrerMappingImpl.INSTANCE.asValidatedPrism().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
         .apply(Customer::new);
   }
 
@@ -49,6 +50,14 @@ public final class CustomerMappingImpl implements CustomerMapping {
    */
   @Override
   public Optional<String> alias() {
+    throw new UnsupportedOperationException("@OptionalBridge markers declare bridges and are not invocable");
+  }
+
+  /**
+   * Bridge declaration only; not invocable.
+   */
+  @Override
+  public Optional<Referrer> referrer() {
     throw new UnsupportedOperationException("@OptionalBridge markers declare bridges and are not invocable");
   }
 
