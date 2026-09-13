@@ -677,11 +677,24 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * unresolvable name itself, so a source method is never treated as missing a type here.
    */
   private boolean isMissingFromClasspath(TypeMirror type, ExecutableElement method) {
-    return type.getKind() == TypeKind.ERROR
-        && Optional.ofNullable(processingEnv.getElementUtils().getFileObjectOf(method))
-            .map(JavaFileObject::getKind)
-            .filter(JavaFileObject.Kind.CLASS::equals)
-            .isPresent();
+    return type.getKind() == TypeKind.ERROR && readFromClassFile(method);
+  }
+
+  /**
+   * Whether a method was read from a class file. {@code Elements.getFileObjectOf} may be
+   * unsupported outside javac; there the method is treated as source, so an unresolvable type falls
+   * through to the checks that follow rather than being reported as a missing dependency the
+   * processor could not confirm.
+   */
+  private boolean readFromClassFile(ExecutableElement method) {
+    try {
+      return Optional.ofNullable(processingEnv.getElementUtils().getFileObjectOf(method))
+          .map(JavaFileObject::getKind)
+          .filter(JavaFileObject.Kind.CLASS::equals)
+          .isPresent();
+    } catch (UnsupportedOperationException e) {
+      return false;
+    }
   }
 
   private static String notOnClasspath(String annotation, TypeMirror type) {

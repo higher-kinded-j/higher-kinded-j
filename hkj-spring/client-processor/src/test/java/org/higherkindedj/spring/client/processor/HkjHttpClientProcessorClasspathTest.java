@@ -11,13 +11,28 @@ import com.google.testing.compile.JavaFileObjects;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
+import javax.annotation.processing.Completion;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
 import org.assertj.core.api.Assertions;
@@ -297,5 +312,105 @@ class HkjHttpClientProcessorClasspathTest {
         .hadErrorContaining(
             "'getUser', inherited from 'BaseApi': Unsupported @HkjHttpClient return type.")
         .inFile(CHILD);
+  }
+
+  @Test
+  @DisplayName("without a file-object lookup, a missing inherited type falls back to assignability")
+  void unsupportedFileObjectLookupFallsBackToTheAssignabilityCheck() throws IOException {
+    Path base =
+        baseModule(
+            """
+              @GetExchange("/{id}")
+              @OnStatus(value = 404, error = com.upstream.errors.Gone.class)
+              EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);
+            """);
+    Files.delete(base.resolve("com/upstream/errors/Gone.class"));
+    Compilation compilation =
+        compiler(base)
+            .withProcessors(withoutFileObjectLookup(new HkjHttpClientProcessor()))
+            .compile(CHILD);
+
+    // Elements.getFileObjectOf is a default method javac overrides and another compiler may not.
+    // Without it the processor cannot confirm the method came from a class file, so it reports
+    // what it can check rather than abandoning the client on the unsupported operation.
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining(
+            "'getUser', inherited from 'BaseApi': @OnStatus error type com.upstream.errors.Gone is"
+                + " not assignable")
+        .inFile(CHILD);
+    Assertions.assertThat(compilation.errors())
+        .noneMatch(error -> error.getMessage(null).contains("Failed to generate"));
+  }
+
+  /**
+   * The processor, handed an {@code Elements} whose {@code getFileObjectOf} is unsupported, as the
+   * default method is in a compiler that does not implement it. Everything else is javac's own.
+   */
+  private static Processor withoutFileObjectLookup(Processor delegate) {
+    return new Processor() {
+      @Override
+      public Set<String> getSupportedOptions() {
+        return delegate.getSupportedOptions();
+      }
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return delegate.getSupportedAnnotationTypes();
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return delegate.getSupportedSourceVersion();
+      }
+
+      @Override
+      public void init(ProcessingEnvironment env) {
+        Elements elements = env.getElementUtils();
+        Elements limited =
+            proxy(
+                Elements.class,
+                (proxy, method, args) -> {
+                  if (method.getName().equals("getFileObjectOf")) {
+                    throw new UnsupportedOperationException();
+                  }
+                  return invoke(method, elements, args);
+                });
+        delegate.init(
+            proxy(
+                ProcessingEnvironment.class,
+                (proxy, method, args) ->
+                    method.getName().equals("getElementUtils")
+                        ? limited
+                        : invoke(method, env, args)));
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        return delegate.process(annotations, roundEnv);
+      }
+
+      @Override
+      public Iterable<? extends Completion> getCompletions(
+          Element element, AnnotationMirror annotation, ExecutableElement member, String userText) {
+        return delegate.getCompletions(element, annotation, member, userText);
+      }
+    };
+  }
+
+  private static <T> T proxy(Class<T> type, InvocationHandler handler) {
+    return type.cast(
+        Proxy.newProxyInstance(
+            HkjHttpClientProcessorClasspathTest.class.getClassLoader(),
+            new Class<?>[] {type},
+            handler));
+  }
+
+  private static Object invoke(Method method, Object target, Object[] args) throws Throwable {
+    try {
+      return method.invoke(target, args);
+    } catch (InvocationTargetException e) {
+      throw e.getCause();
+    }
   }
 }
