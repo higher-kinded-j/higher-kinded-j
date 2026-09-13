@@ -8,6 +8,7 @@ import static com.google.testing.compile.Compiler.javac;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -320,19 +321,18 @@ class HkjHttpClientProcessorTest {
     @Test
     @DisplayName("errors when an override type is not assignable to the declared error type")
     void incompatibleOverride() {
-      Compilation compilation =
-          compile(
-              api(
-                  "  @GetExchange(\"/{id}\")",
-                  "  @OnStatus(value = 404, error = UserDto.class)",
-                  "  EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);"),
-              USER_DTO,
-              API_ERR,
-              NOT_FOUND,
-              CONFLICT,
-              GENERIC);
+      JavaFileObject source =
+          api(
+              "  @GetExchange(\"/{id}\")",
+              "  @OnStatus(value = 404, error = UserDto.class)",
+              "  EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);");
+      Compilation compilation = compile(source, USER_DTO, API_ERR, NOT_FOUND, CONFLICT, GENERIC);
 
-      assertThat(compilation).hadErrorContaining("not assignable");
+      // A method the client declares itself is reported at its own declaration.
+      assertThat(compilation)
+          .hadErrorContaining("@OnStatus error type com.example.UserDto is not assignable")
+          .inFile(source)
+          .onLineContaining("getUser");
     }
 
     @Test
@@ -389,6 +389,28 @@ class HkjHttpClientProcessorTest {
               GENERIC);
 
       assertThat(compilation).hadWarningContaining("Duplicate @OnStatus");
+    }
+
+    @Test
+    @DisplayName("an unresolvable override type in the client's own source is not called missing")
+    void unresolvableLocalOverrideIsLeftToJavac() {
+      Compilation compilation =
+          compile(
+              api(
+                  "  @GetExchange(\"/{id}\")",
+                  "  @OnStatus(value = 404, error = NotFund.class)",
+                  "  EitherPath<ApiErr, UserDto> getUser(@PathVariable String id);"),
+              USER_DTO,
+              API_ERR,
+              NOT_FOUND,
+              CONFLICT,
+              GENERIC);
+
+      // javac names the unresolvable type itself. The missing-dependency advice belongs to a type
+      // named in a class file, where javac says nothing, and would misdirect a typo.
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("classpath"));
     }
   }
 

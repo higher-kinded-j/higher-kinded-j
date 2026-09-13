@@ -248,6 +248,8 @@ There are three ways to override how a status maps to an error type. They apply 
 EitherPath<DomainError, UserDto> getUser(@PathVariable String id);
 ```
 
+An `@OnStatus` on a method your client inherits from a base interface applies as well, whether the base is compiled alongside the client or comes from a dependency jar. A problem with an inherited override is reported on your client interface, naming the method and the interface it came from.
+
 #### 2. Global: `hkj.client.status-error-mappings`
 
 **The problem:** the same status maps to the same error type across every client, and repeating `@OnStatus` everywhere is noise.
@@ -320,7 +322,7 @@ A generic `@HkjHttpClient` interface is supported **codegen-only**: the native i
 - **Client interfaces outside the component scan.** If your `@HkjHttpClient` interfaces are not under your `@SpringBootApplication`'s scanned packages, the generated configuration is not picked up and Spring never creates the proxy. Add an explicit `@ImportHttpServices(basePackages = "...")`.
 - **Expecting a transport failure to become a `Left`.** Connection-refused and timeout are not domain errors; they propagate. Use the `VTaskPath` variant and `runSafe()` to capture them as the failure arm of `Try<Either<E, T>>`.
 - **Short-circuiting an SSE stream.** Drain it (`toList()`) or bound it (`take(n).toList()`); a `headOption()`/`find(...)` returns before the stream completes and may leave the HTTP response open.
-- **Inheriting methods from a precompiled base.** A super-interface in a dependency jar must be compiled with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. Interfaces compiled in your own build are fine.
+- **Inheriting methods from a precompiled base.** A super-interface in a dependency jar must be compiled with `-parameters`, or its `@PathVariable`/`@RequestParam` arguments bind to `arg0`-style names. A jar built against 0.4.10 or earlier also carries none of its `@OnStatus` overrides, which were discarded when it was compiled, so its methods ignore them until it is rebuilt. Interfaces compiled in your own build are fine. Wherever the base is compiled, a module declaring `@OnStatus` should expose `hkj-spring-boot-client` to the modules that use it (Gradle's `api` configuration): its class files name the annotation, and a module compiling against them without it warns under `-Xlint:all`, which fails a `-Werror` build.
 - **An `@OnStatus` error type that is not assignable to the method's declared error type.** This is a compile error, by design.
 ~~~
 
