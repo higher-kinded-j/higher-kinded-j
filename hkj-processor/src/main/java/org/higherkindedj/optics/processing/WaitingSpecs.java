@@ -57,22 +57,22 @@ final class WaitingSpecs {
   /**
    * The {@code @GenerateMapping} interfaces each compilation has met, in the order met. Keyed
    * weakly by the compilation's {@link Elements}, the one utility a build tool hands every
-   * processor unwrapped, and holding names only, so a finished compilation is never kept reachable.
+   * processor unwrapped, and holding keys only, so a finished compilation is never kept reachable.
    */
-  private static final Map<Elements, Set<SpecName>> MAPPING_SPECS = new WeakHashMap<>();
+  private static final Map<Elements, Set<TypeKey>> MAPPING_SPECS = new WeakHashMap<>();
 
   private WaitingSpecs() {}
 
   /**
-   * A spec as the rounds hold it: by module and canonical name, looked up afresh each round, since
-   * one compilation may declare the same name in more than one module.
+   * A type as the rounds hold it: by module and canonical name, since two modules compiled together
+   * may declare the same canonical name. A spec is looked up afresh by it each round.
    */
-  record SpecName(String module, String name) {
+  record TypeKey(String module, String name) {
 
-    static SpecName of(Elements elements, Element spec) {
-      return new SpecName(
-          elements.getModuleOf(spec).getQualifiedName().toString(),
-          ((TypeElement) spec).getQualifiedName().toString());
+    static TypeKey of(Elements elements, Element type) {
+      return new TypeKey(
+          elements.getModuleOf(type).getQualifiedName().toString(),
+          ((TypeElement) type).getQualifiedName().toString());
     }
 
     TypeElement in(Elements elements) {
@@ -87,10 +87,10 @@ final class WaitingSpecs {
    * The interfaces among a round's annotated elements, the only declarations a spec can be. One of
    * another kind is refused where it stands, having nothing to wait for.
    */
-  static List<SpecName> interfaces(Elements elements, Set<? extends Element> annotated) {
+  static List<TypeKey> interfaces(Elements elements, Set<? extends Element> annotated) {
     return annotated.stream()
         .filter(element -> element.getKind() == ElementKind.INTERFACE)
-        .map(element -> SpecName.of(elements, element))
+        .map(element -> TypeKey.of(elements, element))
         .toList();
   }
 
@@ -100,43 +100,47 @@ final class WaitingSpecs {
    */
   static List<TypeElement> meetMappings(Elements elements, Set<? extends Element> annotated) {
     synchronized (MAPPING_SPECS) {
-      Set<SpecName> met =
+      Set<TypeKey> met =
           MAPPING_SPECS.computeIfAbsent(elements, compilation -> new LinkedHashSet<>());
       met.addAll(interfaces(elements, annotated));
-      return met.stream().map(name -> name.in(elements)).toList();
+      return met.stream().map(key -> key.in(elements)).toList();
     }
   }
 
   /**
-   * The qualified names of the specs that wait this round: those whose classification would read an
-   * unresolved type declared in source, then, until none joins, those naming the domain or wire
-   * type of a mapping spec that waits. A merge spec is never nested, so only a mapping spec passes
-   * its waiting on. The Impl a spec is generated as never counts as unresolved, since the
-   * processors write it: a spec naming one would otherwise wait for itself.
+   * The specs that wait this round: those whose classification would read an unresolved type
+   * declared in source, then, until none joins, those naming the domain or wire type of a mapping
+   * spec that waits. Specs and the types they name are told apart by {@link TypeKey}, so a
+   * same-named type in another module neither holds a spec back nor lets it through. A merge spec
+   * is never nested, so only a mapping spec passes its waiting on. The Impl a spec is generated as
+   * never counts as unresolved, since the processors write it: a spec naming one would otherwise
+   * wait for itself.
    */
-  static Set<String> among(
+  static Set<TypeKey> among(
       Elements elements, List<TypeElement> mappingSpecs, List<TypeElement> mergeSpecs) {
     Set<String> impls =
         Stream.concat(mappingSpecs.stream(), mergeSpecs.stream())
             .map(MappingProcessor::implClassName)
             .flatMap(impl -> Stream.of(impl.simpleName(), impl.canonicalName()))
             .collect(Collectors.toSet());
-    Map<String, Reach> reaches = new LinkedHashMap<>();
-    Map<String, Set<String>> pairs = new LinkedHashMap<>();
+    Map<TypeKey, Reach> reaches = new LinkedHashMap<>();
+    Map<TypeKey, Set<TypeKey>> pairs = new LinkedHashMap<>();
     for (TypeElement spec : mappingSpecs) {
       Reach reach = new Reach(elements, impls);
       reach.declaration(spec);
-      Set<String> pair = new LinkedHashSet<>();
+      Set<TypeKey> pair = new LinkedHashSet<>();
       Stream.of(MappingProcessor.findMappingSpec(spec), MappingProcessor.findUpdateSpec(spec))
           .filter(Objects::nonNull)
           .flatMap(supertype -> supertype.getTypeArguments().stream())
           .forEach(
               side -> {
                 reach.shape(side);
-                declaredType(side).map(Reach::qualified).ifPresent(pair::add);
+                declaredType(side)
+                    .map(declared -> TypeKey.of(elements, declared.asElement()))
+                    .ifPresent(pair::add);
               });
-      reaches.put(Reach.qualified(spec), reach);
-      pairs.put(Reach.qualified(spec), pair);
+      reaches.put(TypeKey.of(elements, spec), reach);
+      pairs.put(TypeKey.of(elements, spec), pair);
     }
     for (TypeElement spec : mergeSpecs) {
       Reach reach = new Reach(elements, impls);
@@ -145,18 +149,18 @@ final class WaitingSpecs {
         reach.shape(method.getReturnType());
         method.getParameters().forEach(parameter -> reach.shape(parameter.asType()));
       }
-      reaches.put(Reach.qualified(spec), reach);
+      reaches.put(TypeKey.of(elements, spec), reach);
     }
-    Set<String> waiting =
+    Set<TypeKey> waiting =
         reaches.entrySet().stream()
             .filter(entry -> entry.getValue().unresolved)
             .map(Map.Entry::getKey)
             .collect(Collectors.toCollection(LinkedHashSet::new));
-    List<String> joining;
+    List<TypeKey> joining;
     do {
-      Set<String> waitedFor =
+      Set<TypeKey> waitedFor =
           waiting.stream()
-              .flatMap(name -> pairs.getOrDefault(name, Set.of()).stream())
+              .flatMap(key -> pairs.getOrDefault(key, Set.of()).stream())
               .collect(Collectors.toSet());
       joining =
           reaches.entrySet().stream()
@@ -185,21 +189,13 @@ final class WaitingSpecs {
 
     private final Elements elements;
     private final Set<String> impls;
-    private final Set<String> names = new HashSet<>();
-    private final Set<String> opened = new HashSet<>();
+    private final Set<TypeKey> names = new HashSet<>();
+    private final Set<TypeKey> opened = new HashSet<>();
     private boolean unresolved;
 
     Reach(Elements elements, Set<String> impls) {
       this.elements = elements;
       this.impls = impls;
-    }
-
-    static String qualified(DeclaredType type) {
-      return qualified((TypeElement) type.asElement());
-    }
-
-    static String qualified(TypeElement type) {
-      return type.getQualifiedName().toString();
     }
 
     /**
@@ -214,7 +210,7 @@ final class WaitingSpecs {
         declaredType(parent)
             .map(declared -> (TypeElement) declared.asElement())
             .filter(this::fromSource)
-            .filter(element -> opened.add(qualified(element)))
+            .filter(element -> opened.add(key(element)))
             .ifPresent(this::declaration);
       }
     }
@@ -240,7 +236,7 @@ final class WaitingSpecs {
               declared -> {
                 declared.getTypeArguments().forEach(this::open);
                 TypeElement element = (TypeElement) declared.asElement();
-                if (!opened.add(qualified(element))) {
+                if (!opened.add(key(element))) {
                   return;
                 }
                 if (fromSource(element)) {
@@ -264,7 +260,7 @@ final class WaitingSpecs {
       declaredType(mirror)
           .ifPresent(
               declared -> {
-                names.add(qualified(declared));
+                names.add(key(declared.asElement()));
                 declared.getTypeArguments().forEach(this::name);
                 open(declared);
               });
@@ -292,7 +288,7 @@ final class WaitingSpecs {
         case ERROR -> unresolved |= !impls.contains(mirror.toString());
         case DECLARED -> {
           DeclaredType declared = (DeclaredType) mirror;
-          names.add(qualified(declared));
+          names.add(key(declared.asElement()));
           declared.getTypeArguments().forEach(this::type);
           type(declared.getEnclosingType());
         }
@@ -308,6 +304,10 @@ final class WaitingSpecs {
           // read from its declaration.
         }
       }
+    }
+
+    private TypeKey key(Element type) {
+      return TypeKey.of(elements, type);
     }
 
     private boolean fromSource(TypeElement type) {

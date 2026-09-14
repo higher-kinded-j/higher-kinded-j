@@ -185,7 +185,7 @@ public class MappingProcessor extends AbstractProcessor {
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
 
   /** The interfaces met but not processed yet: arriving this round, or waiting for a later one. */
-  private final Set<WaitingSpecs.SpecName> unprocessed = new LinkedHashSet<>();
+  private final Set<WaitingSpecs.TypeKey> unprocessed = new LinkedHashSet<>();
 
   /** Creates a new MappingProcessor. */
   public MappingProcessor() {}
@@ -214,13 +214,13 @@ public class MappingProcessor extends AbstractProcessor {
     if (roundEnv.processingOver() || unprocessed.isEmpty()) {
       return true;
     }
-    Set<String> waiting = WaitingSpecs.among(elements, specs, List.of());
+    Set<WaitingSpecs.TypeKey> waiting = WaitingSpecs.among(elements, specs, List.of());
     List<RegisteredSpec> registry =
         scanRegistry(processingEnv, specs, unprocessed.iterator().next().in(elements), waiting);
-    for (WaitingSpecs.SpecName name : List.copyOf(unprocessed)) {
-      if (!waiting.contains(name.name())) {
-        unprocessed.remove(name);
-        processSpec(name.in(elements), registry);
+    for (WaitingSpecs.TypeKey spec : List.copyOf(unprocessed)) {
+      if (!waiting.contains(spec)) {
+        unprocessed.remove(spec);
+        processSpec(spec.in(elements), registry);
       }
     }
     return true;
@@ -243,19 +243,21 @@ public class MappingProcessor extends AbstractProcessor {
    *
    * @param specs every {@code @GenerateMapping} interface this compilation has met
    * @param compiled any spec of this compilation, whose module is the one being compiled
-   * @param waiting the qualified names of the specs waiting for a later round, which do not
-   *     register
+   * @param waiting the specs waiting for a later round, which do not register
    */
   static List<RegisteredSpec> scanRegistry(
-      ProcessingEnvironment env, List<TypeElement> specs, Element compiled, Set<String> waiting) {
+      ProcessingEnvironment env,
+      List<TypeElement> specs,
+      Element compiled,
+      Set<WaitingSpecs.TypeKey> waiting) {
     List<RegisteredSpec> registry = new ArrayList<>();
     BeanPropertyAnalyser beanAnalyser = new BeanPropertyAnalyser(env);
+    Elements elements = env.getElementUtils();
     for (TypeElement spec : specs) {
-      if (!waiting.contains(spec.getQualifiedName().toString())) {
+      if (!waiting.contains(WaitingSpecs.TypeKey.of(elements, spec))) {
         register(env, beanAnalyser, spec, Origin.THIS_COMPILATION, registry);
       }
     }
-    Elements elements = env.getElementUtils();
     if (!(MappingIndexes.indexUse(env, compiled) instanceof MappingIndexes.IndexUse.Usable)) {
       return List.copyOf(registry);
     }
@@ -7398,18 +7400,31 @@ public class MappingProcessor extends AbstractProcessor {
           .writeTo(processingEnv.getFiler());
       writeIndexEntry(spec);
     } catch (FilerException e) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          spec,
-          TAG,
-          "could not write the generated mapping for '"
-              + spec.getSimpleName()
-              + "': the class already exists.",
-          "Nested specs join their enclosing simple names, so two specs can collide on one Impl"
-              + " name (for example Outer.Inner and OuterInner). The filer reported: "
-              + e.getMessage()
-              + ".",
-          "Rename one of the colliding specs.");
+      List<String> modules =
+          ProcessorUtils.compiledModulesDeclaring(processingEnv.getElementUtils(), packageName);
+      if (modules.size() > 1) {
+        Diagnostics.sharedPackage(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "the generated mapping for '" + spec.getSimpleName() + "'",
+            packageName,
+            modules,
+            e.getMessage());
+      } else {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "could not write the generated mapping for '"
+                + spec.getSimpleName()
+                + "': the class already exists.",
+            "Nested specs join their enclosing simple names, so two specs can collide on one Impl"
+                + " name (for example Outer.Inner and OuterInner). The filer reported: "
+                + e.getMessage()
+                + ".",
+            "Rename one of the colliding specs.");
+      }
     } catch (IOException e) {
       writeFailure(spec, e);
     }

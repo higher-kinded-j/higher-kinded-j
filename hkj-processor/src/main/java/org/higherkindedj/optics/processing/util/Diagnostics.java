@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.util;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.Element;
 import javax.tools.Diagnostic;
@@ -82,6 +84,43 @@ public final class Diagnostics {
     Objects.requireNonNull(messager, "messager must not be null");
     Objects.requireNonNull(element, "element must not be null");
     messager.printMessage(Diagnostic.Kind.NOTE, format(annotation, what, why, fix), element);
+  }
+
+  /**
+   * Reports a generated file javac could not place in a module, since more than one module being
+   * compiled declares its package (see {@link ProcessorUtils#compiledModulesDeclaring}).
+   *
+   * @param messager the processing-round messager; must not be null
+   * @param element the element the file is generated for; must not be null
+   * @param annotation the annotation tag; must not be null
+   * @param file what could not be written, for example {@code "the generated mapping for 'M'"}
+   * @param packageName the file's package; must not be null
+   * @param modules the modules declaring the package; must not be null
+   * @param reason what the filer reported; must not be null
+   */
+  public static void sharedPackage(
+      Messager messager,
+      Element element,
+      String annotation,
+      String file,
+      String packageName,
+      List<String> modules,
+      String reason) {
+    error(
+        messager,
+        element,
+        annotation,
+        "could not write "
+            + file
+            + ": its package '"
+            + packageName
+            + "' is declared by more than one module being compiled ("
+            + modules.stream().map(module -> "'" + module + "'").collect(Collectors.joining(", "))
+            + ").",
+        "javac writes a generated class into the module that declares its package, and cannot"
+            + " choose between them. The filer reported: "
+            + reason,
+        "Declare the package in only one of those modules, or compile the modules separately.");
   }
 
   /**

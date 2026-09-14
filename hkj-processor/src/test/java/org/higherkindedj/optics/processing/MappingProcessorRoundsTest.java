@@ -23,6 +23,7 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -151,9 +152,12 @@ class MappingProcessorRoundsTest {
       return false;
     }
 
+    /** Writes one type; a name with a module prefix, {@code billing/Vocabulary}, goes there. */
     private void write(String simpleName, String body) {
-      try (Writer out =
-          processingEnv.getFiler().createSourceFile(PKG + "." + simpleName).openWriter()) {
+      int slash = simpleName.indexOf('/');
+      String type =
+          simpleName.substring(0, slash + 1) + PKG + "." + simpleName.substring(slash + 1);
+      try (Writer out = processingEnv.getFiler().createSourceFile(type).openWriter()) {
         out.write("package " + PKG + ";\n\n" + IMPORTS + body);
       } catch (IOException e) {
         throw new UncheckedIOException(e);
@@ -618,5 +622,31 @@ class MappingProcessorRoundsTest {
     assertThat(compilation).succeededWithoutWarnings();
     Assertions.assertThat(generatedSource(compilation, "OrderMappingImpl"))
         .contains("MoneyMappingImpl.INSTANCE.asValidatedPrism()");
+  }
+
+  @Test
+  @DisplayName("a spec waits in its own module, apart from a same-named spec in another module")
+  void aSpecWaitsInItsOwnModule() throws IOException {
+    List<Diagnostic<? extends JavaFileObject>> diagnostics =
+        GeneratorTestHelper.compileModules(
+            tmp,
+            List.of(
+                new TypeWriter(Map.of("billing/ContactVocabulary", CONTACT_VOCABULARY)),
+                new MappingProcessor(),
+                new MergeProcessor()),
+            Map.of(
+                "billing",
+                List.of(CONTACT, CONTACT_DTO, WAITING_CONTACT_MAPPING),
+                "shipping",
+                List.of(CONTACT, CONTACT_DTO, spec("ContactMapping", "Contact", "ContactDto"))));
+    // javac cannot write a type into a package two modules share, so each spec processed reports
+    // the shared package, and those reports say which specs were processed: shipping's, while
+    // billing's waits for its mix-in until the reports end processing.
+    Assertions.assertThat(diagnostics)
+        .filteredOn(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
+        .isNotEmpty()
+        .allSatisfy(
+            error ->
+                Assertions.assertThat(error.getSource().toUri().getPath()).contains("/shipping/"));
   }
 }
