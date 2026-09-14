@@ -1277,6 +1277,145 @@ class MappingProcessorClasspathTest {
     }
   }
 
+  @Nested
+  @DisplayName("A dependency whose own dependency is off the classpath")
+  class MissingTransitiveDependency {
+
+    /** A type the dependency compiles against, left off the consumer's classpath. */
+    private static final JavaFileObject BASE =
+        JavaFileObjects.forSourceString(
+            "com.base.Missing",
+            """
+            package com.base;
+
+            public record Missing(String value) {}
+            """);
+
+    /** A superinterface the dependency's vocabulary extends, left off the classpath too. */
+    private static final JavaFileObject MISSING_BASE =
+        JavaFileObjects.forSourceString(
+            "com.base.MissingBase",
+            """
+            package com.base;
+
+            public interface MissingBase {}
+            """);
+
+    /** Records and a vocabulary naming the missing type where the classification reads it. */
+    private static final JavaFileObject PARTIAL =
+        JavaFileObjects.forSourceString(
+            "com.partial.Types",
+            """
+            package com.partial;
+
+            import com.base.Missing;
+            import com.base.MissingBase;
+            import java.util.List;
+
+            public final class Types {
+              private Types() {}
+
+              public interface PartialVocabulary extends MissingBase {}
+
+              public record User(String name) {}
+
+              public record UserDto(String name) {}
+
+              public interface BuildVocabulary {
+                default UserDto build(Missing missing) {
+                  return null;
+                }
+              }
+
+              public record Holder(Missing[] items) {}
+
+              public record HolderDto(String[] items) {}
+
+              public record Page<T>(List<T> items) {}
+
+              public record PageDto<T>(List<T> items) {}
+
+              public record Report(Page<List<Missing>> results, Page<Missing> direct) {}
+
+              public record ReportDto(PageDto<List<Missing>> results, PageDto<String> direct) {}
+            }
+            """);
+
+    @Test
+    @DisplayName(
+        "a class file naming a type missing from the classpath is never read as a defect of the"
+            + " spec")
+    void aTypeMissingFromTheClasspathIsNoGateError() throws IOException {
+      Path base = module("base", List.of(), List.of(BASE, MISSING_BASE));
+      Path partial = module("partial", List.of(base), List.of(PARTIAL));
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.consumer.Specs",
+              """
+              package com.consumer;
+
+              import com.partial.Types;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Specs {
+                private Specs() {}
+
+                @GenerateMapping
+                public interface UserMapping
+                    extends Types.BuildVocabulary, MappingSpec<Types.User, Types.UserDto> {}
+
+                @GenerateMapping
+                public interface HolderMapping extends MappingSpec<Types.Holder, Types.HolderDto> {}
+
+                @GenerateMapping
+                public interface PageMapping<T>
+                    extends MappingSpec<Types.Page<T>, Types.PageDto<T>> {}
+
+                @GenerateMapping
+                public interface ReportMapping extends MappingSpec<Types.Report, Types.ReportDto> {}
+              }
+              """);
+
+      // The consumer compiles against the dependency alone, as against a jar whose own dependency
+      // the build left out. A later round cannot supply a class-file type, so nothing waits: the
+      // unresolved types reach the classification, and none of its gates reads them as a defect.
+      Compilation compilation = compiler(partial).compile(specs);
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .extracting(error -> error.getMessage(null))
+          // an inherited build(Missing) collides with nothing the Impl emits
+          .noneMatch(message -> message.contains("collides"))
+          // a Missing[] component is not an array whose constructor cannot be named
+          .noneMatch(message -> message.contains("cannot name an array constructor"))
+          // Page<List<Missing>> and Page<Missing> do not bind a spec at an unsupported argument
+          .noneMatch(message -> message.contains("is not a supported instantiation"));
+
+      // A superinterface missing from the classpath stops javac before any processor runs, so no
+      // walk of a spec's mix-ins ever meets one unresolved.
+      Compilation mixin =
+          compiler(partial)
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.consumer.AccountMapping",
+                      """
+                      package com.consumer;
+
+                      import com.partial.Types;
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+
+                      @GenerateMapping
+                      public interface AccountMapping
+                          extends Types.PartialVocabulary, MappingSpec<Types.User, Types.UserDto> {}
+                      """));
+      assertThat(mixin).failed();
+      assertThat(mixin).hadErrorContaining("cannot access");
+      Assertions.assertThat(mixin.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@GenerateMapping"));
+    }
+  }
+
   /**
    * A shared mix-in vocabulary is an ordinary interface, so it may be published by one module and
    * extended by specs in another. Its annotated members only survive that boundary because

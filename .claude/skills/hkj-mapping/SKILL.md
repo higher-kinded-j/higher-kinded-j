@@ -442,6 +442,12 @@ matter: it maps build-only whatever its width, derived fields included.
   parse-only mapping, an `UpdateSpec` or a merge; a build-only spec in a build-only mapping), an
   `UpdateSpec` refuses either as its own PATCH bean, and a bean whose getters and setters never
   share a name is refused as a likely typo.
+- **A type another processor generates is waited for.** A wire or domain type, or a component,
+  bean property, builder or mix-in method read from one, that another annotation processor writes
+  in the same compilation (an Immutables value, a schema-generated DTO) does not exist until the
+  round after it is written. The `@GenerateMapping` or `@GenerateMerge` spec is generated once it
+  exists, and so is any spec nesting it. If it never appears, the spec generates nothing: javac
+  names the missing type, and code using the spec's `Impl` reports the `Impl` missing too.
 - **No component ceiling** on `parse`, the validated `patch`, or `@GenerateMerge`'s fallible
   merge: each is assembled via `Validated.fields()` ladders, chunked and combined applicatively
   past 16 legs, so a flat 20-30 field DTO maps without nesting. Error semantics are identical to

@@ -33,7 +33,9 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.annotations.ArityCeilings;
+import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -75,6 +77,9 @@ public class MergeProcessor extends AbstractProcessor {
       ClassName.get("org.higherkindedj.optics.annotations", "Generated");
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
 
+  /** The merge interfaces met but not processed yet: arriving this round, or waiting. */
+  private final Set<WaitingSpecs.SpecName> unprocessed = new LinkedHashSet<>();
+
   /** Creates a new MergeProcessor. */
   public MergeProcessor() {}
 
@@ -83,18 +88,37 @@ public class MergeProcessor extends AbstractProcessor {
     return SourceVersion.latestSupported();
   }
 
+  /**
+   * Processes the merges that can be classified this round: a merge naming a type another processor
+   * has not written yet, or a mapping that waits for one, waits too (see {@link WaitingSpecs}).
+   */
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    Set<? extends Element> specs = roundEnv.getElementsAnnotatedWith(GenerateMerge.class);
-    if (specs.isEmpty()) {
+    Elements elements = processingEnv.getElementUtils();
+    // Every mapping spec the compilation has met, the rounds before this processor's first
+    // included: a fill may nest through any of them.
+    List<TypeElement> mappings =
+        WaitingSpecs.meetMappings(
+            elements, roundEnv.getElementsAnnotatedWith(GenerateMapping.class));
+    Set<? extends Element> annotated = roundEnv.getElementsAnnotatedWith(GenerateMerge.class);
+    annotated.stream()
+        .filter(element -> element.getKind() != ElementKind.INTERFACE)
+        .forEach(element -> processSpec(element, List.of()));
+    unprocessed.addAll(WaitingSpecs.interfaces(elements, annotated));
+    if (roundEnv.processingOver() || unprocessed.isEmpty()) {
       return true;
     }
-    // Nested fills resolve against the round's @GenerateMapping specs and the classpath index
+    List<TypeElement> merges = unprocessed.stream().map(name -> name.in(elements)).toList();
+    Set<String> waiting = WaitingSpecs.among(elements, mappings, merges);
+    // Nested fills resolve against the compilation's @GenerateMapping specs and the classpath index
     // (shared scan).
     List<MappingProcessor.RegisteredSpec> registry =
-        MappingProcessor.scanRegistry(processingEnv, roundEnv, specs.iterator().next());
-    for (Element element : specs) {
-      processSpec(element, registry);
+        MappingProcessor.scanRegistry(processingEnv, mappings, merges.getFirst(), waiting);
+    for (WaitingSpecs.SpecName name : List.copyOf(unprocessed)) {
+      if (!waiting.contains(name.name())) {
+        unprocessed.remove(name);
+        processSpec(name.in(elements), registry);
+      }
     }
     return true;
   }

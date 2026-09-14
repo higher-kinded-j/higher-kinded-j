@@ -46,6 +46,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>Getters and setters are gathered from {@link javax.lang.model.util.Elements#getAllMembers}, so
  * a bean inherits properties from its superclasses (as JAXB-generated beans do); {@link Object}
  * methods and non-public or static accessors are excluded.
+ *
+ * <p>Whatever this analysis reads from a bean declared in source must stay reachable from {@link
+ * WaitingSpecs}, which decides whether a spec can be classified yet: a read it cannot see is a type
+ * a spec may meet before another processor has written it.
  */
 final class BeanPropertyAnalyser {
 

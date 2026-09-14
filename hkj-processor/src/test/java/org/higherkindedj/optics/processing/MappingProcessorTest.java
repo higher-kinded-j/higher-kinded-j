@@ -791,31 +791,6 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("an unresolved array element leaves the diagnostic to javac")
-    void unresolvedArrayElementStaysQuiet() {
-      JavaFileObject types =
-          records(
-              """
-              public final class Records {
-                public record Holder(Missing[] items) {}
-
-                public record HolderDto(String[] items) {}
-              }
-              """);
-      Compilation compilation =
-          compile(
-              types,
-              spec(
-                  "HolderMapping",
-                  "public interface HolderMapping extends MappingSpec<Records.Holder,"
-                      + " Records.HolderDto> {}"));
-      assertThat(compilation).failed();
-      // javac's cannot-find-symbol is the only thing to fix; we add nothing to it.
-      Assertions.assertThat(compilation.errors())
-          .noneMatch(d -> d.getMessage(null).contains("cannot name an array constructor"));
-    }
-
-    @Test
     @DisplayName("an unbounded-wildcard element names a constructor; a bounded one does not")
     void wildcardArrayElements() {
       JavaFileObject types =
@@ -6967,24 +6942,6 @@ class MappingProcessorTest {
       assertThat(compilation).hadErrorContaining("'asLens()' collides with the 'asLens' member");
       assertThat(compilation).hadErrorContaining("a lossy projection");
     }
-
-    @Test
-    @DisplayName(
-        "an unresolved parameter type is never a collision, so the real cannot-find-symbol"
-            + " error is not shadowed")
-    void unresolvedParameterTypesAreNotCollisions() {
-      Compilation compilation =
-          compile(
-              EMAIL,
-              DOMAIN,
-              WIRE,
-              fullSpecWith("  default UserDto build(Missing missing) { return null; }"));
-
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("cannot find symbol");
-      Assertions.assertThat(compilation.errors())
-          .noneMatch(diagnostic -> diagnostic.getMessage(null).contains("collides"));
-    }
   }
 
   @Nested
@@ -7588,8 +7545,8 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("raw and unresolved use sites step aside from unification")
-    void rawAndUnresolvedUseSitesStepAside() {
+    @DisplayName("raw use sites step aside from unification")
+    void rawUseSitesStepAside() {
       JavaFileObject reportMapping =
           JavaFileObjects.forSourceString(
               "com.example.ReportMapping",
@@ -7655,29 +7612,6 @@ class MappingProcessorTest {
       assertThat(rawArg).failed();
       assertThat(rawArg)
           .hadErrorContaining("target field 'ReportDto.results' has no usable source");
-
-      // An unresolved argument is javac's diagnostic, never a spurious match or a crash.
-      JavaFileObject unresolvedReport =
-          JavaFileObjects.forSourceString(
-              "com.example.Report",
-              """
-              package com.example;
-
-              public record Report(Page<Missing> results) {}
-              """);
-      JavaFileObject unresolvedReportDto =
-          JavaFileObjects.forSourceString(
-              "com.example.ReportDto",
-              """
-              package com.example;
-
-              public record ReportDto(PageDto<Missing> results) {}
-              """);
-      Compilation unresolved =
-          compile(
-              PAGE, PAGE_DTO, PAGE_MAPPING, unresolvedReport, unresolvedReportDto, reportMapping);
-      assertThat(unresolved).failed();
-      assertThat(unresolved).hadErrorContaining("Missing");
     }
 
     @Test
@@ -8971,32 +8905,6 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("target field 'PageDto.items' has no usable source");
-    }
-
-    @Test
-    @DisplayName("an unresolved type argument steps aside for javac's own diagnostic")
-    void unresolvedTypeArgumentsAreNotGateErrors() {
-      JavaFileObject spec =
-          JavaFileObjects.forSourceString(
-              "com.example.MissingArgMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-
-              @GenerateMapping
-              public interface MissingArgMapping
-                  extends MappingSpec<Page<Missing>, PageDto<Missing>> {}
-              """);
-
-      Compilation compilation = compile(PAGE, PAGE_DTO, spec);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("cannot find symbol");
-      Assertions.assertThat(compilation.errors())
-          .noneMatch(
-              diagnostic ->
-                  diagnostic.getMessage(null).contains("is not a supported instantiation"));
     }
 
     @Test
@@ -10948,60 +10856,6 @@ class MappingProcessorTest {
       Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, base, sneaky, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("mix-in 'Sneaky' is itself a mapping spec");
-    }
-
-    @Test
-    @DisplayName("an unresolved mix-in is javac's error, not a mix-in diagnostic")
-    void unresolvedMixinStepsAside() {
-      JavaFileObject spec =
-          JavaFileObjects.forSourceString(
-              "com.example.AccountMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-
-              @GenerateMapping
-              public interface AccountMapping
-                  extends MissingVocabulary, MappingSpec<Account, AccountDto> {}
-              """);
-      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, spec);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("MissingVocabulary");
-      Assertions.assertThat(compilation.diagnostics())
-          .noneMatch(d -> d.getMessage(null).contains("mix-in"));
-    }
-
-    @Test
-    @DisplayName("a mix-in with an unresolved superinterface is javac's error, not the gate's")
-    void unresolvedMixinParentStepsAside() {
-      JavaFileObject partial =
-          JavaFileObjects.forSourceString(
-              "com.example.PartialVocabulary",
-              """
-              package com.example;
-
-              public interface PartialVocabulary extends MissingBase {}
-              """);
-      JavaFileObject spec =
-          JavaFileObjects.forSourceString(
-              "com.example.AccountMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-
-              @GenerateMapping
-              public interface AccountMapping
-                  extends PartialVocabulary, MappingSpec<Account, AccountDto> {}
-              """);
-      Compilation compilation = compile(EMAIL, ACCOUNT, ACCOUNT_DTO, partial, spec);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("MissingBase");
-      Assertions.assertThat(compilation.diagnostics())
-          .noneMatch(d -> d.getMessage(null).contains("mix-in"));
     }
 
     @Test

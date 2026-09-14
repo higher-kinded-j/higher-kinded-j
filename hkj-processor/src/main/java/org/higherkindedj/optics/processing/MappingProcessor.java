@@ -184,6 +184,9 @@ public class MappingProcessor extends AbstractProcessor {
       ClassName.get("org.higherkindedj.optics.annotations", "Generated");
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
 
+  /** The interfaces met but not processed yet: arriving this round, or waiting for a later one. */
+  private final Set<WaitingSpecs.SpecName> unprocessed = new LinkedHashSet<>();
+
   /** Creates a new MappingProcessor. */
   public MappingProcessor() {}
 
@@ -192,61 +195,78 @@ public class MappingProcessor extends AbstractProcessor {
     return SourceVersion.latestSupported();
   }
 
+  /**
+   * Processes the specs that can be classified this round. A spec naming a type another processor
+   * has not written yet, or nesting a spec that does, waits for the round that brings it (see
+   * {@link WaitingSpecs}), and a declaration refused for its kind is refused where it stands.
+   */
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    Set<? extends Element> specs = roundEnv.getElementsAnnotatedWith(GenerateMapping.class);
-    if (specs.isEmpty()) {
+    Elements elements = processingEnv.getElementUtils();
+    Set<? extends Element> annotated = roundEnv.getElementsAnnotatedWith(GenerateMapping.class);
+    annotated.stream()
+        .filter(element -> element.getKind() != ElementKind.INTERFACE)
+        .forEach(element -> processSpec(element, List.of()));
+    unprocessed.addAll(WaitingSpecs.interfaces(elements, annotated));
+    List<TypeElement> specs = WaitingSpecs.meetMappings(elements, annotated);
+    // Nothing is written in the last round, which javac also makes of the round after a refusal: a
+    // spec still waiting then generates nothing.
+    if (roundEnv.processingOver() || unprocessed.isEmpty()) {
       return true;
     }
-    List<RegisteredSpec> registry = scanRegistry(processingEnv, roundEnv, specs.iterator().next());
-    for (Element element : specs) {
-      processSpec(element, registry);
+    Set<String> waiting = WaitingSpecs.among(elements, specs, List.of());
+    List<RegisteredSpec> registry =
+        scanRegistry(processingEnv, specs, unprocessed.iterator().next().in(elements), waiting);
+    for (WaitingSpecs.SpecName name : List.copyOf(unprocessed)) {
+      if (!waiting.contains(name.name())) {
+        unprocessed.remove(name);
+        processSpec(name.in(elements), registry);
+      }
     }
     return true;
   }
 
   /**
-   * Scans the round for valid {@code @GenerateMapping} specs, then the classpath index for the
-   * specs compiled into dependencies. Shared with {@link MergeProcessor}, whose nested fills
-   * resolve against the same specs, as sites that only parse. A record domain may pair with a
+   * Registers the compilation's specs that are not waiting for a later round, then the classpath
+   * index's specs compiled into dependencies. Shared with {@link MergeProcessor}, whose nested
+   * fills resolve against the same specs, as sites that only parse. A record domain may pair with a
    * record wire or a bean-shaped wire; each spec registers with the {@link Surface} its Impl
    * carries.
    *
-   * <p>A classpath spec is read from its class file by the same rules as a spec in the round; the
-   * index only names it (see {@code MappingIndexes}). An entry naming a spec this round recompiles
-   * is the previous build's, and the round's own registration stands. A named module reads no
-   * index, having written none. An entry whose spec has lost its Impl registers as unusable, so
-   * that a use site needing the pair is told why (a diagnostic at scan time would fire whether or
-   * not anything needs the pair, twice when both processors scan, and as an unsuppressable
-   * warning).
+   * <p>A classpath spec is read from its class file by the same rules as a spec in source; the
+   * index only names it (see {@code MappingIndexes}). An entry naming a type compiled here is an
+   * earlier round's or the previous build's, and passed over: a spec of this compilation registers
+   * from source, or waits. A named module reads no index, having written none. An entry whose spec
+   * has lost its Impl registers as unusable, so that a use site needing the pair is told why (a
+   * diagnostic at scan time would fire whether or not anything needs the pair, twice when both
+   * processors scan, and as an unsuppressable warning).
    *
-   * @param inRound any element of the round, whose module is the one being compiled
+   * @param specs every {@code @GenerateMapping} interface this compilation has met
+   * @param compiled any spec of this compilation, whose module is the one being compiled
+   * @param waiting the qualified names of the specs waiting for a later round, which do not
+   *     register
    */
   static List<RegisteredSpec> scanRegistry(
-      ProcessingEnvironment env, RoundEnvironment roundEnv, Element inRound) {
+      ProcessingEnvironment env, List<TypeElement> specs, Element compiled, Set<String> waiting) {
     List<RegisteredSpec> registry = new ArrayList<>();
     BeanPropertyAnalyser beanAnalyser = new BeanPropertyAnalyser(env);
-    for (Element element : roundEnv.getElementsAnnotatedWith(GenerateMapping.class)) {
-      if (element.getKind() == ElementKind.INTERFACE) {
-        register(env, beanAnalyser, (TypeElement) element, Origin.THIS_COMPILATION, registry);
+    for (TypeElement spec : specs) {
+      if (!waiting.contains(spec.getQualifiedName().toString())) {
+        register(env, beanAnalyser, spec, Origin.THIS_COMPILATION, registry);
       }
     }
     Elements elements = env.getElementUtils();
-    if (!(MappingIndexes.indexUse(env, inRound) instanceof MappingIndexes.IndexUse.Usable)) {
+    if (!(MappingIndexes.indexUse(env, compiled) instanceof MappingIndexes.IndexUse.Usable)) {
       return List.copyOf(registry);
     }
     for (TypeElement spec : MappingIndexes.classpathSpecs(elements)) {
-      if (registry.stream().anyMatch(r -> r.spec().equals(spec))) {
+      if (MappingIndexes.compiledHere(elements, spec)) {
         continue;
       }
-      // An entry written in an earlier round of this compilation names a spec of this
-      // compilation's own; a dependency's spec is read from its class file.
       Origin origin =
-          MappingIndexes.compiledHere(elements, spec)
-              ? Origin.THIS_COMPILATION
-              : elements.getTypeElement(implClassName(spec).canonicalName()) != null
-                  ? Origin.CLASSPATH
-                  : Origin.CLASSPATH_MISSING_IMPL;
+          elements.getTypeElement(implClassName(spec).canonicalName()) != null
+              ? Origin.CLASSPATH
+              : Origin.CLASSPATH_MISSING_IMPL;
       register(env, beanAnalyser, spec, origin, registry);
     }
     return List.copyOf(registry);
@@ -435,10 +455,10 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A valid spec seen this round or named by the classpath index; nested components resolve against
-   * the ones serving their site ({@link #serves}). Compare registrations by {@code spec()}: the
-   * record's own equality also covers the two mirrors, whose {@code equals} is identity and says
-   * nothing about the types.
+   * A valid spec of this compilation or named by the classpath index; nested components resolve
+   * against the ones serving their site ({@link #serves}). Compare registrations by {@code spec()}:
+   * the record's own equality also covers the two mirrors, whose {@code equals} is identity and
+   * says nothing about the types.
    */
   record RegisteredSpec(
       TypeMirror domain,
@@ -603,7 +623,7 @@ public class MappingProcessor extends AbstractProcessor {
         fix);
   }
 
-  private static ClassName implClassName(TypeElement spec) {
+  static ClassName implClassName(TypeElement spec) {
     ClassName specName = ClassName.get(spec);
     // Nested specs join their enclosing simple names (the OuterInnerAssembly convention),
     // so the generated class is always top-level and self-references resolve.
@@ -1095,7 +1115,7 @@ public class MappingProcessor extends AbstractProcessor {
    * pair reports the missing mapping instead of generating a call to a {@code parse} the Impl never
    * emitted.
    *
-   * <p>Reaches a spec of this round only. A spec in a dependency is never dispatched, so the
+   * <p>Reaches a spec of this compilation only. A spec in a dependency is never dispatched, so the
    * registry's side of the rule is what answers for it, and the hint its registration carries is
    * the only diagnostic the shape gets from across a module boundary.
    *
@@ -1145,10 +1165,9 @@ public class MappingProcessor extends AbstractProcessor {
     // emitted into the Impl at the argument given here, and a raw or wildcard one leaves a type
     // the Impl cannot name. Only the spec's own clauses: an argument further up belongs to the
     // interface that wrote it, whose own parameters asMemberOf substitutes for.
+    // Every clause has resolved by now: a spec naming an unresolved type waits for a later round
+    // (see WaitingSpecs), so each superinterface mirror is a declared type here.
     for (TypeMirror parent : spec.getInterfaces()) {
-      if (parent.getKind() != TypeKind.DECLARED) {
-        continue;
-      }
       DeclaredType declared = (DeclaredType) parent;
       TypeElement element = (TypeElement) declared.asElement();
       String name = element.getQualifiedName().toString();
@@ -1175,13 +1194,7 @@ public class MappingProcessor extends AbstractProcessor {
       }
     }
     for (Inherited inherited : allSuperInterfaces(spec)) {
-      TypeMirror parent = inherited.type();
-      // ErrorType extends DeclaredType, so unresolved parents step aside first: javac already
-      // reports the missing type, and there is nothing for the gate to judge.
-      if (parent.getKind() == TypeKind.ERROR) {
-        continue;
-      }
-      DeclaredType parentType = (DeclaredType) parent;
+      DeclaredType parentType = (DeclaredType) inherited.type();
       TypeElement parentElement = (TypeElement) parentType.asElement();
       String parentName = parentElement.getQualifiedName().toString();
       if (parentName.equals(MAPPING_SPEC) || parentName.equals(UPDATE_SPEC)) {
@@ -1248,8 +1261,9 @@ public class MappingProcessor extends AbstractProcessor {
    * Every interface {@code spec} inherits, directly or through another, each once.
    *
    * <p>Breadth-first from the direct parents, so a diamond yields the shared ancestor once however
-   * many paths reach it. An unresolved parent is kept for the caller to step over, since javac
-   * already reports it and there is nothing beyond it to walk.
+   * many paths reach it. Every ancestor has resolved by the time it is walked: a spec naming an
+   * unresolved type waits for a later round, and javac stops before processing when a class file's
+   * superinterface is missing from the classpath.
    *
    * @param spec the spec interface to walk
    * @return its transitive super-interfaces (non-null, possibly empty)
@@ -1262,10 +1276,6 @@ public class MappingProcessor extends AbstractProcessor {
     Set<Name> seen = new HashSet<>();
     while (!pending.isEmpty()) {
       Inherited current = pending.removeFirst();
-      if (current.type().getKind() != TypeKind.DECLARED) {
-        found.add(current);
-        continue;
-      }
       TypeElement element = (TypeElement) ((DeclaredType) current.type()).asElement();
       // The qualified name, not toString(): two same-named types from different packages are not
       // the same ancestor, and toString()'s form is the implementation's to choose.
@@ -1298,7 +1308,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static Inherited inheritedFrom(
       TypeElement writer, TypeMirror parent, TypeElement routeLink, TypeElement routeExtender) {
-    if (routeLink != null || parent.getKind() != TypeKind.DECLARED) {
+    if (routeLink != null) {
       return new Inherited(parent, routeLink, routeExtender);
     }
     DeclaredType declared = (DeclaredType) parent;
@@ -1351,11 +1361,6 @@ public class MappingProcessor extends AbstractProcessor {
       return true;
     }
     for (TypeMirror parent : iface.getInterfaces()) {
-      // The same ERROR step-aside as checkMixins: an unresolved superinterface is javac's
-      // diagnostic, and an error type can neither be nor extend the mapping family.
-      if (parent.getKind() == TypeKind.ERROR) {
-        continue;
-      }
       if (extendsMappingFamily((TypeElement) ((DeclaredType) parent).asElement())) {
         return true;
       }
@@ -2422,9 +2427,10 @@ public class MappingProcessor extends AbstractProcessor {
    * recursively, so {@code Page<List<T>>} is a supported threaded use.
    */
   private boolean supportedArgument(TypeElement spec, TypeMirror argument) {
-    // An unresolved argument steps aside so javac's cannot-find-symbol is the only diagnostic
-    // (the overrideEquivalent precedent) — note ErrorType extends DeclaredType, so this
-    // check must run before the pattern switch.
+    // An unresolved argument steps aside rather than reading as unsupported. Only a class file can
+    // still carry one here, naming a type missing from the classpath: a spec naming one from source
+    // waits for a later round. ErrorType extends DeclaredType, so this check runs before the
+    // pattern switch.
     if (argument.getKind() == TypeKind.ERROR) {
       return true;
     }
@@ -3882,7 +3888,8 @@ public class MappingProcessor extends AbstractProcessor {
   private boolean unify(TypeMirror declared, TypeMirror actual, Map<Element, TypeMirror> bindings) {
     Types types = processingEnv.getTypeUtils();
     // The declared side comes from a registered spec, whose mirrors resolved (an unresolved pair
-    // never registers); only the use site can carry an ERROR, and it steps aside.
+    // never registers); only the use site can carry an ERROR, where a record read from a class file
+    // names a type missing from the classpath, and it steps aside.
     if (actual.getKind() == TypeKind.ERROR) {
       return false;
     }
@@ -5532,7 +5539,8 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static boolean canNameArrayConstructor(TypeMirror element) {
     return switch (element.getKind()) {
-      // An unresolved element steps aside so javac's cannot-find-symbol is the only diagnostic.
+      // An unresolved element, which only a class file naming a type missing from the classpath can
+      // still carry here, steps aside rather than reading as unnameable.
       case ERROR -> true;
       case DECLARED ->
           ((DeclaredType) element)
@@ -7347,8 +7355,9 @@ public class MappingProcessor extends AbstractProcessor {
     List<? extends TypeMirror> specParams = memberSignatureIn(spec, method).getParameterTypes();
     for (int i = 0; i < member.params().size(); i++) {
       TypeMirror specParam = specParams.get(i);
-      // An unresolved parameter type matches everything under javac's isSameType; treat it as no
-      // collision, so the real cannot-find-symbol diagnostic is not shadowed by a spurious one.
+      // An unresolved parameter type, inherited from a class file naming a type missing from the
+      // classpath, matches everything under javac's isSameType; treat it as no collision rather
+      // than report a spurious one.
       if (specParam.getKind() == TypeKind.ERROR
           || !types.isSameType(types.erasure(specParam), types.erasure(member.params().get(i)))) {
         return false;
@@ -7458,7 +7467,8 @@ public class MappingProcessor extends AbstractProcessor {
         "Check build-output permissions and free disk space, then rebuild.");
   }
 
-  private static DeclaredType findMappingSpec(TypeElement spec) {
+  /** The direct {@code MappingSpec<Domain, Wire>} supertype, or null if none. */
+  static DeclaredType findMappingSpec(TypeElement spec) {
     for (TypeMirror iface : spec.getInterfaces()) {
       // Superinterface mirrors are always declared (or error) types, both DeclaredType.
       DeclaredType declared = (DeclaredType) iface;
@@ -7470,7 +7480,7 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /** The direct {@code UpdateSpec<Domain, Wire>} supertype, or null if none. */
-  private static DeclaredType findUpdateSpec(TypeElement spec) {
+  static DeclaredType findUpdateSpec(TypeElement spec) {
     for (TypeMirror iface : spec.getInterfaces()) {
       DeclaredType declared = (DeclaredType) iface;
       if (((TypeElement) declared.asElement()).getQualifiedName().contentEquals(UPDATE_SPEC)) {
