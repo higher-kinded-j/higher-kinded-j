@@ -105,6 +105,24 @@ public final class RecordMappingBook {
     System.out.println(
         ReferralMappingImpl.INSTANCE.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope"))));
 
+    // ANCHOR: bridge_container_usage
+    GuestlistMappingImpl.INSTANCE.parse(new GuestlistDto("Launch", null));
+    // Valid(Guestlist[event=Launch, guests=Optional.empty])
+
+    GuestlistMappingImpl.INSTANCE.parse(
+        new GuestlistDto(
+            "Launch",
+            List.of(new CustomerDto("Ada", "ada@example.org"), new CustomerDto("Bob", "nope"))));
+    // Invalid(NonEmptyList[guests.1.email: not an email address])
+    // ANCHOR_END: bridge_container_usage
+    System.out.println(GuestlistMappingImpl.INSTANCE.parse(new GuestlistDto("Launch", null)));
+    System.out.println(
+        GuestlistMappingImpl.INSTANCE.parse(
+            new GuestlistDto(
+                "Launch",
+                List.of(
+                    new CustomerDto("Ada", "ada@example.org"), new CustomerDto("Bob", "nope")))));
+
     // ANCHOR: flatten_usage
     VendorDto flat =
         VendorMappingImpl.INSTANCE.build(
@@ -439,6 +457,22 @@ interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {
 }
 
 // ANCHOR_END: bridge_nesting_spec
+
+// ANCHOR: bridge_container_spec
+// An absent guest list is not an empty one, so the domain keeps the difference.
+record Guestlist(String event, Optional<List<Customer>> guests) {}
+
+// A client that sends no list leaves the array out, which the JSON binder reads as null.
+record GuestlistDto(String event, List<CustomerDto> guests) {}
+
+@GenerateMapping
+interface GuestlistMapping extends MappingSpec<Guestlist, GuestlistDto> {
+  // CustomerMapping maps the elements, so the marker is all the list needs.
+  @OptionalBridge
+  Optional<List<Customer>> guests();
+}
+
+// ANCHOR_END: bridge_container_spec
 
 // ANCHOR: flatten_spec
 record Address(String street, String city, String postcode) {}

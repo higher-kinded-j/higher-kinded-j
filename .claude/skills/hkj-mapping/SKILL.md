@@ -185,6 +185,11 @@ public interface MemberMapping extends MappingSpec<Member, MemberDto> {
   address();` against a nullable `AddressDto` needs no leaf when an `AddressMapping` exists (a bean
   wire needs nothing at all), and failures locate inside (`address.city: must not be null`). An
   element leaf wins over the spec.
+- A bridged **container lifts** as the unbridged one would: `@OptionalBridge Optional<List<Contact>>
+  contacts();` against a nullable `List<ContactDto>` (an optional JSON array) lifts element by
+  element through `ContactMapping` or an element leaf, and failures locate at the index
+  (`contacts.1.email`). `Set`, arrays and `Map` values lift alike, and a `@MapKey` leaf converts the keys of a bridged `Map`. A container whose
+  elements nothing converts is refused naming the element pair.
 - **Never inferred.** Without the annotation the component is `must not be null`, as usual.
 - A **bean** wire bridges automatically (bean conventions leave `Optional` off property types), so
   the annotation is redundant there and draws a note, not an error — one mix-in can serve both

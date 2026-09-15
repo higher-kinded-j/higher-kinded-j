@@ -1536,6 +1536,156 @@ class MappingProcessorBeanTest {
     }
 
     @Test
+    @DisplayName("a lifted container onto a getter-only List is refused just the same")
+    void getterOnlyListBridgeRejectedWhenItLifts() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Links",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+
+              public record Links(String owner, Optional<List<Link>> urls) {
+                public record Link(String href) {}
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.LinksMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface LinksMapping extends MappingSpec<Links, BookmarksDto> {
+                default ValidatedPrism<String, Links.Link> urls() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new Links.Link(raw)), Links.Link::href);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(domain, LIVE_LIST_DTO, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "domain field 'Links.urls' is Optional<List<Links.Link>>, bridged to the getter-only"
+                  + " bean property 'urls' (not supported yet).");
+    }
+
+    @Test
+    @DisplayName(
+        "a bridged container lifts through its elements' spec and through a key leaf on a bean")
+    void aBridgedContainerLiftsOnABean() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Directory",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+              import java.util.Optional;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public record Directory(
+                  String id,
+                  Optional<List<Contact>> contacts,
+                  Optional<Map<EmailAddress, String>> owners) {}
+
+              record Contact(String label) {}
+
+              record ContactDto(String label) {}
+
+              @GenerateMapping
+              interface ContactMapping extends MappingSpec<Contact, ContactDto> {}
+
+              class DirectoryBean {
+                private String id;
+                private List<ContactDto> contacts;
+                private Map<String, String> owners;
+                public String getId() { return id; }
+                public void setId(String id) { this.id = id; }
+                public List<ContactDto> getContacts() { return contacts; }
+                public void setContacts(List<ContactDto> contacts) { this.contacts = contacts; }
+                public Map<String, String> getOwners() { return owners; }
+                public void setOwners(Map<String, String> owners) { this.owners = owners; }
+              }
+
+              // no marker: a bean wire bridges automatically, key leaf included
+              @GenerateMapping
+              interface DirectoryMapping extends MappingSpec<Directory, DirectoryBean> {
+                @MapKey("owners")
+                default ValidatedPrism<String, EmailAddress> ownersKey() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMAIL, sources);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.DirectoryMappingImpl"))
+          .contains(
+              "domain.contacts().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::buildAll)"
+                  + ".ifPresent(v -> wire.setContacts(v));")
+          .contains(
+              "domain.owners().map(ownersKey()::buildKeys).ifPresent(v -> wire.setOwners(v));")
+          .contains("ownersKey().parseKeys(v)");
+    }
+
+    @Test
+    @DisplayName("a leaf over the whole Optional wins over the automatic bridge on a bean")
+    void aWholeOptionalLeafWinsOverTheAutomaticBridge() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Handle",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public record Handle(Optional<String> nickname) {}
+
+              class HandleBean {
+                private String nickname;
+                public String getNickname() { return nickname; }
+                public void setNickname(String nickname) { this.nickname = nickname; }
+              }
+
+              @GenerateMapping
+              interface HandleMapping extends MappingSpec<Handle, HandleBean> {
+                // the more specific declaration: it maps the pair whole, so null is not absence
+                default ValidatedPrism<String, Optional<String>> nickname() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(Optional.of(raw)), value -> value.orElse(""));
+                }
+              }
+              """);
+
+      Compilation compilation = compile(sources);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.HandleMappingImpl"))
+          .contains("wire.setNickname(nickname().build(domain.nickname()));")
+          .contains(".field(\"nickname\", hkj$ifPresent(wire.getNickname(), nickname()::parse))")
+          .doesNotContain("Optional.ofNullable");
+    }
+
+    @Test
     @DisplayName(
         "a bridged element carrying a wildcard is named, not inferred, on both leg shapes and"
             + " through a leaf: Optional is invariant, so a capture is not the declared type")

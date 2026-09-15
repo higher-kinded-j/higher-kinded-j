@@ -11,6 +11,7 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1157,8 +1158,8 @@ class MappingProcessorTest {
           // both sides: the key prism is the receiver, the value prism the argument
           .contains("contactTag().buildEntries(domain.contacts(), contacts())")
           .contains(
-              ".field(\"contacts\", hkj$ifPresent(wire.contacts(), m ->"
-                  + " contactTag().parseEntries(m, contacts())))")
+              ".field(\"contacts\", hkj$ifPresent(wire.contacts(), v ->"
+                  + " contactTag().parseEntries(v, contacts())))")
           // keys only: the values are copied
           .contains("notes().buildKeys(domain.notes())")
           .contains(".field(\"notes\", hkj$ifPresent(wire.notes(), notes()::parseKeys))");
@@ -1505,7 +1506,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CatalogueMappingImpl"))
           .contains(
-              ".field(\"items\", hkj$ifPresent(wire.items(), m -> itemCode().parseEntries(m,"
+              ".field(\"items\", hkj$ifPresent(wire.items(), v -> itemCode().parseEntries(v,"
                   + " ItemMappingImpl.INSTANCE.asValidatedPrism())))")
           .contains(
               "itemCode().buildEntries(domain.items(),"
@@ -6030,6 +6031,62 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName("a container whose elements nothing converts is offered a leaf over its elements")
+    void unconvertibleContainerIsOfferedAnElementLeaf() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Stock",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              record Item(String code) {}
+
+              record ItemDto(String code) {}
+
+              record Code(String value) {}
+
+              record Shelf(List<Item> items) {}
+
+              record ShelfDto(List<ItemDto> items) {}
+
+              record Catalogue(Map<Code, Item> byCode) {}
+
+              record CatalogueDto(Map<String, ItemDto> byCode) {}
+
+              @GenerateMapping
+              interface ShelfMapping extends MappingSpec<Shelf, ShelfDto> {}
+
+              // the keys convert, so only the values still need a source
+              @GenerateMapping
+              interface CatalogueMapping extends MappingSpec<Catalogue, CatalogueDto> {
+                @MapKey("byCode")
+                default ValidatedPrism<String, Code> byCodeKey() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new Code(raw)), Code::value);
+                }
+              }
+              """);
+      Compilation compilation = compile(sources);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add 'default ValidatedPrism<com.example.ItemDto, com.example.Item> items()' to the"
+                  + " spec, a leaf over the element types, or declare a @GenerateMapping spec"
+                  + " mapping those records");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add 'default ValidatedPrism<com.example.ItemDto, com.example.Item> byCode()' to the"
+                  + " spec, a leaf over the map value types, or declare a @GenerateMapping spec");
+    }
+
+    @Test
     @DisplayName("ambiguous value specs inside a Map are rejected")
     void ambiguousMapValueSpecsRejected() {
       Compilation compilation =
@@ -6414,8 +6471,9 @@ class MappingProcessorTest {
       assertThat(compilation)
           .hadErrorContaining(
               "Add 'default ValidatedPrism<java.lang.String, com.example.EmailAddress> email()'");
-      assertThat(compilation)
-          .hadErrorContaining("or declare a @GenerateMapping spec mapping those records");
+      // a value type against a String is no record pair, so no spec could map it
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(d -> d.getMessage(null).contains("spec mapping those records"));
     }
 
     @Test
@@ -11461,6 +11519,27 @@ class MappingProcessorTest {
             }
             """);
 
+    /** A second spec for the Contact pair, so resolving the pair is ambiguous. */
+    private static final JavaFileObject LENIENT_CONTACT_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.LenientContactMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface LenientContactMapping extends MappingSpec<Contact, ContactDto> {
+              default ValidatedPrism<String, EmailAddress> email() {
+                return ValidatedPrism.of(
+                    raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+              }
+            }
+            """);
+
     /** An optional nested object: the domain Optional against the element pair's nullable wire. */
     private static final JavaFileObject REFERRAL =
         JavaFileObjects.forSourceString(
@@ -12075,32 +12154,13 @@ class MappingProcessorTest {
     @Test
     @DisplayName("two specs for the element pair make a bridged component ambiguous")
     void twoSpecsForTheElementPairAreAmbiguous() {
-      JavaFileObject duplicate =
-          JavaFileObjects.forSourceString(
-              "com.example.LenientContactMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.hkt.validated.Validated;
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-              import org.higherkindedj.optics.validated.ValidatedPrism;
-
-              @GenerateMapping
-              public interface LenientContactMapping extends MappingSpec<Contact, ContactDto> {
-                default ValidatedPrism<String, EmailAddress> email() {
-                  return ValidatedPrism.of(
-                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
-                }
-              }
-              """);
       Compilation compilation =
           compile(
               EMAIL,
               CONTACT,
               CONTACT_DTO,
               CONTACT_MAPPING,
-              duplicate,
+              LENIENT_CONTACT_MAPPING,
               REFERRAL,
               REFERRAL_DTO,
               REFERRAL_MAPPING);
@@ -13394,6 +13454,602 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("@OptionalBridge leaf 'item' is declared over the whole Optional");
+    }
+
+    /** An optional list of mapped elements, where an absent list and an empty one differ. */
+    private static final JavaFileObject DIRECTORY =
+        JavaFileObjects.forSourceString(
+            "com.example.Directory",
+            """
+            package com.example;
+
+            import java.util.List;
+            import java.util.Optional;
+
+            public record Directory(String id, Optional<List<Contact>> contacts) {}
+            """);
+
+    private static final JavaFileObject DIRECTORY_DTO =
+        JavaFileObjects.forSourceString(
+            "com.example.DirectoryDto",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record DirectoryDto(String id, List<ContactDto> contacts) {}
+            """);
+
+    private static final JavaFileObject DIRECTORY_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.DirectoryMapping",
+            """
+            package com.example;
+
+            import java.util.List;
+            import java.util.Optional;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.OptionalBridge;
+
+            @GenerateMapping
+            public interface DirectoryMapping extends MappingSpec<Directory, DirectoryDto> {
+              @OptionalBridge
+              Optional<List<Contact>> contacts();
+            }
+            """);
+
+    @Test
+    @DisplayName(
+        "a bridged List lifts through the element pair's spec, and a failure locates at its index")
+    void aBridgedListLiftsThroughTheElementSpec() throws ReflectiveOperationException {
+      Compilation compilation =
+          compile(
+              EMAIL,
+              CONTACT,
+              CONTACT_DTO,
+              CONTACT_MAPPING,
+              DIRECTORY,
+              DIRECTORY_DTO,
+              DIRECTORY_MAPPING);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.DirectoryMappingImpl"))
+          .contains(
+              "domain.contacts().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::buildAll)"
+                  + ".orElse(null)")
+          .contains(
+              ".field(\"contacts\", Optional.ofNullable(wire.contacts()).map(v ->"
+                  + " ContactMappingImpl.INSTANCE.asValidatedPrism().parseAll(v)"
+                  + ".map(Optional::of))");
+
+      // Absent, empty and present round trips are law-checked in GeneratedMappingLawsTest; what is
+      // pinned here is the absent write and where failures inside a present list locate.
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.DirectoryMappingImpl");
+      Object absent =
+          invoke(
+              impl, "build", result.newInstance("com.example.Directory", "d-1", Optional.empty()));
+      Assertions.assertThat(invoke(absent, "contacts")).isNull();
+
+      var wire =
+          result
+              .loadClass("com.example.DirectoryDto")
+              .getDeclaredConstructor(String.class, List.class);
+      Object work = result.newInstance("com.example.ContactDto", "work", "ada@example.org");
+      Object home = result.newInstance("com.example.ContactDto", "home", "nope");
+      assertThatValidated(parse(impl, wire.newInstance("d-1", List.of(work, home))))
+          .isInvalid()
+          .hasFieldErrors("contacts.1.email: not an email address");
+      // absence is the only thing the bridge excuses: a present list holding a null still locates
+      assertThatValidated(parse(impl, wire.newInstance("d-1", Arrays.asList(work, null))))
+          .isInvalid()
+          .hasFieldErrors("contacts.1: must not be null");
+    }
+
+    @Test
+    @DisplayName(
+        "a bridged container lifts through an element leaf, even where its elements already match")
+    void aBridgedContainerLiftsThroughAnElementLeaf() throws ReflectiveOperationException {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Mailing",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+              import java.util.Set;
+
+              public record Mailing(
+                  String id, Optional<List<EmailAddress>> recipients, Optional<Set<String>> tags) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.MailingDto",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Set;
+
+              public record MailingDto(String id, List<String> recipients, Set<String> tags) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MailingMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface MailingMapping extends MappingSpec<Mailing, MailingDto> {
+                @OptionalBridge
+                default ValidatedPrism<String, EmailAddress> recipients() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+
+                // the elements already match, so without the leaf the set would copy unchecked
+                @OptionalBridge
+                default ValidatedPrism<String, String> tags() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.startsWith("#")
+                              ? Validated.invalidNel(FieldError.of("must not start with #"))
+                              : Validated.validNel(raw),
+                      tag -> tag);
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, domain, dto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.MailingMappingImpl"))
+          .contains("domain.recipients().map(recipients()::buildAll).orElse(null)")
+          .contains("recipients().parseAll(v)")
+          .contains("domain.tags().map(tags()::buildAll).orElse(null)")
+          .contains("tags().parseAll(v)")
+          .doesNotContain("hkj$allPresent");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.MailingMappingImpl");
+      var wire =
+          result
+              .loadClass("com.example.MailingDto")
+              .getDeclaredConstructor(String.class, List.class, Set.class);
+      assertThatValidated(
+              parse(
+                  impl, wire.newInstance("m-1", List.of("ada@example.org", "nope"), Set.of("#x"))))
+          .isInvalid()
+          .hasFieldErrors("recipients.1: not an email address", "tags.#x: must not start with #");
+    }
+
+    @Test
+    @DisplayName(
+        "bridged Sets, arrays and Maps lift like unbridged ones: elements, values and keys")
+    void bridgedSetsArraysAndMapsLift() throws ReflectiveOperationException {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Roster",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.Optional;
+              import java.util.Set;
+
+              public record Roster(
+                  String id,
+                  Optional<Set<Contact>> team,
+                  Optional<Contact[]> shifts,
+                  Optional<Map<String, Contact>> desks,
+                  Optional<Map<EmailAddress, Contact>> owners) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.RosterDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.Set;
+
+              public record RosterDto(
+                  String id,
+                  Set<ContactDto> team,
+                  ContactDto[] shifts,
+                  Map<String, ContactDto> desks,
+                  Map<String, ContactDto> owners) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.RosterMapping",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.Optional;
+              import java.util.Set;
+              import org.higherkindedj.hkt.validated.FieldError;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface RosterMapping extends MappingSpec<Roster, RosterDto> {
+                @OptionalBridge
+                Optional<Set<Contact>> team();
+
+                @OptionalBridge
+                Optional<Contact[]> shifts();
+
+                @OptionalBridge
+                Optional<Map<String, Contact>> desks();
+
+                @OptionalBridge
+                Optional<Map<EmailAddress, Contact>> owners();
+
+                @MapKey("owners")
+                default ValidatedPrism<String, EmailAddress> ownersKey() {
+                  return ValidatedPrism.of(
+                      raw ->
+                          raw.contains("@")
+                              ? Validated.validNel(new EmailAddress(raw))
+                              : Validated.invalidNel(FieldError.of("not an email address")),
+                      EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(EMAIL, CONTACT, CONTACT_DTO, CONTACT_MAPPING, domain, dto, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.RosterMappingImpl"))
+          .contains("domain.team().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::buildAll)")
+          .contains(
+              "domain.shifts().map(v -> ContactMappingImpl.INSTANCE.asValidatedPrism()"
+                  + ".buildAll(v, ContactDto[]::new))")
+          .contains("ContactMappingImpl.INSTANCE.asValidatedPrism().parseAll(v, Contact[]::new)")
+          .contains(
+              "domain.desks().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::buildValues)")
+          .contains(
+              "domain.owners().map(v -> ownersKey().buildEntries(v,"
+                  + " ContactMappingImpl.INSTANCE.asValidatedPrism()))")
+          .contains("ownersKey().parseEntries(v, ContactMappingImpl.INSTANCE.asValidatedPrism())");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.RosterMappingImpl");
+      var wire = result.loadClass("com.example.RosterDto").getDeclaredConstructors()[0];
+      Object work = result.newInstance("com.example.ContactDto", "work", "ada@example.org");
+      Object home = result.newInstance("com.example.ContactDto", "home", "nope");
+      Object shifts = Array.newInstance(result.loadClass("com.example.ContactDto"), 1);
+      Array.set(shifts, 0, home);
+
+      assertThatValidated(parse(impl, wire.newInstance("r-1", null, null, null, null))).isValid();
+      assertThatValidated(
+              parse(
+                  impl,
+                  wire.newInstance("r-1", null, shifts, Map.of("d1", home), Map.of("nope", work))))
+          .isInvalid()
+          .hasFieldErrors(
+              "shifts.0.email: not an email address",
+              "desks.d1.email: not an email address",
+              "owners.nope: not an email address");
+    }
+
+    @Test
+    @DisplayName(
+        "a bridged container nothing converts is refused naming its elements, not the container")
+    void aBridgedContainerIsRefusedNamingItsElements() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Unconverted",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Map;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              record Team(Optional<List<Contact>> members) {}
+
+              record TeamDto(List<ContactDto> members) {}
+
+              record Rota(Optional<Contact[]> shifts) {}
+
+              record RotaDto(ContactDto[] shifts) {}
+
+              record Floor(Optional<Map<String, Contact>> desks) {}
+
+              record FloorDto(Map<String, ContactDto> desks) {}
+
+              @GenerateMapping
+              interface TeamMapping extends MappingSpec<Team, TeamDto> {
+                @OptionalBridge
+                Optional<List<Contact>> members();
+              }
+
+              @GenerateMapping
+              interface RotaMapping extends MappingSpec<Rota, RotaDto> {
+                @OptionalBridge
+                Optional<Contact[]> shifts();
+              }
+
+              @GenerateMapping
+              interface FloorMapping extends MappingSpec<Floor, FloorDto> {
+                @OptionalBridge
+                Optional<Map<String, Contact>> desks();
+              }
+              """);
+      // no ContactMapping: nothing converts a Contact
+      Compilation compilation = compile(EMAIL, CONTACT, CONTACT_DTO, sources);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "bridged to the nullable record component 'members' of type"
+                  + " java.util.List<com.example.ContactDto>, but its element types differ"
+                  + " (com.example.ContactDto vs com.example.Contact) and neither a leaf nor a"
+                  + " mapping spec converts them.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare '@OptionalBridge default ValidatedPrism<com.example.ContactDto,"
+                  + " com.example.Contact> members()' as the component's only spec method,"
+                  + " replacing any marker for it, declare a @GenerateMapping spec mapping those"
+                  + " records");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "of type com.example.ContactDto[], but its element types differ"
+                  + " (com.example.ContactDto vs com.example.Contact)");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "but its map value types differ (com.example.ContactDto vs com.example.Contact)");
+      // the leaf over the whole container stays a valid override, but it is not the fix offered
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(d -> d.getMessage(null).contains("ValidatedPrism<java.util."));
+    }
+
+    @Test
+    @DisplayName("a bridged container of wildcard elements is offered the leaf over the whole list")
+    void aWildcardContainerIsOfferedTheWholeContainerLeaf() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Wild",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              record Wild(Optional<List<? extends Contact>> members) {}
+
+              record WildDto(List<? extends ContactDto> members) {}
+
+              @GenerateMapping
+              interface WildMapping extends MappingSpec<Wild, WildDto> {
+                @OptionalBridge
+                Optional<List<? extends Contact>> members();
+              }
+              """);
+      Compilation compilation = compile(EMAIL, CONTACT, CONTACT_DTO, sources);
+      assertThat(compilation).failed();
+      // no leaf can be declared over a wildcard, so the one offered is the one it can declare
+      assertThat(compilation)
+          .hadErrorContaining(
+              "but the element types differ and neither a leaf nor a mapping spec converts them.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare '@OptionalBridge default ValidatedPrism<java.util.List<? extends"
+                  + " com.example.ContactDto>, java.util.List<? extends com.example.Contact>>"
+                  + " members()'");
+    }
+
+    @Test
+    @DisplayName(
+        "two specs for a bridged container's elements are ambiguous, the choice offered over them")
+    void twoSpecsForABridgedContainersElementsAreAmbiguous() {
+      Compilation compilation =
+          compile(
+              EMAIL,
+              CONTACT,
+              CONTACT_DTO,
+              CONTACT_MAPPING,
+              LENIENT_CONTACT_MAPPING,
+              DIRECTORY,
+              DIRECTORY_DTO,
+              DIRECTORY_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "field 'contacts' matches more than one mapping spec: [ContactMapping,"
+                  + " LenientContactMapping]");
+      // an element leaf, carrying the annotation and replacing the marker, or javac refuses it
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add the leaf '@OptionalBridge default ValidatedPrism<com.example.ContactDto,"
+                  + " com.example.Contact> contacts()', as the component's only spec method,"
+                  + " delegating to the spec you want");
+    }
+
+    @Test
+    @DisplayName(
+        "an unmarked container is offered the marker when a spec maps its elements, else a leaf")
+    void anUnmarkedContainerIsOfferedTheBridgeOverItsElements() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Unmarked",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              record Crew(Optional<List<Contact>> members) {}
+
+              record CrewDto(List<ContactDto> members) {}
+
+              record Mailing(Optional<List<EmailAddress>> recipients) {}
+
+              record MailingDto(List<String> recipients) {}
+
+              @GenerateMapping
+              interface CrewMapping extends MappingSpec<Crew, CrewDto> {}
+
+              @GenerateMapping
+              interface MailingMapping extends MappingSpec<Mailing, MailingDto> {}
+              """);
+      Compilation compilation = compile(EMAIL, CONTACT, CONTACT_DTO, CONTACT_MAPPING, sources);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add '@OptionalBridge java.util.Optional<java.util.List<com.example.Contact>>"
+                  + " members();' to the spec");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add '@OptionalBridge default ValidatedPrism<java.lang.String,"
+                  + " com.example.EmailAddress> recipients()' to the spec, a leaf over the ELEMENT"
+                  + " types");
+    }
+
+    @Test
+    @DisplayName(
+        "a marked array that cannot lift is offered the whole-array leaf with its annotation")
+    void aMarkedUnnameableArrayIsOfferedTheAnnotatedWholeLeaf() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Shelved",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+
+              record Shelved(Optional<List<EmailAddress>[]> rows) {}
+
+              record ShelvedDto(List<String>[] rows) {}
+
+              @GenerateMapping
+              interface ShelvedMapping extends MappingSpec<Shelved, ShelvedDto> {
+                @OptionalBridge
+                Optional<List<EmailAddress>[]> rows();
+              }
+              """);
+      Compilation compilation = compile(EMAIL, sources);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("field 'rows' is an array whose element type");
+      // a leaf beside the marker would be a second rows() method, which javac refuses
+      assertThat(compilation)
+          .hadErrorContaining(
+              "or map the arrays whole with the leaf '@OptionalBridge default"
+                  + " ValidatedPrism<java.util.List<java.lang.String>[],"
+                  + " java.util.List<com.example.EmailAddress>[]> rows()', as the component's"
+                  + " only spec method, over the array types.");
+    }
+
+    @Test
+    @DisplayName("a key leaf on an Optional<Map> is refused where the wire does not bridge it")
+    void aKeyLeafOnAnUnbridgedOptionalMapIsRefused() {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Keyed",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.Optional;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.OptionalBridge;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              record Ledger(Optional<Map<EmailAddress, String>> owners) {}
+
+              record LedgerDto(Map<String, String> owners) {}
+
+              record Archive(Optional<Map<EmailAddress, String>> owners) {}
+
+              record ArchiveDto(Optional<Map<String, String>> owners) {}
+
+              record Tagged(Optional<String> owners) {}
+
+              record TaggedDto(String owners) {}
+
+              // unmarked on a record wire: the Optional is not bridged, so it has no keys
+              @GenerateMapping
+              interface LedgerMapping extends MappingSpec<Ledger, LedgerDto> {
+                @MapKey("owners")
+                default ValidatedPrism<String, EmailAddress> ownersKey() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+
+              // a wire member that is already Optional takes no bridge, marker or not
+              @GenerateMapping
+              interface ArchiveMapping extends MappingSpec<Archive, ArchiveDto> {
+                @OptionalBridge
+                Optional<Map<EmailAddress, String>> owners();
+
+                @MapKey("owners")
+                default ValidatedPrism<String, EmailAddress> ownersKey() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+
+              // an Optional that carries no Map has no keys, bridged or not
+              @GenerateMapping
+              interface TaggedMapping extends MappingSpec<Tagged, TaggedDto> {
+                @MapKey("owners")
+                default ValidatedPrism<String, EmailAddress> ownersKey() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, sources);
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .filteredOn(
+              d ->
+                  d.getMessage(null)
+                      .contains("@MapKey(\"owners\") names a component that is not a Map."))
+          .hasSize(3);
+      // an Optional carrying a Map is told how the bridge reaches its keys
+      assertThat(compilation)
+          .hadErrorContaining(
+              "declare '@OptionalBridge"
+                  + " java.util.Optional<java.util.Map<com.example.EmailAddress,java.lang.String>>"
+                  + " owners();'");
+      // one carrying no Map is not
+      Assertions.assertThat(compilation.errors())
+          .filteredOn(d -> d.getMessage(null).contains("'Tagged.owners'"))
+          .singleElement()
+          .satisfies(
+              d -> Assertions.assertThat(d.getMessage(null)).doesNotContain("@OptionalBridge"));
     }
 
     private static JavaFileObject plainUser() {

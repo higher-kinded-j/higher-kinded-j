@@ -633,49 +633,53 @@ class GeneratedMappingLawsTest {
             result.newInstance("com.example.CustomerDto", "Ada", "not-an-email")));
   }
 
+  /** An element pair with a spec of its own, whose leaf fails, for the bridged tiers to nest. */
+  private static final JavaFileObject CONTACT =
+      JavaFileObjects.forSourceString(
+          "com.example.Contact",
+          """
+          package com.example;
+
+          public record Contact(String label, EmailAddress email) {}
+          """);
+
+  private static final JavaFileObject CONTACT_DTO =
+      JavaFileObjects.forSourceString(
+          "com.example.ContactDto",
+          """
+          package com.example;
+
+          public record ContactDto(String label, String email) {}
+          """);
+
+  private static final JavaFileObject CONTACT_MAPPING =
+      JavaFileObjects.forSourceString(
+          "com.example.ContactMapping",
+          """
+          package com.example;
+
+          import org.higherkindedj.hkt.validated.FieldError;
+          import org.higherkindedj.hkt.validated.Validated;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.higherkindedj.optics.validated.ValidatedPrism;
+
+          @GenerateMapping
+          public interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+            default ValidatedPrism<String, EmailAddress> email() {
+              return emailPrism();
+            }
+
+          """
+              + EMAIL_PRISM
+              + """
+          }
+          """);
+
   @Test
   @DisplayName(
       "bridged nested spec tier: an optional nested object stays lawful absent and present alike")
   void bridgedNestedSpecTierIsLawful() throws ReflectiveOperationException {
-    JavaFileObject contact =
-        JavaFileObjects.forSourceString(
-            "com.example.Contact",
-            """
-            package com.example;
-
-            public record Contact(String label, EmailAddress email) {}
-            """);
-    JavaFileObject contactDto =
-        JavaFileObjects.forSourceString(
-            "com.example.ContactDto",
-            """
-            package com.example;
-
-            public record ContactDto(String label, String email) {}
-            """);
-    JavaFileObject contactMapping =
-        JavaFileObjects.forSourceString(
-            "com.example.ContactMapping",
-            """
-            package com.example;
-
-            import org.higherkindedj.hkt.validated.FieldError;
-            import org.higherkindedj.hkt.validated.Validated;
-            import org.higherkindedj.optics.annotations.GenerateMapping;
-            import org.higherkindedj.optics.annotations.MappingSpec;
-            import org.higherkindedj.optics.validated.ValidatedPrism;
-
-            @GenerateMapping
-            public interface ContactMapping extends MappingSpec<Contact, ContactDto> {
-              default ValidatedPrism<String, EmailAddress> email() {
-                return emailPrism();
-              }
-
-            """
-                + EMAIL_PRISM
-                + """
-            }
-            """);
     JavaFileObject referral =
         JavaFileObjects.forSourceString(
             "com.example.Referral",
@@ -714,7 +718,7 @@ class GeneratedMappingLawsTest {
 
     var result =
         compileMapping(
-            EMAIL, contact, contactDto, contactMapping, referral, referralDto, referralMapping);
+            EMAIL, CONTACT, CONTACT_DTO, CONTACT_MAPPING, referral, referralDto, referralMapping);
     ValidatedPrism<Object, Object> prism =
         asValidatedPrism(result.instance("com.example.ReferralMappingImpl"));
     // The canonical constructor, since an absent contact is a null argument.
@@ -729,6 +733,74 @@ class GeneratedMappingLawsTest {
         referralWire.newInstance(
             "r-1", result.newInstance("com.example.ContactDto", "work", "ada@example.org")),
         invalid);
+  }
+
+  @Test
+  @DisplayName(
+      "bridged container tier: an optional list lifts through its element spec, lawful absent,"
+          + " empty and present alike")
+  void bridgedContainerTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject directory =
+        JavaFileObjects.forSourceString(
+            "com.example.Directory",
+            """
+            package com.example;
+
+            import java.util.List;
+            import java.util.Optional;
+
+            public record Directory(String id, Optional<List<Contact>> contacts) {}
+            """);
+    JavaFileObject directoryDto =
+        JavaFileObjects.forSourceString(
+            "com.example.DirectoryDto",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record DirectoryDto(String id, List<ContactDto> contacts) {}
+            """);
+    JavaFileObject directoryMapping =
+        JavaFileObjects.forSourceString(
+            "com.example.DirectoryMapping",
+            """
+            package com.example;
+
+            import java.util.List;
+            import java.util.Optional;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.OptionalBridge;
+
+            @GenerateMapping
+            public interface DirectoryMapping extends MappingSpec<Directory, DirectoryDto> {
+              @OptionalBridge
+              Optional<List<Contact>> contacts();
+            }
+            """);
+
+    var result =
+        compileMapping(
+            EMAIL,
+            CONTACT,
+            CONTACT_DTO,
+            CONTACT_MAPPING,
+            directory,
+            directoryDto,
+            directoryMapping);
+    ValidatedPrism<Object, Object> prism =
+        asValidatedPrism(result.instance("com.example.DirectoryMappingImpl"));
+    var directoryWire = result.loadClass("com.example.DirectoryDto").getDeclaredConstructors()[0];
+    Object work = result.newInstance("com.example.ContactDto", "work", "ada@example.org");
+    Object invalid =
+        directoryWire.newInstance(
+            "d-1", List.of(work, result.newInstance("com.example.ContactDto", "home", "nope")));
+
+    // An empty list is a present value, not absence, so it must survive the round trip as one.
+    MappingLaws.assertMappingLaws(prism, directoryWire.newInstance("d-1", null), invalid);
+    MappingLaws.assertMappingLaws(prism, directoryWire.newInstance("d-1", List.of()), invalid);
+    MappingLaws.assertMappingLaws(prism, directoryWire.newInstance("d-1", List.of(work)), invalid);
   }
 
   @Test

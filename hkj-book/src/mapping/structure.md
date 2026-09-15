@@ -8,7 +8,7 @@ Real DTOs are not flat. An order carries a customer, the customer carries an add
 - How specs nest automatically, in one compilation or across modules, composing failures into dotted paths
 - How a nested domain record spreads across a flat wire with `@Flatten`, and where its failures locate
 - How `List`, `Set`, array, `Optional` and `Map` components lift, and what each locates a failure by
-- How an optional nested object, `null` on the wire, nests through its own spec
+- How an optional nested object or list, `null` on the wire, maps through its own spec
 - How `@MapKey` converts a map's keys, and when a collapse is silent or a failure
 - Why recursion terminates by construction
 - Dispatching a mapping over two sealed interfaces, exhaustively in both directions
@@ -81,7 +81,15 @@ When a JSON client leaves an object out, or sends `null` for it, the binder leav
 
 `build` writes the nested build of a present value and `null` for an empty one. `parse` reads `null` as empty and hands a present value to the nested spec, so its failures locate under the component, exactly as through a `List`. The usual order holds: a bridged [element leaf](basics.md#optional-bridge) on the component wins over the spec, and two specs for the pair are ambiguous until such a leaf delegates to the one you mean. A bean wire bridges automatically, so there the same pair nests with no marker at all.
 
-The bridge nests one level. A bridged container of mapped elements, an `Optional<List<Customer>>` against a nullable `List<CustomerDto>`, is not supported yet; a `List<Customer>` component, where an empty list already says there are none, lifts through the spec as usual.
+A bridged container lifts the same way. An optional JSON array arrives as a nullable `List<CustomerDto>`, and where an absent list and an empty one mean different things, the domain holds an `Optional<List<Customer>>`. The marker is again all it needs:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_container_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_container_usage}}
+```
+
+A present list lifts element by element, exactly as a `List<Customer>` component does, so a failure locates at its index, a `null` element is still a located `must not be null`, and an empty list parses to a present, empty `Optional`. `Set`, arrays and `Map` values lift alike, an element leaf over the element types wins over the spec, and a [`@MapKey`](#converting-map-keys) leaf converts the keys of a bridged `Map`. A bridged container whose elements nothing converts is refused naming the element pair, so the fix it offers is an element leaf or a spec rather than a leaf over the whole container. Where an empty list already says there are none, a plain `List<Customer>` component is simpler, and needs no marker.
 
 ### Converting Map keys {#converting-map-keys}
 
