@@ -14,8 +14,10 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -31,8 +33,10 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import javax.tools.JavaFileObject;
 
 /**
  * Shared utility methods for annotation processors in the optics module.
@@ -879,5 +883,38 @@ public final class ProcessorUtils {
       return s;
     }
     return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
+  }
+
+  /**
+   * The modules compiled from source here that declare {@code packageName}, in name order. javac
+   * writes a generated file into the module that declares its package, and a filer refuses a file
+   * whose package more than one of them declares just as it refuses a name already taken, so a
+   * write handler asks this before reporting a refused file as a collision. A module declares the
+   * package in source through its {@code package-info.java} as surely as through a type, so either
+   * counts.
+   *
+   * @param elements the compilation's element utilities
+   * @param packageName the generated file's package
+   * @return the declaring modules' names (non-null; at most one outside a multi-module compilation)
+   */
+  public static List<String> compiledModulesDeclaring(Elements elements, String packageName) {
+    return elements.getAllPackageElements(packageName).stream()
+        .filter(
+            declared ->
+                Stream.concat(
+                        Stream.of(declared),
+                        ElementFilter.typesIn(declared.getEnclosedElements()).stream())
+                    .anyMatch(element -> compiledFromSource(elements, element)))
+        .map(declared -> elements.getModuleOf(declared).getQualifiedName().toString())
+        .sorted()
+        .toList();
+  }
+
+  /** Whether an element is read from a source file: a type's own, or a package's package-info. */
+  private static boolean compiledFromSource(Elements elements, Element element) {
+    return Optional.ofNullable(elements.getFileObjectOf(element))
+        .map(JavaFileObject::getKind)
+        .filter(JavaFileObject.Kind.SOURCE::equals)
+        .isPresent();
   }
 }

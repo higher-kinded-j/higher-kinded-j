@@ -601,19 +601,32 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
           .build()
           .writeTo(processingEnv.getFiler());
     } catch (FilerException e) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          iface,
-          TAG,
-          "could not write the generated companion for '"
-              + iface.getSimpleName()
-              + "': the class already exists.",
-          "A hand-written type or another hierarchy's companion already claims the name (nested"
-              + " hierarchies join their enclosing simple names, so two hierarchies can collide)."
-              + " The filer reported: "
-              + e.getMessage()
-              + ".",
-          "Rename the hierarchy or the clashing type.");
+      List<String> modules =
+          ProcessorUtils.compiledModulesDeclaring(processingEnv.getElementUtils(), packageName);
+      if (modules.size() > 1) {
+        Diagnostics.sharedPackage(
+            processingEnv.getMessager(),
+            iface,
+            TAG,
+            "the generated companion for '" + iface.getSimpleName() + "'",
+            packageName,
+            modules,
+            e.getMessage());
+      } else {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            iface,
+            TAG,
+            "could not write the generated companion for '"
+                + iface.getSimpleName()
+                + "': the class already exists.",
+            "A hand-written type or another hierarchy's companion already claims the name (nested"
+                + " hierarchies join their enclosing simple names, so two hierarchies can collide)."
+                + " The filer reported: "
+                + e.getMessage()
+                + ".",
+            "Rename the hierarchy or the clashing type.");
+      }
     } catch (IOException e) {
       Diagnostics.error(
           processingEnv.getMessager(),

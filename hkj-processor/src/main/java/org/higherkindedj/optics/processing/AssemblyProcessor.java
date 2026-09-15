@@ -27,7 +27,9 @@ import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.annotations.GenerateAssembly;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Annotation processor that generates per-record validated-assembly companions (issue #586).
@@ -122,14 +124,33 @@ public class AssemblyProcessor extends AbstractProcessor {
     try {
       generateCompanion(record).writeTo(processingEnv.getFiler());
     } catch (FilerException e) {
-      error(
-          "@GenerateAssembly on "
-              + record.getQualifiedName()
-              + ": the companion class "
-              + companionSimpleName(record)
-              + " already exists in the package (a hand-written class, or another record whose"
-              + " joined nested name collides). Fix: rename the record or the clashing type.",
-          record);
+      String packageName =
+          processingEnv.getElementUtils().getPackageOf(record).getQualifiedName().toString();
+      List<String> modules =
+          ProcessorUtils.compiledModulesDeclaring(processingEnv.getElementUtils(), packageName);
+      if (modules.size() > 1) {
+        Diagnostics.sharedPackage(
+            processingEnv.getMessager(),
+            record,
+            "@GenerateAssembly",
+            "the companion '"
+                + companionSimpleName(record)
+                + "' for '"
+                + record.getSimpleName()
+                + "'",
+            packageName,
+            modules,
+            e.getMessage());
+      } else {
+        error(
+            "@GenerateAssembly on "
+                + record.getQualifiedName()
+                + ": the companion class "
+                + companionSimpleName(record)
+                + " already exists in the package (a hand-written class, or another record whose"
+                + " joined nested name collides). Fix: rename the record or the clashing type.",
+            record);
+      }
     } catch (IOException e) {
       error("Could not generate assembly companion: " + e.getMessage(), record);
     }

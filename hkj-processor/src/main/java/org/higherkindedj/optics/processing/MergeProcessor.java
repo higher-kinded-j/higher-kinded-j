@@ -33,7 +33,9 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.annotations.ArityCeilings;
+import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -75,6 +77,9 @@ public class MergeProcessor extends AbstractProcessor {
       ClassName.get("org.higherkindedj.optics.annotations", "Generated");
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
 
+  /** The merge interfaces met but not processed yet: arriving this round, or waiting. */
+  private final Set<WaitingSpecs.TypeKey> unprocessed = new LinkedHashSet<>();
+
   /** Creates a new MergeProcessor. */
   public MergeProcessor() {}
 
@@ -83,18 +88,37 @@ public class MergeProcessor extends AbstractProcessor {
     return SourceVersion.latestSupported();
   }
 
+  /**
+   * Processes the merges that can be classified this round: a merge naming a type another processor
+   * has not written yet, or a mapping that waits for one, waits too (see {@link WaitingSpecs}).
+   */
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    Set<? extends Element> specs = roundEnv.getElementsAnnotatedWith(GenerateMerge.class);
-    if (specs.isEmpty()) {
+    Elements elements = processingEnv.getElementUtils();
+    // Every mapping spec the compilation has met, the rounds before this processor's first
+    // included: a fill may nest through any of them.
+    List<TypeElement> mappings =
+        WaitingSpecs.meetMappings(
+            elements, roundEnv.getElementsAnnotatedWith(GenerateMapping.class));
+    Set<? extends Element> annotated = roundEnv.getElementsAnnotatedWith(GenerateMerge.class);
+    annotated.stream()
+        .filter(element -> element.getKind() != ElementKind.INTERFACE)
+        .forEach(element -> processSpec(element, List.of()));
+    unprocessed.addAll(WaitingSpecs.interfaces(elements, annotated));
+    if (roundEnv.processingOver() || unprocessed.isEmpty()) {
       return true;
     }
-    // Nested fills resolve against the round's @GenerateMapping specs and the classpath index
+    List<TypeElement> merges = unprocessed.stream().map(merge -> merge.in(elements)).toList();
+    Set<WaitingSpecs.TypeKey> waiting = WaitingSpecs.among(elements, mappings, merges);
+    // Nested fills resolve against the compilation's @GenerateMapping specs and the classpath index
     // (shared scan).
     List<MappingProcessor.RegisteredSpec> registry =
-        MappingProcessor.scanRegistry(processingEnv, roundEnv, specs.iterator().next());
-    for (Element element : specs) {
-      processSpec(element, registry);
+        MappingProcessor.scanRegistry(processingEnv, mappings, merges.getFirst(), waiting);
+    for (WaitingSpecs.TypeKey merge : List.copyOf(unprocessed)) {
+      if (!waiting.contains(merge)) {
+        unprocessed.remove(merge);
+        processSpec(merge.in(elements), registry);
+      }
     }
     return true;
   }
@@ -773,18 +797,31 @@ public class MergeProcessor extends AbstractProcessor {
           .build()
           .writeTo(processingEnv.getFiler());
     } catch (FilerException e) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          spec,
-          TAG,
-          "could not write the generated merge for '"
-              + spec.getSimpleName()
-              + "': the class already exists.",
-          "Nested specs join their enclosing simple names, so two specs can collide on one Impl"
-              + " name. The filer reported: "
-              + e.getMessage()
-              + ".",
-          "Rename one of the colliding specs.");
+      List<String> modules =
+          ProcessorUtils.compiledModulesDeclaring(processingEnv.getElementUtils(), packageName);
+      if (modules.size() > 1) {
+        Diagnostics.sharedPackage(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "the generated merge for '" + spec.getSimpleName() + "'",
+            packageName,
+            modules,
+            e.getMessage());
+      } else {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "could not write the generated merge for '"
+                + spec.getSimpleName()
+                + "': the class already exists.",
+            "Nested specs join their enclosing simple names, so two specs can collide on one Impl"
+                + " name. The filer reported: "
+                + e.getMessage()
+                + ".",
+            "Rename one of the colliding specs.");
+      }
     } catch (IOException e) {
       writeFailure(spec, e);
     }

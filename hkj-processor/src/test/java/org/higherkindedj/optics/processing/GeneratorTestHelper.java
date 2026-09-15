@@ -14,9 +14,18 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
+import javax.annotation.processing.Processor;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
 import javax.tools.StandardLocation;
+import javax.tools.ToolProvider;
 
 public final class GeneratorTestHelper {
 
@@ -65,6 +74,70 @@ public final class GeneratorTestHelper {
       classpath.add(dir.toFile());
     }
     return classpath;
+  }
+
+  /**
+   * Compiles each module's sources together in one javac run, over real files: compile-testing's
+   * in-memory file manager cannot lay out a module source path. Each module reads the test
+   * classpath through {@code --add-reads}, as its {@code requires} would read a module path.
+   *
+   * @param dir the directory to lay the sources and class files out under
+   * @param processors the processors to run, in the order javac offers them each round
+   * @param modules each module's sources, by module name
+   * @return every diagnostic the compilation reported
+   * @throws IOException if a source cannot be written
+   */
+  public static List<Diagnostic<? extends JavaFileObject>> compileModules(
+      final Path dir,
+      final List<? extends Processor> processors,
+      final Map<String, List<JavaFileObject>> modules)
+      throws IOException {
+    final Path src = dir.resolve("src");
+    final List<String> options =
+        new ArrayList<>(
+            List.of(
+                "--module-source-path",
+                src.toString(),
+                "-d",
+                Files.createDirectories(dir.resolve("out")).toString(),
+                "-classpath",
+                classpathWith().stream()
+                    .map(File::toString)
+                    .collect(Collectors.joining(File.pathSeparator))));
+    final List<Path> files = new ArrayList<>();
+    for (final Map.Entry<String, List<JavaFileObject>> module : new TreeMap<>(modules).entrySet()) {
+      final Path root = src.resolve(module.getKey());
+      options.addAll(List.of("--add-reads", module.getKey() + "=ALL-UNNAMED"));
+      files.add(write(root, "module-info.java", "module " + module.getKey() + " {}\n"));
+      for (final JavaFileObject source : module.getValue()) {
+        // JavaFileObjects.forSourceString names the file /com/example/Contact.java.
+        files.add(
+            write(root, source.getName().substring(1), source.getCharContent(true).toString()));
+      }
+    }
+    final JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
+    final DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+    try (StandardJavaFileManager fileManager =
+        javac.getStandardFileManager(diagnostics, null, null)) {
+      final JavaCompiler.CompilationTask task =
+          javac.getTask(
+              null,
+              fileManager,
+              diagnostics,
+              options,
+              null,
+              fileManager.getJavaFileObjectsFromPaths(files));
+      task.setProcessors(processors);
+      task.call();
+    }
+    return diagnostics.getDiagnostics();
+  }
+
+  private static Path write(final Path root, final String relative, final String content)
+      throws IOException {
+    final Path file = root.resolve(relative);
+    Files.createDirectories(file.getParent());
+    return Files.writeString(file, content);
   }
 
   /**
