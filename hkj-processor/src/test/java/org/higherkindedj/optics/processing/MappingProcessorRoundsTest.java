@@ -443,13 +443,51 @@ class MappingProcessorRoundsTest {
                 """
                 @GenerateMapping
                 public interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+                  // by its simple name, which resolves in the spec's own package
                   static ContactMappingImpl instance() {
+                    return ContactMappingImpl.INSTANCE;
+                  }
+
+                  // and by its qualified name
+                  static com.example.rounds.ContactMappingImpl qualified() {
                     return ContactMappingImpl.INSTANCE;
                   }
                 }
                 """));
     assertThat(compilation).succeededWithoutWarnings();
     Assertions.assertThat(generatedSource(compilation, "ContactMappingImpl")).contains("INSTANCE");
+  }
+
+  @Test
+  @DisplayName("a generated type is not taken for a same-named Impl another package's spec writes")
+  void aGeneratedTypeIsNotTakenForAnotherPackagesImpl() {
+    Compilation compilation =
+        compile(
+            // another processor writes a wire that happens to be named like an Impl
+            Map.of("WidgetMappingImpl", "public record WidgetMappingImpl(String id) {}"),
+            source("Badge", "public record Badge(String id) {}"),
+            spec("BadgeMapping", "Badge", "WidgetMappingImpl"),
+            // and a spec in another package is generated as a WidgetMappingImpl of its own
+            JavaFileObjects.forSourceString(
+                "com.example.elsewhere.Widget",
+                "package com.example.elsewhere;\n\npublic record Widget(String id) {}"),
+            JavaFileObjects.forSourceString(
+                "com.example.elsewhere.WidgetDto",
+                "package com.example.elsewhere;\n\npublic record WidgetDto(String id) {}"),
+            JavaFileObjects.forSourceString(
+                "com.example.elsewhere.WidgetMapping",
+                """
+                package com.example.elsewhere;
+
+                import org.higherkindedj.optics.annotations.GenerateMapping;
+                import org.higherkindedj.optics.annotations.MappingSpec;
+
+                @GenerateMapping
+                public interface WidgetMapping extends MappingSpec<Widget, WidgetDto> {}
+                """));
+    assertThat(compilation).succeededWithoutWarnings();
+    Assertions.assertThat(generatedSource(compilation, "BadgeMappingImpl"))
+        .contains("public WidgetMappingImpl build(Badge domain)");
   }
 
   @Test
@@ -532,6 +570,19 @@ class MappingProcessorRoundsTest {
                   }
                 }
                 """),
+            // a spec method's thrown type
+            source("Invoice", "public record Invoice(String id) {}"),
+            source("InvoiceDto", "public record InvoiceDto(String id) {}"),
+            source(
+                "InvoiceMapping",
+                """
+                @GenerateMapping
+                public interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {
+                  default InvoiceDto draft() throws MissingException {
+                    return null;
+                  }
+                }
+                """),
             // a mix-in, and a mix-in's superinterface
             source("Account", "public record Account(String name) {}"),
             source("AccountDto", "public record AccountDto(String name) {}"),
@@ -568,6 +619,7 @@ class MappingProcessorRoundsTest {
             PKG + ".MissingArgMappingImpl",
             PKG + ".WrappedMappingImpl",
             PKG + ".UserMappingImpl",
+            PKG + ".InvoiceMappingImpl",
             PKG + ".AccountMappingImpl",
             PKG + ".MemberMappingImpl");
   }

@@ -84,6 +84,21 @@ final class WaitingSpecs {
   }
 
   /**
+   * A generated Impl, by the module and package it is written into and its simple name: the parts
+   * an unresolved name has to agree with before it is taken for one.
+   */
+  private record ImplName(String module, String packageName, String simpleName) {
+
+    static ImplName of(Elements elements, TypeElement spec) {
+      var impl = MappingProcessor.implClassName(spec);
+      return new ImplName(
+          elements.getModuleOf(spec).getQualifiedName().toString(),
+          impl.packageName(),
+          impl.simpleName());
+    }
+  }
+
+  /**
    * The interfaces among a round's annotated elements, the only declarations a spec can be. One of
    * another kind is refused where it stands, having nothing to wait for.
    */
@@ -114,14 +129,15 @@ final class WaitingSpecs {
    * same-named type in another module neither holds a spec back nor lets it through. A merge spec
    * is never nested, so only a mapping spec passes its waiting on. The Impl a spec is generated as
    * never counts as unresolved, since the processors write it: a spec naming one would otherwise
-   * wait for itself.
+   * wait for itself. It is recognised by the module and package the name resolves to where it is
+   * written, never by its simple name alone, so a same-named type another processor writes into
+   * another package still waits.
    */
   static Set<TypeKey> among(
       Elements elements, List<TypeElement> mappingSpecs, List<TypeElement> mergeSpecs) {
-    Set<String> impls =
+    Set<ImplName> impls =
         Stream.concat(mappingSpecs.stream(), mergeSpecs.stream())
-            .map(MappingProcessor::implClassName)
-            .flatMap(impl -> Stream.of(impl.simpleName(), impl.canonicalName()))
+            .map(spec -> ImplName.of(elements, spec))
             .collect(Collectors.toSet());
     Map<TypeKey, Reach> reaches = new LinkedHashMap<>();
     Map<TypeKey, Set<TypeKey>> pairs = new LinkedHashMap<>();
@@ -134,7 +150,7 @@ final class WaitingSpecs {
           .flatMap(supertype -> supertype.getTypeArguments().stream())
           .forEach(
               side -> {
-                reach.shape(side);
+                reach.shape(side, spec);
                 declaredType(side)
                     .map(declared -> TypeKey.of(elements, declared.asElement()))
                     .ifPresent(pair::add);
@@ -146,8 +162,8 @@ final class WaitingSpecs {
       Reach reach = new Reach(elements, impls);
       reach.declaration(spec);
       for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
-        reach.shape(method.getReturnType());
-        method.getParameters().forEach(parameter -> reach.shape(parameter.asType()));
+        reach.shape(method.getReturnType(), spec);
+        method.getParameters().forEach(parameter -> reach.shape(parameter.asType(), spec));
       }
       reaches.put(TypeKey.of(elements, spec), reach);
     }
@@ -188,12 +204,12 @@ final class WaitingSpecs {
   private static final class Reach {
 
     private final Elements elements;
-    private final Set<String> impls;
+    private final Set<ImplName> impls;
     private final Set<TypeKey> names = new HashSet<>();
     private final Set<TypeKey> opened = new HashSet<>();
     private boolean unresolved;
 
-    Reach(Elements elements, Set<String> impls) {
+    Reach(Elements elements, Set<ImplName> impls) {
       this.elements = elements;
       this.impls = impls;
     }
@@ -203,10 +219,11 @@ final class WaitingSpecs {
      * method signatures and every supertype clause, the interfaces behind them included.
      */
     void declaration(TypeElement type) {
-      type.getTypeParameters().forEach(parameter -> parameter.getBounds().forEach(this::type));
+      type.getTypeParameters()
+          .forEach(parameter -> parameter.getBounds().forEach(bound -> type(bound, type)));
       ElementFilter.methodsIn(type.getEnclosedElements()).forEach(this::signature);
       for (TypeMirror parent : type.getInterfaces()) {
-        type(parent);
+        type(parent, type);
         declaredType(parent)
             .map(declared -> (TypeElement) declared.asElement())
             .filter(this::fromSource)
@@ -215,9 +232,12 @@ final class WaitingSpecs {
       }
     }
 
-    /** A type classification reads: as written, then opened (see {@link #open}). */
-    void shape(TypeMirror mirror) {
-      type(mirror);
+    /**
+     * A type classification reads, written in the declaration {@code site}: as written, then opened
+     * (see {@link #open}).
+     */
+    void shape(TypeMirror mirror, Element site) {
+      type(mirror, site);
       open(mirror);
     }
 
@@ -240,13 +260,13 @@ final class WaitingSpecs {
                   return;
                 }
                 if (fromSource(element)) {
-                  element.getRecordComponents().forEach(component -> shape(component.asType()));
-                  element.getPermittedSubclasses().forEach(this::shape);
-                  shape(element.getSuperclass());
-                  element.getInterfaces().forEach(this::shape);
+                  element.getRecordComponents().forEach(c -> shape(c.asType(), element));
+                  element.getPermittedSubclasses().forEach(subtype -> shape(subtype, element));
+                  shape(element.getSuperclass(), element);
+                  element.getInterfaces().forEach(parent -> shape(parent, element));
                   ElementFilter.methodsIn(element.getEnclosedElements()).stream()
                       .filter(method -> method.getModifiers().contains(Modifier.STATIC))
-                      .forEach(method -> shape(method.getReturnType()));
+                      .forEach(method -> shape(method.getReturnType(), element));
                   members(element);
                 } else {
                   element.getRecordComponents().forEach(component -> name(component.asType()));
@@ -273,37 +293,59 @@ final class WaitingSpecs {
     }
 
     private void signature(ExecutableElement method) {
-      method.getTypeParameters().forEach(parameter -> parameter.getBounds().forEach(this::type));
-      type(method.getReturnType());
-      method.getParameters().forEach(parameter -> type(parameter.asType()));
-      method.getThrownTypes().forEach(this::type);
+      Element site = method.getEnclosingElement();
+      method
+          .getTypeParameters()
+          .forEach(parameter -> parameter.getBounds().forEach(bound -> type(bound, site)));
+      type(method.getReturnType(), site);
+      method.getParameters().forEach(parameter -> type(parameter.asType(), site));
+      method.getThrownTypes().forEach(thrown -> type(thrown, site));
     }
 
     /**
-     * One type as written: unresolved if any part of it is, its enclosing type included, naming
-     * every declared type in it.
+     * One type as written in the declaration {@code site}: unresolved if any part of it is, its
+     * enclosing type included, naming every declared type in it.
      */
-    private void type(TypeMirror mirror) {
+    private void type(TypeMirror mirror, Element site) {
       switch (mirror.getKind()) {
-        case ERROR -> unresolved |= !impls.contains(mirror.toString());
+        case ERROR -> unresolved |= !impls.contains(written(mirror, site));
         case DECLARED -> {
           DeclaredType declared = (DeclaredType) mirror;
           names.add(key(declared.asElement()));
-          declared.getTypeArguments().forEach(this::type);
-          type(declared.getEnclosingType());
+          declared.getTypeArguments().forEach(argument -> type(argument, site));
+          type(declared.getEnclosingType(), site);
         }
-        case ARRAY -> type(((ArrayType) mirror).getComponentType());
+        case ARRAY -> type(((ArrayType) mirror).getComponentType(), site);
         case WILDCARD -> {
           WildcardType wildcard = (WildcardType) mirror;
           Stream.of(wildcard.getExtendsBound(), wildcard.getSuperBound())
               .filter(Objects::nonNull)
-              .forEach(this::type);
+              .forEach(bound -> type(bound, site));
         }
         default -> {
           // A primitive, void or none resolves by construction, and a type variable's bounds are
           // read from its declaration.
         }
       }
+    }
+
+    /**
+     * The Impl an unresolved type would be, as its site names it. javac leaves an unresolved simple
+     * name unqualified, so it is read in the site's own package, where a spec's Impl is written; a
+     * qualified name is read as written. A simple name imported from another package therefore
+     * matches nothing, and its spec waits the one round until that Impl is written, rather than
+     * being classified against the placeholder.
+     */
+    private ImplName written(TypeMirror unresolved, Element site) {
+      String name =
+          ((TypeElement) ((DeclaredType) unresolved).asElement()).getQualifiedName().toString();
+      int dot = name.lastIndexOf('.');
+      return new ImplName(
+          elements.getModuleOf(site).getQualifiedName().toString(),
+          dot < 0
+              ? elements.getPackageOf(site).getQualifiedName().toString()
+              : name.substring(0, dot),
+          name.substring(dot + 1));
     }
 
     private TypeKey key(Element type) {

@@ -90,6 +90,22 @@ class SharedPackageModulesTest {
   @Test
   @DisplayName("each processor names the shared package, never a name already taken")
   void eachProcessorNamesTheSharedPackage() throws IOException {
+    assertEachProcessorNamesTheSharedPackage(Map.of("billing", SOURCES, "shipping", SOURCES));
+  }
+
+  @Test
+  @DisplayName("a module declaring the package by its package-info alone still shares it")
+  void aPackageInfoAloneDeclaresThePackage() throws IOException {
+    assertEachProcessorNamesTheSharedPackage(
+        Map.of(
+            "billing",
+            List.of(JavaFileObjects.forSourceString(PKG + ".package-info", "package " + PKG + ";")),
+            "shipping",
+            SOURCES));
+  }
+
+  private void assertEachProcessorNamesTheSharedPackage(Map<String, List<JavaFileObject>> modules)
+      throws IOException {
     List<String> errors =
         GeneratorTestHelper.compileModules(
                 tmp,
@@ -98,7 +114,7 @@ class SharedPackageModulesTest {
                     new MergeProcessor(),
                     new ErrorEnvelopeProcessor(),
                     new AssemblyProcessor()),
-                Map.of("billing", SOURCES, "shipping", SOURCES))
+                modules)
             .stream()
             .filter(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
             .map(diagnostic -> diagnostic.getMessage(null))
