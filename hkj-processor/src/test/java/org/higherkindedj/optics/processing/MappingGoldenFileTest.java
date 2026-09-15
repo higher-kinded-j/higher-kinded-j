@@ -424,14 +424,15 @@ class MappingGoldenFileTest {
         """);
   }
 
-  // ---- record wire, opted into the Optional bridge: a marker component, a leaf one, and a marker
-  // one whose element nests through its own spec ----
+  // ---- record wire, opted into the Optional bridge: a marker component, a leaf one, a marker one
+  // whose element nests through its own spec, and a marker one whose List lifts through it ----
   private static JavaFileObject optionalBridge() {
     return JavaFileObjects.forSourceString(
         "com.example.bridge.Fixtures",
         """
         package com.example.bridge;
 
+        import java.util.List;
         import java.util.Optional;
         import org.higherkindedj.hkt.validated.FieldError;
         import org.higherkindedj.hkt.validated.Validated;
@@ -451,9 +452,11 @@ class MappingGoldenFileTest {
 
         record Customer(
             String name, Optional<String> alias, Optional<Nickname> nickname,
-            Optional<Referrer> referrer) {}
+            Optional<Referrer> referrer, Optional<List<Referrer>> referees) {}
 
-        record CustomerDto(String name, String alias, String nickname, ReferrerDto referrer) {}
+        record CustomerDto(
+            String name, String alias, String nickname, ReferrerDto referrer,
+            List<ReferrerDto> referees) {}
 
         @GenerateMapping
         interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
@@ -462,6 +465,9 @@ class MappingGoldenFileTest {
 
           @OptionalBridge
           Optional<Referrer> referrer();
+
+          @OptionalBridge
+          Optional<List<Referrer>> referees();
 
           @OptionalBridge
           default ValidatedPrism<String, Nickname> nickname() {

@@ -982,7 +982,7 @@ class MappingProcessorUpdateTest {
       Assertions.assertThat(generated)
           .contains("v -> lines().parseAll(v, PhoneNumber[]::new)")
           .contains("byLineKey()::parseKeys")
-          .contains("m -> routeKey().parseEntries(m, routes())")
+          .contains("v -> routeKey().parseEntries(v, routes())")
           // the identity String[] carries the array scan overload
           .contains("StockPatchMappingImpl::hkj$allPresent")
           .contains("E[] values");
@@ -1052,6 +1052,61 @@ class MappingProcessorUpdateTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("@MapKey(\"nosuch\") names no component of Contact");
+    }
+
+    @Test
+    @DisplayName("the sparse tier refuses a key leaf on an Optional<Map>, which it never bridges")
+    void sparseTierRefusesAKeyLeafOnAnOptionalMap() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Registry",
+              """
+              package com.example;
+
+              import java.util.Map;
+              import java.util.Optional;
+
+              public record Registry(Optional<Map<EmailAddress, String>> owners) {}
+              """);
+      JavaFileObject patch =
+          JavaFileObjects.forSourceString(
+              "com.example.RegistryPatchDto",
+              """
+              package com.example;
+
+              import java.util.Map;
+
+              public class RegistryPatchDto {
+                private Map<String, String> owners;
+                public Map<String, String> getOwners() { return owners; }
+                public void setOwners(Map<String, String> owners) { this.owners = owners; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.RegistryPatchMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapKey;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface RegistryPatchMapping extends UpdateSpec<Registry, RegistryPatchDto> {
+                @MapKey("owners")
+                default ValidatedPrism<String, EmailAddress> ownersKey() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new EmailAddress(raw)), EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation = compile(EMAIL, domain, patch, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("@MapKey(\"owners\") names a component that is not a Map.");
     }
 
     @Test
@@ -1334,10 +1389,11 @@ class MappingProcessorUpdateTest {
     @Test
     @DisplayName("a new correspondence Kind must choose its sparse emission before landing")
     void kindCanary() {
-      // writeUpdateImpl's kind->parser switch routes unlisted kinds to prism::parse, which is
-      // correct only for LEAF — the one unlisted kind a parsed sparse edit can carry today. A new
-      // Kind constant fails this pin: give it an explicit arm there (the dense parseLeg switch is
-      // compiler-enforced already) before extending this list.
+      // writeUpdateImpl's parser switch, buildCall, parseCall and bridgeParseLeg each route the
+      // kinds they do not list through a default arm, to a leaf's or a lifted container's call, so
+      // a new Kind would silently take one. A new constant fails this pin: give it an explicit arm
+      // in each (the dense buildValue and parseLeg switches are compiler-enforced already) before
+      // extending this list.
       Assertions.assertThat(java.util.Arrays.stream(MappingProcessor.Kind.values()).map(Enum::name))
           .containsExactlyInAnyOrder(
               "IDENTITY",

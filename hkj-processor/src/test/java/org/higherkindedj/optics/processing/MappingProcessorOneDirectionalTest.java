@@ -977,7 +977,7 @@ class MappingProcessorOneDirectionalTest {
           .contains("VendorItemMappingImpl.INSTANCE.asValidatedParse().parse(v)")
           .contains("VendorItemMappingImpl.INSTANCE.asValidatedParse()::parseValues")
           .contains(
-              "byOwnerKey().parseEntries(m, VendorItemMappingImpl.INSTANCE.asValidatedParse())")
+              "byOwnerKey().parseEntries(v, VendorItemMappingImpl.INSTANCE.asValidatedParse())")
           .contains(
               "hkj$ifPresent(wire.getGift(), ItemMappingImpl.INSTANCE.asValidatedPrism()::parse)");
 
@@ -1091,6 +1091,57 @@ class MappingProcessorOneDirectionalTest {
       Assertions.assertThat(invoke(present, "describe")).isEqualTo("t-1: sku x2");
       Object absent = invoke(impl, "build", create(result, "Ticket", "t-1", Optional.empty()));
       Assertions.assertThat(invoke(absent, "describe")).isEqualTo("t-1: none");
+    }
+
+    @Test
+    @DisplayName(
+        "a build-only mapping bridges an optional list of build-only elements, element by element")
+    void buildOnlyBridgesAListOfBuildOnly() throws ReflectiveOperationException {
+      JavaFileObject basket =
+          source("Basket", "public record Basket(String id, Optional<List<Line>> lines) {}");
+      JavaFileObject basketRequest =
+          source(
+              "BasketRequest",
+              """
+              public class BasketRequest {
+                private List<LineRequest> lines;
+
+                public void setId(String id) {}
+                public void setLines(List<LineRequest> lines) { this.lines = lines; }
+
+                public String describe() {
+                  return lines == null
+                      ? "none"
+                      : lines.stream().map(LineRequest::describe).toList().toString();
+                }
+              }
+              """);
+      JavaFileObject spec =
+          source(
+              "BasketRequestMapping",
+              """
+              @GenerateMapping
+              public interface BasketRequestMapping extends MappingSpec<Basket, BasketRequest> {}
+              """);
+      Compilation compilation =
+          compile(LINE, LINE_REQUEST, LINE_REQUEST_MAPPING, basket, basketRequest, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "BasketRequestMappingImpl"))
+          .contains(
+              "domain.lines().map(LineRequestMappingImpl.INSTANCE.asValidatedBuild()::buildAll)"
+                  + ".ifPresent(v -> wire.setLines(v));");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance(PKG + ".BasketRequestMappingImpl");
+      Object present =
+          invoke(
+              impl,
+              "build",
+              create(
+                  result, "Basket", "b-1", Optional.of(List.of(create(result, "Line", "sku", 2)))));
+      Assertions.assertThat(invoke(present, "describe")).isEqualTo("[sku x2]");
+      Object absent = invoke(impl, "build", create(result, "Basket", "b-1", Optional.empty()));
+      Assertions.assertThat(invoke(absent, "describe")).isEqualTo("none");
     }
 
     @Test

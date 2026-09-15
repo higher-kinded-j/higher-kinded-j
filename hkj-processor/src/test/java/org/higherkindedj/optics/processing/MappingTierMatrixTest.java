@@ -54,9 +54,9 @@ import org.junit.jupiter.params.provider.MethodSource;
  * an identity {@code List}, {@code Set} or {@code Map} adds the element null scan only where the
  * emitted generic helper can type. A raw container erases the call, so it gives the scan up in
  * every tier and takes the plain guarded leg; a wildcard argument is only a problem where the
- * scan's result type is pinned rather than inferred, which is the sparse tier and the bridged leg,
- * so the dense tiers keep the scan for it. {@code MappingProcessorUpdateTest} pins the sparse half
- * of the same rule.
+ * scan's result type is pinned rather than inferred, which is the sparse tier, so the dense tiers
+ * keep the scan for it, and so does the bridged leg, which names its Optional's argument outright.
+ * {@code MappingProcessorUpdateTest} pins the sparse half of the same rule.
  */
 @DisplayName("MappingProcessor - tier selection across correspondence kinds and wire shapes")
 class MappingTierMatrixTest {
@@ -392,7 +392,35 @@ class MappingTierMatrixTest {
             true,
             true,
             true,
-            (tag, seed) -> Optional.of(tag.apply(seed))));
+            (tag, seed) -> Optional.of(tag.apply(seed))),
+        // A bridged container lifts its elements as the unbridged one would: through their spec,
+        // or through the element leaf.
+        new Case(
+            "Optional bridge onto a List through a nested spec",
+            "bridgedlistnested",
+            "Optional<List<Tag>>",
+            "List<TagDto>",
+            "@OptionalBridge Optional<List<Tag>> x();\n",
+            "",
+            false,
+            false,
+            true,
+            true,
+            true,
+            (tag, seed) -> Optional.of(List.of(tag.apply(seed)))),
+        new Case(
+            "Optional bridge onto a List through an element leaf",
+            "bridgedlistleaf",
+            "Optional<List<Tag>>",
+            "List<String>",
+            "@OptionalBridge\n" + TAG_LEAF,
+            TAG_LEAF,
+            false,
+            false,
+            true,
+            true,
+            false,
+            (tag, seed) -> Optional.of(List.of(tag.apply(seed)))));
   }
 
   private static Compilation compilation;
