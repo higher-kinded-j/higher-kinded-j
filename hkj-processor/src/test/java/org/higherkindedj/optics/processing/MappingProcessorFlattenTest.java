@@ -474,6 +474,57 @@ class MappingProcessorFlattenTest {
 
     @Test
     @DisplayName(
+        "a lifted array inside the group names a raw element in its array constructor, which"
+            + " compiles under -Xlint:rawtypes -Werror")
+    void rawArrayElementInsideTheGroup() {
+      // The one place an inner domain component's type is written out, so it is the one place a raw
+      // type could reach the file without the pair's suppression, which does not look inside the
+      // group. javac does not report an array-constructor reference, and this pins that.
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Raws",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.Flatten;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @SuppressWarnings("rawtypes")
+              public final class Raws {
+                public record Group(List[] tags) {}
+
+                public record Dom(String id, Group group) {}
+
+                public record Dto(String id, String[] tags) {}
+
+                @GenerateMapping
+                public interface RawGroupMapping extends MappingSpec<Dom, Dto> {
+                  @Flatten
+                  Group group();
+
+                  default ValidatedPrism<String, List> tags() {
+                    return ValidatedPrism.of(
+                        raw -> Validated.validNel(List.of(raw)), list -> String.valueOf(list));
+                  }
+                }
+              }
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(sources);
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.RawsRawGroupMappingImpl"))
+          .contains("tags().parseAll(v, List[]::new)");
+    }
+
+    @Test
+    @DisplayName(
         "a rename from another component may feed the wire component named after the group")
     void renameFeedsTheFlattenedName() {
       JavaFileObject wire =

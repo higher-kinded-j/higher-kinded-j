@@ -283,6 +283,31 @@ public final class ProcessorUtils {
   }
 
   /**
+   * The annotations a generated member adds for the raw types it writes out or infers:
+   * {@code @SuppressWarnings("rawtypes")} when one of its types names a raw type, none otherwise.
+   *
+   * <p>The raw type is the author's: it warns where they declared it, and their own suppression
+   * answers for it there. A generated file is a separate compilation unit that suppression does not
+   * reach, so a member restating the type, or holding a lambda whose parameter javac infers to it,
+   * answers for it itself. Only {@code rawtypes}: an unchecked operation in generated code is a
+   * hole in that code, never the author's to accept.
+   *
+   * @param types the types the member may write out or infer; a wider set only widens where the
+   *     suppression lands; must not be null
+   * @return the suppression when {@link #firstRawIn} finds a raw type in any of them, else no
+   *     annotations
+   * @since 0.4.11
+   */
+  public static List<AnnotationSpec> rawTypesSuppression(List<? extends TypeMirror> types) {
+    return types.stream().anyMatch(type -> firstRawIn(type) != null)
+        ? List.of(
+            AnnotationSpec.builder(SuppressWarnings.class)
+                .addMember("value", "$S", "rawtypes")
+                .build())
+        : List.of();
+  }
+
+  /**
    * Whether a declared type carries an instantiation for {@code asMemberOf} to substitute.
    *
    * <p>Asked before reading a member under a type, because {@code asMemberOf} does the wrong thing

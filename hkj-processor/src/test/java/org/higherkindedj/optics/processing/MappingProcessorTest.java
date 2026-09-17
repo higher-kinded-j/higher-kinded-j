@@ -5122,6 +5122,67 @@ class MappingProcessorTest {
     }
 
     @Test
+    @DisplayName(
+        "a mapping carrying a raw type in a chunk compiles under -Xlint:rawtypes -Werror, on parse"
+            + " and on patch")
+    void chunkedRawTypesCompileUnderWerror() {
+      // A chunk's tuple nests every component it carries, and javac reports a raw type nested in
+      // an inferred lambda parameter, so even a bare List warns once a chunk of several holds it.
+      String comps =
+          IntStream.rangeClosed(1, 16)
+              .mapToObj(i -> "String f" + i)
+              .collect(Collectors.joining(", "));
+      String raws = ", List tags, Optional<List> contacts";
+      JavaFileObject records =
+          records(
+              "import java.util.List;\nimport java.util.Optional;\n\n"
+                  + "@SuppressWarnings(\"rawtypes\")\npublic final class Records {\n  public record D("
+                  + comps
+                  + raws
+                  + ", int rank) {}\n\n  public record W("
+                  + comps
+                  + raws
+                  + ", int rank) {}\n\n  public record View("
+                  + comps
+                  + raws
+                  + ") {}\n}\n");
+      String spec =
+          """
+          package com.example;
+
+          import org.higherkindedj.hkt.validated.Validated;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.higherkindedj.optics.validated.ValidatedPrism;
+
+          @GenerateMapping
+          public interface %s extends MappingSpec<Records.D, Records.%s> {
+            default ValidatedPrism<String, String> f1() {
+              return ValidatedPrism.of(Validated::validNel, s -> s);
+            }
+          }
+          """;
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(
+                  records,
+                  JavaFileObjects.forSourceString(
+                      "com.example.WideRawMapping", spec.formatted("WideRawMapping", "W")),
+                  JavaFileObjects.forSourceString(
+                      "com.example.WideRawViewMapping",
+                      spec.formatted("WideRawViewMapping", "View")));
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.WideRawMappingImpl"))
+          .contains("Tuple16::new")
+          .contains("> parse(");
+      Assertions.assertThat(generatedSource(compilation, "com.example.WideRawViewMappingImpl"))
+          .contains("Tuple16::new")
+          .contains("> patch(");
+    }
+
+    @Test
     @DisplayName("a 16-component record parses in one fields() ladder (no chunking)")
     void sixteenComponentsParseInOneLadder() {
       String comps =

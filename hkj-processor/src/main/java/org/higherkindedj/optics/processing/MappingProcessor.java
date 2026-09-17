@@ -1080,18 +1080,21 @@ public class MappingProcessor extends AbstractProcessor {
    *
    * <p>Resolved once, here, rather than at the emission site: the skeleton builders take these
    * instead of the elements, so there is no {@code getReturnType()} left down there to read as
-   * declared by mistake.
+   * declared by mistake. The prism type stays a model type rather than a name, so the builders can
+   * ask whether it names a raw type.
    */
-  private record LeafField(String name, TypeName prismType) {}
+  private record LeafField(String name, TypeMirror prismType) {
+
+    /** The prism type as the Impl writes it out. */
+    TypeName prismTypeName() {
+      return ProcessorUtils.typeNameOf(prismType);
+    }
+  }
 
   /** The spec's abstract leaves, each with its prism type under the spec's instantiation. */
   private List<LeafField> leafFields(TypeElement spec) {
     return abstractLeaves(spec).stream()
-        .map(
-            leaf ->
-                new LeafField(
-                    leaf.getSimpleName().toString(),
-                    ProcessorUtils.typeNameOf(memberTypeIn(spec, leaf))))
+        .map(leaf -> new LeafField(leaf.getSimpleName().toString(), memberTypeIn(spec, leaf)))
         .toList();
   }
 
@@ -2841,7 +2844,7 @@ public class MappingProcessor extends AbstractProcessor {
     if (edits == null) {
       return;
     }
-    writeUpdateImpl(spec, domain, wireShape, edits);
+    writeUpdateImpl(spec, domain, (DeclaredType) domainArg, wireShape, edits);
   }
 
   /**
@@ -3327,7 +3330,11 @@ public class MappingProcessor extends AbstractProcessor {
    * build}/{@code parse}/{@code as*} tier is emitted.
    */
   private void writeUpdateImpl(
-      TypeElement spec, TypeElement domain, WireShape wire, List<UpdateEdit> edits) {
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      List<UpdateEdit> edits) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
     ClassName domainClass = ClassName.get(domain);
@@ -3379,6 +3386,7 @@ public class MappingProcessor extends AbstractProcessor {
 
     MethodSpec updateFrom =
         MethodSpec.methodBuilder("updateFrom")
+            .addAnnotations(pairSuppression(domainDeclared, wire))
             .addModifiers(Modifier.PUBLIC)
             .returns(accumulatedReturn)
             .addParameter(wireName, "wire")
@@ -6546,6 +6554,7 @@ public class MappingProcessor extends AbstractProcessor {
     CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
 
     CodeBlock reverseArgs = reverseArgs(wire, comps);
+    List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire);
 
     TypeSpec.Builder implBuilder =
         implSkeleton(
@@ -6555,8 +6564,9 @@ public class MappingProcessor extends AbstractProcessor {
                 "Generated bidirectional mapping for {@link $T}: total {@code build} and"
                     + " accumulating, located {@code parse}.\n",
                 leafFields(spec))
-            .addMethod(buildMethod(domainName, wireName, buildBody))
-            .addMethod(parseMethod(domainName, wireName, parseBody(wire, comps, domainName)))
+            .addMethod(buildMethod(domainName, wireName, suppression, buildBody))
+            .addMethod(
+                parseMethod(domainName, wireName, suppression, parseBody(wire, comps, domainName)))
             .addMethod(asValidatedPrismMethod(wireName, domainName));
 
     addMarkerStubs(implBuilder, spec);
@@ -6609,7 +6619,12 @@ public class MappingProcessor extends AbstractProcessor {
                     + " and no {@code build}, since the wire offers nothing to write it through"
                     + " (truthful types).\n",
                 leafFields(spec))
-            .addMethod(parseMethod(domainName, wireName, parseBody(wire, comps, domainName)))
+            .addMethod(
+                parseMethod(
+                    domainName,
+                    wireName,
+                    pairSuppression(domainDeclared, wire),
+                    parseBody(wire, comps, domainName)))
             .addMethod(asValidatedParseMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
     addReadHelpers(implBuilder, comps, wire);
@@ -6646,7 +6661,12 @@ public class MappingProcessor extends AbstractProcessor {
                     + " parse}, since the wire offers nothing to read it back through (truthful"
                     + " types).\n",
                 leafFields(spec))
-            .addMethod(buildMethod(domainName, wireName, wireBuildBody(wire, wireName, comps)))
+            .addMethod(
+                buildMethod(
+                    domainName,
+                    wireName,
+                    pairSuppression(domainDeclared, wire),
+                    wireBuildBody(wire, wireName, comps)))
             .addMethod(asValidatedBuildMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
     writeFile(spec, specName.packageName(), implBuilder.build());
@@ -6674,9 +6694,14 @@ public class MappingProcessor extends AbstractProcessor {
         values -> CodeBlock.of("new $T($L)", domainName, CodeBlock.join(values, ", ")));
   }
 
-  /** The {@code parse} method over a body from {@link #parseBody}. */
-  private static MethodSpec parseMethod(TypeName domainName, TypeName wireName, CodeBlock body) {
+  /**
+   * The {@code parse} method over a body from {@link #parseBody}, carrying the pair's {@link
+   * #pairSuppression}.
+   */
+  private static MethodSpec parseMethod(
+      TypeName domainName, TypeName wireName, List<AnnotationSpec> suppression, CodeBlock body) {
     return MethodSpec.methodBuilder("parse")
+        .addAnnotations(suppression)
         .addModifiers(Modifier.PUBLIC)
         .returns(
             ParameterizedTypeName.get(
@@ -6852,6 +6877,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
+    List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire);
 
     List<CodeBlock> patchLegs = new ArrayList<>();
     for (Correspondence c : comps) {
@@ -6934,9 +6960,10 @@ public class MappingProcessor extends AbstractProcessor {
                     + " components cannot be reconstructed, and no {@code asLens()}, since a"
                     + " write-back that can fail has no lawful total {@code set} (truthful types).\n",
                 leafFields(spec))
-            .addMethod(buildMethod(domainName, wireName, buildBody))
+            .addMethod(buildMethod(domainName, wireName, suppression, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("patch")
+                    .addAnnotations(suppression)
                     .addModifiers(Modifier.PUBLIC)
                     .returns(patchReturn)
                     .addParameter(domainName, "domain")
@@ -7079,7 +7106,8 @@ public class MappingProcessor extends AbstractProcessor {
                     + " {@code asLens()} write-back. No {@code parse} is emitted — the dropped"
                     + " components cannot be reconstructed (truthful types).\n",
                 leafFields(spec))
-            .addMethod(buildMethod(domainName, wireName, buildBody))
+            .addMethod(
+                buildMethod(domainName, wireName, pairSuppression(domainDeclared, wire), buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("asLens")
                     .addModifiers(Modifier.PUBLIC)
@@ -7270,6 +7298,7 @@ public class MappingProcessor extends AbstractProcessor {
                 buildMethod(
                     domainName,
                     wireName,
+                    List.of(),
                     CodeBlock.builder().addStatement("$L", buildSwitch.build()).build()))
             .addMethod(
                 MethodSpec.methodBuilder("parse")
@@ -7301,6 +7330,13 @@ public class MappingProcessor extends AbstractProcessor {
             .addOriginatingElement(spec)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addAnnotation(GENERATED)
+            // Each type parameter is restated with its bounds in the class's own type-parameter
+            // clause, which no member annotation reaches, so a raw bound is answered on the class.
+            .addAnnotations(
+                ProcessorUtils.rawTypesSuppression(
+                    spec.getTypeParameters().stream()
+                        .flatMap(parameter -> parameter.getBounds().stream())
+                        .toList()))
             .addJavadoc(javadoc, specName);
     if (variables.isEmpty()) {
       return builder
@@ -7362,9 +7398,16 @@ public class MappingProcessor extends AbstractProcessor {
       List<TypeVariableName> variables,
       List<LeafField> abstractLeaves) {
     TypeName typed = ParameterizedTypeName.get(implName, variables.toArray(new TypeName[0]));
-    MethodSpec.Builder constructor = MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE);
+    // Each prism type is written out verbatim, on the leaf's field and accessor and as a parameter
+    // of the constructor and the factory, so a raw type in one leaf lands in all four.
+    List<AnnotationSpec> anyLeafRaw =
+        ProcessorUtils.rawTypesSuppression(
+            abstractLeaves.stream().map(LeafField::prismType).toList());
+    MethodSpec.Builder constructor =
+        MethodSpec.constructorBuilder().addAnnotations(anyLeafRaw).addModifiers(Modifier.PRIVATE);
     MethodSpec.Builder factory =
         MethodSpec.methodBuilder("of")
+            .addAnnotations(anyLeafRaw)
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addTypeVariables(variables)
             .returns(typed)
@@ -7374,9 +7417,12 @@ public class MappingProcessor extends AbstractProcessor {
     StringJoiner arguments = new StringJoiner(", ");
     for (LeafField leaf : abstractLeaves) {
       String name = leaf.name();
-      TypeName prismType = leaf.prismType();
+      TypeName prismType = leaf.prismTypeName();
+      List<AnnotationSpec> leafRaw = ProcessorUtils.rawTypesSuppression(List.of(leaf.prismType()));
       builder.addField(
-          FieldSpec.builder(prismType, name, Modifier.PRIVATE, Modifier.FINAL).build());
+          FieldSpec.builder(prismType, name, Modifier.PRIVATE, Modifier.FINAL)
+              .addAnnotations(leafRaw)
+              .build());
       constructor
           .addParameter(prismType, name)
           .addStatement(
@@ -7386,6 +7432,7 @@ public class MappingProcessor extends AbstractProcessor {
       builder.addMethod(
           MethodSpec.methodBuilder(name)
               .addAnnotation(Override.class)
+              .addAnnotations(leafRaw)
               .addModifiers(Modifier.PUBLIC)
               .returns(prismType)
               .addStatement("return $L", name)
@@ -7400,12 +7447,37 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The suppression a method mapping between the domain and the wire carries: {@code build}, {@code
+   * parse}, {@code patch} and {@code updateFrom}. Some of them hold lambdas whose parameters javac
+   * types from either side's components: an element or bridged leg, a bean's conditional write, a
+   * patch's assembly, a chunk's tuple. Which ones do is the emitter's detail, so each method asks
+   * of the whole pair, and one holding no such lambda carries it too: a record's {@code build}, or
+   * a projection's when the raw type is on a component it drops. A flattened group's inner
+   * components are not asked. Their wire side is a wire component already, and their domain side is
+   * written out in one place only, the array-constructor reference of a lifted inner array ({@code
+   * List[]::new}), which javac does not report.
+   */
+  private List<AnnotationSpec> pairSuppression(DeclaredType domainDeclared, WireShape wire) {
+    TypeElement domain = (TypeElement) domainDeclared.asElement();
+    return ProcessorUtils.rawTypesSuppression(
+        Stream.concat(
+                domain.getRecordComponents().stream()
+                    .map(component -> componentType(domainDeclared, component)),
+                wire.components().stream().map(WireShape.WireComponent::type))
+            .toList());
+  }
+
+  /**
    * The {@code build} method. {@code body} is the complete, terminated build statement(s): a record
    * or bean wire supplies them via {@link #wireBuildBody}, and the sealed path via a terminated
-   * {@code return switch}, so both are emitted verbatim with {@code addCode}.
+   * {@code return switch}, so both are emitted verbatim with {@code addCode}. {@code suppression}
+   * is the pair's {@link #pairSuppression}; a sealed dispatch only delegates to each subtype pair's
+   * Impl, holds no lambda over a component, and passes none.
    */
-  private static MethodSpec buildMethod(TypeName domainName, TypeName wireName, CodeBlock body) {
+  private static MethodSpec buildMethod(
+      TypeName domainName, TypeName wireName, List<AnnotationSpec> suppression, CodeBlock body) {
     return MethodSpec.methodBuilder("build")
+        .addAnnotations(suppression)
         .addModifiers(Modifier.PUBLIC)
         .returns(wireName)
         .addParameter(domainName, "domain")
@@ -7497,9 +7569,11 @@ public class MappingProcessor extends AbstractProcessor {
                   : rename
                       ? "@MapField methods declare renames and are not invocable"
                       : "@OptionalBridge markers declare bridges and are not invocable";
+      // The stub restates the declared return, so a raw type the author wrote lands here verbatim.
       implBuilder.addMethod(
           MethodSpec.methodBuilder(marker.getKey())
               .addAnnotation(Override.class)
+              .addAnnotations(ProcessorUtils.rawTypesSuppression(List.of(narrowest)))
               .addModifiers(Modifier.PUBLIC)
               .returns(ProcessorUtils.typeNameOf(narrowest))
               .addJavadoc(vocabulary + " declaration only; not invocable.\n")
