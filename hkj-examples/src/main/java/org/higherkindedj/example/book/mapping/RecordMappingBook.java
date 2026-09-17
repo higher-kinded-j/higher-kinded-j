@@ -18,6 +18,7 @@ import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MapKey;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.OptionalBridge;
+import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
@@ -265,6 +266,16 @@ public final class RecordMappingBook {
     // Valid(Customer[name=Ada Lovelace, email=ada@corp.example]) - only the name changed
     // ANCHOR_END: update_usage
     System.out.println(patched);
+
+    // ANCHOR: unmapped_usage
+    TenantPatchBean tenantPatch = new TenantPatchBean();
+    tenantPatch.setName("Ada Lovelace");
+
+    Validated<NonEmptyList<FieldError>, Tenant> tenantPatched =
+        TenantPatchMappingImpl.INSTANCE.updateFrom(tenantPatch).apply(new Tenant("t-1", "Ada"));
+    // Valid(Tenant[id=t-1, name=Ada Lovelace]) - the t-9 the bean reads is never applied
+    // ANCHOR_END: unmapped_usage
+    System.out.println(tenantPatched);
 
     // ANCHOR: update_container_usage
     Roster roster = new Roster("core", List.of(new PhoneNumber("+44")));
@@ -759,6 +770,39 @@ interface ContactPatchMapping extends UpdateSpec<Customer, ContactPatchBean> {
 }
 
 // ANCHOR_END: update_spec
+
+// ANCHOR: unmapped_spec
+// A tenant record whose id the server assigns, and a PATCH body shared with the GET response: it
+// reads the id and has no setter for it, so the client cannot change it.
+record Tenant(String id, String name) {}
+
+class TenantPatchBean {
+  private String name;
+
+  public String getId() {
+    return "t-9"; // whatever the body carries, the update never applies it
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+}
+
+@GenerateMapping
+interface TenantPatchMapping extends UpdateSpec<Tenant, TenantPatchBean> {
+  // getId() has no setter, so it is no property of the mapping, and 'id' names a component of
+  // Tenant: without the marker the mapping is refused, in case the accessor is a misspelt pair.
+  // The marker says the omission is deliberate. It withholds the refusal and nothing else: the
+  // update folds 'name' and never reads getId().
+  @Unmapped
+  String id();
+}
+
+// ANCHOR_END: unmapped_spec
 
 // ANCHOR: update_container
 record PhoneNumber(String value) {}

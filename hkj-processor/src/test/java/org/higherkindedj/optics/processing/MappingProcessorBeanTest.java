@@ -3098,6 +3098,21 @@ class MappingProcessorBeanTest {
     }
 
     @Test
+    @DisplayName("accessorSuffix is what decapitalise reads back as the property")
+    void accessorSuffixInvertsDecapitalise() {
+      Assertions.assertThat(BeanPropertyAnalyser.accessorSuffix("email")).isEqualTo("Email");
+      Assertions.assertThat(BeanPropertyAnalyser.accessorSuffix("URL")).isEqualTo("URL");
+      Assertions.assertThat(BeanPropertyAnalyser.accessorSuffix("x")).isEqualTo("X");
+      // Capitalised, 'eMail' would read back as 'EMail'.
+      Assertions.assertThat(BeanPropertyAnalyser.accessorSuffix("eMail")).isEqualTo("eMail");
+      Assertions.assertThat(List.of("email", "URL", "x", "eMail"))
+          .allMatch(
+              property ->
+                  BeanPropertyAnalyser.decapitalise(BeanPropertyAnalyser.accessorSuffix(property))
+                      .equals(property));
+    }
+
+    @Test
     @DisplayName("non-accessor methods (void, too-short, wrong-shape) are ignored, not misread")
     void nonAccessorMethodsIgnored() {
       // Exercises the getter/setter recognition guards: a void method and a wrong-return is-getter

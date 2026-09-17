@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * The wire side of a {@code @GenerateMapping} pair, abstracted over how its components are
@@ -46,6 +47,14 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   /** The component with the given (decapitalised) name, if any. */
   default Optional<WireComponent> componentNamed(String name) {
     return components().stream().filter(c -> c.name().equals(name)).findFirst();
+  }
+
+  /**
+   * The accessors the wire declares outside its components. A record's components are all read and
+   * written, so only a bean ({@link BeanShape#unpaired}) has any.
+   */
+  default List<UnpairedAccessor> unpaired() {
+    return List.of();
   }
 
   /**
@@ -116,17 +125,89 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * it: a parse-only bean has no {@code strategy} and no write sites, and a build-only one has no
    * getters. The analyser selects the two-way reading whenever any property allows it, so a bean is
    * one-directional only when nothing at all crosses the other way.
+   *
+   * <p>{@code unpaired} lists the accessors a two-way bean declares outside its properties: a
+   * getter nothing writes, or a writer nothing reads. The mapping leaves them out, and the
+   * processor refuses one wherever leaving it out would lose a value. A one-directional bean has
+   * none, every accessor it declares being a property.
    */
   record BeanShape(
       TypeElement element,
       List<BeanProperty> properties,
       Optional<ConstructionStrategy> strategy,
-      Direction direction)
+      Direction direction,
+      List<UnpairedAccessor> unpaired)
       implements WireShape {
+
+    public BeanShape {
+      properties = List.copyOf(properties);
+      unpaired = List.copyOf(unpaired);
+    }
 
     @Override
     public List<WireComponent> components() {
       return properties.stream().map(BeanProperty::asWireComponent).toList();
+    }
+  }
+
+  /**
+   * An accessor a two-way bean declares with no partner in the other direction: its property name,
+   * the method as declared, the type it reads or writes, the role it plays, and the supertype it is
+   * inherited from, when it is not declared on the bean (or builder) itself.
+   */
+  record UnpairedAccessor(
+      String name, String method, TypeMirror type, Role role, Optional<TypeElement> inheritedFrom) {
+
+    /** The roles an accessor plays on a bean, each as a diagnostic names it. */
+    enum Role {
+      /** A {@code getX} or {@code isX} getter on the bean. */
+      GETTER("getter"),
+      /** A {@code setX} setter on the bean. */
+      SETTER("setter"),
+      /** A one-argument method on the bean's builder. */
+      BUILDER_SETTER("builder setter");
+
+      private final String label;
+
+      Role(String label) {
+        this.label = label;
+      }
+
+      String label() {
+        return label;
+      }
+    }
+
+    /** Whether this accessor reads the bean, rather than writing it. */
+    boolean reads() {
+      return role == Role.GETTER;
+    }
+
+    /**
+     * The accessor as a diagnostic spells it, with where it is declared when it is inherited:
+     * {@code getName()}, {@code setName(String) (declared on 'Base')}.
+     */
+    String signature() {
+      return spelt(method) + BeanPropertyAnalyser.declaredOn(inheritedFrom);
+    }
+
+    /**
+     * This accessor as a diagnostic spells it, renamed to speak for {@code property}: the prefix it
+     * was declared with ({@code get}, {@code is}, {@code set}, or none for a property-named builder
+     * method) is kept.
+     */
+    String renamedFor(String property) {
+      int prefix = method.length() - name.length();
+      return spelt(
+          prefix == 0
+              ? property
+              : method.substring(0, prefix) + BeanPropertyAnalyser.accessorSuffix(property));
+    }
+
+    private String spelt(String methodName) {
+      return reads()
+          ? methodName + "()"
+          : methodName + "(" + ProcessorUtils.simpleTypeName(type) + ")";
     }
   }
 

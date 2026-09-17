@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -23,8 +24,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Discovers the JavaBeans property model of a bean-shaped wire type for {@code @GenerateMapping}. A
- * bean is read through {@code getX}/{@code isX} getters and constructed through one of a fixed
- * ladder of strategies, tried in order:
+ * bean is read through {@code getX} getters, and {@code isX} getters of {@code boolean} or {@code
+ * Boolean}, and constructed through one of a fixed ladder of strategies, tried in order:
  *
  * <ol>
  *   <li>a no-args constructor with {@code setX} setters (and, for a getter-only {@code List}, the
@@ -43,6 +44,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * also has a setter, or whose every getter is such a list: a {@code List} getter among read-only
  * getters belongs to a read model, which maps parse-only.
  *
+ * <p>A two-way bean records the accessors it leaves out, each getter nothing writes and each writer
+ * nothing reads, so that the processor can refuse one whose omission would lose a value: this
+ * analysis knows the bean, and only the spec knows which names its mapping needs.
+ *
  * <p>Getters and setters are gathered from {@link javax.lang.model.util.Elements#getAllMembers}, so
  * a bean inherits properties from its superclasses (as JAXB-generated beans do); {@link Object}
  * methods and non-public or static accessors are excluded.
@@ -54,6 +59,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
 final class BeanPropertyAnalyser {
 
   private static final String LIST = "java.util.List";
+
+  private static final String BOOLEAN = "java.lang.Boolean";
 
   private final ProcessingEnvironment env;
 
@@ -106,6 +113,7 @@ final class BeanPropertyAnalyser {
           !setters.isEmpty()
               || getters.values().stream().allMatch(getter -> isList(getterType(beanType, getter)));
       List<WireShape.BeanProperty> properties = new ArrayList<>();
+      List<WireShape.UnpairedAccessor> unpaired = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
         String name = entry.getKey();
         TypeMirror getterType = getterType(beanType, entry.getValue());
@@ -132,14 +140,19 @@ final class BeanPropertyAnalyser {
         } else if (collectionsWrite && isList(getterType)) {
           properties.add(
               readWrite(name, getterType, getter, new WireShape.WriteSite.CollectionAdd(getter)));
+        } else {
+          unpaired.add(unpairedGetter(bean, name, entry.getValue(), getterType));
         }
       }
       if (!properties.isEmpty()) {
+        unpaired.addAll(
+            unpairedWriters(getters, setters, beanType, WireShape.UnpairedAccessor.Role.SETTER));
         return new WireShape.BeanShape(
             bean,
             properties,
             Optional.of(new WireShape.ConstructionStrategy.NoArgsSetters()),
-            WireShape.Direction.BIDIRECTIONAL);
+            WireShape.Direction.BIDIRECTIONAL,
+            unpaired);
       }
     }
 
@@ -149,13 +162,15 @@ final class BeanPropertyAnalyser {
       builderSetters = collectBuilderSetters(bean, builder);
       DeclaredType builderType = builder.builderType();
       List<WireShape.BeanProperty> properties = new ArrayList<>();
+      List<WireShape.UnpairedAccessor> unpaired = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
         String name = entry.getKey();
         ExecutableElement builderSetter = builderSetters.get(name);
+        TypeMirror getterType = getterType(beanType, entry.getValue());
         if (builderSetter == null) {
+          unpaired.add(unpairedGetter(bean, name, entry.getValue(), getterType));
           continue;
         }
-        TypeMirror getterType = getterType(beanType, entry.getValue());
         if (typesDiffer(
             spec,
             bean,
@@ -175,8 +190,18 @@ final class BeanPropertyAnalyser {
                 new WireShape.WriteSite.Setter(builderSetter.getSimpleName().toString())));
       }
       if (!properties.isEmpty()) {
+        unpaired.addAll(
+            unpairedWriters(
+                getters,
+                builderSetters,
+                builderType,
+                WireShape.UnpairedAccessor.Role.BUILDER_SETTER));
         return new WireShape.BeanShape(
-            bean, properties, Optional.of(builder.strategy()), WireShape.Direction.BIDIRECTIONAL);
+            bean,
+            properties,
+            Optional.of(builder.strategy()),
+            WireShape.Direction.BIDIRECTIONAL,
+            unpaired);
       }
     }
 
@@ -207,6 +232,45 @@ final class BeanPropertyAnalyser {
     return new WireShape.BeanProperty(name, type, Optional.of(getter), Optional.of(write));
   }
 
+  private static WireShape.UnpairedAccessor unpairedGetter(
+      TypeElement bean, String name, ExecutableElement getter, TypeMirror type) {
+    return new WireShape.UnpairedAccessor(
+        name,
+        getter.getSimpleName().toString(),
+        type,
+        WireShape.UnpairedAccessor.Role.GETTER,
+        inheritedFrom(bean, getter));
+  }
+
+  /**
+   * The writers no getter shares a name with, each at its type as {@code owner} (the bean, or the
+   * builder as its factory instantiates it) declares it.
+   */
+  private List<WireShape.UnpairedAccessor> unpairedWriters(
+      Map<String, ExecutableElement> getters,
+      Map<String, ExecutableElement> writers,
+      DeclaredType owner,
+      WireShape.UnpairedAccessor.Role role) {
+    return writers.entrySet().stream()
+        .filter(entry -> !getters.containsKey(entry.getKey()))
+        .map(
+            entry ->
+                new WireShape.UnpairedAccessor(
+                    entry.getKey(),
+                    entry.getValue().getSimpleName().toString(),
+                    paramType(owner, entry.getValue()),
+                    role,
+                    inheritedFrom((TypeElement) owner.asElement(), entry.getValue())))
+        .toList();
+  }
+
+  /** The supertype {@code owner} inherits {@code method} from, when it does not declare it. */
+  private static Optional<TypeElement> inheritedFrom(TypeElement owner, ExecutableElement method) {
+    // A method's enclosing element is always the declaring type.
+    TypeElement declaring = (TypeElement) method.getEnclosingElement();
+    return declaring.equals(owner) ? Optional.empty() : Optional.of(declaring);
+  }
+
   /** Every getter, read and never written: a bean with no way to be written maps parse-only. */
   private WireShape.BeanShape readOnly(
       TypeElement bean, DeclaredType beanType, Map<String, ExecutableElement> getters) {
@@ -221,7 +285,7 @@ final class BeanPropertyAnalyser {
                         Optional.<WireShape.WriteSite>empty()))
             .toList();
     return new WireShape.BeanShape(
-        bean, properties, Optional.empty(), WireShape.Direction.PARSE_ONLY);
+        bean, properties, Optional.empty(), WireShape.Direction.PARSE_ONLY, List.of());
   }
 
   /**
@@ -247,7 +311,7 @@ final class BeanPropertyAnalyser {
                                 entry.getValue().getSimpleName().toString()))))
             .toList();
     return new WireShape.BeanShape(
-        bean, properties, Optional.of(strategy), WireShape.Direction.BUILD_ONLY);
+        bean, properties, Optional.of(strategy), WireShape.Direction.BUILD_ONLY, List.of());
   }
 
   private boolean typesDiffer(
@@ -287,22 +351,41 @@ final class BeanPropertyAnalyser {
   }
 
   private Map<String, ExecutableElement> collectGetters(TypeElement bean) {
+    List<ExecutableElement> readers =
+        publicInstanceMethods(bean).stream()
+            .filter(
+                method ->
+                    method.getParameters().isEmpty()
+                        && method.getReturnType().getKind() != TypeKind.VOID)
+            .toList();
+    // A getX getter wins over an isX one of the same name, so which of the two reads the property
+    // never turns on the order they are declared in.
+    Set<String> gotten =
+        readers.stream()
+            .map(method -> method.getSimpleName().toString())
+            .filter(BeanPropertyAnalyser::isGetName)
+            .map(methodName -> decapitalise(methodName.substring(3)))
+            .collect(Collectors.toSet());
     Map<String, ExecutableElement> getters = new LinkedHashMap<>();
-    for (ExecutableElement method : publicInstanceMethods(bean)) {
+    for (ExecutableElement method : readers) {
       String methodName = method.getSimpleName().toString();
-      if (!method.getParameters().isEmpty() || method.getReturnType().getKind() == TypeKind.VOID) {
-        continue;
-      }
-      if (methodName.length() > 3 && methodName.startsWith("get")) {
+      if (isGetName(methodName)) {
         getters.putIfAbsent(decapitalise(methodName.substring(3)), method);
       } else if (methodName.length() > 2
           && methodName.startsWith("is")
-          && method.getReturnType().getKind() == TypeKind.BOOLEAN) {
-        // The JavaBeans 'is' getter is for primitive boolean only.
+          && !gotten.contains(decapitalise(methodName.substring(2)))
+          && isBoolean(getterType((DeclaredType) bean.asType(), method))) {
+        // JavaBeans keeps the 'is' getter for primitive boolean, but JAXB declares an optional
+        // boolean as 'Boolean isX()' beside 'setX(Boolean)', and Jackson reads either as a
+        // property; left out, the setter would be a writer with no getter.
         getters.putIfAbsent(decapitalise(methodName.substring(2)), method);
       }
     }
     return getters;
+  }
+
+  private static boolean isGetName(String methodName) {
+    return methodName.length() > 3 && methodName.startsWith("get");
   }
 
   private Map<String, ExecutableElement> collectSetters(TypeElement bean) {
@@ -501,8 +584,16 @@ final class BeanPropertyAnalyser {
   }
 
   private boolean isList(TypeMirror type) {
+    return isDeclared(type, LIST);
+  }
+
+  private boolean isBoolean(TypeMirror type) {
+    return type.getKind() == TypeKind.BOOLEAN || isDeclared(type, BOOLEAN);
+  }
+
+  private static boolean isDeclared(TypeMirror type, String qualifiedName) {
     return type instanceof DeclaredType declared
-        && ((TypeElement) declared.asElement()).getQualifiedName().contentEquals(LIST);
+        && ((TypeElement) declared.asElement()).getQualifiedName().contentEquals(qualifiedName);
   }
 
   /**
@@ -515,9 +606,16 @@ final class BeanPropertyAnalyser {
    * @param getter the property's getter
    * @return a parenthetical naming the declaring type, or the empty string when it is the bean
    */
-  private String declaredOn(TypeElement bean, ExecutableElement getter) {
-    Element declaring = getter.getEnclosingElement();
-    return declaring.equals(bean) ? "" : " (declared on '" + declaring.getSimpleName() + "')";
+  private static String declaredOn(TypeElement bean, ExecutableElement getter) {
+    return declaredOn(inheritedFrom(bean, getter));
+  }
+
+  /**
+   * The parenthetical a diagnostic appends to an accessor inherited from {@code declaring}: {@code
+   * (declared on 'Base')}, or the empty string for one the type declares itself.
+   */
+  static String declaredOn(Optional<TypeElement> declaring) {
+    return declaring.map(type -> " (declared on '" + type.getSimpleName() + "')").orElse("");
   }
 
   private TypeMirror getterType(DeclaredType owner, ExecutableElement getter) {
@@ -544,6 +642,16 @@ final class BeanPropertyAnalyser {
                 c.getParameters().isEmpty()
                     && (c.getModifiers().contains(Modifier.PUBLIC)
                         || (samePackage && !c.getModifiers().contains(Modifier.PRIVATE))));
+  }
+
+  /**
+   * The part of an accessor's name after its prefix that {@link #decapitalise} reads back as {@code
+   * property}: {@code email} -> {@code Email}, {@code URL} -> {@code URL}, {@code eMail} -> {@code
+   * eMail}. Capitalising alone is no inverse, since {@code getEMail} reads as {@code EMail}.
+   */
+  static String accessorSuffix(String property) {
+    String capitalised = ProcessorUtils.capitalise(property);
+    return decapitalise(capitalised).equals(property) ? capitalised : property;
   }
 
   /** The JavaBeans {@code Introspector.decapitalize} rule: {@code getURL} -> {@code URL}. */
