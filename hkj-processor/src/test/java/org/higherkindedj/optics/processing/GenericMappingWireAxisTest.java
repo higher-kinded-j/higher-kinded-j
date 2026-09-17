@@ -205,6 +205,175 @@ class GenericMappingWireAxisTest {
   }
 
   @Test
+  @DisplayName("a rename over a raw type answers for it on the stub the Impl emits")
+  void rawRenameStub() {
+    // The stub restates the declared return verbatim, and the @SuppressWarnings on the spec does
+    // not reach the generated file, so the stub carries its own. MappingTierMatrixTest pins the
+    // bridge marker's stub across every tier.
+    var domain =
+        JavaFileObjects.forSourceString(
+            "com.example.RawDir",
+            """
+            package com.example;
+            import java.util.List;
+            @SuppressWarnings("rawtypes")
+            public record RawDir(String id, List tags) {}
+            """);
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.RawDirDto",
+            """
+            package com.example;
+            import java.util.List;
+            @SuppressWarnings("rawtypes")
+            public record RawDirDto(String id, List labels) {}
+            """);
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.RawDirMapping",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MapField;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            @GenerateMapping
+            @SuppressWarnings("rawtypes")
+            public interface RawDirMapping extends MappingSpec<RawDir, RawDirDto> {
+              @MapField(to = "labels") List tags();
+            }
+            """);
+    var compilation = compile(domain, wire, spec);
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.RawDirMappingImpl",
+        "@Override @SuppressWarnings(\"rawtypes\") public List tags()");
+  }
+
+  @Test
+  @DisplayName(
+      "an abstract leaf over a raw type answers for it on its own field and accessor, and on the"
+          + " constructor and factory every leaf passes through")
+  void rawAbstractLeaf() {
+    var domain =
+        JavaFileObjects.forSourceString(
+            "com.example.RPage",
+            """
+            package com.example;
+            public record RPage<T>(T item, T other) {}
+            """);
+    var wire =
+        JavaFileObjects.forSourceString(
+            "com.example.RPageDto",
+            """
+            package com.example;
+            import java.util.List;
+            @SuppressWarnings("rawtypes")
+            public record RPageDto<TDto>(List item, TDto other) {}
+            """);
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.example.RPageMapping",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+            @GenerateMapping
+            @SuppressWarnings("rawtypes")
+            public interface RPageMapping<T, TDto> extends MappingSpec<RPage<T>, RPageDto<TDto>> {
+              ValidatedPrism<List, T> item();
+              ValidatedPrism<TDto, T> other();
+            }
+            """);
+    var compilation = compile(domain, wire, spec);
+    assertThat(compilation).succeededWithoutWarnings();
+    String impl = "com.example.RPageMappingImpl";
+    assertGeneratedCodeContains(
+        compilation,
+        impl,
+        "@SuppressWarnings(\"rawtypes\") private final ValidatedPrism<List, T> item;");
+    assertGeneratedCodeContains(
+        compilation,
+        impl,
+        "@Override @SuppressWarnings(\"rawtypes\") public ValidatedPrism<List, T> item()");
+    assertGeneratedCodeContains(
+        compilation, impl, "@SuppressWarnings(\"rawtypes\") private RPageMappingImpl(");
+    assertGeneratedCodeContains(
+        compilation,
+        impl,
+        "@SuppressWarnings(\"rawtypes\") public static <T, TDto> RPageMappingImpl<T, TDto> of(");
+    assertGeneratedCodeDoesNotContain(
+        compilation,
+        impl,
+        "@SuppressWarnings(\"rawtypes\") private final ValidatedPrism<TDto, T> other;");
+    assertGeneratedCodeDoesNotContain(
+        compilation,
+        impl,
+        "@SuppressWarnings(\"rawtypes\") public ValidatedPrism<TDto, T> other()");
+  }
+
+  @Test
+  @DisplayName(
+      "a type parameter bounded by a raw type is answered on the Impl class, the one place its bound"
+          + " is written that no member annotation reaches")
+  void rawTypeParameterBound() {
+    var records =
+        JavaFileObjects.forSourceString(
+            "com.example.Bounded",
+            """
+            package com.example;
+            public final class Bounded {
+              public record Box<T>(T value) {}
+              public record BoxDto<T>(T value) {}
+              public record Page<T>(T item) {}
+              public record PageDto<D>(D item) {}
+            }
+            """);
+    var threaded =
+        JavaFileObjects.forSourceString(
+            "com.example.BoxBoundMapping",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            @GenerateMapping
+            @SuppressWarnings("rawtypes")
+            public interface BoxBoundMapping<T extends List>
+                extends MappingSpec<Bounded.Box<T>, Bounded.BoxDto<T>> {}
+            """);
+    var elementMapped =
+        JavaFileObjects.forSourceString(
+            "com.example.PageBoundMapping",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+            @GenerateMapping
+            @SuppressWarnings("rawtypes")
+            public interface PageBoundMapping<T extends List, D>
+                extends MappingSpec<Bounded.Page<T>, Bounded.PageDto<D>> {
+              ValidatedPrism<D, T> item();
+            }
+            """);
+    var compilation = compile(records, threaded, elementMapped);
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.BoxBoundMappingImpl",
+        "@SuppressWarnings(\"rawtypes\") public final class BoxBoundMappingImpl<T extends List>");
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.PageBoundMappingImpl",
+        "@SuppressWarnings(\"rawtypes\") public final class PageBoundMappingImpl<T extends List, D>");
+  }
+
+  @Test
   @DisplayName("a rename group with no narrowest return is refused, naming every declaration")
   void noNarrowestReturn() {
     // A raw return is substitutable for both parameterised ones by unchecked conversion, so

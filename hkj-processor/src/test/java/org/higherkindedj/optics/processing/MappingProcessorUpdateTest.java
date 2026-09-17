@@ -1299,6 +1299,86 @@ class MappingProcessorUpdateTest {
     }
 
     @Test
+    @DisplayName(
+        "an Optional PATCH property over a raw type, and an element leaf over one, compile under"
+            + " -Xlint:rawtypes -Werror")
+    void rawTypesInASparseUpdateCompileUnderWerror() {
+      // The setter lambda takes the component's own type and the element parser the property's,
+      // so a raw type nested in either is reported on a lambda parameter javac infers.
+      JavaFileObject label =
+          JavaFileObjects.forSourceString(
+              "com.example.Label",
+              """
+              package com.example;
+
+              public record Label(String value) {}
+              """);
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.RawPatched",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+
+              @SuppressWarnings("rawtypes")
+              public record RawPatched(String id, Optional<List> contacts, Optional<Label> label) {}
+              """);
+      JavaFileObject dto =
+          JavaFileObjects.forSourceString(
+              "com.example.RawPatchedDto",
+              """
+              package com.example;
+
+              import java.util.List;
+              import java.util.Optional;
+
+              @SuppressWarnings("rawtypes")
+              public class RawPatchedDto {
+                private Optional<List> contacts = null;
+                private Optional<List<List>> label = null;
+
+                public Optional<List> getContacts() { return contacts; }
+                public void setContacts(Optional<List> contacts) { this.contacts = contacts; }
+                public Optional<List<List>> getLabel() { return label; }
+                public void setLabel(Optional<List<List>> label) { this.label = label; }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.RawPatchedMapping",
+              """
+              package com.example;
+
+              import java.util.List;
+              import org.higherkindedj.hkt.validated.Validated;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              @SuppressWarnings("rawtypes")
+              public interface RawPatchedMapping extends UpdateSpec<RawPatched, RawPatchedDto> {
+                default ValidatedPrism<List<List>, Label> label() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(new Label(String.valueOf(raw))),
+                      label -> List.of(List.of(label.value())));
+                }
+              }
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(label, domain, dto, spec);
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.RawPatchedMappingImpl"))
+          .contains("Edit.setIfPresent(")
+          .contains("parseIfPresent(");
+    }
+
+    @Test
     @DisplayName("a container-against-scalar mismatch falls back to the whole-component suggestion")
     void containerVersusScalarMismatchSuggestsWholeComponentOnly() {
       JavaFileObject listVsScalar =

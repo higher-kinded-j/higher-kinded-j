@@ -1531,6 +1531,49 @@ class MergeProcessorTest {
               new FieldError(List.of("scores"), "must not be null"));
     }
 
+    @Test
+    @DisplayName(
+        "a fill wider than one ladder over a raw type compiles under -Xlint:rawtypes -Werror: the"
+            + " chunk's tuple nests it in an inferred lambda parameter")
+    void chunkedRawFillCompilesUnderWerror() {
+      String comps =
+          IntStream.rangeClosed(1, 16)
+              .mapToObj(i -> "String f" + i)
+              .collect(Collectors.joining(", "));
+      JavaFileObject records =
+          JavaFileObjects.forSourceString(
+              "com.example.WideRaw",
+              "package com.example;\n\nimport java.util.List;\nimport java.util.Optional;\n\n"
+                  + "@SuppressWarnings(\"rawtypes\")\npublic final class WideRaw {\n"
+                  + "  public record Source("
+                  + comps
+                  + ", Optional<List> contacts) {}\n"
+                  + "  public record Extra(String email) {}\n"
+                  + "  public record Target("
+                  + comps
+                  + ", Optional<List> contacts, Records.EmailAddress email) {}\n"
+                  + "}\n");
+      JavaFileObject spec =
+          spec(
+              "WideRawAssembly",
+              """
+              public interface WideRawAssembly {
+                Validated<NonEmptyList<FieldError>, WideRaw.Target> assemble(
+                    WideRaw.Source source, WideRaw.Extra extra);
+
+                default ValidatedPrism<String, Records.EmailAddress> email() {
+                  return ValidatedPrism.of(
+                      v -> Validated.validNel(new Records.EmailAddress(v)),
+                      Records.EmailAddress::value);
+                }
+              }
+              """);
+      Compilation compilation = compileLinted(RECORDS, records, spec);
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.WideRawAssemblyImpl"))
+          .contains("Tuple16::new");
+    }
+
     private static final JavaFileObject TYPED_ASSEMBLY =
         spec(
             "TypedAssembly",

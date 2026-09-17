@@ -656,6 +656,12 @@ public class MergeProcessor extends AbstractProcessor {
     MethodSpec.Builder method =
         MethodSpec.methodBuilder(mergeMethod.getSimpleName().toString())
             .addAnnotation(Override.class)
+            // The fill infers the target's component types, so a raw type in one lands in this
+            // method; the signature cannot carry one, since generic sources and targets are
+            // refused.
+            .addAnnotations(
+                ProcessorUtils.rawTypesSuppression(
+                    shape.target().getRecordComponents().stream().map(Element::asType).toList()))
             .addModifiers(Modifier.PUBLIC)
             .returns(ProcessorUtils.typeNameOf(mergeMethod.getReturnType()));
     for (VariableElement source : mergeMethod.getParameters()) {

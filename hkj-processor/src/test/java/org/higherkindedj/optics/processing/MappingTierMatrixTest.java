@@ -57,6 +57,10 @@ import org.junit.jupiter.params.provider.MethodSource;
  * scan's result type is pinned rather than inferred, which is the sparse tier, so the dense tiers
  * keep the scan for it, and so does the bridged leg, which names its Optional's argument outright.
  * {@code MappingProcessorUpdateTest} pins the sparse half of the same rule.
+ *
+ * <p>A raw type is also a warning in generated code that the author's own suppression cannot reach,
+ * so the rows naming one pin that each Impl member writing it out or inferring it answers for it
+ * itself, and that the class itself carries none.
  */
 @DisplayName("MappingProcessor - tier selection across correspondence kinds and wire shapes")
 class MappingTierMatrixTest {
@@ -107,17 +111,21 @@ class MappingTierMatrixTest {
     /**
      * The suppression the case's own sources need. A raw container warns wherever it is declared,
      * and the holder owns those declarations; the generated Impls are separate compilation units,
-     * so they stay held to {@code -Xlint:rawtypes -Werror} on their own.
+     * so they answer for it themselves and stay held to {@code -Xlint:rawtypes -Werror} on their
+     * own.
      */
     String suppression() {
-      return Stream.of(domainType, wireType).anyMatch(RAW_CONTAINERS::contains)
+      return Stream.of(domainType, wireType).anyMatch(type -> type.matches(RAW_CONTAINER))
           ? "@SuppressWarnings(\"rawtypes\")\n"
           : "";
     }
   }
 
-  /** The container types a case may declare raw, which its own sources must then suppress. */
-  private static final List<String> RAW_CONTAINERS = List.of("List", "Set", "Map");
+  /**
+   * A container a case declares without its type arguments, at any depth ({@code List}, {@code
+   * Optional<List>}), which its own sources must then suppress.
+   */
+  private static final String RAW_CONTAINER = ".*\\b(?:List|Set|Map)\\b(?!<).*";
 
   private static final String TAG_LEAF =
       """
@@ -247,6 +255,22 @@ class MappingTierMatrixTest {
             false,
             false,
             (_, seed) -> Map.of(seed, 1)),
+        // A raw type inside a type argument is what javac reports on a generated lambda's inferred
+        // parameter, where a bare one is silent: the bean projection's patch assembles this
+        // component through such a lambda.
+        new Case(
+            "raw List inside an identity List",
+            "rawnested",
+            "List<List>",
+            "List<List>",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> List.of(List.of(seed))),
         new Case(
             "converting leaf",
             "leaf",
@@ -372,6 +396,21 @@ class MappingTierMatrixTest {
             "Optional<List<? extends CharSequence>>",
             "List<? extends CharSequence>",
             "@OptionalBridge Optional<List<? extends CharSequence>> x();\n",
+            "",
+            false,
+            false,
+            true,
+            true,
+            false,
+            (_, seed) -> Optional.of(List.of(seed))),
+        // A raw element reaches the marker's stub, the patch assembly and the bean's conditional
+        // write, and each answers for it.
+        new Case(
+            "Optional bridge onto a raw List",
+            "bridgedraw",
+            "Optional<List>",
+            "List",
+            "@OptionalBridge Optional<List> x();\n",
             "",
             false,
             false,
@@ -523,6 +562,23 @@ class MappingTierMatrixTest {
   @DisplayName("every generated Impl in the matrix compiles without a warning")
   void matrixCompilesWithoutWarnings() {
     assertThat(compilation).succeededWithoutWarnings();
+  }
+
+  @Test
+  @DisplayName(
+      "a raw type is answered by the members that write it out or infer it, never by the whole"
+          + " Impl, and a spec naming none carries no suppression")
+  void rawTypesAreSuppressedMemberByMember() {
+    String raw = "@SuppressWarnings\\(\"rawtypes\"\\)\\s+";
+    Assertions.assertThat(
+            generatedImpl(caseNamed("Optional bridge onto a raw List"), "RecordProjectionMapping"))
+        .containsPattern(raw + "public Optional<List> x\\(\\)")
+        .containsPattern(raw + "public [^(]* patch\\(")
+        .doesNotContainPattern(raw + "public final class");
+    Assertions.assertThat(
+            generatedImpl(
+                caseNamed("Optional bridge onto an identity List"), "RecordProjectionMapping"))
+        .doesNotContain("rawtypes");
   }
 
   @Test
