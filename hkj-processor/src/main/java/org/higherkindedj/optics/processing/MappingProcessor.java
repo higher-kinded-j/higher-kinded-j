@@ -7453,8 +7453,9 @@ public class MappingProcessor extends AbstractProcessor {
    * patch's assembly, a chunk's tuple. Which ones do is the emitter's detail, so each method asks
    * of the whole pair, and one holding no such lambda carries it too: a record's {@code build}, or
    * a projection's when the raw type is on a component it drops. A flattened group's inner
-   * components are not asked, because its inner ladder assembles through the record's constructor
-   * and no lambda takes them.
+   * components are not asked. Their wire side is a wire component already, and their domain side is
+   * written out in one place only, the array-constructor reference of a lifted inner array ({@code
+   * List[]::new}), which javac does not report.
    */
   private List<AnnotationSpec> pairSuppression(DeclaredType domainDeclared, WireShape wire) {
     TypeElement domain = (TypeElement) domainDeclared.asElement();
