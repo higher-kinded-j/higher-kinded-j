@@ -604,6 +604,51 @@ class GenericSpecInterfaceAxisTest {
   }
 
   @Test
+  @DisplayName("a raw bound on the spec's own type parameter is answered on the optic method")
+  void rawBoundOnTheSpecTypeParameterIsAnswered() {
+    // The method redeclares the spec's type parameters, so it writes their bounds out even when
+    // the focus it names is clean.
+    var holder =
+        JavaFileObjects.forSourceString(
+            "com.myapp.Crate",
+            """
+            package com.myapp;
+
+            public record Crate<U>(U payload, String label) {}
+            """);
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.myapp.CrateOptics",
+            """
+            package com.myapp;
+
+            import java.util.List;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ViaConstructor;
+
+            @ImportOptics
+            @SuppressWarnings("rawtypes")
+            public interface CrateOptics<U extends List> extends OpticsSpec<Crate<U>> {
+              @ViaConstructor
+              Lens<Crate<U>, String> label();
+            }
+            """);
+    var compilation =
+        javac()
+            .withProcessors(new ImportOpticsProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(holder, spec);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.myapp.CrateOpticsImpl",
+        "@SuppressWarnings(\"rawtypes\") public static <U extends List> Lens<Crate<U>, String> label()");
+  }
+
+  @Test
   @DisplayName("a checked composition answers for the lens focus its local restates")
   void checkedCompositionAnswersForTheLensFocus() {
     // The traversal's own focus is clean here; the raw type is reachable only through the lens
