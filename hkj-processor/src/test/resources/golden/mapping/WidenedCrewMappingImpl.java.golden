@@ -36,7 +36,7 @@ public final class CrewMappingImpl implements CrewMapping {
         .field("codes", hkj$allPresent(wire.codes()))
         .field("ranks", hkj$ifPresent(wire.ranks(), Validated::validNel))
         .field("notes", hkj$ifPresent(wire.notes(), noteKey()::parseKeys))
-        .field("escalations", hkj$ifPresent(wire.escalations(), m -> escalationKey().parseEntries(m, escalations())))
+        .field("escalations", hkj$ifPresent(wire.escalations(), v -> escalationKey().parseEntries(v, escalations())))
         .apply(Crew::new);
   }
 
