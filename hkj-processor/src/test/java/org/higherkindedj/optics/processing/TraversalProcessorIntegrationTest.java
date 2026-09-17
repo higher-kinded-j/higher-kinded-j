@@ -457,4 +457,45 @@ public class TraversalProcessorIntegrationTest {
     assertGeneratedCodeDoesNotContain(
         compilation, "com.example.SoloRecordTraversals", "Traversal<SoloRecord");
   }
+
+  @Test
+  @DisplayName("a raw type is answered on the traversal factory and on the class implementing it")
+  void rawTypesCompileUnderWerror() {
+    // The generator plugins are on the test's processor path, so a companion is really emitted:
+    // the factory and its implementation class both name the traversal type, and the class
+    // redeclares the record's type parameters with their bounds.
+    var nested =
+        JavaFileObjects.forSourceString(
+            "com.example.RawRows",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+            @GenerateTraversals
+            @SuppressWarnings("rawtypes")
+            public record RawRows(String id, List<List> rows) {}
+            """);
+    var bounded =
+        JavaFileObjects.forSourceString(
+            "com.example.BoundedRows",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateTraversals;
+            @GenerateTraversals
+            @SuppressWarnings("rawtypes")
+            public record BoundedRows<T extends List>(List<String> rows, T value) {}
+            """);
+    var compilation =
+        javac()
+            .withProcessors(new TraversalProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(nested, bounded);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.BoundedRowsTraversals",
+        "@SuppressWarnings(\"rawtypes\") private static final class RowsTraversal<T extends List>");
+  }
 }

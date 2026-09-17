@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.processing;
 
 import com.google.auto.service.AutoService;
+import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.FieldSpec;
@@ -395,6 +396,10 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     }
     return FieldSpec.builder(
             contextName, "ABSENT_CONTEXT", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+        // Each component's type is cast in the initialiser, raw ones included.
+        .addAnnotations(
+            ProcessorUtils.rawTypesSuppression(
+                context.getRecordComponents().stream().map(Element::asType).toList()))
         .addJavadoc(
             "The all-absent context: every component null. The context record's components must"
                 + " therefore be nullable; a null-rejecting compact constructor would fail here at"
@@ -408,6 +413,10 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     ClassName variantName = ClassName.get(variant.record());
     MethodSpec.Builder method =
         MethodSpec.methodBuilder(factoryName(variant))
+            // Both factories take the variant's own components, so a raw one lands in each.
+            .addAnnotations(
+                ProcessorUtils.rawTypesSuppression(
+                    domainComponents(variant).stream().map(Element::asType).toList()))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(variantName)
             .addJavadoc(
@@ -431,6 +440,9 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     String message = humanise(simpleName);
     MethodSpec.Builder method =
         MethodSpec.methodBuilder(factoryName(variant))
+            .addAnnotations(
+                ProcessorUtils.rawTypesSuppression(
+                    domainComponents(variant).stream().map(Element::asType).toList()))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(variantName)
             .addJavadoc(
@@ -526,10 +538,15 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     for (RecordComponentElement component : context.getRecordComponents()) {
       String name = component.getSimpleName().toString();
       TypeName type = ProcessorUtils.typeNameOf(component.asType());
-      builder.addField(FieldSpec.builder(type, name, Modifier.PRIVATE).build());
+      // The builder holds each context component's type and takes it in its setter.
+      List<AnnotationSpec> componentRaw =
+          ProcessorUtils.rawTypesSuppression(List.of(component.asType()));
+      builder.addField(
+          FieldSpec.builder(type, name, Modifier.PRIVATE).addAnnotations(componentRaw).build());
       ctor.addStatement("this.$1N = seed.$1N()", name);
       builder.addMethod(
           MethodSpec.methodBuilder(name)
+              .addAnnotations(componentRaw)
               .addModifiers(Modifier.PUBLIC)
               .returns(builderName)
               .addParameter(type, name)

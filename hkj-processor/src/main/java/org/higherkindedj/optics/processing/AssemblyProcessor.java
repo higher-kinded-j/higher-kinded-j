@@ -226,11 +226,21 @@ public class AssemblyProcessor extends AbstractProcessor {
           "Stage $L of $L: expects {@code $L} next.\n", stage, arity, name(components, stage));
     }
 
-    MethodSpec.Builder ctor = MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE);
+    // Every stage writes out the components it holds, in its fields and its constructor, so a raw
+    // one reaches them; a generic record is refused, so no type-parameter bound arrives here.
+    MethodSpec.Builder ctor =
+        MethodSpec.constructorBuilder()
+            .addAnnotations(
+                ProcessorUtils.rawTypesSuppression(
+                    components.subList(0, stage).stream().map(Element::asType).toList()))
+            .addModifiers(Modifier.PRIVATE);
     for (int i = 0; i < stage; i++) {
       TypeName held = validatedOf(components.get(i));
       builder.addField(
-          FieldSpec.builder(held, name(components, i), Modifier.PRIVATE, Modifier.FINAL).build());
+          FieldSpec.builder(held, name(components, i), Modifier.PRIVATE, Modifier.FINAL)
+              .addAnnotations(
+                  ProcessorUtils.rawTypesSuppression(List.of(components.get(i).asType())))
+              .build());
       ctor.addParameter(held, name(components, i));
       ctor.addStatement("this.$1N = $1N", name(components, i));
     }
@@ -261,6 +271,7 @@ public class AssemblyProcessor extends AbstractProcessor {
     }
     args.add("value.mapError(errors -> errors.map(err -> err.at($S)))", label);
     return MethodSpec.methodBuilder(label)
+        .addAnnotations(ProcessorUtils.rawTypesSuppression(List.of(components.get(stage).asType())))
         .addModifiers(Modifier.PUBLIC)
         .returns(next)
         .addParameter(validatedOf(components.get(stage)), "value")
@@ -289,6 +300,9 @@ public class AssemblyProcessor extends AbstractProcessor {
       expr = CodeBlock.of("this.$N.ap($L, $T.semigroup())", name(components, i), expr, NEL);
     }
     return MethodSpec.methodBuilder("assemble")
+        // The curried lambda infers the component types, which is where a nested raw one lands.
+        .addAnnotations(
+            ProcessorUtils.rawTypesSuppression(components.stream().map(Element::asType).toList()))
         .addModifiers(Modifier.PUBLIC)
         .returns(ParameterizedTypeName.get(VALIDATED, CHANNEL, recordName))
         .addJavadoc(

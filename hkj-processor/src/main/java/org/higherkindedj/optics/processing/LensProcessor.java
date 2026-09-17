@@ -158,6 +158,8 @@ public class LensProcessor extends AbstractProcessor {
                 recordTypeName,
                 recordTypeName,
                 componentTypeName.box())
+            // The lens type and the record's type-parameter bounds are written out here.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
@@ -209,6 +211,7 @@ public class LensProcessor extends AbstractProcessor {
                 parameterName,
                 componentName,
                 recordTypeName)
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(recordTypeName)
             .addParameter(recordTypeName, "source")

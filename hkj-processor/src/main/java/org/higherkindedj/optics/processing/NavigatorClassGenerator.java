@@ -788,13 +788,18 @@ public class NavigatorClassGenerator {
         case FieldShape.Path path ->
             navigatorBuilder.addMethod(
                 navigationMethod(
-                        fieldName, sourceTypeVar, currentTier.widen(path.tier()), path.focusType())
+                        component,
+                        fieldName,
+                        sourceTypeVar,
+                        currentTier.widen(path.tier()),
+                        path.focusType())
                     .addStatement("return delegate.via($T.$L())", targetFocusClass, fieldName)
                     .build());
         case FieldShape.Navigator navigator -> {
           Tier composed = currentTier.widen(navigator.tier());
           MethodSpec.Builder methodBuilder =
-              navigationMethod(fieldName, sourceTypeVar, composed, navigator.focusType());
+              navigationMethod(
+                  component, fieldName, sourceTypeVar, composed, navigator.focusType());
           addNavigatorComposition(
               methodBuilder,
               navigator.navigatorClass(),
@@ -812,8 +817,15 @@ public class NavigatorClassGenerator {
 
   /** A navigation method's declaration: its name, the path it returns, and its javadoc. */
   private static MethodSpec.Builder navigationMethod(
-      String fieldName, TypeVariableName sourceTypeVar, Tier composed, TypeName focusType) {
+      RecordComponentElement component,
+      String fieldName,
+      TypeVariableName sourceTypeVar,
+      Tier composed,
+      TypeName focusType) {
     return MethodSpec.methodBuilder(fieldName)
+        // The method writes the target's field type out. A navigator class is parameterised by its
+        // source alone, so no type-parameter bound arrives here.
+        .addAnnotations(ProcessorUtils.rawTypesSuppression(List.of(component.asType())))
         .addModifiers(Modifier.PUBLIC)
         .returns(ParameterizedTypeName.get(composed.pathClass(), sourceTypeVar, focusType))
         .addJavadoc(
@@ -1321,6 +1333,8 @@ public class NavigatorClassGenerator {
                 recordElement.getSimpleName() + "Focus",
                 componentName,
                 componentName)
+            // The navigator type and the record's type-parameter bounds are written out here.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(returnType);
 

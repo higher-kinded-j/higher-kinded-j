@@ -296,4 +296,45 @@ public class FoldProcessorIntegrationTest {
     assertThat(compilation).succeeded();
     assertThat(compilation).generatedSourceFile("com.example.GenericHolderFolds").isNotNull();
   }
+
+  @Test
+  @DisplayName("a raw type is answered on the fold factory and on the class that implements it")
+  void rawTypesCompileUnderWerror() {
+    // The factory names the fold type, and the private implementation both names it in its
+    // superinterface clause and redeclares the record's type parameters with their bounds.
+    var nested =
+        JavaFileObjects.forSourceString(
+            "com.example.RawBag",
+            """
+            package com.example;
+            import java.util.List;
+            import java.util.Optional;
+            import org.higherkindedj.optics.annotations.GenerateFolds;
+            @GenerateFolds
+            @SuppressWarnings("rawtypes")
+            public record RawBag(String id, Optional<List> contacts) {}
+            """);
+    var bounded =
+        JavaFileObjects.forSourceString(
+            "com.example.BoundedBag",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateFolds;
+            @GenerateFolds
+            @SuppressWarnings("rawtypes")
+            public record BoundedBag<T extends List>(T value, String id) {}
+            """);
+    var compilation =
+        javac()
+            .withProcessors(new FoldProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(nested, bounded);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.BoundedBagFolds",
+        "@SuppressWarnings(\"rawtypes\") private static final class ValueFold<T extends List>");
+  }
 }

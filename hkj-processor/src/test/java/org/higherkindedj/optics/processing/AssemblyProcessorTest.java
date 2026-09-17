@@ -47,6 +47,35 @@ class AssemblyProcessorTest {
   class GeneratedCompanion {
 
     @Test
+    @DisplayName("a raw component compiles under -Werror: every stage writes the ones it holds")
+    void rawComponentsCompileUnderWerror() throws IOException {
+      Compilation compilation =
+          javac()
+              .withProcessors(new AssemblyProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.RawBag",
+                      """
+                      package com.example;
+                      import java.util.List;
+                      import java.util.Optional;
+                      import org.higherkindedj.optics.annotations.GenerateAssembly;
+                      @GenerateAssembly
+                      @SuppressWarnings("rawtypes")
+                      public record RawBag(List tags, Optional<List> contacts, String id) {}
+                      """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      String companion = generatedSource(compilation, "com.example.RawBagAssembly");
+      assertThat(companion)
+          .containsPattern(
+              "@SuppressWarnings\\(\"rawtypes\"\\)\\s+private final Validated<NonEmptyList<FieldError>, List> tags")
+          .containsPattern(
+              "@SuppressWarnings\\(\"rawtypes\"\\)\\s+public Validated<[^(]*assemble\\(\\)");
+    }
+
+    @Test
     @DisplayName("compiles to a full SUCCESS with the expected staged surface")
     void companionSurface() throws IOException {
       Compilation compilation = compile("com.example.User", USER);

@@ -122,6 +122,41 @@ class ErrorEnvelopeProcessorTest {
   class HappyPathSource {
 
     @Test
+    @DisplayName("a raw variant or context component compiles under -Werror")
+    void rawComponentsCompileUnderWerror() {
+      // The variant factories take the variant's own components, and the context's components are
+      // cast in ABSENT_CONTEXT and held by the builder.
+      JavaFileObject sources =
+          errorSource(
+              "RawError",
+              """
+              @SuppressWarnings("rawtypes")
+              record RawCtx(String traceId, java.util.Optional<java.util.List> tags) {}
+
+              @GenerateErrorEnvelope
+              @SuppressWarnings("rawtypes")
+              public sealed interface RawError {
+                ErrorEnvelope<RawCtx> envelope();
+
+                record OutOfStock(java.util.List products, ErrorEnvelope<RawCtx> envelope)
+                    implements RawError {}
+              }
+              """);
+      Compilation compilation =
+          javac()
+              .withProcessors(new ErrorEnvelopeProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(sources);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      String companion = generatedSource(compilation, "com.example.RawErrors");
+      Assertions.assertThat(companion)
+          .containsPattern(
+              "@SuppressWarnings\\(\"rawtypes\"\\)\\s+private static final RawCtx ABSENT_CONTEXT")
+          .containsPattern("@SuppressWarnings\\(\"rawtypes\"\\)\\s+public ContextBuilder tags\\(");
+    }
+
+    @Test
     @DisplayName("the companion carries factories, builder and wither, and compiles")
     void companionCarriesFactoriesBuilderAndWither() {
       Compilation compilation = compile(CONTEXT, FOO_ERROR);

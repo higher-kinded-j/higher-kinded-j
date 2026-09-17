@@ -161,4 +161,37 @@ public class PrismProcessorIntegrationTest {
         .hadErrorContaining("'UPair' declares [B], which 'UShape' does not bind");
     assertThat(compilation).hadErrorContaining("implements UShape<B>");
   }
+
+  @Test
+  @DisplayName("a raw bound on a permitted subtype is answered on the prism factory")
+  void rawBoundCompilesUnderWerror() {
+    // The prism is written in the subtype's vocabulary, so the subtype's bounds land in the
+    // factory's own type-parameter clause.
+    var sourceFile =
+        JavaFileObjects.forSourceString(
+            "com.example.Shape",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GeneratePrisms;
+            @GeneratePrisms
+            @SuppressWarnings("rawtypes")
+            public sealed interface Shape<T extends List> permits Shape.Tagged, Shape.Plain {
+              record Tagged<T extends List>(T value) implements Shape<T> {}
+
+              record Plain<T extends List>(String id) implements Shape<T> {}
+            }
+            """);
+    var compilation =
+        javac()
+            .withProcessors(new PrismProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(sourceFile);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.ShapePrisms",
+        "@SuppressWarnings(\"rawtypes\") public static <T extends List> Prism<Shape<T>, Shape.Tagged<T>> tagged()");
+  }
 }

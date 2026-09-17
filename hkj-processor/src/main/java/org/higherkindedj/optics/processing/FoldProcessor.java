@@ -172,6 +172,9 @@ public class FoldProcessor extends AbstractProcessor {
     TypeSpec.Builder implementation =
         TypeSpec.classBuilder(implementationName)
             .addAnnotation(GENERATED)
+            // The class declares the record's type parameters and names the fold type in its
+            // superinterface clause, neither of which a member annotation reaches.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(foldTypeName)
             .addMethod(foldMap.build());
@@ -186,6 +189,8 @@ public class FoldProcessor extends AbstractProcessor {
                 recordTypeName,
                 recordTypeName,
                 targetType)
+            // The fold type and the record's type-parameter bounds are written out here.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(foldTypeName);
 

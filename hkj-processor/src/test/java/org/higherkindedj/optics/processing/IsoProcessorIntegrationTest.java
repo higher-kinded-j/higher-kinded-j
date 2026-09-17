@@ -266,4 +266,37 @@ public class IsoProcessorIntegrationTest {
       assertThat(concrete).succeeded();
     }
   }
+
+  @Test
+  @DisplayName("a raw argument in the declared Iso is answered on the field that restates it")
+  void rawIsoArgumentCompilesUnderWerror() {
+    Compilation compilation =
+        javac()
+            .withProcessors(new IsoProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(
+                JavaFileObjects.forSourceString(
+                    "com.example.RawConverters",
+                    """
+                    package com.example;
+                    import java.util.List;
+                    import org.higherkindedj.optics.Iso;
+                    import org.higherkindedj.optics.annotations.GenerateIsos;
+                    @SuppressWarnings("rawtypes")
+                    public class RawConverters {
+                      public record Box(String value) {}
+
+                      @GenerateIsos
+                      public static Iso<Box, List> boxToList() {
+                        return Iso.of(box -> List.of(box.value()), list -> new Box(String.valueOf(list)));
+                      }
+                    }
+                    """));
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.RawConvertersIsos",
+        "@SuppressWarnings(\"rawtypes\") public static final Iso<");
+  }
 }
