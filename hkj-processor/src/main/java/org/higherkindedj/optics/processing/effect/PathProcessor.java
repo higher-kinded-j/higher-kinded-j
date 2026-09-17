@@ -47,10 +47,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *
  * <h2>What the Bridge Refuses</h2>
  *
- * <p>The bridge is source the author never wrote and cannot correct, so every shape whose bridge
- * would not compile - or would compile with a warning - in the build that consumes it is refused at
- * the declaration, where the author can act. Which shapes those are is spelled out on {@link
- * GeneratePathBridge}.
+ * <p>The bridge is source the author never wrote and cannot correct, so every shape it can neither
+ * render nor answer for in the generated file is refused at the declaration, where the author can
+ * act. A raw bound is answered rather than refused: the class declaration repeats it and carries
+ * the suppression for it. Which shapes are refused is spelled out on {@link GeneratePathBridge}.
  *
  * @see GeneratePathBridge
  * @see PathVia
@@ -169,31 +169,19 @@ public class PathProcessor extends AbstractProcessor {
           packageName)) {
         return;
       }
-      TypeElement rawBound = firstRawIn(parameter.getBounds());
-      if (rawBound != null) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            interfaceElement,
-            BRIDGE_TAG,
-            "on '"
-                + interfaceName
-                + "', the bound on '"
-                + parameter.getSimpleName()
-                + "' names the raw type '"
-                + rawBound.getSimpleName()
-                + "'.",
-            "The bridge repeats the bound in its own declaration, and a raw type in generated"
-                + " source is a [rawtypes] warning that the suppression on your own declaration"
-                + " does not cover.",
-            "Name '" + rawBound.getSimpleName() + "'s type arguments.");
-        return;
-      }
     }
 
     // Build the bridge class
     TypeSpec.Builder classBuilder =
         TypeSpec.classBuilder(bridgeClassName)
             .addAnnotation(GENERATED)
+            // The bridge repeats the interface's own bounds in its declaration, which no member
+            // annotation reaches, so a raw bound is answered on the class.
+            .addAnnotations(
+                ProcessorUtils.rawTypesSuppression(
+                    interfaceElement.getTypeParameters().stream()
+                        .flatMap(parameter -> parameter.getBounds().stream())
+                        .toList()))
             .addJavadoc(
                 "Generated Path bridge for {@link $T}.\n\n<p>Do not edit.\n", interfaceClassName)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -423,9 +411,11 @@ public class PathProcessor extends AbstractProcessor {
     // Cast, not a pattern: effectFor answers non-null only for a declared type it recognised.
     List<? extends TypeMirror> effectArguments = ((DeclaredType) returnType).getTypeArguments();
 
-    // A raw type is copied into the generated file as written, and lands there as a warning the
-    // author's own @SuppressWarnings does not reach - their file is not the one that carries it.
-    // Every supported effect is generic, so a bare 'Optional' head is caught by the same walk.
+    // A raw effect head leaves the bridge nothing to build its Path from: it names the effect's
+    // type arguments to do that, and a raw type has none. Every supported effect is generic, so a
+    // bare 'Optional' head is caught by the same walk. Elsewhere in the signature the bridge copies
+    // the type as written, into a file the author's own @SuppressWarnings does not reach. A raw
+    // bound is not refused: the class declaration repeats it, and the bridge answers for it there.
     TypeElement raw = firstRawIn(written);
     if (raw != null) {
       rejectMethod(
@@ -436,8 +426,9 @@ public class PathProcessor extends AbstractProcessor {
               + " names the raw type '"
               + raw.getSimpleName()
               + "'.",
-          "The bridge repeats it verbatim, and a raw type in generated source is a [rawtypes]"
-              + " warning that the suppression on your own declaration does not cover.",
+          "The bridge builds its Path from the effect's type arguments, and a raw effect has none;"
+              + " elsewhere in the signature it repeats the type verbatim, into a file the"
+              + " suppression on your own declaration does not reach.",
           "Name '" + raw.getSimpleName() + "'s type arguments, or drop @PathVia from this method.");
       return null;
     }

@@ -72,7 +72,9 @@ import java.lang.annotation.Target;
  * <p>The bridge holds one delegate of the annotated interface, so it declares whatever that
  * interface declares, bounds and all: {@code Repo<T>} yields {@code RepoPaths<T>} wrapping a {@code
  * Repo<T>}. A {@link PathVia} method that declares parameters of its own keeps them on the bridge
- * method, where its arguments and return type name them.
+ * method, where its arguments and return type name them. A raw bound carries through as written,
+ * with {@code @SuppressWarnings("rawtypes")} on the bridge class so the generated file compiles
+ * warning-free.
  *
  * <h2>Inherited Methods</h2>
  *
@@ -89,14 +91,17 @@ import java.lang.annotation.Target;
  * <h2>What the Bridge Refuses</h2>
  *
  * <p>The bridge is source the author never wrote and cannot edit. Every shape below is one the
- * language accepts and the bridge has no compiling, warning-free rendering of, so it is refused at
- * the declaration, where it can be acted on:
+ * language accepts and the bridge can neither render nor answer for in the generated file, so it is
+ * refused at the declaration, where it can be acted on. The interface's own type-parameter bounds
+ * are not among them: the bridge repeats those in its class declaration and carries the suppression
+ * for them:
  *
  * <ul>
- *   <li>a <strong>raw</strong> type anywhere the bridge writes it down: {@code Optional} as a
- *       return type, {@code Optional<List>} as its argument, {@code List} as a parameter. Each is a
- *       {@code [rawtypes]} warning in a file the author's own {@code @SuppressWarnings} does not
- *       reach
+ *   <li>a <strong>raw</strong> type anywhere in a bridged method's signature: {@code Optional} as a
+ *       return type, {@code Optional<List>} as its argument, {@code List} as a parameter. The
+ *       bridge builds its Path from the effect's type arguments, so a raw effect leaves it nothing
+ *       to name, and a raw type elsewhere in the signature would land as a {@code [rawtypes]}
+ *       warning in a file the author's own {@code @SuppressWarnings} does not reach
  *   <li>a {@code Validated} whose <strong>error type is a wildcard</strong>, which the bridge has
  *       to name twice, once in the {@code ValidationPath} and once in the {@code Semigroup} the
  *       caller supplies; a wildcard is a different captured type at each mention, so no caller

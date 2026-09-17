@@ -28,7 +28,9 @@ import org.junit.jupiter.api.Test;
  * <p>The source-type axis also runs here: a source naming a raw type anywhere (itself, a generic
  * enclosing type written bare, a raw type argument) is refused at the declaration, and the accepted
  * shapes are compiled under the consuming build's {@code -Xlint:unchecked,rawtypes -Werror}, so a
- * warning in the generated file fails the test the way it fails the build.
+ * warning in the generated file fails the test the way it fails the build. A raw <em>focus</em> is
+ * not refused: the optic method restates it and carries the {@code rawtypes} suppression, as do the
+ * lens focus a checked composition restates and a raw bound the method redeclares.
  */
 @DisplayName("Every strategy and hint on a generic spec interface")
 class GenericSpecInterfaceAxisTest {
@@ -558,5 +560,154 @@ class GenericSpecInterfaceAxisTest {
             }""");
 
     assertGeneratedSignature(compilation, "public static <U> Lens<Box<U>, String> label()");
+  }
+
+  @Test
+  @DisplayName("a raw focus type is answered on the generated optic method")
+  void rawFocusTypeIsAnsweredOnTheOpticMethod() {
+    // compileUnderConsumerFlags' fixtures carry no raw component, so this row brings its own
+    // source. The generated method restates the focus the spec declared.
+    var sources =
+        JavaFileObjects.forSourceString(
+            "com.myapp.RawFocus",
+            """
+            package com.myapp;
+
+            import java.util.Map;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ViaConstructor;
+
+            @SuppressWarnings("rawtypes")
+            public class RawFocus {
+              public record Person(Map lookup, String name) {}
+
+              @ImportOptics
+              public interface PersonOptics extends OpticsSpec<Person> {
+                @ViaConstructor
+                Lens<Person, Map> lookup();
+              }
+            }
+            """);
+    var compilation =
+        javac()
+            .withProcessors(new ImportOpticsProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(sources);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.myapp.PersonOpticsImpl",
+        "@SuppressWarnings(\"rawtypes\") public static Lens<RawFocus.Person, Map> lookup()");
+  }
+
+  @Test
+  @DisplayName("a checked composition answers for the lens focus its local restates")
+  void checkedCompositionAnswersForTheLensFocus() {
+    // The traversal's own focus is clean here; the raw type is reachable only through the lens
+    // focus, which the checked body writes out as a local.
+    var bag =
+        JavaFileObjects.forSourceString(
+            "com.myapp.Bag",
+            """
+            package com.myapp;
+
+            import java.util.List;
+            import java.util.Map;
+
+            @SuppressWarnings("rawtypes")
+            public record Bag(Map<List, String> byKey) {}
+            """);
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.myapp.BagOptics",
+            """
+            package com.myapp;
+
+            import java.util.List;
+            import java.util.Map;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.Traversal;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ThroughField;
+            import org.higherkindedj.optics.annotations.ViaConstructor;
+
+            @ImportOptics
+            @SuppressWarnings("rawtypes")
+            public interface BagOptics extends OpticsSpec<Bag> {
+              @ViaConstructor
+              Lens<Bag, Map<List, String>> byKey();
+
+              @ThroughField(field = "byKey")
+              Traversal<Bag, String> each();
+            }
+            """);
+    var compilation =
+        javac()
+            .withProcessors(new ImportOpticsProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(bag, spec);
+
+    assertThat(compilation).succeededWithoutWarnings();
+  }
+
+  @Test
+  @DisplayName("a method needing both reasons carries one annotation with both tokens")
+  void bothSuppressionReasonsMergeIntoOneAnnotation() {
+    // An explicit traversal composes through the cast, which is unchecked, and the focus is raw:
+    // a declaration takes one @SuppressWarnings, so both tokens ride in it.
+    var holder =
+        JavaFileObjects.forSourceString(
+            "com.myapp.Holder",
+            """
+            package com.myapp;
+
+            import java.util.List;
+            import java.util.Map;
+
+            @SuppressWarnings("rawtypes")
+            public record Holder(List<Map> rows) {}
+            """);
+    var spec =
+        JavaFileObjects.forSourceString(
+            "com.myapp.HolderOptics",
+            """
+            package com.myapp;
+
+            import java.util.List;
+            import java.util.Map;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.Traversal;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ThroughField;
+            import org.higherkindedj.optics.annotations.ViaConstructor;
+
+            @ImportOptics
+            @SuppressWarnings("rawtypes")
+            public interface HolderOptics extends OpticsSpec<Holder> {
+              @ViaConstructor
+              Lens<Holder, List<Map>> rows();
+
+              @ThroughField(
+                  field = "rows",
+                  traversal = "org.higherkindedj.optics.util.Traversals.forList()")
+              Traversal<Holder, Map> eachRow();
+            }
+            """);
+    var compilation =
+        javac()
+            .withProcessors(new ImportOpticsProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(holder, spec);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.myapp.HolderOpticsImpl",
+        "@SuppressWarnings({\"rawtypes\", \"unchecked\"}) public static Traversal<");
   }
 }

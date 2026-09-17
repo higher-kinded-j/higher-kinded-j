@@ -299,7 +299,12 @@ public final class ProcessorUtils {
    * <p>Suppression is the answer where a generated member merely restates a type its author
    * declared. Where the generated code would do more than restate it, inferring an optic instance
    * from it or rebuilding through it unchecked, the shape is refused instead, as
-   * {@code @ImportOptics} and {@code @PathVia} do.
+   * {@code @ImportOptics} does for a raw source type. A generator may also refuse for a reason of
+   * its own: {@code @PathVia} refuses a raw type in a bridged signature because the bridge builds
+   * its Path from the effect's type arguments, while answering for a raw bound on its class.
+   *
+   * <p>A declaration takes one {@code @SuppressWarnings}, so a member needing a second token for a
+   * reason of its own merges both into a single annotation rather than adding another.
    *
    * @param types the types the member may write out or infer; a wider set only widens where the
    *     suppression lands; must not be null

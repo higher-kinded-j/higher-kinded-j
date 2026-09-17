@@ -256,6 +256,39 @@ class PathProcessorIntegrationTest {
   class MethodTypeParameters {
 
     @Test
+    @DisplayName("a raw bound is answered on the generated bridge class")
+    void answersARawBoundOnTheBridgeClass() {
+      // The bridge repeats the interface's bounds in its own declaration, which no member
+      // annotation reaches. This helper compiles under the consuming build's lint flags, so a
+      // warning in the generated file fails here.
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.RawBound",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import java.util.Optional;
+                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                  import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                  @GeneratePathBridge
+                  @SuppressWarnings("rawtypes")
+                  public interface RawBound<T extends List> {
+                      @PathVia
+                      Optional<String> byId(T id);
+                  }
+                  """));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.RawBoundPaths",
+          "@SuppressWarnings(\"rawtypes\") public final class RawBoundPaths<T extends List>");
+    }
+
+    @Test
     @DisplayName("declares both arms of an intersection bound")
     void declaresBothArmsOfAnIntersectionBound() {
       var compilation =
@@ -1319,8 +1352,8 @@ class PathProcessorIntegrationTest {
     }
 
     @Test
-    @DisplayName("refuses a raw type anywhere the bridge writes it down")
-    void refusesARawTypeAnywhereTheBridgeWritesItDown() {
+    @DisplayName("refuses a raw type in a bridged method's signature")
+    void refusesARawTypeInABridgedSignature() {
       var argument =
           compile(
               JavaFileObjects.forSourceString(
@@ -1394,30 +1427,6 @@ class PathProcessorIntegrationTest {
       assertThat(wildcardBound).failed();
       assertThat(wildcardBound)
           .hadErrorContaining("the signature of 'all' names the raw type 'List'");
-
-      // And the interface's own bounds, which the bridge repeats in its own declaration.
-      var interfaceBound =
-          compile(
-              JavaFileObjects.forSourceString(
-                  "com.example.RawBound",
-                  """
-                  package com.example;
-
-                  import java.util.List;
-                  import java.util.Optional;
-                  import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
-                  import org.higherkindedj.hkt.effect.annotation.PathVia;
-
-                  @GeneratePathBridge
-                  @SuppressWarnings("rawtypes")
-                  public interface RawBound<T extends List> {
-                      @PathVia
-                      Optional<String> byId(T id);
-                  }
-                  """));
-
-      assertThat(interfaceBound).failed();
-      assertThat(interfaceBound).hadErrorContaining("the bound on 'T' names the raw type 'List'");
     }
 
     @Test
