@@ -64,6 +64,7 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MapKey;
 import org.higherkindedj.optics.annotations.OptionalBridge;
+import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -764,6 +765,360 @@ public class MappingProcessor extends AbstractProcessor {
       }
     }
     return true;
+  }
+
+  /**
+   * Refuses an accessor a two-way bean leaves out where leaving it out loses a value, on a mapping
+   * that builds and parses. A bean maps the properties it both reads and writes, so a getter
+   * nothing writes, or a writer nothing reads, is not mapped. That is harmless for a computed
+   * getter or a builder's adder, and silent loss for an accessor named after a domain component the
+   * bean carries under no name: build would never write the component.
+   */
+  private boolean checkAccessorsPair(
+      TypeElement spec, TypeElement domain, WireShape.BeanShape bean, Set<String> unmapped) {
+    List<UnpairedRefusal> refusals = uncarriedAccessors(spec, domain, bean, unmapped);
+    refusals.forEach(refusal -> reportUncarriedAccessor(spec, domain, bean, refusal, false));
+    return refusals.isEmpty();
+  }
+
+  /**
+   * Refuses the accessors a PATCH bean leaves out where leaving them out ignores what a client
+   * sends. An accessor named after a domain component the bean carries under no name is refused as
+   * on a mapping that builds ({@link #checkAccessorsPair}), and so is a {@code setX} setter with no
+   * getter, whatever it names: a setter is how the client's value arrives, so one the fold never
+   * reads is a field the client can send and the update ignores. A builder's one-argument method is
+   * no such signal, being only a candidate writer until a getter pairs it, and nor is a method that
+   * merely starts with {@code set} ({@code setup}), so neither is refused unless it names a
+   * component.
+   */
+  private boolean checkPatchAccessorsPair(
+      TypeElement spec, TypeElement domain, WireShape.BeanShape bean, Set<String> unmapped) {
+    List<UnpairedRefusal> refusals = uncarriedAccessors(spec, domain, bean, unmapped);
+    refusals.forEach(refusal -> reportUncarriedAccessor(spec, domain, bean, refusal, true));
+    // A setter already refused, or offered as a refusal's likely misspelling, is answered there.
+    Set<String> answered =
+        refusals.stream()
+            .flatMap(
+                refusal -> Stream.concat(Stream.of(refusal.accessor()), refusal.partner().stream()))
+            .map(WireShape.UnpairedAccessor::name)
+            .collect(Collectors.toSet());
+    List<WireShape.UnpairedAccessor> unread =
+        bean.unpaired().stream()
+            .filter(accessor -> !unmapped.contains(accessor.name()))
+            .filter(accessor -> accessor.role() == WireShape.UnpairedAccessor.Role.SETTER)
+            .filter(setter -> Character.isUpperCase(setter.method().charAt(3)))
+            .filter(setter -> !answered.contains(setter.name()))
+            .toList();
+    unread.forEach(setter -> reportUnreadSetter(spec, domain, bean, setter));
+    return refusals.isEmpty() && unread.isEmpty();
+  }
+
+  /**
+   * An unpaired accessor named after a domain component the bean carries under no name: the
+   * component, and the unpaired accessor of the other role that is most likely its misspelling.
+   */
+  private record UnpairedRefusal(
+      WireShape.UnpairedAccessor accessor,
+      String component,
+      Optional<WireShape.UnpairedAccessor> partner) {}
+
+  /**
+   * The unpaired accessors named after a domain component the bean carries under no name, in the
+   * bean's order. Each is offered its likely misspelling: the nearest unpaired accessor of the
+   * other role at the same type, since a rename to another type would pair nothing. A misspelling
+   * is offered once, and never one named after a component the mapping needs, which is a refusal of
+   * its own.
+   */
+  private List<UnpairedRefusal> uncarriedAccessors(
+      TypeElement spec, TypeElement domain, WireShape.BeanShape bean, Set<String> unmapped) {
+    Map<String, String> uncarried = uncarriedNames(spec, domain, bean);
+    Set<String> offered = new HashSet<>();
+    List<UnpairedRefusal> refusals = new ArrayList<>();
+    for (WireShape.UnpairedAccessor accessor : bean.unpaired()) {
+      String component = unmapped.contains(accessor.name()) ? null : uncarried.get(accessor.name());
+      if (component != null) {
+        Optional<WireShape.UnpairedAccessor> partner =
+            nearestPartner(accessor, bean.unpaired(), uncarried, offered);
+        partner.ifPresent(other -> offered.add(other.name()));
+        refusals.add(new UnpairedRefusal(accessor, component, partner));
+      }
+    }
+    return List.copyOf(refusals);
+  }
+
+  /**
+   * The names a mapping needs from a bean that the bean has no property for, each with the domain
+   * component it would carry. A component maps under the targets of the {@code @MapField} renames
+   * declared for it, and under its own name unless one of those renames is declared on the spec
+   * itself: a local rename binds or is refused, while an inherited one that finds nothing on this
+   * wire is inert, and the component then maps by its own name. Every name of a component none of
+   * whose names is a property is needed.
+   */
+  private Map<String, String> uncarriedNames(
+      TypeElement spec, TypeElement domain, WireShape.BeanShape bean) {
+    List<ExecutableElement> renames =
+        specMembers(spec).stream()
+            .filter(method -> method.getAnnotation(MapField.class) != null)
+            .toList();
+    Map<String, String> uncarried = new LinkedHashMap<>();
+    for (RecordComponentElement component : domain.getRecordComponents()) {
+      String name = component.getSimpleName().toString();
+      List<ExecutableElement> renamedBy =
+          renames.stream().filter(method -> method.getSimpleName().contentEquals(name)).toList();
+      Stream<String> own =
+          renamedBy.stream().anyMatch(method -> declaredLocally(method, spec))
+              ? Stream.empty()
+              : Stream.of(name);
+      List<String> names =
+          Stream.concat(
+                  own, renamedBy.stream().map(method -> method.getAnnotation(MapField.class).to()))
+              .toList();
+      if (names.stream().noneMatch(wireName -> bean.componentNamed(wireName).isPresent())) {
+        names.forEach(wireName -> uncarried.putIfAbsent(wireName, name));
+      }
+    }
+    return uncarried;
+  }
+
+  /**
+   * The accessors an {@code @Unmapped} marker reads as deliberately left out, or null once a marker
+   * is reported. A marker the spec declares itself must name an accessor the bean leaves unpaired,
+   * which is the typo guard; one inherited from a mix-in binds where it can and is otherwise inert,
+   * like every other inherited vocabulary member, so one mix-in serves wires that differ.
+   */
+  private Set<String> unmappedNames(TypeElement spec, WireShape wire) {
+    Set<String> unpaired =
+        wire.unpaired().stream()
+            .map(WireShape.UnpairedAccessor::name)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+    Set<String> marked = new LinkedHashSet<>();
+    for (ExecutableElement method : specMembers(spec)) {
+      if (method.getAnnotation(Unmapped.class) == null) {
+        continue;
+      }
+      String name = method.getSimpleName().toString();
+      if (unpaired.contains(name)) {
+        marked.add(name);
+        continue;
+      }
+      if (!declaredLocally(method, spec)) {
+        continue;
+      }
+      boolean carried = wire.componentNamed(name).isPresent();
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          "@Unmapped method '"
+              + name
+              + "' names "
+              + (carried
+                  ? "a property '" + wire.element().getSimpleName() + "' maps."
+                  : "no accessor '" + wire.element().getSimpleName() + "' leaves out."),
+          carried
+              ? "The marker reads an accessor with no partner as deliberate, and '"
+                  + name
+                  + "' is read and written, so the mapping carries it like any other property."
+              : "The marker reads an accessor with no partner as deliberate. Left unpaired on '"
+                  + wire.element().getSimpleName()
+                  + "': "
+                  + unpaired
+                  + ".",
+          carried
+              ? "Remove the marker; to leave the property out of the mapping, remove one of its"
+                  + " accessors from '"
+                  + wire.element().getSimpleName()
+                  + "'."
+              : "Name the marker after the accessor's property, or remove it."
+                  + didYouMean(name, List.copyOf(unpaired)));
+      return null;
+    }
+    return Set.copyOf(marked);
+  }
+
+  private Optional<WireShape.UnpairedAccessor> nearestPartner(
+      WireShape.UnpairedAccessor accessor,
+      List<WireShape.UnpairedAccessor> unpaired,
+      Map<String, String> uncarried,
+      Set<String> offered) {
+    return unpaired.stream()
+        .filter(other -> other.reads() != accessor.reads())
+        .filter(other -> !uncarried.containsKey(other.name()) && !offered.contains(other.name()))
+        .filter(other -> processingEnv.getTypeUtils().isSameType(other.type(), accessor.type()))
+        .map(other -> Map.entry(other, levenshtein(accessor.name(), other.name())))
+        .filter(near -> near.getValue() < NEAR_MISS)
+        .min(Map.Entry.comparingByValue())
+        .map(Map.Entry::getKey);
+  }
+
+  private void reportUncarriedAccessor(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape.BeanShape bean,
+      UnpairedRefusal refusal,
+      boolean sparse) {
+    WireShape.UnpairedAccessor accessor = refusal.accessor();
+    String name = accessor.name();
+    String component = "'" + domain.getSimpleName() + "." + refusal.component() + "'";
+    String target =
+        component + (refusal.component().equals(name) ? "" : " (renamed to '" + name + "')");
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        unpairedWhat(bean, accessor),
+        sparse
+            ? "updateFrom folds in only the properties a PATCH bean both reads and writes, so a"
+                + " value the client sends for '"
+                + name
+                + "' would never reach "
+                + target
+                + ", and nothing would say so."
+            : "A mapping carries only the properties a bean both reads and writes, so "
+                + target
+                + " would go unmapped without a word: build would never write it.",
+        addPartner(bean, accessor, sparse)
+            + refusal
+                .partner()
+                .map(
+                    other ->
+                        " Or, if "
+                            + other.signature()
+                            + " is meant to "
+                            + (accessor.reads() ? "write" : "read")
+                            + " '"
+                            + name
+                            + "', rename it "
+                            + other.renamedFor(name)
+                            + ".")
+                .orElse(
+                    (sparse
+                            ? " Or, if clients must not change " + component
+                            : " Or, if "
+                                + accessor.signature()
+                                + " is not meant to carry "
+                                + component)
+                        + ", declare "
+                        + unmappedMarker(accessor)
+                        + " on the spec."));
+  }
+
+  private void reportUnreadSetter(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape.BeanShape bean,
+      WireShape.UnpairedAccessor setter) {
+    String name = setter.name();
+    String removal =
+        "Remove " + setter.signature() + " from '" + bean.element().getSimpleName() + "'";
+    // A component of that name is carried under a rename, or its setter would have been refused as
+    // one the mapping needs.
+    boolean renamed = componentNames(domain).contains(name);
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        unpairedWhat(bean, setter),
+        "updateFrom folds in only the properties a PATCH bean both reads and writes, and a setter is"
+            + " how a client's value arrives, so a value the client sends for '"
+            + name
+            + "' would be ignored without a word"
+            + (renamed
+                ? ": '"
+                    + domain.getSimpleName()
+                    + "."
+                    + name
+                    + "' is renamed by @MapField, and the update reads it under that name."
+                : ", and '"
+                    + domain.getSimpleName()
+                    + "' has no component named '"
+                    + name
+                    + "' for a getter alone to map it to."),
+        (renamed
+                ? removal + "."
+                : removal
+                    + ", or rename it after the component it should update and give it a getter.")
+            + " Or declare "
+            + unmappedMarker(setter)
+            + " on the spec, to leave it out deliberately.");
+  }
+
+  /** The marker declaration that reads an accessor's omission as deliberate. */
+  private static String unmappedMarker(WireShape.UnpairedAccessor accessor) {
+    return "'@Unmapped "
+        + ProcessorUtils.simpleTypeName(accessor.type())
+        + " "
+        + accessor.name()
+        + "();'";
+  }
+
+  /** The what-line of an unpaired accessor's refusal: which accessor it has, and which it lacks. */
+  private static String unpairedWhat(
+      WireShape.BeanShape bean, WireShape.UnpairedAccessor accessor) {
+    return "bean property '"
+        + accessor.name()
+        + "' on '"
+        + bean.element().getSimpleName()
+        + "' has a "
+        + accessor.role().label()
+        + ", "
+        + accessor.signature()
+        + ", but no "
+        + partnerRole(bean, accessor).label()
+        + ", so the mapping leaves it out.";
+  }
+
+  /**
+   * The role of the accessor that would pair {@code accessor}: a getter, or the bean's kind of
+   * writer. A two-way bean always has a construction strategy, which names that writer.
+   */
+  private static WireShape.UnpairedAccessor.Role partnerRole(
+      WireShape.BeanShape bean, WireShape.UnpairedAccessor accessor) {
+    if (!accessor.reads()) {
+      return WireShape.UnpairedAccessor.Role.GETTER;
+    }
+    return bean.strategy().orElseThrow() instanceof WireShape.ConstructionStrategy.Builder
+        ? WireShape.UnpairedAccessor.Role.BUILDER_SETTER
+        : WireShape.UnpairedAccessor.Role.SETTER;
+  }
+
+  /**
+   * The fix that pairs {@code accessor}: the accessor it lacks, spelt out. A PATCH property must be
+   * able to be absent, so on the sparse tier a primitive is offered its wrapper, on both accessors.
+   */
+  private String addPartner(
+      WireShape.BeanShape bean, WireShape.UnpairedAccessor accessor, boolean sparse) {
+    String owner = "'" + bean.element().getSimpleName() + "'";
+    String suffix = BeanPropertyAnalyser.accessorSuffix(accessor.name());
+    boolean boxed = sparse && accessor.type().getKind().isPrimitive();
+    String type =
+        boxed
+            ? processingEnv
+                .getTypeUtils()
+                .boxedClass((PrimitiveType) accessor.type())
+                .getSimpleName()
+                .toString()
+            : ProcessorUtils.simpleTypeName(accessor.type());
+    String add =
+        switch (partnerRole(bean, accessor)) {
+          case GETTER -> "Add " + type + " get" + suffix + "() to " + owner;
+          case SETTER -> "Add set" + suffix + "(" + type + ") to " + owner;
+          case BUILDER_SETTER ->
+              "Add a setter for '"
+                  + accessor.name()
+                  + "' taking "
+                  + type
+                  + " to the builder of "
+                  + owner;
+        };
+    return add
+        + (boxed
+            ? ", and declare "
+                + accessor.signature()
+                + " with "
+                + type
+                + " too, since a PATCH property must be able to be absent."
+            : ".");
   }
 
   /**
@@ -1930,9 +2285,11 @@ public class MappingProcessor extends AbstractProcessor {
       // A key leaf is checked by its annotation, not its shape: a malformed one would otherwise
       // slip past every test here and sit inert on a spec that has no components to key.
       boolean key = method.getAnnotation(MapKey.class) != null;
+      boolean unmapped = method.getAnnotation(Unmapped.class) != null;
       if (!leaf
           && !bridge
           && !key
+          && !unmapped
           && !isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
         continue;
       }
@@ -1942,21 +2299,27 @@ public class MappingProcessor extends AbstractProcessor {
           TAG,
           (key
                   ? "@MapKey on '"
-                  : bridge ? "@OptionalBridge on '" : leaf ? "leaf '" : "derived field '")
+                  : bridge
+                      ? "@OptionalBridge on '"
+                      : unmapped ? "@Unmapped on '" : leaf ? "leaf '" : "derived field '")
               + method.getSimpleName()
               + "' has no meaning on a sealed mapping.",
-          "Leaves, derived fields, bridges and key leaves bind to record components; a sealed"
-              + " mapping dispatches over its permitted subtypes and has no components.",
+          "Leaves, derived fields, bridges, key leaves and unmapped accessors bind to the"
+              + " components and accessors of one pair; a sealed mapping dispatches over its"
+              + " permitted subtypes and has neither.",
           "Move the method onto the subtype pair's own spec.");
       return false;
     }
     return true;
   }
 
+  /** How few edits apart two names must be for one to be offered as a misspelling of the other. */
+  private static final int NEAR_MISS = 3;
+
   /** A nearest-name hint for the unmatched-leaf diagnostic, when one is close enough to help. */
   private static String didYouMean(String name, List<String> candidates) {
     String best = null;
-    int bestDistance = 3;
+    int bestDistance = NEAR_MISS;
     for (String candidate : candidates) {
       int distance = levenshtein(name, candidate);
       if (distance < bestDistance) {
@@ -2001,6 +2364,7 @@ public class MappingProcessor extends AbstractProcessor {
       MapField mapField = method.getAnnotation(MapField.class);
       OptionalBridge bridge = method.getAnnotation(OptionalBridge.class);
       Flatten flatten = method.getAnnotation(Flatten.class);
+      Unmapped unmapped = method.getAnnotation(Unmapped.class);
       if (!method.getModifiers().contains(Modifier.ABSTRACT)) {
         if (bridge != null && !isLeafShaped(spec, method)) {
           Diagnostics.error(
@@ -2031,6 +2395,22 @@ public class MappingProcessor extends AbstractProcessor {
               "A rename is a marker method the generated Impl stubs out; a method with a body"
                   + " (default, static or private) would double as callable code.",
               "Remove the body, or remove the @MapField annotation.");
+          return false;
+        }
+        if (unmapped != null) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@Unmapped method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " must be abstract.",
+              "An unmapped accessor is declared on a marker method the generated Impl stubs out; a"
+                  + " method with a body (default, static or private) would double as callable"
+                  + " code.",
+              "Remove the body, or remove the @Unmapped annotation.");
           return false;
         }
         if (flatten != null) {
@@ -2073,6 +2453,27 @@ public class MappingProcessor extends AbstractProcessor {
                     + method.getEnclosingElement().getSimpleName()
                     + "', where the spec can thread them, or give the method a body.");
         return false;
+      }
+      if (mapField == null && unmapped != null) {
+        if (!method.getParameters().isEmpty()) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@Unmapped method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " must not declare parameters.",
+              "The marker is named after the accessor the mapping leaves out; the generated stub"
+                  + " implements it without parameters.",
+              "Remove the parameters.");
+          return false;
+        }
+        if (!checkMemberTypeReachable(spec, method, "@Unmapped marker")) {
+          return false;
+        }
+        continue;
       }
       if (mapField == null && flatten != null) {
         if (sealedPair) {
@@ -2290,6 +2691,7 @@ public class MappingProcessor extends AbstractProcessor {
     Map<String, List<ExecutableElement>> groups = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
       if (method.getAnnotation(MapField.class) != null
+          || method.getAnnotation(Unmapped.class) != null
           || isBridgeMarker(spec, method)
           || isFlattenMarker(method)
           || isAbstractLeaf(spec, method)) {
@@ -2633,6 +3035,16 @@ public class MappingProcessor extends AbstractProcessor {
     if (flattened == null) {
       return;
     }
+    // Asked after flattening, which refuses a group spread across a bean, so a flattened component
+    // is never told to take an accessor of its record's type.
+    Set<String> unmapped = unmappedNames(spec, wireShape);
+    if (unmapped == null) {
+      return;
+    }
+    if (wireShape instanceof WireShape.BeanShape bean
+        && !checkAccessorsPair(spec, domain, bean, unmapped)) {
+      return;
+    }
     Set<String> flattenedInner =
         flattened.stream().flatMap(group -> group.inner().stream()).collect(Collectors.toSet());
 
@@ -2824,8 +3236,12 @@ public class MappingProcessor extends AbstractProcessor {
 
     WireShape.BeanShape wireShape =
         new BeanPropertyAnalyser(processingEnv).analyse(spec, wireBean, TAG);
-    if (wireShape == null
-        || !checkPatchBeanTwoWay(spec, wireShape)
+    if (wireShape == null || !checkPatchBeanTwoWay(spec, wireShape)) {
+      return;
+    }
+    Set<String> unmapped = unmappedNames(spec, wireShape);
+    if (unmapped == null
+        || !checkPatchAccessorsPair(spec, domain, wireShape, unmapped)
         || !checkCollectionGettersCarryAbsence(spec, wireShape)) {
       return;
     }
@@ -7541,7 +7957,8 @@ public class MappingProcessor extends AbstractProcessor {
       boolean marker =
           method.getAnnotation(MapField.class) != null
               || isBridgeMarker(spec, method)
-              || isFlattenMarker(method);
+              || isFlattenMarker(method)
+              || method.getAnnotation(Unmapped.class) != null;
       if (marker && !leafNames.contains(method.getSimpleName().toString())) {
         markers
             .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
@@ -7556,19 +7973,25 @@ public class MappingProcessor extends AbstractProcessor {
       // A flatten marker never shares a method with a rename or a bridge (validateSpecMethods
       // refuses the combination), so its vocabulary stands alone.
       boolean flatten = group.stream().anyMatch(MappingProcessor::isFlattenMarker);
+      boolean unmapped = group.stream().anyMatch(m -> m.getAnnotation(Unmapped.class) != null);
       String vocabulary =
           flatten
               ? "Flatten"
-              : rename && bridge ? "Rename and bridge" : rename ? "Rename" : "Bridge";
+              : unmapped
+                  ? "Unmapped"
+                  : rename && bridge ? "Rename and bridge" : rename ? "Rename" : "Bridge";
       String message =
           flatten
               ? "@Flatten markers declare flattened components and are not invocable"
-              : rename && bridge
-                  ? "@MapField and @OptionalBridge methods declare correspondences and are not"
+              : unmapped
+                  ? "@Unmapped markers declare accessors the mapping leaves out and are not"
                       + " invocable"
-                  : rename
-                      ? "@MapField methods declare renames and are not invocable"
-                      : "@OptionalBridge markers declare bridges and are not invocable";
+                  : rename && bridge
+                      ? "@MapField and @OptionalBridge methods declare correspondences and are not"
+                          + " invocable"
+                      : rename
+                          ? "@MapField methods declare renames and are not invocable"
+                          : "@OptionalBridge markers declare bridges and are not invocable";
       // The stub restates the declared return, so a raw type the author wrote lands here verbatim.
       implBuilder.addMethod(
           MethodSpec.methodBuilder(marker.getKey())

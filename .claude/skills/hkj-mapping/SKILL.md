@@ -72,6 +72,7 @@ says what is *not* obvious.
 | A domain `Optional<T>` against a **nullable record** wire component `T` | `@OptionalBridge` on an abstract marker named after the domain component, or on that component's leaf |
 | A `Map` whose **keys** differ on the two sides | a zero-arg `default` method returning `ValidatedPrism<WireKey, DomainKey>`, annotated `@MapKey("component")` - the method's own name is free |
 | A nested domain record against a **flat** wire (`Address` vs `street`, `city`, `postcode`) | `@Flatten` on an abstract marker named after the domain component; the record's components then map by name |
+| A **bean accessor with no partner** that is meant to stay out (a read-only `getId()`, a computed getter, a setter the domain does not model) | `@Unmapped` on an abstract marker named after the **accessor's property**; it withholds the refusal and changes nothing else |
 
 <!-- verify -->
 ```java
@@ -447,6 +448,14 @@ matter: it maps build-only whatever its width, derived fields included.
   parse-only mapping, an `UpdateSpec` or a merge; a build-only spec in a build-only mapping), an
   `UpdateSpec` refuses either as its own PATCH bean, and a bean whose getters and setters never
   share a name is refused as a likely typo.
+- **Accessors pair by name.** A property is a getter (`getX()`, or `isX()` returning `boolean` or
+  `Boolean`) and a writer with the same name. An unpaired accessor is left out, which is fine for a
+  computed getter or a builder's singular adder, but one named after a domain component the bean
+  carries under no other name (its own, or a `@MapField` rename's) is refused on both tiers, with a
+  near accessor of the other kind named as the likely misspelling. An `UpdateSpec` also refuses any
+  `setX` setter with no getter, since the client's value would arrive and be ignored. Where the
+  accessor is meant to stay out, `@Unmapped` on an abstract marker named after its property says so,
+  and the mapping is generated exactly as it was before the marker.
 - **A type another processor generates is waited for.** A wire or domain type, or a component,
   bean property, builder or mix-in method read from one, that another annotation processor writes
   in the same compilation (an Immutables value, a schema-generated DTO) does not exist until the
@@ -683,6 +692,7 @@ before rearranging the spec.
 | One spec extending both `MappingSpec` and `UpdateSpec` | Refused. One Impl carries one tier and the two emit disjoint members. Declare a spec per tier and share renames and leaves through a plain mix-in both extend |
 | Expecting `build` from a getter-only bean | Nothing can write it, so it maps parse-only, and a note says why. Give it a no-args constructor with setters, or a builder, and it maps both ways |
 | A read-only or write-only bean on an `UpdateSpec` | Refused: a sparse update reads `null` as absent, which only a bean that is written can leave unset, and a write-only bean has nothing to read |
+| A misspelt accessor (`getEmial()` beside `setEmail(String)`) | The two do not pair, so neither is a property. Named after a domain component, the unpaired one is refused, and the diagnostic names the near accessor to rename. Pair every accessor the mapping uses, or mark a deliberate one `@Unmapped` |
 | Expecting `@GenerateMerge` to give you a reverse split | Merging is forward-only by design |
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
 | A JAXB getter-only `List` on an `UpdateSpec` | Its getter creates the list on first call, so it never reads `null`: an omitted field would clear the domain list rather than leave it alone. Rejected; give the property a setter |
