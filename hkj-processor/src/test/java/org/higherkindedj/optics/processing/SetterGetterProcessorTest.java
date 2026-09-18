@@ -549,4 +549,55 @@ class SetterGetterProcessorTest {
       Assertions.assertThat(code).contains("@Generated");
     }
   }
+
+  @Test
+  @DisplayName("a raw component and a raw type-parameter bound compile under -Werror on both sides")
+  void rawTypesCompileUnderWerror() {
+    // Each generated method restates the component type and redeclares the record's type
+    // parameters with their bounds.
+    var raw =
+        JavaFileObjects.forSourceString(
+            "com.example.RawBag",
+            """
+            package com.example;
+            import java.util.List;
+            import java.util.Optional;
+            import org.higherkindedj.optics.annotations.GenerateGetters;
+            import org.higherkindedj.optics.annotations.GenerateSetters;
+            @GenerateGetters
+            @GenerateSetters
+            @SuppressWarnings("rawtypes")
+            public record RawBag(List tags, Optional<List> contacts) {}
+            """);
+    var bounded =
+        JavaFileObjects.forSourceString(
+            "com.example.BoundedBag",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateGetters;
+            import org.higherkindedj.optics.annotations.GenerateSetters;
+            @GenerateGetters
+            @GenerateSetters
+            @SuppressWarnings("rawtypes")
+            public record BoundedBag<T extends List>(T value, String id) {}
+            """);
+    Compilation compilation =
+        javac()
+            .withProcessors(new GetterProcessor(), new SetterProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(raw, bounded);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertThat(compilation)
+        .generatedSourceFile("com.example.RawBagGetters")
+        .contentsAsUtf8String()
+        .containsMatch(
+            "@SuppressWarnings\\(\"rawtypes\"\\)\\s+public static Getter<RawBag, List> tags\\(\\)");
+    assertThat(compilation)
+        .generatedSourceFile("com.example.BoundedBagSetters")
+        .contentsAsUtf8String()
+        .containsMatch(
+            "@SuppressWarnings\\(\"rawtypes\"\\)\\s+public static <T extends List> Setter<BoundedBag<T>, T> value\\(\\)");
+  }
 }

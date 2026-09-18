@@ -248,6 +248,9 @@ public class TraversalProcessor extends AbstractProcessor {
     final TypeSpec.Builder implementation =
         TypeSpec.classBuilder(implementationName)
             .addAnnotation(GENERATED)
+            // The class names the traversal type in its superinterface clause and redeclares the
+            // record's type parameters, neither of which a member annotation reaches.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(traversalTypeName)
             .addMethod(
@@ -284,6 +287,7 @@ public class TraversalProcessor extends AbstractProcessor {
 
     final MethodSpec factory =
         methodBuilder
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addJavadoc(
                 "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"

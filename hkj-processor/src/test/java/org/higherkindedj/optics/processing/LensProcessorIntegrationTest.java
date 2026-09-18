@@ -7,6 +7,7 @@ import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
 
 import com.google.testing.compile.JavaFileObjects;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 public class LensProcessorIntegrationTest {
@@ -64,5 +65,46 @@ public class LensProcessorIntegrationTest {
     assertGeneratedCodeContains(compilation, generatedClassName, expectedAgeLens);
     assertGeneratedCodeContains(compilation, generatedClassName, expectedWithName);
     assertGeneratedCodeContains(compilation, generatedClassName, expectedWithAge);
+  }
+
+  @Test
+  @DisplayName("a raw component and a raw type-parameter bound compile under -Werror")
+  void rawComponentAndRawBoundCompileUnderWerror() {
+    // The lens and with methods restate the component type and redeclare the record's type
+    // parameters with their bounds, in a file the author's own suppression does not reach.
+    var raw =
+        JavaFileObjects.forSourceString(
+            "com.example.RawBag",
+            """
+            package com.example;
+            import java.util.List;
+            import java.util.Optional;
+            import org.higherkindedj.optics.annotations.GenerateLenses;
+            @GenerateLenses
+            @SuppressWarnings("rawtypes")
+            public record RawBag(List tags, Optional<List> contacts) {}
+            """);
+    var bounded =
+        JavaFileObjects.forSourceString(
+            "com.example.BoundedBag",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateLenses;
+            @GenerateLenses
+            @SuppressWarnings("rawtypes")
+            public record BoundedBag<T extends List>(T value, String id) {}
+            """);
+    var compilation =
+        javac()
+            .withProcessors(new LensProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(raw, bounded);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.RawBagLenses",
+        "@SuppressWarnings(\"rawtypes\") public static Lens<RawBag, List> tags()");
   }
 }

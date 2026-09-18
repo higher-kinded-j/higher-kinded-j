@@ -201,7 +201,7 @@ public class FocusProcessor extends AbstractProcessor {
     TypeName recordTypeName = getParameterizedTypeName(recordElement);
 
     // One analysis answers what each component widens to, for the static methods here and for the
-    // navigator methods that compose them (issue #719).
+    // navigator methods that compose them.
     WideningAnalysis analysis = new WideningAnalysis(processingEnv, traversableGenerators);
 
     // Create navigator generator if enabled
@@ -314,6 +314,9 @@ public class FocusProcessor extends AbstractProcessor {
                 pathDescription,
                 recordTypeName,
                 innerTypeName)
+            // The path type, the setter lambda's inferred value and the record's type-parameter
+            // bounds all land in this method.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(component.asType(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(returnTypeName);
 
@@ -333,7 +336,7 @@ public class FocusProcessor extends AbstractProcessor {
             .collect(Collectors.joining(", "));
 
     // Generate code based on path type widening. The component name rides along as the path's
-    // field-name segment, so generated paths self-locate (issue #592).
+    // field-name segment, so generated paths self-locate.
     String baseLens =
         String.format(
             "$T.of($T.of($T::%s, (source, newValue) -> new $T(%s)), \"%s\")",

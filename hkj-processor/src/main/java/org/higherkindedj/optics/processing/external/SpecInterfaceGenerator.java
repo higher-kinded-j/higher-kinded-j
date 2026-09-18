@@ -142,25 +142,51 @@ public class SpecInterfaceGenerator {
                 methodName,
                 TypeName.get(sourceType));
 
-    // A THROUGH_FIELD traversal composed through the raw cast (an explicit traversal string, or
-    // a lens focus the checked body could not write; see checkedLensReturnType) makes the andThen
-    // call unchecked in the generated source. The checked composition needs neither the cast nor
-    // the suppression.
-    if (opticKind == OpticKind.TRAVERSAL
-        && opticMethod.traversalHint() == SpecAnalysis.TraversalHintKind.THROUGH_FIELD
-        && checkedLensReturnType(opticMethod, specInterface, sourceType, focusType) == null) {
+    // The method's type parameters are the spec's, not the source type's declaration: the source
+    // type may instantiate that declaration under other names, or only in part, and only the
+    // variables this signature actually names can be inferred at the call.
+    var typeParameters = methodTypeParameters(specInterface, sourceType, focusType);
+    for (TypeParameterElement typeParam : typeParameters) {
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
+    }
+
+    // A THROUGH_FIELD traversal composed through the raw cast (an explicit traversal string, or a
+    // lens focus the checked body could not write) makes the andThen call unchecked in the
+    // generated source. The checked composition needs neither the cast nor that suppression, but
+    // it declares a local typed by the lens focus, which is a type of its own to answer for.
+    TypeName checkedLens = checkedLensReturnType(opticMethod, specInterface, sourceType, focusType);
+    boolean unchecked =
+        opticKind == OpticKind.TRAVERSAL
+            && opticMethod.traversalHint() == SpecAnalysis.TraversalHintKind.THROUGH_FIELD
+            && checkedLens == null;
+    // The optic type restates the focus the spec declared, a checked body restates the lens focus,
+    // and the method redeclares the spec's type parameters with their bounds, so a raw type in any
+    // of the three lands in this file. The source type is not asked about: the analyser refuses a
+    // raw one before anything is generated.
+    boolean rawTypes =
+        ProcessorUtils.firstRawIn(focusType) != null
+            || (checkedLens != null
+                && ProcessorUtils.firstRawIn(opticMethod.traversalHintInfo().lensFocus()) != null)
+            || typeParameters.stream()
+                .flatMap(parameter -> parameter.getBounds().stream())
+                .anyMatch(bound -> ProcessorUtils.firstRawIn(bound) != null);
+    // A declaration takes one @SuppressWarnings, so a method needing both reasons carries them as
+    // one array, written the way an author would write it.
+    if (rawTypes && unchecked) {
+      methodBuilder.addAnnotation(
+          AnnotationSpec.builder(SuppressWarnings.class)
+              .addMember("value", "{$S, $S}", "rawtypes", "unchecked")
+              .build());
+    } else if (rawTypes) {
+      methodBuilder.addAnnotation(
+          AnnotationSpec.builder(SuppressWarnings.class)
+              .addMember("value", "$S", "rawtypes")
+              .build());
+    } else if (unchecked) {
       methodBuilder.addAnnotation(
           AnnotationSpec.builder(SuppressWarnings.class)
               .addMember("value", "$S", "unchecked")
               .build());
-    }
-
-    // The method's type parameters are the spec's, not the source type's declaration: the source
-    // type may instantiate that declaration under other names, or only in part, and only the
-    // variables this signature actually names can be inferred at the call.
-    for (TypeParameterElement typeParam :
-        methodTypeParameters(specInterface, sourceType, focusType)) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
     // Generate method body based on optic kind

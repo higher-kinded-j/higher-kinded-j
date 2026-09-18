@@ -1911,4 +1911,44 @@ public class FocusProcessorNavigatorTest {
       assertGeneratedCodeDoesNotContain(downstream, focus, "ColourNavigator");
     }
   }
+
+  @Test
+  @DisplayName("a navigator answers for a raw field of its target, and for a raw bound")
+  void rawTypesCompileUnderWerror() {
+    // A navigator method writes the target record's field type out, and the static method that
+    // returns the navigator redeclares the navigating record's type parameters with their bounds.
+    JavaFileObject inner =
+        JavaFileObjects.forSourceString(
+            "com.example.Inner",
+            """
+            package com.example;
+            import java.util.Map;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+            @GenerateFocus(generateNavigators = true)
+            @SuppressWarnings("rawtypes")
+            public record Inner(Map lookup, String name) {}
+            """);
+    JavaFileObject outer =
+        JavaFileObjects.forSourceString(
+            "com.example.Outer",
+            """
+            package com.example;
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+            @GenerateFocus(generateNavigators = true)
+            @SuppressWarnings("rawtypes")
+            public record Outer<T extends List>(Inner inner, T value) {}
+            """);
+    Compilation compilation =
+        javac()
+            .withProcessors(new FocusProcessor())
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(inner, outer);
+
+    assertThat(compilation).succeededWithoutWarnings();
+    assertGeneratedCodeContains(
+        compilation,
+        "com.example.OuterFocus",
+        "@SuppressWarnings(\"rawtypes\") public FocusPath<S, Map> lookup()");
+  }
 }

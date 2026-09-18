@@ -239,6 +239,10 @@ public final class ProcessorUtils {
    * ends the walk. A caller that copies the type verbatim into generated source asks this first,
    * because every raw name it copies is a {@code [rawtypes]} warning in the file it lands in.
    *
+   * <p>An intersection is not walked: a type parameter's bounds are read from {@code getBounds()},
+   * which flattens them into one bound per type, never from {@code getUpperBound()}, which hands
+   * back a single intersection mirror this answers "no raw" for.
+   *
    * @param type the type as it was written
    * @return the element of the first raw type named, or null
    * @since 0.4.11
@@ -292,6 +296,16 @@ public final class ProcessorUtils {
    * answers for it itself. Only {@code rawtypes}: an unchecked operation in generated code is a
    * hole in that code, never the author's to accept.
    *
+   * <p>Suppression is the answer where a generated member merely restates a type its author
+   * declared. Where the generated code would do more than restate it, inferring an optic instance
+   * from it or rebuilding through it unchecked, the shape is refused instead, as
+   * {@code @ImportOptics} does for a raw source type. A generator may also refuse for a reason of
+   * its own: {@code @PathVia} refuses a raw type in a bridged signature because the bridge builds
+   * its Path from the effect's type arguments, while answering for a raw bound on its class.
+   *
+   * <p>A declaration takes one {@code @SuppressWarnings}, so a member needing a second token for a
+   * reason of its own merges both into a single annotation rather than adding another.
+   *
    * @param types the types the member may write out or infer; a wider set only widens where the
    *     suppression lands; must not be null
    * @return the suppression when {@link #firstRawIn} finds a raw type in any of them, else no
@@ -305,6 +319,30 @@ public final class ProcessorUtils {
                 .addMember("value", "$S", "rawtypes")
                 .build())
         : List.of();
+  }
+
+  /**
+   * The {@code @SuppressWarnings("rawtypes")} annotations for a generated member that redeclares
+   * {@code owner}'s type parameters as well as naming a type of its own: it writes those bounds out
+   * too, so a raw bound reaches it even where the type it is generated around names none.
+   *
+   * <p>Callers pass the type the member is generated around, not the one it finally writes. Which
+   * of the two a generator emits, a component or the element it widens to, is that generator's
+   * detail, and asking the wider question only widens where the suppression lands.
+   *
+   * @param written the type the member is generated around; must not be null
+   * @param owner the type whose type parameters the member redeclares; must not be null
+   * @return the suppression when the type or one of those bounds names a raw type, else no
+   *     annotations
+   * @since 0.4.11
+   */
+  public static List<AnnotationSpec> rawTypesSuppression(TypeMirror written, TypeElement owner) {
+    return rawTypesSuppression(
+        Stream.concat(
+                Stream.of(written),
+                owner.getTypeParameters().stream()
+                    .flatMap(parameter -> parameter.getBounds().stream()))
+            .toList());
   }
 
   /**

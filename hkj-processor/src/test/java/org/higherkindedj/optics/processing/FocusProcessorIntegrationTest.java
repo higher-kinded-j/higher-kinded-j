@@ -19,6 +19,47 @@ public class FocusProcessorIntegrationTest {
   class BasicCodeGeneration {
 
     @Test
+    @DisplayName("a raw type in a component or a bound compiles under -Werror")
+    void rawTypesCompileUnderWerror() {
+      // The path type, the setter lambda's inferred value and the record's type-parameter bounds
+      // all land in the generated method.
+      var nested =
+          JavaFileObjects.forSourceString(
+              "com.example.RawBag",
+              """
+              package com.example;
+              import java.util.List;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              @SuppressWarnings("rawtypes")
+              public record RawBag(String id, Optional<List> contacts) {}
+              """);
+      var bounded =
+          JavaFileObjects.forSourceString(
+              "com.example.BoundedBag",
+              """
+              package com.example;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateFocus;
+              @GenerateFocus
+              @SuppressWarnings("rawtypes")
+              public record BoundedBag<T extends List>(T value, String id) {}
+              """);
+      var compilation =
+          javac()
+              .withProcessors(new FocusProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(nested, bounded);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.BoundedBagFocus",
+          "@SuppressWarnings(\"rawtypes\") public static <T extends List> FocusPath<BoundedBag<T>, T> value()");
+    }
+
+    @Test
     @DisplayName("should generate FocusPath methods for each record component")
     void shouldGenerateFocusPathMethodsForRecord() {
       final var sourceFile =
