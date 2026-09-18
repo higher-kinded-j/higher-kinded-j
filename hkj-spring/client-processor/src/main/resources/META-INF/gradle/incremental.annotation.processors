@@ -2,3 +2,7 @@
 # hkj-processor's registration: behaviour-preserving without a per-processor ISOLATING audit,
 # and sufficient to restore incremental compilation for consuming source sets.
 org.higherkindedj.spring.client.processor.HkjHttpClientProcessor,aggregating
+# CompanionAnnotationProcessor generates nothing, only claims the hkj annotations the client
+# processor reads or writes, so ISOLATING leaves Gradle nothing to track; AGGREGATING would reprocess
+# every type carrying them, every generated client included.
+org.higherkindedj.spring.client.processor.CompanionAnnotationProcessor,isolating

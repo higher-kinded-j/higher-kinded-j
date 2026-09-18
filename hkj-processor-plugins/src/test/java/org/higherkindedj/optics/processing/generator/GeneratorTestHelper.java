@@ -2,15 +2,30 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.generator;
 
+import static com.google.testing.compile.Compiler.javac;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.testing.compile.Compilation;
+import com.google.testing.compile.Compiler;
 import java.io.IOException;
 import java.util.Optional;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.optics.processing.CompanionAnnotationProcessor;
+import org.higherkindedj.optics.processing.TraversalProcessor;
 
 public final class GeneratorTestHelper {
+
+  /**
+   * javac running {@link TraversalProcessor} as a consuming build does: beside the {@link
+   * CompanionAnnotationProcessor} that ships with it, which claims the {@code @Generated} marker on
+   * each file the traversal processor writes.
+   *
+   * @return a compiler to add options and sources to
+   */
+  public static Compiler traversalsJavac() {
+    return javac().withProcessors(new TraversalProcessor(), new CompanionAnnotationProcessor());
+  }
 
   /**
    * Asserts that the generated file contains the expected code snippet, after normalising both for

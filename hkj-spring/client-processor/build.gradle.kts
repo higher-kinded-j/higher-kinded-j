@@ -31,6 +31,8 @@ dependencies {
   testImplementation(libs.junit.jupiter)
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(libs.assertj.core)
+  // The companion processor's coverage guard reads the client module's annotations.
+  testImplementation(libs.archunit.junit5)
 }
 
 tasks.test {

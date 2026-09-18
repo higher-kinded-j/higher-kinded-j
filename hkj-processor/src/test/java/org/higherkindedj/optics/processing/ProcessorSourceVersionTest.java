@@ -4,15 +4,13 @@ package org.higherkindedj.optics.processing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ServiceLoader;
 import java.util.stream.Stream;
-import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
 import javax.lang.model.SourceVersion;
-import org.higherkindedj.optics.processing.effect.ComposeEffectsProcessor;
-import org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor;
-import org.higherkindedj.optics.processing.effect.PathProcessor;
-import org.higherkindedj.optics.processing.effect.PathSourceProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
@@ -23,32 +21,18 @@ import org.junit.jupiter.params.provider.MethodSource;
 @DisplayName("Processor source-version convention")
 class ProcessorSourceVersionTest {
 
-  static Stream<AbstractProcessor> processors() {
-    return Stream.of(
-        new LensProcessor(),
-        new PrismProcessor(),
-        new IsoProcessor(),
-        new TraversalProcessor(),
-        new GetterProcessor(),
-        new SetterProcessor(),
-        new FoldProcessor(),
-        new FocusProcessor(),
-        new ImportOpticsProcessor(),
-        new ForComprehensionProcessor(),
-        new AccumulatorProcessor(),
-        new AssemblyProcessor(),
-        new MappingProcessor(),
-        new MergeProcessor(),
-        new PathProcessor(),
-        new PathSourceProcessor(),
-        new EffectAlgebraProcessor(),
-        new ComposeEffectsProcessor());
+  /** Every processor this module registers, so a new one is held to the convention unasked. */
+  static Stream<Arguments> processors() {
+    return ServiceLoader.load(Processor.class, LensProcessor.class.getClassLoader()).stream()
+        .filter(provider -> provider.type().getName().startsWith("org.higherkindedj."))
+        .map(ServiceLoader.Provider::get)
+        .map(processor -> Arguments.of(processor.getClass().getSimpleName(), processor));
   }
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("processors")
   @DisplayName("reports the latest supported source version")
-  void reportsLatestSupported(AbstractProcessor processor) {
+  void reportsLatestSupported(final String name, final Processor processor) {
     assertThat(processor.getSupportedSourceVersion()).isEqualTo(SourceVersion.latestSupported());
   }
 }

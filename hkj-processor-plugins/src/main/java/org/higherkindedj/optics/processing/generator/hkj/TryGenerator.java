@@ -4,8 +4,6 @@ package org.higherkindedj.optics.processing.generator.hkj;
 
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
-import com.palantir.javapoet.ParameterizedTypeName;
-import com.palantir.javapoet.TypeName;
 import io.avaje.spi.ServiceProvider;
 import java.util.List;
 import java.util.Set;
@@ -13,7 +11,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
-import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.optics.processing.generator.BaseTraversableGenerator;
 import org.higherkindedj.optics.processing.spi.Cardinality;
@@ -63,7 +60,6 @@ public class TryGenerator extends BaseTraversableGenerator {
       final List<? extends RecordComponentElement> allComponents) {
 
     final String componentName = component.getSimpleName().toString();
-    final TypeName genericTypeName = getGenericTypeName(component);
 
     // Use the inherited helper to generate the constructor arguments.
     // The new value is wrapped in Try.success().
@@ -87,15 +83,10 @@ public class TryGenerator extends BaseTraversableGenerator {
                 + "    successValue -> {$>\n"
                 + "        // Case 2: The Try is a Success. Apply the effectful function.\n"
                 + "        final var g_of_b = f.apply(successValue);\n"
-                + "        @SuppressWarnings(\"unchecked\") final var g_of_b_casted = ($T)"
-                + " g_of_b;\n"
                 + "        // Map over the effect to reconstruct the record with the new value.\n"
-                + "        return applicative.map(newValue -> new $T($L), g_of_b_casted);$<\n"
+                + "        return applicative.map(newValue -> new $T($L), g_of_b);$<\n"
                 + "    }\n"
                 + ")",
-            // Type for the g_of_b_casted variable
-            ParameterizedTypeName.get(
-                ClassName.get(Kind.class), effectVariable(component), genericTypeName.box()),
             // The record's class name for reconstruction
             recordTypeName(component, recordClassName),
             // The argument list for the record's constructor

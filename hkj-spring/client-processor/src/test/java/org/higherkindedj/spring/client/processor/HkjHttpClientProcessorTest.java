@@ -146,6 +146,17 @@ class HkjHttpClientProcessorTest {
           .contentsAsUtf8String()
           .contains("UserApiHttpExchange.class");
     }
+
+    @Test
+    @DisplayName("the configuration declares the constructor Spring instantiates it through")
+    void configurationConstructor() {
+      // A public class that declares no constructor exposes the default one, which
+      // -Xlint:missing-explicit-ctor reports in a named module exporting its package.
+      assertThat(compilation)
+          .generatedSourceFile("com.example.UserApiClientConfiguration")
+          .contentsAsUtf8String()
+          .contains("public UserApiClientConfiguration()");
+    }
   }
 
   @Nested
