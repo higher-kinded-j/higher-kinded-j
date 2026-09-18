@@ -2136,7 +2136,8 @@ class MappingProcessorUpdateTest {
           .hadErrorContaining(
               "Give 'tags' a setTags setter, and let getTags() answer null until it is set, with no"
                   + " initialiser on the field and no list created on first call, so an omitted"
-                  + " field reads as absent.");
+                  + " field reads as absent; a generated class whose getter cannot change needs a"
+                  + " hand-written PATCH bean instead.");
       // The element type is not what is wrong here, so the dense tier's remedy must not appear.
       Assertions.assertThat(compilation.errors())
           .noneMatch(error -> error.getMessage(null).contains("Declare the type arguments"));

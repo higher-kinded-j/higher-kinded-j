@@ -769,7 +769,8 @@ public class MappingProcessor extends AbstractProcessor {
                 + " setter, and let "
                 + write.getter()
                 + "() answer null until it is set, with no initialiser on the field and no list"
-                + " created on first call, so an omitted field reads as absent.");
+                + " created on first call, so an omitted field reads as absent; a generated class"
+                + " whose getter cannot change needs a hand-written PATCH bean instead.");
         return false;
       }
     }
@@ -1258,7 +1259,7 @@ public class MappingProcessor extends AbstractProcessor {
    * property names no element type at all, and a wildcard one names a bound that is a fresh type at
    * every mention. Only the raw author is told to add type arguments; the wildcard author already
    * has one. Both are offered the setter, which takes the property's declared type whatever its
-   * arguments, and which a build can also leave unset.
+   * arguments.
    */
   private void reportUnfillableCollectionGetter(
       TypeElement spec,
@@ -1297,7 +1298,7 @@ public class MappingProcessor extends AbstractProcessor {
             + property.name()
             + "' a "
             + setter
-            + " setter, which takes the property as declared and lets a build leave it unset.");
+            + " setter, which takes the property as declared.");
   }
 
   /**
@@ -1351,8 +1352,8 @@ public class MappingProcessor extends AbstractProcessor {
             + wireName
             + "' is written through its own getter (the JAXB convention, "
             + write.getter()
-            + "().addAll(...)), whose list is created on first call, so there is no null to write"
-            + " and absence would read back as a present empty list.",
+            + "().addAll(...)), whose list is created on first call, so the property cannot hold a"
+            + " null and absence would read back as a present empty list.",
         "Declare '"
             + name
             + "' as "
@@ -6559,31 +6560,11 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The bean {@code build} body: the strategy frames the construction, and each property writes its
-   * build value between the frame.
-   */
-  private static CodeBlock beanBuildBody(
-      WireShape.BeanShape bean, TypeName wireType, List<Correspondence> comps) {
-    // Only a bean that is written reaches a build body, so it has its strategy and write sites.
-    WireShape.ConstructionStrategy strategy = bean.strategy().orElseThrow();
-    String receiver = strategy.receiver();
-    CodeBlock.Builder body = CodeBlock.builder().add(strategy.prologue(wireType));
-    for (WireShape.BeanProperty property : bean.properties()) {
-      CodeBlock value = buildValue(property.asWireComponent(), comps);
-      body.addStatement("$L", property.write().orElseThrow().write(receiver, value));
-    }
-    return body.add(strategy.epilogue()).build();
-  }
-
-  /**
    * The total {@code build} body on either wire shape: the record constructor or the bean strategy.
    */
   private static CodeBlock wireBuildBody(
       WireShape wire, TypeName wireName, List<Correspondence> comps) {
-    return switch (wire) {
-      case WireShape.RecordShape r -> r.buildStatements(wireName, wc -> buildValue(wc, comps));
-      case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
-    };
+    return wire.buildStatements(wireName, wc -> buildValue(wc, comps));
   }
 
   /**
@@ -7865,11 +7846,11 @@ public class MappingProcessor extends AbstractProcessor {
    * parse}, {@code patch} and {@code updateFrom}. Some of them hold lambdas whose parameters javac
    * types from either side's components: an element or bridged leg, a patch's assembly, a chunk's
    * tuple. Which ones do is the emitter's detail, so each method asks of the whole pair, and one
-   * holding no such lambda carries it too: a record's {@code build}, or a projection's when the raw
-   * type is on a component it drops. A flattened group's inner components are not asked. Their wire
-   * side is a wire component already, and their domain side is written out in one place only, the
-   * array-constructor reference of a lifted inner array ({@code List[]::new}), which javac does not
-   * report.
+   * holding no such lambda carries it too: a {@code build} on either wire shape, or a projection's
+   * when the raw type is on a component it drops. A flattened group's inner components are not
+   * asked. Their wire side is a wire component already, and their domain side is written out in one
+   * place only, the array-constructor reference of a lifted inner array ({@code List[]::new}),
+   * which javac does not report.
    */
   private List<AnnotationSpec> pairSuppression(DeclaredType domainDeclared, WireShape wire) {
     TypeElement domain = (TypeElement) domainDeclared.asElement();

@@ -187,8 +187,9 @@ public final class MappingLaws {
    *   <li><b>Identity</b> — {@code updateFrom(allAbsentWire).apply(d) == Valid(d)}: an all-absent
    *       wire folds to the identity update, leaving the domain untouched. Pass a freshly
    *       constructed bean, which is what a binder makes of an empty body: a field initialiser then
-   *       reads as sent and fails the law, where a bean whose setters were handed {@code null}
-   *       would have overwritten the default and hidden it.
+   *       reads as sent and fails the law wherever its default differs from {@code domainSample},
+   *       where a bean whose setters were handed {@code null} would have overwritten the default
+   *       and hidden it.
    *   <li><b>Idempotence</b> — applying a valid patch twice equals applying it once. This holds
    *       because generated edits <em>set</em> or <em>parse</em> (overwrite), never
    *       <em>modify</em>; a modify-shaped edit (e.g. increment) is deliberately not idempotent and

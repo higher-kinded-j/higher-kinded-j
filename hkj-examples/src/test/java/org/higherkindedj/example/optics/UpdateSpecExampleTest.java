@@ -57,7 +57,7 @@ class UpdateSpecExampleTest {
   void allAbsentIsIdentity() {
     User current = new User("Ada", new EmailAddress("ada@corp.example"), 36);
 
-    var patched = UpdateSpecExample.applyPatch(current, request(null, null, null));
+    var patched = UpdateSpecExample.applyPatch(current, new UserPatchRequest());
 
     assertThat(patched.isValid()).isTrue();
     assertThat(patched.get()).isEqualTo(current);

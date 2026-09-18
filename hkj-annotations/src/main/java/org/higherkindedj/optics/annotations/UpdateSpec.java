@@ -59,8 +59,9 @@ package org.higherkindedj.optics.annotations;
  * every PATCH bean property must start out {@code null}. A field initialiser ({@code tags = new
  * ArrayList<>()}, {@code status = "ACTIVE"}) makes an omitted field read as its default, which
  * {@code updateFrom} then writes over the domain value. No signature shows an initialiser, so this
- * cannot be refused: leave PATCH bean fields uninitialised, and configure a DTO generator to leave
- * containers {@code null} where it offers that.
+ * cannot be refused: leave PATCH bean fields uninitialised, configure a DTO generator to leave
+ * containers {@code null} where it offers that, and give the PATCH schema's properties no {@code
+ * default}, which a generator renders as an initialiser.
  *
  * <p>A getter-only {@code List} property is rejected: the JAXB convention creates the list on first
  * call, so the property never reads {@code null} and cannot express <em>not provided</em>. Give it

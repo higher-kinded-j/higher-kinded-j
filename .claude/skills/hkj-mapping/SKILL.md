@@ -436,7 +436,8 @@ matter: it maps build-only whatever its width, derived fields included.
   `build` fills through setters or the builder, `parse` reads
   through getters under the same null guard as a record wire, and a domain `Optional<T>` bridges to
   a nullable bean property `T` with no declaration (a record wire opts in per component with
-  `@OptionalBridge`), except onto a getter-only `List`, which has no unset state to carry absence;
+  `@OptionalBridge`; an empty one writes `null`, so the setter or builder setter must take it),
+  except onto a getter-only `List`, which has no unset state to carry absence;
   see `reference/mapping-example.md`. A bean projection with a reference
   property takes the validated `patch` (the property can be unset); an all-primitive one keeps
   `asLens()`.
@@ -527,16 +528,17 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   and a getter that answers `null` until it is set (no initialiser, no list created on first call).
   (The dense tier keeps the same property - it writes every component, so absence means nothing
   there.)
-- **Every PATCH bean field must start out `null`** - unchecked, since no signature shows an
+- **Every PATCH bean field must start out `null`**, unchecked: no signature shows an
   initialiser. `private List<String> tags = new ArrayList<>()` or `private String status =
   "ACTIVE"` reads as sent on every request that omits it, and `updateFrom` overwrites the domain
   value with the default. Leave the fields uninitialised; for a generated DTO, have the generator
-  leave containers `null` (openapi-generator: `containerDefaultToNull`).
+  leave containers `null` (openapi-generator: `containerDefaultToNull`) and give the PATCH
+  schema's properties no `default:`, which renders as an initialiser.
 - Coverage is one-sided: a domain component with no wire property is simply never changed.
 - Law-check it with the sparse overload:
   `MappingLaws.assertMappingLaws(Impl.INSTANCE::updateFrom, current, absentWire, validWire, invalidWire)`,
-  with `absentWire` a freshly constructed bean (what a binder makes of `{}`), so an initialiser
-  fails the identity law.
+  with `absentWire` a freshly constructed bean (what a binder makes of `{}`) and `current` unlike
+  any field default (non-empty containers), so an initialiser fails the identity law.
 
 ---
 
@@ -704,7 +706,8 @@ before rearranging the spec.
 | Expecting `@GenerateMerge` to give you a reverse split | Merging is forward-only by design |
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
 | A JAXB getter-only `List` on an `UpdateSpec` | Its getter creates the list on first call, so it never reads `null`: an omitted field would clear the domain list rather than leave it alone. Rejected; give the property a setter, and a getter that answers `null` until it is set |
-| An initialised field on a PATCH bean (`tags = new ArrayList<>()`, `status = "ACTIVE"`) | Not detected: the getter never answers `null`, so an omitted field reads as its default and `updateFrom` writes it over the domain. Leave PATCH bean fields uninitialised, and law-check with a freshly constructed bean as the all-absent wire, which catches it |
+| An initialised field on a PATCH bean (`tags = new ArrayList<>()`, `status = "ACTIVE"`) | Not detected: the getter never answers `null`, so an omitted field reads as its default and `updateFrom` writes it over the domain. Leave PATCH bean fields uninitialised, and law-check with a freshly constructed bean as the all-absent wire and a current value unlike any default, which catches it |
+| A bridged bean property whose setter refuses `null` (`List.copyOf(v)`, a protobuf or Immutables builder) | `build` writes `null` for an empty `Optional`, so it throws. Guard the copy (`v == null ? null : List.copyOf(v)`); for a generated builder, drop the `Optional` or declare a leaf over the whole `Optional` that encodes absence the builder's way |
 | Bridging a domain `Optional<List<T>>` onto a JAXB getter-only `List` | The getter creates the list on first call, so absence has nowhere to live and would read back as a present empty list. Declare the component `List<T>`, where empty *is* nothing, or give the property both a setter and a getter that returns what the setter stored (a lazily creating getter loses absence on the read even with a setter) |
 | Two nested specs generating the same `Impl` | Nested specs join their enclosing simple names; rename one |
 | Assuming sealed hierarchies are unsupported | They are supported. Give each permitted subtype pair a spec; the parent dispatches |

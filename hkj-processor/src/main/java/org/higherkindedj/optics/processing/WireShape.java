@@ -21,15 +21,21 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *
  * <p>Classification ({@link MappingProcessor#classify}) and code generation ({@link
  * MappingProcessor#writeImpl}) speak to the wire only through this interface: component enumeration
- * and name lookup, the {@link Direction} the wire can be crossed in, and the per-component read
- * expression ({@link WireComponent#readFrom}). The build body differs per shape (a record's
- * canonical constructor versus a bean's {@link ConstructionStrategy}), so the processor assembles
- * it by switching on the shape.
+ * and name lookup, the {@link Direction} the wire can be crossed in, the per-component read
+ * expression ({@link WireComponent#readFrom}), and the build body ({@link #buildStatements}), which
+ * each shape renders from one value per component that the processor supplies.
  */
 sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
   /** The wire type element. */
   TypeElement element();
+
+  /**
+   * The {@code build} body that constructs the wire from {@code valueFor} each component: a
+   * record's canonical constructor, or a bean's writes framed by its {@link ConstructionStrategy}.
+   * Asked only of a wire that is written.
+   */
+  CodeBlock buildStatements(TypeName wireType, Function<WireComponent, CodeBlock> valueFor);
 
   /** The wire's components in declaration order. */
   List<WireComponent> components();
@@ -100,7 +106,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   record RecordShape(TypeElement element, List<WireComponent> components) implements WireShape {
 
     /** The record build body: {@code return new W(v0, v1, ...)} in component order. */
-    CodeBlock buildStatements(TypeName wireType, Function<WireComponent, CodeBlock> valueFor) {
+    @Override
+    public CodeBlock buildStatements(
+        TypeName wireType, Function<WireComponent, CodeBlock> valueFor) {
       CodeBlock.Builder args = CodeBlock.builder();
       boolean first = true;
       for (WireComponent component : components) {
@@ -117,9 +125,7 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   /**
    * A bean-shaped wire: components are read through getters and written through the {@link
    * ConstructionStrategy}. Reads are null-hostile at parse time (an unset bean property is null),
-   * which the mapping processor guards; only the construction differs from a record. The bean build
-   * body is assembled by the processor (per-property writes, which the strategy frames), since the
-   * value each write carries comes from the property's correspondence.
+   * which the mapping processor guards; only the construction differs from a record.
    *
    * <p>{@code direction} is the reading the analyser chose, and the rest of the shape agrees with
    * it: a parse-only bean has no {@code strategy} and no write sites, and a build-only one has no
@@ -147,6 +153,25 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
     @Override
     public List<WireComponent> components() {
       return properties.stream().map(BeanProperty::asWireComponent).toList();
+    }
+
+    /**
+     * The bean build body: the strategy's frame, and between it one write per property, each
+     * carrying its value whatever that is, a {@code null} included. No write is skipped, so a
+     * property written through a setter or a builder setter never keeps a default the bean or its
+     * builder started with.
+     */
+    @Override
+    public CodeBlock buildStatements(
+        TypeName wireType, Function<WireComponent, CodeBlock> valueFor) {
+      // Only a bean that is written reaches a build body, so it has its strategy and write sites.
+      ConstructionStrategy frame = strategy.orElseThrow();
+      CodeBlock.Builder body = CodeBlock.builder().add(frame.prologue(wireType));
+      for (BeanProperty property : properties) {
+        CodeBlock value = valueFor.apply(property.asWireComponent());
+        body.addStatement("$L", property.write().orElseThrow().write(frame.receiver(), value));
+      }
+      return body.add(frame.epilogue()).build();
     }
   }
 
@@ -251,10 +276,8 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
   /**
    * How a bean value is constructed: the target variable each property writes into ({@link
-   * #receiver}), and the framing {@link #prologue} and {@link #epilogue} statements. The
-   * per-property writes between them are emitted by the processor, which owns the value each one
-   * carries. Every property is written, a {@code null} included, so the built value never depends
-   * on defaults the bean or its builder starts with.
+   * #receiver}), and the framing {@link #prologue} and {@link #epilogue} statements, between which
+   * {@link BeanShape#buildStatements} writes each property.
    */
   sealed interface ConstructionStrategy
       permits ConstructionStrategy.NoArgsSetters, ConstructionStrategy.Builder {

@@ -1198,11 +1198,12 @@ class MappingProcessorBeanTest {
       }
     }
 
+    // A field initialiser on a setter bean is the tier matrix's business (MappingTierMatrixTest
+    // gives every bridged bean field one); a builder's own default is the other place a bean can
+    // start out holding a value.
     @Test
-    @DisplayName(
-        "an empty Optional replaces a bean's own default, whether a field initialiser or a"
-            + " builder's, so the round trip holds")
-    void emptyBridgeReplacesTheBeansDefault() throws ReflectiveOperationException {
+    @DisplayName("an empty Optional replaces a builder's own default, so the round trip holds")
+    void emptyBridgeReplacesTheBuildersDefault() throws ReflectiveOperationException {
       JavaFileObject sources =
           JavaFileObjects.forSourceString(
               "com.example.Account",
@@ -1214,15 +1215,6 @@ class MappingProcessorBeanTest {
               import org.higherkindedj.optics.annotations.MappingSpec;
 
               public record Account(String name, Optional<String> status) {}
-
-              class AccountBean {
-                private String name;
-                private String status = "ACTIVE";
-                public String getName() { return name; }
-                public void setName(String name) { this.name = name; }
-                public String getStatus() { return status; }
-                public void setStatus(String status) { this.status = status; }
-              }
 
               // A builder that carries a default for a property it is never given.
               final class AccountView {
@@ -1251,9 +1243,6 @@ class MappingProcessorBeanTest {
               }
 
               @GenerateMapping
-              interface AccountBeanMapping extends MappingSpec<Account, AccountBean> {}
-
-              @GenerateMapping
               interface AccountViewMapping extends MappingSpec<Account, AccountView> {}
               """);
 
@@ -1263,16 +1252,11 @@ class MappingProcessorBeanTest {
           .contains("b.status(domain.status().orElse(null));");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object mapping = result.instance("com.example.AccountViewMappingImpl");
       Object empty = result.newInstance("com.example.Account", "ada", Optional.empty());
-      for (String impl : List.of("AccountBeanMappingImpl", "AccountViewMappingImpl")) {
-        Object mapping = result.instance("com.example." + impl);
-        Object built = invoke(mapping, "build", empty);
-        Assertions.assertThat(invoke(built, "getStatus")).as("%s build", impl).isNull();
-        assertThatValidated(validated(invoke(mapping, "parse", built)))
-            .as("%s parse(build(d))", impl)
-            .isValid()
-            .hasValue(empty);
-      }
+      Object built = invoke(mapping, "build", empty);
+      Assertions.assertThat(invoke(built, "getStatus")).isNull();
+      assertThatValidated(validated(invoke(mapping, "parse", built))).isValid().hasValue(empty);
     }
 
     @Test
@@ -1607,7 +1591,7 @@ class MappingProcessorBeanTest {
           .hadErrorContaining(
               "The bridge writes an empty Optional as null, and 'urls' is written through its own"
                   + " getter (the JAXB convention, getUrls().addAll(...)), whose list is created on"
-                  + " first call, so there is no null to write");
+                  + " first call, so the property cannot hold a null");
       assertThat(compilation)
           .hadErrorContaining(
               "Declare 'urls' as List<String>, dropping the Optional, so the property's own empty"
