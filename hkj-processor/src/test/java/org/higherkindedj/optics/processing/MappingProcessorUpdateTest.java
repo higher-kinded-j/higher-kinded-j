@@ -2131,8 +2131,12 @@ class MappingProcessorUpdateTest {
               "is a getter-only List<String>, which cannot carry a sparse update's absence");
       assertThat(compilation)
           .hadErrorContaining("a request that omits 'tags' would read as a present empty list");
+      // A setter alone is not the remedy: an initialiser or a creating getter defeats it too.
       assertThat(compilation)
-          .hadErrorContaining("Give 'tags' a setTags setter, so an omitted field leaves it null");
+          .hadErrorContaining(
+              "Give 'tags' a setTags setter, and let getTags() answer null until it is set, with no"
+                  + " initialiser on the field and no list created on first call, so an omitted"
+                  + " field reads as absent.");
       // The element type is not what is wrong here, so the dense tier's remedy must not appear.
       Assertions.assertThat(compilation.errors())
           .noneMatch(error -> error.getMessage(null).contains("Declare the type arguments"));

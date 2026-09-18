@@ -1123,8 +1123,7 @@ class MappingProcessorBeanTest {
   class OptionalBridging {
 
     @Test
-    @DisplayName(
-        "a domain Optional maps to a nullable bean property, skipping the write when empty")
+    @DisplayName("a domain Optional maps to a nullable bean property, writing null when empty")
     void identityBridge() {
       JavaFileObject domain =
           JavaFileObjects.forSourceString(
@@ -1168,7 +1167,7 @@ class MappingProcessorBeanTest {
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.ProfileMappingImpl");
       Assertions.assertThat(generated)
-          .contains("domain.bio().ifPresent(v -> wire.setBio(v));")
+          .contains("wire.setBio(domain.bio().orElse(null));")
           .contains(".field(\"bio\", Validated.validNel(Optional.ofNullable(wire.getBio())))")
           .doesNotContain("asIso");
 
@@ -1196,6 +1195,83 @@ class MappingProcessorBeanTest {
         Assertions.assertThat(parsedEmpty.get()).isEqualTo(emptyProfile);
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "an empty Optional replaces a bean's own default, whether a field initialiser or a"
+            + " builder's, so the round trip holds")
+    void emptyBridgeReplacesTheBeansDefault() throws ReflectiveOperationException {
+      JavaFileObject sources =
+          JavaFileObjects.forSourceString(
+              "com.example.Account",
+              """
+              package com.example;
+
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public record Account(String name, Optional<String> status) {}
+
+              class AccountBean {
+                private String name;
+                private String status = "ACTIVE";
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getStatus() { return status; }
+                public void setStatus(String status) { this.status = status; }
+              }
+
+              // A builder that carries a default for a property it is never given.
+              final class AccountView {
+                private final String name;
+                private final String status;
+                private AccountView(Builder b) {
+                  this.name = b.name;
+                  this.status = b.statusSet ? b.status : "ACTIVE";
+                }
+                public String getName() { return name; }
+                public String getStatus() { return status; }
+                public static Builder builder() { return new Builder(); }
+
+                public static final class Builder {
+                  private String name;
+                  private String status;
+                  private boolean statusSet;
+                  public Builder name(String name) { this.name = name; return this; }
+                  public Builder status(String status) {
+                    this.status = status;
+                    this.statusSet = true;
+                    return this;
+                  }
+                  public AccountView build() { return new AccountView(this); }
+                }
+              }
+
+              @GenerateMapping
+              interface AccountBeanMapping extends MappingSpec<Account, AccountBean> {}
+
+              @GenerateMapping
+              interface AccountViewMapping extends MappingSpec<Account, AccountView> {}
+              """);
+
+      Compilation compilation = compile(sources);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.AccountViewMappingImpl"))
+          .contains("b.status(domain.status().orElse(null));");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object empty = result.newInstance("com.example.Account", "ada", Optional.empty());
+      for (String impl : List.of("AccountBeanMappingImpl", "AccountViewMappingImpl")) {
+        Object mapping = result.instance("com.example." + impl);
+        Object built = invoke(mapping, "build", empty);
+        Assertions.assertThat(invoke(built, "getStatus")).as("%s build", impl).isNull();
+        assertThatValidated(validated(invoke(mapping, "parse", built)))
+            .as("%s parse(build(d))", impl)
+            .isValid()
+            .hasValue(empty);
       }
     }
 
@@ -1253,7 +1329,7 @@ class MappingProcessorBeanTest {
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.AccountMappingImpl");
       Assertions.assertThat(generated)
-          .contains("domain.email().map(email()::build).ifPresent(v -> wire.setEmail(v));")
+          .contains("wire.setEmail(domain.email().map(email()::build).orElse(null));")
           .contains(
               ".field(\"email\", Optional.ofNullable(wire.getEmail()).map(v ->"
                   + " email().parse(v).map(Optional::of))");
@@ -1527,12 +1603,16 @@ class MappingProcessorBeanTest {
           .hadErrorContaining(
               "domain field 'Bookmarks.urls' is Optional<List<String>>, bridged to the getter-only"
                   + " bean property 'urls' (not supported yet).");
-      assertThat(compilation).hadErrorContaining("whose list is created on first call");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "The bridge writes an empty Optional as null, and 'urls' is written through its own"
+                  + " getter (the JAXB convention, getUrls().addAll(...)), whose list is created on"
+                  + " first call, so there is no null to write");
       assertThat(compilation)
           .hadErrorContaining(
               "Declare 'urls' as List<String>, dropping the Optional, so the property's own empty"
-                  + " list encodes nothing, or give 'urls' a setter and a getter that answers null"
-                  + " until it is called");
+                  + " list encodes nothing, or give 'urls' a setter and a getter that returns what"
+                  + " the setter stored, so absence can be written as null and read back.");
     }
 
     @Test
@@ -1637,10 +1717,9 @@ class MappingProcessorBeanTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.DirectoryMappingImpl"))
           .contains(
-              "domain.contacts().map(ContactMappingImpl.INSTANCE.asValidatedPrism()::buildAll)"
-                  + ".ifPresent(v -> wire.setContacts(v));")
-          .contains(
-              "domain.owners().map(ownersKey()::buildKeys).ifPresent(v -> wire.setOwners(v));")
+              "wire.setContacts(domain.contacts()"
+                  + ".map(ContactMappingImpl.INSTANCE.asValidatedPrism()::buildAll).orElse(null));")
+          .contains("wire.setOwners(domain.owners().map(ownersKey()::buildKeys).orElse(null));")
           .contains("ownersKey().parseKeys(v)");
     }
 
@@ -2397,7 +2476,7 @@ class MappingProcessorBeanTest {
       Compilation compilation = compile(domain, wire, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.MemberCardMappingImpl"))
-          .contains("domain.nickname().ifPresent(v -> wire.setNickname(v));")
+          .contains("wire.setNickname(domain.nickname().orElse(null));")
           .contains(
               ".field(\"nickname\", Validated.validNel(Optional.ofNullable(wire.getNickname())))");
 

@@ -78,6 +78,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 | The bridge is refused onto a getter-only `List` property, which has no unset state to carry absence | [Bean-shaped wire targets](beans_patch.md#bean-shaped-wire-targets) |
 | A getter-only `List` must name its element type wherever a `build` is emitted; `addAll` cannot be written over a raw or wildcard receiver | [Bean-shaped wire targets](beans_patch.md#bean-shaped-wire-targets) |
 | A getter-only `List` is rejected on a sparse `UpdateSpec`: its getter never answers `null`, so it cannot carry absence | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
+| A PATCH bean's fields must start out `null`, which is not checked: an initialised field reads its default as sent. Law-check a sparse spec with a freshly constructed bean as the all-absent wire, which catches it | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 | A raw `List`, `Set` or `Map` component keeps its own null guard but gives up the element null scan (an array keeps it, naming its element type in the type itself) | [Null has an address](basics.md#null-doctrine) |
 
 ---

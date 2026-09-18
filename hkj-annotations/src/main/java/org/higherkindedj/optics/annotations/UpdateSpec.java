@@ -55,9 +55,16 @@ package org.higherkindedj.optics.annotations;
  * is one-sided: every wire property maps to a domain component, but a domain component with no wire
  * property is simply never changed.
  *
+ * <p>Absence is read, never declared: a property is absent when its getter answers {@code null}, so
+ * every PATCH bean property must start out {@code null}. A field initialiser ({@code tags = new
+ * ArrayList<>()}, {@code status = "ACTIVE"}) makes an omitted field read as its default, which
+ * {@code updateFrom} then writes over the domain value. No signature shows an initialiser, so this
+ * cannot be refused: leave PATCH bean fields uninitialised, and configure a DTO generator to leave
+ * containers {@code null} where it offers that.
+ *
  * <p>A getter-only {@code List} property is rejected: the JAXB convention creates the list on first
  * call, so the property never reads {@code null} and cannot express <em>not provided</em>. Give it
- * a setter, which an omitted field leaves {@code null}.
+ * a setter, and a getter that answers {@code null} until it is set.
  *
  * <p>A domain {@code Optional<T>} component takes an {@code Optional}-typed property whose field
  * defaults to {@code null}: {@code null} leaves the component unchanged and a present empty {@code

@@ -37,7 +37,7 @@ class RecordMappingBookLawsTest {
     MappingLaws.assertMappingLaws(
         ContactPatchMappingImpl.INSTANCE::updateFrom,
         new Customer("Ada", new EmailAddress("ada@example.org")), // the current value
-        patch(null, null), // all-absent   -> identity
+        new ContactPatchBean(), // all-absent, as bound from {} -> identity
         patch("Grace", "grace@example.org"), // present valid -> changes the domain
         patch(null, "not-an-email")); // present invalid -> located failure
     // ANCHOR_END: update_laws
@@ -91,7 +91,7 @@ class RecordMappingBookLawsTest {
     MappingLaws.assertMappingLaws(
         RosterPatchMappingImpl.INSTANCE::updateFrom,
         new Roster("core", List.of(new PhoneNumber("+44"))), // the current value
-        rosterPatch(null, null), // all-absent    -> identity
+        new RosterPatchBean(), // all-absent, as bound from {} -> identity
         rosterPatch(null, List.of("+1", "+353")), // present valid -> wholesale replacement
         rosterPatch(null, List.of("+1", "nope"))); // bad element   -> located phones.1
     // ANCHOR_END: update_container_laws

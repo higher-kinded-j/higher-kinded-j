@@ -118,8 +118,8 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * A bean-shaped wire: components are read through getters and written through the {@link
    * ConstructionStrategy}. Reads are null-hostile at parse time (an unset bean property is null),
    * which the mapping processor guards; only the construction differs from a record. The bean build
-   * body is assembled by the processor (per-property writes, which the strategy frames), since an
-   * {@code Optional}-bridged property writes conditionally.
+   * body is assembled by the processor (per-property writes, which the strategy frames), since the
+   * value each write carries comes from the property's correspondence.
    *
    * <p>{@code direction} is the reading the analyser chose, and the rest of the shape agrees with
    * it: a parse-only bean has no {@code strategy} and no write sites, and a build-only one has no
@@ -252,8 +252,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   /**
    * How a bean value is constructed: the target variable each property writes into ({@link
    * #receiver}), and the framing {@link #prologue} and {@link #epilogue} statements. The
-   * per-property writes between them are emitted by the processor, so an {@code Optional}-bridged
-   * property can write conditionally.
+   * per-property writes between them are emitted by the processor, which owns the value each one
+   * carries. Every property is written, a {@code null} included, so the built value never depends
+   * on defaults the bean or its builder starts with.
    */
   sealed interface ConstructionStrategy
       permits ConstructionStrategy.NoArgsSetters, ConstructionStrategy.Builder {

@@ -92,7 +92,7 @@ class BoundaryCapstoneBookLawsTest {
     MappingLaws.assertMappingLaws(
         CustomerPatchMappingImpl.INSTANCE::updateFrom,
         new Customer("Ada Lovelace", new EmailAddress("ada@corp.example")), // the current value
-        patch(null, null), // all-absent    -> identity
+        new CustomerPatchBean(), // all-absent, as bound from {} -> identity
         patch(null, "countess@lovelace.example"), // present valid -> changes the domain
         patch(null, "not-an-email")); // present invalid -> located failure
     // ANCHOR_END: capstone_patch_laws
