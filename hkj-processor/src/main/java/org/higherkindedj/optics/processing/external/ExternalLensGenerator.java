@@ -191,6 +191,8 @@ public class ExternalLensGenerator {
                 recordTypeName,
                 recordTypeName,
                 componentTypeName.box())
+            // The lens type and the record's type-parameter bounds are written out here.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
@@ -236,6 +238,8 @@ public class ExternalLensGenerator {
                 classTypeName,
                 classTypeName,
                 fieldTypeName.box())
+            // The lens type and the class's type-parameter bounds are written out here.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), classElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
@@ -276,6 +280,7 @@ public class ExternalLensGenerator {
                 parameterName,
                 field.name(),
                 typeName)
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), typeElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(typeName)
             .addParameter(typeName, "source")
@@ -359,6 +364,9 @@ public class ExternalLensGenerator {
     final TypeSpec.Builder implementation =
         TypeSpec.classBuilder(implementationName)
             .addAnnotation(GENERATED_ANNOTATION)
+            // The class names the traversal type in its superinterface clause and redeclares the
+            // record's type parameters, neither of which a member annotation reaches.
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), recordElement))
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
             .addSuperinterface(traversalTypeName)
             .addMethod(
@@ -387,6 +395,7 @@ public class ExternalLensGenerator {
 
     final MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(methodName)
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), recordElement))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .addJavadoc(
                 "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n"
@@ -433,8 +442,9 @@ public class ExternalLensGenerator {
       if (declaredType.getTypeArguments().size() <= typeArgumentIndex) {
         return null; // Not enough type arguments for this generator.
       }
-      return ProcessorUtils.typeNameOf(declaredType.getTypeArguments().get(typeArgumentIndex))
-          .box();
+      // A wildcard argument is resolved: no class can implement a traversal type that names one.
+      return ProcessorUtils.resolvedTypeNameOf(
+          declaredType.getTypeArguments().get(typeArgumentIndex));
     }
     return null;
   }

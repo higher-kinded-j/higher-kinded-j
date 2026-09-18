@@ -144,6 +144,8 @@ DepartmentLenses.staff()           // Lens<Department, List<Employee>>
 DepartmentLenses.staffTraversal()  // Traversal<Department, Employee>
 ```
 
+An element type written as a wildcard is focused as the type it stands for, as `@GenerateTraversals` does: `List<? extends Employee>` gives a `Traversal<Department, Employee>`, and `List<?>` a `Traversal<Department, Object>`. See [Wildcard Element Types](traversals.md#wildcard-element-types).
+
 ---
 
 ## A Real Workflow: Fiscal Year Normalisation
