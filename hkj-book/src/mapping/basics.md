@@ -167,7 +167,7 @@ A [bean wire](beans_patch.md) needs no annotation: bean conventions leave `Optio
 ~~~
 
 ~~~admonish note title="Under `@NullMarked`"
-The bridged wire component is nullable by construction: `build` writes `null` into it for an absent value. In a JSpecify `@NullMarked` package, declare it `@Nullable String nickname` so the wire record says what the mapping does with it.
+The bridged wire component is nullable by construction: `build` writes `null` into it for an absent value, so it must be declared to take one. A component declared non-null is refused: one inside a JSpecify `@NullMarked` package, class or module that carries no `@Nullable`, or one carrying a non-null annotation such as `@NonNull`, `@Nonnull` or `@NotNull`. Declare it `@Nullable String nickname`, so the wire record says what the mapping does with it. Any annotation named `Nullable` counts, whichever library it comes from.
 ~~~
 
 ~~~admonish example title="The same pair without the annotation, refused" collapsible=true

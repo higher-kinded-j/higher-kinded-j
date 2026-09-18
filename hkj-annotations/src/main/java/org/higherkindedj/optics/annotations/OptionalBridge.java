@@ -64,6 +64,12 @@ import java.lang.annotation.Target;
  * carve-out in the {@linkplain MappingSpec null doctrine}: absence is expressible on a record wire
  * only where a spec has asked for it here.
  *
+ * <p>The wire component must be able to hold that {@code null}, and so must the setter or builder
+ * setter parameter a bean bridge writes through. One declared non-null is refused: by a recognised
+ * non-null annotation, or by sitting inside a JSpecify {@code @NullMarked} class, package or module
+ * without a {@code @Nullable}. Any annotation named {@code Nullable} counts, whichever library it
+ * comes from.
+ *
  * <p>A bridged component is a non-identity correspondence, exactly as on a bean wire, so a mapping
  * carrying one withholds {@code asIso()} and a projection carrying one maps through the validated
  * {@code patch(Domain, Wire)} rather than {@code asLens()}.

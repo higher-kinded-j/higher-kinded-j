@@ -46,6 +46,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
@@ -58,6 +59,7 @@ import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.Flatten;
 import org.higherkindedj.optics.annotations.GenerateMapping;
@@ -6054,7 +6056,171 @@ public class MappingProcessor extends AbstractProcessor {
       reportGetterOnlyBridge(spec, domain, name, wireName, domainType, bridged, write);
       return null;
     }
+    // Nor can a site declared non-null, which build would hand the empty Optional's null.
+    NonNullSite nonNull = nonNullWriteSite(wire, wireName);
+    if (nonNull != null) {
+      reportNonNullBridge(spec, domain, name, wireType, domainType, bridged, nonNull);
+      return null;
+    }
     return bridgedCorrespondence(present.correspondence(), bridged);
+  }
+
+  /**
+   * A site {@code build} writes a bridged component into that is declared non-null: how a
+   * diagnostic names the member (with what it declares) and the declaration that says so, the type
+   * declaring it, and why it takes no {@code null}.
+   */
+  private record NonNullSite(
+      String member,
+      String declaration,
+      TypeElement declaredBy,
+      NullableAnnotations.NonNullReason reason) {}
+
+  /**
+   * The site a bridged component is written into, when it is declared non-null ({@link
+   * NullableAnnotations#nonNullReason}): a record's component, which its canonical constructor
+   * takes, or the parameter of a bean's setter or builder setter. Null when the site may take a
+   * {@code null} or says nothing either way, and for a bean that is never written.
+   */
+  private static NonNullSite nonNullWriteSite(WireShape wire, String wireName) {
+    return switch (wire) {
+      case WireShape.RecordShape record -> {
+        RecordComponentElement component =
+            record.element().getRecordComponents().stream()
+                .filter(candidate -> candidate.getSimpleName().contentEquals(wireName))
+                .findFirst()
+                .orElseThrow();
+        String spelt = "'" + record.element().getSimpleName() + "." + wireName + "'";
+        yield NullableAnnotations.nonNullReason(component)
+            .map(
+                reason ->
+                    new NonNullSite(
+                        "the record component " + spelt + ", which is declared non-null",
+                        spelt,
+                        record.element(),
+                        reason))
+            .orElse(null);
+      }
+      case WireShape.BeanShape bean -> {
+        // A bean that is never written (parse-only) has no setter to hand the null to.
+        if (!(writeSite(bean, wireName) instanceof WireShape.WriteSite.Setter setter)) {
+          yield null;
+        }
+        String method =
+            setter.method().getSimpleName()
+                + "("
+                + ProcessorUtils.simpleTypeName(setter.parameter().asType())
+                + ")";
+        String role =
+            bean.strategy().orElseThrow() instanceof WireShape.ConstructionStrategy.Builder
+                ? "builder setter"
+                : "setter";
+        yield NullableAnnotations.nonNullReason(setter.parameter())
+            .map(
+                reason ->
+                    new NonNullSite(
+                        "the bean property '"
+                            + wireName
+                            + "', whose "
+                            + role
+                            + " "
+                            + method
+                            + " is declared non-null",
+                        "the parameter of " + method,
+                        (TypeElement) setter.method().getEnclosingElement(),
+                        reason))
+            .orElse(null);
+      }
+    };
+  }
+
+  /**
+   * Refuses an {@code Optional} bridge whose write site is declared non-null. {@code build} writes
+   * an empty {@code Optional} as {@code null}, into the record component or through the setter, so
+   * a declaration that rules {@code null} out is contradicted on every empty value: a checking
+   * setter or constructor throws, and any other keeps a {@code null} its type says it cannot hold.
+   * The fixes each give the pair an honest encoding: a nullable site, a domain component without
+   * the {@code Optional}, or a leaf over the whole {@code Optional} that encodes absence the way
+   * the wire does. The first needs the declaration to change, so it is offered only for a type this
+   * compilation has as source.
+   */
+  private void reportNonNullBridge(
+      TypeElement spec,
+      TypeElement domain,
+      String name,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      TypeMirror element,
+      NonNullSite site) {
+    String because =
+        switch (site.reason()) {
+          case NullableAnnotations.NonNullReason.Annotated annotated ->
+              "is annotated @" + annotated.annotation();
+          case NullableAnnotations.NonNullReason.Marked marked ->
+              "carries no @Nullable inside @NullMarked "
+                  + marked.scope().getKind().toString().toLowerCase(Locale.ROOT)
+                  + " '"
+                  + (marked.scope() instanceof QualifiedNameable qualified
+                      ? qualified.getQualifiedName()
+                      : marked.scope().getSimpleName())
+                  + "'";
+        };
+    boolean source =
+        Optional.ofNullable(processingEnv.getElementUtils().getFileObjectOf(site.declaredBy()))
+            .map(file -> file.getKind() == JavaFileObject.Kind.SOURCE)
+            .orElse(false);
+    boolean marker = declaresBridge(spec, name);
+    String nullable =
+        switch (site.reason()) {
+          case NullableAnnotations.NonNullReason.Annotated annotated ->
+              "Replace @"
+                  + annotated.annotation()
+                  + " on "
+                  + site.declaration()
+                  + " with @Nullable";
+          case NullableAnnotations.NonNullReason.Marked _ ->
+              "Mark " + site.declaration() + " @Nullable";
+        };
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' is "
+            + ProcessorUtils.simpleTypeName(domainType)
+            + ", bridged to "
+            + site.member()
+            + ".",
+        "The bridge writes an empty Optional as null, and "
+            + site.declaration()
+            + " "
+            + because
+            + ", so build would write the null its declaration rules out, and either throw or"
+            + " leave a null its type says it cannot hold.",
+        (source
+                ? nullable + ", since it carries absence; declare '"
+                : "'"
+                    + site.declaredBy().getSimpleName()
+                    + "' is compiled, so its declaration cannot change here: declare '")
+            + name
+            + "' as "
+            + ProcessorUtils.simpleTypeName(element)
+            + ", dropping the Optional"
+            + (marker ? " and its @OptionalBridge marker" : "")
+            // Spelt without type-use annotations: a bean's wire type is its getter's, which may
+            // be @Nullable, and the leaf encodes absence as a value the wire can hold.
+            + "; or declare 'default ValidatedPrism<"
+            + TypeName.get(wireType)
+            + ", "
+            + TypeName.get(domainType)
+            + "> "
+            + name
+            + "()'"
+            + (marker ? " in place of the marker" : "")
+            + ", a leaf over the whole Optional that encodes absence the way the wire does.");
   }
 
   /**
