@@ -181,6 +181,119 @@ class ImportOpticsProcessorTest {
 
       assertGeneratedCodeContains(compilation, "com.myapp.optics.PointLenses", expectedWithX);
     }
+
+    @Test
+    @DisplayName("a raw component and a raw type-parameter bound compile under -Werror")
+    void rawComponentAndRawBoundCompileUnderWerror() {
+      // The lens, with and traversal members restate the component type and redeclare the record's
+      // type parameters with their bounds, in a file the author's own suppression does not reach.
+      final var raw =
+          JavaFileObjects.forSourceString(
+              "com.external.RawBag",
+              """
+              package com.external;
+
+              import java.util.List;
+              import java.util.Optional;
+
+              @SuppressWarnings("rawtypes")
+              public record RawBag(List tags, Optional<List> contacts, List<List> rows) {}
+              """);
+      final var bounded =
+          JavaFileObjects.forSourceString(
+              "com.external.BoundedBag",
+              """
+              package com.external;
+
+              import java.util.List;
+
+              @SuppressWarnings("rawtypes")
+              public record BoundedBag<T extends List>(T value, List<String> ids) {}
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.RawBag.class, com.external.BoundedBag.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(raw, bounded, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.RawBagLenses",
+          "@SuppressWarnings(\"rawtypes\") public static Lens<RawBag, List> tags()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.RawBagLenses",
+          "@SuppressWarnings(\"rawtypes\") private static final class RowsTraversal"
+              + " implements Traversal<RawBag, List>");
+      // The element is clean, so only the redeclared bound can call for it here.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.BoundedBagLenses",
+          "@SuppressWarnings(\"rawtypes\") private static final class IdsTraversal<T extends List>");
+    }
+
+    @Test
+    @DisplayName("a wildcard element is traversed at the type it stands for")
+    void wildcardElementIsTraversedAtTheTypeItStandsFor() {
+      // No class can implement a traversal type that names a wildcard, so each one is written as
+      // the type it stands for: the bound of an extends wildcard, and Object for any other.
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Bounds",
+              """
+              package com.external;
+
+              import java.util.List;
+              import java.util.Set;
+
+              @SuppressWarnings("rawtypes")
+              public record Bounds(
+                  List<? extends Number> numbers,
+                  List<?> anything,
+                  Set<? super Integer> sinks,
+                  List<? extends List> lists) {}
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Bounds.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(externalRecord, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      final String generated = "com.myapp.optics.BoundsLenses";
+      assertGeneratedCodeContains(
+          compilation, generated, "public static Traversal<Bounds, Number> numbersTraversal()");
+      assertGeneratedCodeContains(
+          compilation, generated, "public static Traversal<Bounds, Object> anythingTraversal()");
+      assertGeneratedCodeContains(
+          compilation, generated, "public static Traversal<Bounds, Object> sinksTraversal()");
+      // The raw type the bound resolves to is answered for like any other.
+      assertGeneratedCodeContains(
+          compilation,
+          generated,
+          "@SuppressWarnings(\"rawtypes\") public static Traversal<Bounds, List> listsTraversal()");
+    }
   }
 
   @Nested
@@ -412,6 +525,84 @@ class ImportOpticsProcessorTest {
 
       assertGeneratedCodeContains(
           compilation, "com.myapp.optics.ImmutableDateLenses", expectedYearLens);
+    }
+
+    @Test
+    @DisplayName("a raw field and a raw type-parameter bound compile under -Werror")
+    void rawFieldAndRawBoundCompileUnderWerror() {
+      // The wither lens and with members restate the field type and redeclare the class's type
+      // parameters with their bounds, in a file the author's own suppression does not reach.
+      final var raw =
+          JavaFileObjects.forSourceString(
+              "com.external.RawBox",
+              """
+              package com.external;
+
+              import java.util.List;
+              import java.util.Optional;
+
+              @SuppressWarnings("rawtypes")
+              public final class RawBox {
+                  private final List tags;
+                  private final Optional<List> contacts;
+
+                  public RawBox(List tags, Optional<List> contacts) {
+                      this.tags = tags;
+                      this.contacts = contacts;
+                  }
+
+                  public List tags() { return tags; }
+                  public Optional<List> contacts() { return contacts; }
+                  public RawBox withTags(List tags) { return new RawBox(tags, contacts); }
+                  public RawBox withContacts(Optional<List> contacts) {
+                      return new RawBox(tags, contacts);
+                  }
+              }
+              """);
+      final var bounded =
+          JavaFileObjects.forSourceString(
+              "com.external.BoundedBox",
+              """
+              package com.external;
+
+              import java.util.List;
+
+              @SuppressWarnings("rawtypes")
+              public final class BoundedBox<T extends List> {
+                  private final String id;
+
+                  public BoundedBox(String id) { this.id = id; }
+
+                  public String id() { return id; }
+                  public BoundedBox<T> withId(String id) { return new BoundedBox<>(id); }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.RawBox.class, com.external.BoundedBox.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(raw, bounded, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.RawBoxLenses",
+          "@SuppressWarnings(\"rawtypes\") public static Lens<RawBox, List> tags()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.BoundedBoxLenses",
+          "@SuppressWarnings(\"rawtypes\") public static <T extends List> Lens<BoundedBox<T>,"
+              + " String> id()");
     }
   }
 
