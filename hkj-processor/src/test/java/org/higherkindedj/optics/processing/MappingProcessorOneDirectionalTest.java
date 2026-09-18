@@ -700,8 +700,8 @@ class MappingProcessorOneDirectionalTest {
     }
 
     @Test
-    @DisplayName("a bridged Optional writes only when present")
-    void optionalBridgeWritesWhenPresent() {
+    @DisplayName("a bridged Optional writes null when empty, replacing the bean's own default")
+    void optionalBridgeWritesNullWhenEmpty() throws ReflectiveOperationException {
       JavaFileObject memo =
           source("Memo", "public record Memo(String id, Optional<String> text) {}");
       JavaFileObject request =
@@ -709,8 +709,12 @@ class MappingProcessorOneDirectionalTest {
               "MemoRequest",
               """
               public class MemoRequest {
+                private String text = "draft";
+
                 public void setId(String id) {}
-                public void setText(String text) {}
+                public void setText(String text) { this.text = text; }
+
+                public String describe() { return String.valueOf(text); }
               }
               """);
       JavaFileObject spec =
@@ -723,7 +727,12 @@ class MappingProcessorOneDirectionalTest {
       Compilation compilation = compile(memo, request, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "MemoRequestMappingImpl"))
-          .contains("domain.text().ifPresent(v -> wire.setText(v));");
+          .contains("wire.setText(domain.text().orElse(null));");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance(PKG + ".MemoRequestMappingImpl");
+      Object absent = invoke(impl, "build", create(result, "Memo", "m-1", Optional.empty()));
+      Assertions.assertThat(invoke(absent, "describe")).isEqualTo("null");
     }
 
     @Test
@@ -876,7 +885,11 @@ class MappingProcessorOneDirectionalTest {
           .hadErrorContaining(
               "'PersonView' has getters but no way to be written, so it cannot serve as a sparse"
                   + " update's PATCH bean.");
-      assertThat(compilation).hadErrorContaining("or extend MappingSpec instead");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Give 'PersonView' setters or a builder for its properties, and getters that answer"
+                  + " null until a value is set, so an omitted field stays null, or extend"
+                  + " MappingSpec instead");
     }
 
     @Test
@@ -1078,8 +1091,8 @@ class MappingProcessorOneDirectionalTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "TicketRequestMappingImpl"))
           .contains(
-              "domain.first().map(LineRequestMappingImpl.INSTANCE.asValidatedBuild()::build)"
-                  + ".ifPresent(v -> wire.setFirst(v));");
+              "wire.setFirst(domain.first()"
+                  + ".map(LineRequestMappingImpl.INSTANCE.asValidatedBuild()::build).orElse(null));");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance(PKG + ".TicketRequestMappingImpl");
@@ -1128,8 +1141,9 @@ class MappingProcessorOneDirectionalTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "BasketRequestMappingImpl"))
           .contains(
-              "domain.lines().map(LineRequestMappingImpl.INSTANCE.asValidatedBuild()::buildAll)"
-                  + ".ifPresent(v -> wire.setLines(v));");
+              "wire.setLines(domain.lines()"
+                  + ".map(LineRequestMappingImpl.INSTANCE.asValidatedBuild()::buildAll)"
+                  + ".orElse(null));");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance(PKG + ".BasketRequestMappingImpl");

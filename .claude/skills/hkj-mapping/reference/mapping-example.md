@@ -193,11 +193,13 @@ one must name its element type: `addAll` cannot be written over a raw receiver w
 unchecked, nor over a wildcard one at all, so a raw or wildcard getter-only `List` is refused
 wherever a `build` is emitted - a sparse `UpdateSpec`, which only reads the property, keeps it.
 The diagnostic names the remedy the cause calls for, and a setter answers both. A domain
-`Optional<T>` bridges to a nullable bean property `T` (empty maps to absent), with no declaration;
-a record wire opts into the same bridge per component with `@OptionalBridge`. The bridge is refused
-onto a getter-only `List`: that getter creates the list on first call, so it has no unset state, and
-an empty `Optional` would read back as a present empty list. Declare the component `List<T>` there,
-where the empty list is the natural encoding of nothing, or give the property both a setter and a getter that returns `null` until one is called - a lazily creating getter loses absence on the read even when a setter exists.
+`Optional<T>` bridges to a nullable bean property `T` (an empty one writes `null`, so the setter or
+builder setter must take it), with no declaration; a record wire opts into the same bridge per
+component with `@OptionalBridge`. The bridge is refused onto a getter-only `List`: that getter
+creates the list on first call, so it cannot hold a `null`, and an empty `Optional` would read back
+as a present empty list. Declare the component `List<T>` there, where the empty list is the natural
+encoding of nothing, or give the property both a setter and a getter that returns what the setter
+stored, since a lazily creating getter loses absence on the read even when a setter exists.
 
 ## Prove the Round-Trip
 

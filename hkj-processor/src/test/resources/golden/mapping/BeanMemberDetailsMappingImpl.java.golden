@@ -24,7 +24,7 @@ public final class MemberDetailsMappingImpl implements MemberDetailsMapping {
     MemberDetailsBean wire = new MemberDetailsBean();
     wire.setName(domain.name());
     wire.setEmail(email().build(domain.email()));
-    domain.nickname().ifPresent(v -> wire.setNickname(v));
+    wire.setNickname(domain.nickname().orElse(null));
     wire.setAge(domain.age());
     return wire;
   }

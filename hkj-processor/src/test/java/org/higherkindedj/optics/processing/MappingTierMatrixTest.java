@@ -48,7 +48,9 @@ import org.junit.jupiter.params.provider.MethodSource;
  * <p>Each case is compiled once, together, under {@code -Xlint:unchecked,rawtypes -Werror}, and
  * then exercised at runtime: every write-back round-trips a domain value, and an unset reference
  * component either locates as {@code must not be null} or, when bridged from an {@code Optional},
- * reads as empty, on every shape alike.
+ * reads as empty, on every shape alike. A bridged bean property's field starts out holding a value,
+ * as a DTO's initialiser gives it, so an empty Optional round-trips only because {@code build}
+ * writes its absence rather than leaving the property as the bean was constructed.
  *
  * <p>The raw and wildcard identity containers are here for the second rule the dense tiers carry:
  * an identity {@code List}, {@code Set} or {@code Map} adds the element null scan only where the
@@ -403,8 +405,8 @@ class MappingTierMatrixTest {
             true,
             false,
             (_, seed) -> Optional.of(List.of(seed))),
-        // A raw element reaches the marker's stub, the patch assembly and the bean's conditional
-        // write, and each answers for it.
+        // A raw element reaches the marker's stub, the patch assembly and the bean's write, and
+        // each answers for it.
         new Case(
             "Optional bridge onto a raw List",
             "bridgedraw",
@@ -476,17 +478,31 @@ class MappingTierMatrixTest {
   }
 
   /**
+   * The value a bridged bean property's field starts out holding: a present one, as a DTO's
+   * initialiser gives it, so that only a {@code build} that writes absence can round-trip an empty
+   * domain Optional.
+   */
+  private static String beanDefault(Case c) {
+    return switch (c.wireType()) {
+      case "String" -> "\"default\"";
+      case "TagDto" -> "new TagDto(\"default\")";
+      default -> "new java.util.ArrayList<>()";
+    };
+  }
+
+  /**
    * The case's sources, in one holder: the domain record with an unprojected primitive {@code id},
-   * then a full and a projection wire of each shape with a spec for each.
+   * then a full and a projection wire of each shape with a spec for each. A bridged bean property's
+   * field is initialised to a present value.
    */
   private static JavaFileObject source(Case c) {
     String beanProperties =
         """
-          private %1$s x;
+          private %1$s x%2$s;
           public %1$s getX() { return x; }
           public void setX(%1$s x) { this.x = x; }
         """
-            .formatted(c.wireType());
+            .formatted(c.wireType(), c.bridged() ? " = " + beanDefault(c) : "");
     String nestedSpec =
         c.nested()
             ? """
@@ -707,6 +723,31 @@ class MappingTierMatrixTest {
         MappingLaws.assertPatchIdentity(patch, d -> invoke(impl, "build", d), domain);
         MappingLaws.assertPatchIdempotent(patch, domain, other);
       }
+    }
+  }
+
+  static Stream<Case> bridgedCases() {
+    return cases().filter(Case::bridged);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("bridgedCases")
+  @DisplayName(
+      "an empty bridged Optional round-trips on every shape, over a bean whose field starts out"
+          + " holding a value")
+  void emptyBridgeRoundTrips(Case c) throws ReflectiveOperationException {
+    Object empty = domain(c, Optional.empty());
+    for (String spec : List.of("RecordFullMapping", "BeanFullMapping")) {
+      Object impl = impl(c, spec);
+      assertThatValidated(parse(impl, invoke(impl, "build", empty)))
+          .as("%s: %s parse(build(d))", c, spec)
+          .isValid()
+          .hasValue(empty);
+    }
+    for (String spec : List.of("RecordProjectionMapping", "BeanProjectionMapping")) {
+      Object impl = impl(c, spec);
+      MappingLaws.assertPatchIdentity(
+          (d, w) -> validated(invoke(impl, "patch", d, w)), d -> invoke(impl, "build", d), empty);
     }
   }
 

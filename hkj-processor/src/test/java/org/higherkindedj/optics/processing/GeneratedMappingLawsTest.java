@@ -1476,8 +1476,9 @@ class GeneratedMappingLawsTest {
     Function<Object, Edits.Accumulated<Object>> updateFrom =
         w -> asAccumulated(invoke(impl, "updateFrom", w));
 
-    // Absent -> identity; a present valid patch changes name/email/age (Integer unboxing into int)
-    // and is idempotent; a present invalid email fails, all through the published harness.
+    // Absent (a freshly constructed bean, as bound from {}) -> identity; a present valid patch
+    // changes name/email/age (Integer unboxing into int) and is idempotent; a present invalid email
+    // fails, all through the published harness.
     MappingLaws.assertMappingLaws(
         updateFrom,
         result.newInstance(
@@ -1485,9 +1486,72 @@ class GeneratedMappingLawsTest {
             "Ada",
             result.newInstance("com.example.EmailAddress", "ada@example.org"),
             36),
-        patchDto(result, null, null, null),
+        result.newInstance("com.example.UserPatchDto"),
         patchDto(result, "Grace", "grace@example.org", 41),
         patchDto(result, null, "not-an-email", null));
+  }
+
+  @Test
+  @DisplayName(
+      "sparse-update tier: the identity law catches a PATCH field initialiser over a freshly"
+          + " constructed bean, which a bean whose setters were handed null would hide")
+  void sparseIdentityCatchesAFieldInitialiser() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Profile",
+            """
+            package com.example;
+
+            import java.util.List;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.UpdateSpec;
+
+            public record Profile(String name, List<String> tags) {}
+
+            @GenerateMapping
+            interface ProfilePatchMapping extends UpdateSpec<Profile, ProfilePatch> {}
+            """);
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.ProfilePatch",
+            """
+            package com.example;
+
+            import java.util.ArrayList;
+            import java.util.List;
+
+            public class ProfilePatch {
+              private String name;
+              private List<String> tags = new ArrayList<>();
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+              public List<String> getTags() { return tags; }
+              public void setTags(List<String> tags) { this.tags = tags; }
+            }
+            """);
+
+    var result = compileMapping(domain, wire);
+    Object impl = result.instance("com.example.ProfilePatchMappingImpl");
+    Function<Object, Edits.Accumulated<Object>> updateFrom =
+        w -> asAccumulated(invoke(impl, "updateFrom", w));
+    var profile =
+        result.loadClass("com.example.Profile").getDeclaredConstructor(String.class, List.class);
+    Object tagged = profile.newInstance("ada", List.of("admin"));
+
+    Object fresh = result.newInstance("com.example.ProfilePatch");
+    Assertions.assertThatThrownBy(() -> MappingLaws.assertSparseIdentity(updateFrom, tagged, fresh))
+        .as("the default [] reads as sent and replaces the domain's tags")
+        .isInstanceOf(AssertionError.class)
+        .hasMessageContaining("Sparse identity law");
+
+    Object nulled = result.newInstance("com.example.ProfilePatch");
+    invoke(nulled, "setTags", (Object) null);
+    MappingLaws.assertSparseIdentity(updateFrom, tagged, nulled);
+    // Against a current value equal to the default the law has nothing to see.
+    MappingLaws.assertSparseIdentity(
+        updateFrom,
+        profile.newInstance("ada", List.of()),
+        result.newInstance("com.example.ProfilePatch"));
   }
 
   @Test

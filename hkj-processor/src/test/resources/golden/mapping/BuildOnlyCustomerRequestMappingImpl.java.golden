@@ -21,7 +21,7 @@ public final class CustomerRequestMappingImpl implements CustomerRequestMapping 
     wire.setName(domain.name());
     wire.setEmail(email().build(domain.email()));
     wire.setTags(domain.tags());
-    domain.nickname().ifPresent(v -> wire.setNickname(v));
+    wire.setNickname(domain.nickname().orElse(null));
     wire.setDisplay(display().get(domain));
     return wire;
   }

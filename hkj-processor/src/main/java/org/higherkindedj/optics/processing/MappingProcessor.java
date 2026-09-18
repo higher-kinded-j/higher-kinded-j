@@ -735,6 +735,12 @@ public class MappingProcessor extends AbstractProcessor {
    * be read from its signature, so a getter-only {@code List} that would in fact answer {@code
    * null} is refused with the rest. That over-refusal buys a diagnostic in place of silent data
    * loss, and the setter it asks for is a line.
+   *
+   * <p>The setter alone is not the remedy. A field initialiser ({@code tags = new ArrayList<>()})
+   * defeats it the same way, as does a getter that still creates its list on first call, and
+   * neither shows in a signature, so a setter-backed property is accepted whatever its field holds.
+   * The fix line therefore names both halves of a property that reads {@code null} when omitted:
+   * the setter, and a getter that answers {@code null} until it is set.
    */
   private boolean checkCollectionGettersCarryAbsence(TypeElement spec, WireShape.BeanShape bean) {
     for (WireShape.BeanProperty property : bean.properties()) {
@@ -760,7 +766,11 @@ public class MappingProcessor extends AbstractProcessor {
                 + property.name()
                 + "' a set"
                 + ProcessorUtils.capitalise(property.name())
-                + " setter, so an omitted field leaves it null.");
+                + " setter, and let "
+                + write.getter()
+                + "() answer null until it is set, with no initialiser on the field and no list"
+                + " created on first call, so an omitted field reads as absent; a generated class"
+                + " whose getter cannot change needs a hand-written PATCH bean instead.");
         return false;
       }
     }
@@ -1127,6 +1137,10 @@ public class MappingProcessor extends AbstractProcessor {
    * property unset: a read-only bean's getter may answer from its constructor or create its value
    * on first call, and either reads as present and overwrites the domain value, with nothing in the
    * signatures to say which. A bean that cannot be read has nothing to fold at all.
+   *
+   * <p>Being written is necessary, not sufficient: a written bean whose field carries an
+   * initialiser reads that default as present just the same, and no signature shows it either, so
+   * the fix line asks for the getter's half as well as the writer.
    */
   private boolean checkPatchBeanTwoWay(TypeElement spec, WireShape.BeanShape bean) {
     WireShape.Direction direction = bean.direction();
@@ -1149,8 +1163,9 @@ public class MappingProcessor extends AbstractProcessor {
               + " overwrites the domain value.",
           "Give '"
               + name
-              + "' setters or a builder for its properties, so an omitted field stays null, or"
-              + " extend MappingSpec instead, whose dense parse needs no absence.");
+              + "' setters or a builder for its properties, and getters that answer null until a"
+              + " value is set, so an omitted field stays null, or extend MappingSpec instead,"
+              + " whose dense parse needs no absence.");
     } else {
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -1244,7 +1259,7 @@ public class MappingProcessor extends AbstractProcessor {
    * property names no element type at all, and a wildcard one names a bound that is a fresh type at
    * every mention. Only the raw author is told to add type arguments; the wildcard author already
    * has one. Both are offered the setter, which takes the property's declared type whatever its
-   * arguments, and which a build can also leave unset.
+   * arguments.
    */
   private void reportUnfillableCollectionGetter(
       TypeElement spec,
@@ -1283,7 +1298,7 @@ public class MappingProcessor extends AbstractProcessor {
             + property.name()
             + "' a "
             + setter
-            + " setter, which takes the property as declared and lets a build leave it unset.");
+            + " setter, which takes the property as declared.");
   }
 
   /**
@@ -1306,11 +1321,11 @@ public class MappingProcessor extends AbstractProcessor {
    * Refuses an {@code Optional} bridge onto a property written through its own getter — the JAXB
    * collection convention, {@code getX().addAll(...)}, which a getter-only {@code List} property
    * takes. The bridge exists to carry absence across a wire that has no {@code Optional}, and this
-   * property cannot hold it: an empty domain {@code Optional} writes nothing, and the getter then
-   * answers with a freshly created empty list, so the round trip would silently return a present
-   * empty value. The two fixes each give the pair an honest encoding — a domain {@code List}, where
-   * empty <em>is</em> nothing, or a property the build can genuinely leave unset, which needs both
-   * a setter and a getter that answers {@code null} until one is called.
+   * property cannot hold it: absence is written as {@code null}, which {@code addAll} cannot take,
+   * and the getter answers with a freshly created empty list, so the round trip would silently
+   * return a present empty value. The two fixes each give the pair an honest encoding: a domain
+   * {@code List}, where empty <em>is</em> nothing, or a property that can hold a {@code null},
+   * which needs both a setter to write it and a getter that returns it rather than creating a list.
    */
   private void reportGetterOnlyBridge(
       TypeElement spec,
@@ -1333,20 +1348,20 @@ public class MappingProcessor extends AbstractProcessor {
             + ", bridged to the getter-only bean property '"
             + wireName
             + "' (not supported yet).",
-        "The bridge encodes an empty Optional as an unwritten property, and '"
+        "The bridge writes an empty Optional as null, and '"
             + wireName
             + "' is written through its own getter (the JAXB convention, "
             + write.getter()
-            + "().addAll(...)), whose list is created on first call — so absence would read back as"
-            + " a present empty list.",
+            + "().addAll(...)), whose list is created on first call, so the property cannot hold a"
+            + " null and absence would read back as a present empty list.",
         "Declare '"
             + name
             + "' as "
             + ProcessorUtils.simpleTypeName(element)
             + ", dropping the Optional, so the property's own empty list encodes nothing, or give '"
             + wireName
-            + "' a setter and a getter that answers null until it is called, so absence can leave"
-            + " the property unset.");
+            + "' a setter and a getter that returns what the setter stored, so absence can be"
+            + " written as null and read back.");
   }
 
   /**
@@ -6430,15 +6445,10 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The expression {@code build} fills a wire component with, from its correspondence.
-   *
-   * <p>Only the {@code Optional} bridge reads the wire shape, because only its write differs: a
-   * bean property is written conditionally by {@link #beanBuildBody} (an empty Optional leaves it
-   * unset, protecting null-hostile setters), while a record component is positional and must be
-   * given the {@code null} itself.
+   * The expression {@code build} fills a wire component with, from its correspondence. The value is
+   * the same on either wire shape; only the write around it differs.
    */
-  private static CodeBlock buildValue(
-      WireShape wire, WireShape.WireComponent wc, List<Correspondence> comps) {
+  private static CodeBlock buildValue(WireShape.WireComponent wc, List<Correspondence> comps) {
     // Classification claims every wire component exactly once before emission, so the lookup
     // cannot miss; there is deliberately no fallback to cover.
     Correspondence c =
@@ -6447,7 +6457,7 @@ public class MappingProcessor extends AbstractProcessor {
       case LEAF, ELEMENTS, ARRAY, MAP, MAP_KEYS, MAP_ENTRIES -> buildCall(c, wc).on(domainRead(c));
       case OPTIONAL -> CodeBlock.of("$L.map($L)", domainRead(c), buildCall(c, wc).asFunction());
       // The domain Optional is carried as-is, or its present value built as the unbridged pair's.
-      case OPTIONAL_BRIDGE -> bridgeBuildValue(wire, wc, c);
+      case OPTIONAL_BRIDGE -> bridgeBuildValue(wc, c);
       case IDENTITY, IDENTITY_ELEMENTS, IDENTITY_MAP -> domainRead(c);
       case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
     };
@@ -6533,48 +6543,20 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The bridged build value: the domain {@code Optional}, carried as-is when its present value
-   * copies, or mapped through the call its unbridged pair's build makes. On a record wire the
-   * component is positional, so the Optional is unwrapped to the {@code null} that encodes absence;
-   * on a bean wire it stays an {@code Optional}, which {@link #beanBuildBody} writes conditionally.
+   * copies, or mapped through the call its unbridged pair's build makes, then unwrapped to the
+   * {@code null} that encodes absence.
+   *
+   * <p>The {@code null} is written on a bean wire too, never skipped. A bean may initialise the
+   * field behind a property ({@code status = "ACTIVE"}), and a skipped write would leave that
+   * default in place for {@code parse} to read back as present, breaking the round trip with
+   * nothing to say so. Writing it makes {@code build} independent of how the bean was constructed.
    */
-  private static CodeBlock bridgeBuildValue(
-      WireShape wire, WireShape.WireComponent wc, Correspondence c) {
+  private static CodeBlock bridgeBuildValue(WireShape.WireComponent wc, Correspondence c) {
     CodeBlock present =
         c.present().prism() == null
             ? domainRead(c)
             : CodeBlock.of("$L.map($L)", domainRead(c), buildCall(c.present(), wc).asFunction());
-    return switch (wire) {
-      case WireShape.RecordShape _ -> CodeBlock.of("$L.orElse(null)", present);
-      case WireShape.BeanShape _ -> present;
-    };
-  }
-
-  /**
-   * The bean {@code build} body: the strategy frames the construction, and each property writes its
-   * build value between the frame. An {@code Optional}-bridged property writes conditionally, so an
-   * empty domain Optional leaves the bean property unset (protecting null-hostile setters).
-   */
-  private static CodeBlock beanBuildBody(
-      WireShape.BeanShape bean, TypeName wireType, List<Correspondence> comps) {
-    // Only a bean that is written reaches a build body, so it has its strategy and write sites.
-    WireShape.ConstructionStrategy strategy = bean.strategy().orElseThrow();
-    String receiver = strategy.receiver();
-    CodeBlock.Builder body = CodeBlock.builder().add(strategy.prologue(wireType));
-    for (WireShape.BeanProperty property : bean.properties()) {
-      Correspondence c =
-          comps.stream()
-              .filter(x -> x.wireName().equals(property.name()))
-              .findFirst()
-              .orElseThrow();
-      CodeBlock value = buildValue(bean, property.asWireComponent(), comps);
-      WireShape.WriteSite write = property.write().orElseThrow();
-      if (c.kind() == Kind.OPTIONAL_BRIDGE) {
-        body.addStatement("$L.ifPresent(v -> $L)", value, write.write(receiver, CodeBlock.of("v")));
-      } else {
-        body.addStatement("$L", write.write(receiver, value));
-      }
-    }
-    return body.add(strategy.epilogue()).build();
+    return CodeBlock.of("$L.orElse(null)", present);
   }
 
   /**
@@ -6582,10 +6564,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock wireBuildBody(
       WireShape wire, TypeName wireName, List<Correspondence> comps) {
-    return switch (wire) {
-      case WireShape.RecordShape r -> r.buildStatements(wireName, wc -> buildValue(r, wc, comps));
-      case WireShape.BeanShape b -> beanBuildBody(b, wireName, comps);
-    };
+    return wire.buildStatements(wireName, wc -> buildValue(wc, comps));
   }
 
   /**
@@ -7865,13 +7844,13 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The suppression a method mapping between the domain and the wire carries: {@code build}, {@code
    * parse}, {@code patch} and {@code updateFrom}. Some of them hold lambdas whose parameters javac
-   * types from either side's components: an element or bridged leg, a bean's conditional write, a
-   * patch's assembly, a chunk's tuple. Which ones do is the emitter's detail, so each method asks
-   * of the whole pair, and one holding no such lambda carries it too: a record's {@code build}, or
-   * a projection's when the raw type is on a component it drops. A flattened group's inner
-   * components are not asked. Their wire side is a wire component already, and their domain side is
-   * written out in one place only, the array-constructor reference of a lifted inner array ({@code
-   * List[]::new}), which javac does not report.
+   * types from either side's components: an element or bridged leg, a patch's assembly, a chunk's
+   * tuple. Which ones do is the emitter's detail, so each method asks of the whole pair, and one
+   * holding no such lambda carries it too: a {@code build} on either wire shape, or a projection's
+   * when the raw type is on a component it drops. A flattened group's inner components are not
+   * asked. Their wire side is a wire component already, and their domain side is written out in one
+   * place only, the array-constructor reference of a lifted inner array ({@code List[]::new}),
+   * which javac does not report.
    */
   private List<AnnotationSpec> pairSuppression(DeclaredType domainDeclared, WireShape wire) {
     TypeElement domain = (TypeElement) domainDeclared.asElement();

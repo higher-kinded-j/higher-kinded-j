@@ -35,7 +35,7 @@ class UpdateSpecExampleTest {
     MappingLaws.assertMappingLaws(
         UpdateSpecExampleUserPatchMappingImpl.INSTANCE::updateFrom,
         new User("Ada", new EmailAddress("ada@corp.example"), 36),
-        request(null, null, null),
+        new UserPatchRequest(), // all-absent, as bound from {}
         request("Grace", "grace@corp.example", 41),
         request(null, "not-an-email", null));
   }
@@ -57,7 +57,7 @@ class UpdateSpecExampleTest {
   void allAbsentIsIdentity() {
     User current = new User("Ada", new EmailAddress("ada@corp.example"), 36);
 
-    var patched = UpdateSpecExample.applyPatch(current, request(null, null, null));
+    var patched = UpdateSpecExample.applyPatch(current, new UserPatchRequest());
 
     assertThat(patched.isValid()).isTrue();
     assertThat(patched.get()).isEqualTo(current);

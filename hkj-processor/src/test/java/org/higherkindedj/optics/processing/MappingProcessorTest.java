@@ -12600,9 +12600,9 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       assertThat(compilation)
           .hadNoteContaining("@OptionalBridge on 'nickname' is redundant on a bean wire");
-      // the bean's own conditional write is unchanged: an empty Optional leaves the property unset
+      // the bean's own bridge is unchanged: an empty Optional writes null, as on a record
       Assertions.assertThat(generatedSource(compilation, "com.example.CustomerBeanMappingImpl"))
-          .contains("domain.nickname().ifPresent(v -> wire.setNickname(v))");
+          .contains("wire.setNickname(domain.nickname().orElse(null))");
     }
 
     @Test

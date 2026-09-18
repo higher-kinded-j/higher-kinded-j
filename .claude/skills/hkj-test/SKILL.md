@@ -373,7 +373,8 @@ MappingLaws.assertMappingLaws(spec.asValidatedPrism(), domainSample);
 MappingLaws.assertMappingLaws(
     Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire);
 
-// sparse update tier (UpdateSpec) -> updateFrom
+// sparse update tier (UpdateSpec) -> updateFrom; allAbsentWire = a freshly constructed bean and
+// current unlike any default, so a default the bean gives itself (defeating absence) fails identity
 MappingLaws.assertMappingLaws(
     Impl.INSTANCE::updateFrom, current, allAbsentWire, validWire, invalidWire);
 
