@@ -56,12 +56,14 @@ package org.higherkindedj.optics.annotations;
  * property is simply never changed.
  *
  * <p>Absence is read, never declared: a property is absent when its getter answers {@code null}, so
- * every PATCH bean property must start out {@code null}. A field initialiser ({@code tags = new
- * ArrayList<>()}, {@code status = "ACTIVE"}) makes an omitted field read as its default, which
- * {@code updateFrom} then writes over the domain value. No signature shows an initialiser, so this
- * cannot be refused: leave PATCH bean fields uninitialised, configure a DTO generator to leave
- * containers {@code null} where it offers that, and give the PATCH schema's properties no {@code
- * default}, which a generator renders as an initialiser.
+ * every PATCH bean getter must answer {@code null} until its property is set. Any default the bean
+ * gives itself, a field initialiser ({@code tags = new ArrayList<>()}, {@code status = "ACTIVE"}),
+ * a value its constructor or builder assigns, or a getter that creates one on first call, makes an
+ * omitted field read as that default, which {@code updateFrom} then writes over the domain value.
+ * No signature shows a default, so this cannot be refused: leave PATCH bean fields uninitialised
+ * and unassigned by the constructor, let each getter return what was set, configure a DTO generator
+ * to leave containers {@code null} where it offers that, and give the PATCH schema's properties no
+ * {@code default}, which a generator renders as an initialiser.
  *
  * <p>A getter-only {@code List} property is rejected: the JAXB convention creates the list on first
  * call, so the property never reads {@code null} and cannot express <em>not provided</em>. Give it

@@ -116,10 +116,11 @@ import java.lang.annotation.Target;
  *       <em>sparse</em> null-as-absent PATCH — the REST {@code PATCH} contract: it generates only
  *       {@code updateFrom(Wire) : Edits.Accumulated<Domain>}, folding the present (non-null) wire
  *       properties into an update and leaving absent ones unchanged. A property is absent only when
- *       its getter answers {@code null}, so a PATCH bean's fields must start out {@code null}: an
- *       initialised one reads its default as sent. The two write-backs are deliberate opposites:
- *       {@code patch} is dense (a missing value is an error), {@code updateFrom} is sparse (a
- *       missing value means keep the current one).
+ *       its getter answers {@code null}, so a PATCH bean's getters must answer {@code null} until
+ *       set: a default the bean gives itself, from a field initialiser, its constructor or a getter
+ *       that creates one, reads as sent. The two write-backs are deliberate opposites: {@code
+ *       patch} is dense (a missing value is an error), {@code updateFrom} is sparse (a missing
+ *       value means keep the current one).
  * </ul>
  */
 @Target(ElementType.TYPE)
