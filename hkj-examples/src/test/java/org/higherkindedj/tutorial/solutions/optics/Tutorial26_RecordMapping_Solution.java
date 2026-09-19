@@ -43,7 +43,8 @@ public class Tutorial26_RecordMapping_Solution {
           3);
 
   // The generated Impls, bound once for the whole class and reused by every exercise. Bind them in
-  // the code that calls them, never as a constant on the spec itself.
+  // the code that calls them, never as a constant on the spec itself ("Bind in the caller, not on
+  // the spec" on the mapping chapter's Basics page says why).
   private static final BookingMappingImpl BOOKING_MAPPING = BookingMappingImpl.INSTANCE;
 
   private static final GuestPatchMappingImpl GUEST_PATCH_MAPPING = GuestPatchMappingImpl.INSTANCE;

@@ -44,7 +44,7 @@ public final class RecordMappingBook {
   public static void main(String[] args) {
     // ANCHOR: basics_usage
     Person person = new Person("Ada", 36);
-    var personMapping = PersonMappingImpl.INSTANCE; // bind once, then reuse
+    PersonMappingImpl personMapping = PersonMappingImpl.INSTANCE; // bind once, reuse
 
     // Same-named, same-typed components match automatically:
     PersonDto dto = personMapping.build(person); // total
@@ -66,9 +66,9 @@ public final class RecordMappingBook {
     System.out.println(ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace")));
 
     // ANCHOR: bridge_usage
-    // Absence travels as null in both directions; a present value still validates.
     var memberMapping = MemberMappingImpl.INSTANCE;
 
+    // Absence travels as null in both directions; a present value still validates.
     memberMapping.build(new Member("Ada", Optional.empty(), Optional.empty()));
     // MemberDto[name=Ada, nickname=null, altEmail=null]
 
@@ -201,19 +201,21 @@ public final class RecordMappingBook {
 
     // ANCHOR: leaf_projection_usage
     Subscriber subscriber = new Subscriber("7", new EmailAddress("ada@corp.example"), 36);
-    var detailsMapping = SubscriberDetailsMappingImpl.INSTANCE;
+    var subscriberDetailsMapping = SubscriberDetailsMappingImpl.INSTANCE;
 
     // The projected components validate and write back; the unprojected id survives untouched.
     Validated<NonEmptyList<FieldError>, Subscriber> renewed =
-        detailsMapping.patch(subscriber, new SubscriberDetailsDto("grace@corp.example", 37));
+        subscriberDetailsMapping.patch(
+            subscriber, new SubscriberDetailsDto("grace@corp.example", 37));
     // Valid(Subscriber[id=7, email=EmailAddress[value=grace@corp.example], age=37])
 
     // Dense semantics: every projected field applies - a null is a located error, never absence.
-    detailsMapping.patch(subscriber, new SubscriberDetailsDto(null, 37));
+    subscriberDetailsMapping.patch(subscriber, new SubscriberDetailsDto(null, 37));
     // Invalid(NonEmptyList[email: must not be null])
     // ANCHOR_END: leaf_projection_usage
     System.out.println(renewed);
-    System.out.println(detailsMapping.patch(subscriber, new SubscriberDetailsDto(null, 37)));
+    System.out.println(
+        subscriberDetailsMapping.patch(subscriber, new SubscriberDetailsDto(null, 37)));
 
     // ANCHOR: bean_projection_usage
     Employee researcher = new Employee("Ada", "Research", 36);

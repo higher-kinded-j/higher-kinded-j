@@ -333,7 +333,7 @@ OrderError error = OrderErrors.outOfStock(products)
 @GenerateMapping
 public interface PersonMapping extends MappingSpec<Person, PersonDto> {}
 
-var personMapping = PersonMappingImpl.INSTANCE;                   // bind once, then reuse
+PersonMappingImpl personMapping = PersonMappingImpl.INSTANCE;     // bind once, reuse
 PersonDto dto = personMapping.build(person);                      // total
 Validated<NonEmptyList<FieldError>, Person> back =
     personMapping.parse(dto);                                     // accumulating, located

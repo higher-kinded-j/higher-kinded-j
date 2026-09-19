@@ -58,19 +58,30 @@ the whole point.
 
 ## Using It
 
+The class that owns the boundary binds the mapping once, typed as the Impl, and reuses it on every
+call:
+
+<!-- verify -->
 ```java
-// In the class that owns the boundary: bind once, reuse on every call (never on the spec itself)
-private static final CustomerMappingImpl CUSTOMER_MAPPING = CustomerMappingImpl.INSTANCE;
+public final class CustomerEndpoint {
 
-CustomerDto dto = CUSTOMER_MAPPING.build(customer);   // total: cannot fail
+  // Bind once, reuse; never as a constant on the spec itself.
+  private static final CustomerMappingImpl CUSTOMER_MAPPING = CustomerMappingImpl.INSTANCE;
 
-Validated<NonEmptyList<FieldError>, Customer> parsed =
-    CUSTOMER_MAPPING.parse(dto);                      // every bad field, not just the first
+  public CustomerDto render(Customer customer) {
+    return CUSTOMER_MAPPING.build(customer);         // total: cannot fail
+  }
 
-return parsed.fold(
-    errors   -> badRequest(errors),      // NonEmptyList<FieldError>, each one located
-    customer -> ok(service.save(customer)));
+  public String accept(CustomerDto dto) {
+    return CUSTOMER_MAPPING.parse(dto).fold(         // every bad field, not just the first
+        errors -> "400 " + errors,                   // NonEmptyList<FieldError>, each one located
+        valid -> "201 " + valid.name());
+  }
+}
 ```
+
+In Spring, a controller can return the `Validated` from `parse` as it is, and it renders as one 422
+carrying every located field error (see `/hkj-spring`).
 
 ## Nesting Is Free
 

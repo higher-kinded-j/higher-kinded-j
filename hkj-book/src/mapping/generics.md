@@ -96,7 +96,7 @@ The third form is **element-mapped**: thread the two sides under *different* var
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:element_usage}}
 ```
 
-The Impl carries the prisms as state, so there is no singleton in either spelling: every `of(...)` call is a fresh, immutable instance.
+The Impl carries the prisms as state, so there is no singleton in either spelling: every `of(...)` call is a fresh, immutable instance. Build one where it is used and reuse it, rather than calling `of(...)` for every parse.
 
 Element-mapped mappings nest as **compositions**. A use site whose pair unifies against one resolves each element pair in turn:
 

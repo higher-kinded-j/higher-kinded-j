@@ -46,20 +46,21 @@ public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
 //                                                   ^domain    ^wire
 ```
 
-Generated: `CustomerMappingImpl`, reached through `INSTANCE`. Bind it once in the calling code and
-reuse it:
+Generated: `CustomerMappingImpl`, reached through `INSTANCE`. When code calls it more than once,
+bind it once, typed as the Impl (the spec interface declares no methods), and reuse it:
 
 <!-- verify -->
 ```java
-var customerMapping = CustomerMappingImpl.INSTANCE;                           // bind once, reuse
+CustomerMappingImpl customerMapping = CustomerMappingImpl.INSTANCE;           // bind once, reuse
 CustomerDto dto = customerMapping.build(customer);                            // total
 Validated<NonEmptyList<FieldError>, Customer> back =
     customerMapping.parse(dto);                                               // accumulating
 ```
 
-Where the binding lives: a local for a few calls in one method, a `private static final` field in
-the class that owns the boundary, or an injected surface (see *Injecting and faking* below). Never
-as a constant on the spec itself; see *Common Mistakes*.
+Where the binding lives: a local for a few calls in one method, a field in the class that owns the
+boundary (`private static final CustomerMappingImpl CUSTOMER_MAPPING`), or an injected surface
+(see *Injecting and faking* below). Never declare it as a constant on the spec itself; *Common
+Mistakes* says why.
 
 Naming rule: the generated class joins the spec's enclosing simple names, then appends `Impl`. A
 top-level `CustomerMapping` gives `CustomerMappingImpl`; one nested inside `Shop` gives
@@ -726,7 +727,7 @@ before rearranging the spec.
 | Mistake | Fix |
 |---------|-----|
 | Annotating the *record* with `@GenerateMapping` | It goes on the **spec interface**. That is what lets you map records you do not own |
-| Declaring the instance on the spec, MapStruct-style (`CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;` inside `CustomerMapping`) | Compiles, but reads `null` whenever the Impl is initialised before the spec and the spec has a `default` method (every leaf and derived field is one): the JVM initialises the spec inside the Impl's own initialisation, before `INSTANCE` is assigned. Bind it in the caller instead: a local, a `private static final` field there, or an injected surface |
+| Declaring the instance on the spec, MapStruct-style (`CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;` inside `CustomerMapping`, or inside a mix-in it extends) | Compiles, but reads `null` (a `NullPointerException` at the first `MAPPER.parse(...)`) whenever the Impl is used before the constant is first read and the interface holding it declares a leaf, a derived field or any `private` helper: the JVM initialises that interface inside the Impl's own initialisation, before `INSTANCE` is assigned. Concurrent first use can deadlock instead. Bind it in the caller: a local, a `private static final CustomerMappingImpl` field there, or an injected surface |
 | Expecting `parse` from a lossy projection | A projection drops data, so it cannot be inverted. You get `asLens()` (all-identity) or the validated `patch` (leaf-carrying, or a bean with a reference property), not `parse` |
 | A PATCH request bean on `MappingSpec` | A bean smaller than the domain compiles as a projection whose `patch` is dense: an unset property is `must not be null`, and an unset bridged `Optional` clears the value. For null-means-keep, extend `UpdateSpec` |
 | One spec extending both `MappingSpec` and `UpdateSpec` | Refused. One Impl carries one tier and the two emit disjoint members. Declare a spec per tier and share renames and leaves through a plain mix-in both extend |

@@ -46,9 +46,10 @@ class RecordMappingBookLawsTest {
   @Test
   void subscriberPatchMappingObeysThePatchLaws() {
     // ANCHOR: patch_laws
+    var subscriberDetailsMapping = SubscriberDetailsMappingImpl.INSTANCE;
     MappingLaws.assertMappingLaws(
-        SubscriberDetailsMappingImpl.INSTANCE::patch,
-        SubscriberDetailsMappingImpl.INSTANCE::build,
+        subscriberDetailsMapping::patch,
+        subscriberDetailsMapping::build,
         new Subscriber("7", new EmailAddress("ada@example.org"), 36), // the current value
         new SubscriberDetailsDto("grace@example.org", 41), // parses and changes the domain
         new SubscriberDetailsDto("not-an-email", 36)); // located failure
