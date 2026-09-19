@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.processing.external;
 
 import java.util.*;
+import java.util.Arrays;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -16,6 +17,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
+import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -547,6 +549,9 @@ public class SpecInterfaceAnalyser {
     // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
     // makes the cast total; 'is a declared type' on its own would not.
     DeclaredType declaredSource = (DeclaredType) sourceType;
+    // Every strategy reads through an accessor, and names it by the lens method where the
+    // annotation does not.
+    String fieldName = method.getSimpleName().toString();
 
     // Check for @ViaBuilder
     AnnotationMirror viaBuilder = findAnnotation(method, VIA_BUILDER_FQN);
@@ -555,6 +560,25 @@ public class SpecInterfaceAnalyser {
       String toBuilder = getAnnotationString(viaBuilder, "toBuilder", "toBuilder");
       String setter = getAnnotationString(viaBuilder, "setter", "");
       String build = getAnnotationString(viaBuilder, "build", "build");
+      if (readsThroughUnusableGetter(
+              method,
+              "@ViaBuilder",
+              declaredSource,
+              sourceTypeElement,
+              getter.isEmpty() ? fieldName : getter,
+              focusType,
+              targetPackage)
+          || rebuildsThroughUnusableBuilder(
+              method,
+              declaredSource,
+              sourceTypeElement,
+              toBuilder,
+              setter.isEmpty() ? fieldName : setter,
+              build,
+              focusType,
+              targetPackage)) {
+        return Optional.empty();
+      }
       return Optional.of(
           new CopyStrategyResult(
               CopyStrategyKind.VIA_BUILDER,
@@ -572,8 +596,16 @@ public class SpecInterfaceAnalyser {
     if (wither != null) {
       String getter = getAnnotationString(wither, "getter", "");
       String witherMethod = getAnnotationString(wither, "value", "");
-      if (rebuildsThroughUnusableWither(
-          method, declaredSource, sourceTypeElement, focusType, witherMethod, targetPackage)) {
+      if (readsThroughUnusableGetter(
+              method,
+              "@Wither",
+              declaredSource,
+              sourceTypeElement,
+              getter.isEmpty() ? fieldName : getter,
+              focusType,
+              targetPackage)
+          || rebuildsThroughUnusableWither(
+              method, declaredSource, sourceTypeElement, focusType, witherMethod, targetPackage)) {
         return Optional.empty();
       }
       return Optional.of(
@@ -593,6 +625,18 @@ public class SpecInterfaceAnalyser {
         return Optional.empty();
       }
       String[] parameterOrder = getAnnotationStringArray(viaConstructor, "parameterOrder");
+      if (readsThroughUnusableGetter(
+              method,
+              "@ViaConstructor",
+              declaredSource,
+              sourceTypeElement,
+              fieldName,
+              focusType,
+              targetPackage)
+          || rebuildsThroughUnreadableParameter(
+              method, declaredSource, sourceTypeElement, parameterOrder, targetPackage)) {
+        return Optional.empty();
+      }
       return Optional.of(
           new CopyStrategyResult(
               CopyStrategyKind.VIA_CONSTRUCTOR,
@@ -610,6 +654,24 @@ public class SpecInterfaceAnalyser {
       }
       String copyConstructor = getAnnotationString(viaCopyAndSet, "copyConstructor", "");
       String setter = getAnnotationString(viaCopyAndSet, "setter", "");
+      if (readsThroughUnusableGetter(
+              method,
+              "@ViaCopyAndSet",
+              declaredSource,
+              sourceTypeElement,
+              fieldName,
+              focusType,
+              targetPackage)
+          || setsThroughUnusableSetter(
+              method,
+              "@ViaCopyAndSet",
+              declaredSource,
+              sourceTypeElement,
+              setter,
+              focusType,
+              targetPackage)) {
+        return Optional.empty();
+      }
       TypeMirror written = writtenFocusType(method, declaredSource, sourceTypeElement, "", setter);
       if (copyConstructor.isEmpty()) {
         return Optional.of(
@@ -643,6 +705,738 @@ public class SpecInterfaceAnalyser {
             + "' to set through it, and only the strategy says how that type is copied.",
         "Add @ViaBuilder, @Wither, @ViaConstructor, or @ViaCopyAndSet to the method.");
     return Optional.empty();
+  }
+
+  /**
+   * The methods of a type the generated class can call, in the order {@code getAllMembers} reads
+   * them.
+   */
+  private List<ExecutableElement> callableMembers(TypeElement type, String targetPackage) {
+    return ElementFilter.methodsIn(elementUtils.getAllMembers(type)).stream()
+        .filter(member -> callableOn(member, targetPackage))
+        .toList();
+  }
+
+  /** The zero-parameter instance method of that name, which an accessor call needs, or null. */
+  private ExecutableElement accessorNamed(List<ExecutableElement> members, String name) {
+    return members.stream()
+        .filter(
+            member ->
+                member.getSimpleName().contentEquals(name)
+                    && member.getParameters().isEmpty()
+                    && !member.getModifiers().contains(Modifier.STATIC))
+        .findFirst()
+        .orElse(null);
+  }
+
+  /** The element of a type a generated call is made on, or null where the type has none. */
+  private TypeElement elementOf(TypeMirror type) {
+    return typeUtils.asElement(type) instanceof TypeElement element ? element : null;
+  }
+
+  /**
+   * The type a further call in a chain is made on: the step's own type, or for a step declared with
+   * a type variable of its own the bound that variable carries, which is what javac infers it to
+   * where nothing else pins it down. A bound naming more than one type leaves no single type to
+   * read members on, and answers null for the caller to leave to javac.
+   */
+  private TypeMirror stepType(TypeMirror handedBack) {
+    if (handedBack.getKind() != TypeKind.TYPEVAR) {
+      return handedBack;
+    }
+    TypeMirror bound = ((TypeVariable) handedBack).getUpperBound();
+    return bound.getKind() == TypeKind.INTERSECTION ? null : bound;
+  }
+
+  /**
+   * The type a lens hands its focus back as, for checking what an accessor reads: the focus itself,
+   * or null for a focus written as a wildcard, whose type javac infers from the accessor rather
+   * than the other way about.
+   */
+  private TypeMirror focusRead(TypeMirror focusType) {
+    return focusType.getKind() == TypeKind.WILDCARD ? null : focusType;
+  }
+
+  /**
+   * Reports an accessor a generated optic calls and the type does not have.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param tag the strategy annotation, which the message names
+   * @param owner the type the call is made on
+   * @param ownerElement that type's element, whose members are searched
+   * @param name the method the annotation names
+   * @param purpose what the generated optic calls it for, as a verb phrase
+   * @param on what the call is made on, as the reason names it
+   * @param fix the remedy, since only some of the strategies carry an attribute to point at
+   * @param targetPackage the package the optics class is generated into
+   */
+  private void reportMissingAccessor(
+      ExecutableElement method,
+      String tag,
+      TypeMirror owner,
+      TypeElement ownerElement,
+      String name,
+      String purpose,
+      String on,
+      String fix,
+      String targetPackage) {
+    String ownerName = ProcessorUtils.simpleTypeName(owner);
+    List<String> accessors =
+        callableMembers(ownerElement, targetPackage).stream()
+            .filter(
+                member ->
+                    member.getParameters().isEmpty()
+                        && !member.getModifiers().contains(Modifier.STATIC))
+            .map(member -> member.getSimpleName().toString())
+            .distinct()
+            .sorted()
+            .toList();
+    Diagnostics.error(
+        messager,
+        method,
+        tag,
+        "'"
+            + ownerName
+            + "' has no method '"
+            + name
+            + "()' for the generated lens to "
+            + purpose
+            + ".",
+        "The generated lens calls '"
+            + name
+            + "()' on "
+            + on
+            + ", so it needs a zero-parameter instance method of that name that the generated"
+            + " class in '"
+            + targetPackage
+            + "' can call."
+            + ProcessorUtils.nearestName(name, accessors)
+                .map(near -> " Did you mean '" + near + "'?")
+                .orElse(""),
+        fix);
+  }
+
+  /**
+   * Reports a getter the generated lens cannot read its focus through, and returns whether it did.
+   *
+   * <p>Every strategy reads with the same lambda, {@code source -> source.getX()}, so the name has
+   * to be a zero-parameter instance method the generated class can call, and the value it reads has
+   * to be one the lens can hand back as its focus. A focus written as a wildcard is inferred from
+   * this very accessor, so there is nothing to hold it to.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param tag the strategy annotation, which the message names
+   * @param sourceType the source type {@code S}, as the spec names it
+   * @param sourceTypeElement the element of {@code S}, whose members are searched
+   * @param getterName the accessor the strategy reads through
+   * @param focusType the lens's focus
+   * @param targetPackage the package the optics class is generated into
+   * @return true when the lens cannot read through it, and an error was reported
+   */
+  private boolean readsThroughUnusableGetter(
+      ExecutableElement method,
+      String tag,
+      DeclaredType sourceType,
+      TypeElement sourceTypeElement,
+      String getterName,
+      TypeMirror focusType,
+      String targetPackage) {
+    if (sourceType.getKind() == TypeKind.ERROR) {
+      return false;
+    }
+    ExecutableElement getter =
+        accessorNamed(callableMembers(sourceTypeElement, targetPackage), getterName);
+    String ownerName = ProcessorUtils.simpleTypeName(sourceType);
+    // @ViaCopyAndSet and @ViaConstructor read through the lens method's own name, and carry no
+    // attribute that could point anywhere else.
+    boolean namesItsGetter = tag.equals("@Wither") || tag.equals("@ViaBuilder");
+    if (getter == null) {
+      reportMissingAccessor(
+          method,
+          tag,
+          sourceType,
+          sourceTypeElement,
+          getterName,
+          "read the value it focuses",
+          "'source'",
+          namesItsGetter
+              ? "Set " + tag + "'s 'getter' to a method '" + ownerName + "' declares."
+              : "Name the lens method after a zero-parameter method '"
+                  + ownerName
+                  + "' declares, which is the accessor this strategy reads through.",
+          targetPackage);
+      return true;
+    }
+    // Read on the captured source, as the call reads it: a value a wildcard types is a type of
+    // its own there, and one the lens can hand back.
+    TypeMirror read =
+        ProcessorUtils.returnTypeIn(
+            typeUtils, (DeclaredType) typeUtils.capture(sourceType), getter);
+    TypeMirror focus = focusRead(focusType);
+    if (focus == null || typeUtils.isAssignable(read, focus)) {
+      return false;
+    }
+    // Named as the spec's own instantiation writes it, which is what the author reads, and in
+    // full where a simple name would name both types.
+    TypeMirror declaredRead = ProcessorUtils.returnTypeIn(typeUtils, sourceType, getter);
+    boolean sameName =
+        ProcessorUtils.simpleTypeName(declaredRead).equals(ProcessorUtils.simpleTypeName(focus));
+    String focusName = sameName ? focus.toString() : ProcessorUtils.simpleTypeName(focus);
+    String readName =
+        sameName ? declaredRead.toString() : ProcessorUtils.simpleTypeName(declaredRead);
+    // A focus is a type argument, so a primitive read is declared as its wrapper.
+    String readAsFocus =
+        declaredRead.getKind().isPrimitive()
+            ? ProcessorUtils.simpleTypeName(
+                typeUtils.boxedClass((PrimitiveType) declaredRead).asType())
+            : readName;
+    Diagnostics.error(
+        messager,
+        method,
+        tag,
+        "'"
+            + getterName
+            + "()' reads '"
+            + readName
+            + "', not the lens's focus '"
+            + focusName
+            + "'.",
+        "The generated lens reads through 'source."
+            + getterName
+            + "()' and hands what it reads back as its focus, which '"
+            + readName
+            + "' is not.",
+        (namesItsGetter
+                ? "Point " + tag + "'s 'getter' at an accessor that reads '" + focusName + "'"
+                : "Name the lens method after an accessor that reads '" + focusName + "'")
+            // A lens can be declared over what an accessor reads, unless it reads nothing, or a
+            // type only a wildcard stands for, neither of which can be written as a focus.
+            + (declaredRead.getKind() == TypeKind.VOID
+                    || declaredRead.getKind() == TypeKind.WILDCARD
+                ? "."
+                : ", or declare the lens over '"
+                    + readAsFocus
+                    + "' and rebuild it through a method that takes one."));
+    return true;
+  }
+
+  /**
+   * Reports a setter a generated lens cannot set through on the source type, and returns whether it
+   * did.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param tag the strategy annotation, which the message names
+   * @param sourceType the source type {@code S}, as the spec names it
+   * @param sourceTypeElement the element of {@code S}, whose members are searched
+   * @param setterName the method the strategy sets through
+   * @param focusType the lens's focus, which the call passes
+   * @param targetPackage the package the optics class is generated into
+   * @return true when no method of the name can take the value, and an error was reported
+   */
+  private boolean setsThroughUnusableSetter(
+      ExecutableElement method,
+      String tag,
+      DeclaredType sourceType,
+      TypeElement sourceTypeElement,
+      String setterName,
+      TypeMirror focusType,
+      String targetPackage) {
+    if (sourceType.getKind() == TypeKind.ERROR) {
+      return false;
+    }
+    return boundSetter(
+            method,
+            tag,
+            sourceType,
+            sourceTypeElement,
+            setterName,
+            focusType,
+            "setter",
+            ProcessorUtils.simpleTypeName(sourceType),
+            targetPackage)
+        instanceof SetterCall.Refused;
+  }
+
+  /**
+   * What a generated one-argument call on {@code owner} comes to.
+   *
+   * <p>A focus written as a wildcard leaves the choice to javac, as it does for a wither, so the
+   * call is undecided there rather than refused, and so is one javac settles by inference.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param tag the strategy annotation, which the message names
+   * @param owner the type the call is made on
+   * @param ownerElement that type's element, whose members are searched
+   * @param setterName the method the strategy sets through
+   * @param focusType the lens's focus, which the call passes
+   * @param attribute the annotation attribute that names it
+   * @param sourceName the source type, which a remedy offers another strategy for
+   * @param targetPackage the package the optics class is generated into
+   * @return the method the call binds, a refusal that has been reported, or undecided
+   */
+  private SetterCall boundSetter(
+      ExecutableElement method,
+      String tag,
+      DeclaredType owner,
+      TypeElement ownerElement,
+      String setterName,
+      TypeMirror focusType,
+      String attribute,
+      String sourceName,
+      String targetPackage) {
+    List<ExecutableElement> named =
+        callableMembers(ownerElement, targetPackage).stream()
+            .filter(member -> member.getSimpleName().contentEquals(setterName))
+            .toList();
+    List<ExecutableElement> oneParameter =
+        named.stream().filter(member -> member.getParameters().size() == 1).toList();
+    if (named.isEmpty()) {
+      reportMissingSetter(method, tag, owner, ownerElement, setterName, attribute, targetPackage);
+      return new SetterCall.Refused();
+    }
+    if (focusRead(focusType) == null) {
+      if (oneParameter.isEmpty()) {
+        reportSetterOfAnotherArity(method, tag, owner, setterName, named, attribute, sourceName);
+        return new SetterCall.Refused();
+      }
+      // Which of several such methods the call binds is javac's to settle, and so is what it
+      // hands back; where the name carries only one, that is the one.
+      return oneParameter.size() == 1
+          ? new SetterCall.Binds(oneParameter.getFirst())
+          : new SetterCall.Undecided();
+    }
+    String call = "'" + setterName + "(newValue)'";
+    return switch (WitherBinding.resolve(typeUtils, owner, focusType, named)) {
+      case WitherBinding.Binds(ExecutableElement bound) -> {
+        if (!bound.getModifiers().contains(Modifier.STATIC)) {
+          yield new SetterCall.Binds(bound);
+        }
+        Diagnostics.error(
+            messager,
+            method,
+            tag,
+            "'"
+                + signatureOn(owner, bound)
+                + "' is static, so the generated lens cannot set through it on a '"
+                + ProcessorUtils.simpleTypeName(owner)
+                + "'.",
+            "The generated lens sets through "
+                + call
+                + " with the new value typed '"
+                + ProcessorUtils.simpleTypeName(focusType)
+                + "', which binds that method, and a static method never reads the value it is"
+                + " called on.",
+            "Set " + tag + "'s '" + attribute + "' to an instance method.");
+        yield new SetterCall.Refused();
+      }
+      case WitherBinding.NoneApplies() -> {
+        Diagnostics.error(
+            messager,
+            method,
+            tag,
+            "No method '"
+                + setterName
+                + "' of '"
+                + ProcessorUtils.simpleTypeName(owner)
+                + "' takes the lens's focus type '"
+                + ProcessorUtils.simpleTypeName(focusType)
+                + "'.",
+            "The generated lens sets through "
+                + call
+                + " with the new value typed '"
+                + ProcessorUtils.simpleTypeName(focusType)
+                + "'. Found on '"
+                + ProcessorUtils.simpleTypeName(owner)
+                + "': "
+                + named.stream().map(member -> signatureOn(owner, member)).toList()
+                + ".",
+            "Set "
+                + tag
+                + "'s '"
+                + attribute
+                + "' to a method that takes the value the getter reads"
+                + (tag.equals("@ViaBuilder")
+                    ? ", or point @ViaBuilder's 'getter' at an accessor one of them takes and"
+                        + " declare the focus as its type"
+                    : "")
+                + "; otherwise "
+                + rebuildWith(sourceName, tag)
+                + ".");
+        yield new SetterCall.Refused();
+      }
+      case WitherBinding.Ambiguous(List<ExecutableElement> methods) -> {
+        List<String> signatures =
+            methods.stream().map(member -> "'" + signatureOn(owner, member) + "'").toList();
+        Diagnostics.error(
+            messager,
+            method,
+            tag,
+            "The generated call to '"
+                + setterName
+                + "' on a '"
+                + ProcessorUtils.simpleTypeName(owner)
+                + "' cannot choose between "
+                + String.join(", ", signatures.subList(0, signatures.size() - 1))
+                + " and "
+                + signatures.getLast()
+                + ".",
+            "The generated lens sets through "
+                + call
+                + " with the new value typed '"
+                + ProcessorUtils.simpleTypeName(focusType)
+                + "', which each of them takes, with no parameter more specific than every other.",
+            "Declare the lens's focus as the parameter type of the one you mean.");
+        yield new SetterCall.Refused();
+      }
+      case WitherBinding.Undecided(List<ExecutableElement> ignored) -> new SetterCall.Undecided();
+    };
+  }
+
+  /**
+   * What a generated setter call came to: the method it binds, a refusal already reported, or a
+   * choice javac settles for itself.
+   */
+  private sealed interface SetterCall {
+
+    /**
+     * The call binds this method.
+     *
+     * @param method the method the call binds
+     */
+    record Binds(ExecutableElement method) implements SetterCall {}
+
+    /** No method of the name can take the value, and an error was reported. */
+    record Refused() implements SetterCall {}
+
+    /** Which method the call binds rests on inference, so the rest is left to javac. */
+    record Undecided() implements SetterCall {}
+  }
+
+  /** Reports a setter no overload of which takes one argument, whatever the lens's focus is. */
+  private void reportSetterOfAnotherArity(
+      ExecutableElement method,
+      String tag,
+      DeclaredType owner,
+      String setterName,
+      List<ExecutableElement> named,
+      String attribute,
+      String sourceName) {
+    String ownerName = ProcessorUtils.simpleTypeName(owner);
+    Diagnostics.error(
+        messager,
+        method,
+        tag,
+        "No method '" + setterName + "' of '" + ownerName + "' takes one argument.",
+        "The generated lens sets through '"
+            + setterName
+            + "(newValue)', passing the one value it sets. Found on '"
+            + ownerName
+            + "': "
+            + named.stream().map(member -> signatureOn(owner, member)).toList()
+            + ".",
+        "Set "
+            + tag
+            + "'s '"
+            + attribute
+            + "' to a method that takes the value the lens sets; otherwise "
+            + rebuildWith(sourceName, tag)
+            + ".");
+  }
+
+  /** Reports a setter the generated optic calls and the type does not have. */
+  private void reportMissingSetter(
+      ExecutableElement method,
+      String tag,
+      TypeMirror owner,
+      TypeElement ownerElement,
+      String setterName,
+      String attribute,
+      String targetPackage) {
+    String ownerName = ProcessorUtils.simpleTypeName(owner);
+    List<String> setters =
+        callableMembers(ownerElement, targetPackage).stream()
+            .filter(
+                member ->
+                    member.getParameters().size() == 1
+                        && !member.getModifiers().contains(Modifier.STATIC))
+            .map(member -> member.getSimpleName().toString())
+            .distinct()
+            .sorted()
+            .toList();
+    Diagnostics.error(
+        messager,
+        method,
+        tag,
+        "'"
+            + ownerName
+            + "' has no method '"
+            + setterName
+            + "' for the generated lens to set"
+            + " through.",
+        "The generated lens sets through '"
+            + setterName
+            + "(newValue)' on '"
+            + ownerName
+            + "', so it needs a method of that name there that the generated class in '"
+            + targetPackage
+            + "' can call."
+            + ProcessorUtils.nearestName(setterName, setters)
+                .map(near -> " Did you mean '" + near + "'?")
+                .orElse(""),
+        "Set " + tag + "'s '" + attribute + "' to a method '" + ownerName + "' declares.");
+  }
+
+  /**
+   * Reports a {@code @ViaBuilder} whose chain the generated lens cannot walk, and returns whether
+   * it did.
+   *
+   * <p>The lens rebuilds with {@code source.toBuilder().setter(newValue).build()}, so each step has
+   * to exist where the one before it leads: the builder the source hands back, the setter that
+   * takes the focus, and a {@code build} that hands the source type back.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param sourceType the source type {@code S}, as the spec names it
+   * @param sourceTypeElement the element of {@code S}, whose members are searched
+   * @param toBuilderName the method that hands back the builder
+   * @param setterName the builder method that takes the focus
+   * @param buildName the builder method that hands the source type back
+   * @param focusType the lens's focus
+   * @param targetPackage the package the optics class is generated into
+   * @return true when the chain cannot be walked, and an error was reported
+   */
+  private boolean rebuildsThroughUnusableBuilder(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      TypeElement sourceTypeElement,
+      String toBuilderName,
+      String setterName,
+      String buildName,
+      TypeMirror focusType,
+      String targetPackage) {
+    if (sourceType.getKind() == TypeKind.ERROR) {
+      return false;
+    }
+    ExecutableElement toBuilder =
+        accessorNamed(callableMembers(sourceTypeElement, targetPackage), toBuilderName);
+    if (toBuilder == null) {
+      reportMissingAccessor(
+          method,
+          "@ViaBuilder",
+          sourceType,
+          sourceTypeElement,
+          toBuilderName,
+          "rebuild through",
+          "'source'",
+          "Set @ViaBuilder's 'toBuilder' to a method '"
+              + ProcessorUtils.simpleTypeName(sourceType)
+              + "' declares.",
+          targetPackage);
+      return true;
+    }
+    TypeMirror builderType =
+        stepType(ProcessorUtils.returnTypeIn(typeUtils, sourceType, toBuilder));
+    if (builderType == null || builderType.getKind() == TypeKind.ERROR) {
+      return false;
+    }
+    TypeElement builderElement = elementOf(builderType);
+    if (builderElement == null) {
+      reportBuilderStep(method, toBuilderName + "()", builderType, "a builder to set through");
+      return true;
+    }
+    if (reportsUnnameableStep(
+        method, builderElement, toBuilderName + "()", sourceType, targetPackage)) {
+      return true;
+    }
+    SetterCall setter =
+        boundSetter(
+            method,
+            "@ViaBuilder",
+            (DeclaredType) builderType,
+            builderElement,
+            setterName,
+            focusType,
+            "setter",
+            ProcessorUtils.simpleTypeName(sourceType),
+            targetPackage);
+    // Which method an undecided call binds is javac's to settle, so what it hands back is too.
+    if (!(setter instanceof SetterCall.Binds(ExecutableElement bound))) {
+      return setter instanceof SetterCall.Refused;
+    }
+    TypeMirror setType =
+        stepType(ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) builderType, bound));
+    if (setType == null || setType.getKind() == TypeKind.ERROR) {
+      return false;
+    }
+    TypeElement setElement = elementOf(setType);
+    if (setElement == null) {
+      reportBuilderStep(
+          method,
+          signatureOn((DeclaredType) builderType, bound),
+          setType,
+          "a builder to build from");
+      return true;
+    }
+    if (reportsUnnameableStep(
+        method,
+        setElement,
+        signatureOn((DeclaredType) builderType, bound),
+        sourceType,
+        targetPackage)) {
+      return true;
+    }
+    ExecutableElement build = accessorNamed(callableMembers(setElement, targetPackage), buildName);
+    if (build == null) {
+      reportMissingAccessor(
+          method,
+          "@ViaBuilder",
+          setType,
+          setElement,
+          buildName,
+          "finish the value it rebuilds",
+          "the '" + ProcessorUtils.simpleTypeName(setType) + "' the setter hands back",
+          "Set @ViaBuilder's 'build' to a method '"
+              + ProcessorUtils.simpleTypeName(setType)
+              + "' declares.",
+          targetPackage);
+      return true;
+    }
+    TypeMirror built = ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) setType, build);
+    if (typeUtils.isAssignable(built, sourceType)) {
+      return false;
+    }
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    String builtName = ProcessorUtils.simpleTypeName(built);
+    Diagnostics.error(
+        messager,
+        method,
+        "@ViaBuilder",
+        "'" + buildName + "()' returns '" + builtName + "', not the source type '" + source + "'.",
+        "The generated lens finishes with '"
+            + buildName
+            + "()' and hands its result back as the source type '"
+            + source
+            + "', which '"
+            + builtName
+            + "' is not.",
+        "Set @ViaBuilder's 'build' to the method that finishes a '"
+            + source
+            + "', or "
+            + rebuildWith(source, "@ViaBuilder")
+            + ".");
+    return true;
+  }
+
+  /**
+   * Reports a builder step that hands back a type the generated class cannot name, and returns
+   * whether it did: its members may all be public, and a call on a type out of reach is a compile
+   * error in a file its author never wrote.
+   */
+  private boolean reportsUnnameableStep(
+      ExecutableElement method,
+      TypeElement step,
+      String stepCall,
+      DeclaredType sourceType,
+      String targetPackage) {
+    if (isVisibleFrom(step, targetPackage)) {
+      return false;
+    }
+    Diagnostics.error(
+        messager,
+        method,
+        "@ViaBuilder",
+        "'"
+            + step.getSimpleName()
+            + "', which '"
+            + stepCall
+            + "' hands back, cannot be named from '"
+            + targetPackage
+            + "'.",
+        "The generated lens rebuilds through that type, and a class it cannot see is a compile"
+            + " error in a file its author never wrote.",
+        "Make '"
+            + step.getSimpleName()
+            + "' public, or "
+            + rebuildWith(ProcessorUtils.simpleTypeName(sourceType), "@ViaBuilder")
+            + ".");
+    return true;
+  }
+
+  /** Reports a builder step that hands back something no further call can be made on. */
+  private void reportBuilderStep(
+      ExecutableElement method, String step, TypeMirror handedBack, String wanted) {
+    String handedBackName = ProcessorUtils.simpleTypeName(handedBack);
+    Diagnostics.error(
+        messager,
+        method,
+        "@ViaBuilder",
+        "'" + step + "' hands back '" + handedBackName + "', which is not " + wanted + ".",
+        "The generated lens rebuilds with"
+            + " 'source.toBuilder().setter(newValue).build()', and each step is called on what the"
+            + " step before it hands back.",
+        "Name the builder methods this type's chain declares, or rebuild it with @Wither,"
+            + " @ViaConstructor or @ViaCopyAndSet.");
+  }
+
+  /**
+   * Reports a {@code @ViaConstructor} parameter order naming an accessor the source type does not
+   * have, and returns whether it did.
+   *
+   * <p>Every name but the lens's own reads an argument, {@code source.x()}, for the constructor
+   * call the lens rebuilds with.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param sourceType the source type {@code S}, as the spec names it
+   * @param sourceTypeElement the element of {@code S}, whose members are searched
+   * @param parameterOrder the names the annotation carries
+   * @param targetPackage the package the optics class is generated into
+   * @return true when one of them names no accessor, and an error was reported
+   */
+  private boolean rebuildsThroughUnreadableParameter(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      TypeElement sourceTypeElement,
+      String[] parameterOrder,
+      String targetPackage) {
+    if (sourceType.getKind() == TypeKind.ERROR) {
+      return false;
+    }
+    String fieldName = method.getSimpleName().toString();
+    if (parameterOrder.length > 0
+        && Arrays.stream(parameterOrder).noneMatch(parameter -> parameter.equals(fieldName))) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@ViaConstructor",
+          "'parameterOrder' names no argument for the lens's own '" + fieldName + "'.",
+          "The generated lens rebuilds '"
+              + ProcessorUtils.simpleTypeName(sourceType)
+              + "' from the order given, and passes the value it sets where the lens's own name"
+              + " stands; naming it nowhere would set nothing.",
+          "Add '"
+              + fieldName
+              + "' to @ViaConstructor's 'parameterOrder', at the place the constructor takes it.");
+      return true;
+    }
+    List<ExecutableElement> members = callableMembers(sourceTypeElement, targetPackage);
+    for (String parameter : parameterOrder) {
+      if (parameter.equals(fieldName) || accessorNamed(members, parameter) != null) {
+        continue;
+      }
+      reportMissingAccessor(
+          method,
+          "@ViaConstructor",
+          sourceType,
+          sourceTypeElement,
+          parameter,
+          "read the argument '" + parameter + "'",
+          "'source'",
+          "Name in @ViaConstructor's 'parameterOrder' the accessors '"
+              + ProcessorUtils.simpleTypeName(sourceType)
+              + "' declares, in the order its constructor takes them.",
+          targetPackage);
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -830,7 +1624,7 @@ public class SpecInterfaceAnalyser {
           "@Wither",
           "'" + source + "' has no method '" + witherName + "' for the generated lens to call.",
           sets + " No one-parameter instance method of '" + source + "' hands it back.",
-          ProcessorUtils.capitalise(rebuildWith(source)) + ".");
+          ProcessorUtils.capitalise(rebuildWith(source, "@Wither")) + ".");
       return;
     }
     List<String> names =
@@ -864,7 +1658,7 @@ public class SpecInterfaceAnalyser {
             + "' that takes the value '"
             + ProcessorUtils.simpleTypeName(focusType)
             + "' the getter reads, or "
-            + rebuildWith(source)
+            + rebuildWith(source, "@Wither")
             + ".");
   }
 
@@ -907,10 +1701,10 @@ public class SpecInterfaceAnalyser {
             : found,
         (wildcardSource
                 ? "Declare the spec over the type each wildcard stands for, or "
-                    + rebuildWith(source)
+                    + rebuildWith(source, "@Wither")
                 : "Name a wither that takes the value the getter reads, or point 'getter' at an"
                     + " accessor one of them takes and declare the focus as its type; otherwise "
-                    + rebuildWith(source))
+                    + rebuildWith(source, "@Wither"))
             + ".");
   }
 
@@ -938,7 +1732,7 @@ public class SpecInterfaceAnalyser {
         settingThrough(witherName, argument)
             + ", which each of them takes, with no parameter more specific than every other.",
         "Declare the lens's focus as the parameter type of the one you mean, or "
-            + rebuildWith(source)
+            + rebuildWith(source, "@Wither")
             + ".");
   }
 
@@ -972,7 +1766,7 @@ public class SpecInterfaceAnalyser {
         sets + ", and a static method never reads the '" + source + "' it is called on.",
         "Declare the lens's focus as the parameter type of an instance overload, name an instance"
             + " wither, or "
-            + rebuildWith(source)
+            + rebuildWith(source, "@Wither")
             + ".");
   }
 
@@ -1024,13 +1818,22 @@ public class SpecInterfaceAnalyser {
             + source
             + "', or declare the spec over the type the wither does return when that is an"
             + " instantiation of the same class; otherwise "
-            + rebuildWith(source)
+            + rebuildWith(source, "@Wither")
             + ".");
   }
 
   /** The remedy every wither refusal ends on, for a diagnostic's fix: an unfinished clause. */
-  private static String rebuildWith(String source) {
-    return "rebuild '" + source + "' with @ViaBuilder, @ViaConstructor or @ViaCopyAndSet";
+  private static String rebuildWith(String source, String tag) {
+    List<String> others =
+        List.of("@Wither", "@ViaBuilder", "@ViaConstructor", "@ViaCopyAndSet").stream()
+            .filter(strategy -> !strategy.equals(tag))
+            .toList();
+    return "rebuild '"
+        + source
+        + "' with "
+        + String.join(", ", others.subList(0, others.size() - 1))
+        + " or "
+        + others.getLast();
   }
 
   /** How the generated setter calls the wither, for a diagnostic's reason: an unfinished clause. */

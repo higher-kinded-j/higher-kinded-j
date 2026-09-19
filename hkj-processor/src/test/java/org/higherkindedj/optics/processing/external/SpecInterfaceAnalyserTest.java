@@ -283,7 +283,22 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name, int age) {}
+              public record Person(String name, int age) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name, age); }
+                  public Builder newBuilder() { return new Builder(name, age); }
+
+                  public static final class Builder {
+                      private String name;
+                      private int age;
+                      Builder(String name, int age) { this.name = name; this.age = age; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Builder age(int age) { this.age = age; return this; }
+                      public Person build() { return new Person(name, age); }
+                      public Person create() { return new Person(name, age); }
+                  }
+              }
               """);
 
       var spec =
@@ -315,7 +330,22 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name, int age) {}
+              public record Person(String name, int age) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name, age); }
+                  public Builder newBuilder() { return new Builder(name, age); }
+
+                  public static final class Builder {
+                      private String name;
+                      private int age;
+                      Builder(String name, int age) { this.name = name; this.age = age; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Builder age(int age) { this.age = age; return this; }
+                      public Person build() { return new Person(name, age); }
+                      public Person create() { return new Person(name, age); }
+                  }
+              }
               """);
 
       var spec =
@@ -353,7 +383,22 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name, int age) {}
+              public record Person(String name, int age) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name, age); }
+                  public Builder newBuilder() { return new Builder(name, age); }
+
+                  public static final class Builder {
+                      private String name;
+                      private int age;
+                      Builder(String name, int age) { this.name = name; this.age = age; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Builder age(int age) { this.age = age; return this; }
+                      public Person build() { return new Person(name, age); }
+                      public Person create() { return new Person(name, age); }
+                  }
+              }
               """);
 
       var spec =
@@ -389,7 +434,22 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name, int age) {}
+              public record Person(String name, int age) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name, age); }
+                  public Builder newBuilder() { return new Builder(name, age); }
+
+                  public static final class Builder {
+                      private String name;
+                      private int age;
+                      Builder(String name, int age) { this.name = name; this.age = age; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Builder age(int age) { this.age = age; return this; }
+                      public Person build() { return new Person(name, age); }
+                      public Person create() { return new Person(name, age); }
+                  }
+              }
               """);
 
       var spec =
@@ -429,7 +489,20 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name) {}
+              public record Person(String name) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name); }
+                  public Builder newBuilder() { return new Builder(name); }
+
+                  public static final class Builder {
+                      private String name;
+                      Builder(String name) { this.name = name; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Person build() { return new Person(name); }
+                      public Person create() { return new Person(name); }
+                  }
+              }
               """);
 
       var spec =
@@ -541,7 +614,20 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name) {}
+              public record Person(String name) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name); }
+                  public Builder newBuilder() { return new Builder(name); }
+
+                  public static final class Builder {
+                      private String name;
+                      Builder(String name) { this.name = name; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Person build() { return new Person(name); }
+                      public Person create() { return new Person(name); }
+                  }
+              }
               """);
 
       var spec =
@@ -577,7 +663,20 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name) {}
+              public record Person(String name) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name); }
+                  public Builder newBuilder() { return new Builder(name); }
+
+                  public static final class Builder {
+                      private String name;
+                      Builder(String name) { this.name = name; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Person build() { return new Person(name); }
+                      public Person create() { return new Person(name); }
+                  }
+              }
               """);
 
       var spec =
@@ -801,7 +900,20 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name) {}
+              public record Person(String name) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name); }
+                  public Builder newBuilder() { return new Builder(name); }
+
+                  public static final class Builder {
+                      private String name;
+                      Builder(String name) { this.name = name; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Person build() { return new Person(name); }
+                      public Person create() { return new Person(name); }
+                  }
+              }
               """);
 
       var spec =
@@ -829,7 +941,20 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name) {}
+              public record Person(String name) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name); }
+                  public Builder newBuilder() { return new Builder(name); }
+
+                  public static final class Builder {
+                      private String name;
+                      Builder(String name) { this.name = name; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Person build() { return new Person(name); }
+                      public Person create() { return new Person(name); }
+                  }
+              }
               """);
 
       var spec =
@@ -907,7 +1032,20 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name) {}
+              public record Person(String name) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name); }
+                  public Builder newBuilder() { return new Builder(name); }
+
+                  public static final class Builder {
+                      private String name;
+                      Builder(String name) { this.name = name; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Person build() { return new Person(name); }
+                      public Person create() { return new Person(name); }
+                  }
+              }
               """);
 
       var spec =
@@ -943,6 +1081,7 @@ class SpecInterfaceAnalyserTest {
               public class Squad {
                   public java.util.List<String> members;
                   public Squad() {}
+                  public java.util.List<String> readMembers() { return members; }
                   public Squad withMembers(java.util.List<String> members) {
                       Squad copy = new Squad();
                       copy.members = members;
@@ -966,7 +1105,7 @@ class SpecInterfaceAnalyserTest {
                   @ThroughField(field = "members")
                   Traversal<Squad, String> eachMember();
 
-                  @Wither("withMembers")
+                  @Wither(value = "withMembers", getter = "readMembers")
                   Lens<Squad, java.util.List<String>> members();
               }
               """);
@@ -989,6 +1128,7 @@ class SpecInterfaceAnalyserTest {
               public class GenericSquad<T> {
                   public T members;
                   public GenericSquad() {}
+                  public T readMembers() { return members; }
                   public GenericSquad<T> withMembers(T members) {
                       GenericSquad<T> copy = new GenericSquad<>();
                       copy.members = members;
@@ -1013,7 +1153,7 @@ class SpecInterfaceAnalyserTest {
                   @ThroughField(field = "members")
                   Traversal<GenericSquad<List<String>>, String> eachMember();
 
-                  @Wither("withMembers")
+                  @Wither(value = "withMembers", getter = "readMembers")
                   Lens<GenericSquad<List<String>>, List<String>> members();
               }
               """);
@@ -1132,7 +1272,20 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name) {}
+              public record Person(String name) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name); }
+                  public Builder newBuilder() { return new Builder(name); }
+
+                  public static final class Builder {
+                      private String name;
+                      Builder(String name) { this.name = name; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Person build() { return new Person(name); }
+                      public Person create() { return new Person(name); }
+                  }
+              }
               """);
 
       var spec =
@@ -1176,7 +1329,22 @@ class SpecInterfaceAnalyserTest {
               "com.test.Person",
               """
               package com.test;
-              public record Person(String name, int age) {}
+              public record Person(String name, int age) {
+                  public String getName() { return name; }
+                  public Builder toBuilder() { return new Builder(name, age); }
+                  public Builder newBuilder() { return new Builder(name, age); }
+
+                  public static final class Builder {
+                      private String name;
+                      private int age;
+                      Builder(String name, int age) { this.name = name; this.age = age; }
+                      public Builder name(String name) { this.name = name; return this; }
+                      public Builder withName(String name) { this.name = name; return this; }
+                      public Builder age(int age) { this.age = age; return this; }
+                      public Person build() { return new Person(name, age); }
+                      public Person create() { return new Person(name, age); }
+                  }
+              }
               """);
 
       var spec =

@@ -1875,6 +1875,1164 @@ class SpecInterfaceProcessingTest {
   }
 
   @Nested
+  @DisplayName("Strategy Method Names")
+  class StrategyMethodNames {
+
+    /** A class in {@code com.external}, the package every spec here imports from. */
+    private static JavaFileObject external(String simpleName, String body) {
+      return JavaFileObjects.forSourceString(
+          "com.external." + simpleName, "package com.external;\n\n" + body);
+    }
+
+    /**
+     * A spec interface in {@code com.myapp}, with the external classes and annotations in scope.
+     */
+    private static JavaFileObject spec(String simpleName, String body) {
+      return JavaFileObjects.forSourceString(
+          "com.myapp." + simpleName,
+          """
+          package com.myapp;
+
+          import com.external.*;
+          import org.higherkindedj.optics.Lens;
+          import org.higherkindedj.optics.annotations.*;
+
+          """
+              + body);
+    }
+
+    private static Compilation compile(JavaFileObject... sources) {
+      return javac()
+          .withProcessors(new ImportOpticsProcessor())
+          .withOptions("-Xlint:unchecked,rawtypes,static", "-Werror")
+          .compile(sources);
+    }
+
+    /**
+     * A class every strategy can be pointed at, with a builder and a setter that work, beside the
+     * shapes the checks turn away: a static {@code stamp()}, a {@code label(int)} that takes an
+     * argument, and a {@code size()} that reads another type.
+     */
+    private static JavaFileObject account() {
+      return external(
+          "Account",
+          """
+          public final class Account {
+              private final String id;
+              private String host;
+
+              public Account(String id) { this.id = id; }
+              public Account(Account other) { this.id = other.id; this.host = other.host; }
+
+              public String id() { return id; }
+              public String getId() { return id; }
+              public int size() { return id.length(); }
+              public static String stamp() { return ""; }
+              public static void setDefault(String host) {}
+              public String label(int index) { return id; }
+              public void setHost(String host) { this.host = host; }
+              public Account withId(String id) { return new Account(id); }
+              public Builder toBuilder() { return new Builder(id); }
+
+              public static final class Builder {
+                  private String id;
+                  Builder(String id) { this.id = id; }
+                  public Builder id(String id) { this.id = id; return this; }
+                  public Account build() { return new Account(id); }
+              }
+          }
+          """);
+    }
+
+    @Test
+    @DisplayName("a getter the source type does not have is refused, whichever strategy reads it")
+    void getterTheSourceTypeDoesNotHaveIsRefused() {
+      // @Wither and @ViaBuilder name their getter, and are told to point it somewhere real;
+      // @ViaCopyAndSet and @ViaConstructor read through the lens method's own name, and carry no
+      // attribute that could point anywhere else.
+      var compilation =
+          compile(
+              account(),
+              spec(
+                  "WitherSpec",
+                  """
+                  @ImportOptics
+                  public interface WitherSpec extends OpticsSpec<Account> {
+                      @Wither(value = "withId", getter = "ident")
+                      Lens<Account, String> id();
+                  }
+                  """),
+              spec(
+                  "BuilderSpec",
+                  """
+                  @ImportOptics
+                  public interface BuilderSpec extends OpticsSpec<Account> {
+                      @ViaBuilder(getter = "ident")
+                      Lens<Account, String> id();
+                  }
+                  """),
+              spec(
+                  "CopySpec",
+                  """
+                  @ImportOptics
+                  public interface CopySpec extends OpticsSpec<Account> {
+                      @ViaCopyAndSet(setter = "setHost")
+                      Lens<Account, String> ident();
+                  }
+                  """),
+              spec(
+                  "ConstructorSpec",
+                  """
+                  @ImportOptics
+                  public interface ConstructorSpec extends OpticsSpec<Account> {
+                      @ViaConstructor(parameterOrder = {"ident"})
+                      Lens<Account, String> ident();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'Account' has no method 'ident()' for the generated lens to read the value"
+                  + " it focuses. The generated lens calls 'ident()' on 'source', so it needs a"
+                  + " zero-parameter instance method of that name that the generated class in"
+                  + " 'com.myapp' can call. Set @Wither's 'getter' to a method 'Account'"
+                  + " declares.");
+      assertThat(compilation)
+          .hadErrorContaining("@ViaBuilder: 'Account' has no method 'ident()' for the generated");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaCopyAndSet: 'Account' has no method 'ident()' for the generated lens to read the"
+                  + " value it focuses.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name the lens method after a zero-parameter method 'Account' declares, which is the"
+                  + " accessor this strategy reads through.");
+      assertThat(compilation).hadErrorCount(4);
+    }
+
+    @Test
+    @DisplayName("a static method, and one that takes an argument, are not accessors")
+    void staticMethodAndOneThatTakesAnArgumentAreNotAccessors() {
+      var compilation =
+          compile(
+              account(),
+              spec(
+                  "StampSpec",
+                  """
+                  @ImportOptics
+                  public interface StampSpec extends OpticsSpec<Account> {
+                      @Wither(value = "withId", getter = "stamp")
+                      Lens<Account, String> id();
+                  }
+                  """),
+              spec(
+                  "LabelSpec",
+                  """
+                  @ImportOptics
+                  public interface LabelSpec extends OpticsSpec<Account> {
+                      @Wither(value = "withId", getter = "label")
+                      Lens<Account, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("@Wither: 'Account' has no method 'stamp()' for the generated lens");
+      assertThat(compilation)
+          .hadErrorContaining("@Wither: 'Account' has no method 'label()' for the generated lens");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("a getter that reads another type is refused, with the focus it reads")
+    void getterThatReadsAnotherTypeIsRefused() {
+      // The pairing a spec exists to declare still has to typecheck: LocalDate's withMonth(int)
+      // beside getMonth() is this shape.
+      var compilation =
+          compile(
+              account(),
+              spec(
+                  "SizedSpec",
+                  """
+                  @ImportOptics
+                  public interface SizedSpec extends OpticsSpec<Account> {
+                      @Wither(value = "withId", getter = "size")
+                      Lens<Account, String> id();
+                  }
+                  """),
+              spec(
+                  "SizedCopySpec",
+                  """
+                  @ImportOptics
+                  public interface SizedCopySpec extends OpticsSpec<Account> {
+                      @ViaCopyAndSet(setter = "setHost")
+                      Lens<Account, String> size();
+                  }
+                  """),
+              external(
+                  "Dated",
+                  """
+                  public final class Dated {
+                      private final int month;
+                      public Dated(int month) { this.month = month; }
+                      public String getMonth() { return String.valueOf(month); }
+                      public Dated withMonth(int month) { return new Dated(month); }
+                  }
+                  """),
+              spec(
+                  "DatedOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface DatedOpticsSpec extends OpticsSpec<Dated> {
+                      @Wither(value = "withMonth", getter = "getMonth")
+                      Lens<Dated, Integer> month();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'size()' reads 'int', not the lens's focus 'String'. The generated lens"
+                  + " reads through 'source.size()' and hands what it reads back as its focus,"
+                  + " which 'int' is not. Point @Wither's 'getter' at an accessor that reads"
+                  + " 'String', or declare the lens over 'Integer' and rebuild it through a method"
+                  + " that takes one.");
+      // Read through the lens method's own name, there is no attribute to point anywhere else.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaCopyAndSet: 'size()' reads 'int', not the lens's focus 'String'. The generated"
+                  + " lens reads through 'source.size()' and hands what it reads back as its focus,"
+                  + " which 'int' is not. Name the lens method after an accessor that reads"
+                  + " 'String', or declare the lens over 'Integer' and rebuild it through a method"
+                  + " that takes one.");
+      // A reference read keeps its own name where the lens could be declared over it.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'getMonth()' reads 'String', not the lens's focus 'Integer'. The generated"
+                  + " lens reads through 'source.getMonth()' and hands what it reads back as its"
+                  + " focus, which 'String' is not. Point @Wither's 'getter' at an accessor that"
+                  + " reads 'Integer', or declare the lens over 'String' and rebuild it through a"
+                  + " method that takes one.");
+      assertThat(compilation).hadErrorCount(3);
+    }
+
+    @Test
+    @DisplayName("each step of a builder chain is held to what the step before it hands back")
+    void eachStepOfABuilderChainIsHeldToWhatTheStepBeforeItHandsBack() {
+      var compilation =
+          compile(
+              account(),
+              external(
+                  "Flat",
+                  """
+                  public final class Flat {
+                      private final String id;
+                      public Flat(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public int toBuilder() { return 0; }
+                  }
+                  """),
+              external(
+                  "Odd",
+                  """
+                  public final class Odd {
+                      private final String id;
+                      public Odd(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public void id(String id) {}
+                          public String build() { return ""; }
+                      }
+                  }
+                  """),
+              external(
+                  "Half",
+                  """
+                  public final class Half {
+                      private final String id;
+                      public Half(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Builder id(String id) { return this; }
+                          public String build() { return ""; }
+                      }
+                  }
+                  """),
+              spec(
+                  "MissingBuilderSpec",
+                  """
+                  @ImportOptics
+                  public interface MissingBuilderSpec extends OpticsSpec<Account> {
+                      @ViaBuilder(getter = "id", toBuilder = "builder")
+                      Lens<Account, String> id();
+                  }
+                  """),
+              spec(
+                  "MissingSetterSpec",
+                  """
+                  @ImportOptics
+                  public interface MissingSetterSpec extends OpticsSpec<Account> {
+                      @ViaBuilder(getter = "id", setter = "ident")
+                      Lens<Account, String> id();
+                  }
+                  """),
+              spec(
+                  "MissingBuildSpec",
+                  """
+                  @ImportOptics
+                  public interface MissingBuildSpec extends OpticsSpec<Account> {
+                      @ViaBuilder(getter = "id", build = "create")
+                      Lens<Account, String> id();
+                  }
+                  """),
+              spec(
+                  "FlatSpec",
+                  """
+                  @ImportOptics
+                  public interface FlatSpec extends OpticsSpec<Flat> {
+                      @ViaBuilder
+                      Lens<Flat, String> id();
+                  }
+                  """),
+              spec(
+                  "OddSpec",
+                  """
+                  @ImportOptics
+                  public interface OddSpec extends OpticsSpec<Odd> {
+                      @ViaBuilder
+                      Lens<Odd, String> id();
+                  }
+                  """),
+              spec(
+                  "HalfSpec",
+                  """
+                  @ImportOptics
+                  public interface HalfSpec extends OpticsSpec<Half> {
+                      @ViaBuilder
+                      Lens<Half, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Account' has no method 'builder()' for the generated lens to rebuild"
+                  + " through.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Account.Builder' has no method 'ident' for the generated lens to set"
+                  + " through. The generated lens sets through 'ident(newValue)' on"
+                  + " 'Account.Builder', so it needs a method of that name there that the generated"
+                  + " class in 'com.myapp' can call. Set @ViaBuilder's 'setter' to a method"
+                  + " 'Account.Builder' declares.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Account.Builder' has no method 'create()' for the generated lens to"
+                  + " finish the value it rebuilds. The generated lens calls 'create()' on the"
+                  + " 'Account.Builder' the setter hands back");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'toBuilder()' hands back 'int', which is not a builder to set"
+                  + " through.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'id(String)' hands back 'void', which is not a builder to build"
+                  + " from.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'build()' returns 'String', not the source type 'Half'. The generated"
+                  + " lens finishes with 'build()' and hands its result back as the source type"
+                  + " 'Half', which 'String' is not. Set @ViaBuilder's 'build' to the method that"
+                  + " finishes a 'Half', or rebuild 'Half' with @Wither, @ViaConstructor or"
+                  + " @ViaCopyAndSet.");
+      assertThat(compilation).hadErrorCount(6);
+    }
+
+    @Test
+    @DisplayName("a setter the call cannot bind is refused, on a builder and on the source")
+    void setterTheCallCannotBindIsRefused() {
+      var compilation =
+          compile(
+              account(),
+              external(
+                  "Picky",
+                  """
+                  public final class Picky {
+                      private final String id;
+                      public Picky(String id) { this.id = id; }
+                      public Picky(Picky other) { this.id = other.id; }
+                      public String id() { return id; }
+                      public void setId(Integer id) {}
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Builder id(java.io.Serializable id) { return this; }
+                          public Builder id(CharSequence id) { return this; }
+                          public Picky build() { return new Picky(""); }
+                      }
+                  }
+                  """),
+              spec(
+                  "PickyCopySpec",
+                  """
+                  @ImportOptics
+                  public interface PickyCopySpec extends OpticsSpec<Picky> {
+                      @ViaCopyAndSet(setter = "setId")
+                      Lens<Picky, String> id();
+                  }
+                  """),
+              spec(
+                  "PickyBuilderSpec",
+                  """
+                  @ImportOptics
+                  public interface PickyBuilderSpec extends OpticsSpec<Picky> {
+                      @ViaBuilder
+                      Lens<Picky, String> id();
+                  }
+                  """),
+              spec(
+                  "MissingCopySetterSpec",
+                  """
+                  @ImportOptics
+                  public interface MissingCopySetterSpec extends OpticsSpec<Account> {
+                      @ViaCopyAndSet(setter = "setHots")
+                      Lens<Account, String> getId();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaCopyAndSet: No method 'setId' of 'Picky' takes the lens's focus type 'String'."
+                  + " The generated lens sets through 'setId(newValue)' with the new value typed"
+                  + " 'String'. Found on 'Picky': [setId(Integer)]. Set @ViaCopyAndSet's 'setter'"
+                  + " to a method that takes the value the getter reads; otherwise rebuild 'Picky'"
+                  + " with @Wither, @ViaBuilder or @ViaConstructor.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: The generated call to 'id' on a 'Picky.Builder' cannot choose between"
+                  + " 'id(Serializable)' and 'id(CharSequence)'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaCopyAndSet: 'Account' has no method 'setHots' for the generated lens to set"
+                  + " through.");
+      assertThat(compilation).hadErrorContaining("Did you mean 'setHost'?");
+      assertThat(compilation).hadErrorCount(3);
+    }
+
+    @Test
+    @DisplayName("a static setter the call binds is refused")
+    void staticSetterTheCallBindsIsRefused() {
+      var compilation =
+          compile(
+              external(
+                  "Fixed",
+                  """
+                  public final class Fixed {
+                      private final String id;
+                      public Fixed(String id) { this.id = id; }
+                      public Fixed(Fixed other) { this.id = other.id; }
+                      public String id() { return id; }
+                      public static void setId(String id) {}
+                  }
+                  """),
+              spec(
+                  "FixedSpec",
+                  """
+                  @ImportOptics
+                  public interface FixedSpec extends OpticsSpec<Fixed> {
+                      @ViaCopyAndSet(setter = "setId")
+                      Lens<Fixed, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaCopyAndSet: 'setId(String)' is static, so the generated lens cannot set through"
+                  + " it on a 'Fixed'. The generated lens sets through 'setId(newValue)' with the"
+                  + " new value typed 'String', which binds that method, and a static method never"
+                  + " reads the value it is called on. Set @ViaCopyAndSet's 'setter' to an instance"
+                  + " method.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a parameterOrder name that reads nothing is refused")
+    void parameterOrderNameThatReadsNothingIsRefused() {
+      var compilation =
+          compile(
+              external(
+                  "Point",
+                  """
+                  public final class Point {
+                      private final int x;
+                      private final int y;
+                      public Point(int x, int y) { this.x = x; this.y = y; }
+                      public int x() { return x; }
+                      public int y() { return y; }
+                  }
+                  """),
+              spec(
+                  "PointSpec",
+                  """
+                  @ImportOptics
+                  public interface PointSpec extends OpticsSpec<Point> {
+                      @ViaConstructor(parameterOrder = {"x", "yy"})
+                      Lens<Point, Integer> x();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: 'Point' has no method 'yy()' for the generated lens to read the"
+                  + " argument 'yy'. The generated lens calls 'yy()' on 'source', so it needs a"
+                  + " zero-parameter instance method of that name that the generated class in"
+                  + " 'com.myapp' can call. Did you mean 'y'? Name in @ViaConstructor's"
+                  + " 'parameterOrder' the accessors 'Point' declares, in the order its"
+                  + " constructor takes them.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an accessor reading another type is named in full where the names collide")
+    void accessorReadingAnotherTypeIsNamedInFullWhereTheNamesCollide() {
+      var compilation =
+          compile(
+              external(
+                  "Ticket",
+                  """
+                  public final class Ticket {
+                      private final Id id;
+                      public Ticket(Id id) { this.id = id; }
+                      public Id id() { return id; }
+                      public Ticket withId(Id id) { return new Ticket(id); }
+                  }
+                  """),
+              external("Id", "public final class Id {}\n"),
+              JavaFileObjects.forSourceString(
+                  "com.myapp.Id",
+                  """
+                  package com.myapp;
+
+                  public final class Id {}
+                  """),
+              spec(
+                  "TicketOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TicketOpticsSpec extends OpticsSpec<Ticket> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Ticket, com.myapp.Id> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'id()' reads 'com.external.Id', not the lens's focus 'com.myapp.Id'.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an accessor reading nothing, or a type a wildcard stands in, is offered no focus")
+    void accessorReadingNothingIsOfferedNoFocus() {
+      // A lens can be declared over what an accessor reads, but neither 'void' nor the type a
+      // wildcard stands for can be written as a focus, so only the accessor is offered.
+      var compilation =
+          compile(
+              external(
+                  "Blank",
+                  """
+                  public final class Blank {
+                      private final String id;
+                      public Blank(String id) { this.id = id; }
+                      public void id() {}
+                      public String label() { return id; }
+                      public Blank withId(String id) { return new Blank(id); }
+                  }
+                  """),
+              external(
+                  "Cell2",
+                  """
+                  public final class Cell2<T> {
+                      private final T value;
+                      public Cell2(T value) { this.value = value; }
+                      public T value() { return value; }
+                      public Cell2<T> withValue(String value) { return this; }
+                  }
+                  """),
+              spec(
+                  "BlankOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BlankOpticsSpec extends OpticsSpec<Blank> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Blank, String> id();
+                  }
+                  """),
+              spec(
+                  "Cell2OpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface Cell2OpticsSpec extends OpticsSpec<Cell2<?>> {
+                      @Wither(value = "withValue", getter = "value")
+                      Lens<Cell2<?>, String> value();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'id()' reads 'void', not the lens's focus 'String'. The generated lens"
+                  + " reads through 'source.id()' and hands what it reads back as its focus, which"
+                  + " 'void' is not. Point @Wither's 'getter' at an accessor that reads 'String'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'value()' reads '?', not the lens's focus 'String'. The generated lens"
+                  + " reads through 'source.value()' and hands what it reads back as its focus,"
+                  + " which '?' is not. Point @Wither's 'getter' at an accessor that reads"
+                  + " 'String'.");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("a builder setter that takes no focus offers the getter as well as the setter")
+    void builderSetterThatTakesNoFocusOffersTheGetterAsWell() {
+      // @ViaBuilder names both halves, so the remedy can move either one; the wither's twin says
+      // the same, and neither sends the author round in a circle.
+      var compilation =
+          compile(
+              external(
+                  "Ledger2",
+                  """
+                  public final class Ledger2 {
+                      private final String id;
+                      public Ledger2(String id) { this.id = id; }
+                      public String getId() { return id; }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Builder id(Integer id) { return this; }
+                          public Ledger2 build() { return new Ledger2(""); }
+                      }
+                  }
+                  """),
+              spec(
+                  "Ledger2OpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface Ledger2OpticsSpec extends OpticsSpec<Ledger2> {
+                      @ViaBuilder(getter = "getId")
+                      Lens<Ledger2, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: No method 'id' of 'Ledger2.Builder' takes the lens's focus type"
+                  + " 'String'. The generated lens sets through 'id(newValue)' with the new value"
+                  + " typed 'String'. Found on 'Ledger2.Builder': [id(Integer)]. Set @ViaBuilder's"
+                  + " 'setter' to a method that takes the value the getter reads, or point"
+                  + " @ViaBuilder's 'getter' at an accessor one of them takes and declare the focus"
+                  + " as its type; otherwise rebuild 'Ledger2' with @Wither, @ViaConstructor or"
+                  + " @ViaCopyAndSet.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a builder step declared with a type variable is read on what it is bound to")
+    void builderStepDeclaredWithATypeVariableIsReadOnWhatItIsBoundTo() {
+      // javac infers such a step to the variable's bound where nothing else pins it down, and the
+      // chain is read there too.
+      var compilation =
+          compile(
+              external(
+                  "Crate",
+                  """
+                  public final class Crate {
+                      private final String id;
+                      public Crate(String id) { this.id = id; }
+                      public String getId() { return id; }
+
+                      @SuppressWarnings("unchecked")
+                      public <B extends CrateBuilder> B toBuilder() {
+                          return (B) new CrateBuilder();
+                      }
+                  }
+                  """),
+              external(
+                  "CrateBuilder",
+                  """
+                  public class CrateBuilder {
+                      private String id;
+                      public CrateBuilder id(String id) { this.id = id; return this; }
+                      public Crate build() { return new Crate(id); }
+                  }
+                  """),
+              spec(
+                  "CrateOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CrateOpticsSpec extends OpticsSpec<Crate> {
+                      @ViaBuilder(getter = "getId")
+                      Lens<Crate, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.CrateOptics", "source.toBuilder().id(newValue).build()");
+    }
+
+    @Test
+    @DisplayName("a builder step bounded by more than one type is left to javac")
+    void builderStepBoundedByMoreThanOneTypeIsLeftToJavac() {
+      // A bound naming more than one type leaves no single type to read the next call on, and
+      // javac infers the step perfectly well from the bound itself. Crock's toBuilder is bounded
+      // that way, and Crank's setter is.
+      var compilation =
+          compile(
+              external(
+                  "Crock",
+                  """
+                  public final class Crock {
+                      private final String id;
+                      public Crock(String id) { this.id = id; }
+                      public String getId() { return id; }
+
+                      @SuppressWarnings("unchecked")
+                      public <B extends CrockBuilder & Cloneable> B toBuilder() {
+                          return (B) new CrockBuilder();
+                      }
+                  }
+                  """),
+              external(
+                  "CrockBuilder",
+                  """
+                  public class CrockBuilder implements Cloneable {
+                      private String id;
+
+                      @SuppressWarnings("unchecked")
+                      public <B extends CrockBuilder & Cloneable> B id(String id) {
+                          this.id = id;
+                          return (B) this;
+                      }
+
+                      public Crock build() { return new Crock(id); }
+                  }
+                  """),
+              external(
+                  "Crank",
+                  """
+                  public final class Crank {
+                      private final String id;
+                      public Crank(String id) { this.id = id; }
+                      public String getId() { return id; }
+                      public CrankBuilder toBuilder() { return new CrankBuilder(); }
+                  }
+                  """),
+              external(
+                  "CrankBuilder",
+                  """
+                  public class CrankBuilder implements Cloneable {
+                      private String id;
+
+                      @SuppressWarnings("unchecked")
+                      public <B extends CrankBuilder & Cloneable> B id(String id) {
+                          this.id = id;
+                          return (B) this;
+                      }
+
+                      public Crank build() { return new Crank(id); }
+                  }
+                  """),
+              spec(
+                  "CrockOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CrockOpticsSpec extends OpticsSpec<Crock> {
+                      @ViaBuilder(getter = "getId")
+                      Lens<Crock, String> id();
+                  }
+                  """),
+              spec(
+                  "CrankOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CrankOpticsSpec extends OpticsSpec<Crank> {
+                      @ViaBuilder(getter = "getId")
+                      Lens<Crank, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a type the setter hands back that cannot be named is refused too")
+    void typeTheSetterHandsBackThatCannotBeNamedIsRefused() {
+      var compilation =
+          compile(
+              external(
+                  "Staged",
+                  """
+                  public final class Staged {
+                      private final String id;
+                      public Staged(String id) { this.id = id; }
+                      public String getId() { return id; }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public Step id(String id) { return new Step(); }
+                      }
+                  }
+
+                  class Step {
+                      public Staged build() { return new Staged(""); }
+                  }
+                  """),
+              spec(
+                  "StagedOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface StagedOpticsSpec extends OpticsSpec<Staged> {
+                      @ViaBuilder(getter = "getId")
+                      Lens<Staged, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Step', which 'id(String)' hands back, cannot be named from"
+                  + " 'com.myapp'.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a builder the generated class cannot name is refused, whatever its members are")
+    void builderTheGeneratedClassCannotNameIsRefused() {
+      var compilation =
+          compile(
+              external(
+                  "Sealed",
+                  """
+                  public final class Sealed {
+                      private final String id;
+                      public Sealed(String id) { this.id = id; }
+                      public String getId() { return id; }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      static final class Builder {
+                          public Builder id(String id) { return this; }
+                          public Sealed build() { return new Sealed(""); }
+                      }
+                  }
+                  """),
+              spec(
+                  "SealedOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SealedOpticsSpec extends OpticsSpec<Sealed> {
+                      @ViaBuilder(getter = "getId")
+                      Lens<Sealed, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaBuilder: 'Builder', which 'toBuilder()' hands back, cannot be named from"
+                  + " 'com.myapp'. The generated lens rebuilds through that type, and a class it"
+                  + " cannot see is a compile error in a file its author never wrote. Make"
+                  + " 'Builder' public, or rebuild 'Sealed' with @Wither, @ViaConstructor or"
+                  + " @ViaCopyAndSet.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a setter with no one-argument overload is refused, whatever the focus is")
+    void setterWithNoOneArgumentOverloadIsRefused() {
+      // Arity does not depend on the focus, so a wildcard one is no reason to leave this to javac.
+      var compilation =
+          compile(
+              external(
+                  "Pairy",
+                  """
+                  public final class Pairy {
+                      private String id;
+                      public Pairy() {}
+                      public Pairy(Pairy other) { this.id = other.id; }
+                      public String getId() { return id; }
+                      public void setId(String id, boolean flag) { this.id = id; }
+                  }
+                  """),
+              spec(
+                  "PairyOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PairyOpticsSpec extends OpticsSpec<Pairy> {
+                      @ViaCopyAndSet(setter = "setId")
+                      Lens<Pairy, ? extends CharSequence> getId();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaCopyAndSet: No method 'setId' of 'Pairy' takes one argument. The generated lens"
+                  + " sets through 'setId(newValue)', passing the one value it sets. Found on"
+                  + " 'Pairy': [setId(String, boolean)]. Set @ViaCopyAndSet's 'setter' to a method"
+                  + " that takes the value the lens sets; otherwise rebuild 'Pairy' with @Wither,"
+                  + " @ViaBuilder or @ViaConstructor.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName(
+        "a parameterOrder that never names the lens is refused, since it would set nothing")
+    void parameterOrderThatNeverNamesTheLensIsRefused() {
+      var compilation =
+          compile(
+              external(
+                  "Tagged2",
+                  """
+                  public final class Tagged2 {
+                      private final String id;
+                      private final String tag;
+                      public Tagged2(String id, String tag) {
+                          this.id = id;
+                          this.tag = tag;
+                      }
+                      public String id() { return id; }
+                      public String tag() { return tag; }
+                  }
+                  """),
+              spec(
+                  "Tagged2OpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface Tagged2OpticsSpec extends OpticsSpec<Tagged2> {
+                      @ViaConstructor(parameterOrder = {"tag", "tag"})
+                      Lens<Tagged2, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ViaConstructor: 'parameterOrder' names no argument for the lens's own 'id'. The"
+                  + " generated lens rebuilds 'Tagged2' from the order given, and passes the value"
+                  + " it sets where the lens's own name stands; naming it nowhere would set"
+                  + " nothing. Add 'id' to @ViaConstructor's 'parameterOrder', at the place the"
+                  + " constructor takes it.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a setter whose own type does not resolve is left to javac")
+    void setterWhoseOwnTypeDoesNotResolveIsLeftToJavac() {
+      var compilation =
+          compile(
+              external(
+                  "Vanish",
+                  """
+                  public final class Vanish {
+                      private final String id;
+                      public Vanish(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          public com.external.Gone id(String id) { return null; }
+                          public Vanish build() { return new Vanish(""); }
+                      }
+                  }
+                  """),
+              spec(
+                  "VanishOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface VanishOpticsSpec extends OpticsSpec<Vanish> {
+                      @ViaBuilder
+                      Lens<Vanish, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@ViaBuilder:"));
+    }
+
+    @Test
+    @DisplayName("a wildcard focus leaves every name that depends on it to javac")
+    void wildcardFocusLeavesEveryNameThatDependsOnItToJavac() {
+      // The accessors still have to exist; which method the value binds, and what that method
+      // hands back, is javac's to settle for a focus it infers.
+      var compilation =
+          compile(
+              external(
+                  "Loose",
+                  """
+                  public final class Loose {
+                      private final String id;
+                      public Loose(String id) { this.id = id; }
+                      public Loose(Loose other) { this.id = other.id; }
+                      public String id() { return id; }
+                      public void setId(CharSequence id) {}
+                      public void setId(CharSequence id, int at) {}
+                      public Builder toBuilder() { return new Builder(); }
+
+                      public static final class Builder {
+                          // Declared first, and returning something the chain could not go on
+                          // from: which overload such a call binds is javac's to settle.
+                          public Object id(Integer id) { return this; }
+                          public Builder id(CharSequence id) { return this; }
+                          public Loose build() { return new Loose(""); }
+                      }
+                  }
+                  """),
+              spec(
+                  "LooseCopySpec",
+                  """
+                  @ImportOptics
+                  public interface LooseCopySpec extends OpticsSpec<Loose> {
+                      @ViaCopyAndSet(setter = "setId")
+                      Lens<Loose, ? extends CharSequence> id();
+                  }
+                  """),
+              spec(
+                  "LooseBuilderSpec",
+                  """
+                  @ImportOptics
+                  public interface LooseBuilderSpec extends OpticsSpec<Loose> {
+                      @ViaBuilder
+                      Lens<Loose, ? extends CharSequence> id();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a builder type that does not resolve is left to javac")
+    void builderTypeThatDoesNotResolveIsLeftToJavac() {
+      var compilation =
+          compile(
+              external(
+                  "Absent",
+                  """
+                  public final class Absent {
+                      private final String id;
+                      public Absent(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public com.external.Gone toBuilder() { return null; }
+                  }
+                  """),
+              spec(
+                  "AbsentSpec",
+                  """
+                  @ImportOptics
+                  public interface AbsentSpec extends OpticsSpec<Absent> {
+                      @ViaBuilder
+                      Lens<Absent, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@ViaBuilder:"));
+    }
+
+    @Test
+    @DisplayName("a source type that does not resolve is left to javac, whatever the strategy")
+    void sourceTypeThatDoesNotResolveIsLeftToJavacWhateverTheStrategy() {
+      var compilation =
+          compile(
+              spec(
+                  "GhostWitherSpec",
+                  """
+                  @ImportOptics
+                  public interface GhostWitherSpec extends OpticsSpec<com.external.Ghost> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<com.external.Ghost, String> id();
+                  }
+                  """),
+              spec(
+                  "GhostBuilderSpec",
+                  """
+                  @ImportOptics
+                  public interface GhostBuilderSpec extends OpticsSpec<com.external.Ghost> {
+                      @ViaBuilder
+                      Lens<com.external.Ghost, String> id();
+                  }
+                  """),
+              spec(
+                  "GhostCopySpec",
+                  """
+                  @ImportOptics
+                  public interface GhostCopySpec extends OpticsSpec<com.external.Ghost> {
+                      @ViaCopyAndSet(setter = "setId")
+                      Lens<com.external.Ghost, String> id();
+                  }
+                  """),
+              spec(
+                  "GhostConstructorSpec",
+                  """
+                  @ImportOptics
+                  public interface GhostConstructorSpec extends OpticsSpec<com.external.Ghost> {
+                      @ViaConstructor(parameterOrder = {"id"})
+                      Lens<com.external.Ghost, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@Wither:"))
+          .noneMatch(error -> error.getMessage(null).contains("@ViaBuilder:"))
+          .noneMatch(error -> error.getMessage(null).contains("@ViaCopyAndSet:"))
+          .noneMatch(error -> error.getMessage(null).contains("@ViaConstructor:"));
+    }
+
+    @Test
+    @DisplayName("a setter whose parameter is inferred is left to javac")
+    void setterWhoseParameterIsInferredIsLeftToJavac() {
+      var compilation =
+          compile(
+              external(
+                  "Generic",
+                  """
+                  public final class Generic {
+                      private final String id;
+                      public Generic(String id) { this.id = id; }
+                      public Generic(Generic other) { this.id = other.id; }
+                      public String id() { return id; }
+                      public <V extends CharSequence> void setId(V id) {}
+                  }
+                  """),
+              spec(
+                  "GenericSpec",
+                  """
+                  @ImportOptics
+                  public interface GenericSpec extends OpticsSpec<Generic> {
+                      @ViaCopyAndSet(setter = "setId")
+                      Lens<Generic, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+  }
+
+  @Nested
   @DisplayName("@ViaCopyAndSet Copy Strategy")
   class ViaCopyAndSetStrategy {
 

@@ -53,11 +53,13 @@ import java.lang.annotation.Target;
  * @ImportOptics
  * interface PointOptics extends OpticsSpec<Point> {
  *
+ *     // The lens method is named after the accessor it reads, since this strategy names no
+ *     // getter of its own.
  *     @ViaConstructor
- *     Lens<Point, Integer> x();
+ *     Lens<Point, Integer> getX();
  *
  *     @ViaConstructor
- *     Lens<Point, Integer> y();
+ *     Lens<Point, Integer> getY();
  * }
  * }</pre>
  *

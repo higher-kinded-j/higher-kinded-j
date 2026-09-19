@@ -45,6 +45,7 @@ import org.higherkindedj.optics.annotations.OpticsSpec;
 import org.higherkindedj.optics.annotations.ThroughField;
 import org.higherkindedj.optics.annotations.TraverseField;
 import org.higherkindedj.optics.annotations.ViaConstructor;
+import org.higherkindedj.optics.annotations.ViaBuilder;
 import org.higherkindedj.optics.annotations.ViaCopyAndSet;
 import org.higherkindedj.optics.annotations.Wither;
 import org.higherkindedj.optics.focus.FocusPath;

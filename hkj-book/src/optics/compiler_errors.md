@@ -69,6 +69,12 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`takes the lens's focus type`](#wither-no-method--of--takes-the-lenss-focus-type-) | No method of the name `@Wither` gives takes the lens's focus |
 | [`cannot choose between`](#wither-the-generated-call-to--cannot-choose-between--and-) | More than one overload takes the focus, none more closely than the rest |
 | [`is static, so the generated lens cannot rebuild`](#wither--is-static-so-the-generated-lens-cannot-rebuild-a--through-it) | The overload the focus binds is a static method |
+| [`for the generated lens to read the value it focuses`](#-has-no-method--for-the-generated-lens-to-read-the-value-it-focuses) | A strategy's `getter`, or the lens method that stands in for it, names no accessor |
+| [`reads '...', not the lens's focus`](#-reads--not-the-lenss-focus-) | The accessor reads a value the lens cannot hand back as its focus |
+| [`for the generated lens to set through`](#-has-no-method--for-the-generated-lens-to-set-through) | A `setter` names no method of the type it is called on |
+| [`hands back '...', which is not a builder`](#viabuilder-the-chain-the-lens-rebuilds-through) | A `@ViaBuilder` step leads somewhere the next call cannot be made |
+| [`is static, so the generated lens cannot set through`](#-has-no-method--for-the-generated-lens-to-set-through) | The `setter` the focus binds is a static method |
+| [`pairs more than one wither with the field`](#importoptics--pairs-more-than-one-wither-with-the-field--a-note) | **Note.** Two withers reach one field name, and one lens is generated |
 | [`focuses '...', which is not a '...'`](#importoptics--focuses--which-is-not-a-) | A generated prism's focus is a value rather than a variant of the source |
 | [`cannot find symbol`, inside `XPrisms.java`](#cannot-find-symbol-inside-the-generated-xprismsjava-after-using-matchwhen) | A `@MatchWhen` predicate or getter name is misspelt |
 | [`requires a prism hint annotation`](#prism-method-x-requires-a-prism-hint-annotation-instanceof-or-matchwhen) | A spec `Prism` method has neither `@InstanceOf` nor `@MatchWhen` |
@@ -1045,6 +1051,238 @@ interface StampOpticsSpec extends OpticsSpec<Stamp> {
     @Wither(value = "withId", getter = "id")
     Lens<Stamp, String> id();
 }
+```
+~~~
+
+### "'...' has no method '...()' for the generated lens to read the value it focuses"
+
+Every copy strategy reads with the same lambda, `source -> source.getX()`. `@Wither` and `@ViaBuilder` name that accessor in their `getter`; `@ViaCopyAndSet` and `@ViaConstructor` read through the lens method's own name. The name here is not a zero-parameter instance method the generated class can call: it is misspelt, `static`, takes an argument, or is out of reach.
+
+The same shape of message covers every name a strategy calls with no argument, each ending on what the generated lens wanted it for:
+
+| Ends on | The name that is missing |
+|---------|--------------------------|
+| `for the generated lens to read the value it focuses` | the `getter`, or the lens method that stands in for it |
+| `for the generated lens to rebuild through` | `@ViaBuilder`'s `toBuilder` |
+| `for the generated lens to finish the value it rebuilds` | `@ViaBuilder`'s `build`, read on what the setter hands back |
+| `for the generated lens to read the argument '...'` | an accessor named in `@ViaConstructor`'s `parameterOrder` |
+
+**Fix.** Point the strategy's attribute at a method the type declares, which the message offers where the name is a near miss. Where the strategy has no such attribute, name the lens method after the accessor it reads.
+
+~~~admonish note title="Why" collapsible=true
+The generated optic calls the name as written. Checked here, the spec method is where the mistake is reported, rather than `cannot find symbol` inside a file you did not write. A `static` method is not one, since the lens calls it on the value it focuses; nor is one that takes an argument, since the lens passes none.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "has no method 'getIdentifier()' for the generated lens to read the value it focuses" -->
+```java
+final class Receipt {
+
+    private final String id;
+
+    Receipt(String id) {
+        this.id = id;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public Receipt withId(String id) {
+        return new Receipt(id);
+    }
+}
+
+@ImportOptics
+interface ReceiptOpticsSpec extends OpticsSpec<Receipt> {
+
+    @Wither(value = "withId", getter = "getIdentifier")
+    Lens<Receipt, String> id();
+}
+```
+~~~
+
+### "'...()' reads '...', not the lens's focus '...'"
+
+The accessor exists, and reads a value of another type. `LocalDate` is the standard example: `withMonth` takes an `int`, while `getMonth()` reads a `Month`, so the two do not make a lens between them.
+
+**Fix.** Point the strategy's `getter` at an accessor that reads the focus, `getMonthValue()` for that pair, or declare the lens over what this one reads and rebuild through a method that takes it. Where the strategy reads through the lens method's own name, rename the lens method.
+
+~~~admonish note title="Why" collapsible=true
+A lens reads and writes one type. The getter pins it from below, so a focus the getter can fill and the wither can take has to be a type they share; where they share none, no focus makes the pair work, and the mismatch is better reported here than as an inference failure in generated code. A primitive accessor reads into its wrapper, `int` into `Integer`, so that pair is not a mismatch.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "reads 'Month', not the lens's focus 'Integer'" -->
+```java
+enum Month { JANUARY, FEBRUARY }
+
+final class Stamp {
+
+    private final int month;
+
+    Stamp(int month) {
+        this.month = month;
+    }
+
+    public Month getMonth() {
+        return Month.values()[month - 1];
+    }
+
+    public int getMonthValue() {
+        return month;
+    }
+
+    public Stamp withMonth(int month) {
+        return new Stamp(month);
+    }
+}
+
+@ImportOptics
+interface StampOpticsSpec extends OpticsSpec<Stamp> {
+
+    @Wither(value = "withMonth", getter = "getMonth")
+    Lens<Stamp, Integer> month();
+}
+```
+~~~
+
+### "'...' has no method '...' for the generated lens to set through"
+
+The `setter` a `@ViaBuilder` or `@ViaCopyAndSet` names is not a method of the type it is called on: the builder for the first, the source type for the second.
+
+Where the name exists, the call is held to what a wither's is, under the strategy's own tag: [`takes the lens's focus type`](#wither-no-method--of--takes-the-lenss-focus-type-) where no overload takes the focus, [`cannot choose between`](#wither-the-generated-call-to--cannot-choose-between--and-) where more than one does, and `is static, so the generated lens cannot set through it` where the one it binds is `static`, since a static method never reads the value it is called on.
+
+**Fix.** Set the strategy's `setter` to a method that type declares, and one that takes the value the getter reads.
+
+~~~admonish note title="Why" collapsible=true
+`@ViaBuilder` sets through `source.toBuilder().setter(newValue).build()` and `@ViaCopyAndSet` through a copy, so the setter is looked for where the call is made rather than on the source type in both cases. A builder's setter that returns `void` ends the chain, which the [chain entry](#viabuilder-the-chain-the-lens-rebuilds-through) covers.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "has no method 'setHostname' for the generated lens to set through" -->
+```java
+final class Server {
+
+    private String host;
+
+    Server() {}
+
+    Server(Server other) {
+        this.host = other.host;
+    }
+
+    public String host() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
+    }
+}
+
+@ImportOptics
+interface ServerOpticsSpec extends OpticsSpec<Server> {
+
+    @ViaCopyAndSet(setter = "setHostname")
+    Lens<Server, String> host();
+}
+```
+~~~
+
+### @ViaBuilder: the chain the lens rebuilds through
+
+`@ViaBuilder` rebuilds with `source.toBuilder().setter(newValue).build()`, and each step is called on what the step before it hands back. Two messages report a chain that does not lead back to the source type: `'toBuilder()' hands back 'int', which is not a builder to set through`, and `'build()' returns 'String', not the source type 'Order'`. A setter that returns `void` reads `hands back 'void', which is not a builder to build from`.
+
+**Fix.** Name the methods the type's own builder declares. Where the type has no such chain, rebuild it with `@Wither`, `@ViaConstructor` or `@ViaCopyAndSet`.
+
+~~~admonish note title="Why" collapsible=true
+A builder chain is three calls, and only the first is made on the source type. Reading each step off the one before it is what catches a `build()` that hands back the builder, or a setter that returns nothing, before the generated file does.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "not the source type 'Parcel'" -->
+```java
+final class Parcel {
+
+    private final String id;
+
+    Parcel(String id) {
+        this.id = id;
+    }
+
+    public String id() {
+        return id;
+    }
+
+    public Builder toBuilder() {
+        return new Builder();
+    }
+
+    static final class Builder {
+
+        private String id;
+
+        public Builder id(String id) {
+            this.id = id;
+            return this;
+        }
+
+        public String build() {
+            return id;
+        }
+    }
+}
+
+@ImportOptics
+interface ParcelOpticsSpec extends OpticsSpec<Parcel> {
+
+    @ViaBuilder
+    Lens<Parcel, String> id();
+}
+```
+~~~
+
+### "@ImportOptics: '...' pairs more than one wither with the field '...'" (a note)
+
+A class imported by class literal spells one field's accessor more than one way, and has a wither for each: `int n()` with `withN(int)`, and `String getN()` with `withN(String)`. Both pair with the field `n`, and a class can carry only one lens of that name.
+
+**Fix.** Nothing, where the lens you wanted is the one generated: the note says which. Where you wanted the other, import the type through a [spec interface](optics_spec_interfaces.md) and name the pair yourself with `@Wither(value = "withN", getter = "getN")`, importing it there rather than by class literal, or the note stays on every build.
+
+~~~admonish note title="Why" collapsible=true
+The pairing rule tries the accessor spellings in order, `n()`, then `getN()`, then `isN()`, and the first that matches is the one generated. Reading them in that order rather than in the order the class happens to declare its members means the same class always yields the same lens. A note rather than a warning, because the class is someone else's to spell, and a note does not fail a `-Werror` build.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:reports "pairs more than one wither with the field" -->
+```java
+public final class Counter {
+
+    private final int n;
+
+    public Counter(int n) {
+        this.n = n;
+    }
+
+    public int n() {
+        return n;
+    }
+
+    public String getN() {
+        return String.valueOf(n);
+    }
+
+    public Counter withN(int n) {
+        return new Counter(n);
+    }
+
+    public Counter withN(String n) {
+        return new Counter(Integer.parseInt(n));
+    }
+}
+
+@ImportOptics({Counter.class})
+class CounterImports {}
 ```
 ~~~
 

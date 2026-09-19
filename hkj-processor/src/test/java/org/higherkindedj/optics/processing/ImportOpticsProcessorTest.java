@@ -1076,6 +1076,80 @@ class ImportOpticsProcessorTest {
     }
 
     @Test
+    @DisplayName("withers reaching one field name generate one lens, and the others are noted")
+    void withersReachingOneFieldNameGenerateOneLens() {
+      // 'n' is spelt all three ways and 'active' two, and the pair the rule prefers is generated
+      // whichever order the class declares its members in: 'n()' first, then 'getActive()' over
+      // 'isActive()'. Generating both would declare the lens method twice. Every note names the
+      // pair that was generated, so a field with three spellings does not contradict itself.
+      final var spelt =
+          JavaFileObjects.forSourceString(
+              "com.external.Spelt",
+              """
+              package com.external;
+
+              public final class Spelt {
+                  private final int n;
+                  private final String active;
+
+                  public Spelt(int n, String active) {
+                      this.n = n;
+                      this.active = active;
+                  }
+
+                  public String getN() { return String.valueOf(n); }
+                  public boolean isN() { return n != 0; }
+                  public int n() { return n; }
+                  public String isActive() { return active; }
+                  public String getActive() { return active; }
+
+                  public Spelt withN(String n) { return new Spelt(Integer.parseInt(n), active); }
+                  public Spelt withN(boolean n) { return new Spelt(n ? 1 : 0, active); }
+                  public Spelt withN(int n) { return new Spelt(n, active); }
+                  public Spelt withActive(String active) { return new Spelt(n, active); }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Spelt.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(spelt, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      final String generated = "com.myapp.optics.SpeltLenses";
+      assertGeneratedCodeContains(compilation, generated, "Lens<Spelt, Integer> n()");
+      assertGeneratedCodeDoesNotContain(compilation, generated, "Lens<Spelt, String> n()");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "@ImportOptics: 'Spelt' pairs more than one wither with the field 'n', and only one"
+                  + " lens can carry that name. 'withN(int)' pairs with 'n()' and is generated;"
+                  + " 'withN(String)' pairs with 'getN()' and is left out. Name the one you want"
+                  + " through a spec interface's @Wither, importing the type there rather than by"
+                  + " class literal.");
+      // The third spelling is reported against the same generated pair, not against whichever
+      // one happened to be read first.
+      assertThat(compilation)
+          .hadNoteContaining(
+              "'withN(int)' pairs with 'n()' and is generated; 'withN(boolean)' pairs with"
+                  + " 'isN()' and is left out.");
+      assertThat(compilation)
+          .hadNoteContaining("importing the type there rather than by class literal.");
+      // 'isActive()' is declared first and 'getActive()' still wins, which is the rule rather
+      // than the declaration order speaking.
+      assertGeneratedCodeContains(compilation, generated, "Spelt::getActive");
+    }
+
+    @Test
     @DisplayName("an overloaded primitive wither sets through the method that paired")
     void overloadedPrimitiveWitherSetsThroughTheMethodThatPaired() throws Exception {
       // The overload that takes the box rebuilds through a different route, keeping none of the
