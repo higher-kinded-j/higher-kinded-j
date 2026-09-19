@@ -16,6 +16,11 @@ module org.higherkindedj.core {
 
   uses org.higherkindedj.hkt.effect.spi.PathProvider;
 
+  // On the module path, ServiceLoader reads this clause and ignores META-INF/services, so every
+  // provider that file registers is listed here too, in its order; a test holds the two together.
+  provides org.higherkindedj.hkt.effect.spi.PathProvider with
+      org.higherkindedj.hkt.effect.VStreamPathProvider;
+
   exports org.higherkindedj.hkt.resilience;
   exports org.higherkindedj.hkt.either;
   exports org.higherkindedj.hkt.eitherf;

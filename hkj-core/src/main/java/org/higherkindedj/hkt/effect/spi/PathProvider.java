@@ -45,6 +45,14 @@ import org.higherkindedj.hkt.effect.capability.Chainable;
  * com.example.ApiResultPathProvider
  * </pre>
  *
+ * <p>A module with a {@code module-info} also lists the provider in its {@code provides} clause. On
+ * the module path, {@link java.util.ServiceLoader} reads only that clause, so a provider registered
+ * in the services file alone is not found:
+ *
+ * <pre>{@code
+ * provides org.higherkindedj.hkt.effect.spi.PathProvider with com.example.ApiResultPathProvider;
+ * }</pre>
+ *
  * @param <F> the witness type of the effect
  */
 public interface PathProvider<F extends WitnessArity<TypeArity.Unary>> {
