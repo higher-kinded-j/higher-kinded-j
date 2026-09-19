@@ -222,6 +222,9 @@ class VStreamPathProviderTest {
     void moduleInfoProvidesEveryRegisteredProvider() {
       // On the module path ServiceLoader reads module-info's provides clause and ignores
       // META-INF/services, so a provider registered only in the services file is never found.
+      // Run there, this test would read the provides clause on both sides and compare it with
+      // itself.
+      assertThat(PathProvider.class.getModule().isNamed()).as("runs on the classpath").isFalse();
       URI core = locationOf(PathProvider.class);
       ServiceLoader<?> loader = ServiceLoader.load(PathProvider.class);
       List<String> registered =
