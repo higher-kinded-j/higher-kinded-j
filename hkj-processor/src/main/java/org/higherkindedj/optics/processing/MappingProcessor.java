@@ -44,7 +44,6 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -4203,14 +4202,12 @@ public class MappingProcessor extends AbstractProcessor {
    * draw a warning there, and a package-private type in another package would not compile. A type
    * the record does write is one the update's setters already inferred, and it is answered for a
    * raw type as the update method is. Its type-use annotations are new names, though, so only those
-   * the Impl's package can write cleanly are kept ({@link ProcessorUtils#writableFrom}): a
-   * {@code @Nullable} survives, while one missing from the classpath, out of reach or deprecated is
-   * left off, as inference left it off before.
+   * the Impl's package can write cleanly are kept ({@link ProcessorUtils#typeNameOf(TypeMirror,
+   * String)}): a {@code @Nullable} survives, while one missing from the classpath, out of reach or
+   * deprecated is left off, as inference left it off before.
    */
   private TypeSpec componentsRecord(
       DeclaredType domainDeclared, List<String> written, String implPackage) {
-    Predicate<AnnotationMirror> writable =
-        ProcessorUtils.writableFrom(processingEnv.getElementUtils(), implPackage);
     TypeElement domain = (TypeElement) domainDeclared.asElement();
     List<TypeMirror> types = new ArrayList<>();
     MethodSpec.Builder canonical = MethodSpec.constructorBuilder();
@@ -4219,7 +4216,7 @@ public class MappingProcessor extends AbstractProcessor {
       if (written.contains(name)) {
         TypeMirror type = componentType(domainDeclared, component);
         types.add(type);
-        canonical.addParameter(ProcessorUtils.typeNameOf(type, writable), name);
+        canonical.addParameter(ProcessorUtils.typeNameOf(type, implPackage), name);
       }
     }
     // A nested type is its own class file, and a coverage tool reads the marker there.

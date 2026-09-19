@@ -722,9 +722,10 @@ public final class ProcessorUtils {
    * {@link Types#asMemberOf} has already lost the annotations written on a type variable's use;
    * name one of those with {@link #typeNameOf(TypeMirror, TypeMirror, DeclaredType, String)}.
    *
-   * <p>An annotation is kept only where some generated file could write it. One javac could not
-   * resolve, which is one missing from the compile classpath, and one private anywhere in its
-   * nesting are left off, since writing either would fail the build compiling the generated file. A
+   * <p>An annotation is kept only where some generated file could write it cleanly. One javac could
+   * not resolve, which is one missing from the compile classpath, one private anywhere in its
+   * nesting, and one deprecated anywhere in its nesting are left off: the first two fail the build
+   * compiling the generated file, and the third draws a warning there that no one can suppress. A
    * package-private one is kept: it can be written from its own package, which is where a generated
    * file lands unless a target package says otherwise. A generator that knows its package names
    * with {@link #typeNameOf(TypeMirror, String)}, which decides exactly.
@@ -740,8 +741,8 @@ public final class ProcessorUtils {
 
   /**
    * {@link #typeNameOf(TypeMirror)} for a file written into {@code targetPackage}: an annotation is
-   * kept only where that package can write it, resolved, public or declared in that package, and
-   * with nothing private in its nesting.
+   * kept only where that package can write it cleanly, resolved, with every type in its nesting
+   * public or declared in that package, and none of them private or deprecated.
    *
    * @param type the type to name; must not be null
    * @param targetPackage the package the generated file is written into; must not be null
@@ -792,59 +793,17 @@ public final class ProcessorUtils {
   }
 
   /**
-   * The name of a type as written, keeping at every depth only the type-use annotations {@code
-   * keep} accepts.
-   *
-   * <p>For a generator that writes out a type its source only inferred: the type itself was already
-   * usable there, but an annotation on it is a new name in the generated file, and one the
-   * consuming build may be unable to compile, which {@link #writableFrom} tells apart.
-   *
-   * @param type the type to name; must not be null
-   * @param keep which of its annotations to write; must not be null
-   * @return its name, annotated as the source annotated it, less what {@code keep} refused
-   *     (non-null)
-   * @since 0.4.11
-   */
-  public static TypeName typeNameOf(TypeMirror type, Predicate<? super AnnotationMirror> keep) {
-    return new Naming(Map.of(), keep).name(type, type);
-  }
-
-  /**
-   * Whether a class generated into {@code targetPackage} can write {@code annotation} and still
-   * compile cleanly: its type is on the classpath, it can be named from there, and it is not
-   * deprecated.
-   *
-   * <p>An annotation read from a class file names a type that need not be on the consuming build's
-   * classpath at all: a library's annotations are commonly a dependency the library does not pass
-   * on, and javac then reads the type as an error type. Such an annotation, one the target package
-   * cannot see, and a deprecated one each fail a build where the type it annotates was only ever
-   * inferred.
-   *
-   * @param elements the round's element utilities
-   * @param targetPackage the package the generated class is written into
-   * @return the test, for {@link #typeNameOf(TypeMirror, Predicate)}
-   * @since 0.4.11
-   */
-  public static Predicate<AnnotationMirror> writableFrom(Elements elements, String targetPackage) {
-    return annotation -> {
-      DeclaredType type = annotation.getAnnotationType();
-      return type.getKind() == TypeKind.DECLARED
-          && reachableFrom(elements, type.asElement(), targetPackage)
-          && !elements.isDeprecated(type.asElement());
-    };
-  }
-
-  /**
-   * Whether some generated file can write this annotation type: resolved, and private nowhere in
-   * its nesting.
+   * Whether some generated file can write this annotation type cleanly: resolved, and neither
+   * private nor deprecated anywhere in its nesting.
    */
   private static boolean writableSomewhere(DeclaredType annotationType) {
     return writable(annotationType, element -> true);
   }
 
   /**
-   * Whether a generated file in {@code targetPackage} can write this annotation type: resolved, and
-   * every type in its nesting public or declared in that package.
+   * Whether a generated file in {@code targetPackage} can write this annotation type cleanly:
+   * resolved, and every type in its nesting public or declared in that package, and neither private
+   * nor deprecated.
    */
   private static boolean writableFrom(DeclaredType annotationType, String targetPackage) {
     return writable(
@@ -861,7 +820,9 @@ public final class ProcessorUtils {
     for (Element current = annotationType.asElement();
         current.getKind() != ElementKind.PACKAGE;
         current = current.getEnclosingElement()) {
-      if (current.getModifiers().contains(Modifier.PRIVATE) || !visible.test(current)) {
+      if (current.getModifiers().contains(Modifier.PRIVATE)
+          || current.getAnnotation(Deprecated.class) != null
+          || !visible.test(current)) {
         return false;
       }
     }

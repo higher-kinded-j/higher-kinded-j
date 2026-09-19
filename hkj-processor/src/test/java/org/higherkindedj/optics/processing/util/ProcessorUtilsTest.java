@@ -1069,7 +1069,8 @@ class ProcessorUtilsTest {
     void keepsAnAnnotationOnlyWhereTheFileCanNameIt() {
       // Reading under the instantiation dropped these already. Put back, one javac cannot resolve,
       // one private, or one package-private to another package would fail the build compiling the
-      // generated file; one package-private to the file's own package is kept.
+      // generated file, and a deprecated one would draw a warning there no one can suppress; one
+      // package-private to the file's own package is kept.
       var scope =
           JavaFileObjects.forSourceString(
               "com.test.Scope",
@@ -1085,8 +1086,12 @@ class ProcessorUtilsTest {
                       @Local T local();
                       @Enclosing.Nested T nested();
                       @Hidden T hidden();
+                      @Old T old();
                   }
               }
+              @Deprecated
+              @Target(ElementType.TYPE_USE)
+              @interface Old {}
               @Target(ElementType.TYPE_USE)
               @interface Local {}
               class Enclosing {
@@ -1109,7 +1114,8 @@ class ProcessorUtilsTest {
           .containsEntry("string.unresolved", "java.lang.String")
           .containsEntry("string.local", "java.lang. @com.test.Local String")
           .containsEntry("string.nested", "java.lang. @com.test.Enclosing.Nested String")
-          .containsEntry("string.hidden", "java.lang.String");
+          .containsEntry("string.hidden", "java.lang.String")
+          .containsEntry("string.old", "java.lang.String");
       assertThat(elsewhere.names)
           .containsEntry("string.local", "java.lang.String")
           .containsEntry("string.nested", "java.lang.String");
@@ -1134,9 +1140,13 @@ class ProcessorUtilsTest {
                   @Missing String unresolved;
                   @Local String local;
                   @Hidden String hidden;
+                  @Old String old;
               }
               @Target(ElementType.TYPE_USE)
               @interface Local {}
+              @Deprecated
+              @Target(ElementType.TYPE_USE)
+              @interface Old {}
               """);
       var processor = new TypeNames.CapturingProcessor();
       javac().withProcessors(processor).compile(subject);
@@ -1144,7 +1154,8 @@ class ProcessorUtilsTest {
       assertThat(processor.names)
           .containsEntry("unresolved", "java.lang.String")
           .containsEntry("local", "java.lang. @com.test.Local String")
-          .containsEntry("hidden", "java.lang.String");
+          .containsEntry("hidden", "java.lang.String")
+          .containsEntry("old", "java.lang.String");
     }
   }
 }

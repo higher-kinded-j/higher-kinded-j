@@ -75,6 +75,10 @@ class HkjHttpClientProcessorClasspathTest {
               "package com.upstream; @java.lang.annotation.Target(java.lang.annotation.ElementType"
                   + ".TYPE_USE) public @interface Marked {}"),
           JavaFileObjects.forSourceString(
+              "com.upstream.Old",
+              "package com.upstream; @Deprecated @java.lang.annotation.Target("
+                  + "java.lang.annotation.ElementType.TYPE_USE) public @interface Old {}"),
+          JavaFileObjects.forSourceString(
               "com.upstream.errors.Gone",
               "package com.upstream.errors;"
                   + " public record Gone(String message) implements com.upstream.ApiErr {}"));
@@ -300,16 +304,18 @@ class HkjHttpClientProcessorClasspathTest {
   }
 
   @Test
-  @DisplayName("an annotation the client's classpath lacks is left off the method it restates")
+  @DisplayName(
+      "an annotation the client could not write cleanly is left off the method it restates")
   void anAnnotationMissingFromTheClasspathIsLeftOff() throws IOException {
     // A type-use annotation the base module compiled against but did not pass on, as Gradle's
     // compileOnly does: read back from the class file unresolved, it cannot be written into the
-    // client, which restates the inherited method's parameter and return types.
+    // client, which restates the inherited method's parameter and return types. A deprecated one
+    // can, but would draw a warning there that no one can suppress.
     Path base =
         baseModule(
             """
               @GetExchange("/{id}")
-              EitherPath<ApiErr, @Marked UserDto> getUser(@PathVariable @Marked String id);
+              EitherPath<ApiErr, @Marked UserDto> getUser(@PathVariable @Marked @Old String id);
             """);
     Files.delete(base.resolve("com/upstream/Marked.class"));
     Compilation compilation = compiler(base).compile(CHILD);
@@ -317,7 +323,8 @@ class HkjHttpClientProcessorClasspathTest {
     assertThat(compilation).succeeded();
     Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiClient"))
         .contains("getUser(String id)")
-        .doesNotContain("Marked");
+        .doesNotContain("Marked")
+        .doesNotContain("Old");
   }
 
   @Test

@@ -49,10 +49,11 @@ final class TypeNames {
   /**
    * The name of a type as written, with its type-use annotations kept.
    *
-   * <p>An annotation is kept only where some generated file could write it. One javac could not
-   * resolve, which is one missing from the compile classpath, as an annotation a base interface in
-   * a jar was compiled against can be, and one private anywhere in its nesting are left off, since
-   * writing either would fail the build compiling the client.
+   * <p>An annotation is kept only where some generated file could write it cleanly. One javac could
+   * not resolve, which is one missing from the compile classpath, as an annotation a base interface
+   * in a jar was compiled against can be, one private anywhere in its nesting, and one deprecated
+   * anywhere in its nesting are left off: the first two fail the build compiling the client, and
+   * the third draws a warning there that no one can suppress.
    *
    * @param type the type to name; must not be null
    * @return its name, annotated as the source annotated it (non-null)
@@ -77,8 +78,8 @@ final class TypeNames {
   }
 
   /**
-   * Whether some generated file can write this annotation type: resolved, and private nowhere in
-   * its nesting.
+   * Whether some generated file can write this annotation type cleanly: resolved, and neither
+   * private nor deprecated anywhere in its nesting.
    */
   private static boolean writableSomewhere(DeclaredType annotationType) {
     if (annotationType.getKind() == TypeKind.ERROR) {
@@ -87,7 +88,8 @@ final class TypeNames {
     for (Element current = annotationType.asElement();
         current.getKind() != ElementKind.PACKAGE;
         current = current.getEnclosingElement()) {
-      if (current.getModifiers().contains(Modifier.PRIVATE)) {
+      if (current.getModifiers().contains(Modifier.PRIVATE)
+          || current.getAnnotation(Deprecated.class) != null) {
         return false;
       }
     }
