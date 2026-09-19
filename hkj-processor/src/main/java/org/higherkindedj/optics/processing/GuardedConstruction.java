@@ -12,7 +12,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.RecordComponentElement;
+import javax.lang.model.element.TypeElement;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * The guarded canonical-constructor call that ends every accumulating assembly: {@code parse}, the
@@ -36,6 +40,11 @@ import javax.lang.model.element.Modifier;
  * assemble()} holds values already validated, so its curried chain runs nothing but the
  * constructor, and a plain {@code try} around it is exact without deepening the curried lambda
  * javac must type.
+ *
+ * <p>Every assembly hands its values on boxed, so the constructor call names each argument through
+ * {@link #canonicalArguments}: a primitive component beside a same-arity overload is unboxed by a
+ * cast, and the call binds to the canonical constructor rather than to an overload applicable
+ * without unboxing.
  */
 final class GuardedConstruction {
 
@@ -137,11 +146,35 @@ final class GuardedConstruction {
   }
 
   /**
-   * {@link #apply} over a bare thunk whose arguments are exactly the parameters, in order: {@code
-   * .apply((lo, hi) -> () -> new Range(lo, hi))}.
+   * {@link #apply} over a bare thunk whose arguments are exactly the parameters, one per component
+   * of {@code record} in order: {@code .apply((lo, hi) -> () -> new Range(lo, hi))}.
    */
-  static CodeBlock applyThunk(List<String> params, TypeName type) {
-    return apply(params, thunk(type, CodeBlock.of("$L", String.join(", ", params))));
+  static CodeBlock applyThunk(List<String> params, TypeElement record, TypeName type) {
+    return apply(
+        params,
+        thunk(
+            type,
+            canonicalArguments(record, params.stream().map(p -> CodeBlock.of("$L", p)).toList())));
+  }
+
+  /**
+   * {@code record}'s canonical-constructor arguments over {@code values}, each of its component's
+   * boxed type as a ladder hands it on. A primitive component is unboxed by a cast where another
+   * constructor could otherwise bind ({@link ProcessorUtils#canonicalArgument}): {@code new
+   * Money((long) cents, currency)}.
+   *
+   * <p>{@code values} carries exactly one value per component, in declaration order; every assembly
+   * builds its legs from the components themselves, so they line up by construction. The walk is
+   * over the components, so a caller that ever handed over fewer fails where it is short rather
+   * than reading another component's type for a value.
+   */
+  static CodeBlock canonicalArguments(TypeElement record, List<CodeBlock> values) {
+    List<? extends RecordComponentElement> components = record.getRecordComponents();
+    return IntStream.range(0, components.size())
+        .mapToObj(
+            i ->
+                ProcessorUtils.canonicalArgument(record, components.get(i).asType(), values.get(i)))
+        .collect(CodeBlock.joining(", "));
   }
 
   /**

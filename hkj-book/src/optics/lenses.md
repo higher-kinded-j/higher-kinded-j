@@ -63,6 +63,25 @@ public record Company(String name, Address address) {}
 public record Employee(String name, Company company) {}
 ```
 
+#### Every Write Runs the Canonical Constructor
+
+A generated lens's `set`, and the `with*` helper built on it, copies the record through its canonical constructor: every other component as it was, and the focused one replaced. A compact constructor that normalises or checks a component, a defensive copy or a range check, therefore runs on every write.
+
+Another constructor the record declares is never the one called, even one taking as many parameters:
+
+```java
+public record Money(long cents, String currency) {
+  public Money(Number major, String currency) {
+    this(Math.round(major.doubleValue() * 100), currency);
+  }
+}
+
+// 1234 cents, through Money(long, String); never the Number constructor
+Money updated = MoneyLenses.cents().set(1234L, money);
+```
+
+The setters and Focus paths that `@GenerateSetters` and `@GenerateFocus` generate write the same way, as do the lenses `@ImportOptics` generates for a record.
+
 #### Customising the Generated Package
 
 By default, generated classes are placed in the same package as the annotated record. You can specify a different package using the `targetPackage` attribute to avoid name collisions or to organise generated code separately:

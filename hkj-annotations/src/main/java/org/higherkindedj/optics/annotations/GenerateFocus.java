@@ -15,6 +15,10 @@ import java.lang.annotation.Target;
  * component becomes a static method returning a {@code FocusPath} that can be composed with other
  * optics for deep navigation.
  *
+ * <p>Each path writes its field through the record's canonical constructor, exactly as {@link
+ * GenerateLenses} does, so a compact constructor that normalises or checks a component runs on
+ * every write.
+ *
  * <h2>Example Usage</h2>
  *
  * <pre>{@code

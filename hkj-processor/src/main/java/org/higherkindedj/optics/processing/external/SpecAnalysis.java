@@ -157,6 +157,8 @@ public record SpecAnalysis(
    * @param parameterOrder the constructor parameter order (for @ViaConstructor)
    * @param copyConstructorParameterType the resolved type the copy constructor takes (for
    *     &#64;ViaCopyAndSet), or null to pass the source type unchanged
+   * @param unboxedFocusType the primitive type the constructor or method the strategy writes
+   *     through takes the focus as, or null to pass the focus unchanged
    */
   public record CopyStrategyInfo(
       String getter,
@@ -165,7 +167,8 @@ public record SpecAnalysis(
       String build,
       String witherMethod,
       String[] parameterOrder,
-      TypeMirror copyConstructorParameterType) {
+      TypeMirror copyConstructorParameterType,
+      TypeMirror unboxedFocusType) {
 
     /**
      * Creates an empty copy strategy info.
@@ -173,7 +176,7 @@ public record SpecAnalysis(
      * @return an empty CopyStrategyInfo
      */
     public static CopyStrategyInfo empty() {
-      return new CopyStrategyInfo("", "", "", "", "", new String[0], null);
+      return new CopyStrategyInfo("", "", "", "", "", new String[0], null, null);
     }
 
     /**
@@ -183,11 +186,14 @@ public record SpecAnalysis(
      * @param toBuilder the toBuilder method name
      * @param setter the setter method name on the builder
      * @param build the build method name
+     * @param unboxedFocusType the primitive type the builder's setter takes the focus as, or null
+     *     to pass the focus unchanged
      * @return a CopyStrategyInfo for builder pattern
      */
     public static CopyStrategyInfo forBuilder(
-        String getter, String toBuilder, String setter, String build) {
-      return new CopyStrategyInfo(getter, toBuilder, setter, build, "", new String[0], null);
+        String getter, String toBuilder, String setter, String build, TypeMirror unboxedFocusType) {
+      return new CopyStrategyInfo(
+          getter, toBuilder, setter, build, "", new String[0], null, unboxedFocusType);
     }
 
     /**
@@ -195,20 +201,27 @@ public record SpecAnalysis(
      *
      * @param getter the getter method name
      * @param witherMethod the wither method name
+     * @param unboxedFocusType the primitive type the wither takes the focus as, or null to pass the
+     *     focus unchanged
      * @return a CopyStrategyInfo for wither pattern
      */
-    public static CopyStrategyInfo forWither(String getter, String witherMethod) {
-      return new CopyStrategyInfo(getter, "", "", "", witherMethod, new String[0], null);
+    public static CopyStrategyInfo forWither(
+        String getter, String witherMethod, TypeMirror unboxedFocusType) {
+      return new CopyStrategyInfo(
+          getter, "", "", "", witherMethod, new String[0], null, unboxedFocusType);
     }
 
     /**
      * Creates info for {@code @ViaConstructor} annotation.
      *
      * @param parameterOrder the constructor parameter order
+     * @param unboxedFocusType the primitive type the constructor takes the focus as, or null to
+     *     pass the focus unchanged
      * @return a CopyStrategyInfo for constructor pattern
      */
-    public static CopyStrategyInfo forConstructor(String[] parameterOrder) {
-      return new CopyStrategyInfo("", "", "", "", "", parameterOrder, null);
+    public static CopyStrategyInfo forConstructor(
+        String[] parameterOrder, TypeMirror unboxedFocusType) {
+      return new CopyStrategyInfo("", "", "", "", "", parameterOrder, null, unboxedFocusType);
     }
 
     /**
@@ -217,12 +230,14 @@ public record SpecAnalysis(
      * @param copyConstructorParameterType the resolved type the copy constructor takes, or null to
      *     pass the source type unchanged
      * @param setter the setter method name
+     * @param unboxedFocusType the primitive type the setter takes the focus as, or null to pass the
+     *     focus unchanged
      * @return a CopyStrategyInfo for copy-and-set pattern
      */
     public static CopyStrategyInfo forCopyAndSet(
-        TypeMirror copyConstructorParameterType, String setter) {
+        TypeMirror copyConstructorParameterType, String setter, TypeMirror unboxedFocusType) {
       return new CopyStrategyInfo(
-          "", "", setter, "", "", new String[0], copyConstructorParameterType);
+          "", "", setter, "", "", new String[0], copyConstructorParameterType, unboxedFocusType);
     }
   }
 

@@ -29,6 +29,10 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
+ * <p>Each generated setter writes its field through the record's canonical constructor, exactly as
+ * {@link GenerateLenses} does, so a compact constructor that normalises or checks a component runs
+ * on every write.
+ *
  * <p>By default, the generated class is placed in the same package as the annotated record. Use the
  * {@link #targetPackage()} element to specify a different package for the generated class.
  */

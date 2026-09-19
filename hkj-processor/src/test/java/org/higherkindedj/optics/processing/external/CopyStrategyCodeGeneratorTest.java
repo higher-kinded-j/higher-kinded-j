@@ -157,7 +157,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate record-style getter when getter is empty")
     void shouldGenerateRecordStyleGetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "toBuilder", "", "build");
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "toBuilder", "", "build", null);
 
       GeneratedCode code = generateCode(CopyStrategyKind.VIA_BUILDER, info, "name", PERSON_SOURCE);
 
@@ -167,7 +167,8 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate explicit getter when specified")
     void shouldGenerateExplicitGetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("getName", "toBuilder", "", "build");
+      CopyStrategyInfo info =
+          CopyStrategyInfo.forBuilder("getName", "toBuilder", "", "build", null);
 
       GeneratedCode code = generateCode(CopyStrategyKind.VIA_BUILDER, info, "name", PERSON_SOURCE);
 
@@ -182,7 +183,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate builder setter with defaults")
     void shouldGenerateBuilderSetterDefaults() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "toBuilder", "", "build");
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "toBuilder", "", "build", null);
 
       GeneratedCode code = generateCode(CopyStrategyKind.VIA_BUILDER, info, "name", PERSON_SOURCE);
 
@@ -194,7 +195,7 @@ class CopyStrategyCodeGeneratorTest {
     @DisplayName("should generate builder setter with custom methods")
     void shouldGenerateBuilderSetterCustom() {
       CopyStrategyInfo info =
-          CopyStrategyInfo.forBuilder("getName", "newBuilder", "withName", "create");
+          CopyStrategyInfo.forBuilder("getName", "newBuilder", "withName", "create", null);
 
       GeneratedCode code = generateCode(CopyStrategyKind.VIA_BUILDER, info, "name", PERSON_SOURCE);
 
@@ -210,7 +211,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate wither setter")
     void shouldGenerateWitherSetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forWither("getYear", "withYear");
+      CopyStrategyInfo info = CopyStrategyInfo.forWither("getYear", "withYear", null);
 
       var localDate =
           JavaFileObjects.forSourceString(
@@ -243,7 +244,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate constructor setter with parameter order")
     void shouldGenerateConstructorSetterWithOrder() {
-      CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[] {"name", "age"});
+      CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[] {"name", "age"}, null);
 
       GeneratedCode code =
           generateCode(CopyStrategyKind.VIA_CONSTRUCTOR, info, "name", PERSON_SOURCE);
@@ -255,7 +256,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should throw error when parameter order not specified")
     void shouldRequireParameterOrder() {
-      CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[] {});
+      CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[] {}, null);
 
       GeneratedCode code =
           generateCode(CopyStrategyKind.VIA_CONSTRUCTOR, info, "name", PERSON_SOURCE);
@@ -272,7 +273,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should generate copy and set setter")
     void shouldGenerateCopyAndSetSetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet(null, "setName");
+      CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet(null, "setName", null);
 
       GeneratedCode code =
           generateCode(CopyStrategyKind.VIA_COPY_AND_SET, info, "name", PERSON_SOURCE);
@@ -292,7 +293,7 @@ class CopyStrategyCodeGeneratorTest {
               CopyStrategyKind.VIA_COPY_AND_SET,
               elements ->
                   CopyStrategyInfo.forCopyAndSet(
-                      elements.getTypeElement("com.test.Named").asType(), "setName"),
+                      elements.getTypeElement("com.test.Named").asType(), "setName", null),
               "name",
               PERSON_SOURCE);
 
@@ -310,7 +311,7 @@ class CopyStrategyCodeGeneratorTest {
     @Test
     @DisplayName("should throw IllegalArgumentException for CopyStrategyKind.NONE")
     void shouldThrowForNoneStrategy() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "");
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "", null);
 
       // javac wraps processor exceptions in RuntimeException
       RuntimeException thrown =

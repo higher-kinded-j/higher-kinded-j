@@ -65,6 +65,11 @@ import java.lang.annotation.Target;
  * <p>An overloaded copy constructor is disambiguated with {@link #copyConstructor()}, which names
  * the parameter type to cast the source to.
  *
+ * <p>A lens focuses a primitive boxed, so where the setter is overloaded, the focus is unboxed to
+ * its getter's type wherever that settles the call on the one taking exactly that type; where
+ * another candidate takes a primitive too, unboxing could move the call, so the focus is passed as
+ * it is.
+ *
  * @see OpticsSpec
  * @see ViaBuilder
  * @see Wither

@@ -66,6 +66,11 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
    * <p>It replaces the component being modified with the {@code newComponentValue} placeholder and
    * uses the accessor for all other components.
    *
+   * <p>Every argument here has its component's own type: an accessor reads one, and the component
+   * being modified is a container, which is never primitive. So the call reaches the canonical
+   * constructor as it stands, where a value handed over boxed would need the unboxing {@code
+   * ProcessorUtils.canonicalArgument} writes for a lens.
+   *
    * @param changedComponent The name of the component being modified.
    * @param newComponentValue The string representing the new value for the modified component
    *     (e.g., "Optional.of(newValue)").

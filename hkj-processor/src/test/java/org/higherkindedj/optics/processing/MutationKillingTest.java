@@ -4866,7 +4866,7 @@ class MutationKillingTest {
     @DisplayName("CopyStrategyInfo.forBuilder creates non-null with correct fields")
     void copyStrategyInfoForBuilderNonNull() {
       SpecAnalysis.CopyStrategyInfo info =
-          SpecAnalysis.CopyStrategyInfo.forBuilder("getX", "toBuilder", "setX", "build");
+          SpecAnalysis.CopyStrategyInfo.forBuilder("getX", "toBuilder", "setX", "build", null);
       assertThat(info).isNotNull();
       assertThat(info.getter()).isEqualTo("getX");
       assertThat(info.toBuilder()).isEqualTo("toBuilder");

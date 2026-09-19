@@ -72,7 +72,11 @@ public class CopyStrategyCodeGenerator {
     String build = info.build().isEmpty() ? "build" : info.build();
 
     return CodeBlock.of(
-        "(source, newValue) -> source.$L().$L(newValue).$L()", toBuilder, setter, build);
+        "(source, newValue) -> source.$L().$L($L).$L()",
+        toBuilder,
+        setter,
+        focusArgument(info.unboxedFocusType()),
+        build);
   }
 
   /**
@@ -86,7 +90,10 @@ public class CopyStrategyCodeGenerator {
    */
   private CodeBlock generateWitherSetter(CopyStrategyInfo info, TypeMirror sourceType) {
     String witherMethod = info.witherMethod();
-    return CodeBlock.of("(source, newValue) -> source.$L(newValue)", witherMethod);
+    return CodeBlock.of(
+        "(source, newValue) -> source.$L($L)",
+        witherMethod,
+        focusArgument(info.unboxedFocusType()));
   }
 
   /**
@@ -128,7 +135,7 @@ public class CopyStrategyCodeGenerator {
       }
       String param = parameterOrder[i];
       if (param.equals(fieldName)) {
-        constructorArgs.add("newValue");
+        constructorArgs.add(focusArgument(info.unboxedFocusType()));
       } else {
         // Assume getter method matches parameter name
         constructorArgs.add("source.$L()", param);
@@ -137,6 +144,20 @@ public class CopyStrategyCodeGenerator {
 
     return CodeBlock.of(
         "(source, newValue) -> new $T($L)", sourceTypeName, constructorArgs.build());
+  }
+
+  /**
+   * The focus as the call passes it: {@code newValue}, or {@code (long) newValue} where the
+   * analyser resolved the primitive type the constructor or method takes it as, so that an overload
+   * taking the boxed value does not bind first. A null type passes it unchanged.
+   *
+   * @param unboxed the primitive type to unbox the focus to, or null
+   * @return the argument
+   */
+  private static CodeBlock focusArgument(TypeMirror unboxed) {
+    return unboxed == null
+        ? CodeBlock.of("newValue")
+        : CodeBlock.of("($T) newValue", TypeName.get(unboxed));
   }
 
   /**
@@ -175,13 +196,14 @@ public class CopyStrategyCodeGenerator {
     return CodeBlock.of(
         "(source, newValue) -> {\n"
             + "  $T copy = new $T($L);\n"
-            + "  copy.$L(newValue);\n"
+            + "  copy.$L($L);\n"
             + "  return copy;\n"
             + "}",
         sourceTypeName,
         sourceTypeName,
         argument,
-        setter);
+        setter,
+        focusArgument(info.unboxedFocusType()));
   }
 
   /**

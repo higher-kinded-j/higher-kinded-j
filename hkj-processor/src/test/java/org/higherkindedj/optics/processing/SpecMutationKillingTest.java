@@ -56,7 +56,7 @@ class SpecMutationKillingTest {
     @Test
     @DisplayName("VIA_BUILDER with empty defaults uses default method names")
     void viaBuilderWithEmptyDefaults() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "");
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "", null);
       CodeBlock result =
           generator.generateSetterLambda(CopyStrategyKind.VIA_BUILDER, info, "name", null, null);
 
@@ -69,7 +69,8 @@ class SpecMutationKillingTest {
     @Test
     @DisplayName("VIA_BUILDER with custom method names uses custom names")
     void viaBuilderWithCustomNames() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("getX", "newBuilder", "setX", "create");
+      CopyStrategyInfo info =
+          CopyStrategyInfo.forBuilder("getX", "newBuilder", "setX", "create", null);
       CodeBlock result =
           generator.generateSetterLambda(CopyStrategyKind.VIA_BUILDER, info, "x", null, null);
 
@@ -93,7 +94,7 @@ class SpecMutationKillingTest {
           runGeneratorInProcessor(
               "com.test.Empty",
               proc -> {
-                CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[0]);
+                CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[0], null);
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_CONSTRUCTOR, info, "field", proc.getTypeMirror(), null)
@@ -121,7 +122,8 @@ class SpecMutationKillingTest {
           runGeneratorInProcessor(
               "com.test.Single",
               proc -> {
-                CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[] {"value"});
+                CopyStrategyInfo info =
+                    CopyStrategyInfo.forConstructor(new String[] {"value"}, null);
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_CONSTRUCTOR, info, "value", proc.getTypeMirror(), null)
@@ -149,7 +151,8 @@ class SpecMutationKillingTest {
               "com.test.Multi",
               proc -> {
                 CopyStrategyInfo info =
-                    CopyStrategyInfo.forConstructor(new String[] {"first", "second", "third"});
+                    CopyStrategyInfo.forConstructor(
+                        new String[] {"first", "second", "third"}, null);
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_CONSTRUCTOR,
@@ -182,7 +185,8 @@ class SpecMutationKillingTest {
           runGeneratorInProcessor(
               "com.test.Pair",
               proc -> {
-                CopyStrategyInfo info = CopyStrategyInfo.forConstructor(new String[] {"a", "b"});
+                CopyStrategyInfo info =
+                    CopyStrategyInfo.forConstructor(new String[] {"a", "b"}, null);
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_CONSTRUCTOR, info, "a", proc.getTypeMirror(), null)
@@ -220,7 +224,7 @@ class SpecMutationKillingTest {
           runGeneratorInProcessor(
               "com.test.Mutable",
               proc -> {
-                CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet(null, "setValue");
+                CopyStrategyInfo info = CopyStrategyInfo.forCopyAndSet(null, "setValue", null);
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_COPY_AND_SET,
@@ -265,7 +269,8 @@ class SpecMutationKillingTest {
               "com.test.Custom",
               proc -> {
                 CopyStrategyInfo info =
-                    CopyStrategyInfo.forCopyAndSet(proc.getTypeMirror("com.test.Base"), "setValue");
+                    CopyStrategyInfo.forCopyAndSet(
+                        proc.getTypeMirror("com.test.Base"), "setValue", null);
                 return generator
                     .generateSetterLambda(
                         CopyStrategyKind.VIA_COPY_AND_SET,
@@ -285,7 +290,7 @@ class SpecMutationKillingTest {
     @Test
     @DisplayName("generateGetterLambda with empty getter uses field name")
     void generateGetterLambdaWithEmptyGetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "");
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("", "", "", "", null);
       CodeBlock result = generator.generateGetterLambda("name", info, null);
 
       assertThat(result.toString()).contains("source.name()");
@@ -294,7 +299,7 @@ class SpecMutationKillingTest {
     @Test
     @DisplayName("generateGetterLambda with explicit getter uses it")
     void generateGetterLambdaWithExplicitGetter() {
-      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("getName", "", "", "");
+      CopyStrategyInfo info = CopyStrategyInfo.forBuilder("getName", "", "", "", null);
       CodeBlock result = generator.generateGetterLambda("name", info, null);
 
       assertThat(result.toString()).contains("source.getName()");

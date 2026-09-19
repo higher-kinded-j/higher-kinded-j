@@ -839,6 +839,7 @@ public class MergeProcessor extends AbstractProcessor {
                     GuardedConstruction.applyThunk(
                         GuardedConstruction.parameterNames(
                             fills.stream().map(Fill::component).toList(), reserved),
+                        shape.target(),
                         targetName)),
                 targetName));
       } else {
@@ -850,7 +851,10 @@ public class MergeProcessor extends AbstractProcessor {
                 NEL,
                 reserved,
                 targetName,
-                values -> GuardedConstruction.thunk(targetName, CodeBlock.join(values, ", "))));
+                values ->
+                    GuardedConstruction.thunk(
+                        targetName,
+                        GuardedConstruction.canonicalArguments(shape.target(), values))));
       }
     } else {
       CodeBlock.Builder args = CodeBlock.builder();
