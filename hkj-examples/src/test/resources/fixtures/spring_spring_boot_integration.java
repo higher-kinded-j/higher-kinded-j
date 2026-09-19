@@ -323,6 +323,10 @@ class Fixture {
 
   static final ThrowingUserService throwingUserService = sample();
 
+  /** The parse snippet's injected mapping, built as the example app's MappingConfiguration does. */
+  static final ValidatedPrism<UserDto, User> userCodec =
+      UserMappingImpl.INSTANCE.asValidatedPrism();
+
   static final String secret = "s3cr3t";
 
   // The test snippets are quoted a method at a time, so the harness they sit in is here.

@@ -46,14 +46,20 @@ public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
 //                                                   ^domain    ^wire
 ```
 
-Generated: `CustomerMappingImpl`, reached through `INSTANCE`.
+Generated: `CustomerMappingImpl`, reached through `INSTANCE`. Bind it once in the calling code and
+reuse it:
 
 <!-- verify -->
 ```java
-CustomerDto dto = CustomerMappingImpl.INSTANCE.build(customer);              // total
+var customerMapping = CustomerMappingImpl.INSTANCE;                           // bind once, reuse
+CustomerDto dto = customerMapping.build(customer);                            // total
 Validated<NonEmptyList<FieldError>, Customer> back =
-    CustomerMappingImpl.INSTANCE.parse(dto);                                 // accumulating
+    customerMapping.parse(dto);                                               // accumulating
 ```
+
+Where the binding lives: a local for a few calls in one method, a `private static final` field in
+the class that owns the boundary, or an injected surface (see *Injecting and faking* below). Never
+as a constant on the spec itself; see *Common Mistakes*.
 
 Naming rule: the generated class joins the spec's enclosing simple names, then appends `Impl`. A
 top-level `CustomerMapping` gives `CustomerMappingImpl`; one nested inside `Shop` gives
@@ -720,6 +726,7 @@ before rearranging the spec.
 | Mistake | Fix |
 |---------|-----|
 | Annotating the *record* with `@GenerateMapping` | It goes on the **spec interface**. That is what lets you map records you do not own |
+| Declaring the instance on the spec, MapStruct-style (`CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;` inside `CustomerMapping`) | Compiles, but reads `null` whenever the Impl is initialised before the spec and the spec has a `default` method (every leaf and derived field is one): the JVM initialises the spec inside the Impl's own initialisation, before `INSTANCE` is assigned. Bind it in the caller instead: a local, a `private static final` field there, or an injected surface |
 | Expecting `parse` from a lossy projection | A projection drops data, so it cannot be inverted. You get `asLens()` (all-identity) or the validated `patch` (leaf-carrying, or a bean with a reference property), not `parse` |
 | A PATCH request bean on `MappingSpec` | A bean smaller than the domain compiles as a projection whose `patch` is dense: an unset property is `must not be null`, and an unset bridged `Optional` clears the value. For null-means-keep, extend `UpdateSpec` |
 | One spec extending both `MappingSpec` and `UpdateSpec` | Refused. One Impl carries one tier and the two emit disjoint members. Declare a spec per tier and share renames and leaves through a plain mix-in both extend |

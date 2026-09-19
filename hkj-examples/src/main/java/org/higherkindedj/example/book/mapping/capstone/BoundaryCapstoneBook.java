@@ -69,7 +69,8 @@ public final class BoundaryCapstoneBook {
             Currency.getInstance("GBP"),
             OrderStatus.PAID);
 
-    OrderDto outbound = OrderMappingImpl.INSTANCE.build(order); // total: cannot fail
+    var orderMapping = OrderMappingImpl.INSTANCE; // bind once: the boundary reuses it both ways
+    OrderDto outbound = orderMapping.build(order); // total: cannot fail
     // OrderDto[id=123e4567-..., customer=CustomerDto[fullName=Ada Lovelace, ...],
     //          placedAt=2026-07-28T12:34:56Z, currency=GBP, status=PAID,
     //          displayTotal=GBP 19.98]   <- computed by the derived getter
@@ -87,7 +88,7 @@ public final class BoundaryCapstoneBook {
             "DISPATCHED", // not a permitted OrderStatus
             null); // derived: parse ignores it
 
-    Validated<NonEmptyList<FieldError>, Order> parsed = OrderMappingImpl.INSTANCE.parse(hostile);
+    Validated<NonEmptyList<FieldError>, Order> parsed = orderMapping.parse(hostile);
     // Invalid(NonEmptyList[
     //   id: not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000),
     //   customer.email: not an email address,

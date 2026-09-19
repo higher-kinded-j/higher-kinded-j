@@ -59,10 +59,13 @@ the whole point.
 ## Using It
 
 ```java
-CustomerDto dto = CustomerMappingImpl.INSTANCE.build(customer);   // total: cannot fail
+// In the class that owns the boundary: bind once, reuse on every call (never on the spec itself)
+private static final CustomerMappingImpl CUSTOMER_MAPPING = CustomerMappingImpl.INSTANCE;
+
+CustomerDto dto = CUSTOMER_MAPPING.build(customer);   // total: cannot fail
 
 Validated<NonEmptyList<FieldError>, Customer> parsed =
-    CustomerMappingImpl.INSTANCE.parse(dto);                      // every bad field, not just the first
+    CUSTOMER_MAPPING.parse(dto);                      // every bad field, not just the first
 
 return parsed.fold(
     errors   -> badRequest(errors),      // NonEmptyList<FieldError>, each one located

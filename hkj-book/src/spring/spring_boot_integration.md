@@ -392,13 +392,13 @@ See the [Effect Path API](../effect/path_types.md) for `Path.accumulate()` and i
 
 A *leg* is one of the routes a value returned from a controller can travel to become an HTTP response: a segment of the [railway](../glossary/effect-paths.md#railway-oriented-programming) journey, as in a leg of a relay. A `Left(DomainError)` travels the **Either leg** to its mapped error status; a generic `Invalid` travels the standard **validation leg** to 400. This section describes a third: the leg an all-`FieldError` payload takes to a 422, chosen (like a railway switch) by the shape of the value itself.
 
-A [`@GenerateMapping`](../mapping/ch_intro.md) spec's `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`: every bad field reported at once, each located by a structured path. (`FieldError` here is HKJ's `org.higherkindedj.hkt.validated.FieldError`, not Spring's `org.springframework.validation.FieldError`.) A controller returns it directly, with no service call and no error wrapping:
+A [`@GenerateMapping`](../mapping/ch_intro.md) spec's `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`: every bad field reported at once, each located by a structured path. (`FieldError` here is HKJ's `org.higherkindedj.hkt.validated.FieldError`, not Spring's `org.springframework.validation.FieldError`.) A controller returns it directly, with no service call and no error wrapping. The mapping is injected once as `userCodec`, the `ValidatedPrism<UserDto, User>` view of `UserMappingImpl`, and reused on every request:
 
 <!-- verify -->
 ```java
 @PostMapping("/parse")
 public Validated<NonEmptyList<FieldError>, User> parseUser(@RequestBody UserDto dto) {
-    return UserMappingImpl.INSTANCE.parse(dto);
+    return userCodec.parse(dto);
 }
 ```
 
@@ -437,7 +437,7 @@ sequenceDiagram
     end
 ```
 
-To inject the mapping behind such an endpoint as a bean, or substitute a fake in a `@WebMvcTest` slice, see [Injecting and testing generated mappings](../mapping/testing.md#injecting-and-testing-generated-mappings); the example app's `MappingConfiguration`, `UserController` and `UserParseFakeCodecSliceTest` demonstrate the pattern end to end.
+To register `userCodec` as a bean, or substitute a fake for it in a `@WebMvcTest` slice, see [Injecting and testing generated mappings](../mapping/testing.md#injecting-and-testing-generated-mappings); the example app's `MappingConfiguration`, `UserController` and `UserParseFakeCodecSliceTest` demonstrate the pattern end to end. Returning `UserMappingImpl.INSTANCE.parse(dto)` instead works just as well: injection buys substitution in tests, not a different result.
 
 `path` is the dot-joined display key (`FieldError.pathString()`); `segments` is the exact structured location. Paths use **domain** component names: under a `@MapField(to = "fullName")` rename the client that sent `fullName` receives its error at `name`, so a client mapping errors onto its own payload keys must apply the rename in reverse. The distinction matters: a map key containing a dot is indistinguishable from nesting in the rendered `path` (`attributes."a.b".email` vs deeper nesting), so structured consumers should read `segments`, which stays exact. An unlabelled error renders `"path": ""` and `"segments": []`; treat it as object-level.
 
