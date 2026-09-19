@@ -4,7 +4,6 @@ package org.higherkindedj.optics.processing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.ServiceLoader;
 import java.util.stream.Stream;
 import javax.annotation.processing.Processor;
 import javax.lang.model.SourceVersion;
@@ -23,9 +22,7 @@ class ProcessorSourceVersionTest {
 
   /** Every processor this module registers, so a new one is held to the convention unasked. */
   static Stream<Arguments> processors() {
-    return ServiceLoader.load(Processor.class, LensProcessor.class.getClassLoader()).stream()
-        .filter(provider -> provider.type().getName().startsWith("org.higherkindedj."))
-        .map(ServiceLoader.Provider::get)
+    return GeneratorTestHelper.registeredProcessors()
         .map(processor -> Arguments.of(processor.getClass().getSimpleName(), processor));
   }
 

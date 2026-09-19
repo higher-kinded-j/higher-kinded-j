@@ -6,6 +6,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.auto.service.AutoService;
 import com.tngtech.archunit.core.domain.JavaAccess;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -184,6 +185,28 @@ class ProcessorArchitectureRules {
         .should()
         .bePublic()
         .allowEmptyShould(true)
+        .check(classes);
+  }
+
+  /**
+   * Processors must be annotated with @AutoService.
+   *
+   * <p>{@code @AutoService} writes the {@code META-INF/services} entry javac's processor path
+   * reads, and the tests that hold {@code module-info} and Gradle's incremental registration to
+   * that file start from it, so a processor without it is registered nowhere and generates nothing.
+   */
+  @Test
+  @DisplayName("Processors should be annotated with @AutoService")
+  void processors_should_be_annotated_with_auto_service() {
+    classes()
+        .that()
+        .areAssignableTo(AbstractProcessor.class)
+        .and()
+        .areNotInterfaces()
+        .and()
+        .doNotHaveModifier(JavaModifier.ABSTRACT)
+        .should()
+        .beAnnotatedWith(AutoService.class)
         .check(classes);
   }
 

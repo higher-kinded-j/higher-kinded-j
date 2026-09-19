@@ -213,7 +213,7 @@ Optional<Chainable<String>> path =
 // Returns a VStreamPath wrapping the VStream
 ```
 
-The provider is registered in `META-INF/services/org.higherkindedj.hkt.effect.spi.PathProvider`.
+The provider is registered in `META-INF/services/org.higherkindedj.hkt.effect.spi.PathProvider` and in the `provides` clause of `hkj-core`'s `module-info`, so `Path.from()` finds it whether `hkj-core` is on the classpath or the module path. When a `PathProvider` of your own lives in a module with a `module-info`, register it both ways: in the services file, which is read when the jar is on the classpath, and with `provides org.higherkindedj.hkt.effect.spi.PathProvider with ...;` in `module-info.java`, which is all `ServiceLoader` reads when the jar is on the module path.
 
 ## VStreamContext: Layer 2 API
 

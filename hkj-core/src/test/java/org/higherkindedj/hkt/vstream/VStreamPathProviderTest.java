@@ -7,7 +7,15 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 import static org.higherkindedj.hkt.vstream.VStreamKindHelper.VSTREAM;
 
+import java.lang.module.ModuleDescriptor;
+import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReference;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Paths;
+import java.util.List;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.effect.DefaultVStreamPath;
 import org.higherkindedj.hkt.effect.Path;
@@ -207,6 +215,47 @@ class VStreamPathProviderTest {
       assertThat(result).isPresent();
       VStreamPath<String> vstreamPath = (VStreamPath<String>) result.get();
       assertThat(vstreamPath.run().toList().run()).containsExactly("x", "y", "z");
+    }
+
+    @Test
+    @DisplayName("module-info provides every PathProvider the services file registers")
+    void moduleInfoProvidesEveryRegisteredProvider() {
+      // On the module path ServiceLoader reads module-info's provides clause and ignores
+      // META-INF/services, so a provider registered only in the services file is never found.
+      // Run there, this test would read the provides clause on both sides and compare it with
+      // itself.
+      assertThat(PathProvider.class.getModule().isNamed()).as("runs on the classpath").isFalse();
+      URI core = locationOf(PathProvider.class);
+      ServiceLoader<?> loader = ServiceLoader.load(PathProvider.class);
+      List<String> registered =
+          loader.stream()
+              // hkj-core's own providers, not the ones the test sources register
+              .filter(provider -> locationOf(provider.type()).equals(core))
+              .map(provider -> provider.type().getName())
+              .toList();
+
+      assertThat(registered).contains(VStreamPathProvider.class.getName());
+      assertThat(
+              ModuleFinder.of(Paths.get(core))
+                  .find("org.higherkindedj.core")
+                  .map(ModuleReference::descriptor)
+                  .orElseThrow()
+                  .provides())
+          .filteredOn(provides -> provides.service().equals(PathProvider.class.getName()))
+          .flatExtracting(ModuleDescriptor.Provides::providers)
+          .as(
+              "a PathProvider left out of hkj-core's provides clause is not found on the module"
+                  + " path; list it there too, in the services file's order")
+          .containsExactlyElementsOf(registered);
+    }
+
+    /** The directory or jar {@code type} was loaded from. */
+    private static URI locationOf(Class<?> type) {
+      try {
+        return type.getProtectionDomain().getCodeSource().getLocation().toURI();
+      } catch (URISyntaxException e) {
+        throw new IllegalStateException(e);
+      }
     }
   }
 
