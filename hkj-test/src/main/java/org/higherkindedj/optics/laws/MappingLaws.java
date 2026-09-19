@@ -200,6 +200,10 @@ public final class MappingLaws {
    *       would fail here.
    *   <li><b>Validation</b> — {@code updateFrom(invalidWire).apply(d)} is {@code Invalid}: a
    *       present but invalid field fails, so sparseness never weakens validation of what was sent.
+   *       Every error must be located, so the invalid wire must fail on a field: the domain
+   *       constructor's refusal of the values a PATCH ends on is unlabelled and cannot stand in for
+   *       one. A domain with no leaf to fail checks {@link #assertSparseIdentity} and {@link
+   *       #assertSparseIdempotent} on their own, and asserts its refusal directly.
    * </ul>
    *
    * <p>Monoidal composition of the folded {@code Update} is {@code Monoids.update()}'s own law
@@ -381,7 +385,8 @@ public final class MappingLaws {
    * Sparse validation law: a present but invalid field fails, so {@code
    * updateFrom(invalidWire).apply(domainSample)} is {@code Invalid}, and every accumulated error is
    * located (a non-empty path) - the sparse tier's located-errors promise, mirroring the patch
-   * tier's clause.
+   * tier's clause. A domain constructor's refusal is unlabelled, so {@code invalidWire} must fail
+   * on a field rather than only on the constructor's check.
    */
   public static <D, W> void assertSparseValidationFails(
       Function<? super W, Edits.Accumulated<D>> updateFrom, D domainSample, W invalidWire) {

@@ -14,6 +14,7 @@ _Apply N independent edits at different paths in one reusable operation, includi
 - Writing sparse updates where a `null` field means "leave it alone", with no `if` per field
 - Building a REST `PATCH` with `Edits.accumulate` that validates every field and reports all the bad ones at once, not just the first
 - The two-phase model: validate everything first, then apply the writes only if all of them passed
+- Editing fields a record's constructor checks together, so it sees only the values the edits end on
 - How the pure and validating edits are kept apart at compile time, and when overlapping paths need one atomic edit instead
 ~~~
 
@@ -36,7 +37,7 @@ The `org.higherkindedj.optics.edit` package folds all of that into two operation
 | `Edits.combine(...)` | every edit is always safe (no validation) | one reusable `Update<S>` |
 | `Edits.accumulate(...)` | some edits validate their input (a REST `PATCH`) | a patch you apply to get `Validated<NonEmptyList<FieldError>, S>` |
 
-Those are the whole API. The rest of this page is how each one behaves, and how the compiler keeps a validating edit from slipping into `combine` by accident.
+Those are the whole API, with one more form of `accumulate` for [fields a constructor checks together](#fields-a-constructor-checks-together). The rest of this page is how each one behaves, and how the compiler keeps a validating edit from slipping into `combine` by accident.
 
 ---
 
@@ -103,7 +104,7 @@ A path from a `@GenerateFocus` companion carries its record-component name as a 
 For the railway, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
 
 ~~~admonish tip title="Generate this when the shape is regular"
-When the request DTO's fields line up one-to-one with a domain record (the common REST PATCH case), you need not hand-write the fold at all: `@GenerateMapping` on an [`UpdateSpec<Domain, Wire>`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) generates exactly this `Edits.accumulate` over the present fields, as `updateFrom(wire) : Edits.Accumulated<Domain>` (the same `apply`/`applyPath`/`toValidated` surface). Reach for the hand-written `Edits` here when the edits are irregular (a `qtyDelta` that *modifies*, coupled fields, a computed target); reach for `UpdateSpec` when each present field maps to one slot.
+When the request DTO's fields line up one-to-one with a domain record (the common REST PATCH case), you need not hand-write the fold at all: `@GenerateMapping` on an [`UpdateSpec<Domain, Wire>`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) generates this `Edits.accumulate` over the present fields, in its [construct-once form](#fields-a-constructor-checks-together), as `updateFrom(wire) : Edits.Accumulated<Domain>` (the same `apply`/`applyPath`/`toValidated` surface). Reach for the hand-written `Edits` here when the edits are irregular (a `qtyDelta` that *modifies*, coupled fields, a computed target); reach for `UpdateSpec` when each present field maps to one slot.
 ~~~
 
 ---
@@ -162,7 +163,46 @@ flowchart TD
     class Bad bad
 ```
 
-Application order is observable only when paths overlap: disjoint paths commute; an edit at an overlapping path sees the previous edit's result (a `modify` reads the *current* value at application time). Genuinely coupled fields belong in one atomic edit (see [Coupled Fields](coupled_fields.md) and `Lens.paired`).
+Application order is observable only when paths overlap: disjoint paths commute; an edit at an overlapping path sees the previous edit's result (a `modify` reads the *current* value at application time). Genuinely coupled fields belong in one atomic edit (see [Coupled Fields](coupled_fields.md) and `Lens.paired`), or, when a record's constructor checks them against each other, [onto a focus](#fields-a-constructor-checks-together).
+
+---
+
+## Fields a constructor checks together {#fields-a-constructor-checks-together}
+
+Each write through a record's path builds a new record, so the constructor sees every value the fold passes through. A range whose constructor refuses `lo > hi` cannot move from `Range(1, 3)` to `Range(5, 10)` one end at a time: writing `lo` first builds `Range(5, 3)`, and the constructor throws before `hi` is written, although the final range is valid.
+
+`Edits.accumulate(focus, edits...)` takes a `Lens` to a value carrying the fields the edits set, with no check of its own. The edits write onto that value, and the lens sets it back once, so the constructor sees only the final values:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:focus_records}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:focus}}
+```
+
+```mermaid
+flowchart LR
+    subgraph each["accumulate(edits…): one record per edit"]
+        direction LR
+        A1(["Range(1, 3)"]) -->|"lo = 5"| A2(["Range(5, 3)<br/>the constructor throws"])
+    end
+    subgraph once["accumulate(ends, edits…): one Range in all"]
+        direction LR
+        B1(["Ends(1, 3)"]) -->|"lo = 5"| B2(["Ends(5, 3)"]) -->|"hi = 10"| B3(["Ends(5, 10)"]) -->|"set once"| B4(["Range(5, 10)"])
+    end
+
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef bad fill:#e78284,stroke:#d20f39,color:#232634
+    class A1,B1,B2,B3,B4 tier
+    class A2 bad
+```
+
+The edits validate exactly as they do in `accumulate`, and their errors are reported alone: the record is constructed only once every edit validated. A `RuntimeException` that setting the focus back throws is the constructor refusing the final values, and `apply` reports it as an unlabelled `FieldError` carrying the exception's message; an exception without a message, or with a blank one, reads `not a valid Range`. Only that call is guarded: an exception from an edit's own function, or from reading the focus, still propagates. When every edit is absent, the source comes back as it is and the focus is never set. `toValidated()` hands back an `Update` that writes onto the focus and sets it back once, and since an `Update` has no error channel, a refusal throws from it.
+
+The edits' errors are located relative to the focus. Where the focus is a nested component rather than the source's own fields, add the component's name to each edit with `.at("range")`, so their errors and the source agree on where they are.
+
+`@GenerateMapping` on an [`UpdateSpec`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) generates exactly this: its `updateFrom` writes onto the components a PATCH can set and constructs the domain record once.
 
 ---
 
@@ -172,6 +212,7 @@ Application order is observable only when paths overlap: disjoint paths commute;
 * **`Edits.accumulate`** validates every edit independently and reports all located failures at once, in edit order, with no arity ceiling
 * **Two phases**: validation is source-independent; writes run left-to-right only when everything validated
 * **Overlapping paths see earlier writes**; coupled fields should be one atomic edit (`Lens.paired`)
+* **`Edits.accumulate(focus, …)`** writes onto one focus and sets it back once, so a constructor checking fields against each other sees only the final values, and its refusal is an `Invalid`
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

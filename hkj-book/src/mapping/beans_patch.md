@@ -154,6 +154,18 @@ The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain
 
 The return type is exactly what a hand-written [`Edits.accumulate(...)`](../optics/multi_edit.md) PATCH builder produces, so the two compose and the same consumption story (`apply`, `applyPath`, `toValidated`) carries over.
 
+`updateFrom` constructs the domain record once. The present values are written onto a private record holding just the components the PATCH can set, and the domain's constructor runs a single time, over the values the PATCH ends on, reading every other component from the current value. A constructor that checks its fields against each other therefore never sees a PATCH half applied:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_invariant}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_invariant_usage}}
+```
+
+A refusal is an unlabelled `FieldError` carrying the exception's message, as [the other tiers report a constructor's refusal](basics.md#constructor-invariants); an exception without a message, or with a blank one, reads `not a valid PriceBand`. A nested record the PATCH replaces whole parses through its own spec, guard included. Any `RuntimeException` counts, so a bug in the constructor reaches the client as its message too. The constructor runs only once every field sent has validated, so its refusal never joins their errors, and a PATCH that sends nothing hands back the current value itself without running it. `toValidated()` hands back the same construct-once `Update`, which has no error channel, so there a refusal throws. The generated update is [`Edits.accumulate(focus, ...)`](../optics/multi_edit.md#fields-a-constructor-checks-together), which a hand-written PATCH can use too.
+
 The rules that keep the contract honest:
 
 - **A spec extending both `MappingSpec` and `UpdateSpec` is rejected.** One spec generates one Impl on one tier, and the tiers emit disjoint members, so nothing an Impl could carry answers both clauses. Declare a spec per tier and let a [shared vocabulary mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) carry what the pair has in common. A spec in a *dependency* that carries the shape is not refused here (it was compiled elsewhere), but it is never offered for nesting either: a use site needing the pair is told which spec it is and that it has no parse.
@@ -168,7 +180,6 @@ The rules that keep the contract honest:
 - **A present container parses through the element vocabulary.** A `List`, `Set`, array, `Optional` or `Map`-valued property (a pair declared as exactly those container types) routes through the element leaf named after the component: the same leaf the dense tiers lift, so one [mix-in vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) serves a full spec and its PATCH sibling. Replacement stays wholesale; each failing element is located the way its container locates anything - by index (`phones.1`), by key, or, in a `Set`, by the element's own rendering. A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) is the more specific declaration and wins over the element interpretation. A nested *spec* still does not lift through a sparse container; give the component an element leaf delegating to the nested Impl's `asValidatedPrism()` if its elements need a whole mapping.
 - **An inherited derived field or `@OptionalBridge` marker stays inert.** Arriving from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces), neither is ever consulted here, so one vocabulary serves a full spec and its PATCH sibling; declaring either on the `UpdateSpec` itself is still an error, reported where it was written. An inherited rename is inert too whenever either end is missing, whether this PATCH bean omits the property its `to` names or this domain omits the component it renames, so a bean covering a subset needs no vocabulary of its own. An inherited [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) marker is judged against this bean rather than waved through. It is inert whenever the bean carries none of the group's inner properties that nothing else fills, which covers both a bean declaring the group's own component (patched whole by identity) and one omitting the group entirely; it is refused, naming the mix-in, when the bean carries one, since a spread has no sparse edit shape yet. A `@Flatten` marker the `UpdateSpec` declares itself is refused either way, like the derived field and the bridge.
 - **Coverage is one-sided.** Every wire property maps to a domain component, but a domain component with *no* wire property is simply never changed: a PATCH DTO deliberately covers a subset.
-- **An invariant spanning the fields a PATCH sets is not supported yet.** Each present field is set on its own, rebuilding the record through its constructor, so the constructor sees every intermediate value: a PATCH moving `lo` and `hi` together can trip a `lo <= hi` check halfway, even when the final value is valid, and the exception propagates from `apply`. A nested record the PATCH replaces whole still parses through its own spec, [constructor guard](basics.md#constructor-invariants) included.
 - **A same-typed nested record, `Optional`, `List` or `Map` replaces wholesale** through identity, the fallback when no more specific leaf applies. The details:
   - A same-typed `List`, `Set`, array or `Map` carries the dense tiers' null scan: a null element or value is a located, accumulating invalid (`tags.1: must not be null`; a set's, unlocated as `tags: must not contain a null element`), never written into the domain; a valid container still passes by reference, unrebuilt.
   - The scan needs a properly parameterised container; a raw or wildcard-argument one is written as sent.
@@ -195,6 +206,12 @@ Identity (an all-absent wire is the identity update), idempotence (applying the 
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:update_container_laws}}
+```
+
+The validation law asks for a located error, so its invalid wire must fail on a field: a constructor's refusal is unlabelled and cannot stand in for one. A domain with no leaf to fail, such as `PriceBand` above, checks the other two laws on their own and asserts its refusal directly:
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:update_invariant_laws}}
 ```
 
 ~~~admonish tip title="Why this matters"

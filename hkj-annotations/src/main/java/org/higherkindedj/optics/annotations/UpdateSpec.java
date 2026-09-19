@@ -48,18 +48,24 @@ package org.higherkindedj.optics.annotations;
  *   <li><b>Absent (null)</b> — skipped; the domain's current value survives.
  * </ul>
  *
+ * <p>The domain record is constructed once, from the values the PATCH ends on: the present values
+ * are written onto the components the PATCH can set, and the canonical constructor runs a single
+ * time, reading every other component from the current value. A constructor that checks its fields
+ * against each other ({@code lo <= hi}) therefore never sees a PATCH half applied, so moving both
+ * ends of a range is valid. The constructor runs only once every present field has validated, and a
+ * final value it refuses is {@code Invalid}, an unlabelled {@code FieldError} carrying the
+ * exception's message; an exception without a message, or with a blank one, reads {@code "not a
+ * valid User"}. A PATCH that sends nothing hands back the current value itself, without running the
+ * constructor. {@code toValidated()} hands back the same construct-once {@code Update}, which has
+ * no error channel, so a refusal throws from it. A nested record the PATCH replaces whole parses
+ * through its own spec, whose constructor call is guarded the same way.
+ *
  * <p>The wire type {@code W} must be a bean-shaped class (a record cannot distinguish an absent
  * component from a null-typed one), and every wire property must be reference-typed — a primitive
  * property is always present, so it can never carry the null-as-absent signal and is rejected with
  * a diagnostic pointing at the wrapper type. The domain type {@code D} must be a record. Coverage
  * is one-sided: every wire property maps to a domain component, but a domain component with no wire
  * property is simply never changed.
- *
- * <p>Each present field is set on its own, rebuilding the record through its canonical constructor,
- * so an invariant spanning the fields a PATCH sets is not supported yet: the constructor sees every
- * intermediate value, and an exception it throws propagates from {@code apply} even when the final
- * value would be valid. A nested record the PATCH replaces whole still parses through its own spec,
- * whose constructor call is guarded.
  *
  * <p>Absence is read, never declared: a property is absent when its getter answers {@code null}, so
  * every PATCH bean getter must answer {@code null} until its property is set. Any default the bean

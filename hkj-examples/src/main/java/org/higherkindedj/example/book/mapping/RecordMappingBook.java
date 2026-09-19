@@ -291,6 +291,24 @@ public final class RecordMappingBook {
     // ANCHOR_END: update_usage
     System.out.println(patched);
 
+    // ANCHOR: update_invariant_usage
+    PriceBand band = new PriceBand(10, 20);
+
+    PriceBandPatch raise = new PriceBandPatch();
+    raise.setFloor(30); // on its own, a floor of 30 is above the ceiling of 20...
+    raise.setCeiling(40); // ...but the PATCH ends on 30 to 40
+    Validated<NonEmptyList<FieldError>, PriceBand> raised =
+        PriceBandPatchMappingImpl.INSTANCE.updateFrom(raise).apply(band);
+    // Valid(PriceBand[floor=30, ceiling=40]): the constructor sees only the final values
+
+    PriceBandPatch floorOnly = new PriceBandPatch();
+    floorOnly.setFloor(30);
+    Validated<NonEmptyList<FieldError>, PriceBand> refused =
+        PriceBandPatchMappingImpl.INSTANCE.updateFrom(floorOnly).apply(band);
+    // Invalid(NonEmptyList[floor above ceiling]): the constructor's own message, at the root
+    // ANCHOR_END: update_invariant_usage
+    System.out.println(raised + " / " + refused);
+
     // ANCHOR: unmapped_usage
     TenantPatchBean tenantPatch = new TenantPatchBean();
     tenantPatch.setName("Ada Lovelace");
@@ -826,6 +844,42 @@ interface ContactPatchMapping extends UpdateSpec<Customer, ContactPatchBean> {
 }
 
 // ANCHOR_END: update_spec
+
+// ANCHOR: update_invariant
+// A price band whose constructor checks its two fields against each other.
+record PriceBand(int floor, int ceiling) {
+  PriceBand {
+    if (floor > ceiling) {
+      throw new IllegalArgumentException("floor above ceiling");
+    }
+  }
+}
+
+class PriceBandPatch {
+  private Integer floor;
+  private Integer ceiling;
+
+  public Integer getFloor() {
+    return floor;
+  }
+
+  public void setFloor(Integer floor) {
+    this.floor = floor;
+  }
+
+  public Integer getCeiling() {
+    return ceiling;
+  }
+
+  public void setCeiling(Integer ceiling) {
+    this.ceiling = ceiling;
+  }
+}
+
+@GenerateMapping
+interface PriceBandPatchMapping extends UpdateSpec<PriceBand, PriceBandPatch> {}
+
+// ANCHOR_END: update_invariant
 
 // ANCHOR: unmapped_spec
 // A tenant record whose id the server assigns, and a PATCH body shared with the GET response: it

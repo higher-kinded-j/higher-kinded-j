@@ -19,8 +19,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -720,8 +722,26 @@ public final class ProcessorUtils {
    * @since 0.4.10
    */
   public static TypeName typeNameOf(TypeMirror type) {
+    return typeNameOf(type, _ -> true);
+  }
+
+  /**
+   * The name of a type as written, keeping at every depth only the type-use annotations {@code
+   * keep} accepts.
+   *
+   * <p>For a generator that writes out a type its source only inferred: the type itself was already
+   * usable there, but an annotation on it is a new name in the generated file, and one the
+   * consuming build may be unable to compile, which {@link #writableFrom} tells apart.
+   *
+   * @param type the type to name; must not be null
+   * @param keep which of its annotations to write; must not be null
+   * @return its name, annotated as the source annotated it, less what {@code keep} refused
+   *     (non-null)
+   * @since 0.4.11
+   */
+  public static TypeName typeNameOf(TypeMirror type, Predicate<? super AnnotationMirror> keep) {
     List<AnnotationSpec> annotations =
-        type.getAnnotationMirrors().stream().map(AnnotationSpec::get).toList();
+        type.getAnnotationMirrors().stream().filter(keep).map(AnnotationSpec::get).toList();
     // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's
     // intersection implements DeclaredType, so a pattern switch would send one down the declared
     // arm and ask it for a class element it does not have. Everything this does not rebuild -
@@ -729,23 +749,49 @@ public final class ProcessorUtils {
     // from the mirror alone, and it stays javapoet's call which of those it refuses.
     TypeName name =
         switch (type.getKind()) {
-          case ARRAY -> ArrayTypeName.of(typeNameOf(((ArrayType) type).getComponentType()));
-          case WILDCARD -> wildcardNameOf((WildcardType) type);
-          case DECLARED, ERROR -> declaredNameOf((DeclaredType) type);
+          case ARRAY -> ArrayTypeName.of(typeNameOf(((ArrayType) type).getComponentType(), keep));
+          case WILDCARD -> wildcardNameOf((WildcardType) type, keep);
+          case DECLARED, ERROR -> declaredNameOf((DeclaredType) type, keep);
           default -> TypeName.get(type);
         };
     return annotations.isEmpty() ? name : name.annotated(annotations);
   }
 
-  private static TypeName declaredNameOf(DeclaredType declared) {
+  /**
+   * Whether a class generated into {@code targetPackage} can write {@code annotation} and still
+   * compile cleanly: its type is on the classpath, it can be named from there, and it is not
+   * deprecated.
+   *
+   * <p>An annotation read from a class file names a type that need not be on the consuming build's
+   * classpath at all: a library's annotations are commonly a dependency the library does not pass
+   * on, and javac then reads the type as an error type. Such an annotation, one the target package
+   * cannot see, and a deprecated one each fail a build where the type it annotates was only ever
+   * inferred.
+   *
+   * @param elements the round's element utilities
+   * @param targetPackage the package the generated class is written into
+   * @return the test, for {@link #typeNameOf(TypeMirror, Predicate)}
+   * @since 0.4.11
+   */
+  public static Predicate<AnnotationMirror> writableFrom(Elements elements, String targetPackage) {
+    return annotation -> {
+      DeclaredType type = annotation.getAnnotationType();
+      return type.getKind() == TypeKind.DECLARED
+          && reachableFrom(elements, type.asElement(), targetPackage)
+          && !elements.isDeprecated(type.asElement());
+    };
+  }
+
+  private static TypeName declaredNameOf(
+      DeclaredType declared, Predicate<? super AnnotationMirror> keep) {
     ClassName rawType = ClassName.get((TypeElement) declared.asElement());
     TypeMirror enclosingType = declared.getEnclosingType();
     // A static member has no enclosing instance type, so javac reports NONE for it and the kind
     // test alone settles both cases.
     TypeName enclosing =
-        enclosingType.getKind() == TypeKind.NONE ? null : typeNameOf(enclosingType);
+        enclosingType.getKind() == TypeKind.NONE ? null : typeNameOf(enclosingType, keep);
     List<TypeName> argumentNames =
-        declared.getTypeArguments().stream().map(ProcessorUtils::typeNameOf).toList();
+        declared.getTypeArguments().stream().map(argument -> typeNameOf(argument, keep)).toList();
     if (enclosing instanceof ParameterizedTypeName parameterised) {
       return parameterised.nestedClass(rawType.simpleName(), argumentNames);
     }
@@ -761,15 +807,16 @@ public final class ProcessorUtils {
         : ParameterizedTypeName.get(rawType, argumentNames.toArray(new TypeName[0]));
   }
 
-  private static TypeName wildcardNameOf(WildcardType wildcard) {
+  private static TypeName wildcardNameOf(
+      WildcardType wildcard, Predicate<? super AnnotationMirror> keep) {
     TypeMirror extendsBound = wildcard.getExtendsBound();
     if (extendsBound != null) {
-      return WildcardTypeName.subtypeOf(typeNameOf(extendsBound));
+      return WildcardTypeName.subtypeOf(typeNameOf(extendsBound, keep));
     }
     TypeMirror superBound = wildcard.getSuperBound();
     return superBound == null
         ? WildcardTypeName.subtypeOf(ClassName.OBJECT)
-        : WildcardTypeName.supertypeOf(typeNameOf(superBound));
+        : WildcardTypeName.supertypeOf(typeNameOf(superBound, keep));
   }
 
   /**

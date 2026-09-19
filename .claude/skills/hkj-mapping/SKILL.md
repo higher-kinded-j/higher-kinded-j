@@ -441,10 +441,10 @@ matter: it maps build-only whatever its width, derived fields included.
   unlabelled at the top level, beside every error accumulated around it (`not a valid Range` when
   the message is missing or blank). It covers every surface that builds the record whole from
   parsed parts: `parse`, the validated `patch`, a flattened group, a fallible merge and
-  `@GenerateAssembly`'s `assemble()`. The exception propagates from the total optics,
-  `asIso().reverseGet` and a projection's `asLens().set`, and from a sparse `UpdateSpec`'s
-  `apply`, which sets one field at a time and does not support an invariant spanning the fields
-  it sets yet. Any `RuntimeException` counts, so a constructor bug reaches the client as its
+  `@GenerateAssembly`'s `assemble()`. A sparse `UpdateSpec` constructs once, from the values the
+  PATCH ends on, and its `apply` reports the refusal unlabelled. The exception propagates from the
+  total optics, `asIso().reverseGet` and a projection's `asLens().set`, and from the `Update` a
+  sparse update's `toValidated()` hands back. Any `RuntimeException` counts, so a constructor bug reaches the client as its
   message, with the stack trace dropped: keep the constructor to argument checks with
   client-facing messages, and single-field rules in leaves, which locate at the field and
   accumulate with the record's other errors. For `MappingLaws`, a patch or parse-only rejection
@@ -580,10 +580,18 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   leave containers `null` (openapi-generator: `containerDefaultToNull`) and give the PATCH
   schema's properties no `default:`, which renders as an initialiser.
 - Coverage is one-sided: a domain component with no wire property is simply never changed.
+- The domain record is **constructed once**, from the values the PATCH ends on, so a constructor
+  checking fields against each other (`lo <= hi`) never sees a half-applied PATCH: moving both ends
+  of a range is `Valid`. A final value it refuses is an unlabelled `FieldError` carrying the
+  exception's message (`not a valid Range` when it has none, or a blank one); `toValidated()`'s
+  `Update` throws there instead, having no error channel. An empty PATCH hands back the current
+  value without constructing. The generated fold is `Edits.accumulate(focus, ...)`.
 - Law-check it with the sparse overload:
   `MappingLaws.assertMappingLaws(Impl.INSTANCE::updateFrom, current, absentWire, validWire, invalidWire)`,
   with `absentWire` a freshly constructed bean (what a binder makes of `{}`) and `current` unlike
   any default (non-empty containers), so a default the bean gives itself fails the identity law.
+  `invalidWire` must fail a field: a constructor's refusal is unlabelled, so a leafless domain
+  calls `MappingLaws.assertSparseIdentity` and `assertSparseIdempotent` on their own.
 
 ---
 

@@ -219,11 +219,20 @@ and its two terminals are the bridge:
 | `Edits.accumulate(FallibleEdit<S>...).apply(S)` | `Validated<NEL<FieldError>, S>` | Crosses into the accumulating effect |
 | `Edits.accumulate(...).applyPath(S)` | `ValidationPath<NEL<FieldError>, S>` | Crosses into the **Path** world |
 | `Edits.accumulate(...).toValidated()` | `Validated<NEL<FieldError>, Update<S>>` | The validated *function*, applied later |
+| `Edits.accumulate(Lens<S, A> focus, FallibleEdit<A>...).apply(S)` | `Validated<NEL<FieldError>, S>` | Writes onto the focus, sets it back once; a refused set is an `Invalid` |
 
 **That split is the bridge.** `combine` is the answer when nothing can fail; `accumulate` is the answer
 when a leaf parses, because parsing can fail and failures must accumulate. `Edit<S> extends
 FallibleEdit<S>`, so infallible leaves mix freely into `accumulate(...)`. The fold is homogeneous, so
 unlike the assembly builders there is **no arity ceiling**.
+
+Each write through a record's path constructs a new record, so a constructor that checks fields
+against each other (`lo <= hi`) sees every intermediate value, and moving both ends of a range throws
+halfway. Give `accumulate` a focus first: a `Lens` (a `FocusPath`'s `toLens()` will do) from the
+record to a second record carrying those fields with no check of its own. The leaves still take that
+record's paths (`EndsFocus.lo()`), the edits write onto it, and the lens sets it back once; a
+`RuntimeException` from that set becomes an unlabelled `FieldError` carrying its message.
+`UpdateSpec`'s `updateFrom` is generated this way.
 
 ### The Leaf Factories: Read This Twice
 

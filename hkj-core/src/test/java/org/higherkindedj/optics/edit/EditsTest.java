@@ -3,7 +3,10 @@
 package org.higherkindedj.optics.edit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.Arrays;
@@ -449,6 +452,267 @@ class EditsTest {
           .withMessage("edit must not be null");
       assertThatNullPointerException()
           .isThrownBy(() -> Edits.accumulate(Edit.set(QUANTITY, 1)).apply(null))
+          .withMessage("source must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("Edits.accumulate onto a focus - the edits land on the focus, set back once")
+  class AccumulateOntoFocusTests {
+
+    /** A record whose constructor checks its two fields against each other. */
+    record Range(int lo, int hi) {
+      Range {
+        if (lo > hi) {
+          throw new IllegalArgumentException("lo > hi");
+        }
+      }
+    }
+
+    /** The fields the edits set, with no check of their own. */
+    record Ends(int lo, int hi) {}
+
+    /** A record whose constructor refuses without a reason. */
+    record Positive(int n) {
+      Positive {
+        if (n < 0) {
+          throw new IllegalArgumentException();
+        }
+      }
+    }
+
+    /** A record whose constructor refuses with a blank reason. */
+    record Even(int n) {
+      Even {
+        if (n % 2 != 0) {
+          throw new IllegalArgumentException("  ");
+        }
+      }
+    }
+
+    private static final Lens<Range, Ends> ENDS =
+        Lens.of(r -> new Ends(r.lo(), r.hi()), (r, e) -> new Range(e.lo(), e.hi()));
+    private static final Setter<Ends, Integer> LO =
+        Setter.fromGetSet(Ends::lo, (e, lo) -> new Ends(lo, e.hi()));
+    private static final Setter<Ends, Integer> HI =
+        Setter.fromGetSet(Ends::hi, (e, hi) -> new Ends(e.lo(), hi));
+    private static final Range RANGE = new Range(1, 3);
+    private static final Setter<Integer, Integer> WHOLE = Setter.fromGetSet(i -> i, (i, v) -> v);
+
+    /** A class a source can subclass anonymously, so it has no simple name. */
+    static class Counter {
+      int count() {
+        return 1;
+      }
+    }
+
+    private static Validated<NonEmptyList<FieldError>, Integer> parseInt(String raw) {
+      return raw.chars().allMatch(Character::isDigit)
+          ? Validated.validNel(Integer.parseInt(raw))
+          : Validated.invalidNel(FieldError.of("not a number"));
+    }
+
+    @Test
+    @DisplayName("should construct once, so a valid result is reached through an invalid midpoint")
+    void shouldConstructOnce() {
+      Setter<Range, Integer> rangeLo =
+          Setter.fromGetSet(Range::lo, (r, lo) -> new Range(lo, r.hi()));
+      Setter<Range, Integer> rangeHi =
+          Setter.fromGetSet(Range::hi, (r, hi) -> new Range(r.lo(), hi));
+
+      // Field by field, lo = 5 is written first and builds Range(5, 3).
+      assertThatIllegalArgumentException()
+          .isThrownBy(
+              () ->
+                  Edits.accumulate(Edit.setIfPresent(rangeLo, 5), Edit.setIfPresent(rangeHi, 10))
+                      .apply(RANGE))
+          .withMessage("lo > hi");
+
+      assertThatValidated(
+              Edits.accumulate(ENDS, Edit.setIfPresent(LO, 5), Edit.setIfPresent(HI, 10))
+                  .apply(RANGE))
+          .isValid()
+          .hasValue(new Range(5, 10));
+    }
+
+    @Test
+    @DisplayName("should report a refused result at the root, carrying the constructor's message")
+    void shouldReportRefusalAtRoot() {
+      assertThatValidated(Edits.accumulate(ENDS, Edit.setIfPresent(LO, 5)).apply(RANGE))
+          .hasError(NonEmptyList.of(FieldError.of("lo > hi")));
+    }
+
+    @Test
+    @DisplayName("should name the source's class when the refusal gives no reason")
+    void shouldNameTheClassWithoutAReason() {
+      Lens<Positive, Integer> n = Lens.of(Positive::n, (p, v) -> new Positive(v));
+      Lens<Even, Integer> m = Lens.of(Even::n, (e, v) -> new Even(v));
+
+      assertThatValidated(Edits.accumulate(n, Edit.set(WHOLE, -1)).apply(new Positive(1)))
+          .hasFieldErrors("not a valid Positive");
+      assertThatValidated(Edits.accumulate(m, Edit.set(WHOLE, 3)).apply(new Even(2)))
+          .hasFieldErrors("not a valid Even");
+    }
+
+    @Test
+    @DisplayName("should keep the source's value wherever an edit is absent")
+    void shouldKeepAbsentFields() {
+      assertThatValidated(
+              Edits.accumulate(
+                      ENDS, Edit.setIfPresent(LO, (Integer) null), Edit.setIfPresent(HI, 7))
+                  .apply(RANGE))
+          .isValid()
+          .hasValue(new Range(1, 7));
+    }
+
+    @Test
+    @DisplayName("should hand back the source itself, never setting, when every edit is absent")
+    void shouldHandBackTheSourceWhenEveryEditIsAbsent() {
+      Lens<Range, Ends> unsettable =
+          Lens.of(
+              ENDS::get,
+              (r, e) -> {
+                throw new IllegalStateException("set on a no-op");
+              });
+      Edits.Accumulated<Range> absent =
+          Edits.accumulate(unsettable, Edit.setIfPresent(LO, (Integer) null));
+
+      assertThat(absent.apply(RANGE).get()).isSameAs(RANGE);
+      assertThat(Edits.accumulate(ENDS).apply(RANGE).get()).isSameAs(RANGE);
+      assertThat(absent.toValidated().fold(errors -> Update.<Range>identity(), u -> u).apply(RANGE))
+          .isSameAs(RANGE);
+    }
+
+    @Test
+    @DisplayName("should name an anonymous source's class by its binary name")
+    void shouldNameAnAnonymousClassByItsBinaryName() {
+      Lens<Counter, Integer> count =
+          Lens.of(
+              Counter::count,
+              (c, n) -> {
+                throw new IllegalArgumentException();
+              });
+      Counter anonymous = new Counter() {};
+
+      assertThatValidated(Edits.accumulate(count, Edit.set(WHOLE, 2)).apply(anonymous))
+          .hasFieldErrors("not a valid " + anonymous.getClass().getName());
+    }
+
+    @Test
+    @DisplayName("should catch only the set: a set handing back null still throws")
+    void shouldNotCatchWhatTheSetHandsBack() {
+      Lens<Range, Ends> nulling = Lens.of(ENDS::get, (r, e) -> null);
+
+      assertThatThrownBy(() -> Edits.accumulate(nulling, Edit.set(LO, 2)).apply(RANGE))
+          .isInstanceOf(RuntimeException.class)
+          .isNotInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("should report the edits' own errors alone, never constructing")
+    void shouldNotConstructWhenAnEditFails() {
+      assertThatValidated(
+              Edits.accumulate(
+                      ENDS,
+                      Edit.parseIfPresent(LO, "x", AccumulateOntoFocusTests::parseInt).at("lo"),
+                      Edit.setIfPresent(HI, 0))
+                  .apply(RANGE))
+          .hasFieldErrors("lo: not a number");
+    }
+
+    @Test
+    @DisplayName("should catch only the set: an edit's own exception still propagates")
+    void shouldCatchOnlyTheSet() {
+      Edits.Accumulated<Range> failing =
+          Edits.accumulate(
+              ENDS,
+              Edit.modify(
+                  LO,
+                  lo -> {
+                    throw new IllegalStateException("edit bug");
+                  }));
+      Lens<Range, Ends> unreadable =
+          Lens.of(
+              r -> {
+                throw new IllegalStateException("get bug");
+              },
+              (r, e) -> r);
+
+      assertThatIllegalStateException()
+          .isThrownBy(() -> failing.apply(RANGE))
+          .withMessage("edit bug");
+      assertThatIllegalStateException()
+          .isThrownBy(() -> Edits.accumulate(unreadable, Edit.set(LO, 2)).apply(RANGE))
+          .withMessage("get bug");
+    }
+
+    @Test
+    @DisplayName("should validate once and apply to many sources, each judged on its own values")
+    void shouldApplyToManySources() {
+      Edits.Accumulated<Range> patch = Edits.accumulate(ENDS, Edit.setIfPresent(LO, 5));
+
+      assertThatValidated(patch.apply(new Range(0, 9))).isValid().hasValue(new Range(5, 9));
+      assertThatValidated(patch.apply(RANGE)).hasFieldErrors("lo > hi");
+    }
+
+    @Test
+    @DisplayName("applyPath should mirror apply, a refusal included")
+    void applyPathShouldMirrorApply() {
+      Edits.Accumulated<Range> valid = Edits.accumulate(ENDS, Edit.setIfPresent(HI, 4));
+      Edits.Accumulated<Range> refused = Edits.accumulate(ENDS, Edit.setIfPresent(LO, 5));
+
+      assertThat(valid.applyPath(RANGE).run()).isEqualTo(valid.apply(RANGE));
+      assertThat(refused.applyPath(RANGE).run()).isEqualTo(refused.apply(RANGE));
+    }
+
+    @Test
+    @DisplayName("toValidated's update should construct once, and throw where apply reports")
+    void toValidatedShouldConstructOnce() {
+      Update<Range> widen =
+          Edits.accumulate(ENDS, Edit.setIfPresent(LO, 5), Edit.setIfPresent(HI, 10))
+              .toValidated()
+              .fold(errors -> Update.identity(), update -> update);
+      Update<Range> refused =
+          Edits.accumulate(ENDS, Edit.setIfPresent(LO, 5))
+              .toValidated()
+              .fold(errors -> Update.identity(), update -> update);
+
+      assertThat(widen.apply(RANGE)).isEqualTo(new Range(5, 10));
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> refused.apply(RANGE))
+          .withMessage("lo > hi");
+    }
+
+    @Test
+    @DisplayName("should accept a list of edits")
+    void shouldAcceptList() {
+      List<FallibleEdit<Ends>> edits = List.of(Edit.setIfPresent(LO, 5), Edit.setIfPresent(HI, 10));
+
+      assertThatValidated(Edits.accumulate(ENDS, edits).apply(RANGE))
+          .isValid()
+          .hasValue(new Range(5, 10));
+    }
+
+    @Test
+    @DisplayName("should reject a null focus, null edits and a null source")
+    void shouldRejectNulls() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Edits.accumulate((Lens<Range, Ends>) null, Edit.set(LO, 1)))
+          .withMessage("focus must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> Edits.accumulate((Lens<Range, Ends>) null, List.of()))
+          .withMessage("focus must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> Edits.accumulate(ENDS, (FallibleEdit<Ends>[]) null))
+          .withMessage("edits must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> Edits.accumulate(ENDS, (List<FallibleEdit<Ends>>) null))
+          .withMessage("edits must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> Edits.accumulate(ENDS, Edit.set(LO, 1), null))
+          .withMessage("edit must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> Edits.accumulate(ENDS, Edit.set(LO, 1)).apply(null))
           .withMessage("source must not be null");
     }
   }

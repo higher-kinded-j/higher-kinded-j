@@ -65,6 +65,28 @@ class RecordMappingBookLawsTest {
   }
 
   @Test
+  @DisplayName("the price band PATCH constructs once, as the page's comments claim")
+  void priceBandPatchConstructsOnce() {
+    PriceBand band = new PriceBand(10, 20);
+    PriceBandPatch raise = new PriceBandPatch();
+    raise.setFloor(30);
+    raise.setCeiling(40);
+    PriceBandPatch floorOnly = new PriceBandPatch();
+    floorOnly.setFloor(30);
+
+    assertThatValidated(PriceBandPatchMappingImpl.INSTANCE.updateFrom(raise).apply(band))
+        .isValid()
+        .hasValue(new PriceBand(30, 40));
+    // ANCHOR: update_invariant_laws
+    var priceBandMapping = PriceBandPatchMappingImpl.INSTANCE;
+    MappingLaws.assertSparseIdentity(priceBandMapping::updateFrom, band, new PriceBandPatch());
+    MappingLaws.assertSparseIdempotent(priceBandMapping::updateFrom, band, raise);
+    assertThatValidated(priceBandMapping.updateFrom(floorOnly).apply(band))
+        .hasFieldErrors("floor above ceiling"); // the constructor's refusal, unlabelled
+    // ANCHOR_END: update_invariant_laws
+  }
+
+  @Test
   void subscriberPatchMappingObeysThePatchLaws() {
     // ANCHOR: patch_laws
     var subscriberDetailsMapping = SubscriberDetailsMappingImpl.INSTANCE;

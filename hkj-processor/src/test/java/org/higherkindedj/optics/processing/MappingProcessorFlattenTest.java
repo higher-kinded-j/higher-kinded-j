@@ -1585,7 +1585,7 @@ class MappingProcessorFlattenTest {
       Assertions.assertThat(
               generatedSource(compilation, "com.example.SharedCustomerPatchMappingImpl"))
           .contains(
-              "Types.Customer::address, (d, v) -> new Types.Customer(d.name(), v)),"
+              "Components::address, (c, v) -> new Components(c.name(), v)),"
                   + " wire.getAddress())")
           .doesNotContain("Types.Address::new");
     }
@@ -1721,7 +1721,7 @@ class MappingProcessorFlattenTest {
                   """));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.ContactPatchMappingImpl"))
-          .contains("Setter.fromGetSet(Types.Contact::phone")
+          .contains("Setter.fromGetSet(Components::phone")
           .contains("wire.getPhone()")
           // The marker is stubbed like any other, so the Impl still implements the member.
           .contains("public Types.Address address()");
@@ -1768,7 +1768,7 @@ class MappingProcessorFlattenTest {
                   """));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.LabelPatchMappingImpl"))
-          .contains("Setter.fromGetSet(Label::address")
+          .contains("Setter.fromGetSet(Components::address")
           .contains("wire.getAddress()");
     }
 
@@ -1811,9 +1811,9 @@ class MappingProcessorFlattenTest {
                   """));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.RenamedPatchMappingImpl"))
-          .contains("Setter.fromGetSet(Types.Customer::name")
+          .contains("Setter.fromGetSet(Components::name")
           .contains("wire.getStreet()")
-          .contains("Setter.fromGetSet(Types.Customer::address")
+          .contains("Setter.fromGetSet(Components::address")
           .contains("wire.getAddress()");
     }
 
@@ -1877,9 +1877,9 @@ class MappingProcessorFlattenTest {
                   """));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.PersonPatchMappingImpl"))
-          .contains("Setter.fromGetSet(Roster.Person::id")
+          .contains("Setter.fromGetSet(Components::id")
           .contains("wire.getId()")
-          .contains("Setter.fromGetSet(Roster.Person::name")
+          .contains("Setter.fromGetSet(Components::name")
           .contains("wire.getName()");
     }
   }
