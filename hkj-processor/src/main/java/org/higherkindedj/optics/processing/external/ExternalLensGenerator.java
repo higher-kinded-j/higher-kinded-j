@@ -26,6 +26,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.processing.GeneratorRegistry;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.NestedOptic;
 import org.higherkindedj.optics.processing.util.NestedTypeNames;
@@ -178,7 +179,50 @@ public class ExternalLensGenerator {
               targetPackage));
     }
 
+    for (TypeAnalysis.LeftOutWither leftOut : analysis.withersLeftOut()) {
+      noteWitherLeftOut(className, leftOut, originatingElement);
+    }
+
     writeFile(targetPackage, lensesClassBuilder.build());
+  }
+
+  /**
+   * Notes a wither no lens is generated from, because another wither reaches the same field name.
+   *
+   * <p>A note rather than a warning: the class is someone else's, and the author of the import
+   * cannot change how it spells its getters. What they can do is name the pair they want through a
+   * spec interface, which the fix says.
+   */
+  private void noteWitherLeftOut(
+      String className, TypeAnalysis.LeftOutWither leftOut, Element originatingElement) {
+    Diagnostics.note(
+        messager,
+        originatingElement,
+        "@ImportOptics",
+        "'"
+            + className
+            + "' pairs more than one wither with the field '"
+            + leftOut.skipped().fieldName()
+            + "', and only one lens can carry that name.",
+        signatureOf(leftOut.generated())
+            + " pairs with '"
+            + leftOut.generated().getterMethodName()
+            + "()' and is generated; "
+            + signatureOf(leftOut.skipped())
+            + " pairs with '"
+            + leftOut.skipped().getterMethodName()
+            + "()' and is left out.",
+        "Name the one you want through a spec interface's @Wither, importing the type there"
+            + " rather than by class literal.");
+  }
+
+  /** A wither as the note names it, {@code 'withN(int)'}. */
+  private static String signatureOf(WitherInfo wither) {
+    return "'"
+        + wither.witherMethodName()
+        + "("
+        + ProcessorUtils.simpleTypeName(wither.parameterType())
+        + ")'";
   }
 
   private MethodSpec createRecordLensMethod(

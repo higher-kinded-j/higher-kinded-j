@@ -57,8 +57,10 @@ import java.lang.annotation.Target;
  * @ImportOptics
  * interface LegacyPersonOptics extends OpticsSpec<LegacyPerson> {
  *
+ *     // The lens method is named after the accessor it reads, since this strategy names no
+ *     // getter of its own.
  *     @ViaCopyAndSet(setter = "setName")
- *     Lens<LegacyPerson, String> name();
+ *     Lens<LegacyPerson, String> getName();
  * }
  * }</pre>
  *
