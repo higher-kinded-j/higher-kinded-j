@@ -375,7 +375,9 @@ permitted subtype pair its own spec; the parent dispatches over them:
 ```
 
 A domain subtype with no spec, or a wire subtype nothing produces, is a **compile error**: the
-dispatch cannot be partial.
+dispatch cannot be partial. Each subtype must be one a spec can map: a record or a sealed
+interface, or on the wire side a bean. A generic subtype, an enum, or any other class is not
+supported yet.
 
 ### What else gets generated
 
@@ -422,8 +424,14 @@ matter: it maps build-only whatever its width, derived fields included.
   `@MapKey("notes") default ValidatedPrism<String, Tag> noteKey() { ... }`. Both a failing key
   and a failing value locate by the SOURCE key. Two keys parsing to one domain key are a located
   `duplicates an earlier key`; a `Set` that collapses is silent, because its survivors are equal.
-- **Lifting needs the same container on both sides.** A `List` against a `Set`, or an array
-  against a `List`, is a plain type mismatch. A record carrying an array component has identity
+  A leaf over the whole `Map` would pre-empt the key leaf, so a key leaf the spec declares is
+  refused beside one, wherever it is declared; use a value leaf beside the key leaf instead.
+- **Lifting needs the same container on both sides, named exactly, one level deep.** A `List`
+  against a `Set`, or an array against a `List`, is a plain type mismatch, and so is an
+  `ArrayList`, a `SortedSet`, a `Collection` or a wildcard element (`List<? extends Customer>`):
+  declare the same exact container on both sides (`List<Customer>` against `List<CustomerDto>`)
+  to lift. A leaf over the inner elements of
+  `Optional<List<String>>` is not lifted twice. A record carrying an array component has identity
   `equals`, so `MappingLaws` cannot law-check it - assert the round trip elementwise.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
@@ -502,7 +510,10 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
 - One spec names **one tier**: extending both `MappingSpec` and `UpdateSpec` is rejected, since one
   Impl carries one tier and the two emit disjoint members. A pair of tiers is a pair of specs
   sharing a mix-in.
-- A **primitive** wire property is rejected (it can never be absent); use a wrapper type. A domain
+- A **primitive** wire property is rejected (it can never be absent); use a wrapper type, which
+  writes straight into a primitive domain component. The PATCH bean's constructor does not matter:
+  `updateFrom` only reads it, so setters count beside a private no-args constructor (a bean with
+  a builder keeps the builder as its writer). A domain
   `Optional<T>` bridged from a plain property is rejected too, `@OptionalBridge` declared on the
   sparse spec itself included ("set to empty" has no encoding, and `null` is already spoken for).
   An `Optional`-typed wire property expresses it instead: present-empty sets empty, absent (null)

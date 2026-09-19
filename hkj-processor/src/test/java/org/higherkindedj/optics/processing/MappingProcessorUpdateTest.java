@@ -2867,9 +2867,15 @@ class MappingProcessorUpdateTest {
       Compilation compilation = compile(domain, dto, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("cannot be written into");
-      // A leaf can never target a primitive component, so the fix steers to type alignment only.
-      assertThat(compilation).hadErrorContaining("Align the types");
-      assertThat(compilation).hadErrorContaining("make 'count' a wrapper type");
+      // A leaf can never target a primitive component, and a PATCH property can never be one, so
+      // the fix offers the property's wrapper, which writes straight in, or a wrapper component
+      // with a leaf into it.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'count' on 'TextCountDto' as java.lang.Integer, which a sparse update"
+                  + " writes straight into the int component, or declare 'Counter2.count' as"
+                  + " java.lang.Integer and add a leaf 'default ValidatedPrism<java.lang.String,"
+                  + " java.lang.Integer> count()'.");
     }
 
     @Test

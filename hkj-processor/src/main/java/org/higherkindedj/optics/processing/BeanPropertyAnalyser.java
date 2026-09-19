@@ -75,7 +75,19 @@ final class BeanPropertyAnalyser {
    * share a name.
    */
   WireShape.BeanShape analyse(TypeElement spec, TypeElement bean, String tag) {
-    return analyse(spec, bean, tag, true);
+    return analyse(spec, bean, tag, true, false);
+  }
+
+  /**
+   * The same analysis for a sparse update's PATCH bean, which the generated Impl only reads and
+   * never constructs. A setter shows that something writes the property, such as a deserialiser
+   * that can call a private constructor, and so can leave it unset, which is all the sparse tier
+   * asks; so the setters count whatever constructor the bean declares. A bean with a builder keeps
+   * the builder as its writer, as it does wherever its constructor is out of reach. The shape's
+   * strategy then names the kind of writer a fix line speaks of, not a way to construct the bean.
+   */
+  WireShape.BeanShape analysePatch(TypeElement spec, TypeElement bean, String tag) {
+    return analyse(spec, bean, tag, true, true);
   }
 
   /**
@@ -84,7 +96,7 @@ final class BeanPropertyAnalyser {
    * analysis serves both, so a spec is never registered as one shape and generated as another.
    */
   Optional<WireShape.BeanShape> surface(TypeElement spec, TypeElement bean) {
-    return Optional.ofNullable(analyse(spec, bean, "", false));
+    return Optional.ofNullable(analyse(spec, bean, "", false, false));
   }
 
   /**
@@ -97,15 +109,18 @@ final class BeanPropertyAnalyser {
   }
 
   private WireShape.BeanShape analyse(
-      TypeElement spec, TypeElement bean, String tag, boolean report) {
+      TypeElement spec, TypeElement bean, String tag, boolean report, boolean neverBuilt) {
     // A bean inherits properties from its superclasses, so a member read off its declaring element
     // speaks that element's variables: 'T getId()' on BaseDto<T> is String on UserDto.
     DeclaredType beanType = (DeclaredType) bean.asType();
     Map<String, ExecutableElement> getters = collectGetters(bean);
-    boolean constructible = hasUsableNoArgsConstructor(spec, bean);
-    Map<String, ExecutableElement> setters = constructible ? collectSetters(bean) : Map.of();
+    // Setters write a bean the Impl can construct, and a PATCH bean without a builder, which only
+    // something else constructs.
+    boolean setterWritten =
+        hasUsableNoArgsConstructor(spec, bean) || (neverBuilt && findBuilderModel(bean) == null);
+    Map<String, ExecutableElement> setters = setterWritten ? collectSetters(bean) : Map.of();
 
-    if (constructible) {
+    if (setterWritten) {
       // A getter-only List is written through its own getter, the JAXB convention, but only on a
       // bean that writes something else as well, or nothing but such lists: a List getter among
       // read-only getters belongs to a read model, which is never filled, and reads parse-only.
