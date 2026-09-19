@@ -322,7 +322,8 @@ PageDto<T>>`): one generic Impl serves every instantiation via `PageMappingImpl.
 `EitherMonad.instance()` convention); same-variable elements copy by identity; multi-parameter and
 bounded variables thread. **Element-mapped specs** (`Page<T> <-> PageDto<TDto>` with an abstract
 `ValidatedPrism<TDto, T> items();` leaf): the generated Impl takes one prism per abstract leaf
-through `XImpl.of(...)` (declaration order; stateful, so no singleton). All three NEST: concrete
+through `XImpl.of(...)` (declaration order: the spec's own leaves, then each mix-in's in
+`extends`-clause order, depth first; stateful, so no singleton). All three NEST: concrete
 registrations directly, threaded specs by type-argument unification at the use site
 (`PageMappingImpl.<String>instance()`, incl. a generic outer passing its own variable), and
 element-mapped specs by composition (`of(entries())`, element pairs resolved via the using spec's

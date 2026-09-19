@@ -625,6 +625,78 @@ class MappingProcessorClasspathTest {
     }
 
     @Test
+    @DisplayName("an element-mapped spec inheriting a leaf composes in the order its Impl takes")
+    void inheritedLeafComposesInTheDependencysOrder() throws Exception {
+      JavaFileObject pairs =
+          JavaFileObjects.forSourceString(
+              "com.upstream.Pairs",
+              """
+              package com.upstream;
+
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public final class Pairs {
+                public record Pair<L, R>(L left, R right) {}
+
+                public record PairDto<LD, RD>(LD left, RD right) {}
+
+                public interface LeftLeaf<L, LD> {
+                  ValidatedPrism<LD, L> left();
+                }
+              }
+              """);
+      JavaFileObject pairMapping =
+          JavaFileObjects.forSourceString(
+              "com.upstream.PairMapping",
+              """
+              package com.upstream;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface PairMapping<L, LD, R, RD>
+                  extends Pairs.LeftLeaf<L, LD>,
+                      MappingSpec<Pairs.Pair<L, R>, Pairs.PairDto<LD, RD>> {
+                ValidatedPrism<RD, R> right();
+              }
+              """);
+      JavaFileObject holders =
+          JavaFileObjects.forSourceString(
+              "com.downstream.Holders",
+              """
+              package com.downstream;
+
+              import com.upstream.Pairs;
+              import com.upstream.Upstream;
+
+              public final class Holders {
+                public record Holder(Pairs.Pair<Upstream.Customer, Upstream.Circle> pair) {}
+
+                public record HolderDto(Pairs.PairDto<Upstream.CustomerDto, Upstream.CircleDto> pair) {}
+              }
+              """);
+      Path upstream =
+          module(
+              "pair-upstream",
+              List.of(),
+              List.of(UPSTREAM_TYPES, CUSTOMER_MAPPING, CIRCLE_MAPPING, pairs, pairMapping));
+      // The downstream reads the spec back from its class file and works out the leaf order
+      // afresh; the two element pairs differ in type, so an order disagreeing with the Impl's
+      // would not compile.
+      Compilation compilation =
+          compiler(upstream)
+              .compile(
+                  holders, downstreamSpec("HolderMapping", "Holders.Holder", "Holders.HolderDto"));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.HolderMappingImpl"))
+          .contains(
+              "PairMappingImpl.of(CircleMappingImpl.INSTANCE.asValidatedPrism(),"
+                  + " CustomerMappingImpl.INSTANCE.asValidatedPrism()).asValidatedPrism()");
+    }
+
+    @Test
     @DisplayName("sealed dispatch delegates to subtype specs in the dependency")
     void sealedDispatchDelegatesToClasspathSubtypeSpecs() throws Exception {
       Compilation compilation = compiler(upstream()).compile(SHAPE_MAPPING);
@@ -926,6 +998,44 @@ class MappingProcessorClasspathTest {
           module("upstream", List.of(), List.of(UPSTREAM_TYPES, CUSTOMER_MAPPING, stray));
       Compilation compilation = compiler(upstream).compile(DOWNSTREAM_TYPES, INVOICE_MAPPING);
       assertThat(compilation).succeeded();
+    }
+
+    @Test
+    @DisplayName("an entry naming a class rather than an interface is passed over")
+    void anEntryNamingAClassIsIgnored() throws Exception {
+      // The processor indexes only interfaces and refuses a class as a spec in source, but an entry
+      // is read by the name it carries. Registered, the class would be named below as a spec whose
+      // Impl is missing.
+      JavaFileObject classSpec =
+          JavaFileObjects.forSourceString(
+              "com.upstream.CircleSpecClass",
+              """
+              package com.upstream;
+
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public abstract class CircleSpecClass
+                  implements MappingSpec<Upstream.Circle, Upstream.CircleDto> {}
+              """);
+      JavaFileObject entry =
+          JavaFileObjects.forSourceString(
+              "org.higherkindedj.mapping.index.com$upstream$CircleSpecClass",
+              """
+              package org.higherkindedj.mapping.index;
+
+              import org.higherkindedj.optics.annotations.MappingIndexEntry;
+
+              @MappingIndexEntry(spec = "com.upstream.CircleSpecClass")
+              public final class com$upstream$CircleSpecClass {
+                private com$upstream$CircleSpecClass() {}
+              }
+              """);
+      Path upstream = module("class-entry", List.of(), List.of(UPSTREAM_TYPES, classSpec, entry));
+      Compilation compilation = compiler(upstream).compile(SHAPE_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'com.upstream.Upstream.Circle'");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("CircleSpecClass"));
     }
 
     @Test
@@ -1392,7 +1502,8 @@ class MappingProcessorClasspathTest {
           .noneMatch(message -> message.contains("is not a supported instantiation"));
 
       // A superinterface missing from the classpath stops javac before any processor runs, so no
-      // walk of a spec's mix-ins ever meets one unresolved.
+      // walk of a spec in source ever meets one unresolved. A spec read from a dependency is
+      // completed only as the processor reads it, which the next test covers.
       Compilation mixin =
           compiler(partial)
               .compile(
@@ -1413,6 +1524,119 @@ class MappingProcessorClasspathTest {
       assertThat(mixin).hadErrorContaining("cannot access");
       Assertions.assertThat(mixin.errors())
           .noneMatch(error -> error.getMessage(null).contains("@GenerateMapping"));
+    }
+
+    @Test
+    @DisplayName(
+        "a dependency's spec extending a type missing from the classpath is named, not called")
+    void aSpecExtendingAMissingTypeIsNamedNotCalled() throws IOException {
+      JavaFileObject nameLeaf =
+          JavaFileObjects.forSourceString(
+              "com.base.NameLeaf",
+              """
+              package com.base;
+
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public interface NameLeaf<N, ND> {
+                ValidatedPrism<ND, N> name();
+              }
+              """);
+      JavaFileObject tagging =
+          JavaFileObjects.forSourceString(
+              "com.base.Tagging",
+              """
+              package com.base;
+
+              public interface Tagging {}
+              """);
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.partial.Specs",
+              """
+              package com.partial;
+
+              import com.base.NameLeaf;
+              import com.base.Tagging;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              public final class Specs {
+                private Specs() {}
+
+                public record Tagged<N, V>(N name, V value) {}
+
+                public record TaggedDto<ND, VD>(ND name, VD value) {}
+
+                public record User(String name) {}
+
+                public record UserDto(String fullName) {}
+
+                @GenerateMapping
+                public interface TaggedMapping<N, ND, V, VD>
+                    extends NameLeaf<N, ND>, MappingSpec<Tagged<N, V>, TaggedDto<ND, VD>> {
+                  ValidatedPrism<VD, V> value();
+                }
+
+                public interface UserVocabulary extends Tagging {
+                  @MapField(to = "fullName")
+                  String name();
+                }
+
+                @GenerateMapping
+                public interface UserMapping extends UserVocabulary, MappingSpec<User, UserDto> {}
+              }
+              """);
+      Path base = module("leaves", List.of(), List.of(nameLeaf, tagging));
+      Path partial = module("leaf-specs", List.of(base), List.of(specs));
+      JavaFileObject holders =
+          JavaFileObjects.forSourceString(
+              "com.consumer.Holders",
+              """
+              package com.consumer;
+
+              import com.partial.Specs;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Holders {
+                private Holders() {}
+
+                public record TagHolder(Specs.Tagged<String, Integer> tag) {}
+
+                public record TagHolderDto(Specs.TaggedDto<String, String> tag) {}
+
+                public record UserHolder(Specs.User user) {}
+
+                public record UserHolderDto(Specs.UserDto user) {}
+
+                @GenerateMapping
+                public interface TagHolderMapping extends MappingSpec<TagHolder, TagHolderDto> {}
+
+                @GenerateMapping
+                public interface UserHolderMapping extends MappingSpec<UserHolder, UserHolderDto> {}
+              }
+              """);
+
+      // Read without the dependency's own dependency, the element-mapped spec shows one leaf where
+      // its of(...) takes two, and a call into either Impl is one javac cannot compile. Each is
+      // named with the type it lacks, the mix-in's own supertype included, and never called.
+      Compilation compilation = compiler(partial).compile(holders);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'com.partial.Specs.TaggedMapping (classpath)' maps this pair, but it extends"
+                  + " 'com.base.NameLeaf', which is missing from the classpath, so its members"
+                  + " cannot all be read and nothing can call its Impl: put the dependency that"
+                  + " declares 'com.base.NameLeaf' on this module's classpath.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'com.partial.Specs.UserMapping (classpath)' maps this pair, but it extends"
+                  + " 'com.base.Tagging', which is missing from the classpath");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("cannot access"));
     }
   }
 
@@ -1533,9 +1757,8 @@ class MappingProcessorClasspathTest {
           .contains("tallyKey().buildKeys(domain.tallies())");
 
       // Then the whole-file equality: the boundary must not change what the spec means at all, not
-      // merely on the members this fixture happens to assert. This rides getAllMembers order parity
-      // between javac's source and class-file readers, which holds because the marker stubs are
-      // emitted in the mix-in's declaration order and one interface declares them all.
+      // merely on the members this fixture happens to assert. The Impl lists the spec's members in
+      // declaration order, which a class file keeps, so both legs read the mix-in the same way.
       Assertions.assertThat(generatedSource(across, "com.downstream.AccountMappingImpl"))
           .isEqualTo(generatedSource(together, "com.downstream.AccountMappingImpl"));
     }

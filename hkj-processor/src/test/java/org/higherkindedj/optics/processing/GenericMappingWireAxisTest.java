@@ -50,12 +50,12 @@ class GenericMappingWireAxisTest {
   @DisplayName("two mix-ins agreeing on a rename with covariant returns get the narrowest stub")
   void covariantRenameStub() {
     // Override-equivalent abstracts may legally coexist (JLS 9.4.1.3); the stub has to satisfy
-    // both declarations, so it returns String. The pair is mirrored across two specs because
-    // getAllMembers order is a javac internal: whichever member is seen first, one spec meets
-    // the wider declaration first (the narrower must replace it) and the other the narrower
-    // first (it must be kept), so no first-found stub satisfies both specs. The third spec
-    // supplies the returns through generic mix-ins at different instantiations, so the chooser
-    // reads substituted types, not declarations.
+    // both declarations, so it returns String. The pair is mirrored across two specs whose extends
+    // clauses name the wider and the narrower mix-in in opposite orders, the order their members
+    // are read in: one spec meets the wider declaration first (the narrower must replace it) and
+    // the other the narrower first (it must be kept), so no first-found stub satisfies both. The
+    // third spec supplies the returns through generic mix-ins at different instantiations, so the
+    // chooser reads substituted types, not declarations.
     var wire =
         JavaFileObjects.forSourceString(
             "com.example.AWire",
