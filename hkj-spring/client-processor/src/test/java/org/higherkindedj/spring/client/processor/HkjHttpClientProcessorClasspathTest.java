@@ -71,6 +71,10 @@ class HkjHttpClientProcessorClasspathTest {
           JavaFileObjects.forSourceString(
               "com.upstream.UserDto", "package com.upstream; public record UserDto(String id) {}"),
           JavaFileObjects.forSourceString(
+              "com.upstream.Marked",
+              "package com.upstream; @java.lang.annotation.Target(java.lang.annotation.ElementType"
+                  + ".TYPE_USE) public @interface Marked {}"),
+          JavaFileObjects.forSourceString(
               "com.upstream.errors.Gone",
               "package com.upstream.errors;"
                   + " public record Gone(String message) implements com.upstream.ApiErr {}"));
@@ -293,6 +297,27 @@ class HkjHttpClientProcessorClasspathTest {
                 + " dependency that declares it.")
         .inFile(CHILD);
     assertThat(compilation).hadErrorCount(1);
+  }
+
+  @Test
+  @DisplayName("an annotation the client's classpath lacks is left off the method it restates")
+  void anAnnotationMissingFromTheClasspathIsLeftOff() throws IOException {
+    // A type-use annotation the base module compiled against but did not pass on, as Gradle's
+    // compileOnly does: read back from the class file unresolved, it cannot be written into the
+    // client, which restates the inherited method's parameter and return types.
+    Path base =
+        baseModule(
+            """
+              @GetExchange("/{id}")
+              EitherPath<ApiErr, @Marked UserDto> getUser(@PathVariable @Marked String id);
+            """);
+    Files.delete(base.resolve("com/upstream/Marked.class"));
+    Compilation compilation = compiler(base).compile(CHILD);
+
+    assertThat(compilation).succeeded();
+    Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiClient"))
+        .contains("getUser(String id)")
+        .doesNotContain("Marked");
   }
 
   @Test

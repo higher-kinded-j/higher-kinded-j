@@ -39,14 +39,19 @@ public final class SubtypePrismGenerator {
    * @param tag the annotation tag naming the caller, for the diagnostic
    * @param sumType the sealed type
    * @param subtype the permitted subtype to focus on
+   * @param targetPackage the package the prism is written into
    * @return the factory method, or null when the subtype was rejected and an error reported
    */
   public static MethodSpec prismMethodFor(
-      Messager messager, String tag, TypeElement sumType, TypeElement subtype) {
+      Messager messager,
+      String tag,
+      TypeElement sumType,
+      TypeElement subtype,
+      String targetPackage) {
 
     String methodName = ProcessorUtils.toCamelCase(subtype.getSimpleName().toString());
     DeclaredType namedSumType = ProcessorUtils.sumTypeAsNamedBy(sumType, subtype);
-    TypeName sourceTypeName = ProcessorUtils.typeNameOf(namedSumType);
+    TypeName sourceTypeName = ProcessorUtils.typeNameOf(namedSumType, targetPackage);
     if (rejectsUnboundParameter(messager, tag, sumType, subtype, namedSumType)) {
       return null;
     }
@@ -57,7 +62,7 @@ public final class SubtypePrismGenerator {
             : ParameterizedTypeName.get(
                 ClassName.get(subtype),
                 subtype.getTypeParameters().stream()
-                    .map(ProcessorUtils::typeVariableOf)
+                    .map(parameter -> ProcessorUtils.typeVariableOf(parameter, targetPackage))
                     .toArray(TypeName[]::new));
 
     ParameterizedTypeName prismTypeName =
@@ -81,7 +86,7 @@ public final class SubtypePrismGenerator {
             .returns(prismTypeName);
 
     for (TypeParameterElement typeParameter : subtype.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParameter));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParameter, targetPackage));
     }
 
     return methodBuilder

@@ -19,7 +19,9 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -58,6 +60,7 @@ import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
@@ -283,9 +286,11 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       Origin origin =
-          elements.getTypeElement(implClassName(spec).canonicalName()) != null
-              ? Origin.CLASSPATH
-              : Origin.CLASSPATH_MISSING_IMPL;
+          elements.getTypeElement(implClassName(spec).canonicalName()) == null
+              ? Origin.CLASSPATH_MISSING_IMPL
+              : unreadableSupertype(spec) != null
+                  ? Origin.CLASSPATH_MISSING_SUPERTYPE
+                  : Origin.CLASSPATH;
       register(env, beanAnalyser, spec, origin, registry);
     }
     return List.copyOf(registry);
@@ -419,13 +424,61 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Where a registered spec came from. A spec in this compilation shadows a classpath spec for the
    * same pair, so adding a dependency never changes a resolution that already worked; two classpath
-   * specs for one pair stay ambiguous. A classpath spec whose Impl is missing is never a candidate,
-   * only a hint.
+   * specs for one pair stay ambiguous. A classpath spec whose Impl is missing, or one extending a
+   * type missing from the classpath, is never a candidate, only a hint.
    */
   enum Origin {
     THIS_COMPILATION,
     CLASSPATH,
-    CLASSPATH_MISSING_IMPL
+    CLASSPATH_MISSING_IMPL,
+    CLASSPATH_MISSING_SUPERTYPE;
+
+    /** Whether a spec of this origin has an Impl a use site can call. */
+    private boolean callable() {
+      return switch (this) {
+        case THIS_COMPILATION, CLASSPATH -> true;
+        case CLASSPATH_MISSING_IMPL, CLASSPATH_MISSING_SUPERTYPE -> false;
+      };
+    }
+  }
+
+  /**
+   * The first type in a classpath spec's superinterface hierarchy that its class files name but the
+   * compile classpath lacks, with the interface whose clause names it, or null when the whole
+   * hierarchy resolves. Such a spec cannot be read in full: the members the missing type declares
+   * are simply absent, so an element-mapped spec shows fewer leaves than its {@code of(...)} takes,
+   * and javac cannot compile a call into its Impl at all. A spec in source never has one, since
+   * javac stops at the missing type before any processor runs.
+   */
+  private static MissingSupertype unreadableSupertype(TypeElement type) {
+    for (TypeMirror parent : type.getInterfaces()) {
+      TypeElement element = (TypeElement) ((DeclaredType) parent).asElement();
+      MissingSupertype missing =
+          parent.getKind() == TypeKind.ERROR
+              ? new MissingSupertype(type, element)
+              : unreadableSupertype(element);
+      if (missing != null) {
+        return missing;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * A supertype missing from the compile classpath, and the interface whose clause names it.
+   *
+   * @param extender the spec, or the mix-in on the way to the missing type, that extends it
+   * @param missing the type javac could not find
+   */
+  private record MissingSupertype(TypeElement extender, TypeElement missing) {
+
+    /** The clause as a hint names it: the spec as "it", anything else by its qualified name. */
+    String describe(TypeElement spec) {
+      return (extender.equals(spec) ? "it" : "'" + extender.getQualifiedName() + "'")
+          + " extends '"
+          + missing.getQualifiedName()
+          + "'";
+    }
   }
 
   /**
@@ -496,7 +549,7 @@ public class MappingProcessor extends AbstractProcessor {
      * and its Impl is there to call.
      */
     boolean serves(WireShape.Direction need) {
-      return origin != Origin.CLASSPATH_MISSING_IMPL && surface.serves(need);
+      return origin.callable() && surface.serves(need);
     }
 
     /**
@@ -520,27 +573,44 @@ public class MappingProcessor extends AbstractProcessor {
      * Why a registered spec cannot serve a use site, for the hint a failed lookup carries: {@code
      * maps} and {@code purpose} frame the sentence ("'X' maps this pair but is parse-only (no
      * build), so it cannot be nested in a mapping that builds and parses"), and the surface says
-     * what it lacks for a site using {@code need}. A classpath spec whose Impl is missing, and one
-     * declaring both tiers, each explain themselves whatever the site. Asked only of a spec that
-     * does not serve the site, so a full surface reaches the sentence only when its Impl is
-     * missing.
+     * what it lacks for a site using {@code need}. A classpath spec whose Impl is missing, one
+     * extending a type missing from the classpath, and one declaring both tiers each explain
+     * themselves whatever the site. Asked only of a spec that does not serve the site, so a full
+     * surface reaches the sentence only when the spec is not callable.
      */
     String unusable(String maps, String purpose, WireShape.Direction need) {
       if (surface == Surface.BOTH_TIERS) {
         return " '"
             + describe()
-            + "' maps this pair but extends both MappingSpec and UpdateSpec, so it belongs to the"
-            + " sparse tier and has no parse to nest: split it into one spec per tier, sharing"
-            + " what they have in common through a mix-in both extend.";
+            + "' "
+            + maps
+            + " but extends both MappingSpec and UpdateSpec, so it belongs to the sparse tier and"
+            + " has no parse to nest: split it into one spec per tier, sharing what they have in"
+            + " common through a mix-in both extend.";
       }
       if (origin == Origin.CLASSPATH_MISSING_IMPL) {
         return " '"
             + describe()
-            + "' maps this pair, but its generated '"
+            + "' "
+            + maps
+            + ", but its generated '"
             + impl.canonicalName()
             + "' is missing from the classpath: the index entry was written by hkj-processor, so"
             + " the Impl was generated and then lost (a partial build output, or a jar that dropped"
             + " it); rebuild that dependency from clean.";
+      }
+      if (origin == Origin.CLASSPATH_MISSING_SUPERTYPE) {
+        MissingSupertype missing = unreadableSupertype(spec);
+        return " '"
+            + describe()
+            + "' "
+            + maps
+            + ", but "
+            + missing.describe(spec)
+            + ", which is not on this module's compile classpath, so its members cannot all be"
+            + " read and nothing can call its Impl: put the module declaring '"
+            + missing.missing().getQualifiedName()
+            + "' on this module's compile classpath.";
       }
       return " '"
           + describe()
@@ -642,6 +712,11 @@ public class MappingProcessor extends AbstractProcessor {
         fix);
   }
 
+  /** The package the spec's generated Impl is written into, which names every type it holds. */
+  private static String implPackage(TypeElement spec) {
+    return implClassName(spec).packageName();
+  }
+
   static ClassName implClassName(TypeElement spec) {
     ClassName specName = ClassName.get(spec);
     // Nested specs join their enclosing simple names (the OuterInnerAssembly convention),
@@ -654,15 +729,44 @@ public class MappingProcessor extends AbstractProcessor {
    * interfaces, with Java's own precedence — an override hides its parents, and javac itself
    * rejects genuinely conflicting parents before the processor runs. Interface statics and privates
    * are not inherited, and {@code Object}'s members are filtered by kind.
+   *
+   * <p>In declaration order: the spec's own members as it declares them, then each superinterface's
+   * in the order the {@code extends} clause names them, depth first, so everything one clause
+   * brings in comes before the next clause's, and an interface reached twice is read where it is
+   * first reached. The order reaches the generated Impl, most visibly as the parameter order of the
+   * {@code of(...)} factory, and {@code getAllMembers} does not specify one, so it is imposed
+   * rather than relied upon.
    */
   private static List<ExecutableElement> specMembers(Elements elements, TypeElement spec) {
+    Map<ExecutableElement, Integer> positions = new HashMap<>();
+    numberDeclarations(spec, new HashSet<>(), positions);
     return ElementFilter.methodsIn(elements.getAllMembers(spec)).stream()
         .filter(method -> method.getEnclosingElement().getKind() == ElementKind.INTERFACE)
+        .sorted(Comparator.comparing(positions::get))
         .toList();
   }
 
   private List<ExecutableElement> specMembers(TypeElement spec) {
     return specMembers(processingEnv.getElementUtils(), spec);
+  }
+
+  /**
+   * Numbers the methods {@code type} declares, then those of each superinterface in turn, in the
+   * order {@link #specMembers} lists them. Every member {@code getAllMembers} returns is declared
+   * somewhere on this walk: a spec is an interface, whichever route it arrives by, and an interface
+   * acquires members only from its superinterfaces.
+   */
+  private static void numberDeclarations(
+      TypeElement type, Set<TypeElement> visited, Map<ExecutableElement, Integer> positions) {
+    if (!visited.add(type)) {
+      return;
+    }
+    for (ExecutableElement method : ElementFilter.methodsIn(type.getEnclosedElements())) {
+      positions.put(method, positions.size());
+    }
+    for (TypeMirror parent : type.getInterfaces()) {
+      numberDeclarations((TypeElement) ((DeclaredType) parent).asElement(), visited, positions);
+    }
   }
 
   /**
@@ -728,7 +832,8 @@ public class MappingProcessor extends AbstractProcessor {
    * own arguments never captures, and neither does anything else, so every other pair keeps the
    * shorter inferred leg.
    */
-  private static Correspondence bridgedCorrespondence(Correspondence present, TypeMirror element) {
+  private static Correspondence bridgedCorrespondence(
+      Correspondence present, TypeMirror element, String targetPackage) {
     return new Correspondence(
         present.name(),
         present.wireName(),
@@ -736,7 +841,7 @@ public class MappingProcessor extends AbstractProcessor {
         null,
         null,
         element instanceof DeclaredType declared && hasWildcardArgument(declared)
-            ? ProcessorUtils.typeNameOf(element)
+            ? ProcessorUtils.typeNameOf(element, targetPackage)
             : null,
         null,
         present);
@@ -1410,8 +1515,9 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The spec's abstract leaves in declaration order (own members before inherited), one per name:
-   * unrelated mix-ins agreeing on a leaf declare one fact. Most disagreements are javac's error
+   * The spec's abstract leaves in {@link #specMembers}' declaration order, which is the parameter
+   * order of the {@code of(...)} factory, one per name: unrelated mix-ins agreeing on a leaf
+   * declare one fact, placed where its first declaration is. Most disagreements are javac's error
    * (two parameterisations of {@code ValidatedPrism} are never return-type-substitutable), but
    * wildcard-differing declarations may legally coexist, so the member kept is the
    * subtype-narrowest of its group, the same fold {@link #addMarkerStubs} applies and {@link
@@ -1419,6 +1525,15 @@ public class MappingProcessor extends AbstractProcessor {
    * generated Impl, surfaced through the {@code of(...)} factory.
    */
   private List<ExecutableElement> abstractLeaves(TypeElement spec) {
+    return leafGroups(spec).stream().map(group -> narrowestMember(spec, group)).toList();
+  }
+
+  /**
+   * The declarations behind each of {@link #abstractLeaves}, grouped by name: the groups in the
+   * order of their first declaration, and each group's declarations in declaration order, so its
+   * first member is the one that places the leaf.
+   */
+  private List<List<ExecutableElement>> leafGroups(TypeElement spec) {
     Map<String, List<ExecutableElement>> leaves = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
       if (isAbstractLeaf(spec, method)) {
@@ -1427,7 +1542,7 @@ public class MappingProcessor extends AbstractProcessor {
             .add(method);
       }
     }
-    return leaves.values().stream().map(group -> narrowestMember(spec, group)).toList();
+    return List.copyOf(leaves.values());
   }
 
   /**
@@ -1470,25 +1585,59 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * An abstract leaf as the generated Impl carries it: its name, and its prism type under the spec.
+   * An abstract leaf as the generated Impl carries it: its name, its prism type under the spec, and
+   * the mix-in it comes from, if any.
    *
    * <p>Resolved once, here, rather than at the emission site: the skeleton builders take these
    * instead of the elements, so there is no {@code getReturnType()} left down there to read as
-   * declared by mistake. The prism type stays a model type rather than a name, so the builders can
-   * ask whether it names a raw type.
+   * declared by mistake. The prism type stays a model type beside its name, so the builders can ask
+   * whether it names a raw type.
+   *
+   * @param name the leaf's name, which the Impl gives its field, accessor and parameter
+   * @param prismType the leaf's prism type under the spec's instantiation
+   * @param prismTypeName the prism type as the Impl writes it out, annotated as the leaf's
+   *     declaration annotated it, since reading a member under the spec drops what was written on a
+   *     type variable's use ({@link ProcessorUtils#typeNameOf(TypeMirror, TypeMirror, DeclaredType,
+   *     String)})
+   * @param inheritedFrom the simple name of the mix-in whose declaration places the leaf, or null
+   *     when the spec declares it
    */
-  private record LeafField(String name, TypeMirror prismType) {
+  private record LeafField(
+      String name, TypeMirror prismType, TypeName prismTypeName, String inheritedFrom) {
 
-    /** The prism type as the Impl writes it out. */
-    TypeName prismTypeName() {
-      return ProcessorUtils.typeNameOf(prismType);
+    /** The leaf as the {@code of(...)} javadoc describes its parameter. */
+    String parameterJavadoc() {
+      return "the {@code "
+          + name
+          + "()} leaf"
+          + (inheritedFrom == null ? "" : ", inherited from {@code " + inheritedFrom + "}");
     }
   }
 
-  /** The spec's abstract leaves, each with its prism type under the spec's instantiation. */
+  /**
+   * The spec's abstract leaves, each with its prism type under the spec's instantiation. A leaf
+   * several mix-ins declare takes its type from the narrowest declaration, as {@link
+   * #abstractLeaves} keeps it, and is named after the first, which is the one that places it.
+   */
   private List<LeafField> leafFields(TypeElement spec) {
-    return abstractLeaves(spec).stream()
-        .map(leaf -> new LeafField(leaf.getSimpleName().toString(), memberTypeIn(spec, leaf)))
+    return leafGroups(spec).stream()
+        .map(
+            group -> {
+              ExecutableElement first = group.getFirst();
+              ExecutableElement narrowest = narrowestMember(spec, group);
+              TypeMirror prismType = memberTypeIn(spec, narrowest);
+              return new LeafField(
+                  first.getSimpleName().toString(),
+                  prismType,
+                  ProcessorUtils.typeNameOf(
+                      prismType,
+                      narrowest.getReturnType(),
+                      (DeclaredType) spec.asType(),
+                      implPackage(spec)),
+                  declaredLocally(first, spec)
+                      ? null
+                      : first.getEnclosingElement().getSimpleName().toString());
+            })
         .toList();
   }
 
@@ -2955,7 +3104,7 @@ public class MappingProcessor extends AbstractProcessor {
     if (argument.getKind() == TypeKind.ERROR) {
       return true;
     }
-    if (argument instanceof javax.lang.model.type.TypeVariable variable) {
+    if (argument instanceof TypeVariable variable) {
       return spec.getTypeParameters().contains(variable.asElement());
     }
     return switch (argument) {
@@ -3765,6 +3914,7 @@ public class MappingProcessor extends AbstractProcessor {
                 spec, domainComp.getSimpleName().toString(), property.type(), domainComp.asType())
             + (domainComp.asType().getKind().isPrimitive() ? PRIMITIVE_REASON : "")
             + unusableSpecHint(
+                spec,
                 registry,
                 offer.wire(),
                 offer.domain(),
@@ -4428,11 +4578,17 @@ public class MappingProcessor extends AbstractProcessor {
       unify(match.wire(), wireType, bindings);
       List<ExecutableElement> leaves = abstractLeaves(match.spec());
       if (leaves.isEmpty()) {
+        Map<Element, TypeName> witnesses = witnessNames(spec, name, match, domainType);
         CodeBlock arguments =
             match.spec().getTypeParameters().stream()
                 .map(
                     variable ->
-                        CodeBlock.of("$T", ProcessorUtils.typeNameOf(bindings.get(variable))))
+                        CodeBlock.of(
+                            "$T",
+                            witnesses.getOrDefault(
+                                variable,
+                                ProcessorUtils.typeNameOf(
+                                    bindings.get(variable), implPackage(spec)))))
                 .collect(CodeBlock.joining(", "));
         return new PrismResolution(
             CodeBlock.of("$T.<$L>instance().asValidatedPrism()", match.impl(), arguments), false);
@@ -4441,6 +4597,92 @@ public class MappingProcessor extends AbstractProcessor {
           spec, registry, name, match, bindings, leaves, domainType, wireType, site, active);
     }
     return PrismResolution.NONE;
+  }
+
+  /**
+   * The names a threaded spec's variables take in the type witness of a nested call, where the
+   * using record's component can supply them.
+   *
+   * <p>Unification binds each variable from the use site's type, which was read under the using
+   * spec's instantiation, and reading a record component that way drops what its declaration wrote
+   * on a type variable's use: {@code Box<@Nullable T> box} under {@code Outer<String>} reads as
+   * {@code Box<String>}, and the witness would claim a non-null element. So the component is named
+   * as the Impl would name it, from its declaration; the use site is found inside it, the whole
+   * component or the element a container lifts; and each variable takes the name at its place in
+   * the registered spec's domain. A variable not reached that way keeps its binding's name: one
+   * whose use site is not a component of the domain, as for a flattened group's inner component, or
+   * not a part of one, as for an element pair a composition builds.
+   */
+  private Map<Element, TypeName> witnessNames(
+      TypeElement spec, String name, RegisteredSpec match, TypeMirror useSite) {
+    DeclaredType clause = findMappingSpec(spec);
+    DeclaredType owner =
+        (DeclaredType)
+            (clause != null ? clause : findUpdateSpec(spec)).getTypeArguments().getFirst();
+    Map<Element, TypeName> witnesses = new HashMap<>();
+    Optional.ofNullable(componentNamed(asRecord(owner), name))
+        .flatMap(
+            component -> {
+              TypeMirror read = componentType(owner, component);
+              return nameAt(
+                  read,
+                  ProcessorUtils.typeNameOf(read, component.asType(), owner, implPackage(spec)),
+                  useSite);
+            })
+        .ifPresent(named -> collectWitnesses(match.domain(), named, witnesses));
+    return witnesses;
+  }
+
+  /**
+   * The name of the part of {@code read} that is {@code useSite}, found through type arguments, or
+   * empty when it is no part of it. {@code named} is {@code read} as the Impl names it, part for
+   * part. An array is not searched: a generic element cannot be lifted through one.
+   */
+  private Optional<TypeName> nameAt(TypeMirror read, TypeName named, TypeMirror useSite) {
+    if (processingEnv.getTypeUtils().isSameType(read, useSite)) {
+      return Optional.of(named);
+    }
+    if (read.getKind() != TypeKind.DECLARED) {
+      return Optional.empty();
+    }
+    List<? extends TypeMirror> arguments = ((DeclaredType) read).getTypeArguments();
+    for (int index = 0; index < arguments.size(); index++) {
+      Optional<TypeName> found =
+          nameAt(
+              arguments.get(index),
+              ((ParameterizedTypeName) named).typeArguments().get(index),
+              useSite);
+      if (found.isPresent()) {
+        return found;
+      }
+    }
+    return Optional.empty();
+  }
+
+  /**
+   * Records, for each variable of the registered spec's domain, the name at its place in {@code
+   * named}, which unification has already matched against the domain part for part.
+   */
+  private static void collectWitnesses(
+      TypeMirror domain, TypeName named, Map<Element, TypeName> witnesses) {
+    switch (domain.getKind()) {
+      case TYPEVAR -> witnesses.putIfAbsent(((TypeVariable) domain).asElement(), named);
+      case ARRAY ->
+          collectWitnesses(
+              ((ArrayType) domain).getComponentType(),
+              ((ArrayTypeName) named).componentType(),
+              witnesses);
+      case DECLARED -> {
+        List<? extends TypeMirror> arguments = ((DeclaredType) domain).getTypeArguments();
+        for (int index = 0; index < arguments.size(); index++) {
+          collectWitnesses(
+              arguments.get(index),
+              ((ParameterizedTypeName) named).typeArguments().get(index),
+              witnesses);
+        }
+      }
+      default -> {}
+    }
   }
 
   /**
@@ -4563,7 +4805,7 @@ public class MappingProcessor extends AbstractProcessor {
               + declarationSites(processingEnv, spec)
               + "."
               + unusableSpecHint(
-                  registry, elementWire, elementDomain, WireShape.Direction.BIDIRECTIONAL),
+                  spec, registry, elementWire, elementDomain, WireShape.Direction.BIDIRECTIONAL),
           (single
                   ? declare + site.declaration(name, elementWire, elementDomain) + " on this spec"
                   : declare
@@ -4622,7 +4864,7 @@ public class MappingProcessor extends AbstractProcessor {
     if (actual.getKind() == TypeKind.ERROR) {
       return false;
     }
-    if (declared instanceof javax.lang.model.type.TypeVariable variable) {
+    if (declared instanceof TypeVariable variable) {
       TypeMirror existing = bindings.get(variable.asElement());
       if (existing != null) {
         return types.isSameType(existing, actual);
@@ -4805,14 +5047,19 @@ public class MappingProcessor extends AbstractProcessor {
    * up by {@code name()} only: the record's own equality covers a mirror, whose {@code equals} is
    * identity and says nothing about the type.
    */
-  private record Flattened(String name, DeclaredType type, TypeElement record, List<String> inner) {
+  /**
+   * A flattened component: its name, its record type under the domain's instantiation, that type as
+   * the Impl names it, the record, and the record's own components.
+   */
+  private record Flattened(
+      String name, DeclaredType type, TypeName typeName, TypeElement record, List<String> inner) {
 
     Flattened {
       inner = List.copyOf(inner);
     }
 
     Group group() {
-      return new Group(name, ProcessorUtils.typeNameOf(type));
+      return new Group(name, typeName);
     }
   }
 
@@ -4996,7 +5243,12 @@ public class MappingProcessor extends AbstractProcessor {
         }
         inner.add(innerName);
       }
-      groups.add(new Flattened(name, declaredType, record, inner));
+      // Named under the domain's instantiation with what the component's declaration wrote on a
+      // type variable's use kept, which reading it under the instantiation drops.
+      TypeName typeName =
+          ProcessorUtils.typeNameOf(
+              declaredType, component.asType(), domainDeclared, implPackage(spec));
+      groups.add(new Flattened(name, declaredType, typeName, record, inner));
     }
     // A local marker naming nothing on the domain: a group's inner component, which would be a
     // second level of spreading, or a plain typo. An inherited one stayed inert above.
@@ -5762,7 +6014,7 @@ public class MappingProcessor extends AbstractProcessor {
               + leafNearMissHint(spec, name, wireType, domainType)
               + (hasPrimitive(wireType, domainType) ? PRIMITIVE_REASON : "")
               + liftingRuleHint(spec, name, wireType, domainType)
-              + unusableSpecHint(registry, offer.wire(), offer.domain(), need)
+              + unusableSpecHint(spec, registry, offer.wire(), offer.domain(), need)
               + " Found on "
               + domain.getSimpleName()
               + ": "
@@ -6018,7 +6270,7 @@ public class MappingProcessor extends AbstractProcessor {
       if (lifted.accessor() != null) {
         return PairResolution.of(
             new Correspondence(name, wireName, Kind.ARRAY, lifted.accessor())
-                .withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1])));
+                .withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1], implPackage(spec))));
       }
     }
     TypeMirror wireElement = containerElement(wireType, "java.util.Optional");
@@ -6184,7 +6436,7 @@ public class MappingProcessor extends AbstractProcessor {
       reportNonNullBridge(spec, domain, name, wireType, domainType, bridged, nonNull);
       return null;
     }
-    return bridgedCorrespondence(present.correspondence(), bridged);
+    return bridgedCorrespondence(present.correspondence(), bridged, implPackage(spec));
   }
 
   /**
@@ -6475,7 +6727,7 @@ public class MappingProcessor extends AbstractProcessor {
                 ? offer.parts() + " types, not the container"
                 : "element types, not the Optional")
             + ")."
-            + unusableSpecHint(registry, offer.wire(), offer.domain(), need),
+            + unusableSpecHint(spec, registry, offer.wire(), offer.domain(), need),
         // A bean bridges without the annotation, so its leaf is bare, and replaces the marker
         // only where the spec carries one.
         "Declare '"
@@ -6815,7 +7067,7 @@ public class MappingProcessor extends AbstractProcessor {
           ? null
           : new Correspondence(
                   name, wireName, Kind.ARRAY, CodeBlock.of("$L()", leaf.getSimpleName()))
-              .withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1]));
+              .withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1], implPackage(spec)));
     }
     TypeMirror wireElement = containerElement(wireType, "java.util.Optional");
     TypeMirror domainElement = containerElement(domainType, "java.util.Optional");
@@ -7378,19 +7630,22 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   private String unusableSpecHint(
+      TypeElement spec,
       List<RegisteredSpec> registry,
       TypeMirror wireType,
       TypeMirror domainType,
       WireShape.Direction need) {
     return unusableSpecHint(
-        registry, wireType, domainType, need, "be nested in a mapping that " + site(need));
+        spec, registry, wireType, domainType, need, "be nested in a mapping that " + site(need));
   }
 
   /**
    * Names a spec that maps the pair but does not serve the site, and what it lacks; {@code purpose}
-   * is what the site would have used it for. Empty when no registered spec maps the pair.
+   * is what the site would have used it for. Empty when no registered spec maps the pair. A generic
+   * spec maps it where it {@link #covers} it, as it would have been matched had it served.
    */
   private String unusableSpecHint(
+      TypeElement spec,
       List<RegisteredSpec> registry,
       TypeMirror wireType,
       TypeMirror domainType,
@@ -7398,10 +7653,7 @@ public class MappingProcessor extends AbstractProcessor {
       String purpose) {
     return registry.stream()
         .filter(r -> !r.serves(need))
-        .filter(
-            r ->
-                processingEnv.getTypeUtils().isSameType(r.domain(), domainType)
-                    && processingEnv.getTypeUtils().isSameType(r.wire(), wireType))
+        .filter(r -> covers(spec, r, domainType, wireType))
         .findFirst()
         .map(r -> r.unusable("maps this pair", purpose, need))
         .orElse("");
@@ -7420,16 +7672,19 @@ public class MappingProcessor extends AbstractProcessor {
    * The expression {@code build} fills a wire component with, from its correspondence. The value is
    * the same on either wire shape; only the write around it differs.
    */
-  private static CodeBlock buildValue(WireShape.WireComponent wc, List<Correspondence> comps) {
+  private static CodeBlock buildValue(
+      WireShape.WireComponent wc, List<Correspondence> comps, String targetPackage) {
     // Classification claims every wire component exactly once before emission, so the lookup
     // cannot miss; there is deliberately no fallback to cover.
     Correspondence c =
         comps.stream().filter(x -> x.wireName().equals(wc.name())).findFirst().orElseThrow();
     return switch (c.kind()) {
-      case LEAF, ELEMENTS, ARRAY, MAP, MAP_KEYS, MAP_ENTRIES -> buildCall(c, wc).on(domainRead(c));
-      case OPTIONAL -> CodeBlock.of("$L.map($L)", domainRead(c), buildCall(c, wc).asFunction());
+      case LEAF, ELEMENTS, ARRAY, MAP, MAP_KEYS, MAP_ENTRIES ->
+          buildCall(c, wc, targetPackage).on(domainRead(c));
+      case OPTIONAL ->
+          CodeBlock.of("$L.map($L)", domainRead(c), buildCall(c, wc, targetPackage).asFunction());
       // The domain Optional is carried as-is, or its present value built as the unbridged pair's.
-      case OPTIONAL_BRIDGE -> bridgeBuildValue(wc, c);
+      case OPTIONAL_BRIDGE -> bridgeBuildValue(wc, c, targetPackage);
       case IDENTITY, IDENTITY_ELEMENTS, IDENTITY_MAP -> domainRead(c);
       case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
     };
@@ -7463,7 +7718,8 @@ public class MappingProcessor extends AbstractProcessor {
    * bulk form its container lifts through. The wire element type names the array a lifted array
    * renders into.
    */
-  private static PrismCall buildCall(Correspondence c, WireShape.WireComponent wc) {
+  private static PrismCall buildCall(
+      Correspondence c, WireShape.WireComponent wc, String targetPackage) {
     return switch (c.kind()) {
       case ELEMENTS -> new PrismCall(c.prism(), "buildAll", null);
       case ARRAY ->
@@ -7472,7 +7728,8 @@ public class MappingProcessor extends AbstractProcessor {
               "buildAll",
               CodeBlock.of(
                   "$T[]::new",
-                  ProcessorUtils.typeNameOf(((ArrayType) wc.type()).getComponentType())));
+                  ProcessorUtils.typeNameOf(
+                      ((ArrayType) wc.type()).getComponentType(), targetPackage)));
       case MAP -> new PrismCall(c.prism(), "buildValues", null);
       case MAP_KEYS -> new PrismCall(c.prism(), "buildKeys", null);
       // The key prism is the receiver, and the value prism rides as the argument.
@@ -7523,11 +7780,15 @@ public class MappingProcessor extends AbstractProcessor {
    * default in place for {@code parse} to read back as present, breaking the round trip with
    * nothing to say so. Writing it makes {@code build} independent of how the bean was constructed.
    */
-  private static CodeBlock bridgeBuildValue(WireShape.WireComponent wc, Correspondence c) {
+  private static CodeBlock bridgeBuildValue(
+      WireShape.WireComponent wc, Correspondence c, String targetPackage) {
     CodeBlock present =
         c.present().prism() == null
             ? domainRead(c)
-            : CodeBlock.of("$L.map($L)", domainRead(c), buildCall(c.present(), wc).asFunction());
+            : CodeBlock.of(
+                "$L.map($L)",
+                domainRead(c),
+                buildCall(c.present(), wc, targetPackage).asFunction());
     return CodeBlock.of("$L.orElse(null)", present);
   }
 
@@ -7535,8 +7796,8 @@ public class MappingProcessor extends AbstractProcessor {
    * The total {@code build} body on either wire shape: the record constructor or the bean strategy.
    */
   private static CodeBlock wireBuildBody(
-      WireShape wire, TypeName wireName, List<Correspondence> comps) {
-    return wire.buildStatements(wireName, wc -> buildValue(wc, comps));
+      WireShape wire, TypeName wireName, List<Correspondence> comps, String targetPackage) {
+    return wire.buildStatements(wireName, wc -> buildValue(wc, comps, targetPackage));
   }
 
   /**
@@ -7933,8 +8194,8 @@ public class MappingProcessor extends AbstractProcessor {
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
     // Derived fields are non-identity, so they exclude the Iso tier too: wire -> domain -> wire
     // recomputes the derived component, an identity only for wire values already consistent.
     boolean lossless = totalReads(comps, wire);
@@ -7950,7 +8211,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
+    CodeBlock buildBody = wireBuildBody(wire, wireName, comps, implPackage(spec));
 
     CodeBlock reverseArgs = reverseArgs(wire, comps);
     List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
@@ -8001,8 +8262,8 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireUsed,
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
     if (!checkNoEmittedCollisions(
         spec,
         "a parse-only mapping",
@@ -8043,8 +8304,8 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireUsed,
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
     if (!checkNoEmittedCollisions(
         spec,
         "a build-only mapping",
@@ -8065,7 +8326,7 @@ public class MappingProcessor extends AbstractProcessor {
                     domainName,
                     wireName,
                     pairSuppression(domainDeclared, wire, comps),
-                    wireBuildBody(wire, wireName, comps)))
+                    wireBuildBody(wire, wireName, comps, implPackage(spec))))
             .addMethod(asValidatedBuildMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
     writeFile(spec, specName.packageName(), implBuilder.build());
@@ -8272,8 +8533,8 @@ public class MappingProcessor extends AbstractProcessor {
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
     TypeName patchReturn =
         ParameterizedTypeName.get(
             VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), domainName);
@@ -8289,7 +8550,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
+    CodeBlock buildBody = wireBuildBody(wire, wireName, comps, implPackage(spec));
     List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
 
     List<CodeBlock> patchLegs = new ArrayList<>();
@@ -8469,8 +8730,8 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireUsed,
       List<Correspondence> comps) {
     ClassName specName = ClassName.get(spec);
-    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared);
-    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
 
     if (!checkNoEmittedCollisions(
         spec,
@@ -8481,7 +8742,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
+    CodeBlock buildBody = wireBuildBody(wire, wireName, comps, implPackage(spec));
 
     CodeBlock.Builder setArgs = CodeBlock.builder();
     boolean first = true;
@@ -8814,7 +9075,9 @@ public class MappingProcessor extends AbstractProcessor {
       String javadoc,
       List<LeafField> abstractLeaves) {
     List<TypeVariableName> variables =
-        spec.getTypeParameters().stream().map(ProcessorUtils::typeVariableOf).toList();
+        spec.getTypeParameters().stream()
+            .map(parameter -> ProcessorUtils.typeVariableOf(parameter, implName.packageName()))
+            .toList();
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(implName)
             .addOriginatingElement(spec)
@@ -8881,8 +9144,9 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The element-mapped skeleton: the spec's abstract leaves become constructor-supplied fields
    * behind a public {@code of(...)} factory taking one {@code ValidatedPrism} per leaf, in
-   * declaration order. The Impl carries leaf-typed state, so unlike the stateless threaded form
-   * there is no shared singleton: every {@code of(...)} call is a fresh, immutable instance.
+   * declaration order ({@link #abstractLeaves}). The Impl carries leaf-typed state, so unlike the
+   * stateless threaded form there is no shared singleton: every {@code of(...)} call is a fresh,
+   * immutable instance.
    */
   private static TypeSpec.Builder elementMappedSkeleton(
       TypeSpec.Builder builder,
@@ -8898,6 +9162,8 @@ public class MappingProcessor extends AbstractProcessor {
             abstractLeaves.stream().map(LeafField::prismType).toList());
     MethodSpec.Builder constructor =
         MethodSpec.constructorBuilder().addAnnotations(anyLeafRaw).addModifiers(Modifier.PRIVATE);
+    // Each parameter says which leaf it is and where that leaf is declared, so a caller can read
+    // the order off the Impl rather than reconstruct it from the spec's hierarchy.
     MethodSpec.Builder factory =
         MethodSpec.methodBuilder("of")
             .addAnnotations(anyLeafRaw)
@@ -8905,8 +9171,9 @@ public class MappingProcessor extends AbstractProcessor {
             .addTypeVariables(variables)
             .returns(typed)
             .addJavadoc(
-                "Creates the element-mapped mapping: each abstract leaf arrives as its {@code"
-                    + " ValidatedPrism}, in declaration order.\n");
+                "Creates the element-mapped mapping from one {@code ValidatedPrism} per abstract"
+                    + " leaf, in declaration order: the spec's own leaves before any it"
+                    + " inherits.\n\n");
     StringJoiner arguments = new StringJoiner(", ");
     for (LeafField leaf : abstractLeaves) {
       String name = leaf.name();
@@ -8920,7 +9187,9 @@ public class MappingProcessor extends AbstractProcessor {
           .addParameter(prismType, name)
           .addStatement(
               "this.$1L = $2T.requireNonNull($1L, $3S)", name, OBJECTS, name + " must not be null");
-      factory.addParameter(prismType, name);
+      factory
+          .addParameter(prismType, name)
+          .addJavadoc("@param $L $L\n", name, leaf.parameterJavadoc());
       arguments.add(name);
       builder.addMethod(
           MethodSpec.methodBuilder(name)
@@ -8931,7 +9200,9 @@ public class MappingProcessor extends AbstractProcessor {
               .addStatement("return $L", name)
               .build());
     }
-    factory.addStatement("return new $T<>($L)", implName, arguments.toString());
+    factory
+        .addJavadoc("@return a new mapping over these leaves\n")
+        .addStatement("return new $T<>($L)", implName, arguments.toString());
     return builder
         .addTypeVariables(variables)
         .addSuperinterface(ParameterizedTypeName.get(specName, variables.toArray(new TypeName[0])))
@@ -9067,7 +9338,8 @@ public class MappingProcessor extends AbstractProcessor {
     }
     for (Map.Entry<String, List<ExecutableElement>> marker : markers.entrySet()) {
       List<ExecutableElement> group = marker.getValue();
-      TypeMirror narrowest = memberTypeIn(spec, narrowestMember(spec, group));
+      ExecutableElement narrowestMember = narrowestMember(spec, group);
+      TypeMirror narrowest = memberTypeIn(spec, narrowestMember);
       boolean rename = group.stream().anyMatch(m -> m.getAnnotation(MapField.class) != null);
       boolean bridge = group.stream().anyMatch(m -> m.getAnnotation(OptionalBridge.class) != null);
       // A flatten marker never shares a method with a rename or a bridge (validateSpecMethods
@@ -9098,7 +9370,12 @@ public class MappingProcessor extends AbstractProcessor {
               .addAnnotation(Override.class)
               .addAnnotations(ProcessorUtils.rawTypesSuppression(List.of(narrowest)))
               .addModifiers(Modifier.PUBLIC)
-              .returns(ProcessorUtils.typeNameOf(narrowest))
+              .returns(
+                  ProcessorUtils.typeNameOf(
+                      narrowest,
+                      narrowestMember.getReturnType(),
+                      (DeclaredType) spec.asType(),
+                      implPackage(spec)))
               .addJavadoc(vocabulary + " declaration only; not invocable.\n")
               .addStatement("throw new $T($S)", UnsupportedOperationException.class, message)
               .build());

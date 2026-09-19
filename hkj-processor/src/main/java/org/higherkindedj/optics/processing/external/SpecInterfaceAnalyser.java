@@ -1296,7 +1296,11 @@ public class SpecInterfaceAnalyser {
                 TraversalHintKind.THROUGH_FIELD,
                 autoDetected.get().checkedComposition()
                     ? TraversalHintInfo.forCheckedThroughField(
-                        fieldName, autoDetected.get().reference(), autoDetected.get().lensFocus())
+                        fieldName,
+                        autoDetected.get().reference(),
+                        autoDetected.get().lensFocus(),
+                        autoDetected.get().lens().type(),
+                        autoDetected.get().lens().declared())
                     : TraversalHintInfo.forThroughField(
                         fieldName, autoDetected.get().reference())));
       }
@@ -1356,8 +1360,8 @@ public class SpecInterfaceAnalyser {
     // The generated traversal composes through the spec's own lens for the field, so the lens
     // decides the type detected from: a getter may return ArrayList behind a Lens<S, List<String>>,
     // and it is the lens the traversal composes with.
-    TypeMirror declaredFocus = declaredLensFocus(specInterface, fieldName);
-    if (declaredFocus == null) {
+    LensMember lens = declaredLens(specInterface, fieldName);
+    if (lens == null) {
       Diagnostics.error(
           messager,
           method,
@@ -1377,7 +1381,7 @@ public class SpecInterfaceAnalyser {
               + " stands on its own");
       return Optional.empty();
     }
-    fieldType = declaredFocus;
+    fieldType = extractFocusType(lens.type());
 
     // The match is exact: the standard traversal rebuilds the interface type, which a field
     // declared as a concrete container could not take back.
@@ -1517,7 +1521,7 @@ public class SpecInterfaceAnalyser {
     // parameters it declares on the method.
     boolean checked = !ProcessorUtils.hasUndenotableTypeArguments(fieldType);
 
-    return Optional.of(new AutoDetectedTraversal(traversalRef, checked, fieldType));
+    return Optional.of(new AutoDetectedTraversal(traversalRef, checked, fieldType, lens));
   }
 
   /** The word the mismatch diagnostic uses for what a container's traversal hands back. */
@@ -1536,15 +1540,25 @@ public class SpecInterfaceAnalyser {
    * @param checkedComposition true when the lens focus is denotable, making the method a candidate
    *     for the uncast composition
    * @param lensFocus the focus the spec's lens for the field declares
+   * @param lens that lens, as the spec has it and as its method declares it
    */
   private record AutoDetectedTraversal(
-      String reference, boolean checkedComposition, TypeMirror lensFocus) {}
+      String reference, boolean checkedComposition, TypeMirror lensFocus, LensMember lens) {}
 
   /**
-   * The focus the spec's own lens declares for {@code fieldName}, read under the spec's
-   * instantiation, or null when the spec declares no lens by that name (or a raw one).
+   * A lens method of the spec: its return type read under the spec's instantiation, and as the
+   * method declares it, which keeps what reading under the instantiation drops.
+   *
+   * @param type the lens type under the spec's instantiation
+   * @param declared the lens type as its method declares it
    */
-  private TypeMirror declaredLensFocus(TypeElement specInterface, String fieldName) {
+  private record LensMember(DeclaredType type, TypeMirror declared) {}
+
+  /**
+   * The spec's own lens for {@code fieldName}, or null when the spec declares no lens by that name
+   * (or a raw one).
+   */
+  private LensMember declaredLens(TypeElement specInterface, String fieldName) {
     DeclaredType specType = (DeclaredType) specInterface.asType();
     for (ExecutableElement member :
         ElementFilter.methodsIn(elementUtils.getAllMembers(specInterface))) {
@@ -1554,7 +1568,7 @@ public class SpecInterfaceAnalyser {
       TypeMirror returned =
           ((ExecutableType) typeUtils.asMemberOf(specType, member)).getReturnType();
       if (returned instanceof DeclaredType optic && determineOpticKind(optic) == OpticKind.LENS) {
-        return extractFocusType(optic);
+        return new LensMember(optic, member.getReturnType());
       }
     }
     return null;

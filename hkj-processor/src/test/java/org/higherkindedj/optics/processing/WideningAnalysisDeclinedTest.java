@@ -103,7 +103,7 @@ class WideningAnalysisDeclinedTest {
         List<TraversableGenerator> generators = new ArrayList<>();
         ServiceLoader.load(TraversableGenerator.class, getClass().getClassLoader())
             .forEach(generators::add);
-        WideningAnalysis analysis = new WideningAnalysis(processingEnv, generators);
+        WideningAnalysis analysis = new WideningAnalysis(processingEnv, generators, "com.example");
         for (RecordComponentElement component : holder.getRecordComponents()) {
           widenings.put(
               component.getSimpleName().toString(), analysis.analyse(component, widenCollections));

@@ -42,7 +42,7 @@ class WideningExpressionTest {
   }
 
   private static String build(Step... steps) {
-    return WideningAnalysis.expression(List.of(steps), new ArrayList<>());
+    return WideningAnalysis.expression(List.of(steps), new ArrayList<>(), "com.example");
   }
 
   @Test
@@ -92,7 +92,8 @@ class WideningExpressionTest {
   void shouldAppendSetEachForSetStep() {
     List<Object> args = new ArrayList<>();
 
-    String expression = WideningAnalysis.expression(List.of(step(StepKind.SET)), args);
+    String expression =
+        WideningAnalysis.expression(List.of(step(StepKind.SET)), args, "com.example");
 
     assertThat(expression).isEqualTo(".each($T.setEach())");
     assertThat(args).containsExactly(EACH_INSTANCES);
@@ -103,7 +104,8 @@ class WideningExpressionTest {
   void shouldAppendCollectionEachForCollectionStep() {
     List<Object> args = new ArrayList<>();
 
-    String expression = WideningAnalysis.expression(List.of(step(StepKind.COLLECTION)), args);
+    String expression =
+        WideningAnalysis.expression(List.of(step(StepKind.COLLECTION)), args, "com.example");
 
     assertThat(expression).isEqualTo(".each($T.collectionEach())");
     assertThat(args).containsExactly(EACH_INSTANCES);

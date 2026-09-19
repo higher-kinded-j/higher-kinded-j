@@ -94,11 +94,12 @@ public class FoldProcessor extends AbstractProcessor {
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
 
     List<? extends RecordComponentElement> components = recordElement.getRecordComponents();
-    TypeName recordTypeName = getParameterizedTypeName(recordElement);
+    TypeName recordTypeName = getParameterizedTypeName(recordElement, packageName);
 
     final NestedTypeNames names = new NestedTypeNames(foldsClassName);
     for (RecordComponentElement component : components) {
-      createFold(component, recordElement, recordTypeName, names).addTo(foldsClassBuilder);
+      createFold(component, recordElement, recordTypeName, names, packageName)
+          .addTo(foldsClassBuilder);
     }
 
     JavaFile javaFile =
@@ -109,13 +110,15 @@ public class FoldProcessor extends AbstractProcessor {
     javaFile.writeTo(processingEnv.getFiler());
   }
 
-  private TypeName getParameterizedTypeName(TypeElement typeElement) {
+  private TypeName getParameterizedTypeName(TypeElement typeElement, String packageName) {
     List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
     if (typeParameters.isEmpty()) {
       return ClassName.get(typeElement);
     } else {
       List<TypeVariableName> typeVars =
-          typeParameters.stream().map(ProcessorUtils::typeVariableOf).toList();
+          typeParameters.stream()
+              .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+              .toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
     }
@@ -125,10 +128,11 @@ public class FoldProcessor extends AbstractProcessor {
       RecordComponentElement component,
       TypeElement recordElement,
       TypeName recordTypeName,
-      NestedTypeNames names) {
+      NestedTypeNames names,
+      String packageName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType());
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType(), packageName);
 
     // Check if this is an Iterable type (List, Set, etc.)
     boolean isIterable = isIterableType(component.asType());
@@ -197,7 +201,7 @@ public class FoldProcessor extends AbstractProcessor {
     // The implementation is declared beside the factory, not inside it, so it declares the
     // record's type variables for itself.
     for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
-      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter);
+      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter, packageName);
       factory.addTypeVariable(typeVariable);
       implementation.addTypeVariable(typeVariable);
     }

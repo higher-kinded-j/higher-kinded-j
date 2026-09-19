@@ -142,7 +142,8 @@ public class TraversalProcessor extends AbstractProcessor {
         }
         continue;
       }
-      NestedOptic traversal = createTraversal(component, recordElement, generator, names);
+      NestedOptic traversal =
+          createTraversal(component, recordElement, generator, names, packageName);
       if (traversal != null) {
         traversal.addTo(classBuilder);
       }
@@ -158,17 +159,18 @@ public class TraversalProcessor extends AbstractProcessor {
       RecordComponentElement component,
       TypeElement recordElement,
       TraversableGenerator generator,
-      NestedTypeNames names) {
+      NestedTypeNames names,
+      String packageName) {
 
     final String componentName = component.getSimpleName().toString();
     final ClassName recordClassName = ClassName.get(recordElement);
-    final TypeName recordTypeName = recordTypeName(recordElement, recordClassName);
+    final TypeName recordTypeName = recordTypeName(recordElement, recordClassName, packageName);
 
     final TypeName focusType;
     final TypeMirror componentType = component.asType();
 
     if (componentType instanceof ArrayType arrayType) {
-      focusType = ProcessorUtils.typeNameOf(arrayType.getComponentType()).box();
+      focusType = ProcessorUtils.typeNameOf(arrayType.getComponentType(), packageName).box();
     } else if (componentType instanceof DeclaredType declaredType) {
       if (declaredType.getTypeArguments().isEmpty()) {
         // A raw List, or a type the generator claims that declares no type parameter at all: the
@@ -279,7 +281,7 @@ public class TraversalProcessor extends AbstractProcessor {
     // record's type variables for itself.
     final MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(componentName);
     for (TypeParameterElement typeParameter : recordElement.getTypeParameters()) {
-      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter);
+      TypeVariableName typeVariable = ProcessorUtils.typeVariableOf(typeParameter, packageName);
       methodBuilder.addTypeVariable(typeVariable);
       implementation.addTypeVariable(typeVariable);
     }
@@ -315,14 +317,17 @@ public class TraversalProcessor extends AbstractProcessor {
    * @param recordClassName the record's class name
    * @return the record's type name, carrying its type variables where it declares any
    */
-  private TypeName recordTypeName(TypeElement recordElement, ClassName recordClassName) {
+  private TypeName recordTypeName(
+      TypeElement recordElement, ClassName recordClassName, String packageName) {
     List<? extends TypeParameterElement> typeParameters = recordElement.getTypeParameters();
     if (typeParameters.isEmpty()) {
       return recordClassName;
     }
     return ParameterizedTypeName.get(
         recordClassName,
-        typeParameters.stream().map(ProcessorUtils::typeVariableOf).toArray(TypeName[]::new));
+        typeParameters.stream()
+            .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+            .toArray(TypeName[]::new));
   }
 
   /**

@@ -10,6 +10,9 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
 import java.util.List;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
@@ -33,6 +36,9 @@ import javax.lang.model.type.WildcardType;
  * shared. Sharing would mean depending on that module, which is an annotation processor: it would
  * join this one on the consumer's processor path and generate optics they never asked for. The two
  * copies are small, and the walk they perform is javapoet's own; if one changes, the other should.
+ * Only the one-argument form is copied. The two-argument {@code typeNameOf(type, declared)} puts
+ * back what reading a member under an instantiation drops, and a client restates each method as its
+ * interface declares it, never read under an instantiation.
  */
 final class TypeNames {
 
@@ -43,12 +49,20 @@ final class TypeNames {
   /**
    * The name of a type as written, with its type-use annotations kept.
    *
+   * <p>An annotation is kept only where some generated file could write it. One javac could not
+   * resolve, which is one missing from the compile classpath, as an annotation a base interface in
+   * a jar was compiled against can be, and one private anywhere in its nesting are left off, since
+   * writing either would fail the build compiling the client.
+   *
    * @param type the type to name; must not be null
    * @return its name, annotated as the source annotated it (non-null)
    */
   static TypeName typeNameOf(TypeMirror type) {
     List<AnnotationSpec> annotations =
-        type.getAnnotationMirrors().stream().map(AnnotationSpec::get).toList();
+        type.getAnnotationMirrors().stream()
+            .filter(annotation -> writableSomewhere(annotation.getAnnotationType()))
+            .map(AnnotationSpec::get)
+            .toList();
     // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's
     // intersection implements DeclaredType, so a pattern switch would send one down the declared
     // arm and ask it for a class element it does not have.
@@ -60,6 +74,24 @@ final class TypeNames {
           default -> TypeName.get(type);
         };
     return annotations.isEmpty() ? name : name.annotated(annotations);
+  }
+
+  /**
+   * Whether some generated file can write this annotation type: resolved, and private nowhere in
+   * its nesting.
+   */
+  private static boolean writableSomewhere(DeclaredType annotationType) {
+    if (annotationType.getKind() == TypeKind.ERROR) {
+      return false;
+    }
+    for (Element current = annotationType.asElement();
+        current.getKind() != ElementKind.PACKAGE;
+        current = current.getEnclosingElement()) {
+      if (current.getModifiers().contains(Modifier.PRIVATE)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private static TypeName declaredNameOf(DeclaredType declared) {

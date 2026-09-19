@@ -98,6 +98,8 @@ The third form is **element-mapped**: thread the two sides under *different* var
 
 The Impl carries the prisms as state, so there is no singleton in either spelling: every `of(...)` call is a fresh, immutable instance. Build one where it is used and reuse it, rather than calling `of(...)` for every parse.
 
+A leaf can also come from a [generic mix-in](#generic-mix-ins). Declaration order then puts the spec's own leaves first, in the order it declares them, then each mix-in's, in the order the `extends` clause names them. A mix-in is read the same way, its own leaves before those of the interfaces it extends, and an interface reached twice counts where it is first reached. The generated `of(...)` documents each parameter, naming the interface that declares an inherited leaf, so the order can be read off the Impl.
+
 Element-mapped mappings nest as **compositions**. A use site whose pair unifies against one resolves each element pair in turn:
 
 - through a leaf on the using spec named after the component (single-leaf specs; a spec with several abstract leaves resolves each pair against the other registered specs, whether declared here or in a dependency),

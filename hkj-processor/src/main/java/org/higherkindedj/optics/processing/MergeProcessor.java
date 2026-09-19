@@ -761,10 +761,12 @@ public class MergeProcessor extends AbstractProcessor {
                 ProcessorUtils.rawTypesSuppression(
                     shape.target().getRecordComponents().stream().map(Element::asType).toList()))
             .addModifiers(Modifier.PUBLIC)
-            .returns(ProcessorUtils.typeNameOf(mergeMethod.getReturnType()));
+            .returns(
+                ProcessorUtils.typeNameOf(mergeMethod.getReturnType(), specName.packageName()));
     for (VariableElement source : mergeMethod.getParameters()) {
       method.addParameter(
-          ProcessorUtils.typeNameOf(source.asType()), source.getSimpleName().toString());
+          ProcessorUtils.typeNameOf(source.asType(), specName.packageName()),
+          source.getSimpleName().toString());
       method.addStatement(
           "$T.requireNonNull($L, $S)",
           OBJECTS,

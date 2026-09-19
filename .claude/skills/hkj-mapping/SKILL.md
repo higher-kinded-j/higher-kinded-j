@@ -273,7 +273,10 @@ spec for the same pair (a note names the shadowed one); two dependencies mapping
 ambiguous, listed with `(classpath)` provenance, and a leaf delegating to the one meant settles a
 nested component while a sealed subtype pair, which has no leaf, takes a spec of your own (it
 shadows both); an entry whose Impl has gone missing (a partial build output, a jar that dropped
-it) is never chosen and the failing use site names the dependency to rebuild; named modules (a
+it) is never chosen and the failing use site names the dependency to rebuild; a spec extending a
+mix-in, or a mix-in's supertype, that is off the consumer's compile classpath is never chosen
+either, and the use site names the missing type (declare that module, or have the dependency
+expose it with `api` rather than `implementation`); named modules (a
 `module-info`) neither write nor read the index, not supported yet, so there the delegating leaf
 is the route; and two spec-carrying jars must not be used as automatic modules together, the
 shared index package being a split package there, so a library bound for such a module path
@@ -322,7 +325,8 @@ PageDto<T>>`): one generic Impl serves every instantiation via `PageMappingImpl.
 `EitherMonad.instance()` convention); same-variable elements copy by identity; multi-parameter and
 bounded variables thread. **Element-mapped specs** (`Page<T> <-> PageDto<TDto>` with an abstract
 `ValidatedPrism<TDto, T> items();` leaf): the generated Impl takes one prism per abstract leaf
-through `XImpl.of(...)` (declaration order; stateful, so no singleton). All three NEST: concrete
+through `XImpl.of(...)` (declaration order: the spec's own leaves, then each mix-in's in
+`extends`-clause order, depth first; stateful, so no singleton). All three NEST: concrete
 registrations directly, threaded specs by type-argument unification at the use site
 (`PageMappingImpl.<String>instance()`, incl. a generic outer passing its own variable), and
 element-mapped specs by composition (`of(entries())`, element pairs resolved via the using spec's

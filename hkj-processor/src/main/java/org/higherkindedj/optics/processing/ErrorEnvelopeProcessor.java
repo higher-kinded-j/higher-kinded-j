@@ -366,11 +366,11 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
                 ifaceName,
                 contextName)
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
-            .addField(absentContextField(context, contextName));
+            .addField(absentContextField(context, contextName, packageName));
 
     for (Variant variant : variants) {
-      outer.addMethod(convenienceFactory(variant));
-      outer.addMethod(timedFactory(variant, contextName));
+      outer.addMethod(convenienceFactory(variant, packageName));
+      outer.addMethod(timedFactory(variant, contextName, packageName));
     }
     outer.addMethod(
         MethodSpec.methodBuilder("context")
@@ -381,17 +381,20 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
             .build());
     outer.addMethod(witherMethod(ifaceName, builderName, variants));
     outer.addMethod(rebuildMethod(envelopeOfContext, builderName));
-    outer.addType(contextBuilderType(context, contextName, builderName));
+    outer.addType(contextBuilderType(context, contextName, builderName, packageName));
 
     writeFile(iface, packageName, outer.build());
   }
 
   /** The all-absent context instance: every component null, via the canonical constructor. */
-  private FieldSpec absentContextField(TypeElement context, ClassName contextName) {
+  private FieldSpec absentContextField(
+      TypeElement context, ClassName contextName, String packageName) {
     CodeBlock.Builder args = CodeBlock.builder();
     boolean first = true;
     for (RecordComponentElement component : context.getRecordComponents()) {
-      args.add(first ? "($T) null" : ", ($T) null", ProcessorUtils.typeNameOf(component.asType()));
+      args.add(
+          first ? "($T) null" : ", ($T) null",
+          ProcessorUtils.typeNameOf(component.asType(), packageName));
       first = false;
     }
     return FieldSpec.builder(
@@ -409,7 +412,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
   }
 
   /** The {@code TimeSource.system()} convenience factory, delegating to the timed overload. */
-  private MethodSpec convenienceFactory(Variant variant) {
+  private MethodSpec convenienceFactory(Variant variant, String packageName) {
     ClassName variantName = ClassName.get(variant.record());
     MethodSpec.Builder method =
         MethodSpec.methodBuilder(factoryName(variant))
@@ -426,14 +429,14 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     CodeBlock.Builder args = CodeBlock.builder().add("$T.system()", TIME_SOURCE);
     for (RecordComponentElement component : domainComponents(variant)) {
       String name = component.getSimpleName().toString();
-      method.addParameter(ProcessorUtils.typeNameOf(component.asType()), name);
+      method.addParameter(ProcessorUtils.typeNameOf(component.asType(), packageName), name);
       args.add(", $N", name);
     }
     return method.addStatement("return $L($L)", factoryName(variant), args.build()).build();
   }
 
   /** The explicit-{@code TimeSource} factory that actually fills the envelope. */
-  private MethodSpec timedFactory(Variant variant, ClassName contextName) {
+  private MethodSpec timedFactory(Variant variant, ClassName contextName, String packageName) {
     ClassName variantName = ClassName.get(variant.record());
     String simpleName = variant.record().getSimpleName().toString();
     String code = upperSnake(simpleName);
@@ -454,7 +457,8 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
             .addParameter(TIME_SOURCE, "time");
     for (RecordComponentElement component : domainComponents(variant)) {
       method.addParameter(
-          ProcessorUtils.typeNameOf(component.asType()), component.getSimpleName().toString());
+          ProcessorUtils.typeNameOf(component.asType(), packageName),
+          component.getSimpleName().toString());
     }
     method.addStatement("$T.requireNonNull(time, $S)", OBJECTS, "time must not be null");
 
@@ -520,7 +524,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
 
   /** The fluent builder over the context record's components. */
   private TypeSpec contextBuilderType(
-      TypeElement context, ClassName contextName, ClassName builderName) {
+      TypeElement context, ClassName contextName, ClassName builderName, String packageName) {
     // A nested type is its own class file, and a coverage tool reads the marker there.
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(builderName.simpleName())
@@ -537,7 +541,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
     boolean first = true;
     for (RecordComponentElement component : context.getRecordComponents()) {
       String name = component.getSimpleName().toString();
-      TypeName type = ProcessorUtils.typeNameOf(component.asType());
+      TypeName type = ProcessorUtils.typeNameOf(component.asType(), packageName);
       // The builder holds each context component's type and takes it in its setter.
       List<AnnotationSpec> componentRaw =
           ProcessorUtils.rawTypesSuppression(List.of(component.asType()));

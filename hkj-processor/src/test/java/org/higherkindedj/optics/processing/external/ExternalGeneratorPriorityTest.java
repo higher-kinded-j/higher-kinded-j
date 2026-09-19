@@ -88,7 +88,8 @@ class ExternalGeneratorPriorityTest {
               bag,
               components,
               bagTypeName,
-              new NestedTypeNames("MarkerBagLenses"));
+              new NestedTypeNames("MarkerBagLenses"),
+              "com.example");
 
       // The fallback generator sits before the default that outranks it.
       ExternalLensGenerator fbGenerator =
@@ -102,7 +103,8 @@ class ExternalGeneratorPriorityTest {
               bag,
               components,
               bagTypeName,
-              new NestedTypeNames("MarkerBagLenses"));
+              new NestedTypeNames("MarkerBagLenses"),
+              "com.example");
 
       // Two generators of equal priority: the first registered wins, with a warning.
       ExternalLensGenerator dupGenerator =
@@ -116,7 +118,8 @@ class ExternalGeneratorPriorityTest {
               bag,
               components,
               bagTypeName,
-              new NestedTypeNames("MarkerBagLenses"));
+              new NestedTypeNames("MarkerBagLenses"),
+              "com.example");
 
       // The same tie resolved with no component to anchor to: the choice is unchanged and no
       // warning is printed, so the whole compilation carries exactly one tie warning.

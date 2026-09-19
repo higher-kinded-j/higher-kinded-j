@@ -218,18 +218,33 @@ public final class WideningAnalysis {
 
   private final KindFieldAnalyser kindAnalyser;
   private final GeneratorRegistry generatorRegistry;
+  private final String targetPackage;
 
   /**
    * Creates the analysis over a set of SPI generators.
    *
    * @param processingEnv the processing environment
    * @param traversableGenerators the SPI generators, in registration order
+   * @param targetPackage the package the generated Focus class is written into, which names the
+   *     types a widening spells out
    */
   public WideningAnalysis(
-      ProcessingEnvironment processingEnv, List<TraversableGenerator> traversableGenerators) {
+      ProcessingEnvironment processingEnv,
+      List<TraversableGenerator> traversableGenerators,
+      String targetPackage) {
     this.kindAnalyser = new KindFieldAnalyser(processingEnv);
     this.generatorRegistry =
         GeneratorRegistry.of(traversableGenerators, processingEnv.getMessager());
+    this.targetPackage = targetPackage;
+  }
+
+  /**
+   * The package the generated Focus class is written into.
+   *
+   * @return the package every type a widening spells out is named from
+   */
+  public String targetPackage() {
+    return targetPackage;
   }
 
   /**
@@ -249,7 +264,8 @@ public final class WideningAnalysis {
     if (steps.isEmpty() && NullableAnnotations.hasNullableAnnotation(component)) {
       steps.add(new Step(StepKind.NULLABLE, null, null, null));
     }
-    return new Widening(tier(steps), focusType(componentType, steps), List.copyOf(steps), declined);
+    return new Widening(
+        tier(steps), focusType(componentType, steps, targetPackage), List.copyOf(steps), declined);
   }
 
   /**
@@ -412,9 +428,10 @@ public final class WideningAnalysis {
   }
 
   /** The type the widened path focuses on: what the last layer peeled unwraps to. */
-  private static TypeName focusType(TypeMirror componentType, List<Step> steps) {
+  private static TypeName focusType(
+      TypeMirror componentType, List<Step> steps, String targetPackage) {
     if (steps.isEmpty()) {
-      return ProcessorUtils.typeNameOf(componentType).box();
+      return ProcessorUtils.typeNameOf(componentType, targetPackage).box();
     }
     Step last = steps.getLast();
     return switch (last.kind()) {
@@ -422,12 +439,12 @@ public final class WideningAnalysis {
       // but without the annotation that put the step there. Affines.nullable() is
       // Affine<@Nullable A, A>: the widening is what makes the focus non-null, and repeating
       // @Nullable on it would describe a value the affine never yields.
-      case NULLABLE -> nullRuledOut(ProcessorUtils.typeNameOf(componentType).box());
+      case NULLABLE -> nullRuledOut(ProcessorUtils.typeNameOf(componentType, targetPackage).box());
       case KIND_EXACTLY_ONE, KIND_ZERO_OR_ONE, KIND_ZERO_OR_MORE -> last.kindInfo().elementType();
       case OPTIONAL, LIST, SET, COLLECTION, SPI_ZERO_OR_ONE, SPI_ZERO_OR_MORE ->
           last.innerType() == null
               ? ClassName.get(Object.class)
-              : ProcessorUtils.typeNameOf(last.innerType()).box();
+              : ProcessorUtils.typeNameOf(last.innerType(), targetPackage).box();
     };
   }
 
@@ -461,9 +478,10 @@ public final class WideningAnalysis {
    *
    * @param steps the layers to render
    * @param args the mutable list of JavaPoet arguments, appended to for SPI import resolution
+   * @param targetPackage the package the expression is written into
    * @return the chained expression, empty when nothing widens
    */
-  public static String expression(List<Step> steps, List<Object> args) {
+  public static String expression(List<Step> steps, List<Object> args, String targetPackage) {
     StringBuilder expression = new StringBuilder();
     for (int i = 0; i < steps.size(); i++) {
       Step step = steps.get(i);
@@ -475,8 +493,8 @@ public final class WideningAnalysis {
       // and a switch expression says so without a default arm nothing can reach.
       expression.append(
           switch (step.kind()) {
-            case OPTIONAL -> witnessed("some", step, witness, args);
-            case LIST -> witnessed("each", step, witness, args);
+            case OPTIONAL -> witnessed("some", step, witness, args, targetPackage);
+            case LIST -> witnessed("each", step, witness, args, targetPackage);
             case SET -> eachInstance("setEach", args);
             case COLLECTION -> eachInstance("collectionEach", args);
             case NULLABLE -> ".nullable()";
@@ -494,11 +512,12 @@ public final class WideningAnalysis {
    * A no-arg widening call, with the element it hands on spelled out when the next layer's optic
    * instance has to unify against it.
    */
-  private static String witnessed(String method, Step step, boolean witness, List<Object> args) {
+  private static String witnessed(
+      String method, Step step, boolean witness, List<Object> args, String targetPackage) {
     if (!witness) {
       return "." + method + "()";
     }
-    args.add(ProcessorUtils.typeNameOf(step.innerType()));
+    args.add(ProcessorUtils.typeNameOf(step.innerType(), targetPackage));
     return ".<$T>" + method + "()";
   }
 
