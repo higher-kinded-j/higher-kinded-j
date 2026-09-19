@@ -242,6 +242,7 @@ Lens<Transaction, Pair<Integer, Integer>> limitsLens = Lens.paired(
 |----------|---------------------|
 | Independent fields | Use individual lenses, or fold several into one operation with [`Edits`](multi_edit.md) |
 | Fields with shared invariant | Use `Lens.paired` |
+| Sparse or validated edits to fields a constructor checks together | Use [`Edits.accumulate(focus, …)`](multi_edit.md#fields-a-constructor-checks-together), with a `Lens.paired` as the focus if you have one |
 | Computed/derived fields | Don't expose a lens for the computed field |
 | Cross-structure invariants | Use domain methods, not lenses |
 

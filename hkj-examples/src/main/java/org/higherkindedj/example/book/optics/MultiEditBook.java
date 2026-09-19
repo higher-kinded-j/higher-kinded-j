@@ -11,6 +11,7 @@ import org.higherkindedj.hkt.Update;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.edit.Edit;
@@ -90,6 +91,23 @@ public final class MultiEditBook {
     // changed
     // ANCHOR_END: accumulate
     System.out.println(patched);
+
+    MoveRequest move = new MoveRequest(5, 10);
+
+    // ANCHOR: focus
+    Lens<Range, Ends> ends =
+        Lens.of(r -> new Ends(r.lo(), r.hi()), (r, e) -> new Range(e.lo(), e.hi()));
+
+    Validated<NonEmptyList<FieldError>, Range> moved =
+        Edits.accumulate(
+                ends,
+                setIfPresent(EndsFocus.lo(), move.lo()),
+                setIfPresent(EndsFocus.hi(), move.hi()))
+            .apply(new Range(1, 3));
+    // lo 5, hi 10: Valid(Range[lo=5, hi=10]), though lo 5 alone would make Range(5, 3)
+    // lo 5 alone:  Invalid(NEL[ "lo > hi" ])
+    // ANCHOR_END: focus
+    System.out.println(moved);
   }
 }
 
@@ -115,6 +133,23 @@ record PatchRequest(
     @Nullable String email,
     @Nullable String sku,
     @Nullable Integer qtyDelta) {}
+
+// ANCHOR: focus_records
+record Range(int lo, int hi) {
+  Range {
+    if (lo > hi) {
+      throw new IllegalArgumentException("lo > hi");
+    }
+  }
+}
+
+@GenerateFocus
+record Ends(int lo, int hi) {} // the fields the edits set, with no check of their own
+
+// ANCHOR_END: focus_records
+
+/** A sparse request moving a range's ends: a null component means "not supplied". */
+record MoveRequest(@Nullable Integer lo, @Nullable Integer hi) {}
 
 /** The boundary parser the page hands to {@code parseIfPresent}. */
 final class Email {

@@ -4,10 +4,13 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -20,6 +23,7 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 @DisplayName("MappingProcessor - sparse PATCH write-back via UpdateSpec")
 class MappingProcessorUpdateTest {
@@ -105,16 +109,26 @@ class MappingProcessorUpdateTest {
       String generated = generatedSource(compilation, "com.example.UserPatchMappingImpl");
       Assertions.assertThat(generated)
           .contains("updateFrom(UserPatchDto wire)")
-          .contains("Edits.accumulate(")
+          // The setters write a Components record, and the lens constructs the User once.
+          .contains("Edits.<User, Components>accumulate(")
+          .contains("d -> new Components(d.name(), d.email(), d.age())")
+          .contains("(d, c) -> new User(c.name(), c.email(), c.age())")
+          .contains("private record Components(String name, EmailAddress email, int age)")
           .contains("Edit.setIfPresent(")
-          .contains("Setter.fromGetSet(User::name, (d, v) -> new User(v, d.email(), d.age()))")
+          .contains(
+              "Setter.fromGetSet(Components::name, (c, v) -> new Components(v, c.email(),"
+                  + " c.age()))")
           .contains("wire.getName()")
           .contains("Edit.parseIfPresent(")
-          .contains("Setter.fromGetSet(User::email, (d, v) -> new User(d.name(), v, d.age()))")
+          .contains(
+              "Setter.fromGetSet(Components::email, (c, v) -> new Components(c.name(), v,"
+                  + " c.age()))")
           .contains("wire.getEmail()")
           .contains("email()::parse")
           .contains(".at(\"email\")")
-          .contains("Setter.fromGetSet(User::age, (d, v) -> new User(d.name(), d.email(), v))")
+          .contains(
+              "Setter.fromGetSet(Components::age, (c, v) -> new Components(c.name(), c.email(),"
+                  + " v))")
           .contains("wire.getAge()")
           .doesNotContain("asIso")
           .doesNotContain("asValidatedPrism")
@@ -236,6 +250,427 @@ class MappingProcessorUpdateTest {
       } catch (ReflectiveOperationException e) {
         throw new AssertionError(e);
       }
+    }
+  }
+
+  @Nested
+  @DisplayName("Construct once - the domain's constructor sees only the values a PATCH ends on")
+  class ConstructOnce {
+
+    /**
+     * One compilation for every case, under {@code -Xlint:all -Werror}: a record checking its
+     * fields against each other, one refusing without a reason, one with no check whose PATCH
+     * covers one field, one whose uncovered components the Impl cannot name without a warning or at
+     * all, one with a same-arity overload of its constructor, one whose covered components carry
+     * annotations the Impl can and cannot write, and a spec nesting types named like the Impl's
+     * own. {@code Probes} calls the generated code directly, so each case is one static call.
+     */
+    private static final class Fixture {
+      static final Compilation COMPILATION =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withOptions("-Xlint:all,-processing", "-Werror")
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.Range",
+                      """
+                      package com.example;
+
+                      public record Range(int lo, int hi) {
+                        public Range {
+                          if (lo > hi) {
+                            throw new IllegalArgumentException("lo > hi");
+                          }
+                        }
+                      }
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.Quiet",
+                      """
+                      package com.example;
+
+                      public record Quiet(int n) {
+                        public Quiet {
+                          if (n < 0) {
+                            throw new IllegalArgumentException();
+                          }
+                        }
+                      }
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.Plain",
+                      """
+                      package com.example;
+
+                      public record Plain(String name, int age) {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.hidden.Audit",
+                      """
+                      package com.example.hidden;
+
+                      record Audit(String who) {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.hidden.Legacy",
+                      """
+                      package com.example.hidden;
+
+                      @Deprecated(forRemoval = true)
+                      public record Legacy(String code) {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.Money",
+                      """
+                      package com.example;
+
+                      public record Money(long cents, String currency) {
+                        public Money(Number pounds, String currency) {
+                          this(Math.round(pounds.doubleValue() * 100), currency);
+                        }
+                      }
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.hidden.Checked",
+                      """
+                      package com.example.hidden;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Target(ElementType.TYPE_USE)
+                      @interface Checked {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.hidden.Old",
+                      """
+                      package com.example.hidden;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Deprecated
+                      @Target(ElementType.TYPE_USE)
+                      public @interface Old {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.hidden.Tagged",
+                      """
+                      package com.example.hidden;
+
+                      import org.jspecify.annotations.Nullable;
+
+                      @SuppressWarnings("deprecation")
+                      public record Tagged(@Checked String name, @Old String note,
+                          @Nullable String remark) {}
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.hidden.Account",
+                      """
+                      package com.example.hidden;
+
+                      @SuppressWarnings("removal")
+                      public record Account(String name, Audit audit, Legacy legacy) {
+                        public static Account opened(String name) {
+                          return new Account(name, new Audit("system"), new Legacy("L1"));
+                        }
+
+                        public String auditor() {
+                          return audit.who();
+                        }
+                      }
+                      """),
+                  bean("RangePatch", "Integer", "lo", "hi"),
+                  bean("QuietPatch", "Integer", "n"),
+                  bean("PlainPatch", "String", "name"),
+                  bean("AccountPatch", "String", "name"),
+                  bean("MoneyPatch", "Long", "cents"),
+                  bean("TaggedPatch", "String", "name", "note", "remark"),
+                  JavaFileObjects.forSourceString(
+                      "com.example.Specs",
+                      """
+                      package com.example;
+
+                      import com.example.hidden.Account;
+                      import com.example.hidden.Tagged;
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.UpdateSpec;
+
+                      public final class Specs {
+                        private Specs() {}
+
+                        @GenerateMapping
+                        public interface RangePatchMapping extends UpdateSpec<Range, RangePatch> {}
+
+                        @GenerateMapping
+                        public interface QuietPatchMapping extends UpdateSpec<Quiet, QuietPatch> {}
+
+                        @GenerateMapping
+                        public interface PlainPatchMapping extends UpdateSpec<Plain, PlainPatch> {}
+
+                        @GenerateMapping
+                        public interface AccountPatchMapping
+                            extends UpdateSpec<Account, AccountPatch> {}
+
+                        @GenerateMapping
+                        public interface MoneyPatchMapping extends UpdateSpec<Money, MoneyPatch> {}
+
+                        @GenerateMapping
+                        public interface TaggedPatchMapping
+                            extends UpdateSpec<Tagged, TaggedPatch> {}
+
+                        @GenerateMapping
+                        public interface ClashPatchMapping extends UpdateSpec<Plain, PlainPatch> {
+                          interface Lens {}
+
+                          interface Components {}
+
+                          interface Setter {}
+                        }
+                      }
+                      """),
+                  JavaFileObjects.forSourceString(
+                      "com.example.Probes",
+                      """
+                      package com.example;
+
+                      import com.example.hidden.Account;
+                      import com.example.hidden.Tagged;
+
+                      public final class Probes {
+                        private Probes() {}
+
+                        static Object money(Long cents) {
+                          MoneyPatch patch = new MoneyPatch();
+                          patch.setCents(cents);
+                          return SpecsMoneyPatchMappingImpl.INSTANCE.updateFrom(patch)
+                              .apply(new Money(100L, "GBP"));
+                        }
+
+                        static Object tagged(String remark) {
+                          TaggedPatch patch = new TaggedPatch();
+                          patch.setRemark(remark);
+                          return SpecsTaggedPatchMappingImpl.INSTANCE.updateFrom(patch)
+                              .apply(new Tagged("a", "b", null));
+                        }
+
+                        static Object clash(String name) {
+                          PlainPatch patch = new PlainPatch();
+                          patch.setName(name);
+                          return SpecsClashPatchMappingImpl.INSTANCE.updateFrom(patch)
+                              .apply(new Plain("Ada", 42));
+                        }
+
+                        static Object range(Integer lo, Integer hi) {
+                          RangePatch patch = new RangePatch();
+                          patch.setLo(lo);
+                          patch.setHi(hi);
+                          return SpecsRangePatchMappingImpl.INSTANCE.updateFrom(patch)
+                              .apply(new Range(1, 3));
+                        }
+
+                        static Object quiet(Integer n) {
+                          QuietPatch patch = new QuietPatch();
+                          patch.setN(n);
+                          return SpecsQuietPatchMappingImpl.INSTANCE.updateFrom(patch)
+                              .apply(new Quiet(1));
+                        }
+
+                        static Object plain(String name) {
+                          PlainPatch patch = new PlainPatch();
+                          patch.setName(name);
+                          return SpecsPlainPatchMappingImpl.INSTANCE.updateFrom(patch)
+                              .apply(new Plain("Ada", 42));
+                        }
+
+                        static String account(String name) {
+                          AccountPatch patch = new AccountPatch();
+                          patch.setName(name);
+                          Account patched =
+                              SpecsAccountPatchMappingImpl.INSTANCE.updateFrom(patch)
+                                  .apply(Account.opened("Ada"))
+                                  .get();
+                          return patched.name() + " audited by " + patched.auditor();
+                        }
+                      }
+                      """));
+      static final RuntimeCompilationHelper.CompiledResult RESULT =
+          new RuntimeCompilationHelper.CompiledResult(COMPILATION);
+
+      /** A PATCH bean in {@code com.example} with one {@code type} property per name. */
+      private static JavaFileObject bean(String name, String type, String... properties) {
+        StringBuilder body = new StringBuilder();
+        for (String property : properties) {
+          String capitalised = Character.toUpperCase(property.charAt(0)) + property.substring(1);
+          body.append(
+              """
+                private %1$s %2$s;
+
+                public %1$s get%3$s() { return %2$s; }
+
+                public void set%3$s(%1$s %2$s) { this.%2$s = %2$s; }
+              """
+                  .formatted(type, property, capitalised));
+        }
+        return JavaFileObjects.forSourceString(
+            "com.example." + name,
+            "package com.example;\n\npublic class " + name + " {\n" + body + "}\n");
+      }
+    }
+
+    /** Calls {@code Probes.name(args)} in the compiled fixture. */
+    private static Object call(String name, Object... args) {
+      try {
+        return Fixture.RESULT.invokeStatic("com.example.Probes", name, args);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    @SuppressWarnings("unchecked") // reflective call into the generated Impl
+    private static Validated<NonEmptyList<FieldError>, Object> probe(String name, Object... args) {
+      return (Validated<NonEmptyList<FieldError>, Object>) call(name, args);
+    }
+
+    @Test
+    @DisplayName("compiles without a warning, the uncovered components never written out")
+    void compilesWithoutWarnings() {
+      assertThat(Fixture.COMPILATION).succeededWithoutWarnings();
+      Assertions.assertThat(
+              generatedSource(Fixture.COMPILATION, "com.example.SpecsAccountPatchMappingImpl"))
+          .contains("private record Components(String name)")
+          .contains("(d, c) -> new Account(c.name(), d.audit(), d.legacy())");
+    }
+
+    @Test
+    @DisplayName("a PATCH ending on valid values is valid, though one field at a time would not be")
+    void validFinalValueIsValid() {
+      // lo 5 first would build Range(5, 3), which the constructor refuses.
+      assertThatValidated(probe("range", 5, 10))
+          .hasValueSatisfying(
+              range -> range.toString().equals("Range[lo=5, hi=10]"), "Range[lo=5, hi=10]");
+    }
+
+    @Test
+    @DisplayName("a PATCH ending on refused values is Invalid at the root, with the message")
+    void refusedFinalValueIsInvalid() {
+      assertThatValidated(probe("range", 5, null))
+          .hasError(NonEmptyList.of(FieldError.of("lo > hi")));
+    }
+
+    @Test
+    @DisplayName("a refusal without a reason names the domain")
+    void refusalWithoutReasonNamesTheDomain() {
+      assertThatValidated(probe("quiet", -1)).hasFieldErrors("not a valid Quiet");
+    }
+
+    @Test
+    @DisplayName("a record with no check keeps what the PATCH leaves out")
+    void uncheckedRecordKeepsAbsentAndUncovered() {
+      assertThatValidated(probe("plain", "Grace"))
+          .hasValueSatisfying(
+              plain -> plain.toString().equals("Plain[name=Grace, age=42]"), "the name patched");
+      assertThatValidated(probe("plain", (Object) null))
+          .hasValueSatisfying(
+              plain -> plain.toString().equals("Plain[name=Ada, age=42]"), "nothing patched");
+    }
+
+    @Test
+    @DisplayName("an uncovered component the Impl cannot name is carried over from the domain")
+    void uncoveredComponentIsCarriedOver() {
+      Assertions.assertThat(call("account", "Grace")).isEqualTo("Grace audited by system");
+    }
+
+    @Test
+    @DisplayName("the canonical constructor is called, not a same-arity overload")
+    void canonicalConstructorIsCalled() {
+      // A Long read into Money(Number, String) would be taken as pounds: 25000 cents.
+      assertThatValidated(probe("money", 250L))
+          .hasValueSatisfying(
+              money -> money.toString().equals("Money[cents=250, currency=GBP]"), "250 cents");
+    }
+
+    @Test
+    @DisplayName("a covered component keeps only the annotations the Impl can write")
+    void coveredComponentKeepsWritableAnnotations() {
+      // @Checked is package-private in another package and @Old is deprecated: neither compiles
+      // cleanly here, and the setters only ever inferred the type they annotate.
+      Assertions.assertThat(
+              generatedSource(Fixture.COMPILATION, "com.example.SpecsTaggedPatchMappingImpl"))
+          .contains("private record Components(String name, String note, @Nullable String remark)");
+      assertThatValidated(probe("tagged", "noted"))
+          .hasValueSatisfying(
+              tagged -> tagged.toString().equals("Tagged[name=a, note=b, remark=noted]"),
+              "the remark patched");
+    }
+
+    @Test
+    @DisplayName("a type the spec nests does not shadow the Impl's own names")
+    void specNestedTypesDoNotShadow() {
+      assertThatValidated(probe("clash", "Grace"))
+          .hasValueSatisfying(
+              plain -> plain.toString().equals("Plain[name=Grace, age=42]"), "the name patched");
+    }
+
+    @Test
+    @DisplayName("an annotation missing from the classpath is left off a covered component")
+    void missingAnnotationIsLeftOff(@TempDir Path tmp) throws IOException {
+      JavaFileObject tag =
+          JavaFileObjects.forSourceString(
+              "tag.Tag",
+              """
+              package tag;
+
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Retention;
+              import java.lang.annotation.RetentionPolicy;
+              import java.lang.annotation.Target;
+
+              @Retention(RetentionPolicy.RUNTIME)
+              @Target(ElementType.TYPE_USE)
+              public @interface Tag {}
+              """);
+      Compilation tags = javac().compile(tag);
+      assertThat(tags).succeeded();
+      Path tagClasses = GeneratorTestHelper.classDirectory(tags, tmp.resolve("tags"));
+      // The library compiles against the annotation, and does not pass it on.
+      Compilation library =
+          javac()
+              .withClasspath(GeneratorTestHelper.classpathWith(tagClasses))
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "lib.Labelled",
+                      """
+                      package lib;
+
+                      public record Labelled(@tag.Tag String label, int rank) {}
+                      """));
+      assertThat(library).succeeded();
+      Path libraryClasses = GeneratorTestHelper.classDirectory(library, tmp.resolve("lib"));
+
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withClasspath(GeneratorTestHelper.classpathWith(libraryClasses))
+              .withOptions("-Xlint:all,-processing", "-Werror")
+              .compile(
+                  Fixture.bean("LabelPatch", "String", "label"),
+                  JavaFileObjects.forSourceString(
+                      "com.example.LabelPatchMapping",
+                      """
+                      package com.example;
+
+                      import lib.Labelled;
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.UpdateSpec;
+
+                      @GenerateMapping
+                      public interface LabelPatchMapping extends UpdateSpec<Labelled, LabelPatch> {}
+                      """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      Assertions.assertThat(generatedSource(compilation, "com.example.LabelPatchMappingImpl"))
+          .contains("private record Components(String label)");
     }
   }
 
@@ -1762,7 +2197,7 @@ class MappingProcessorUpdateTest {
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.AccountPatchMappingImpl");
       Assertions.assertThat(generated)
-          .contains("Setter.fromGetSet(Account::owner, (d, v) -> new Account(v))")
+          .contains("Setter.fromGetSet(Components::owner, (c, v) -> new Components(v))")
           .contains("wire.getHolder()")
           .contains("public String owner()");
 

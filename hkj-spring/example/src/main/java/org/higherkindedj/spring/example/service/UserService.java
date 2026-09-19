@@ -62,13 +62,15 @@ public class UserService {
    * Atomically apply a sparse patch to a stored user: look up, apply, and replace in one step, so
    * concurrent PATCHes cannot read the same user and overwrite each other (the read-modify-write
    * lost-update race). The patch is an {@link Edits.Accumulated} — its validation already ran,
-   * source-independently, when {@code updateFrom} built it — so only the pure {@code apply} runs
-   * under {@link ConcurrentHashMap#compute}'s per-key lock.
+   * source-independently, when {@code updateFrom} built it — so only {@code apply}, the writes and
+   * the domain constructor's one check of the result, runs under {@link
+   * ConcurrentHashMap#compute}'s per-key lock.
    *
    * @param id the id of the user to patch
    * @param patch the accumulated sparse update (from {@code UserPatchMappingImpl.updateFrom})
    * @return {@code Left(UserNotFoundError)} if no such user, {@code Left(PatchValidationError)} if
-   *     a present field was invalid (nothing written), else {@code Right(patched)}
+   *     a present field was invalid or the patched values were refused by {@code User}'s
+   *     constructor (nothing written), else {@code Right(patched)}
    */
   public Either<DomainError, User> patch(String id, Edits.Accumulated<User> patch) {
     // compute() applies the patch atomically under the key's lock; it returns the value to store,

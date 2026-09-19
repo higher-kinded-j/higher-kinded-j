@@ -10,6 +10,7 @@ import java.util.Optional;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Setter;
 import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.edit.Edit;
@@ -26,17 +27,20 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
   }
 
   /**
-   * Folds the present (non-null) properties of {@code wire} into an update: an absent property leaves the domain unchanged, a present one is set (or parsed through its leaf) and located on failure.
+   * Folds the present (non-null) properties of {@code wire} into an update: an absent property leaves the domain unchanged, a present one is set (or parsed through its leaf) and located on failure. The domain is constructed once, from the values the update ends on.
    */
   public Edits.Accumulated<Customer> updateFrom(CustomerPatchDto wire) {
     Objects.requireNonNull(wire, "wire must not be null");
-    return Edits.accumulate(
-            Edit.setIfPresent(Setter.fromGetSet(Customer::name, (d, v) -> new Customer(v, d.phones(), d.speedDial(), d.fax(), d.tags(), d.labels())), wire.getName()),
-            Edit.parseIfPresent(Setter.fromGetSet(Customer::phones, (d, v) -> new Customer(d.name(), v, d.speedDial(), d.fax(), d.tags(), d.labels())), wire.getPhones(), phones()::parseAll).at("phones"),
-            Edit.parseIfPresent(Setter.fromGetSet(Customer::speedDial, (d, v) -> new Customer(d.name(), d.phones(), v, d.fax(), d.tags(), d.labels())), wire.getSpeedDial(), speedDial()::parseValues).at("speedDial"),
-            Edit.parseIfPresent(Setter.fromGetSet(Customer::fax, (d, v) -> new Customer(d.name(), d.phones(), d.speedDial(), v, d.tags(), d.labels())), wire.getFax(), o -> o.map(v -> fax().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))).at("fax"),
-            Edit.parseIfPresent(Setter.fromGetSet(Customer::tags, (d, v) -> new Customer(d.name(), d.phones(), d.speedDial(), d.fax(), v, d.labels())), wire.getTags(), CustomerPatchMappingImpl::hkj$allPresent).at("tags"),
-            Edit.parseIfPresent(Setter.fromGetSet(Customer::labels, (d, v) -> new Customer(d.name(), d.phones(), d.speedDial(), d.fax(), d.tags(), v)), wire.getLabels(), CustomerPatchMappingImpl::hkj$valuesPresent).at("labels"));
+    return Edits.<Customer, Components>accumulate(
+            Lens.of(
+                d -> new Components(d.name(), d.phones(), d.speedDial(), d.fax(), d.tags(), d.labels()),
+                (d, c) -> new Customer(c.name(), c.phones(), c.speedDial(), c.fax(), c.tags(), c.labels())),
+            Edit.setIfPresent(Setter.fromGetSet(Components::name, (c, v) -> new Components(v, c.phones(), c.speedDial(), c.fax(), c.tags(), c.labels())), wire.getName()),
+            Edit.parseIfPresent(Setter.fromGetSet(Components::phones, (c, v) -> new Components(c.name(), v, c.speedDial(), c.fax(), c.tags(), c.labels())), wire.getPhones(), phones()::parseAll).at("phones"),
+            Edit.parseIfPresent(Setter.fromGetSet(Components::speedDial, (c, v) -> new Components(c.name(), c.phones(), v, c.fax(), c.tags(), c.labels())), wire.getSpeedDial(), speedDial()::parseValues).at("speedDial"),
+            Edit.parseIfPresent(Setter.fromGetSet(Components::fax, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), v, c.tags(), c.labels())), wire.getFax(), o -> o.map(v -> fax().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))).at("fax"),
+            Edit.parseIfPresent(Setter.fromGetSet(Components::tags, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), v, c.labels())), wire.getTags(), CustomerPatchMappingImpl::hkj$allPresent).at("tags"),
+            Edit.parseIfPresent(Setter.fromGetSet(Components::labels, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), c.tags(), v)), wire.getLabels(), CustomerPatchMappingImpl::hkj$valuesPresent).at("labels"));
   }
 
   /**
@@ -75,5 +79,14 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
       }
     }
     return failures == null ? Validated.valid(values) : Validated.invalid(failures);
+  }
+
+  /**
+   * The components of {@link Customer} a PATCH can write, which {@code updateFrom}'s setters write before the domain is constructed once.
+   */
+  @Generated
+  private record Components(String name, List<PhoneNumber> phones,
+      Map<String, PhoneNumber> speedDial, Optional<PhoneNumber> fax, List<String> tags,
+      Map<String, String> labels) {
   }
 }

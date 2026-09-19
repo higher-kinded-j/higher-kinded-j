@@ -125,9 +125,9 @@ import java.lang.annotation.Target;
  *       set: a default the bean gives itself, from a field initialiser, its constructor or a getter
  *       that creates one, reads as sent. The two write-backs are deliberate opposites: {@code
  *       patch} is dense (a missing value is an error), {@code updateFrom} is sparse (a missing
- *       value means keep the current one). {@code updateFrom} sets each present field on its own
- *       through the record's constructor, so an invariant spanning the fields it sets is not
- *       supported yet.
+ *       value means keep the current one). {@code updateFrom} constructs the record once, from the
+ *       values the PATCH ends on, so a constructor checking its fields against each other never
+ *       sees a PATCH half applied.
  * </ul>
  */
 @Target(ElementType.TYPE)

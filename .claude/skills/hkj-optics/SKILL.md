@@ -189,6 +189,7 @@ The split to understand:
 |---------|--------|---------|---------|
 | `Edits.combine(...)` | `Edit<S>` | `Update<S>` | Infallible: just a composed `S -> S` |
 | `Edits.accumulate(...)` | `FallibleEdit<S>` | `Edits.Accumulated<S>` | Each edit may fail; **all** failures collected |
+| `Edits.accumulate(focus, ...)` | `FallibleEdit<A>` | `Edits.Accumulated<S>` | The same, written onto a `Lens<S, A>` focus that is set back once: a constructor checking fields against each other sees only the final values, and its refusal is an `Invalid` |
 
 The two builders live on `Edits`; the **leaves live on `Edit`** (there is no `Edits.modify`). Either
 qualify them, as below, or `import static org.higherkindedj.optics.edit.Edit.*;`.

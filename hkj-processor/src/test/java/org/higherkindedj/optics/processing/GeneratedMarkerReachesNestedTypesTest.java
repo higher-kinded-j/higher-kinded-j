@@ -195,6 +195,28 @@ class GeneratedMarkerReachesNestedTypesTest {
           public record Order(String id, List<String> items) {}
           """);
 
+  private static final JavaFileObject RANGE_PATCH =
+      JavaFileObjects.forSourceString(
+          "com.example.RangePatchMapping",
+          """
+          package com.example;
+
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.UpdateSpec;
+
+          @GenerateMapping
+          public interface RangePatchMapping extends UpdateSpec<RangePatchMapping.Range,
+              RangePatchMapping.RangePatch> {
+            record Range(int lo, int hi) {}
+
+            class RangePatch {
+              private Integer lo;
+              public Integer getLo() { return lo; }
+              public void setLo(Integer lo) { this.lo = lo; }
+            }
+          }
+          """);
+
   /** One row per generator that writes a nested type: its processors, fixture and nested output. */
   static Stream<Arguments> generators() {
     return Stream.of(
@@ -240,7 +262,12 @@ class GeneratedMarkerReachesNestedTypesTest {
             "@GenerateFolds",
             List.of(new FoldProcessor()),
             List.of(ORDER),
-            Set.of("OrderFolds$IdFold", "OrderFolds$ItemsFold")));
+            Set.of("OrderFolds$IdFold", "OrderFolds$ItemsFold")),
+        Arguments.of(
+            "@GenerateMapping sparse update",
+            List.of(new MappingProcessor()),
+            List.of(RANGE_PATCH),
+            Set.of("RangePatchMappingImpl$Components")));
   }
 
   @ParameterizedTest(name = "{0}")

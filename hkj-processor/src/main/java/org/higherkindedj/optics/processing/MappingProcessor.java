@@ -42,6 +42,7 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedOptions;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -189,6 +190,7 @@ public class MappingProcessor extends AbstractProcessor {
   private static final ClassName ACCUMULATED =
       ClassName.get("org.higherkindedj.optics.edit", "Edits", "Accumulated");
   private static final ClassName SETTER = ClassName.get("org.higherkindedj.optics", "Setter");
+  private static final ClassName LENS = ClassName.get("org.higherkindedj.optics", "Lens");
   private static final ClassName VALIDATED =
       ClassName.get("org.higherkindedj.hkt.validated", "Validated");
   private static final ClassName FIELD_ERROR =
@@ -3858,12 +3860,19 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Emits the sparse-update Impl: a single {@code updateFrom(Wire) : Edits.Accumulated<Domain>}
    * that folds each present wire property into an {@code Update}. Identity edits use {@code
-   * Edit.setIfPresent} against an inline {@code Setter} that rebuilds the record; validated edits
-   * use {@code Edit.parseIfPresent(...).at(name)} with the parse method their {@link Kind} selects
-   * ({@code parse}, element-lifted {@code parseAll}/{@code parseValues}, the element-of-Optional
-   * lambda, or the identity-container null scan), so a present-but-invalid value accumulates a
-   * located {@code FieldError} — {@code phones.1: ...} for a bad second element. No {@code
-   * build}/{@code parse}/{@code as*} tier is emitted.
+   * Edit.setIfPresent} against an inline {@code Setter}; validated edits use {@code
+   * Edit.parseIfPresent(...).at(name)} with the parse method their {@link Kind} selects ({@code
+   * parse}, element-lifted {@code parseAll}/{@code parseValues}, the element-of-Optional lambda, or
+   * the identity-container null scan), so a present-but-invalid value accumulates a located {@code
+   * FieldError} — {@code phones.1: ...} for a bad second element. No {@code build}/{@code
+   * parse}/{@code as*} tier is emitted.
+   *
+   * <p>The setters write onto a private {@link #componentsRecord Components} record carrying the
+   * domain components the PATCH can write, with no check of its own, and {@code
+   * Edits.accumulate(focus, ...)} constructs the domain once from the final values. A domain
+   * constructor checking its fields against each other then sees only the values the PATCH ends on,
+   * never one field set before the next, and a refusal of those is an {@code Invalid} from {@code
+   * apply} rather than an exception.
    */
   private void writeUpdateImpl(
       TypeElement spec,
@@ -3873,7 +3882,6 @@ public class MappingProcessor extends AbstractProcessor {
       List<UpdateEdit> edits) {
     ClassName specName = ClassName.get(spec);
     ClassName implName = implClassName(spec);
-    ClassName domainClass = ClassName.get(domain);
     TypeName wireName = TypeName.get(wire.element().asType());
 
     if (!checkNoEmittedCollisions(
@@ -3883,15 +3891,31 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    TypeName accumulatedReturn =
-        ParameterizedTypeName.get(ACCUMULATED, TypeName.get(domain.asType()));
+    TypeName domainName = TypeName.get(domain.asType());
+    TypeName accumulatedReturn = ParameterizedTypeName.get(ACCUMULATED, domainName);
+    ClassName componentsClass = implName.nestedClass("Components");
+    // The components the PATCH can write, in the domain's declaration order.
+    List<String> written =
+        domain.getRecordComponents().stream()
+            .map(component -> component.getSimpleName().toString())
+            .filter(name -> edits.stream().anyMatch(edit -> edit.domainName().equals(name)))
+            .toList();
 
-    CodeBlock.Builder call = CodeBlock.builder().add("return $T.accumulate(", EDITS);
-    boolean first = true;
+    // The explicit type arguments give every edit its target type up front. Left to inference,
+    // javac solves the edits together with the call, at a cost that grows much faster than their
+    // number: a sixty-four-field PATCH took fifteen seconds to compile, and under a second with
+    // them.
+    CodeBlock.Builder call =
+        CodeBlock.builder()
+            .add(
+                "return $T.<$T, $T>accumulate(\n    $L",
+                EDITS,
+                domainName,
+                componentsClass,
+                componentsLens(domainName, componentsClass, domain, written));
     for (UpdateEdit edit : edits) {
-      call.add(first ? "\n" : ",\n");
-      first = false;
-      CodeBlock setter = setterExpr(domainClass, domain, edit.domainName());
+      call.add(",\n");
+      CodeBlock setter = setterExpr(componentsClass, written, edit.domainName());
       CodeBlock read = wireRead(wire, edit.wireName());
       if (edit.parsed()) {
         CodeBlock parser =
@@ -3930,7 +3954,8 @@ public class MappingProcessor extends AbstractProcessor {
             .addJavadoc(
                 "Folds the present (non-null) properties of {@code wire} into an update: an absent"
                     + " property leaves the domain unchanged, a present one is set (or parsed"
-                    + " through its leaf) and located on failure.\n")
+                    + " through its leaf) and located on failure. The domain is constructed once,"
+                    + " from the values the update ends on.\n")
             .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
             .addStatement("$L", call.build())
             .build();
@@ -3943,7 +3968,8 @@ public class MappingProcessor extends AbstractProcessor {
                 "Generated sparse PATCH write-back for {@link $T}: folds the present wire fields into"
                     + " an {@code Edits.Accumulated<Domain>}.\n",
                 List.of())
-            .addMethod(updateFrom);
+            .addMethod(updateFrom)
+            .addType(componentsRecord(domainDeclared, written, implName.packageName()));
     addMarkerStubs(implBuilder, spec);
     if (edits.stream().anyMatch(e -> scansUpdate(e, wire, "java.util.List"))) {
       implBuilder.addMethod(allPresentHelper());
@@ -3961,34 +3987,102 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * An inline {@code Setter.fromGetSet(Domain::comp, (d, v) -> new Domain(...))} focusing one
-   * domain component: the getter is the component accessor, and the writer rebuilds the record
-   * positionally with the focused slot taken from {@code v}. Type inference fixes the focus type,
-   * so no explicit generics are needed (a wrapper {@code v} auto-unboxes into a primitive slot).
+   * An inline {@code Setter.fromGetSet(Components::comp, (c, v) -> new Components(...))} focusing
+   * one component of the sparse update's {@link #componentsRecord Components} record: the getter is
+   * the component accessor, and the writer rebuilds the record positionally with the focused slot
+   * taken from {@code v}. Type inference fixes the focus type, so no explicit generics are needed
+   * (a wrapper {@code v} auto-unboxes into a primitive slot).
    */
   private static CodeBlock setterExpr(
-      ClassName domainClass, TypeElement domain, String focusedName) {
-    CodeBlock.Builder args = CodeBlock.builder();
-    boolean first = true;
+      ClassName componentsClass, List<String> written, String focusedName) {
+    return CodeBlock.of(
+        "$T.fromGetSet($T::$L, (c, v) -> $L)",
+        SETTER,
+        componentsClass,
+        focusedName,
+        newComponents(componentsClass, written, "c", focusedName));
+  }
+
+  /**
+   * The {@code Lens} from the domain to the sparse update's {@link #componentsRecord Components}
+   * record, {@code Lens.of(d -> new Components(d.lo(), d.hi()), (d, c) -> new Range(c.lo(), c.hi(),
+   * d.note()))}. Its setter is the update's one call to the domain's canonical constructor, and
+   * reads a component the PATCH cannot write from the domain as it stands.
+   */
+  private static CodeBlock componentsLens(
+      TypeName domainName, ClassName componentsClass, TypeElement domain, List<String> written) {
+    CodeBlock args =
+        domain.getRecordComponents().stream()
+            .map(component -> component.getSimpleName().toString())
+            .map(name -> CodeBlock.of("$L.$L()", written.contains(name) ? "c" : "d", name))
+            .collect(CodeBlock.joining(", "));
+    return CodeBlock.of(
+        "$T.of(\n        d -> $L,\n        (d, c) -> new $T($L))",
+        LENS,
+        newComponents(componentsClass, written, "d", null),
+        domainName,
+        args);
+  }
+
+  /**
+   * {@code new Components(d.lo(), d.hi())} over the {@code written} components read from {@code
+   * source}, with the {@code focused} one (when not null) taken from {@code v}.
+   */
+  private static CodeBlock newComponents(
+      ClassName componentsClass, List<String> written, String source, String focused) {
+    return CodeBlock.of(
+        "new $T($L)",
+        componentsClass,
+        written.stream()
+            .map(
+                name ->
+                    name.equals(focused)
+                        ? CodeBlock.of("v")
+                        : CodeBlock.of("$L.$L()", source, name))
+            .collect(CodeBlock.joining(", ")));
+  }
+
+  /**
+   * The sparse update's {@code Components} record: the domain components the PATCH can write, under
+   * their own names and types and in declaration order, with no check of their own. The update's
+   * setters write it, so they can pass through values the domain's constructor would refuse, and
+   * the domain is constructed once, from the final ones.
+   *
+   * <p>A component the PATCH cannot write is left out, and the lens's setter reads it from the
+   * domain as the per-field setters did, so its type is never written out: a deprecated type would
+   * draw a warning there, and a package-private type in another package would not compile. A type
+   * the record does write is one the update's setters already inferred, and it is answered for a
+   * raw type as the update method is. Its type-use annotations are new names, though, so only those
+   * the Impl's package can write cleanly are kept ({@link ProcessorUtils#writableFrom}): a
+   * {@code @Nullable} survives, while one missing from the classpath, out of reach or deprecated is
+   * left off, as inference left it off before.
+   */
+  private TypeSpec componentsRecord(
+      DeclaredType domainDeclared, List<String> written, String implPackage) {
+    Predicate<AnnotationMirror> writable =
+        ProcessorUtils.writableFrom(processingEnv.getElementUtils(), implPackage);
+    TypeElement domain = (TypeElement) domainDeclared.asElement();
+    List<TypeMirror> types = new ArrayList<>();
+    MethodSpec.Builder canonical = MethodSpec.constructorBuilder();
     for (RecordComponentElement component : domain.getRecordComponents()) {
-      if (!first) {
-        args.add(", ");
-      }
-      first = false;
       String name = component.getSimpleName().toString();
-      if (name.equals(focusedName)) {
-        args.add("v");
-      } else {
-        args.add("d.$L()", name);
+      if (written.contains(name)) {
+        TypeMirror type = componentType(domainDeclared, component);
+        types.add(type);
+        canonical.addParameter(ProcessorUtils.typeNameOf(type, writable), name);
       }
     }
-    return CodeBlock.of(
-        "$T.fromGetSet($T::$L, (d, v) -> new $T($L))",
-        SETTER,
-        domainClass,
-        focusedName,
-        domainClass,
-        args.build());
+    // A nested type is its own class file, and a coverage tool reads the marker there.
+    return TypeSpec.recordBuilder("Components")
+        .addAnnotation(GENERATED)
+        .addAnnotations(ProcessorUtils.rawTypesSuppression(types))
+        .addModifiers(Modifier.PRIVATE)
+        .addJavadoc(
+            "The components of {@link $T} a PATCH can write, which {@code updateFrom}'s setters"
+                + " write before the domain is constructed once.\n",
+            ClassName.get(domain))
+        .recordConstructor(canonical.build())
+        .build();
   }
 
   /**
