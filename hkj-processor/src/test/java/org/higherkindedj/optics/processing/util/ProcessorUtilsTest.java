@@ -27,6 +27,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -882,6 +883,162 @@ class ProcessorUtilsTest {
       javac().withProcessors(processor).compile(subject);
 
       assertThat(processor.names).containsEntry("unresolved", "Missing");
+    }
+  }
+
+  /**
+   * Contract tests for {@link ProcessorUtils#typeNameOf(TypeMirror, TypeMirror)}: a member's type
+   * read under an instantiation, named beside the type its declaration wrote. Each method of the
+   * subject interface is read under several owners, as a generator restating an inherited or
+   * generic member reads it.
+   */
+  @Nested
+  @DisplayName("typeNameOf under an instantiation")
+  class TypeNamesUnderAnInstantiation {
+
+    /** Renders each method's type under each owner, keyed "owner.method". */
+    private static final class CapturingProcessor extends AbstractProcessor {
+      private final Map<String, String> names = new LinkedHashMap<>();
+
+      @Override
+      public Set<String> getSupportedAnnotationTypes() {
+        return Set.of("*");
+      }
+
+      @Override
+      public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+      }
+
+      @Override
+      public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+        TypeElement source = processingEnv.getElementUtils().getTypeElement("com.test.Source");
+        if (source == null) {
+          return false;
+        }
+        Types types = processingEnv.getTypeUtils();
+        TypeMirror string =
+            processingEnv.getElementUtils().getTypeElement("java.lang.String").asType();
+        TypeMirror number =
+            processingEnv.getElementUtils().getTypeElement("java.lang.Number").asType();
+        TypeElement holder = processingEnv.getElementUtils().getTypeElement("com.test.Holder");
+        Map<String, DeclaredType> owners = new LinkedHashMap<>();
+        owners.put("self", (DeclaredType) source.asType());
+        owners.put("string", types.getDeclaredType(source, string));
+        owners.put("annotated", (DeclaredType) holder.getInterfaces().getFirst());
+        owners.put("array", types.getDeclaredType(source, types.getArrayType(string)));
+        owners.put("wildcard", types.getDeclaredType(source, types.getWildcardType(number, null)));
+        owners.put("raw", (DeclaredType) types.erasure(source.asType()));
+        owners.forEach(
+            (owner, type) -> {
+              for (ExecutableElement method :
+                  ElementFilter.methodsIn(source.getEnclosedElements())) {
+                TypeMirror read = ProcessorUtils.memberOf(types, type, method).getReturnType();
+                names.put(
+                    owner + "." + method.getSimpleName(),
+                    ProcessorUtils.typeNameOf(read, method.getReturnType()).toString());
+              }
+            });
+        return false;
+      }
+    }
+
+    private static final String NULLABLE = "@org.jspecify.annotations.Nullable";
+
+    /** Compiles the subject once and hands back the rendered names. */
+    private Map<String, String> probe() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Source",
+              """
+              package com.test;
+              import java.util.List;
+              import org.jspecify.annotations.Nullable;
+              public interface Source<T> {
+                  @Nullable T value();
+                  List<@Nullable T> items();
+                  @Nullable T[] elements();
+                  List<? extends @Nullable T> upper();
+                  List<? super @Nullable T> lower();
+                  List<?> any();
+              }
+              """);
+      var holder =
+          JavaFileObjects.forSourceString(
+              "com.test.Holder",
+              """
+              package com.test;
+              import org.jspecify.annotations.Nullable;
+              public interface Holder extends Source<@Nullable String> {}
+              """);
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(source, holder);
+      return processor.names;
+    }
+
+    @Test
+    @DisplayName("keeps an annotated variable use that the substitution drops, at any depth")
+    void keepsAnAnnotatedVariableUseTheSubstitutionDrops() {
+      // Under the declaring type itself T is bound to T, and javac's substitution still hands back
+      // a bare T: the annotation is the declaration's to supply.
+      assertThat(probe())
+          .containsEntry("self.value", NULLABLE + " T")
+          .containsEntry("self.items", "java.util.List<" + NULLABLE + " T>")
+          .containsEntry("self.elements", NULLABLE + " T[]")
+          .containsEntry("self.upper", "java.util.List<? extends " + NULLABLE + " T>")
+          .containsEntry("self.lower", "java.util.List<? super " + NULLABLE + " T>")
+          .containsEntry("self.any", "java.util.List<?>");
+    }
+
+    @Test
+    @DisplayName("writes the annotation onto whatever replaces the variable")
+    void writesTheAnnotationOntoTheReplacement() {
+      assertThat(probe())
+          .containsEntry("string.value", "java.lang. " + NULLABLE + " String")
+          .containsEntry("string.items", "java.util.List<java.lang. " + NULLABLE + " String>")
+          .containsEntry("string.elements", "java.lang. " + NULLABLE + " String[]")
+          .containsEntry(
+              "string.upper", "java.util.List<? extends java.lang. " + NULLABLE + " String>")
+          .containsEntry(
+              "string.lower", "java.util.List<? super java.lang. " + NULLABLE + " String>");
+    }
+
+    @Test
+    @DisplayName("does not write an annotation twice where the replacement already carries it")
+    void doesNotWriteAnAnnotationTwice() {
+      assertThat(probe())
+          .containsEntry("annotated.value", "java.lang. " + NULLABLE + " String")
+          .containsEntry("annotated.items", "java.util.List<java.lang. " + NULLABLE + " String>");
+    }
+
+    @Test
+    @DisplayName("annotates a replacement with no declared parts of its own as a whole")
+    void annotatesAReplacementWithNoDeclaredPartsAsAWhole() {
+      // An array standing where the variable was written has no counterpart in the declaration
+      // below that point, so the annotation lands on the array and the walk goes on alone.
+      assertThat(probe())
+          .containsEntry("array.value", "java.lang.String " + NULLABLE + " []")
+          .containsEntry("array.items", "java.util.List<java.lang.String " + NULLABLE + " []>");
+    }
+
+    @Test
+    @DisplayName("walks on alone below a wildcard that replaced a variable")
+    void walksOnAloneBelowAWildcardThatReplacedAVariable() {
+      // Only an owner written with a wildcard argument puts one where a variable was, and no spec
+      // can extend a mix-in that way. javapoet writes no annotation on a wildcard, so none shows;
+      // what is pinned is that the bound is named from the wildcard itself.
+      assertThat(probe())
+          .containsEntry("wildcard.value", "? extends java.lang.Number")
+          .containsEntry("wildcard.items", "java.util.List<? extends java.lang.Number>");
+    }
+
+    @Test
+    @DisplayName("names a raw read by what it reads, with nothing of the declaration to pair")
+    void namesARawReadByWhatItReads() {
+      // A raw owner erases the member, so the declared arguments have nothing to stand beside.
+      assertThat(probe())
+          .containsEntry("raw.items", "java.util.List")
+          .containsEntry("raw.any", "java.util.List");
     }
   }
 }

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.processing.Filer;
@@ -8573,6 +8574,362 @@ class MappingProcessorTest {
               .getMethod("of", ValidatedPrism.class)
               .invoke(null, numbers);
       Assertions.assertThat(other).isNotSameAs(impl);
+    }
+
+    @Test
+    @DisplayName("an inherited leaf follows the spec's own in of(), so each prism parses its leaf")
+    void inheritedLeafFollowsTheSpecsOwn() throws Exception {
+      JavaFileObject tagged =
+          JavaFileObjects.forSourceString(
+              "com.example.Tagged",
+              """
+              package com.example;
+
+              public record Tagged<N, V>(N name, V value) {}
+              """);
+      JavaFileObject taggedDto =
+          JavaFileObjects.forSourceString(
+              "com.example.TaggedDto",
+              """
+              package com.example;
+
+              public record TaggedDto<ND, VD>(ND name, VD value) {}
+              """);
+      JavaFileObject nameLeaf =
+          JavaFileObjects.forSourceString(
+              "com.example.NameLeaf",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              interface NameLeaf<N, ND> {
+                ValidatedPrism<ND, N> name();
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.TaggedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface TaggedMapping<N, ND, V, VD>
+                  extends NameLeaf<N, ND>, MappingSpec<Tagged<N, V>, TaggedDto<ND, VD>> {
+                ValidatedPrism<VD, V> value();
+              }
+              """);
+      Compilation compilation = compile(tagged, taggedDto, nameLeaf, spec);
+      assertThat(compilation).succeeded();
+      // The mix-in is named first in the extends clause, and still comes second: the spec's own
+      // leaves lead. Each parameter's javadoc says where its leaf is declared.
+      Assertions.assertThat(generatedSource(compilation, "com.example.TaggedMappingImpl"))
+          .contains("@param value the {@code value()} leaf\n")
+          .contains("@param name the {@code name()} leaf, inherited from {@code NameLeaf}\n")
+          .containsIgnoringWhitespaces(
+              "of(ValidatedPrism<VD, V> value, ValidatedPrism<ND, N> name)");
+
+      // Every leaf type is String, so a call in the wrong order would compile and run each prism
+      // against the other component: the two accept disjoint input, so only the right pairing
+      // parses.
+      ValidatedPrism<String, String> lowerCase = casePrism("lower case", String::toLowerCase);
+      ValidatedPrism<String, String> upperCase = casePrism("upper case", String::toUpperCase);
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl =
+          result
+              .loadClass("com.example.TaggedMappingImpl")
+              .getMethod("of", ValidatedPrism.class, ValidatedPrism.class)
+              .invoke(null, lowerCase, upperCase);
+      Class<?> dtoClass = result.loadClass("com.example.TaggedDto");
+
+      Object dto =
+          dtoClass.getDeclaredConstructor(Object.class, Object.class).newInstance("NAME", "value");
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
+      assertThatValidated(parsed).isValid();
+
+      Object swapped =
+          dtoClass.getDeclaredConstructor(Object.class, Object.class).newInstance("name", "VALUE");
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> rejected =
+          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", swapped);
+      assertThatValidated(rejected)
+          .isInvalid()
+          .hasFieldErrors("name: expected upper case", "value: expected lower case");
+    }
+
+    @Test
+    @DisplayName(
+        "of() takes the spec's own leaves, then each mix-in's depth first, a leaf met twice once")
+    void ofFollowsDeclarationOrderThroughTheHierarchy() {
+      JavaFileObject quad =
+          JavaFileObjects.forSourceString(
+              "com.example.Quad",
+              """
+              package com.example;
+
+              public record Quad<A, B, C, D>(A a, B b, C c, D d) {}
+              """);
+      JavaFileObject quadDto =
+          JavaFileObjects.forSourceString(
+              "com.example.QuadDto",
+              """
+              package com.example;
+
+              public record QuadDto<AD, BD, CD, DD>(AD a, BD b, CD c, DD d) {}
+              """);
+      JavaFileObject leaves =
+          JavaFileObjects.forSourceString(
+              "com.example.Leaves",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              final class Leaves {
+                interface ALeaf<A, AD> {
+                  ValidatedPrism<AD, A> a();
+                }
+
+                interface BLeaf<B, BD> {
+                  ValidatedPrism<BD, B> b();
+                }
+
+                interface DLeaf<D, DD> {
+                  ValidatedPrism<DD, D> d();
+                }
+
+                interface CLeaf<C, CD, D, DD> extends DLeaf<D, DD> {
+                  ValidatedPrism<CD, C> c();
+                }
+
+                interface ALeafOverD<A, AD, D, DD> extends DLeaf<D, DD> {
+                  ValidatedPrism<AD, A> a();
+                }
+
+                interface ACLeaves<A, AD, C, CD> {
+                  ValidatedPrism<AD, A> a();
+
+                  ValidatedPrism<CD, C> c();
+                }
+
+                interface BALeaves<A, AD, B, BD> {
+                  ValidatedPrism<BD, B> b();
+
+                  ValidatedPrism<AD, A> a();
+                }
+              }
+              """);
+      // An inherited leaf among the spec's own: the own three lead, in their order.
+      JavaFileObject interleaved =
+          JavaFileObjects.forSourceString(
+              "com.example.InterleavedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface InterleavedMapping<A, AD, B, BD, C, CD, D, DD>
+                  extends Leaves.BLeaf<B, BD>, MappingSpec<Quad<A, B, C, D>, QuadDto<AD, BD, CD, DD>> {
+                ValidatedPrism<AD, A> a();
+
+                ValidatedPrism<CD, C> c();
+
+                ValidatedPrism<DD, D> d();
+              }
+              """);
+      // Depth first: everything the first clause brings in, its own supertype's leaf included,
+      // comes before the next clause's.
+      JavaFileObject depthFirst =
+          JavaFileObjects.forSourceString(
+              "com.example.DepthFirstMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface DepthFirstMapping<A, AD, B, BD, C, CD, D, DD>
+                  extends Leaves.CLeaf<C, CD, D, DD>,
+                      MappingSpec<Quad<A, B, C, D>, QuadDto<AD, BD, CD, DD>>,
+                      Leaves.ALeaf<A, AD> {
+                ValidatedPrism<BD, B> b();
+              }
+              """);
+      // Both clauses reach DLeaf; its leaf sits where the first clause reaches it.
+      JavaFileObject diamond =
+          JavaFileObjects.forSourceString(
+              "com.example.DiamondMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface DiamondMapping<A, AD, B, BD, C, CD, D, DD>
+                  extends Leaves.ALeafOverD<A, AD, D, DD>,
+                      Leaves.CLeaf<C, CD, D, DD>,
+                      MappingSpec<Quad<A, B, C, D>, QuadDto<AD, BD, CD, DD>> {
+                ValidatedPrism<BD, B> b();
+              }
+              """);
+      // Two unrelated mix-ins both declare a(): one leaf, placed and named by the first
+      // declaration.
+      JavaFileObject shared =
+          JavaFileObjects.forSourceString(
+              "com.example.SharedMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+
+              @GenerateMapping
+              public interface SharedMapping<A, AD, B, BD, C, CD, D, DD>
+                  extends Leaves.ACLeaves<A, AD, C, CD>,
+                      Leaves.BALeaves<A, AD, B, BD>,
+                      MappingSpec<Quad<A, B, C, D>, QuadDto<AD, BD, CD, DD>> {
+                ValidatedPrism<DD, D> d();
+              }
+              """);
+      Compilation compilation =
+          compile(quad, quadDto, leaves, interleaved, depthFirst, diamond, shared);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.InterleavedMappingImpl"))
+          .containsIgnoringWhitespaces(
+              "of(ValidatedPrism<AD, A> a, ValidatedPrism<CD, C> c, ValidatedPrism<DD, D> d,"
+                  + " ValidatedPrism<BD, B> b)");
+      Assertions.assertThat(generatedSource(compilation, "com.example.DepthFirstMappingImpl"))
+          .containsIgnoringWhitespaces(
+              "of(ValidatedPrism<BD, B> b, ValidatedPrism<CD, C> c, ValidatedPrism<DD, D> d,"
+                  + " ValidatedPrism<AD, A> a)");
+      Assertions.assertThat(generatedSource(compilation, "com.example.DiamondMappingImpl"))
+          .containsIgnoringWhitespaces(
+              "of(ValidatedPrism<BD, B> b, ValidatedPrism<AD, A> a, ValidatedPrism<DD, D> d,"
+                  + " ValidatedPrism<CD, C> c)");
+      Assertions.assertThat(generatedSource(compilation, "com.example.SharedMappingImpl"))
+          .containsIgnoringWhitespaces(
+              "of(ValidatedPrism<DD, D> d, ValidatedPrism<AD, A> a, ValidatedPrism<CD, C> c,"
+                  + " ValidatedPrism<BD, B> b)")
+          .contains("@param a the {@code a()} leaf, inherited from {@code ACLeaves}\n");
+    }
+
+    @Test
+    @DisplayName(
+        "a leaf or marker the Impl restates keeps the type-use annotations it was written with")
+    void restatedMembersKeepTheirTypeUseAnnotations() {
+      JavaFileObject tagged =
+          JavaFileObjects.forSourceString(
+              "com.example.Tagged",
+              """
+              package com.example;
+
+              public record Tagged<N, V>(N name, V value) {}
+              """);
+      JavaFileObject taggedDto =
+          JavaFileObjects.forSourceString(
+              "com.example.TaggedDto",
+              """
+              package com.example;
+
+              public record TaggedDto<ND, VD>(ND name, VD value) {}
+              """);
+      JavaFileObject vocabulary =
+          JavaFileObjects.forSourceString(
+              "com.example.Vocabulary",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+              import org.jspecify.annotations.Nullable;
+
+              final class Vocabulary {
+                interface NameLeaf<N, ND> {
+                  ValidatedPrism<@Nullable ND, @Nullable N> name();
+                }
+
+                interface Renames<T> {
+                  @MapField(to = "fullName")
+                  @Nullable T name();
+                }
+
+                record Person<T>(T name) {}
+
+                record PersonDto<T>(T fullName) {}
+              }
+              """);
+      // Own and inherited leaves, a mix-in whose variables the spec binds, and a rename stub: the
+      // Impl restates each member's type as the spec reads it, and reading one drops the
+      // annotation written on a type variable's use.
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.example.Specs",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.validated.ValidatedPrism;
+              import org.jspecify.annotations.Nullable;
+
+              final class Specs {
+                @GenerateMapping
+                interface TaggedMapping<N, ND, V, VD>
+                    extends Vocabulary.NameLeaf<N, ND>, MappingSpec<Tagged<N, V>, TaggedDto<ND, VD>> {
+                  ValidatedPrism<VD, @Nullable V> value();
+                }
+
+                @GenerateMapping
+                interface BoundMapping<V, VD>
+                    extends Vocabulary.NameLeaf<String, String>,
+                        MappingSpec<Tagged<String, V>, TaggedDto<String, VD>> {
+                  ValidatedPrism<VD, V> value();
+                }
+
+                @GenerateMapping
+                interface PersonMapping<T>
+                    extends Vocabulary.Renames<T>,
+                        MappingSpec<Vocabulary.Person<T>, Vocabulary.PersonDto<T>> {}
+              }
+              """);
+      Compilation compilation = compile(tagged, taggedDto, vocabulary, specs);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.SpecsTaggedMappingImpl"))
+          .contains("public ValidatedPrism<VD, @Nullable V> value()")
+          .contains("public ValidatedPrism<@Nullable ND, @Nullable N> name()")
+          .containsIgnoringWhitespaces(
+              "of(ValidatedPrism<VD, @Nullable V> value,"
+                  + " ValidatedPrism<@Nullable ND, @Nullable N> name)");
+      // Bound to String, the variable's use is still the nullable one the mix-in wrote.
+      Assertions.assertThat(generatedSource(compilation, "com.example.SpecsBoundMappingImpl"))
+          .contains("public ValidatedPrism<@Nullable String, @Nullable String> name()");
+      Assertions.assertThat(generatedSource(compilation, "com.example.SpecsPersonMappingImpl"))
+          .contains("public @Nullable T name()");
+    }
+
+    /** A prism accepting only text already in the case {@code normalise} gives it. */
+    private static ValidatedPrism<String, String> casePrism(
+        String expected, UnaryOperator<String> normalise) {
+      return ValidatedPrism.of(
+          raw ->
+              raw.equals(normalise.apply(raw))
+                  ? Validated.validNel(raw)
+                  : Validated.invalidNel(FieldError.of("expected " + expected)),
+          text -> text);
     }
 
     @Test

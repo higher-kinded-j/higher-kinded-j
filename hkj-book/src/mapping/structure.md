@@ -173,11 +173,12 @@ flowchart LR
     class C domain
 ```
 
-Three rules keep the resolution predictable:
+Four rules keep the resolution predictable:
 
 - **Your own spec wins.** A spec in the compilation shadows a classpath spec for the same pair, so adding a dependency never changes a resolution that already worked. The shadowed spec is named in a compiler note; if it is the one you meant, a leaf named after the component delegates to it explicitly.
 - **Two dependencies for one pair are ambiguous.** The error is the same `matches more than one mapping spec` as for two specs in one compilation, each candidate listed by its qualified name with `(classpath)`. For a nested component the remedy is a leaf naming the one you mean; a sealed subtype pair has no leaf, so declare the spec yourself and it shadows both.
-- **A stale entry is passed over.** An entry naming a spec that is no longer on the classpath describes nothing. One whose spec is present but whose `Impl` is missing (a partial build output, or a jar that dropped it) is never chosen, and a use site that needed the pair is told which dependency to rebuild.
+- **A stale entry is passed over.** An entry naming a spec that is no longer on the classpath, or naming anything but an interface, describes nothing. One whose spec is present but whose `Impl` is missing (a partial build output, or a jar that dropped it) is never chosen, and a use site that needed the pair is told which dependency to rebuild.
+- **A spec is read whole or not at all.** A dependency's spec is read with what that dependency compiled against, its mix-ins among them. If a mix-in, or anything a mix-in extends, is missing from this module's classpath, the spec cannot be read in full: an element-mapped one would show fewer leaves than its `of(...)` takes. Such a spec is never chosen, and a use site that needed the pair is told which type is missing, so the dependency that declares it can be added.
 
 The index is classpath-only. A module with a `module-info` writes no entry and reads none, not supported yet, because the index is one package and the module system allows a package in one module only; the same rule keeps two spec-carrying jars from serving as automatic modules side by side. Across a boundary of that kind, delegate with a leaf calling the other `Impl`'s `asValidatedPrism()`, and give a library bound for a module path the processor option `-Ahkj.mapping.index=false`, which writes no entries and reads none.
 

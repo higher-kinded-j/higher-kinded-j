@@ -285,9 +285,10 @@ public class PathProcessor extends AbstractProcessor {
             .stream()
             .filter(method -> method.getAnnotation(PathVia.class) != null)
             .toList();
-    // Own before inherited, so the generated file reads in the order the author wrote and a
-    // supertype gaining a member does not reshuffle the methods already there. getAllMembers does
-    // not specify an order, so this is imposed rather than relied upon.
+    // Own before inherited, so the generated file leads with what the author wrote and a supertype
+    // gaining a member does not reshuffle the methods already there. getAllMembers does not specify
+    // an order, so that split is imposed rather than relied upon; within each half the order is
+    // javac's, which nothing depends on, since a bridge method delegates by name.
     Map<String, ExecutableElement> distinct = new LinkedHashMap<>();
     Stream.concat(
             annotated.stream()

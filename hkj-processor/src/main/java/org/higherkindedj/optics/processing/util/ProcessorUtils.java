@@ -17,10 +17,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -720,8 +723,46 @@ public final class ProcessorUtils {
    * @since 0.4.10
    */
   public static TypeName typeNameOf(TypeMirror type) {
+    return typeNameOf(type, type);
+  }
+
+  /**
+   * The name of a type read under an instantiation, with the type-use annotations its declaration
+   * wrote kept.
+   *
+   * <p>{@link Types#asMemberOf} replaces each type variable a member's type names with what the
+   * instantiation binds it to, and javac's substitution drops any annotation the declaration wrote
+   * on that use of the variable: {@code ValidatedPrism<String, @Nullable T>} comes back as {@code
+   * ValidatedPrism<String, T>}, even under the declaring type itself, where {@code T} is bound to
+   * {@code T}. An annotation on a variable's use applies to whatever replaces the variable, so this
+   * walks the substituted type beside the declared one and writes each such annotation onto the
+   * replacement, unless the replacement already carries one of the same annotation type. Where the
+   * two part company, below a replaced variable, the walk goes on with the substituted type alone,
+   * as {@link #typeNameOf(TypeMirror)} does.
+   *
+   * @param type the type to name, as the instantiation has it; must not be null
+   * @param declared the same type as its declaration wrote it, or {@code type} itself; must not be
+   *     null
+   * @return its name, annotated as the source annotated it (non-null)
+   * @since 0.4.11
+   */
+  public static TypeName typeNameOf(TypeMirror type, TypeMirror declared) {
+    List<? extends AnnotationMirror> present = type.getAnnotationMirrors();
+    Stream<? extends AnnotationMirror> written =
+        declared.getKind() == TypeKind.TYPEVAR
+            ? declared.getAnnotationMirrors().stream()
+                .filter(
+                    annotation ->
+                        present.stream()
+                            .noneMatch(
+                                other ->
+                                    other
+                                        .getAnnotationType()
+                                        .asElement()
+                                        .equals(annotation.getAnnotationType().asElement())))
+            : Stream.empty();
     List<AnnotationSpec> annotations =
-        type.getAnnotationMirrors().stream().map(AnnotationSpec::get).toList();
+        Stream.concat(present.stream(), written).map(AnnotationSpec::get).toList();
     // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's
     // intersection implements DeclaredType, so a pattern switch would send one down the declared
     // arm and ask it for a class element it does not have. Everything this does not rebuild -
@@ -729,23 +770,47 @@ public final class ProcessorUtils {
     // from the mirror alone, and it stays javapoet's call which of those it refuses.
     TypeName name =
         switch (type.getKind()) {
-          case ARRAY -> ArrayTypeName.of(typeNameOf(((ArrayType) type).getComponentType()));
-          case WILDCARD -> wildcardNameOf((WildcardType) type);
-          case DECLARED, ERROR -> declaredNameOf((DeclaredType) type);
+          case ARRAY -> arrayNameOf((ArrayType) type, declared);
+          case WILDCARD -> wildcardNameOf((WildcardType) type, declared);
+          case DECLARED, ERROR -> declaredNameOf((DeclaredType) type, declared);
           default -> TypeName.get(type);
         };
     return annotations.isEmpty() ? name : name.annotated(annotations);
   }
 
-  private static TypeName declaredNameOf(DeclaredType declared) {
+  private static TypeName arrayNameOf(ArrayType array, TypeMirror declared) {
+    TypeMirror component = array.getComponentType();
+    return ArrayTypeName.of(
+        typeNameOf(
+            component,
+            declared.getKind() == TypeKind.ARRAY
+                ? ((ArrayType) declared).getComponentType()
+                : component));
+  }
+
+  private static TypeName declaredNameOf(DeclaredType declared, TypeMirror written) {
+    // The declaration corresponds part for part only where it names the same shape: a raw read
+    // of a generic type drops the arguments, and a replaced variable has no parts of its own.
+    DeclaredType twin =
+        written.getKind() == declared.getKind()
+                && ((DeclaredType) written).getTypeArguments().size()
+                    == declared.getTypeArguments().size()
+            ? (DeclaredType) written
+            : declared;
     ClassName rawType = ClassName.get((TypeElement) declared.asElement());
     TypeMirror enclosingType = declared.getEnclosingType();
     // A static member has no enclosing instance type, so javac reports NONE for it and the kind
     // test alone settles both cases.
     TypeName enclosing =
-        enclosingType.getKind() == TypeKind.NONE ? null : typeNameOf(enclosingType);
+        enclosingType.getKind() == TypeKind.NONE
+            ? null
+            : typeNameOf(enclosingType, twin.getEnclosingType());
+    List<? extends TypeMirror> arguments = declared.getTypeArguments();
+    List<? extends TypeMirror> twinArguments = twin.getTypeArguments();
     List<TypeName> argumentNames =
-        declared.getTypeArguments().stream().map(ProcessorUtils::typeNameOf).toList();
+        IntStream.range(0, arguments.size())
+            .mapToObj(index -> typeNameOf(arguments.get(index), twinArguments.get(index)))
+            .toList();
     if (enclosing instanceof ParameterizedTypeName parameterised) {
       return parameterised.nestedClass(rawType.simpleName(), argumentNames);
     }
@@ -761,15 +826,22 @@ public final class ProcessorUtils {
         : ParameterizedTypeName.get(rawType, argumentNames.toArray(new TypeName[0]));
   }
 
-  private static TypeName wildcardNameOf(WildcardType wildcard) {
+  private static TypeName wildcardNameOf(WildcardType wildcard, TypeMirror declared) {
+    // A substituted wildcard keeps the declared one's shape, so its bounds pair up; a wildcard
+    // standing where a variable was declared has no declared bound to pair with.
+    WildcardType twin =
+        declared.getKind() == TypeKind.WILDCARD ? (WildcardType) declared : wildcard;
     TypeMirror extendsBound = wildcard.getExtendsBound();
     if (extendsBound != null) {
-      return WildcardTypeName.subtypeOf(typeNameOf(extendsBound));
+      return WildcardTypeName.subtypeOf(
+          typeNameOf(
+              extendsBound, Objects.requireNonNullElse(twin.getExtendsBound(), extendsBound)));
     }
     TypeMirror superBound = wildcard.getSuperBound();
     return superBound == null
         ? WildcardTypeName.subtypeOf(ClassName.OBJECT)
-        : WildcardTypeName.supertypeOf(typeNameOf(superBound));
+        : WildcardTypeName.supertypeOf(
+            typeNameOf(superBound, Objects.requireNonNullElse(twin.getSuperBound(), superBound)));
   }
 
   /**
