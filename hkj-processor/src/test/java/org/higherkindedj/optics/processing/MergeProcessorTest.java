@@ -149,13 +149,16 @@ class MergeProcessorTest {
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.TypedAssemblyImpl");
       Assertions.assertThat(generated)
-          .contains("return Validated.fields()")
+          .contains("return hkj$construct(")
+          .contains("Validated.fields()")
           // reference reads are null-guarded; the primitive balance can never be null
           .contains(".field(\"name\", hkj$ifPresent(user.name(), Validated::validNel))")
           .contains(".field(\"email\", hkj$ifPresent(user.email(), email()::parse))")
           .contains(".field(\"balance\", Validated.validNel(account.balance()))")
-          .contains(".apply(Records.TypedDashboard::new)")
-          .contains("private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(");
+          .contains("-> () -> new Records.TypedDashboard(")
+          .contains("\"not a valid TypedDashboard\");")
+          .contains("private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(")
+          .contains("private static <T> Validated<NonEmptyList<FieldError>, T> hkj$construct(");
     }
   }
 

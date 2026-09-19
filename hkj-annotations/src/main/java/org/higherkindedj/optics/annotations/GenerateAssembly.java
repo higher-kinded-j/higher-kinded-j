@@ -35,8 +35,10 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * <p>Every bad field is reported at once, each error carrying its path, in component-declaration
- * order. A component whose type is itself annotated accepts its sub-companion's result directly;
- * the outer component name is prepended onto the inner paths ({@code "address.zip"}).
+ * order. Once every component is valid, {@code assemble()} runs the canonical constructor, and an
+ * exception it throws (the record's own invariant) is an unlabelled error carrying its message. A
+ * component whose type is itself annotated accepts its sub-companion's result directly; the outer
+ * component name is prepended onto the inner paths ({@code "address.zip"}).
  *
  * <p>Generic records are not supported. See the hand-written {@code Validated.fields()} builder for
  * records you cannot annotate.

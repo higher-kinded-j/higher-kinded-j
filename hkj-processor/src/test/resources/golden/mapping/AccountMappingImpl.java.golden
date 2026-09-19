@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -29,15 +30,17 @@ public final class AccountMappingImpl implements AccountMapping {
 
   public Validated<NonEmptyList<FieldError>, Account> parse(AccountDto wire) {
     Objects.requireNonNull(wire, "wire must not be null");
-    return Validated.fields()
-        .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
-        .field("email", hkj$ifPresent(wire.email(), email()::parse))
-        .field("cc", hkj$ifPresent(wire.cc(), cc()::parseAll))
-        .field("tags", hkj$allPresent(wire.tags()))
-        .field("lead", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))))
-        .field("contacts", hkj$ifPresent(wire.contacts(), contacts()::parseValues))
-        .field("address", hkj$ifPresent(wire.address(), AddressMappingImpl.INSTANCE.asValidatedPrism()::parse))
-        .apply(Account::new);
+    return hkj$construct(
+        Validated.fields()
+            .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
+            .field("email", hkj$ifPresent(wire.email(), email()::parse))
+            .field("cc", hkj$ifPresent(wire.cc(), cc()::parseAll))
+            .field("tags", hkj$allPresent(wire.tags()))
+            .field("lead", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))))
+            .field("contacts", hkj$ifPresent(wire.contacts(), contacts()::parseValues))
+            .field("address", hkj$ifPresent(wire.address(), AddressMappingImpl.INSTANCE.asValidatedPrism()::parse))
+            .apply((name, email, cc, tags, lead, contacts, address) -> () -> new Account(name, email, cc, tags, lead, contacts, address)),
+        "not a valid Account");
   }
 
   /**
@@ -72,5 +75,23 @@ public final class AccountMappingImpl implements AccountMapping {
       i++;
     }
     return failures == null ? Validated.valid(values) : Validated.invalid(failures);
+  }
+
+  /**
+   * Runs the canonical constructor over the validated components: an exception it throws is the record's
+   * invariant refusing them, reported at the record's path with its message, or with {@code
+   * fallbackMessage} when it has none.
+   */
+  private static <T> Validated<NonEmptyList<FieldError>, T> hkj$construct(
+      Validated<NonEmptyList<FieldError>, Supplier<T>> assembled, String fallbackMessage) {
+    return assembled.flatMap(
+        constructor -> {
+          try {
+            return Validated.validNel(constructor.get());
+          } catch (RuntimeException refused) {
+            String message = refused.getMessage();
+            return Validated.invalidNel(FieldError.of(message == null || message.isBlank() ? fallbackMessage : message));
+          }
+        });
   }
 }

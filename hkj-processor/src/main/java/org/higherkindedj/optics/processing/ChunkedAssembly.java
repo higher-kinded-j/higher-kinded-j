@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
+import com.palantir.javapoet.TypeName;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -17,10 +18,11 @@ import org.higherkindedj.optics.annotations.ArityCeilings;
  * applied to a {@code TupleN} (a singleton trailing ladder applies the identity), and the chunk
  * results combine with {@code ap} and {@code NonEmptyList.semigroup()} in ladder order. The
  * ladder's {@code and()} is internally that same merge, so labels, located paths and
- * declaration-order accumulation are exactly those of a single ladder. Shared by {@link
- * MappingProcessor} ({@code parse} and {@code patch}) and {@link MergeProcessor} (the fallible
- * merge). The only remaining width bound is the JVM's 255-parameter-slot constructor limit on the
- * assembled record itself, which javac enforces at the record declaration.
+ * declaration-order accumulation are exactly those of a single ladder, and the combined chunks end
+ * in the same {@link GuardedConstruction} a single ladder does. Shared by {@link MappingProcessor}
+ * ({@code parse} and {@code patch}) and {@link MergeProcessor} (the fallible merge). The only
+ * remaining width bound is the JVM's 255-parameter-slot constructor limit on the assembled record
+ * itself, which javac enforces at the record declaration.
  *
  * <p>Chunking through {@code TupleN} ladders, rather than emitting one exact-arity curried {@code
  * ap} chain (the {@link AssemblyProcessor} shape), is deliberate: javac's target-typing of a wide
@@ -38,19 +40,21 @@ final class ChunkedAssembly {
   /**
    * Emits the chunk locals and the combining {@code return} statement for {@code legs.size() >
    * ArityCeilings.ASSEMBLY}. Each leg is a {@code \n.field(...)} fragment in declaration order;
-   * {@code construct} receives one value expression per leg, in the same order, and returns the
-   * constructor call they assemble into. {@code reserved} carries the enclosing method's parameter
-   * names: the emitted locals and lambda parameters ({@code c1..}, {@code t1..}, the singleton
-   * ladder's {@code v}) take underscore suffixes until free of them, since a generated local may
-   * not redeclare, nor a lambda parameter shadow, a method parameter (JLS 6.4) — and merge methods
-   * carry the spec author's own parameter names.
+   * {@code args} receives one value expression per leg, in the same order, and returns the
+   * arguments of the {@code type} constructor they assemble into, whose call is guarded as {@link
+   * GuardedConstruction} guards a single ladder's. {@code reserved} carries the enclosing method's
+   * parameter names: the emitted locals and lambda parameters ({@code c1..}, {@code t1..}, the
+   * singleton ladder's {@code v}) take underscore suffixes until free of them, since a generated
+   * local may not redeclare, nor a lambda parameter shadow, a method parameter (JLS 6.4) — and
+   * merge methods carry the spec author's own parameter names.
    */
   static CodeBlock emit(
       List<CodeBlock> legs,
       ClassName validated,
       ClassName nel,
       Set<String> reserved,
-      Function<List<CodeBlock>, CodeBlock> construct) {
+      TypeName type,
+      Function<List<CodeBlock>, CodeBlock> args) {
     Set<String> taken = new HashSet<>(reserved);
     CodeBlock.Builder body =
         CodeBlock.builder()
@@ -86,12 +90,14 @@ final class ChunkedAssembly {
     for (String tupleName : tupleNames) {
       curried.add("$L -> ", tupleName);
     }
-    curried.add("$L", construct.apply(values));
+    curried.add("$L", GuardedConstruction.thunk(type, args.apply(values)));
     CodeBlock combined = CodeBlock.of("$L.map($L)", chunkNames.getFirst(), curried.build());
     for (int chunk = 1; chunk < chunkNames.size(); chunk++) {
-      combined = CodeBlock.of("$L.ap(\n$L,\n$T.semigroup())", chunkNames.get(chunk), combined, nel);
+      combined =
+          CodeBlock.of(
+              "$L.ap(\n$>$>$L,\n$T.semigroup()$<$<)", chunkNames.get(chunk), combined, nel);
     }
-    return body.addStatement("return $L", combined).build();
+    return body.add(GuardedConstruction.returning(combined, type)).build();
   }
 
   /** The candidate name, underscore-suffixed until free of {@code taken}, then claimed. */

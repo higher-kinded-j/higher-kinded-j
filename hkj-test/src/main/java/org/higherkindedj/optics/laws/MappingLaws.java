@@ -34,10 +34,11 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *   <li>total-parse mappings (no well-formed wire value can fail, e.g. derived wire fields over
  *       identity components; a null reference component - or a null element inside an identity
  *       container - is a located invalid, so "total" is scoped to wires whose reference components
- *       and container elements are non-null): pass a domain sample whose reference components and
- *       identity-container elements are themselves non-null ({@code build} copies identity
- *       containers verbatim, so a null element in the sample produces exactly the excluded wire and
- *       the law fails) - the round trip through {@code build}.
+ *       and container elements are non-null, and whose values the domain's constructor accepts):
+ *       pass a domain sample whose reference components and identity-container elements are
+ *       themselves non-null ({@code build} copies identity containers verbatim, so a null element
+ *       in the sample produces exactly the excluded wire and the law fails) - the round trip
+ *       through {@code build}.
  *   <li>sparse-update tier ({@code updateFrom()} only, from an {@code UpdateSpec}): pass the {@code
  *       updateFrom} method reference, a domain sample, and an all-absent, a valid and an invalid
  *       wire - the identity, idempotence and validation laws.
@@ -115,10 +116,11 @@ public final class MappingLaws {
    * Parse-iso coherence: {@code parse(s) == Valid(asIso().reverseGet(s))} - a lossless parse is
    * total and agrees with the iso's independently generated reverse direction.
    *
-   * <p>Scoped to wire samples whose reference components are non-null: a null-carrying wire parses
-   * to a located {@code Invalid} while {@code reverseGet} copies the null verbatim, so coherence
-   * deliberately does not extend to hostile bindings. Feed such wires to {@code parse} directly and
-   * assert the located accumulation instead.
+   * <p>Scoped to wire samples whose reference components are non-null and whose values the domain's
+   * constructor accepts: a null-carrying wire parses to a located {@code Invalid} while {@code
+   * reverseGet} copies the null verbatim, and a value the constructor refuses parses to an {@code
+   * Invalid} while {@code reverseGet} throws, so coherence deliberately extends to neither. Feed
+   * such wires to {@code parse} directly and assert the accumulation instead.
    */
   public static <D, W> void assertParseAgreesWithIso(
       Iso<D, W> iso, ValidatedPrism<W, D> mapping, W wireSample) {
@@ -159,12 +161,13 @@ public final class MappingLaws {
    * wire fields): exactly {@code parse(build(domainSample)) == Valid(domainSample)}, and nothing
    * else. No well-formed non-parsing wire value exists for such a mapping (a null reference
    * component, or a null element inside an identity container, is a located invalid, so "total" is
-   * scoped to wires whose reference components and container elements are non-null), so there is no
-   * no-parse check. The scoping is the caller's fixture contract: {@code build} copies identity
-   * containers verbatim, so {@code domainSample} must not carry a null reference component or a
-   * null identity-container element, or the round trip lands on exactly the excluded wire and this
-   * law (correctly) fails. And the section law on {@code build(domainSample)} would be checking
-   * {@code build(a) == build(a)} once the round trip holds, so it is deliberately not asserted.
+   * scoped to wires whose reference components and container elements are non-null, and whose
+   * values the domain's constructor accepts), so there is no no-parse check. The scoping is the
+   * caller's fixture contract: {@code build} copies identity containers verbatim, so {@code
+   * domainSample} must not carry a null reference component or a null identity-container element,
+   * or the round trip lands on exactly the excluded wire and this law (correctly) fails. And the
+   * section law on {@code build(domainSample)} would be checking {@code build(a) == build(a)} once
+   * the round trip holds, so it is deliberately not asserted.
    *
    * <p>This is the strongest guarantee a derived-field mapping offers: only NON-derived components
    * round-trip, and {@code build(domainSample)} is a wire value whose derived components are
@@ -237,6 +240,8 @@ public final class MappingLaws {
    *       generated legs <em>set</em> or <em>parse</em> (overwrite), never <em>modify</em>.
    *   <li><b>Located validation</b> - {@code patch(d, invalidWire)} is {@code Invalid} and every
    *       accumulated error carries a non-empty path: the tier's every-bad-field-located promise.
+   *       The invalid wire must fail on a projected component: a combination only the domain's own
+   *       constructor refuses fails at the record's path, which at the top level is unlabelled.
    * </ul>
    *
    * <p>{@code build(patched) == validWire} is deliberately NOT asserted: a normalising leaf (trim,
@@ -250,7 +255,8 @@ public final class MappingLaws {
    * @param build the generated {@code Impl.INSTANCE::build}
    * @param domainSample the domain value the wire is written onto
    * @param validWire a wire that parses and changes the domain
-   * @param invalidWire a wire with at least one invalid projected component
+   * @param invalidWire a wire with at least one invalid projected component, not merely a
+   *     combination the domain's constructor refuses
    */
   public static <D, W> void assertMappingLaws(
       BiFunction<? super D, ? super W, Validated<NonEmptyList<FieldError>, D>> patch,
@@ -308,7 +314,9 @@ public final class MappingLaws {
 
   /**
    * Patch located-validation law: an invalid projected component fails, and every accumulated error
-   * is located (a non-empty path) - the tier's every-bad-field-located promise.
+   * is located (a non-empty path) - the tier's every-bad-field-located promise. A combination only
+   * the domain's own constructor refuses fails unlabelled at the top level, so {@code invalidWire}
+   * must carry an invalid component instead.
    */
   public static <D, W> void assertPatchValidationFails(
       BiFunction<? super D, ? super W, Validated<NonEmptyList<FieldError>, D>> patch,
@@ -397,7 +405,9 @@ public final class MappingLaws {
    * <ul>
    *   <li><b>Acceptance</b> - {@code parse(parseableWire)} is {@code Valid}.
    *   <li><b>Located rejection</b> - {@code parse(nonParseableWire)} is {@code Invalid}, and every
-   *       accumulated error carries a non-empty path, since a generated parse labels every leg.
+   *       accumulated error carries a non-empty path, since a generated parse labels every leg. A
+   *       value only the domain's own constructor refuses fails unlabelled at the top level, so
+   *       {@code nonParseableWire} must carry an invalid component instead.
    * </ul>
    *
    * @param mapping the generated {@code Impl.INSTANCE.asValidatedParse()}
@@ -420,7 +430,8 @@ public final class MappingLaws {
 
   /**
    * Located rejection: a wire with an invalid component fails, and every accumulated error is
-   * located (a non-empty path), as every generated parse leg is labelled.
+   * located (a non-empty path), as every generated parse leg is labelled. A value only the domain's
+   * own constructor refuses fails unlabelled at the top level, so it cannot stand in for one.
    */
   public static <D, W> void assertParseRejectionLocated(
       ValidatedParse<W, D> mapping, W nonParseableWire) {

@@ -2320,7 +2320,7 @@ class MappingProcessorBeanTest {
           .contains(".field(\"name\", hkj$ifPresent(wire.getName(), Validated::validNel))")
           .contains(".field(\"age\", Validated.validNel(wire.getAge()))")
           // The unprojected component is read from the domain argument.
-          .contains(".apply((name, age) -> new Employee(name, domain.department(), age))")
+          .contains(".apply((name, age) -> () -> new Employee(name, domain.department(), age))")
           .contains("private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(")
           .doesNotContain("asLens() {")
           .doesNotContain("parse(")

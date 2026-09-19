@@ -182,11 +182,14 @@ class MappingProcessorFlattenTest {
           .contains(
               "return new Types.CustomerDto(domain.name(), domain.address().street(),"
                   + " domain.address().city(), domain.address().postcode())")
-          .contains(".field(\"address\", Validated.fields()")
+          .contains(".<Types.Address>field(\"address\", hkj$construct(")
           .contains(".field(\"street\", hkj$ifPresent(wire.street(), Validated::validNel))")
           .contains(".field(\"postcode\", hkj$ifPresent(wire.postcode(), Validated::validNel))")
-          .contains(".apply(Types.Address::new))")
-          .contains(".apply(Types.Customer::new)")
+          .contains(
+              ".apply((street, city, postcode) -> () -> new Types.Address(street, city,"
+                  + " postcode)),")
+          .contains("\"not a valid Address\"))")
+          .contains(".apply((name, address) -> () -> new Types.Customer(name, address)),")
           // The marker is a stub, like a rename.
           .contains("public Types.Address address()")
           .contains("@Flatten markers declare flattened components and are not invocable");
@@ -320,10 +323,10 @@ class MappingProcessorFlattenTest {
                   """));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.AccountMappingImpl"))
-          .contains(".field(\"home\", Validated.fields()")
-          .contains(".field(\"contact\", Validated.fields()")
-          .contains(".apply(Types.Address::new))")
-          .contains(".apply(Types.Contact::new))")
+          .contains(".<Types.Address>field(\"home\", hkj$construct(")
+          .contains(".<Types.Contact>field(\"contact\", hkj$construct(")
+          .contains("\"not a valid Address\"))")
+          .contains(".apply((phone, email) -> () -> new Types.Contact(phone, email)),")
           .contains(
               "new Types.Account(wire.name(), new Types.Address(wire.street(), wire.city(),"
                   + " wire.postcode()), new Types.Contact(wire.phone(), wire.email()))");
@@ -366,7 +369,7 @@ class MappingProcessorFlattenTest {
       // The inherited 'contact' marker names no component of Customer and stays inert.
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.MixedMappingImpl"))
-          .contains(".field(\"address\", Validated.fields()")
+          .contains(".<Types.Address>field(\"address\", hkj$construct(")
           .contains("public Types.Contact contact()");
     }
 
@@ -412,7 +415,7 @@ class MappingProcessorFlattenTest {
         Assertions.assertThat(generatedSource(compilation, "com.example." + impl))
             .contains("domain.reach().fax().orElse(null)")
             .contains(".field(\"fax\", Validated.validNel(Optional.ofNullable(wire.fax())))")
-            .contains(".apply(Types.Reach::new))");
+            .contains(".apply((phone, fax) -> () -> new Types.Reach(phone, fax)),");
       }
     }
 
@@ -469,7 +472,7 @@ class MappingProcessorFlattenTest {
           .contains(".field(\"tags\", hkj$ifPresent(wire.tags(), tags()::parseAll))")
           .contains(".field(\"note\", ")
           .contains(".field(\"counts\", ")
-          .contains(".apply(Types.Bag::new))");
+          .contains(".apply((tags, note, counts) -> () -> new Types.Bag(tags, note, counts)),");
     }
 
     @Test
@@ -598,8 +601,10 @@ class MappingProcessorFlattenTest {
                   """));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.PairMappingImpl"))
-          .contains(".field(\"address\", Validated.fields()")
-          .contains(".apply(Types.Address::new))")
+          .contains(".<Types.Address>field(\"address\", hkj$construct(")
+          .contains(
+              ".apply((street, city, postcode) -> () -> new Types.Address(street, city,"
+                  + " postcode)),")
           .contains("public Iso<Types.Pair<String>, Types.PairDto<String>> asIso()");
     }
   }
@@ -1573,8 +1578,10 @@ class MappingProcessorFlattenTest {
       // The full spec spreads the group; the PATCH sibling never consults the marker, and its
       // wire declares the component itself, so 'address' patches whole by identity.
       Assertions.assertThat(generatedSource(compilation, "com.example.SharedCustomerMappingImpl"))
-          .contains(".field(\"address\", Validated.fields()")
-          .contains(".apply(Types.Address::new))");
+          .contains(".<Types.Address>field(\"address\", hkj$construct(")
+          .contains(
+              ".apply((street, city, postcode) -> () -> new Types.Address(street, city,"
+                  + " postcode)),");
       Assertions.assertThat(
               generatedSource(compilation, "com.example.SharedCustomerPatchMappingImpl"))
           .contains(

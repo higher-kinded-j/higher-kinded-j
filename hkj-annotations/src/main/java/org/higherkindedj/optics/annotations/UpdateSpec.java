@@ -55,6 +55,12 @@ package org.higherkindedj.optics.annotations;
  * is one-sided: every wire property maps to a domain component, but a domain component with no wire
  * property is simply never changed.
  *
+ * <p>Each present field is set on its own, rebuilding the record through its canonical constructor,
+ * so an invariant spanning the fields a PATCH sets is not supported yet: the constructor sees every
+ * intermediate value, and an exception it throws propagates from {@code apply} even when the final
+ * value would be valid. A nested record the PATCH replaces whole still parses through its own spec,
+ * whose constructor call is guarded.
+ *
  * <p>Absence is read, never declared: a property is absent when its getter answers {@code null}, so
  * every PATCH bean getter must answer {@code null} until its property is set. Any default the bean
  * gives itself, a field initialiser ({@code tags = new ArrayList<>()}, {@code status = "ACTIVE"}),

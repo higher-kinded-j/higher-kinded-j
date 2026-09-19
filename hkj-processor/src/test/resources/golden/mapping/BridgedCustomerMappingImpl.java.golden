@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -31,13 +32,15 @@ public final class CustomerMappingImpl implements CustomerMapping {
 
   public Validated<NonEmptyList<FieldError>, Customer> parse(CustomerDto wire) {
     Objects.requireNonNull(wire, "wire must not be null");
-    return Validated.fields()
-        .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
-        .field("alias", Validated.validNel(Optional.ofNullable(wire.alias())))
-        .field("nickname", Optional.ofNullable(wire.nickname()).map(v -> nickname().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
-        .field("referrer", Optional.ofNullable(wire.referrer()).map(v -> ReferrerMappingImpl.INSTANCE.asValidatedPrism().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
-        .field("referees", Optional.ofNullable(wire.referees()).map(v -> ReferrerMappingImpl.INSTANCE.asValidatedPrism().parseAll(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
-        .apply(Customer::new);
+    return hkj$construct(
+        Validated.fields()
+            .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
+            .field("alias", Validated.validNel(Optional.ofNullable(wire.alias())))
+            .field("nickname", Optional.ofNullable(wire.nickname()).map(v -> nickname().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
+            .field("referrer", Optional.ofNullable(wire.referrer()).map(v -> ReferrerMappingImpl.INSTANCE.asValidatedPrism().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
+            .field("referees", Optional.ofNullable(wire.referees()).map(v -> ReferrerMappingImpl.INSTANCE.asValidatedPrism().parseAll(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty())))
+            .apply((name, alias, nickname, referrer, referees) -> () -> new Customer(name, alias, nickname, referrer, referees)),
+        "not a valid Customer");
   }
 
   /**
@@ -77,5 +80,23 @@ public final class CustomerMappingImpl implements CustomerMapping {
   private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(S value,
       Function<? super S, Validated<NonEmptyList<FieldError>, A>> parse) {
     return value == null ? Validated.invalidNel(FieldError.of("must not be null")) : parse.apply(value);
+  }
+
+  /**
+   * Runs the canonical constructor over the validated components: an exception it throws is the record's
+   * invariant refusing them, reported at the record's path with its message, or with {@code
+   * fallbackMessage} when it has none.
+   */
+  private static <T> Validated<NonEmptyList<FieldError>, T> hkj$construct(
+      Validated<NonEmptyList<FieldError>, Supplier<T>> assembled, String fallbackMessage) {
+    return assembled.flatMap(
+        constructor -> {
+          try {
+            return Validated.validNel(constructor.get());
+          } catch (RuntimeException refused) {
+            String message = refused.getMessage();
+            return Validated.invalidNel(FieldError.of(message == null || message.isBlank() ? fallbackMessage : message));
+          }
+        });
   }
 }
