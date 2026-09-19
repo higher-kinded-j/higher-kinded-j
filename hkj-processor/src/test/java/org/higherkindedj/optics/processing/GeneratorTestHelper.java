@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -9,15 +10,21 @@ import com.google.testing.compile.Compilation;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.processing.Processor;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -74,6 +81,65 @@ public final class GeneratorTestHelper {
       classpath.add(dir.toFile());
     }
     return classpath;
+  }
+
+  /**
+   * The directory or jar a class was loaded from.
+   *
+   * @param type the class
+   * @return where its class file was found
+   */
+  public static Path locationOf(final Class<?> type) {
+    try {
+      return Path.of(type.getProtectionDomain().getCodeSource().getLocation().toURI());
+    } catch (URISyntaxException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * Every processor this module registers in {@code META-INF/services}, loaded as javac's processor
+   * path loads them, in that file's order.
+   *
+   * @return the processors, one instance each
+   */
+  public static Stream<Processor> registeredProcessors() {
+    final Path module = locationOf(LensProcessor.class);
+    return ServiceLoader.load(Processor.class, LensProcessor.class.getClassLoader()).stream()
+        .filter(provider -> locationOf(provider.type()).equals(module))
+        .map(ServiceLoader.Provider::get);
+  }
+
+  /**
+   * The processors named in Gradle's incremental registration, with their categories.
+   *
+   * @return each processor's category, by its fully qualified name
+   * @throws IOException if a registration cannot be read
+   */
+  public static Map<String, String> gradleRegistrations() throws IOException {
+    final List<URL> registrations =
+        Collections.list(
+            LensProcessor.class
+                .getClassLoader()
+                .getResources("META-INF/gradle/incremental.annotation.processors"));
+    assertFalse(registrations.isEmpty(), "no Gradle incremental registration on the classpath");
+    final StringBuilder lines = new StringBuilder();
+    for (URL registration : registrations) {
+      try (InputStream in = registration.openStream()) {
+        lines.append(new String(in.readAllBytes(), StandardCharsets.UTF_8)).append('\n');
+      }
+    }
+    return lines
+        .toString()
+        .lines()
+        .map(String::strip)
+        .filter(line -> !line.isEmpty() && !line.startsWith("#"))
+        // The registration can sit on the classpath more than once; a processor named twice with
+        // different categories still fails to collect.
+        .distinct()
+        .map(line -> line.split(","))
+        .collect(
+            Collectors.toUnmodifiableMap(entry -> entry[0].strip(), entry -> entry[1].strip()));
   }
 
   /**

@@ -22,7 +22,8 @@ import org.higherkindedj.hkt.vstream.VStreamMonad;
  * <h2>Registration</h2>
  *
  * <p>This provider is registered in {@code
- * META-INF/services/org.higherkindedj.hkt.effect.spi.PathProvider}.
+ * META-INF/services/org.higherkindedj.hkt.effect.spi.PathProvider} and in the {@code provides}
+ * clause of hkj-core's {@code module-info}, so it is found on the classpath and on the module path.
  *
  * <h2>Usage</h2>
  *

@@ -11,21 +11,34 @@ module org.higherkindedj.processor {
   // Requires build tools for annotation processing and code generation
   requires java.compiler;
   requires com.palantir.javapoet;
-  requires com.google.auto.service;
+  // @AutoService is read only while this module compiles, so a module path need not carry it.
+  requires static com.google.auto.service;
 
-  // Registers processors as services that can be discovered by the compiler
+  // Registers the processors javac loads from --processor-module-path. The processor path reads
+  // META-INF/services instead, which @AutoService writes sorted by fully qualified name, so every
+  // processor carrying @AutoService is listed here too, in that order; a test holds the two
+  // together.
   provides javax.annotation.processing.Processor with
-      org.higherkindedj.optics.processing.LensProcessor,
-      org.higherkindedj.optics.processing.PrismProcessor,
-      org.higherkindedj.optics.processing.TraversalProcessor,
-      org.higherkindedj.optics.processing.ImportOpticsProcessor,
-      org.higherkindedj.optics.processing.effect.PathProcessor,
-      org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor,
-      org.higherkindedj.optics.processing.effect.ComposeEffectsProcessor,
-      org.higherkindedj.optics.processing.ForComprehensionProcessor,
       org.higherkindedj.optics.processing.AccumulatorProcessor,
       org.higherkindedj.optics.processing.AssemblyProcessor,
-      org.higherkindedj.optics.processing.CompanionAnnotationProcessor;
+      org.higherkindedj.optics.processing.CompanionAnnotationProcessor,
+      org.higherkindedj.optics.processing.ErrorEnvelopeProcessor,
+      org.higherkindedj.optics.processing.FocusProcessor,
+      org.higherkindedj.optics.processing.FoldProcessor,
+      org.higherkindedj.optics.processing.ForComprehensionProcessor,
+      org.higherkindedj.optics.processing.GetterProcessor,
+      org.higherkindedj.optics.processing.ImportOpticsProcessor,
+      org.higherkindedj.optics.processing.IsoProcessor,
+      org.higherkindedj.optics.processing.LensProcessor,
+      org.higherkindedj.optics.processing.MappingProcessor,
+      org.higherkindedj.optics.processing.MergeProcessor,
+      org.higherkindedj.optics.processing.PrismProcessor,
+      org.higherkindedj.optics.processing.SetterProcessor,
+      org.higherkindedj.optics.processing.TraversalProcessor,
+      org.higherkindedj.optics.processing.effect.ComposeEffectsProcessor,
+      org.higherkindedj.optics.processing.effect.EffectAlgebraProcessor,
+      org.higherkindedj.optics.processing.effect.PathProcessor,
+      org.higherkindedj.optics.processing.effect.PathSourceProcessor;
 
   // It exports the SPI so the plugins module can implement it, and the shared processor
   // helpers so that a plugin names a type the same way the generators that call it do.
