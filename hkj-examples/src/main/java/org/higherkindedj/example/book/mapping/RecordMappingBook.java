@@ -44,11 +44,12 @@ public final class RecordMappingBook {
   public static void main(String[] args) {
     // ANCHOR: basics_usage
     Person person = new Person("Ada", 36);
+    PersonMappingImpl personMapping = PersonMappingImpl.INSTANCE; // bind once, reuse
 
     // Same-named, same-typed components match automatically:
-    PersonDto dto = PersonMappingImpl.INSTANCE.build(person); // total
+    PersonDto dto = personMapping.build(person); // total
     Validated<NonEmptyList<FieldError>, Person> back =
-        PersonMappingImpl.INSTANCE.parse(dto); // accumulating, located
+        personMapping.parse(dto); // accumulating, located
     // ANCHOR_END: basics_usage
     System.out.println(dto + " / " + back);
 
@@ -65,21 +66,21 @@ public final class RecordMappingBook {
     System.out.println(ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace")));
 
     // ANCHOR: bridge_usage
+    var memberMapping = MemberMappingImpl.INSTANCE;
+
     // Absence travels as null in both directions; a present value still validates.
-    MemberMappingImpl.INSTANCE.build(new Member("Ada", Optional.empty(), Optional.empty()));
+    memberMapping.build(new Member("Ada", Optional.empty(), Optional.empty()));
     // MemberDto[name=Ada, nickname=null, altEmail=null]
 
-    MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", null, null));
+    memberMapping.parse(new MemberDto("Ada", null, null));
     // Valid(Member[name=Ada, nickname=Optional.empty, altEmail=Optional.empty])
 
-    MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", "countess", "not-an-email"));
+    memberMapping.parse(new MemberDto("Ada", "countess", "not-an-email"));
     // Invalid(NonEmptyList[altEmail: not an email address])
     // ANCHOR_END: bridge_usage
-    System.out.println(
-        MemberMappingImpl.INSTANCE.build(new Member("Ada", Optional.empty(), Optional.empty())));
-    System.out.println(MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", null, null)));
-    System.out.println(
-        MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", "countess", "not-an-email")));
+    System.out.println(memberMapping.build(new Member("Ada", Optional.empty(), Optional.empty())));
+    System.out.println(memberMapping.parse(new MemberDto("Ada", null, null)));
+    System.out.println(memberMapping.parse(new MemberDto("Ada", "countess", "not-an-email")));
 
     // ANCHOR: mixin_usage
     // One vocabulary, two mappings - the inherited rename and leaf apply to both:
@@ -97,46 +98,49 @@ public final class RecordMappingBook {
         InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob", "nope"))));
 
     // ANCHOR: bridge_nesting_usage
-    ReferralMappingImpl.INSTANCE.parse(new ReferralDto("R-7", null));
+    var referralMapping = ReferralMappingImpl.INSTANCE;
+
+    referralMapping.parse(new ReferralDto("R-7", null));
     // Valid(Referral[code=R-7, referrer=Optional.empty])
 
-    ReferralMappingImpl.INSTANCE.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope")));
+    referralMapping.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope")));
     // Invalid(NonEmptyList[referrer.email: not an email address])
     // ANCHOR_END: bridge_nesting_usage
-    System.out.println(ReferralMappingImpl.INSTANCE.parse(new ReferralDto("R-7", null)));
+    System.out.println(referralMapping.parse(new ReferralDto("R-7", null)));
     System.out.println(
-        ReferralMappingImpl.INSTANCE.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope"))));
+        referralMapping.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope"))));
 
     // ANCHOR: bridge_container_usage
-    GuestlistMappingImpl.INSTANCE.parse(new GuestlistDto("Launch", null));
+    var guestlistMapping = GuestlistMappingImpl.INSTANCE;
+
+    guestlistMapping.parse(new GuestlistDto("Launch", null));
     // Valid(Guestlist[event=Launch, guests=Optional.empty])
 
-    GuestlistMappingImpl.INSTANCE.parse(
+    guestlistMapping.parse(
         new GuestlistDto(
             "Launch",
             List.of(new CustomerDto("Ada", "ada@example.org"), new CustomerDto("Bob", "nope"))));
     // Invalid(NonEmptyList[guests.1.email: not an email address])
     // ANCHOR_END: bridge_container_usage
-    System.out.println(GuestlistMappingImpl.INSTANCE.parse(new GuestlistDto("Launch", null)));
+    System.out.println(guestlistMapping.parse(new GuestlistDto("Launch", null)));
     System.out.println(
-        GuestlistMappingImpl.INSTANCE.parse(
+        guestlistMapping.parse(
             new GuestlistDto(
                 "Launch",
                 List.of(
                     new CustomerDto("Ada", "ada@example.org"), new CustomerDto("Bob", "nope")))));
 
     // ANCHOR: flatten_usage
+    var vendorMapping = VendorMappingImpl.INSTANCE;
+
     VendorDto flat =
-        VendorMappingImpl.INSTANCE.build(
-            new Vendor("Acme", new Address("1 High St", "Leeds", "LS1 4AP")));
+        vendorMapping.build(new Vendor("Acme", new Address("1 High St", "Leeds", "LS1 4AP")));
     // VendorDto[name=Acme, street=1 High St, city=Leeds, postcode=LS1 4AP]
-    VendorMappingImpl.INSTANCE.parse(new VendorDto("Acme", null, "Leeds", null));
+    vendorMapping.parse(new VendorDto("Acme", null, "Leeds", null));
     // Invalid(NonEmptyList[address.street: must not be null, address.postcode: must not be null])
     // ANCHOR_END: flatten_usage
     System.out.println(
-        flat
-            + " / "
-            + VendorMappingImpl.INSTANCE.parse(new VendorDto("Acme", null, "Leeds", null)));
+        flat + " / " + vendorMapping.parse(new VendorDto("Acme", null, "Leeds", null)));
 
     // ANCHOR: generic_usage
     CustomerPageMappingImpl.INSTANCE.parse(
@@ -197,46 +201,47 @@ public final class RecordMappingBook {
 
     // ANCHOR: leaf_projection_usage
     Subscriber subscriber = new Subscriber("7", new EmailAddress("ada@corp.example"), 36);
+    var subscriberDetailsMapping = SubscriberDetailsMappingImpl.INSTANCE;
 
     // The projected components validate and write back; the unprojected id survives untouched.
     Validated<NonEmptyList<FieldError>, Subscriber> renewed =
-        SubscriberDetailsMappingImpl.INSTANCE.patch(
+        subscriberDetailsMapping.patch(
             subscriber, new SubscriberDetailsDto("grace@corp.example", 37));
     // Valid(Subscriber[id=7, email=EmailAddress[value=grace@corp.example], age=37])
 
     // Dense semantics: every projected field applies - a null is a located error, never absence.
-    SubscriberDetailsMappingImpl.INSTANCE.patch(subscriber, new SubscriberDetailsDto(null, 37));
+    subscriberDetailsMapping.patch(subscriber, new SubscriberDetailsDto(null, 37));
     // Invalid(NonEmptyList[email: must not be null])
     // ANCHOR_END: leaf_projection_usage
     System.out.println(renewed);
     System.out.println(
-        SubscriberDetailsMappingImpl.INSTANCE.patch(
-            subscriber, new SubscriberDetailsDto(null, 37)));
+        subscriberDetailsMapping.patch(subscriber, new SubscriberDetailsDto(null, 37)));
 
     // ANCHOR: bean_projection_usage
     Employee researcher = new Employee("Ada", "Research", 36);
     TransferBean transfer = new TransferBean();
     transfer.setDepartment("Platform");
+    var transferMapping = TransferMappingImpl.INSTANCE;
 
     // The bean's property can be unset, so the projection validates: patch, never a lens.
     Validated<NonEmptyList<FieldError>, Employee> transferred =
-        TransferMappingImpl.INSTANCE.patch(researcher, transfer);
+        transferMapping.patch(researcher, transfer);
     // Valid(Employee[name=Ada, department=Platform, age=36])
 
     // Dense, as on a record wire: an unset property is a located error, never "keep the current
     // value".
-    TransferMappingImpl.INSTANCE.patch(researcher, new TransferBean());
+    transferMapping.patch(researcher, new TransferBean());
     // Invalid(NonEmptyList[department: must not be null])
     // ANCHOR_END: bean_projection_usage
     System.out.println(transferred);
-    System.out.println(TransferMappingImpl.INSTANCE.patch(researcher, new TransferBean()));
+    System.out.println(transferMapping.patch(researcher, new TransferBean()));
 
     // ANCHOR: bean_usage
     Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
-    ContactBean bean =
-        ContactMappingImpl.INSTANCE.build(ada); // new ContactBean(); setName; setEmail
-    Validated<NonEmptyList<FieldError>, Customer> fromBean =
-        ContactMappingImpl.INSTANCE.parse(bean);
+    var contactMapping = ContactMappingImpl.INSTANCE;
+
+    ContactBean bean = contactMapping.build(ada); // new ContactBean(); setName; setEmail
+    Validated<NonEmptyList<FieldError>, Customer> fromBean = contactMapping.parse(bean);
     // A null bean property parses to a located FieldError, e.g. [email: must not be null].
     // ANCHOR_END: bean_usage
     System.out.println(bean.getName() + " / " + fromBean);

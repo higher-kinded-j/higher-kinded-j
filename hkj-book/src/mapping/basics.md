@@ -41,6 +41,8 @@ The two directions have different shapes, and that asymmetry runs through the wh
 
 The generated class is `<Spec>Impl` beside the spec; a concrete spec like this one is used through its `INSTANCE` constant ([generic specs](generics.md#one-rule-three-access-shapes) use `instance()` or `of(...)` instead). A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`.
 
+Code that calls a mapping more than once binds it once and reuses it, as `personMapping` does above. Reading `INSTANCE` costs nothing, so this is for readability: shorter calls, and one name to change. Type the binding as the Impl, since the spec interface declares no methods of its own. Where it lives depends on how widely it is used: a local for a few calls in one method, a `private static final` field in the class that owns the boundary, or, in Spring, an injected `ValidatedPrism` when callers should depend on the mapping rather than on the generated class ([Injecting and testing generated mappings](testing.md#injecting-and-testing-generated-mappings)). Bind it in the code that calls it, never as a constant on the spec itself; [the fine print](#bind-in-the-caller) says why.
+
 ---
 
 ## Validated leaves
@@ -259,10 +261,14 @@ Four shapes are rejected, each with a what/why/fix diagnostic: a *locally declar
 
 A spec with any derived field never emits `asIso()`: the wire round trip recomputes the derived component, so it is an identity only for wire values that were already consistent. A mapping whose *only* extra is a derived field is *total-parse*: no **well-formed** wire value can fail it (the null guards above still apply, and a fallible leaf elsewhere in the spec still makes the whole parse fallible). Combining a derived field with a projection (a wire otherwise smaller than the domain) is rejected, because the projection's `asLens()` write-back could never honour a component that `build` recomputes. [The Emission Tiers](tiers.md) is the full story.
 
+### Bind in the caller, not on the spec {#bind-in-the-caller}
+
+MapStruct's idiom declares a mapper's instance on the mapper's own interface. The same move here, `CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;` declared on `CustomerMapping` (the leaf spec above), compiles but can read `null`. The Impl implements the spec, and the JVM initialises an interface as part of initialising a class that implements it whenever the interface declares an instance method with a body: every leaf and derived field it declares is one, and so is a `private` helper. When a program uses `CustomerMappingImpl.INSTANCE` before it first reads `CustomerMapping.MAPPER`, the spec's constant is evaluated while the Impl's own `INSTANCE` is still unassigned, and it keeps that `null` for good: the first `MAPPER.parse(...)` throws a `NullPointerException`. Two threads making those first uses at the same moment can deadlock instead. A constant on a mix-in that declares a leaf fails the same way. Which class a program reaches first depends on its code paths, so the failure comes and goes. A local, a field in the calling class or an injected `ValidatedPrism` sits outside the cycle.
+
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **A mapping is an interface you own**: `@GenerateMapping` on a `MappingSpec<Domain, Wire>` generates `<Spec>Impl` with `build` and `parse`
+* **A mapping is an interface you own**: `@GenerateMapping` on a `MappingSpec<Domain, Wire>` generates `<Spec>Impl` with `build` and `parse`; bind it once in the calling code, never as a constant on the spec
 * **Two directions, two shapes**: `build` is total; `parse` reports every bad field at once, each located by a domain-named path
 * **Leaves convert, renames rename, getters derive**: `ValidatedPrism` leaves for type-differing fields, `@MapField` for names, `Getter` defaults for wire-only fields
 * **Null is located, never thrown**: one rule across both wire shapes and inside containers; only a null wire itself stays the caller's error

@@ -27,9 +27,10 @@ import org.junit.jupiter.api.Test;
 /**
  * Solutions for Tutorial 26: Record Mapping.
  *
- * <p>The pattern throughout: the generated Impl is the boundary. {@code build} is total, {@code
- * parse} accumulates located {@code FieldError}s, {@code asValidatedPrism()} is the mapping as a
- * leaf, and the sparse sibling's {@code updateFrom} folds only the present fields.
+ * <p>The pattern throughout: the generated Impl is the boundary, bound once per class. {@code
+ * build} is total, {@code parse} accumulates located {@code FieldError}s, {@code
+ * asValidatedPrism()} is the mapping as a leaf, and the sparse sibling's {@code updateFrom} folds
+ * only the present fields.
  */
 @DisplayName("Tutorial 26: Record Mapping (Solutions)")
 public class Tutorial26_RecordMapping_Solution {
@@ -41,6 +42,13 @@ public class Tutorial26_RecordMapping_Solution {
           LocalDate.of(2026, 7, 28),
           3);
 
+  // The generated Impls, bound once for the whole class and reused by every exercise. Bind them in
+  // the code that calls them, never as a constant on the spec itself ("Bind in the caller, not on
+  // the spec" on the mapping chapter's Basics page says why).
+  private static final BookingMappingImpl BOOKING_MAPPING = BookingMappingImpl.INSTANCE;
+
+  private static final GuestPatchMappingImpl GUEST_PATCH_MAPPING = GuestPatchMappingImpl.INSTANCE;
+
   @Nested
   @DisplayName("Part 1: two directions, two shapes")
   class TwoDirections {
@@ -49,7 +57,7 @@ public class Tutorial26_RecordMapping_Solution {
     @Test
     @DisplayName("Exercise 1: build is total")
     void exercise1_buildIsTotal() {
-      BookingDto dto = BookingMappingImpl.INSTANCE.build(BOOKING);
+      BookingDto dto = BOOKING_MAPPING.build(BOOKING);
 
       assertThat(dto)
           .isEqualTo(
@@ -64,9 +72,9 @@ public class Tutorial26_RecordMapping_Solution {
     @Test
     @DisplayName("Exercise 2: parse round-trips a good wire")
     void exercise2_parseAGoodWire() {
-      BookingDto dto = BookingMappingImpl.INSTANCE.build(BOOKING);
+      BookingDto dto = BOOKING_MAPPING.build(BOOKING);
 
-      Validated<NonEmptyList<FieldError>, Booking> parsed = BookingMappingImpl.INSTANCE.parse(dto);
+      Validated<NonEmptyList<FieldError>, Booking> parsed = BOOKING_MAPPING.parse(dto);
 
       assertThatValidated(parsed).isValid().hasValue(BOOKING);
     }
@@ -86,8 +94,7 @@ public class Tutorial26_RecordMapping_Solution {
       BookingDto hostile =
           new BookingDto("NOPE", new GuestDto("Ada Lovelace", "not-an-email"), "28/07/2026", 3);
 
-      Validated<NonEmptyList<FieldError>, Booking> parsed =
-          BookingMappingImpl.INSTANCE.parse(hostile);
+      Validated<NonEmptyList<FieldError>, Booking> parsed = BOOKING_MAPPING.parse(hostile);
 
       assertThatValidated(parsed)
           .isInvalid()
@@ -101,11 +108,11 @@ public class Tutorial26_RecordMapping_Solution {
     @Test
     @DisplayName("Exercise 4: one MappingLaws call per mapping")
     void exercise4_lawChecked() {
-      BookingDto good = BookingMappingImpl.INSTANCE.build(BOOKING);
+      BookingDto good = BOOKING_MAPPING.build(BOOKING);
       BookingDto bad =
           new BookingDto("NOPE", new GuestDto("Ada Lovelace", "ada@corp.example"), "2026-07-28", 3);
 
-      ValidatedPrism<BookingDto, Booking> mapping = BookingMappingImpl.INSTANCE.asValidatedPrism();
+      ValidatedPrism<BookingDto, Booking> mapping = BOOKING_MAPPING.asValidatedPrism();
 
       MappingLaws.assertMappingLaws(mapping, good, bad);
     }
@@ -127,7 +134,7 @@ public class Tutorial26_RecordMapping_Solution {
       form.setEmail("countess@lovelace.example");
 
       Validated<NonEmptyList<FieldError>, Guest> patched =
-          GuestPatchMappingImpl.INSTANCE.updateFrom(form).apply(current);
+          GUEST_PATCH_MAPPING.updateFrom(form).apply(current);
 
       assertThatValidated(patched)
           .isValid()
@@ -135,8 +142,7 @@ public class Tutorial26_RecordMapping_Solution {
 
       GuestPatchForm badForm = new GuestPatchForm();
       badForm.setEmail("nope");
-      assertThatValidated(GuestPatchMappingImpl.INSTANCE.updateFrom(badForm).apply(current))
-          .isInvalid();
+      assertThatValidated(GUEST_PATCH_MAPPING.updateFrom(badForm).apply(current)).isInvalid();
     }
   }
 }

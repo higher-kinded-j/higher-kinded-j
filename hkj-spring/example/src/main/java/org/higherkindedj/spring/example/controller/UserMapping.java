@@ -11,8 +11,9 @@ import org.higherkindedj.spring.example.domain.User;
 
 /**
  * Full bidirectional mapping between {@link User} and {@link UserDto}, showcasing the 422 leg: a
- * controller returns the generated {@code UserMappingImpl.INSTANCE.parse(dto)} directly, and the
- * {@code ValidationPathReturnValueHandler} renders an invalid parse as one {@code
+ * controller returns the generated mapping's {@code parse(dto)} result directly (here through the
+ * injected {@code ValidatedPrism} that {@code MappingConfiguration} registers), and the {@code
+ * ValidationPathReturnValueHandler} renders an invalid parse as one {@code
  * hkj.web.validation-field-error-status} response (default 422 Unprocessable Content) carrying
  * every located {@code FieldError} by path.
  *

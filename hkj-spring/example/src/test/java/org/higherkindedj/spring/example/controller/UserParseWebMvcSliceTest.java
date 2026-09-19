@@ -22,10 +22,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Slice test for the 422 leg: the {@code POST /api/users/parse} endpoint returns the generated
- * {@code UserMappingImpl.parse} result directly, so the whole path is exercised end to end —
- * Jackson binds the wire DTO, the generated mapping accumulates located {@code FieldError}s, and
- * the {@code ValidationPathReturnValueHandler} renders them as one 422 with every bad field by
- * path.
+ * mapping's {@code parse} result directly (through the injected {@code userCodec}), so the whole
+ * path is exercised end to end: Jackson binds the wire DTO, the generated mapping accumulates
+ * located {@code FieldError}s, and the {@code ValidationPathReturnValueHandler} renders them as one
+ * 422 with every bad field by path.
  */
 @WebMvcTest(UserController.class)
 @ImportAutoConfiguration({

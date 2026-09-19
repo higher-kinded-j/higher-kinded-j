@@ -252,25 +252,21 @@ public final class GenerateMappingExample {
   public static void main(String[] args) {
     System.out.println("=== Validated Mapping Example ===");
     Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
-    CustomerDto dto = GenerateMappingExampleCustomerMappingImpl.INSTANCE.build(ada);
+    var customerMapping = GenerateMappingExampleCustomerMappingImpl.INSTANCE;
+    CustomerDto dto = customerMapping.build(ada);
     System.out.println("Built:        " + dto);
+    System.out.println("Round trip:   " + customerMapping.parse(dto));
     System.out.println(
-        "Round trip:   " + GenerateMappingExampleCustomerMappingImpl.INSTANCE.parse(dto));
-    System.out.println(
-        "Located fail: "
-            + GenerateMappingExampleCustomerMappingImpl.INSTANCE.parse(
-                new CustomerDto("Bob", "not-an-email")));
+        "Located fail: " + customerMapping.parse(new CustomerDto("Bob", "not-an-email")));
     System.out.println("Expected: built DTO, Valid(round trip), Invalid located at \"email\"\n");
 
     System.out.println("=== Lossless Mapping Example (renames + asIso) ===");
     Person grace = new Person("Grace", 36);
-    PersonDto personDto = GenerateMappingExamplePersonMappingImpl.INSTANCE.build(grace);
+    var personMapping = GenerateMappingExamplePersonMappingImpl.INSTANCE;
+    PersonDto personDto = personMapping.build(grace);
     System.out.println("Built:      " + personDto);
-    System.out.println(
-        "Iso back:   "
-            + GenerateMappingExamplePersonMappingImpl.INSTANCE.asIso().reverseGet(personDto));
-    System.out.println(
-        "Iso there:  " + GenerateMappingExamplePersonMappingImpl.INSTANCE.asIso().get(grace));
+    System.out.println("Iso back:   " + personMapping.asIso().reverseGet(personDto));
+    System.out.println("Iso there:  " + personMapping.asIso().get(grace));
     System.out.println("Expected: fullName carries the rename; the Iso round-trips both ways\n");
 
     System.out.println("=== Container Lifting Example (List + Optional) ===");
@@ -279,17 +275,17 @@ public final class GenerateMappingExample {
             "Core",
             List.of(new EmailAddress("ada@corp.example"), new EmailAddress("grace@corp.example")),
             Optional.of(new EmailAddress("ada@corp.example")));
-    TeamDto teamDto = GenerateMappingExampleTeamMappingImpl.INSTANCE.build(core);
+    var teamMapping = GenerateMappingExampleTeamMappingImpl.INSTANCE;
+    TeamDto teamDto = teamMapping.build(core);
     System.out.println("Built:        " + teamDto);
-    System.out.println(
-        "Round trip:   " + GenerateMappingExampleTeamMappingImpl.INSTANCE.parse(teamDto));
+    System.out.println("Round trip:   " + teamMapping.parse(teamDto));
     System.out.println(
         "Absent lead:  "
-            + GenerateMappingExampleTeamMappingImpl.INSTANCE.parse(
+            + teamMapping.parse(
                 new TeamDto("Core", List.of("ada@corp.example"), Optional.empty())));
     System.out.println(
         "Located fail: "
-            + GenerateMappingExampleTeamMappingImpl.INSTANCE.parse(
+            + teamMapping.parse(
                 new TeamDto(
                     "Core", List.of("bad-one", "grace@corp.example"), Optional.of("bad-two"))));
     System.out.println(
@@ -300,26 +296,24 @@ public final class GenerateMappingExample {
         "=== Map Value Lifting Example (keys identity, values through the leaf) ===");
     Directory platform =
         new Directory("Platform", Map.of("ops", new EmailAddress("kay@corp.example")));
-    DirectoryDto directoryDto = GenerateMappingExampleDirectoryMappingImpl.INSTANCE.build(platform);
+    var directoryMapping = GenerateMappingExampleDirectoryMappingImpl.INSTANCE;
+    DirectoryDto directoryDto = directoryMapping.build(platform);
     System.out.println("Built:        " + directoryDto);
-    System.out.println(
-        "Round trip:   " + GenerateMappingExampleDirectoryMappingImpl.INSTANCE.parse(directoryDto));
+    System.out.println("Round trip:   " + directoryMapping.parse(directoryDto));
     System.out.println(
         "Located fail: "
-            + GenerateMappingExampleDirectoryMappingImpl.INSTANCE.parse(
-                new DirectoryDto("Platform", Map.of("sre", "not-an-email"))));
+            + directoryMapping.parse(new DirectoryDto("Platform", Map.of("sre", "not-an-email"))));
     System.out.println(
         "Expected: string values in the DTO, Valid(round trip), and the failure located by its"
             + " key as \"contacts.sre\"\n");
 
     System.out.println("=== Derived Wire Field Example (Getter, filled on build) ===");
     Profile profile = new Profile("Ada", "Lovelace");
-    ProfileDto profileDto = GenerateMappingExampleProfileMappingImpl.INSTANCE.build(profile);
+    var profileMapping = GenerateMappingExampleProfileMappingImpl.INSTANCE;
+    ProfileDto profileDto = profileMapping.build(profile);
     System.out.println("Built:        " + profileDto);
     System.out.println(
-        "Parse:        "
-            + GenerateMappingExampleProfileMappingImpl.INSTANCE.parse(
-                new ProfileDto("Ada", "Lovelace", "nonsense")));
+        "Parse:        " + profileMapping.parse(new ProfileDto("Ada", "Lovelace", "nonsense")));
     System.out.println(
         "Expected: build fills displayName from the whole Profile; parse ignores even an"
             + " inconsistent displayName (the data is derivable) and stays Valid\n");
@@ -327,13 +321,13 @@ public final class GenerateMappingExample {
     System.out.println("=== Nested Mapping Example (spec delegates to spec) ===");
     Invoice invoice =
         new Invoice("INV-1", new Customer("Ada", new EmailAddress("ada@corp.example")));
-    InvoiceDto invoiceDto = GenerateMappingExampleInvoiceMappingImpl.INSTANCE.build(invoice);
+    var invoiceMapping = GenerateMappingExampleInvoiceMappingImpl.INSTANCE;
+    InvoiceDto invoiceDto = invoiceMapping.build(invoice);
     System.out.println("Built:        " + invoiceDto);
-    System.out.println(
-        "Round trip:   " + GenerateMappingExampleInvoiceMappingImpl.INSTANCE.parse(invoiceDto));
+    System.out.println("Round trip:   " + invoiceMapping.parse(invoiceDto));
     System.out.println(
         "Located fail: "
-            + GenerateMappingExampleInvoiceMappingImpl.INSTANCE.parse(
+            + invoiceMapping.parse(
                 new InvoiceDto("INV-2", new CustomerDto("Bob", "not-an-email"))));
     System.out.println(
         "Expected: nested DTO built by CustomerMapping, Valid(round trip), and the failure"
@@ -346,33 +340,33 @@ public final class GenerateMappingExample {
             List.of(
                 new Tree("left", List.of(new Tree("leaf", List.of()))),
                 new Tree("right", List.of())));
-    TreeDto treeDto = GenerateMappingExampleTreeMappingImpl.INSTANCE.build(tree);
+    var treeMapping = GenerateMappingExampleTreeMappingImpl.INSTANCE;
+    TreeDto treeDto = treeMapping.build(tree);
     System.out.println("Built:      " + treeDto);
-    System.out.println(
-        "Round trip: " + GenerateMappingExampleTreeMappingImpl.INSTANCE.parse(treeDto));
+    System.out.println("Round trip: " + treeMapping.parse(treeDto));
     System.out.println("Expected: depth-3 round trip terminates and is Valid\n");
 
     System.out.println("=== Sealed Dispatch Example ===");
     Payment card = new Card("4111-1111");
-    PaymentDto paymentDto = GenerateMappingExamplePaymentMappingImpl.INSTANCE.build(card);
+    var paymentMapping = GenerateMappingExamplePaymentMappingImpl.INSTANCE;
+    PaymentDto paymentDto = paymentMapping.build(card);
     System.out.println("Built:      " + paymentDto);
-    System.out.println(
-        "Parse back: " + GenerateMappingExamplePaymentMappingImpl.INSTANCE.parse(paymentDto));
+    System.out.println("Parse back: " + paymentMapping.parse(paymentDto));
     Wallet wallet = new Wallet("Ada", new Bank("GB29-XXXX"));
-    WalletDto walletDto = GenerateMappingExampleWalletMappingImpl.INSTANCE.build(wallet);
+    var walletMapping = GenerateMappingExampleWalletMappingImpl.INSTANCE;
+    WalletDto walletDto = walletMapping.build(wallet);
     System.out.println("Wallet:     " + walletDto);
-    System.out.println(
-        "Round trip: " + GenerateMappingExampleWalletMappingImpl.INSTANCE.parse(walletDto));
+    System.out.println("Round trip: " + walletMapping.parse(walletDto));
     System.out.println(
         "Expected: the dispatch picks the Card/Bank mapping, and the sealed mapping nests"
             + " inside Wallet like any other spec\n");
 
     System.out.println("=== Projection Example (Lens tier) ===");
     Employee engineer = new Employee("Ada", "Engineering", 36);
-    EmployeeCardDto badge = GenerateMappingExampleEmployeeCardMappingImpl.INSTANCE.build(engineer);
+    var employeeCardMapping = GenerateMappingExampleEmployeeCardMappingImpl.INSTANCE;
+    EmployeeCardDto badge = employeeCardMapping.build(engineer);
     System.out.println("Projected:  " + badge);
-    Lens<Employee, EmployeeCardDto> badgeLens =
-        GenerateMappingExampleEmployeeCardMappingImpl.INSTANCE.asLens();
+    Lens<Employee, EmployeeCardDto> badgeLens = employeeCardMapping.asLens();
     Employee moved = badgeLens.set(new EmployeeCardDto("Ada", "Platform"), engineer);
     System.out.println("Written back: " + moved);
     System.out.println(
@@ -381,30 +375,29 @@ public final class GenerateMappingExample {
 
     System.out.println("=== Bean-Shaped Wire Example (getters/setters, null-guarded parse) ===");
     Account account = new Account("Ada", new EmailAddress("ada@corp.example"));
-    AccountDto accountDto = GenerateMappingExampleAccountMappingImpl.INSTANCE.build(account);
+    var accountMapping = GenerateMappingExampleAccountMappingImpl.INSTANCE;
+    AccountDto accountDto = accountMapping.build(account);
     System.out.println(
         "Built:        AccountDto[owner="
             + accountDto.getOwner()
             + ", email="
             + accountDto.getEmail()
             + "]");
-    System.out.println(
-        "Round trip:   " + GenerateMappingExampleAccountMappingImpl.INSTANCE.parse(accountDto));
+    System.out.println("Round trip:   " + accountMapping.parse(accountDto));
     AccountDto missing = new AccountDto();
     missing.setOwner("Bob"); // email left unset (null)
-    System.out.println(
-        "Located fail: " + GenerateMappingExampleAccountMappingImpl.INSTANCE.parse(missing));
+    System.out.println("Located fail: " + accountMapping.parse(missing));
     System.out.println(
         "Expected: build via setters, Valid(round trip), and the unset email located at \"email\""
             + " as must-not-be-null (a null never reaches the leaf)\n");
 
     System.out.println("=== Builder-Based Bean Example (immutable DTO via builder()) ===");
     Point origin = new Point(3, "origin");
-    PointDto pointDto = GenerateMappingExamplePointMappingImpl.INSTANCE.build(origin);
+    var pointMapping = GenerateMappingExamplePointMappingImpl.INSTANCE;
+    PointDto pointDto = pointMapping.build(origin);
     System.out.println(
         "Built:        PointDto[x=" + pointDto.getX() + ", label=" + pointDto.getLabel() + "]");
-    System.out.println(
-        "Round trip:   " + GenerateMappingExamplePointMappingImpl.INSTANCE.parse(pointDto));
+    System.out.println("Round trip:   " + pointMapping.parse(pointDto));
     System.out.println("Expected: built through PointDto.builder(); the round trip is Valid");
   }
 

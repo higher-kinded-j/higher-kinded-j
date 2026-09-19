@@ -72,6 +72,13 @@ public class Tutorial26_RecordMapping {
           LocalDate.of(2026, 7, 28),
           3);
 
+  // The generated Impls, bound once for the whole class and reused by every exercise. Bind them in
+  // the code that calls them, never as a constant on the spec itself ("Bind in the caller, not on
+  // the spec" on the mapping chapter's Basics page says why).
+  private static final BookingMappingImpl BOOKING_MAPPING = BookingMappingImpl.INSTANCE;
+
+  private static final GuestPatchMappingImpl GUEST_PATCH_MAPPING = GuestPatchMappingImpl.INSTANCE;
+
   @Nested
   @DisplayName("Part 1: two directions, two shapes")
   class TwoDirections {
@@ -82,7 +89,8 @@ public class Tutorial26_RecordMapping {
      * <p>Task: build the wire DTO from {@code BOOKING} through the generated Impl.
      *
      * <pre>
-     *   // Hint 1: the generated class is {@code BookingMappingImpl}, used via {@code INSTANCE}.
+     *   // Hint 1: the generated class is {@code BookingMappingImpl}, bound above as
+     *   //         {@code BOOKING_MAPPING}.
      *   // Hint 2: {@code build} cannot fail - no Validated, no exception.
      * </pre>
      */
@@ -114,7 +122,7 @@ public class Tutorial26_RecordMapping {
     @Test
     @DisplayName("Exercise 2: parse round-trips a good wire")
     void exercise2_parseAGoodWire() {
-      BookingDto dto = BookingMappingImpl.INSTANCE.build(BOOKING);
+      BookingDto dto = BOOKING_MAPPING.build(BOOKING);
 
       // TODO: parse the DTO back.
       Validated<NonEmptyList<FieldError>, Booking> parsed = answerRequired();
@@ -163,13 +171,13 @@ public class Tutorial26_RecordMapping {
      *
      * <pre>
      *   // Hint 1: every parse-capable mapping exposes {@code asValidatedPrism()}.
-     *   // Hint 2: {@code BookingMappingImpl.INSTANCE.asValidatedPrism()}.
+     *   // Hint 2: {@code BOOKING_MAPPING.asValidatedPrism()}.
      * </pre>
      */
     @Test
     @DisplayName("Exercise 4: one MappingLaws call per mapping")
     void exercise4_lawChecked() {
-      BookingDto good = BookingMappingImpl.INSTANCE.build(BOOKING);
+      BookingDto good = BOOKING_MAPPING.build(BOOKING);
       BookingDto bad =
           new BookingDto("NOPE", new GuestDto("Ada Lovelace", "ada@corp.example"), "2026-07-28", 3);
 
@@ -191,7 +199,7 @@ public class Tutorial26_RecordMapping {
      * present email still parses through the same leaf the full mapping uses.
      *
      * <pre>
-     *   // Hint 1: {@code GuestPatchMappingImpl.INSTANCE.updateFrom(form)} returns an
+     *   // Hint 1: {@code GUEST_PATCH_MAPPING.updateFrom(form)} returns an
      *   //         {@code Edits.Accumulated<Guest>}; {@code .apply(current)} runs it.
      *   // Hint 2: leave {@code form.setName(...)} uncalled - null means keep.
      * </pre>
@@ -213,8 +221,7 @@ public class Tutorial26_RecordMapping {
       // Sparseness never weakens validation: a present bad email is still a located error.
       GuestPatchForm badForm = new GuestPatchForm();
       badForm.setEmail("nope");
-      assertThatValidated(GuestPatchMappingImpl.INSTANCE.updateFrom(badForm).apply(current))
-          .isInvalid();
+      assertThatValidated(GUEST_PATCH_MAPPING.updateFrom(badForm).apply(current)).isInvalid();
     }
   }
 

@@ -70,23 +70,20 @@ public final class GenerateMergeExample {
     System.out.println("Expected: name from User, iban from Account, darkMode from Settings\n");
 
     System.out.println("=== Validated Merge Example (fallible leaf, located errors) ===");
+    var typedDashboardAssembly = GenerateMergeExampleTypedDashboardAssemblyImpl.INSTANCE;
+    System.out.println("Valid:   " + typedDashboardAssembly.assemble(ada, account));
     System.out.println(
-        "Valid:   "
-            + GenerateMergeExampleTypedDashboardAssemblyImpl.INSTANCE.assemble(ada, account));
-    System.out.println(
-        "Invalid: "
-            + GenerateMergeExampleTypedDashboardAssemblyImpl.INSTANCE.assemble(
-                new User("Bob", "not-an-email"), account));
+        "Invalid: " + typedDashboardAssembly.assemble(new User("Bob", "not-an-email"), account));
     System.out.println("Expected: Valid(TypedDashboard...), then Invalid located at \"email\"\n");
 
     System.out.println("=== Nested Merge Example (fill through a sibling @GenerateMapping) ===");
+    var profileCardAssembly = GenerateMergeExampleProfileCardAssemblyImpl.INSTANCE;
     Wrapper wrapper =
         new Wrapper(new GenerateMappingExample.CustomerDto("Grace", "grace@corp.example"));
-    System.out.println(
-        "Valid:   " + GenerateMergeExampleProfileCardAssemblyImpl.INSTANCE.assemble(ada, wrapper));
+    System.out.println("Valid:   " + profileCardAssembly.assemble(ada, wrapper));
     System.out.println(
         "Invalid: "
-            + GenerateMergeExampleProfileCardAssemblyImpl.INSTANCE.assemble(
+            + profileCardAssembly.assemble(
                 ada, new Wrapper(new GenerateMappingExample.CustomerDto("Bob", "nope"))));
     System.out.println(
         "Expected: Valid(ProfileCard...), then Invalid located at \"customer.email\"");

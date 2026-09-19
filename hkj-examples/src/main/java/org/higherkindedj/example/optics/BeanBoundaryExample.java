@@ -125,16 +125,15 @@ public final class BeanBoundaryExample {
 
   public static void main(String[] args) {
     System.out.println("=== Inbound: parse a mutable request DTO ===");
+    var userRequestMapping = BeanBoundaryExampleUserRequestMappingImpl.INSTANCE;
     UserRequest good = new UserRequest();
     good.setName("Ada");
     good.setEmail("ada@corp.example");
-    System.out.println(
-        "Valid request:   " + BeanBoundaryExampleUserRequestMappingImpl.INSTANCE.parse(good));
+    System.out.println("Valid request:   " + userRequestMapping.parse(good));
 
     UserRequest bad = new UserRequest();
     bad.setEmail("not-an-email"); // name left unset (null)
-    System.out.println(
-        "Bad request:     " + BeanBoundaryExampleUserRequestMappingImpl.INSTANCE.parse(bad));
+    System.out.println("Bad request:     " + userRequestMapping.parse(bad));
     System.out.println(
         "Expected: Valid(User) for the good one; for the bad one, BOTH problems at once - the unset"
             + " name located as \"name\" (must not be null) and the malformed \"email\" - never a"

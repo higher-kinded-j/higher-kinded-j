@@ -63,7 +63,7 @@ The smart-constructor optic: a `Prism` whose match says *why not*, and all the r
 The boundary, generated: `@GenerateMapping` derives a total `build` and an accumulating, located `parse` from a spec interface (the specs live in `org.higherkindedj.example.tutorials.mapping`, main sources, where the processor runs).
 
 **What you'll learn**:
-- Calling the generated Impl: `build` is total, `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`
+- Calling the generated Impl, bound once in the calling class: `build` is total, `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`
 - Reading located errors: stock codec messages, a nested spec's `guest.email` path, declaration order
 - Law-checking a mapping with one `MappingLaws` call
 - The sparse PATCH sibling: `UpdateSpec`, null-as-absent, same leaf vocabulary

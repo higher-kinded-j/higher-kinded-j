@@ -333,9 +333,10 @@ OrderError error = OrderErrors.outOfStock(products)
 @GenerateMapping
 public interface PersonMapping extends MappingSpec<Person, PersonDto> {}
 
-PersonDto dto = PersonMappingImpl.INSTANCE.build(person);          // total
+PersonMappingImpl personMapping = PersonMappingImpl.INSTANCE;     // bind once, reuse
+PersonDto dto = personMapping.build(person);                      // total
 Validated<NonEmptyList<FieldError>, Person> back =
-    PersonMappingImpl.INSTANCE.parse(dto);                        // accumulating, located
+    personMapping.parse(dto);                                     // accumulating, located
 ```
 
 **Truthful emission tiers:** the generated mapper offers only what the shape supports: `asIso` when lossless, `asLens` when total one way, and the accumulating `parse` otherwise. A spec extending [UpdateSpec](#updatespec) instead opts into the sparse PATCH tier (only `updateFrom`). Every tier is law-checked against the published `hkj-test` harness.
