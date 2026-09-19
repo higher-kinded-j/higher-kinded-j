@@ -261,7 +261,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
     /**
      * {@code receiver.setX(value)} — a setter or, in a builder frame, a builder setter. It keeps
-     * the method as declared, so what its parameter says about {@code null} can be read.
+     * the method as declared, so what its parameter says about {@code null} can be read. The
+     * element is valid only within the round that analysed the bean, and compares by identity, so a
+     * {@code Setter} is never compared or kept across rounds.
      */
     record Setter(ExecutableElement method) implements WriteSite {
       @Override

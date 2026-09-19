@@ -8,11 +8,14 @@ import java.util.Set;
 import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.ElementFilter;
 
 /**
  * Utility class for reading what a declaration says about {@code null}.
@@ -90,18 +93,27 @@ public final class NullableAnnotations {
 
   /**
    * Why a record component takes no {@code null}, or empty when it may take one or says nothing
-   * either way. The component is read at the three sites {@link #hasNullableAnnotation} reads.
+   * either way. The component is read at the three sites {@link #hasNullableAnnotation} reads, and
+   * at its backing field as well: an annotation targeting fields and methods but not record
+   * components reaches the accessor only when the accessor is implicit, and always reaches the
+   * field.
    *
    * @param component the record component a canonical constructor writes
    * @return the reason the component is declared non-null, if it is
    */
   static Optional<NonNullReason> nonNullReason(RecordComponentElement component) {
-    return nonNullReason(
-        Stream.of(
-                component.getAnnotationMirrors(),
-                component.asType().getAnnotationMirrors(),
-                component.getAccessor().getAnnotationMirrors())
-            .<AnnotationMirror>flatMap(List::stream)
+    Stream<AnnotationMirror> field =
+        ElementFilter.fieldsIn(component.getEnclosingElement().getEnclosedElements()).stream()
+            .filter(candidate -> candidate.getSimpleName().equals(component.getSimpleName()))
+            .flatMap(candidate -> candidate.getAnnotationMirrors().stream());
+    return declaredNonNull(
+        Stream.concat(
+                Stream.of(
+                        component.getAnnotationMirrors(),
+                        component.asType().getAnnotationMirrors(),
+                        component.getAccessor().getAnnotationMirrors())
+                    .<AnnotationMirror>flatMap(List::stream),
+                field)
             .toList(),
         component.asType(),
         component);
@@ -117,7 +129,7 @@ public final class NullableAnnotations {
    * @return the reason the parameter is declared non-null, if it is
    */
   static Optional<NonNullReason> nonNullReason(VariableElement parameter) {
-    return nonNullReason(
+    return declaredNonNull(
         Stream.of(parameter.getAnnotationMirrors(), parameter.asType().getAnnotationMirrors())
             .<AnnotationMirror>flatMap(List::stream)
             .toList(),
@@ -129,42 +141,70 @@ public final class NullableAnnotations {
    * The rule both write sites share, in order:
    *
    * <ol>
-   *   <li>An annotation named {@code Nullable}, from any package, makes the site nullable. The
-   *       check refuses a build, so it gives the benefit of the doubt to any annotation that reads
-   *       as nullable, where {@link #NULLABLE_ANNOTATION_NAMES} decides what code to generate and
-   *       so names only the libraries it is sure of.
+   *   <li>An annotation that reads as nullable makes the site nullable: one named {@code Nullable}
+   *       or {@code CheckForNull}, from any package, or one qualified by a {@code when} other than
+   *       {@code ALWAYS}, as JSR-305's {@code @Nonnull(when = MAYBE)} is, which is how that library
+   *       defines {@code CheckForNull}. The check refuses a build, so it gives the benefit of the
+   *       doubt to any annotation that reads as nullable, where {@link #NULLABLE_ANNOTATION_NAMES}
+   *       decides what code to generate and so names only the libraries it is sure of.
    *   <li>A recognised non-null annotation ({@link #NON_NULL_ANNOTATION_NAMES}) makes it non-null.
-   *   <li>Otherwise JSpecify's scope rule decides: a class or array type declared inside a {@code
-   *       NullMarked} element, with no {@code NullUnmarked} one in between, is non-null. A type
-   *       variable takes its nullness from the argument it stands for, which the site cannot show,
-   *       so it gives no signal.
+   *   <li>Otherwise JSpecify's scope rule decides: a site declared inside a {@code NullMarked}
+   *       element, with no {@code NullUnmarked} one in between, is non-null. A site typed by a type
+   *       variable is non-null only when the variable is too, which its bounds decide: {@code <T>}
+   *       declared in a marked scope has the non-null bound {@code Object}, and {@code <T
+   *       extends @Nullable Object>} leaves the nullness to the type argument, which the site
+   *       cannot show.
    * </ol>
    *
    * <p>Only the site's own type counts, as for {@link #hasNullableAnnotation}: {@code @Nullable
    * String[]} makes the elements nullable and leaves the array itself non-null.
    */
-  private static Optional<NonNullReason> nonNullReason(
+  private static Optional<NonNullReason> declaredNonNull(
       List<AnnotationMirror> annotations, TypeMirror type, Element site) {
     if (annotations.stream().anyMatch(NullableAnnotations::readsNullable)) {
       return Optional.empty();
     }
-    Optional<NonNullReason> annotated =
-        annotations.stream()
-            .map(mirror -> (TypeElement) mirror.getAnnotationType().asElement())
-            .filter(
-                annotation ->
-                    NON_NULL_ANNOTATION_NAMES.contains(annotation.getQualifiedName().toString()))
-            .findFirst()
-            .map(annotation -> new NonNullReason.Annotated(annotation.getSimpleName().toString()));
-    if (annotated.isPresent()) {
-      return annotated;
-    }
-    boolean reference = type.getKind() == TypeKind.DECLARED || type.getKind() == TypeKind.ARRAY;
-    return reference ? nullMarkedScope(site).map(NonNullReason.Marked::new) : Optional.empty();
+    return annotations.stream()
+        .filter(NullableAnnotations::declaresNonNull)
+        .findFirst()
+        .<NonNullReason>map(
+            mirror ->
+                new NonNullReason.Annotated(
+                    mirror.getAnnotationType().asElement().getSimpleName().toString()))
+        .or(
+            () ->
+                type instanceof TypeVariable variable && !hasNonNullBound(variable)
+                    ? Optional.empty()
+                    : nullMarkedScope(site).map(NonNullReason.Marked::new));
   }
 
   private static boolean readsNullable(AnnotationMirror mirror) {
-    return mirror.getAnnotationType().asElement().getSimpleName().contentEquals("Nullable");
+    Name name = mirror.getAnnotationType().asElement().getSimpleName();
+    return name.contentEquals("Nullable")
+        || name.contentEquals("CheckForNull")
+        || mirror.getElementValues().entrySet().stream()
+            .anyMatch(
+                value ->
+                    value.getKey().getSimpleName().contentEquals("when")
+                        && !value.getValue().getValue().toString().equals("ALWAYS"));
+  }
+
+  private static boolean declaresNonNull(AnnotationMirror mirror) {
+    return NON_NULL_ANNOTATION_NAMES.contains(qualifiedName(mirror));
+  }
+
+  /**
+   * Whether a type variable can only stand for non-null types: declared inside a {@code NullMarked}
+   * scope, where an unannotated bound is non-null, with no bound that reads as nullable.
+   */
+  private static boolean hasNonNullBound(TypeVariable variable) {
+    TypeParameterElement parameter = (TypeParameterElement) variable.asElement();
+    return parameter.getBounds().stream()
+            .noneMatch(
+                bound ->
+                    bound.getAnnotationMirrors().stream()
+                        .anyMatch(NullableAnnotations::readsNullable))
+        && nullMarkedScope(parameter).isPresent();
   }
 
   /**
@@ -186,7 +226,11 @@ public final class NullableAnnotations {
 
   private static boolean annotatedWith(Element element, String qualifiedName) {
     return element.getAnnotationMirrors().stream()
-        .anyMatch(mirror -> mirror.getAnnotationType().toString().equals(qualifiedName));
+        .anyMatch(mirror -> qualifiedName(mirror).equals(qualifiedName));
+  }
+
+  private static String qualifiedName(AnnotationMirror mirror) {
+    return ((TypeElement) mirror.getAnnotationType().asElement()).getQualifiedName().toString();
   }
 
   /**

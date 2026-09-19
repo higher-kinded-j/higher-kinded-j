@@ -167,7 +167,9 @@ A [bean wire](beans_patch.md) needs no annotation: bean conventions leave `Optio
 ~~~
 
 ~~~admonish note title="Under `@NullMarked`"
-The bridged wire component is nullable by construction: `build` writes `null` into it for an absent value, so it must be declared to take one. A component declared non-null is refused: one inside a JSpecify `@NullMarked` package, class or module that carries no `@Nullable`, or one carrying a non-null annotation such as `@NonNull`, `@Nonnull` or `@NotNull`. Declare it `@Nullable String nickname`, so the wire record says what the mapping does with it. Any annotation named `Nullable` counts, whichever library it comes from.
+The bridged wire component is nullable by construction: `build` writes `null` into it for an absent value, so it must be declared to take one. A component declared non-null is refused: one carrying a non-null annotation such as `@NonNull`, `@Nonnull` or `@NotNull`, or one that carries no `@Nullable` inside a JSpecify `@NullMarked` package, class or module. Declare it `@Nullable String nickname`, so the wire record says what the mapping does with it. On an array the annotation goes before the brackets, `String @Nullable [] tags`, since `@Nullable String[]` makes the elements nullable and leaves the array non-null.
+
+Any annotation named `Nullable` or `CheckForNull` counts here, whichever library it comes from, and so does JSR-305's `@Nonnull(when = MAYBE)`: this rule refuses a build, so it reads more widely than the fixed list of names that decides which Focus paths are null-safe. A component typed by a type variable follows the variable's bounds: a plain `<T>` declared in a `@NullMarked` scope is non-null, as its bound `Object` is, and `<T extends @Nullable Object>` leaves the nullness to the type argument, so it bridges.
 ~~~
 
 ~~~admonish example title="The same pair without the annotation, refused" collapsible=true
