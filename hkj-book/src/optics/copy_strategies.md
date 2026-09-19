@@ -185,7 +185,7 @@ interface MoneyOpticsSpec extends OpticsSpec<Money> {
 }
 ```
 
-Naming both halves explicitly is what makes this strategy work where auto-detection cannot: `@ImportOptics` requires the getter's return type to match the wither's parameter exactly, and here you simply say which pair to use. The wither still has to hand back the source type, read under the arguments the spec gives it: on a `Draft<T>`, a `Draft<String> withId(String)` serves an `OpticsSpec<Draft<String>>`, and a wither that returns the type raw, or as a supertype, is refused at the spec method. See the entry in [Compiler Errors](compiler_errors.md#wither--returns--not-the-source-type-).
+Naming both halves explicitly is what makes this strategy work where auto-detection cannot: `@ImportOptics` requires the getter's return type to match the wither's parameter exactly, and here you simply say which pair to use. The wither still has to hand back the source type, read under the arguments the spec gives it: on a `Draft<T>`, a `Draft<String> withId(String)` serves an `OpticsSpec<Draft<String>>`, and a wither that returns the type raw, or as a supertype, is refused at the spec method. Where the wither is overloaded, the one checked is the one the call binds: the lens passes the new value typed by its focus, `Long` here, and javac chooses among the overloads by that type. A name the type does not have, or that the generated class cannot call, one none of whose overloads takes the focus, a choice javac could not make, and a `static` method are each refused at the spec method too. See the [wither entries](compiler_errors.md#wither--has-no-method--for-the-generated-lens-to-call) in Compiler Errors.
 
 ### `@ViaConstructor`: constructor-only value types
 

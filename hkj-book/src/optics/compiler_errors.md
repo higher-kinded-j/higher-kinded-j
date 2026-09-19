@@ -64,7 +64,11 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`is not public and so cannot be named from`](#viacopyandset-copyconstructor-names--which-is-not-public-and-so-cannot-be-named-from-) | `copyConstructor` names a type the generated class cannot see |
 | [`and no constructor accepts`](#viacopyandset-copyconstructor-names--which--reaches-as--and-no-constructor-accepts) | No copy constructor takes the supertype you named |
 | [`is written with a wildcard type argument`](#viacopyandset--is-written-with-a-wildcard-type-argument) | A constructor rebuild cannot be written for a wildcard source type |
-| [`not the source type`](#wither--returns--not-the-source-type-) | The method `@Wither` names returns something other than the source type |
+| [`not the source type`](#wither--returns--not-the-source-type-) | The method a `@Wither` call binds returns something other than the source type |
+| [`for the generated lens to call`](#wither--has-no-method--for-the-generated-lens-to-call) | `@Wither` names a method the source type does not have, or one the generated class cannot reach |
+| [`takes the lens's focus type`](#wither-no-method--of--takes-the-lenss-focus-type-) | No method of the name `@Wither` gives takes the lens's focus |
+| [`cannot choose between`](#wither-the-generated-call-to--cannot-choose-between--and-) | More than one overload takes the focus, none more closely than the rest |
+| [`is static, so the generated lens cannot rebuild`](#wither--is-static-so-the-generated-lens-cannot-rebuild-a--through-it) | The overload the focus binds is a static method |
 | [`focuses '...', which is not a '...'`](#importoptics--focuses--which-is-not-a-) | A generated prism's focus is a value rather than a variant of the source |
 | [`cannot find symbol`, inside `XPrisms.java`](#cannot-find-symbol-inside-the-generated-xprismsjava-after-using-matchwhen) | A `@MatchWhen` predicate or getter name is misspelt |
 | [`requires a prism hint annotation`](#prism-method-x-requires-a-prism-hint-annotation-instanceof-or-matchwhen) | A spec `Prism` method has neither `@InstanceOf` nor `@MatchWhen` |
@@ -840,12 +844,14 @@ interface SlotOpticsSpec extends OpticsSpec<Slot<?>> {
 
 ### "@Wither: '...' returns '...', not the source type '...'"
 
-The method a spec's `@Wither` names hands back something other than the source type the spec declares: that type raw, the type under other arguments, or a supertype.
+The method a spec's `@Wither` call binds hands back something other than the source type the spec declares: that type raw, the type under other arguments, or a supertype.
 
 **Fix.** Name a wither that returns the source type. Where the wither returns the type under fixed arguments, `Draft<String> withId(String)` on a `Draft<T>`, declare the spec over that instantiation, `OpticsSpec<Draft<String>>`, and it serves as it is. Otherwise rebuild the source type with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. See [Copy Strategies](copy_strategies.md#wither-types-with-withx-methods).
 
 ~~~admonish note title="Why" collapsible=true
-The generated lens sets through the wither and hands its result back as the source type. A raw return gets there only by an unchecked conversion, in a generated file your own `@SuppressWarnings` does not reach, and any other type does not get there at all: `Base<String>`, inherited by a `Sub extends Base<String>`, is not a `Sub`. The wither is read on the source type as the spec names it, which is why the fixed-argument case above works, and a retag, `<U> Draft<U> withId(String)`, is accepted because the call infers `U` back to the spec's argument. A variable that only a wildcard argument stands for, as in a spec over `Draft<? extends Number>`, is not inferred, and such a wither is refused. Only the return is checked, over the one-parameter instance methods the generated class can call: a name none of them carries is reported by javac, at the call in the generated file. Imported by class literal instead, `@ImportOptics({Draft.class})`, such a wither is not paired at all, under the [pairing rule](importing_optics.md#wither-classes-to-lenses).
+The generated lens sets through the wither and hands its result back as the source type. A raw return gets there only by an unchecked conversion, in a generated file your own `@SuppressWarnings` does not reach, and any other type does not get there at all: `Base<String>`, inherited by a `Sub extends Base<String>`, is not a `Sub`. The wither is read on the source type as the spec names it, which is why the fixed-argument case above works, and a retag, `<U> Draft<U> withId(String)`, is accepted because the call infers `U` back to the spec's argument. A variable that only a wildcard argument stands for, as in a spec over `Draft<? extends Number>`, is not inferred, and such a wither is refused.
+
+Where the name is overloaded, the method checked is the one the call binds. The lens passes the new value typed by its focus, and javac chooses among the overloads by that type, so beside a `withN(int)` that returns the source type, an `Object withN(Integer)` is the one an `Integer` focus calls, and the one refused. Where that choice rests on inference, a method whose parameter is one of its own type variables or one taking varargs, the name is accepted when one of the methods the call might bind is an instance method returning the source type, and javac checks the call itself. A focus written as a wildcard is read the same way, since such a lens infers its focus from the getter as much as from the wildcard. Imported by class literal instead, `@ImportOptics({Draft.class})`, such a wither is not paired at all, under the [pairing rule](importing_optics.md#wither-classes-to-lenses).
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
@@ -874,6 +880,170 @@ interface DraftOpticsSpec<T> extends OpticsSpec<Draft<T>> {
 
     @Wither(value = "withId", getter = "id")
     Lens<Draft<T>, String> id();
+}
+```
+~~~
+
+### "@Wither: '...' has no method '...' for the generated lens to call"
+
+The method a spec's `@Wither` names is not one the generated class can call on the source type: the name is misspelt, or the method is `private`, or package-private in another package. Where the name is declared but out of reach, the message says so rather than claiming the type has no such method.
+
+**Fix.** Correct the name. The message lists the source type's withers with the value each one takes, its one-parameter instance methods that hand it back, and offers the nearest when the name is a near miss. Where the type has none, rebuild it with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. See [Copy Strategies](copy_strategies.md#wither-types-with-withx-methods).
+
+~~~admonish note title="Why" collapsible=true
+The generated lens sets through `source.withX(newValue)`, so the method has to exist, declared or inherited, where the class generated beside your spec can reach it. The name is checked at the spec method rather than left to javac, whose `cannot find symbol` would point into the generated file.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "has no method 'withIdentifier' for the generated lens to call" -->
+```java
+final class Ticket {
+
+    private final String id;
+
+    Ticket(String id) {
+        this.id = id;
+    }
+
+    public String id() {
+        return id;
+    }
+
+    public Ticket withId(String id) {
+        return new Ticket(id);
+    }
+}
+
+@ImportOptics
+interface TicketOpticsSpec extends OpticsSpec<Ticket> {
+
+    @Wither(value = "withIdentifier", getter = "id")
+    Lens<Ticket, String> id();
+}
+```
+~~~
+
+### "@Wither: No method '...' of '...' takes the lens's focus type '...'"
+
+The source type has methods of the name `@Wither` gives, and none of them takes the value the lens sets, whose type is the lens's focus.
+
+**Fix.** Name a wither that takes the value the getter reads, or point `getter` at an accessor one of the listed methods takes and declare the focus as its type. The focus alone rarely settles it: the getter pins it from below, so a focus wide enough to read the getter is usually too wide for a parameter the getter's own type already failed. Otherwise rebuild the source type with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. Where the parameter is a type the source type's wildcard stands for, the `T` of `withValue(T)` on a spec over `Cell<?>`, declare the spec over the type the wildcard stands for, a type parameter of the spec if need be: `interface CellOpticsSpec<T> extends OpticsSpec<Cell<T>>`.
+
+~~~admonish note title="Why" collapsible=true
+The generated setter passes the new value to the wither as the focus type, so a method taking another type cannot be called with it. A parameter that a wildcard argument of the source type stands in takes no value at all, since the type it stands for is unknown, which is why that case is fixed on the source type rather than the focus. A lens whose *focus* is a wildcard is not checked here: javac infers such a focus from the getter as much as from the wildcard, so which method the call binds is left to javac.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "No method 'withCount' of 'Tally' takes the lens's focus type 'String'" -->
+```java
+final class Tally {
+
+    private final String count;
+
+    Tally(String count) {
+        this.count = count;
+    }
+
+    public String count() {
+        return count;
+    }
+
+    public Tally withCount(Integer count) {
+        return new Tally(String.valueOf(count));
+    }
+}
+
+@ImportOptics
+interface TallyOpticsSpec extends OpticsSpec<Tally> {
+
+    @Wither(value = "withCount", getter = "count")
+    Lens<Tally, String> count();
+}
+```
+~~~
+
+### "@Wither: The generated call to '...' cannot choose between '...' and '...'"
+
+More than one overload of the wither takes the lens's focus, and none takes it more closely than the rest, so javac would report the generated call as ambiguous.
+
+**Fix.** Declare the lens's focus as the parameter type of the overload you mean. Below, a `Lens<Ident, CharSequence>` reaches only `withId(CharSequence)`, and the getter's `String` is still a `CharSequence`.
+
+~~~admonish note title="Why" collapsible=true
+javac calls the overload whose parameter is the most specific of those the argument fits. A `String` fits both `Serializable` and `CharSequence`, and neither of those is a subtype of the other, so there is no most specific one. Naming the focus as one of the parameter types leaves that overload the only one the argument fits.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "cannot choose between 'withId(Serializable)' and 'withId(CharSequence)'" -->
+```java
+final class Ident {
+
+    private final String id;
+
+    Ident(String id) {
+        this.id = id;
+    }
+
+    public String id() {
+        return id;
+    }
+
+    public Ident withId(java.io.Serializable id) {
+        return new Ident(id.toString());
+    }
+
+    public Ident withId(CharSequence id) {
+        return new Ident(id.toString());
+    }
+}
+
+@ImportOptics
+interface IdentOpticsSpec extends OpticsSpec<Ident> {
+
+    @Wither(value = "withId", getter = "id")
+    Lens<Ident, String> id();
+}
+```
+~~~
+
+### "@Wither: '...' is static, so the generated lens cannot rebuild a '...' through it"
+
+The overload of the wither that the lens's focus binds is a `static` method.
+
+**Fix.** Declare the lens's focus as the parameter type of an instance overload, which is what binds it instead; or name an instance wither; or rebuild the source type with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`.
+
+~~~admonish note title="Why" collapsible=true
+The generated lens calls the wither on the value it sets, and a static method never reads that value, so whatever it builds keeps none of the fields it was not passed. The call is checked among every method of the name, static ones included, because javac weighs them all: here a `String` binds the static `withId(CharSequence)` ahead of the instance `withId(Object)`.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "'withId(CharSequence)' is static" -->
+```java
+final class Stamp {
+
+    private final String id;
+
+    Stamp(String id) {
+        this.id = id;
+    }
+
+    public String id() {
+        return id;
+    }
+
+    public static Stamp withId(CharSequence id) {
+        return new Stamp(id.toString());
+    }
+
+    public Stamp withId(Object id) {
+        return new Stamp(String.valueOf(id));
+    }
+}
+
+@ImportOptics
+interface StampOpticsSpec extends OpticsSpec<Stamp> {
+
+    @Wither(value = "withId", getter = "id")
+    Lens<Stamp, String> id();
 }
 ```
 ~~~
