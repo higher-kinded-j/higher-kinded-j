@@ -253,6 +253,32 @@ class TypeUseAnnotationSurvivalTest {
                       public interface Lookup<T extends @Nullable Object> {
                         @PathVia
                         Optional<@Nullable String> find(@Nullable String key);
+
+                        @PathVia
+                        Optional<@Nullable T> get(@Nullable T key);
+
+                        @PathVia
+                        <R extends @Nullable T> Optional<R> pick(R candidate);
+                      }
+                      """),
+                  source(
+                      "com.example.Names",
+                      """
+                      package com.example;
+
+                      import java.util.Optional;
+                      import org.jspecify.annotations.Nullable;
+                      import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
+                      import org.higherkindedj.hkt.effect.annotation.PathVia;
+
+                      public interface Names {
+                        interface Base<E> {
+                          @PathVia
+                          Optional<@Nullable E> get(@Nullable E key);
+                        }
+
+                        @GeneratePathBridge
+                        interface Strings extends Base<String> {}
                       }
                       """));
 
@@ -267,6 +293,381 @@ class TypeUseAnnotationSurvivalTest {
           compilation,
           "com.example.LookupPaths",
           "public OptionalPath<@Nullable String> find(@Nullable String key)");
+      // Written on a type variable's use, it is lost to reading the method under the interface,
+      // the declaring one included, and has to be put back from the declaration.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.LookupPaths",
+          "public OptionalPath<@Nullable T> get(@Nullable T key)");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.LookupPaths",
+          "public <R extends @Nullable T> OptionalPath<R> pick(R candidate)");
+      // Inherited under an instantiation, it lands on the type that replaced the variable.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.StringsPaths",
+          "public OptionalPath<@Nullable String> get(@Nullable String key)");
+    }
+
+    @Test
+    @DisplayName("@GenerateMapping keeps it where the Impl restates a leaf, a marker or a group")
+    void generateMappingKeepsIt() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .compile(
+                  source(
+                      "com.example.Types",
+                      """
+                      package com.example;
+
+                      import org.jspecify.annotations.Nullable;
+
+                      public final class Types {
+                        private Types() {}
+
+                        public record Tagged<N, V>(N name, V value) {}
+
+                        public record TaggedDto<ND, VD>(ND name, VD value) {}
+
+                        public record Person<T>(T name) {}
+
+                        public record PersonDto<T>(T fullName) {}
+
+                        public record Inner<T extends @Nullable Object>(T a, String b) {}
+
+                        public record Outer<T extends @Nullable Object>(
+                            Inner<@Nullable T> inner, String id) {}
+
+                        public record OuterDto(@Nullable String a, String b, String id) {}
+                      }
+                      """),
+                  source(
+                      "com.example.Vocabulary",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.optics.annotations.MapField;
+                      import org.higherkindedj.optics.validated.ValidatedPrism;
+                      import org.jspecify.annotations.Nullable;
+
+                      public interface Vocabulary {
+                        interface NameLeaf<N, ND> {
+                          ValidatedPrism<@Nullable ND, @Nullable N> name();
+                        }
+
+                        interface Renames<T> {
+                          @MapField(to = "fullName")
+                          @Nullable T name();
+                        }
+                      }
+                      """),
+                  source(
+                      "com.example.Specs",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.optics.annotations.Flatten;
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+                      import org.higherkindedj.optics.validated.ValidatedPrism;
+                      import org.jspecify.annotations.Nullable;
+
+                      public interface Specs {
+                        @GenerateMapping
+                        interface TaggedMapping<N, ND, V, VD>
+                            extends Vocabulary.NameLeaf<N, ND>,
+                                MappingSpec<Types.Tagged<N, V>, Types.TaggedDto<ND, VD>> {
+                          ValidatedPrism<VD, @Nullable V> value();
+                        }
+
+                        @GenerateMapping
+                        interface BoundMapping<V, VD>
+                            extends Vocabulary.NameLeaf<String, String>,
+                                MappingSpec<Types.Tagged<String, V>, Types.TaggedDto<String, VD>> {
+                          ValidatedPrism<VD, V> value();
+                        }
+
+                        @GenerateMapping
+                        interface PersonMapping<T>
+                            extends Vocabulary.Renames<T>,
+                                MappingSpec<Types.Person<T>, Types.PersonDto<T>> {}
+
+                        @GenerateMapping
+                        interface OuterMapping extends MappingSpec<Types.Outer<String>, Types.OuterDto> {
+                          @Flatten
+                          Types.Inner<@Nullable String> inner();
+                        }
+                      }
+                      """));
+
+      assertThat(compilation).succeeded();
+      // The Impl restates each leaf as its field, accessor and of(...) parameter, own and
+      // inherited alike: reading a member under the spec loses what was written on a type
+      // variable's use.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.SpecsTaggedMappingImpl",
+          "public ValidatedPrism<VD, @Nullable V> value()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.SpecsTaggedMappingImpl",
+          "public ValidatedPrism<@Nullable ND, @Nullable N> name()");
+      // Bound to String by the spec, the variable's use is still the nullable one the mix-in wrote.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.SpecsBoundMappingImpl",
+          "public ValidatedPrism<@Nullable String, @Nullable String> name()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.SpecsPersonMappingImpl", "public @Nullable T name()");
+      // A flattened group is rebuilt under the domain's instantiation of the component.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.SpecsOuterMappingImpl",
+          "new Types.Inner<@Nullable String>(a, b)");
+    }
+
+    @Test
+    @DisplayName("@GenerateMapping keeps it where a mix-in's own extends clause wrote it")
+    void generateMappingKeepsItThroughAMixinsOwnClause() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .compile(
+                  source(
+                      "com.example.Chain",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MapField;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+                      import org.higherkindedj.optics.validated.ValidatedPrism;
+                      import org.jspecify.annotations.Nullable;
+
+                      public interface Chain {
+                        record Tagged<N, V>(N name, V value) {}
+
+                        record TaggedDto<ND, VD>(ND name, VD value) {}
+
+                        record Person<T>(T name) {}
+
+                        record PersonDto<T>(T fullName) {}
+
+                        interface NameLeaf<N, ND> {
+                          ValidatedPrism<ND, N> name();
+                        }
+
+                        interface NullableName<M, MD> extends NameLeaf<@Nullable M, MD> {}
+
+                        interface Renames<R> {
+                          @MapField(to = "fullName")
+                          R name();
+                        }
+
+                        interface NullableRenames<Q> extends Renames<@Nullable Q> {}
+
+                        @GenerateMapping
+                        interface TaggedMapping<A, AD, V, VD>
+                            extends NullableName<A, AD>,
+                                MappingSpec<Tagged<A, V>, TaggedDto<AD, VD>> {
+                          ValidatedPrism<VD, V> value();
+                        }
+
+                        @GenerateMapping
+                        interface PersonMapping<T>
+                            extends NullableRenames<T>, MappingSpec<Person<T>, PersonDto<T>> {}
+                      }
+                      """));
+
+      assertThat(compilation).succeeded();
+      // The member names its own variable bare; the clause binding it to the spec's said nullable.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.ChainTaggedMappingImpl",
+          "public ValidatedPrism<AD, @Nullable A> name()");
+      assertGeneratedCodeContains(
+          compilation, "com.example.ChainPersonMappingImpl", "public @Nullable T name()");
+    }
+
+    @Test
+    @DisplayName("@GenerateMapping keeps it in the type witness a nested generic spec is called by")
+    void generateMappingKeepsItInANestedSpecsTypeWitness() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .compile(
+                  source(
+                      "com.example.Nest",
+                      """
+                      package com.example;
+
+                      import java.util.List;
+                      import java.util.Map;
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+                      import org.higherkindedj.optics.annotations.UpdateSpec;
+                      import org.jspecify.annotations.Nullable;
+
+                      public interface Nest {
+                        record Box<T>(T value) {}
+
+                        record BoxDto<T>(T value) {}
+
+                        @GenerateMapping
+                        interface BoxMapping<T> extends MappingSpec<Box<T>, BoxDto<T>> {}
+
+                        record Bin<T>(T items) {}
+
+                        record BinDto<T>(T items) {}
+
+                        @GenerateMapping
+                        interface BinMapping<T> extends MappingSpec<Bin<T[]>, BinDto<T[]>> {}
+
+                        record Pair<A, B>(A first, B second) {}
+
+                        record PairDto<A, B>(A first, B second) {}
+
+                        @GenerateMapping
+                        interface PairMapping<T> extends MappingSpec<Pair<T, int[]>, PairDto<T, int[]>> {}
+
+                        record Outer<X>(
+                            Box<@Nullable X> box,
+                            List<Box<@Nullable X>> boxes,
+                            Bin<@Nullable X[]> bin,
+                            Pair<@Nullable X, int[]> pair) {}
+
+                        record OuterDto<X>(
+                            BoxDto<X> box, List<BoxDto<X>> boxes, BinDto<X[]> bin, PairDto<X, int[]> pair) {}
+
+                        @GenerateMapping
+                        interface OuterMapping extends MappingSpec<Outer<String>, OuterDto<String>> {}
+
+                        record Keyed<X>(Map<X, Box<@Nullable X>> byKey, Map<String, Box<@Nullable X>> byName) {}
+
+                        record KeyedDto<X>(Map<X, BoxDto<X>> byKey, Map<String, BoxDto<X>> byName) {}
+
+                        @GenerateMapping
+                        interface KeyedMapping<X> extends MappingSpec<Keyed<X>, KeyedDto<X>> {}
+
+                        record Patched(Box<@Nullable String> box) {}
+
+                        class PatchedPatch {
+                          private BoxDto<String> box;
+
+                          public BoxDto<String> getBox() {
+                            return box;
+                          }
+
+                          public void setBox(BoxDto<String> box) {
+                            this.box = box;
+                          }
+                        }
+
+                        @GenerateMapping
+                        interface PatchedUpdate extends UpdateSpec<Patched, PatchedPatch> {}
+                      }
+                      """));
+
+      assertThat(compilation).succeeded();
+      // Read under Outer<String>, each component lost its @Nullable, and so did the binding; the
+      // witness is named from the component's declaration instead: the whole component, a List's
+      // element, and an array element of a spec whose domain names T[].
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NestOuterMappingImpl",
+          "NestBoxMappingImpl.<@Nullable String>instance().asValidatedPrism().build(domain.box())");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NestOuterMappingImpl",
+          "NestBoxMappingImpl.<@Nullable String>instance().asValidatedPrism().buildAll(domain.boxes())");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NestOuterMappingImpl",
+          "NestBinMappingImpl.<@Nullable String>instance()");
+      // A part of the spec's domain that is no variable, the int[] beside T, takes no witness.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NestOuterMappingImpl",
+          "NestPairMappingImpl.<@Nullable String>instance()");
+      assertGeneratedCodeDoesNotContain(
+          compilation, "com.example.NestOuterMappingImpl", "<String>instance()");
+      // A Map's value, found past a key typed by the spec's own variable, and past one that is a
+      // type of its own.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NestKeyedMappingImpl",
+          "NestBoxMappingImpl.<@Nullable X>instance()");
+      // A sparse update's domain is never generic, so there is nothing to recover, and nothing
+      // lost.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NestPatchedUpdateImpl",
+          "NestBoxMappingImpl.<@Nullable String>instance()");
+    }
+
+    @Test
+    @DisplayName("@ImportOptics keeps it in the lens a checked traversal composes through")
+    void importOpticsKeepsItInTheLensATraversalComposesThrough() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(
+                  source(
+                      "com.external.Bag",
+                      """
+                      package com.external;
+
+                      import java.util.List;
+                      import org.jspecify.annotations.Nullable;
+
+                      public final class Bag<U extends @Nullable Object> {
+                        private final List<U> items;
+
+                        public Bag(List<U> items) {
+                          this.items = items;
+                        }
+
+                        public List<U> items() {
+                          return items;
+                        }
+
+                        public Bag<U> withItems(List<U> items) {
+                          return new Bag<>(items);
+                        }
+                      }
+                      """),
+                  source(
+                      "com.test.BagSpec",
+                      """
+                      package com.test;
+
+                      import com.external.Bag;
+                      import java.util.List;
+                      import org.higherkindedj.optics.Lens;
+                      import org.higherkindedj.optics.Traversal;
+                      import org.higherkindedj.optics.annotations.ImportOptics;
+                      import org.higherkindedj.optics.annotations.OpticsSpec;
+                      import org.higherkindedj.optics.annotations.ThroughField;
+                      import org.higherkindedj.optics.annotations.Wither;
+                      import org.jspecify.annotations.Nullable;
+
+                      @ImportOptics
+                      public interface BagSpec<U extends @Nullable Object> extends OpticsSpec<Bag<U>> {
+                        @Wither("withItems")
+                        Lens<Bag<U>, List<@Nullable U>> items();
+
+                        @ThroughField(field = "items")
+                        Traversal<Bag<U>, @Nullable U> eachItem();
+                      }
+                      """));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.test.Bag",
+          "Lens<com.external.Bag<U>, List<@Nullable U>> lens = Bag.items()");
     }
 
     @Test
@@ -416,6 +817,135 @@ class TypeUseAnnotationSurvivalTest {
           "com.example.BoxLenses",
           "public static <T extends @Nullable Object> Lens<Box<T>, T> value()");
       assertGeneratedCodeDoesNotContain(compilation, "com.example.BoxLenses", "Box<@Marked T>");
+    }
+  }
+
+  /**
+   * The other half of the contract: an annotation the generated file cannot write is left off
+   * rather than written, since the file lands where its generator puts it and writing one it cannot
+   * name fails the build compiling it.
+   */
+  @Nested
+  @DisplayName("an annotation the generated file cannot name is left off")
+  class UnnameableAnnotations {
+
+    @Test
+    @DisplayName("a package-private annotation is kept at home and left off elsewhere")
+    void aPackagePrivateAnnotationIsKeptAtHomeAndLeftOffElsewhere() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new LensProcessor(), new MappingProcessor())
+              .compile(
+                  source(
+                      "com.home.Tag",
+                      """
+                      package com.home;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Target(ElementType.TYPE_USE)
+                      @interface Tag {}
+                      """),
+                  source(
+                      "com.home.Named",
+                      """
+                      package com.home;
+
+                      import org.higherkindedj.optics.annotations.GenerateLenses;
+
+                      @GenerateLenses
+                      public record Named(@Tag String name) {}
+                      """),
+                  source(
+                      "com.home.Moved",
+                      """
+                      package com.home;
+
+                      import org.higherkindedj.optics.annotations.GenerateLenses;
+
+                      @GenerateLenses(targetPackage = "com.away")
+                      public record Moved(@Tag String name) {}
+                      """),
+                  source(
+                      "com.home.NameLeaf",
+                      """
+                      package com.home;
+
+                      import org.higherkindedj.optics.validated.ValidatedPrism;
+
+                      public interface NameLeaf<N> {
+                        ValidatedPrism<@Tag String, N> name();
+                      }
+                      """),
+                  source(
+                      "com.away.Specs",
+                      """
+                      package com.away;
+
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+                      import org.higherkindedj.optics.validated.ValidatedPrism;
+
+                      public interface Specs {
+                        record Tagged<N, V>(N name, V value) {}
+
+                        record TaggedDto<VD>(String name, VD value) {}
+
+                        @GenerateMapping
+                        interface TaggedMapping<N, V, VD>
+                            extends com.home.NameLeaf<N>, MappingSpec<Tagged<N, V>, TaggedDto<VD>> {
+                          ValidatedPrism<VD, V> value();
+                        }
+                      }
+                      """));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation, "com.home.NamedLenses", "public static Lens<Named, @Tag String> name()");
+      assertGeneratedCodeContains(
+          compilation, "com.away.MovedLenses", "public static Lens<Moved, String> name()");
+      // The mix-in's package-private annotation, restated by an Impl in the spec's package.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.away.SpecsTaggedMappingImpl",
+          "public ValidatedPrism<String, N> name()");
+    }
+
+    @Test
+    @DisplayName("@ImportOptics leaves off one private to the type it imports")
+    void importOpticsLeavesOffAPrivateAnnotation() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(
+                  source(
+                      "com.external.Customer",
+                      """
+                      package com.external;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      public record Customer(@Customer.Internal String name) {
+                        @Target(ElementType.TYPE_USE)
+                        private @interface Internal {}
+                      }
+                      """),
+                  source(
+                      "com.myapp.optics.package-info",
+                      """
+                      @ImportOptics({com.external.Customer.class})
+                      package com.myapp.optics;
+
+                      import org.higherkindedj.optics.annotations.ImportOptics;
+                      """));
+
+      assertThat(compilation).succeeded();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.CustomerLenses",
+          "public static Lens<Customer, String> name()");
     }
   }
 

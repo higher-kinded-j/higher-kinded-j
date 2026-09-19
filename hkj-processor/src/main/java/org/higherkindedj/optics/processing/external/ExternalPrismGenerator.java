@@ -66,7 +66,8 @@ public class ExternalPrismGenerator {
     // Generate prism methods for each permitted subtype
     for (TypeElement subtype : analysis.permittedSubtypes()) {
       MethodSpec prism =
-          SubtypePrismGenerator.prismMethodFor(messager, "@ImportOptics", sealedInterface, subtype);
+          SubtypePrismGenerator.prismMethodFor(
+              messager, "@ImportOptics", sealedInterface, subtype, targetPackage);
       if (prism != null) {
         prismsClassBuilder.addMethod(prism);
       }

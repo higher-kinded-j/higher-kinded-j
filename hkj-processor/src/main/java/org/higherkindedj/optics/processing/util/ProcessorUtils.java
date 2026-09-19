@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -28,6 +30,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
@@ -715,108 +718,275 @@ public final class ProcessorUtils {
    *
    * <p>The walk mirrors javapoet's own, re-attaching each mirror's annotations as it goes, so an
    * annotation is kept wherever it was written: on the type itself, on a type argument at any
-   * depth, on an array's component or on the array, and on a wildcard bound.
+   * depth, on an array's component or on the array, and on a wildcard bound. A type read with
+   * {@link Types#asMemberOf} has already lost the annotations written on a type variable's use;
+   * name one of those with {@link #typeNameOf(TypeMirror, TypeMirror, DeclaredType, String)}.
+   *
+   * <p>An annotation is kept only where some generated file could write it cleanly. One javac could
+   * not resolve, which is one missing from the compile classpath, one private anywhere in its
+   * nesting, and one deprecated anywhere in its nesting are left off: the first two fail the build
+   * compiling the generated file, and the third draws a warning there that no one can suppress. A
+   * package-private one is kept: it can be written from its own package, which is where a generated
+   * file lands unless a target package says otherwise. A generator that knows its package names
+   * with {@link #typeNameOf(TypeMirror, String)}, which decides exactly.
    *
    * @param type the type to name; must not be null
    * @return its name, annotated as the source annotated it (non-null)
    * @since 0.4.10
    */
   public static TypeName typeNameOf(TypeMirror type) {
-    return typeNameOf(type, _ -> true);
+    return new Naming(Map.of(), annotation -> writableSomewhere(annotation.getAnnotationType()))
+        .name(type, type);
   }
 
   /**
-   * The name of a type as written, keeping at every depth only the type-use annotations {@code
-   * keep} accepts.
-   *
-   * <p>For a generator that writes out a type its source only inferred: the type itself was already
-   * usable there, but an annotation on it is a new name in the generated file, and one the
-   * consuming build may be unable to compile, which {@link #writableFrom} tells apart.
+   * {@link #typeNameOf(TypeMirror)} for a file written into {@code targetPackage}: an annotation is
+   * kept only where that package can write it cleanly, resolved, with every type in its nesting
+   * public or declared in that package, and none of them private or deprecated.
    *
    * @param type the type to name; must not be null
-   * @param keep which of its annotations to write; must not be null
-   * @return its name, annotated as the source annotated it, less what {@code keep} refused
-   *     (non-null)
+   * @param targetPackage the package the generated file is written into; must not be null
+   * @return its name, annotated as the source annotated it wherever the file can say so (non-null)
    * @since 0.4.11
    */
-  public static TypeName typeNameOf(TypeMirror type, Predicate<? super AnnotationMirror> keep) {
-    List<AnnotationSpec> annotations =
-        type.getAnnotationMirrors().stream().filter(keep).map(AnnotationSpec::get).toList();
-    // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's
-    // intersection implements DeclaredType, so a pattern switch would send one down the declared
-    // arm and ask it for a class element it does not have. Everything this does not rebuild -
-    // a primitive, a type variable, void, and the kinds that have no name at all - javapoet names
-    // from the mirror alone, and it stays javapoet's call which of those it refuses.
-    TypeName name =
-        switch (type.getKind()) {
-          case ARRAY -> ArrayTypeName.of(typeNameOf(((ArrayType) type).getComponentType(), keep));
-          case WILDCARD -> wildcardNameOf((WildcardType) type, keep);
-          case DECLARED, ERROR -> declaredNameOf((DeclaredType) type, keep);
-          default -> TypeName.get(type);
-        };
-    return annotations.isEmpty() ? name : name.annotated(annotations);
+  public static TypeName typeNameOf(TypeMirror type, String targetPackage) {
+    return new Naming(
+            Map.of(), annotation -> writableFrom(annotation.getAnnotationType(), targetPackage))
+        .name(type, type);
   }
 
   /**
-   * Whether a class generated into {@code targetPackage} can write {@code annotation} and still
-   * compile cleanly: its type is on the classpath, it can be named from there, and it is not
-   * deprecated.
+   * The name of a member's type read under an owner, with the type-use annotations its declaration
+   * wrote kept, for a file written into {@code targetPackage}.
    *
-   * <p>An annotation read from a class file names a type that need not be on the consuming build's
-   * classpath at all: a library's annotations are commonly a dependency the library does not pass
-   * on, and javac then reads the type as an error type. Such an annotation, one the target package
-   * cannot see, and a deprecated one each fail a build where the type it annotates was only ever
-   * inferred.
+   * <p>{@link Types#asMemberOf} replaces each type variable a member's type names with what the
+   * owner binds it to, and javac's substitution drops any annotation written on that use of the
+   * variable: {@code ValidatedPrism<String, @Nullable T>} comes back as {@code
+   * ValidatedPrism<String, T>}, even under the declaring type itself, where {@code T} is bound to
+   * {@code T}. An annotation on a variable's use applies to whatever replaces the variable, so this
+   * walks the substituted type beside the declared one and writes each such annotation onto the
+   * replacement, unless the replacement already carries one of the same annotation type.
    *
-   * @param elements the round's element utilities
-   * @param targetPackage the package the generated class is written into
-   * @return the test, for {@link #typeNameOf(TypeMirror, Predicate)}
+   * <p>The variable may be bound on the way, by a supertype clause between the member and the
+   * owner: under {@code Mid<M> extends NameLeaf<@Nullable M>}, the member's {@code N} is Mid's
+   * {@code @Nullable M} before it is the owner's anything. The walk follows the owner's
+   * superinterface clauses as written, from the variable to what each clause binds it to, and keeps
+   * what each of them wrote. Where the declaration and the substituted type part company, below a
+   * replaced variable, it goes on with the substituted type alone. Annotations are kept as {@link
+   * #typeNameOf(TypeMirror, String)} keeps them.
+   *
+   * @param type the member's type as the owner has it, {@code asMemberOf}'s answer; must not be
+   *     null
+   * @param declared the same type as the member declares it, such as its own {@code
+   *     getReturnType()}; must not be null
+   * @param owner the instantiation the member was read under; must not be null
+   * @param targetPackage the package the generated file is written into; must not be null
+   * @return its name, annotated as the source annotated it wherever the file can say so (non-null)
    * @since 0.4.11
    */
-  public static Predicate<AnnotationMirror> writableFrom(Elements elements, String targetPackage) {
-    return annotation -> {
-      DeclaredType type = annotation.getAnnotationType();
-      return type.getKind() == TypeKind.DECLARED
-          && reachableFrom(elements, type.asElement(), targetPackage)
-          && !elements.isDeprecated(type.asElement());
-    };
+  public static TypeName typeNameOf(
+      TypeMirror type, TypeMirror declared, DeclaredType owner, String targetPackage) {
+    return new Naming(
+            clausesOf(owner),
+            annotation -> writableFrom(annotation.getAnnotationType(), targetPackage))
+        .name(type, declared);
   }
 
-  private static TypeName declaredNameOf(
-      DeclaredType declared, Predicate<? super AnnotationMirror> keep) {
-    ClassName rawType = ClassName.get((TypeElement) declared.asElement());
-    TypeMirror enclosingType = declared.getEnclosingType();
-    // A static member has no enclosing instance type, so javac reports NONE for it and the kind
-    // test alone settles both cases.
-    TypeName enclosing =
-        enclosingType.getKind() == TypeKind.NONE ? null : typeNameOf(enclosingType, keep);
-    List<TypeName> argumentNames =
-        declared.getTypeArguments().stream().map(argument -> typeNameOf(argument, keep)).toList();
-    if (enclosing instanceof ParameterizedTypeName parameterised) {
-      return parameterised.nestedClass(rawType.simpleName(), argumentNames);
-    }
-    // An annotation on the enclosing type is written before it - `@Marker Outer.Inner` annotates
-    // Outer, not Inner - and ClassName.get(element) names the whole nesting from the element
-    // alone, so it carries none of it. Rebuilding the name under the enclosing keeps what was
-    // written there; for an unannotated enclosing it reproduces the same name.
-    if (enclosing instanceof ClassName enclosingName) {
-      rawType = enclosingName.nestedClass(rawType.simpleName());
-    }
-    return argumentNames.isEmpty()
-        ? rawType
-        : ParameterizedTypeName.get(rawType, argumentNames.toArray(new TypeName[0]));
+  /**
+   * Whether some generated file can write this annotation type cleanly: resolved, and neither
+   * private nor deprecated anywhere in its nesting.
+   */
+  private static boolean writableSomewhere(DeclaredType annotationType) {
+    return writable(annotationType, element -> true);
   }
 
-  private static TypeName wildcardNameOf(
-      WildcardType wildcard, Predicate<? super AnnotationMirror> keep) {
-    TypeMirror extendsBound = wildcard.getExtendsBound();
-    if (extendsBound != null) {
-      return WildcardTypeName.subtypeOf(typeNameOf(extendsBound, keep));
+  /**
+   * Whether a generated file in {@code targetPackage} can write this annotation type cleanly:
+   * resolved, and every type in its nesting public or declared in that package, and neither private
+   * nor deprecated.
+   */
+  private static boolean writableFrom(DeclaredType annotationType, String targetPackage) {
+    return writable(
+        annotationType,
+        element ->
+            element.getModifiers().contains(Modifier.PUBLIC)
+                || packageOf(element).equals(targetPackage));
+  }
+
+  private static boolean writable(DeclaredType annotationType, Predicate<Element> visible) {
+    if (annotationType.getKind() == TypeKind.ERROR) {
+      return false;
     }
-    TypeMirror superBound = wildcard.getSuperBound();
-    return superBound == null
-        ? WildcardTypeName.subtypeOf(ClassName.OBJECT)
-        : WildcardTypeName.supertypeOf(typeNameOf(superBound, keep));
+    for (Element current = annotationType.asElement();
+        current.getKind() != ElementKind.PACKAGE;
+        current = current.getEnclosingElement()) {
+      if (current.getModifiers().contains(Modifier.PRIVATE)
+          || current.getAnnotation(Deprecated.class) != null
+          || !visible.test(current)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static String packageOf(Element element) {
+    Element current = element;
+    while (current.getKind() != ElementKind.PACKAGE) {
+      current = current.getEnclosingElement();
+    }
+    return ((PackageElement) current).getQualifiedName().toString();
+  }
+
+  /**
+   * What the owner, and each superinterface clause below it as written, binds each type parameter
+   * to: the owner's own arguments, then every clause reached from its type, the first binding of a
+   * parameter kept. A variable bound to itself, as the declaring type's own instantiation binds
+   * each, leads nowhere and is left out; so is a raw clause, which binds nothing.
+   */
+  private static Map<Element, TypeMirror> clausesOf(DeclaredType owner) {
+    Map<Element, TypeMirror> clauses = new HashMap<>();
+    bindClause(owner, clauses);
+    bindSupertypeClauses((TypeElement) owner.asElement(), new HashSet<>(), clauses);
+    return clauses;
+  }
+
+  private static void bindSupertypeClauses(
+      TypeElement type, Set<TypeElement> visited, Map<Element, TypeMirror> clauses) {
+    if (!visited.add(type)) {
+      return;
+    }
+    for (TypeMirror parent : type.getInterfaces()) {
+      DeclaredType clause = (DeclaredType) parent;
+      bindClause(clause, clauses);
+      bindSupertypeClauses((TypeElement) clause.asElement(), visited, clauses);
+    }
+  }
+
+  private static void bindClause(DeclaredType clause, Map<Element, TypeMirror> clauses) {
+    List<? extends TypeParameterElement> parameters =
+        ((TypeElement) clause.asElement()).getTypeParameters();
+    List<? extends TypeMirror> arguments = clause.getTypeArguments();
+    if (arguments.size() != parameters.size()) {
+      return;
+    }
+    for (int index = 0; index < parameters.size(); index++) {
+      TypeMirror argument = arguments.get(index);
+      if (!(argument instanceof TypeVariable variable
+          && variable.asElement().equals(parameters.get(index)))) {
+        clauses.putIfAbsent(parameters.get(index), argument);
+      }
+    }
+  }
+
+  /**
+   * One naming walk: the supertype clauses a variable may be bound through, and which annotations
+   * the file being written can carry.
+   */
+  private record Naming(
+      Map<Element, TypeMirror> clauses, Predicate<? super AnnotationMirror> writable) {
+
+    /**
+     * The declaration's counterpart of {@code type}, where it is of the same kind, or {@code type}
+     * itself where the two part company: below a variable nothing binds, the declaration has no
+     * parts of its own, and the walk goes on with the substituted type alone.
+     */
+    private static TypeMirror sameKindOr(TypeMirror declared, TypeMirror type) {
+      return declared.getKind() == type.getKind() ? declared : type;
+    }
+
+    TypeName name(TypeMirror type, TypeMirror declared) {
+      Map<Element, AnnotationMirror> annotations = new LinkedHashMap<>();
+      type.getAnnotationMirrors()
+          .forEach(
+              annotation ->
+                  annotations.putIfAbsent(annotation.getAnnotationType().asElement(), annotation));
+      // A variable's use keeps what was written on it, and so does each clause binding it on the
+      // way to the owner; the last of them is what the substituted type stands in for.
+      TypeMirror twin = declared;
+      while (twin.getKind() == TypeKind.TYPEVAR) {
+        twin.getAnnotationMirrors()
+            .forEach(
+                annotation ->
+                    annotations.putIfAbsent(
+                        annotation.getAnnotationType().asElement(), annotation));
+        TypeMirror bound = clauses.get(((TypeVariable) twin).asElement());
+        if (bound == null) {
+          break;
+        }
+        twin = bound;
+      }
+      List<AnnotationSpec> specs =
+          annotations.values().stream().filter(writable).map(AnnotationSpec::get).toList();
+      // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's
+      // intersection implements DeclaredType, so a pattern switch would send one down the declared
+      // arm and ask it for a class element it does not have. Everything this does not rebuild -
+      // a primitive, a type variable, void, and the kinds that have no name at all - javapoet
+      // names from the mirror alone, and it stays javapoet's call which of those it refuses.
+      TypeName name =
+          switch (type.getKind()) {
+            case ARRAY -> arrayNameOf((ArrayType) type, twin);
+            case WILDCARD -> wildcardNameOf((WildcardType) type, twin);
+            case DECLARED, ERROR -> declaredNameOf((DeclaredType) type, twin);
+            default -> TypeName.get(type);
+          };
+      return specs.isEmpty() ? name : name.annotated(specs);
+    }
+
+    private TypeName arrayNameOf(ArrayType array, TypeMirror declared) {
+      ArrayType twin = (ArrayType) sameKindOr(declared, array);
+      return ArrayTypeName.of(name(array.getComponentType(), twin.getComponentType()));
+    }
+
+    private TypeName declaredNameOf(DeclaredType declared, TypeMirror written) {
+      // The declaration corresponds part for part only where it names the same shape: a raw read
+      // of a generic type drops the arguments.
+      DeclaredType sameKind = (DeclaredType) sameKindOr(written, declared);
+      DeclaredType twin =
+          sameKind.getTypeArguments().size() == declared.getTypeArguments().size()
+              ? sameKind
+              : declared;
+      ClassName rawType = ClassName.get((TypeElement) declared.asElement());
+      TypeMirror enclosingType = declared.getEnclosingType();
+      // A static member has no enclosing instance type, so javac reports NONE for it and the kind
+      // test alone settles both cases.
+      TypeName enclosing =
+          enclosingType.getKind() == TypeKind.NONE
+              ? null
+              : name(enclosingType, twin.getEnclosingType());
+      List<? extends TypeMirror> arguments = declared.getTypeArguments();
+      List<? extends TypeMirror> twinArguments = twin.getTypeArguments();
+      List<TypeName> argumentNames =
+          IntStream.range(0, arguments.size())
+              .mapToObj(index -> name(arguments.get(index), twinArguments.get(index)))
+              .toList();
+      if (enclosing instanceof ParameterizedTypeName parameterised) {
+        return parameterised.nestedClass(rawType.simpleName(), argumentNames);
+      }
+      // An annotation on the enclosing type is written before it - `@Marker Outer.Inner` annotates
+      // Outer, not Inner - and ClassName.get(element) names the whole nesting from the element
+      // alone, so it carries none of it. Rebuilding the name under the enclosing keeps what was
+      // written there; for an unannotated enclosing it reproduces the same name.
+      if (enclosing instanceof ClassName enclosingName) {
+        rawType = enclosingName.nestedClass(rawType.simpleName());
+      }
+      return argumentNames.isEmpty()
+          ? rawType
+          : ParameterizedTypeName.get(rawType, argumentNames.toArray(new TypeName[0]));
+    }
+
+    private TypeName wildcardNameOf(WildcardType wildcard, TypeMirror declared) {
+      // A substituted wildcard keeps the declared one's kind, so an extends bound pairs with an
+      // extends bound and a super bound with a super bound.
+      WildcardType twin = (WildcardType) sameKindOr(declared, wildcard);
+      TypeMirror extendsBound = wildcard.getExtendsBound();
+      if (extendsBound != null) {
+        return WildcardTypeName.subtypeOf(name(extendsBound, twin.getExtendsBound()));
+      }
+      TypeMirror superBound = wildcard.getSuperBound();
+      return superBound == null
+          ? WildcardTypeName.subtypeOf(ClassName.OBJECT)
+          : WildcardTypeName.supertypeOf(name(superBound, twin.getSuperBound()));
+    }
   }
 
   /**
@@ -847,6 +1017,24 @@ public final class ProcessorUtils {
   public static TypeVariableName typeVariableOf(TypeParameterElement parameter) {
     TypeName[] bounds =
         parameter.getBounds().stream().map(ProcessorUtils::typeNameOf).toArray(TypeName[]::new);
+    return TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
+  }
+
+  /**
+   * {@link #typeVariableOf(TypeParameterElement)} for a file written into {@code targetPackage},
+   * its bounds named as {@link #typeNameOf(TypeMirror, String)} names a type.
+   *
+   * @param parameter the type parameter to name; must not be null
+   * @param targetPackage the package the generated file is written into; must not be null
+   * @return its name, with its bounds annotated wherever the file can say so (non-null)
+   * @since 0.4.11
+   */
+  public static TypeVariableName typeVariableOf(
+      TypeParameterElement parameter, String targetPackage) {
+    TypeName[] bounds =
+        parameter.getBounds().stream()
+            .map(bound -> typeNameOf(bound, targetPackage))
+            .toArray(TypeName[]::new);
     return TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
   }
 

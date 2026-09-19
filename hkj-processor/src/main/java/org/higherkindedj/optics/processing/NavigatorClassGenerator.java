@@ -1094,7 +1094,9 @@ public class NavigatorClassGenerator {
         .<FieldShape>map(
             tier ->
                 new FieldShape.Path(
-                    tier, ProcessorUtils.typeNameOf(declared.getTypeArguments().get(1))))
+                    tier,
+                    ProcessorUtils.typeNameOf(
+                        declared.getTypeArguments().get(1), analysis.targetPackage())))
         .findFirst()
         .orElseGet(FieldShape.Unrecognised::new);
   }
@@ -1340,7 +1342,8 @@ public class NavigatorClassGenerator {
 
     // Add type parameters if the record is generic
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
+      methodBuilder.addTypeVariable(
+          ProcessorUtils.typeVariableOf(typeParam, analysis.targetPackage()));
     }
 
     // Build the constructor arguments for the setter lambda
@@ -1368,7 +1371,8 @@ public class NavigatorClassGenerator {
                 constructorArgs,
                 componentName));
     String wideningExpression =
-        WideningAnalysis.expression(widening(recordElement, component).steps(), args);
+        WideningAnalysis.expression(
+            widening(recordElement, component).steps(), args, analysis.targetPackage());
     methodBuilder.addStatement(
         "return new $L<>($T.of($T.of($T::$L, (source, newValue) -> new $T($L)), \"$L\")"
             + wideningExpression

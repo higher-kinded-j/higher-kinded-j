@@ -22,6 +22,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.optics.Lens;
@@ -102,7 +103,8 @@ public class SpecInterfaceGenerator {
     // Generate optic methods for abstract methods
     for (OpticMethodInfo opticMethod : analysis.opticMethods()) {
       MethodSpec method =
-          generateOpticMethod(opticMethod, analysis.sourceType(), specInterface, className);
+          generateOpticMethod(
+              opticMethod, analysis.sourceType(), specInterface, className, targetPackage);
       classBuilder.addMethod(method);
     }
 
@@ -116,20 +118,22 @@ public class SpecInterfaceGenerator {
    * @param sourceType the source type S
    * @param specInterface the spec interface, whose type parameters the method's are drawn from
    * @param className the generated class name
+   * @param targetPackage the package the generated class is written into
    * @return the generated method spec
    */
   private MethodSpec generateOpticMethod(
       OpticMethodInfo opticMethod,
       TypeMirror sourceType,
       TypeElement specInterface,
-      String className) {
+      String className,
+      String targetPackage) {
 
     String methodName = opticMethod.methodName();
     TypeMirror focusType = opticMethod.focusType();
     OpticKind opticKind = opticMethod.opticKind();
 
     // Build return type
-    TypeName returnType = buildOpticReturnType(opticKind, sourceType, focusType);
+    TypeName returnType = buildOpticReturnType(opticKind, sourceType, focusType, targetPackage);
 
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(methodName)
@@ -147,14 +151,15 @@ public class SpecInterfaceGenerator {
     // variables this signature actually names can be inferred at the call.
     var typeParameters = methodTypeParameters(specInterface, sourceType, focusType);
     for (TypeParameterElement typeParam : typeParameters) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, targetPackage));
     }
 
     // A THROUGH_FIELD traversal composed through the raw cast (an explicit traversal string, or a
     // lens focus the checked body could not write) makes the andThen call unchecked in the
     // generated source. The checked composition needs neither the cast nor that suppression, but
     // it declares a local typed by the lens focus, which is a type of its own to answer for.
-    TypeName checkedLens = checkedLensReturnType(opticMethod, specInterface, sourceType, focusType);
+    TypeName checkedLens =
+        checkedLensReturnType(opticMethod, specInterface, sourceType, focusType, targetPackage);
     boolean unchecked =
         opticKind == OpticKind.TRAVERSAL
             && opticMethod.traversalHint() == SpecAnalysis.TraversalHintKind.THROUGH_FIELD
@@ -191,7 +196,8 @@ public class SpecInterfaceGenerator {
 
     // Generate method body based on optic kind
     CodeBlock body =
-        generateOpticBody(opticMethod, specInterface, sourceType, focusType, className);
+        generateOpticBody(
+            opticMethod, specInterface, sourceType, focusType, className, targetPackage);
     methodBuilder.addCode(body);
 
     return methodBuilder.build();
@@ -255,13 +261,15 @@ public class SpecInterfaceGenerator {
       TypeElement specInterface,
       TypeMirror sourceType,
       TypeMirror focusType,
-      String className) {
+      String className,
+      String targetPackage) {
 
     return switch (opticMethod.opticKind()) {
       case LENS -> generateLensBody(opticMethod, sourceType, focusType);
       case PRISM -> generatePrismBody(opticMethod, sourceType, focusType);
       case TRAVERSAL ->
-          generateTraversalBody(opticMethod, specInterface, sourceType, focusType, className);
+          generateTraversalBody(
+              opticMethod, specInterface, sourceType, focusType, className, targetPackage);
       case AFFINE, ISO, GETTER, FOLD ->
           // These would need additional implementation
           CodeBlock.of(
@@ -323,6 +331,7 @@ public class SpecInterfaceGenerator {
    * @param sourceType the source type
    * @param focusType the focus type
    * @param className the generated class name
+   * @param targetPackage the package the generated class is written into
    * @return the code block
    */
   private CodeBlock generateTraversalBody(
@@ -330,13 +339,14 @@ public class SpecInterfaceGenerator {
       TypeElement specInterface,
       TypeMirror sourceType,
       TypeMirror focusType,
-      String className) {
+      String className,
+      String targetPackage) {
 
     return traversalGenerator.generateTraversalReturnStatement(
         opticMethod.traversalHint(),
         opticMethod.traversalHintInfo(),
         className,
-        checkedLensReturnType(opticMethod, specInterface, sourceType, focusType));
+        checkedLensReturnType(opticMethod, specInterface, sourceType, focusType, targetPackage));
   }
 
   /**
@@ -354,13 +364,15 @@ public class SpecInterfaceGenerator {
    * @param specInterface the spec interface declaring the parameters
    * @param sourceType the source type
    * @param focusType the traversal method's declared focus
+   * @param targetPackage the package the generated class is written into
    * @return the checked local's type, or null for the cast path
    */
   private TypeName checkedLensReturnType(
       OpticMethodInfo opticMethod,
       TypeElement specInterface,
       TypeMirror sourceType,
-      TypeMirror focusType) {
+      TypeMirror focusType,
+      String targetPackage) {
     SpecAnalysis.TraversalHintInfo info = opticMethod.traversalHintInfo();
     if (!info.checkedComposition()) {
       return null;
@@ -372,7 +384,22 @@ public class SpecInterfaceGenerator {
         return null;
       }
     }
-    return buildOpticReturnType(OpticKind.LENS, sourceType, info.lensFocus());
+    // The focus is named from the lens as its method declares it, which keeps what the spec's
+    // instantiation drops from a type variable's use; the analyser has matched it as a lens, so
+    // the name is parameterised with the focus second.
+    TypeName focusTypeName =
+        ((ParameterizedTypeName)
+                ProcessorUtils.typeNameOf(
+                    info.lens(),
+                    info.lensDeclared(),
+                    (DeclaredType) specInterface.asType(),
+                    targetPackage))
+            .typeArguments()
+            .get(1);
+    return ParameterizedTypeName.get(
+        getOpticClass(OpticKind.LENS),
+        getParameterisedTypeName(sourceType, targetPackage),
+        focusTypeName);
   }
 
   /**
@@ -381,13 +408,14 @@ public class SpecInterfaceGenerator {
    * @param opticKind the kind of optic
    * @param sourceType the source type
    * @param focusType the focus type
+   * @param targetPackage the package the generated class is written into
    * @return the parameterised type name
    */
   private TypeName buildOpticReturnType(
-      OpticKind opticKind, TypeMirror sourceType, TypeMirror focusType) {
+      OpticKind opticKind, TypeMirror sourceType, TypeMirror focusType, String targetPackage) {
 
-    TypeName sourceTypeName = getParameterisedTypeName(sourceType);
-    TypeName focusTypeName = ProcessorUtils.typeNameOf(focusType).box();
+    TypeName sourceTypeName = getParameterisedTypeName(sourceType, targetPackage);
+    TypeName focusTypeName = ProcessorUtils.typeNameOf(focusType, targetPackage).box();
     ClassName opticClass = getOpticClass(opticKind);
 
     return ParameterizedTypeName.get(opticClass, sourceTypeName, focusTypeName);
@@ -415,14 +443,15 @@ public class SpecInterfaceGenerator {
    * Gets the parameterised type name for a type mirror.
    *
    * @param typeMirror the type mirror
+   * @param targetPackage the package the generated class is written into
    * @return the type name, parameterised if the type has type arguments
    */
   // Package-private for tests.
-  TypeName getParameterisedTypeName(TypeMirror typeMirror) {
+  TypeName getParameterisedTypeName(TypeMirror typeMirror, String targetPackage) {
     // The whole walk, not a rebuild of the parameterised case: naming the arguments through
     // typeNameOf but the head through ClassName.get(element) would keep an annotation on a type
     // argument and drop one on the type itself.
-    return ProcessorUtils.typeNameOf(typeMirror);
+    return ProcessorUtils.typeNameOf(typeMirror, targetPackage);
   }
 
   /**

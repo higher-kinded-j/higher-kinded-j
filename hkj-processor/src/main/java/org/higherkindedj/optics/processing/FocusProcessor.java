@@ -198,11 +198,12 @@ public class FocusProcessor extends AbstractProcessor {
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
 
     List<? extends RecordComponentElement> components = recordElement.getRecordComponents();
-    TypeName recordTypeName = getParameterizedTypeName(recordElement);
+    TypeName recordTypeName = getParameterizedTypeName(recordElement, packageName);
 
     // One analysis answers what each component widens to, for the static methods here and for the
     // navigator methods that compose them.
-    WideningAnalysis analysis = new WideningAnalysis(processingEnv, traversableGenerators);
+    WideningAnalysis analysis =
+        new WideningAnalysis(processingEnv, traversableGenerators, packageName);
 
     // Create navigator generator if enabled
     NavigatorClassGenerator navigatorGenerator = null;
@@ -239,7 +240,8 @@ public class FocusProcessor extends AbstractProcessor {
           reportUndenotableContainer(component, widening.declined());
         }
         method =
-            createFocusPathMethod(component, recordElement, components, recordTypeName, widening);
+            createFocusPathMethod(
+                component, recordElement, components, recordTypeName, widening, packageName);
       }
 
       focusClassBuilder.addMethod(method);
@@ -258,13 +260,15 @@ public class FocusProcessor extends AbstractProcessor {
     javaFile.writeTo(processingEnv.getFiler());
   }
 
-  private TypeName getParameterizedTypeName(TypeElement typeElement) {
+  private TypeName getParameterizedTypeName(TypeElement typeElement, String packageName) {
     List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
     if (typeParameters.isEmpty()) {
       return ClassName.get(typeElement);
     } else {
       List<TypeVariableName> typeVars =
-          typeParameters.stream().map(ProcessorUtils::typeVariableOf).toList();
+          typeParameters.stream()
+              .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+              .toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
     }
@@ -275,7 +279,8 @@ public class FocusProcessor extends AbstractProcessor {
       TypeElement recordElement,
       List<? extends RecordComponentElement> allComponents,
       TypeName recordTypeName,
-      WideningAnalysis.Widening widening) {
+      WideningAnalysis.Widening widening,
+      String packageName) {
 
     String componentName = component.getSimpleName().toString();
 
@@ -322,7 +327,7 @@ public class FocusProcessor extends AbstractProcessor {
 
     // Add type parameters if the record is generic
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
     }
 
     // Build the constructor arguments for the setter lambda
@@ -346,7 +351,7 @@ public class FocusProcessor extends AbstractProcessor {
     // method's shape and its body cannot disagree.
     List<Object> args =
         new ArrayList<>(List.of(FOCUS_PATH_CLASS, Lens.class, recordTypeName, recordTypeName));
-    String wideningExpression = WideningAnalysis.expression(widening.steps(), args);
+    String wideningExpression = WideningAnalysis.expression(widening.steps(), args, packageName);
     methodBuilder.addStatement("return " + baseLens + wideningExpression, args.toArray());
 
     return methodBuilder.build();

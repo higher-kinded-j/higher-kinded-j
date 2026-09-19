@@ -608,7 +608,8 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
     // Add parameters for all record components
     for (RecordComponentElement component : components) {
-      builder.addParameter(componentTypeIn(component, typeA), component.getSimpleName().toString());
+      builder.addParameter(
+          componentTypeIn(component, typeA, packageName), component.getSimpleName().toString());
     }
 
     // Return type: Free<Witness, A>
@@ -709,8 +710,8 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
    * @return the component's type, expressed in the generated method's scope
    */
   private static TypeName componentTypeIn(
-      RecordComponentElement component, TypeVariableName resultType) {
-    return substituted(ProcessorUtils.typeNameOf(component.asType()), resultType);
+      RecordComponentElement component, TypeVariableName resultType, String packageName) {
+    return substituted(ProcessorUtils.typeNameOf(component.asType(), packageName), resultType);
   }
 
   /**
@@ -769,7 +770,8 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
 
     // Add parameters for record components
     for (RecordComponentElement component : components) {
-      builder.addParameter(componentTypeIn(component, typeA), component.getSimpleName().toString());
+      builder.addParameter(
+          componentTypeIn(component, typeA, packageName), component.getSimpleName().toString());
     }
 
     builder.returns(ParameterizedTypeName.get(FREE, typeG, typeA));

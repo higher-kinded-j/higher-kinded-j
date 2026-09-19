@@ -104,15 +104,16 @@ public class LensProcessor extends AbstractProcessor {
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
 
     List<? extends RecordComponentElement> components = recordElement.getRecordComponents();
-    TypeName recordTypeName = getParameterizedTypeName(recordElement);
+    TypeName recordTypeName = getParameterizedTypeName(recordElement, packageName);
 
     for (RecordComponentElement component : components) {
       lensesClassBuilder.addMethod(
-          createLensMethod(component, recordElement, components, recordTypeName));
+          createLensMethod(component, recordElement, components, recordTypeName, packageName));
     }
 
     for (RecordComponentElement component : components) {
-      lensesClassBuilder.addMethod(createWithMethod(component, recordElement, recordTypeName));
+      lensesClassBuilder.addMethod(
+          createWithMethod(component, recordElement, recordTypeName, packageName));
     }
 
     JavaFile javaFile =
@@ -123,13 +124,15 @@ public class LensProcessor extends AbstractProcessor {
     javaFile.writeTo(processingEnv.getFiler());
   }
 
-  private TypeName getParameterizedTypeName(TypeElement typeElement) {
+  private TypeName getParameterizedTypeName(TypeElement typeElement, String packageName) {
     List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
     if (typeParameters.isEmpty()) {
       return ClassName.get(typeElement);
     } else {
       List<TypeVariableName> typeVars =
-          typeParameters.stream().map(ProcessorUtils::typeVariableOf).toList();
+          typeParameters.stream()
+              .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+              .toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
     }
@@ -139,10 +142,11 @@ public class LensProcessor extends AbstractProcessor {
       RecordComponentElement component,
       TypeElement recordElement,
       List<? extends RecordComponentElement> allComponents,
-      TypeName recordTypeName) {
+      TypeName recordTypeName,
+      String packageName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType());
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType(), packageName);
 
     ParameterizedTypeName lensTypeName =
         ParameterizedTypeName.get(
@@ -164,7 +168,7 @@ public class LensProcessor extends AbstractProcessor {
             .returns(lensTypeName);
 
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
     }
 
     String constructorArgs =
@@ -188,10 +192,13 @@ public class LensProcessor extends AbstractProcessor {
   }
 
   private MethodSpec createWithMethod(
-      RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
+      RecordComponentElement component,
+      TypeElement recordElement,
+      TypeName recordTypeName,
+      String packageName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType());
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType(), packageName);
     String methodName = "with" + ProcessorUtils.capitalise(componentName);
     String parameterName = "new" + ProcessorUtils.capitalise(componentName);
     String lensesClassName = recordElement.getSimpleName().toString() + "Lenses";
@@ -219,7 +226,7 @@ public class LensProcessor extends AbstractProcessor {
 
     List<? extends TypeParameterElement> typeParameters = recordElement.getTypeParameters();
     for (TypeParameterElement typeParam : typeParameters) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
     }
 
     String typeArguments =

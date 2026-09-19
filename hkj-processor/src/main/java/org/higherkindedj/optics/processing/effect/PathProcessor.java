@@ -7,6 +7,7 @@ import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
@@ -146,7 +147,9 @@ public class PathProcessor extends AbstractProcessor {
     // interface declares. Naming it raw instead would leave every method that mentions one of
     // those parameters pointing at a variable the bridge never brings into scope.
     List<TypeVariableName> interfaceVariables =
-        interfaceElement.getTypeParameters().stream().map(ProcessorUtils::typeVariableOf).toList();
+        interfaceElement.getTypeParameters().stream()
+            .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+            .toList();
     TypeName delegateType =
         interfaceVariables.isEmpty()
             ? interfaceClassName
@@ -285,9 +288,10 @@ public class PathProcessor extends AbstractProcessor {
             .stream()
             .filter(method -> method.getAnnotation(PathVia.class) != null)
             .toList();
-    // Own before inherited, so the generated file reads in the order the author wrote and a
-    // supertype gaining a member does not reshuffle the methods already there. getAllMembers does
-    // not specify an order, so this is imposed rather than relied upon.
+    // Own before inherited, so the generated file leads with what the author wrote and a supertype
+    // gaining a member does not reshuffle the methods already there. getAllMembers does not specify
+    // an order, so that split is imposed rather than relied upon; within each half the order is
+    // javac's, which nothing depends on, since a bridge method delegates by name.
     Map<String, ExecutableElement> distinct = new LinkedHashMap<>();
     Stream.concat(
             annotated.stream()
@@ -312,7 +316,6 @@ public class PathProcessor extends AbstractProcessor {
    * @param method the delegate method
    * @param asMember its signature as the annotated interface has it
    * @param effect the Path its return type bridges to
-   * @param effectArguments the return type's type arguments, which the Path repeats
    * @param typeVariables the method's own parameters, with their bounds under the instantiation
    * @param bridgeName the name the bridge method is declared with
    * @param signature the bridge method's name and erased parameter types
@@ -321,7 +324,6 @@ public class PathProcessor extends AbstractProcessor {
       ExecutableElement method,
       ExecutableType asMember,
       Effect effect,
-      List<? extends TypeMirror> effectArguments,
       List<TypeVariableName> typeVariables,
       String bridgeName,
       String signature) {}
@@ -379,17 +381,31 @@ public class PathProcessor extends AbstractProcessor {
       return null;
     }
 
+    // Each name the bridge writes is paired with the delegate's own declaration of it: reading the
+    // method under the interface drops an annotation written on a type variable's use, and
+    // ProcessorUtils.typeNameOf(TypeMirror, TypeMirror, DeclaredType, String) puts it back.
     List<TypeVariableName> typeVariables = new ArrayList<>();
-    for (TypeVariable variable : asMember.getTypeVariables()) {
+    List<? extends TypeVariable> variables = asMember.getTypeVariables();
+    for (int index = 0; index < variables.size(); index++) {
+      TypeVariable variable = variables.get(index);
       Name variableName = variable.asElement().getSimpleName();
       List<? extends TypeMirror> bounds = ProcessorUtils.boundsOf(variable);
       if (rejectsUnnameableBound(variableName, bounds, method, interfaceElement, packageName)) {
         return null;
       }
+      List<? extends TypeMirror> declaredBounds = method.getTypeParameters().get(index).getBounds();
       typeVariables.add(
           TypeVariableName.get(
               variableName.toString(),
-              bounds.stream().map(ProcessorUtils::typeNameOf).toArray(TypeName[]::new)));
+              IntStream.range(0, bounds.size())
+                  .mapToObj(
+                      bound ->
+                          ProcessorUtils.typeNameOf(
+                              bounds.get(bound),
+                              declaredBounds.get(bound),
+                              interfaceType,
+                              packageName))
+                  .toArray(TypeName[]::new)));
     }
 
     TypeMirror returnType = asMember.getReturnType();
@@ -481,8 +497,7 @@ public class PathProcessor extends AbstractProcessor {
             ? bridgeSignature(types, bridgeName, asMember) + "+Semigroup"
             : bridgeSignature(types, bridgeName, asMember);
 
-    return new BridgeableMethod(
-        method, asMember, effect, effectArguments, typeVariables, bridgeName, signature);
+    return new BridgeableMethod(method, asMember, effect, typeVariables, bridgeName, signature);
   }
 
   private static String bridgeSignature(Types types, String bridgeName, ExecutableType asMember) {
@@ -495,13 +510,19 @@ public class PathProcessor extends AbstractProcessor {
       BridgeableMethod bridgeable, TypeElement interfaceElement, String packageName) {
 
     ExecutableElement method = bridgeable.method();
+    DeclaredType interfaceType = (DeclaredType) interfaceElement.asType();
     ExecutableType asMember = bridgeable.asMember();
     Effect effect = bridgeable.effect();
     PathVia pathVia = method.getAnnotation(PathVia.class);
 
+    // Named beside the delegate's declaration, as the type variables were: the return type is
+    // written as the effect it wraps, so its arguments come from that name. A raw effect was
+    // refused, so the name is parameterised.
     TypeName[] effectArguments =
-        bridgeable.effectArguments().stream()
-            .map(ProcessorUtils::typeNameOf)
+        ((ParameterizedTypeName)
+                ProcessorUtils.typeNameOf(
+                    asMember.getReturnType(), method.getReturnType(), interfaceType, packageName))
+            .typeArguments()
             .toArray(TypeName[]::new);
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(bridgeable.bridgeName())
@@ -510,9 +531,12 @@ public class PathProcessor extends AbstractProcessor {
     bridgeable.typeVariables().forEach(methodBuilder::addTypeVariable);
     // The bridge only passes the call on, so whatever the delegate declares it can throw, the
     // bridge declares too. Dropping them left the caller with an unreported checked exception.
-    asMember
-        .getThrownTypes()
-        .forEach(thrown -> methodBuilder.addException(ProcessorUtils.typeNameOf(thrown)));
+    List<? extends TypeMirror> thrown = asMember.getThrownTypes();
+    for (int index = 0; index < thrown.size(); index++) {
+      methodBuilder.addException(
+          ProcessorUtils.typeNameOf(
+              thrown.get(index), method.getThrownTypes().get(index), interfaceType, packageName));
+    }
 
     // Description first, then the block tags in order. A tag written before the description takes
     // the description into itself, which is what javadoc does with any text following a tag.
@@ -546,7 +570,12 @@ public class PathProcessor extends AbstractProcessor {
       String parameterName = parameters.get(index).getSimpleName().toString();
       argumentNames.add(parameterName);
       methodBuilder.addParameter(
-          ProcessorUtils.typeNameOf(parameterTypes.get(index)), parameterName);
+          ProcessorUtils.typeNameOf(
+              parameterTypes.get(index),
+              parameters.get(index).asType(),
+              interfaceType,
+              packageName),
+          parameterName);
     }
 
     methodBuilder.varargs(copiesVarargs(method, asMember, effect));

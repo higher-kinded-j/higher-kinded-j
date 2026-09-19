@@ -278,13 +278,19 @@ public record SpecAnalysis(
    * @param lensFocus the focus the spec's lens for the field declares, which the checked
    *     composition names in a local so the generic lens call is target-typed; null on the cast
    *     path
+   * @param lens the spec's lens for the field as the spec has it, whose focus {@code lensFocus} is;
+   *     null on the cast path
+   * @param lensDeclared the same lens as its method declares it, so the local keeps what the
+   *     declaration wrote on a type variable's use; null on the cast path
    */
   public record TraversalHintInfo(
       String traversalReference,
       String fieldName,
       String fieldTraversal,
       boolean checkedComposition,
-      TypeMirror lensFocus) {
+      TypeMirror lensFocus,
+      TypeMirror lens,
+      TypeMirror lensDeclared) {
 
     /**
      * Creates an empty traversal hint info.
@@ -292,7 +298,7 @@ public record SpecAnalysis(
      * @return an empty TraversalHintInfo
      */
     public static TraversalHintInfo empty() {
-      return new TraversalHintInfo("", "", "", false, null);
+      return new TraversalHintInfo("", "", "", false, null, null, null);
     }
 
     /**
@@ -302,7 +308,7 @@ public record SpecAnalysis(
      * @return a TraversalHintInfo for explicit traversal
      */
     public static TraversalHintInfo forTraverseWith(String traversalReference) {
-      return new TraversalHintInfo(traversalReference, "", "", false, null);
+      return new TraversalHintInfo(traversalReference, "", "", false, null, null, null);
     }
 
     /**
@@ -316,7 +322,7 @@ public record SpecAnalysis(
      * @return a TraversalHintInfo for field-based traversal
      */
     public static TraversalHintInfo forThroughField(String fieldName, String traversal) {
-      return new TraversalHintInfo("", fieldName, traversal, false, null);
+      return new TraversalHintInfo("", fieldName, traversal, false, null, null, null);
     }
 
     /**
@@ -327,11 +333,17 @@ public record SpecAnalysis(
      * @param fieldName the field name to traverse through
      * @param traversal the standard traversal for the field's container interface
      * @param lensFocus the focus the spec's lens for the field declares
+     * @param lens the spec's lens for the field as the spec has it
+     * @param lensDeclared the same lens as its method declares it
      * @return a TraversalHintInfo whose composition javac checks
      */
     public static TraversalHintInfo forCheckedThroughField(
-        String fieldName, String traversal, TypeMirror lensFocus) {
-      return new TraversalHintInfo("", fieldName, traversal, true, lensFocus);
+        String fieldName,
+        String traversal,
+        TypeMirror lensFocus,
+        TypeMirror lens,
+        TypeMirror lensDeclared) {
+      return new TraversalHintInfo("", fieldName, traversal, true, lensFocus, lens, lensDeclared);
     }
   }
 }

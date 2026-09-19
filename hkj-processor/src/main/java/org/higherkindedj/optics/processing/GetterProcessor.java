@@ -87,14 +87,16 @@ public class GetterProcessor extends AbstractProcessor {
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
 
     List<? extends RecordComponentElement> components = recordElement.getRecordComponents();
-    TypeName recordTypeName = getParameterizedTypeName(recordElement);
+    TypeName recordTypeName = getParameterizedTypeName(recordElement, packageName);
 
     for (RecordComponentElement component : components) {
-      gettersClassBuilder.addMethod(createGetterMethod(component, recordElement, recordTypeName));
+      gettersClassBuilder.addMethod(
+          createGetterMethod(component, recordElement, recordTypeName, packageName));
     }
 
     for (RecordComponentElement component : components) {
-      gettersClassBuilder.addMethod(createGetMethod(component, recordElement, recordTypeName));
+      gettersClassBuilder.addMethod(
+          createGetMethod(component, recordElement, recordTypeName, packageName));
     }
 
     JavaFile javaFile =
@@ -105,23 +107,28 @@ public class GetterProcessor extends AbstractProcessor {
     javaFile.writeTo(processingEnv.getFiler());
   }
 
-  private TypeName getParameterizedTypeName(TypeElement typeElement) {
+  private TypeName getParameterizedTypeName(TypeElement typeElement, String packageName) {
     List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
     if (typeParameters.isEmpty()) {
       return ClassName.get(typeElement);
     } else {
       List<TypeVariableName> typeVars =
-          typeParameters.stream().map(ProcessorUtils::typeVariableOf).toList();
+          typeParameters.stream()
+              .map(parameter -> ProcessorUtils.typeVariableOf(parameter, packageName))
+              .toList();
       return ParameterizedTypeName.get(
           ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
     }
   }
 
   private MethodSpec createGetterMethod(
-      RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
+      RecordComponentElement component,
+      TypeElement recordElement,
+      TypeName recordTypeName,
+      String packageName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType());
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType(), packageName);
 
     ParameterizedTypeName getterTypeName =
         ParameterizedTypeName.get(
@@ -143,7 +150,7 @@ public class GetterProcessor extends AbstractProcessor {
             .returns(getterTypeName);
 
     for (TypeParameterElement typeParam : recordElement.getTypeParameters()) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
     }
 
     methodBuilder.addStatement("return $T.of($T::$L)", Getter.class, recordTypeName, componentName);
@@ -152,10 +159,13 @@ public class GetterProcessor extends AbstractProcessor {
   }
 
   private MethodSpec createGetMethod(
-      RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
+      RecordComponentElement component,
+      TypeElement recordElement,
+      TypeName recordTypeName,
+      String packageName) {
 
     String componentName = component.getSimpleName().toString();
-    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType());
+    TypeName componentTypeName = ProcessorUtils.typeNameOf(component.asType(), packageName);
     String methodName = "get" + ProcessorUtils.capitalise(componentName);
     String gettersClassName = recordElement.getSimpleName().toString() + "Getters";
 
@@ -178,7 +188,7 @@ public class GetterProcessor extends AbstractProcessor {
 
     List<? extends TypeParameterElement> typeParameters = recordElement.getTypeParameters();
     for (TypeParameterElement typeParam : typeParameters) {
-      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
+      methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
     }
 
     String typeArguments =

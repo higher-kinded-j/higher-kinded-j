@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
@@ -144,7 +145,8 @@ final class MappingIndexes {
   /**
    * The specs the classpath's index entries name, sorted by canonical name so that diagnostics list
    * them in one order whatever the classpath's. An entry whose spec is no longer on the classpath
-   * is passed over: it describes nothing a use site could resolve to.
+   * is passed over: it describes nothing a use site could resolve to. So is one naming anything but
+   * an interface, which the processor never indexes and would refuse as a spec in source.
    */
   static List<TypeElement> classpathSpecs(Elements elements) {
     PackageElement index = elements.getPackageElement(INDEX_PACKAGE);
@@ -156,6 +158,7 @@ final class MappingIndexes {
         .filter(Objects::nonNull)
         .map(marker -> elements.getTypeElement(marker.spec()))
         .filter(Objects::nonNull)
+        .filter(spec -> spec.getKind() == ElementKind.INTERFACE)
         .sorted(Comparator.comparing(spec -> spec.getQualifiedName().toString()))
         .toList();
   }

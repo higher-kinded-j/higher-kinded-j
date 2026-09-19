@@ -239,8 +239,8 @@ public final class IsoProcessor extends AbstractProcessor {
     final List<? extends TypeMirror> typeArguments =
         ((DeclaredType) method.getReturnType()).getTypeArguments();
 
-    final TypeName sTypeName = ProcessorUtils.typeNameOf(typeArguments.get(0));
-    final TypeName aTypeName = ProcessorUtils.typeNameOf(typeArguments.get(1));
+    final TypeName sTypeName = ProcessorUtils.typeNameOf(typeArguments.get(0), packageName);
+    final TypeName aTypeName = ProcessorUtils.typeNameOf(typeArguments.get(1), packageName);
     final TypeName isoTypeName =
         ParameterizedTypeName.get(ClassName.get(Iso.class), sTypeName, aTypeName);
 

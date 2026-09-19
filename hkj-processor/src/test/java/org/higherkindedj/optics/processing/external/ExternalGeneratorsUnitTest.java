@@ -127,7 +127,8 @@ class ExternalGeneratorsUnitTest {
               mixed,
               components,
               mixedTypeName,
-              new NestedTypeNames("MixedLenses"));
+              new NestedTypeNames("MixedLenses"),
+              "com.example");
 
       // 3. Raw container field: getFocusType returns null, so the method is skipped.
       traversalForRawContainerField =
@@ -136,18 +137,23 @@ class ExternalGeneratorsUnitTest {
               mixed,
               components,
               mixedTypeName,
-              new NestedTypeNames("MixedLenses"));
+              new NestedTypeNames("MixedLenses"),
+              "com.example");
 
       // 4. getFocusType guard arms.
-      focusTypeForRawContainer = withStub.getFocusType(rawItemsType, new StubGenerator(0));
-      focusTypeForOutOfRangeIndex = withStub.getFocusType(itemsType, new StubGenerator(1));
+      focusTypeForRawContainer =
+          withStub.getFocusType(rawItemsType, new StubGenerator(0), "com.example");
+      focusTypeForOutOfRangeIndex =
+          withStub.getFocusType(itemsType, new StubGenerator(1), "com.example");
       TypeMirror primitiveInt = processingEnv.getTypeUtils().getPrimitiveType(TypeKind.INT);
-      focusTypeForPrimitive = withStub.getFocusType(primitiveInt, new StubGenerator(0));
+      focusTypeForPrimitive =
+          withStub.getFocusType(primitiveInt, new StubGenerator(0), "com.example");
 
       // 5. SpecInterfaceGenerator.getParameterisedTypeName with a non-declared type.
       SpecInterfaceGenerator specGenerator =
           new SpecInterfaceGenerator(processingEnv.getFiler(), processingEnv.getMessager());
-      parameterisedNameForPrimitive = specGenerator.getParameterisedTypeName(primitiveInt);
+      parameterisedNameForPrimitive =
+          specGenerator.getParameterisedTypeName(primitiveInt, "com.example");
 
       return false;
     }
