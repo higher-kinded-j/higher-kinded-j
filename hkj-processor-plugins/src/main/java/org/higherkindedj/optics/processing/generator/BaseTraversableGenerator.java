@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing.generator;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.TypeName;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.type.DeclaredType;
@@ -50,11 +51,37 @@ public abstract class BaseTraversableGenerator implements TraversableGenerator {
    *     argument.
    */
   protected TypeName getTypeArgumentName(final RecordComponentElement component, final int index) {
+    return argumentName(component, index, ProcessorUtils::typeNameOf);
+  }
+
+  /**
+   * {@link #getTypeArgumentName(RecordComponentElement, int)} for a file written into {@code
+   * targetPackage}: a type-use annotation that package cannot name is left off, rather than copied
+   * into a file that could not compile with it. The two-argument form keeps a package-private one,
+   * which is right only where the file lands in the type's own package.
+   *
+   * @param component The record component to inspect.
+   * @param index The type argument to read.
+   * @param targetPackage The package the generated file is written into.
+   * @return The {@link TypeName} of that argument, or {@code Object} when the component has no such
+   *     argument.
+   * @since 0.4.11
+   */
+  protected TypeName getTypeArgumentName(
+      final RecordComponentElement component, final int index, final String targetPackage) {
+    return argumentName(component, index, type -> ProcessorUtils.typeNameOf(type, targetPackage));
+  }
+
+  /** The type argument at {@code index}, named by {@code naming}, or {@code Object}. */
+  private TypeName argumentName(
+      final RecordComponentElement component,
+      final int index,
+      final Function<TypeMirror, TypeName> naming) {
     if (component.asType() instanceof DeclaredType containerType
         && containerType.getTypeArguments().size() > index) {
       final TypeMirror resolved = resolveEffectiveType(containerType.getTypeArguments().get(index));
       if (resolved != null) {
-        return ProcessorUtils.typeNameOf(resolved).box();
+        return naming.apply(resolved).box();
       }
     }
     return ClassName.get(Object.class); // Raw, absent, or a wildcard standing for anything at all.

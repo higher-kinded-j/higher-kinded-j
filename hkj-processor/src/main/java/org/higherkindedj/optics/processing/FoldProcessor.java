@@ -136,7 +136,8 @@ public class FoldProcessor extends AbstractProcessor {
 
     // Check if this is an Iterable type (List, Set, etc.)
     boolean isIterable = isIterableType(component.asType());
-    TypeName targetType = isIterable ? getElementType(component) : componentTypeName.box();
+    TypeName targetType =
+        isIterable ? getElementType(component, packageName) : componentTypeName.box();
 
     ParameterizedTypeName foldTypeName =
         ParameterizedTypeName.get(ClassName.get(Fold.class), recordTypeName, targetType);
@@ -233,13 +234,15 @@ public class FoldProcessor extends AbstractProcessor {
     return typeUtils.isSubtype(erasedType, erasedIterable);
   }
 
-  private TypeName getElementType(RecordComponentElement component) {
+  private TypeName getElementType(RecordComponentElement component, String packageName) {
     // Only called for iterable components, and isIterableType requires a declared type. A wildcard
     // element is named as the type it stands for, since a wildcard cannot be written into the
     // fold's signature.
     DeclaredType containerType = (DeclaredType) component.asType();
     if (!containerType.getTypeArguments().isEmpty()) {
-      return ProcessorUtils.resolvedTypeNameOf(containerType.getTypeArguments().getFirst()).box();
+      return ProcessorUtils.resolvedTypeNameOf(
+              containerType.getTypeArguments().getFirst(), packageName)
+          .box();
     }
     return ClassName.get(Object.class);
   }

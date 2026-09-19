@@ -462,7 +462,7 @@ class SpecMutationKillingTest {
     void throughFieldCheckedCompositionSkipsTheCast() {
       TraversalHintInfo info =
           TraversalHintInfo.forCheckedThroughField(
-              "items", "org.higherkindedj.optics.util.Traversals.forList()", null, null, null);
+              "items", "org.higherkindedj.optics.util.Traversals.forList()", null, null);
       ParameterizedTypeName lensReturnType =
           ParameterizedTypeName.get(
               ClassName.get("org.higherkindedj.optics", "Lens"),

@@ -385,8 +385,8 @@ public class SpecInterfaceGenerator {
       }
     }
     // The focus is named from the lens as its method declares it, which keeps what the spec's
-    // instantiation drops from a type variable's use; the analyser has matched it as a lens, so
-    // the name is parameterised with the focus second.
+    // instantiation drops from a type variable's use; the analyser has matched it as a lens with
+    // both its arguments, so the name is parameterised with the focus second.
     TypeName focusTypeName =
         ((ParameterizedTypeName)
                 ProcessorUtils.typeNameOf(

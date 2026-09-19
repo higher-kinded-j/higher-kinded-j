@@ -361,7 +361,7 @@ public class ExternalLensGenerator {
         ParameterizedTypeName.get(ClassName.get(Traversal.class), recordTypeName, focusType);
 
     final CodeBlock modifyFBody =
-        generator.generateModifyF(component, recordClassName, allComponents);
+        generator.generateModifyF(component, recordClassName, allComponents, targetPackage);
 
     // Create F extends WitnessArity<TypeArity.Unary>
     final ParameterizedTypeName witnessArityBound =
@@ -457,7 +457,7 @@ public class ExternalLensGenerator {
       }
       // A wildcard argument is resolved: no class can implement a traversal type that names one.
       return ProcessorUtils.resolvedTypeNameOf(
-          declaredType.getTypeArguments().get(typeArgumentIndex));
+          declaredType.getTypeArguments().get(typeArgumentIndex), targetPackage);
     }
     return null;
   }

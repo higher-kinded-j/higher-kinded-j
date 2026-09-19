@@ -60,6 +60,18 @@ public class MaybeGenerator extends BaseTraversableGenerator {
       final RecordComponentElement component,
       final ClassName recordClassName,
       final List<? extends RecordComponentElement> allComponents) {
+    // A caller that names no package gets the record's own, which is where a companion lands
+    // unless a targetPackage or an import sends it elsewhere.
+    return generateModifyF(
+        component, recordClassName, allComponents, recordClassName.packageName());
+  }
+
+  @Override
+  public CodeBlock generateModifyF(
+      final RecordComponentElement component,
+      final ClassName recordClassName,
+      final List<? extends RecordComponentElement> allComponents,
+      final String targetPackage) {
 
     final String componentName = component.getSimpleName().toString();
 
@@ -72,7 +84,7 @@ public class MaybeGenerator extends BaseTraversableGenerator {
         // Directly use the concrete Maybe from the source record.
         .addStatement(
             "final $T maybe = source.$L()",
-            ProcessorUtils.typeNameOf(component.asType()),
+            ProcessorUtils.typeNameOf(component.asType(), targetPackage),
             componentName)
         .beginControlFlow("if (maybe.isJust())")
         // If Just, apply the effectful function.

@@ -79,6 +79,10 @@ class HkjHttpClientProcessorClasspathTest {
               "package com.upstream; @Deprecated @java.lang.annotation.Target("
                   + "java.lang.annotation.ElementType.TYPE_USE) public @interface Old {}"),
           JavaFileObjects.forSourceString(
+              "com.upstream.Local",
+              "package com.upstream; @java.lang.annotation.Target(java.lang.annotation.ElementType"
+                  + ".TYPE_USE) @interface Local {}"),
+          JavaFileObjects.forSourceString(
               "com.upstream.errors.Gone",
               "package com.upstream.errors;"
                   + " public record Gone(String message) implements com.upstream.ApiErr {}"));
@@ -306,16 +310,18 @@ class HkjHttpClientProcessorClasspathTest {
   @Test
   @DisplayName(
       "an annotation the client could not write cleanly is left off the method it restates")
-  void anAnnotationMissingFromTheClasspathIsLeftOff() throws IOException {
+  void anAnnotationTheClientCannotWriteIsLeftOff() throws IOException {
     // A type-use annotation the base module compiled against but did not pass on, as Gradle's
     // compileOnly does: read back from the class file unresolved, it cannot be written into the
     // client, which restates the inherited method's parameter and return types. A deprecated one
-    // can, but would draw a warning there that no one can suppress.
+    // can, but would draw a warning there that no one can suppress, and one package-private to
+    // the base's own package cannot be named from the client's package at all.
     Path base =
         baseModule(
             """
               @GetExchange("/{id}")
-              EitherPath<ApiErr, @Marked UserDto> getUser(@PathVariable @Marked @Old String id);
+              EitherPath<ApiErr, @Marked UserDto> getUser(
+                  @PathVariable @Marked @Old @Local String id);
             """);
     Files.delete(base.resolve("com/upstream/Marked.class"));
     Compilation compilation = compiler(base).compile(CHILD);
@@ -324,7 +330,8 @@ class HkjHttpClientProcessorClasspathTest {
     Assertions.assertThat(generatedSource(compilation, "com.downstream.ChildApiClient"))
         .contains("getUser(String id)")
         .doesNotContain("Marked")
-        .doesNotContain("Old");
+        .doesNotContain("Old")
+        .doesNotContain("Local");
   }
 
   @Test

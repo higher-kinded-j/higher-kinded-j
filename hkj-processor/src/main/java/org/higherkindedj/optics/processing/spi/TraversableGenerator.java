@@ -211,4 +211,34 @@ public interface TraversableGenerator {
       RecordComponentElement component,
       ClassName recordClassName,
       List<? extends RecordComponentElement> allComponents);
+
+  /**
+   * {@link #generateModifyF(RecordComponentElement, ClassName, List)} for a body written into
+   * {@code targetPackage}, which is where the traversal's own file lands.
+   *
+   * <p>A body that names a component's type writes that type into a file the component's package
+   * does not always contain: a companion generated under a {@code targetPackage}, or the optics
+   * generated for an imported type, land elsewhere. A type-use annotation the author wrote there,
+   * package-private to the component's own package, cannot be named from such a file, and copying
+   * it breaks the build in generated source. Name types with {@link
+   * ProcessorUtils#typeNameOf(TypeMirror, String)} and this package, and each one that cannot be
+   * written from there is left off.
+   *
+   * <p>Override this rather than the three-argument form when the body names a type. The default
+   * calls that form, so a generator that writes no type of its own needs nothing.
+   *
+   * @param component The record component being processed.
+   * @param recordClassName The ClassName of the record containing the component.
+   * @param allComponents A list of all components in the record, for reconstruction.
+   * @param targetPackage the package the generated file is written into
+   * @return A CodeBlock from Javapoet representing the implementation of the traversal.
+   * @since 0.4.11
+   */
+  default CodeBlock generateModifyF(
+      RecordComponentElement component,
+      ClassName recordClassName,
+      List<? extends RecordComponentElement> allComponents,
+      String targetPackage) {
+    return generateModifyF(component, recordClassName, allComponents);
+  }
 }

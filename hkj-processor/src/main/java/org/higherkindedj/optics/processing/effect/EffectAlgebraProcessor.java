@@ -707,6 +707,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
    *
    * @param component the record component whose type is being copied
    * @param resultType the type variable the generated method declares
+   * @param packageName the package the generated file is written into
    * @return the component's type, expressed in the generated method's scope
    */
   private static TypeName componentTypeIn(

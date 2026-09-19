@@ -58,6 +58,18 @@ public class TryGenerator extends BaseTraversableGenerator {
       final RecordComponentElement component,
       final ClassName recordClassName,
       final List<? extends RecordComponentElement> allComponents) {
+    // A caller that names no package gets the record's own, which is where a companion lands
+    // unless a targetPackage or an import sends it elsewhere.
+    return generateModifyF(
+        component, recordClassName, allComponents, recordClassName.packageName());
+  }
+
+  @Override
+  public CodeBlock generateModifyF(
+      final RecordComponentElement component,
+      final ClassName recordClassName,
+      final List<? extends RecordComponentElement> allComponents,
+      final String targetPackage) {
 
     final String componentName = component.getSimpleName().toString();
 
@@ -69,7 +81,7 @@ public class TryGenerator extends BaseTraversableGenerator {
     return CodeBlock.builder()
         .addStatement(
             "final $T tryA = source.$L()",
-            ProcessorUtils.typeNameOf(component.asType()),
+            ProcessorUtils.typeNameOf(component.asType(), targetPackage),
             componentName)
         // Use the safe `foldFailureFirst` method to handle both cases without throwing exceptions.
         .addStatement(

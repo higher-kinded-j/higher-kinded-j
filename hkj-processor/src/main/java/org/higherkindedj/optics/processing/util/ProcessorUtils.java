@@ -95,12 +95,15 @@ public final class ProcessorUtils {
    * argument is needed, because the wildcard the declaration wrote can be neither.
    *
    * @param typeArgument a type argument as written
+   * @param targetPackage the package the generated file is written into; must not be null
    * @return the type it stands for, boxed
    * @since 0.4.11
    */
-  public static TypeName resolvedTypeNameOf(TypeMirror typeArgument) {
+  public static TypeName resolvedTypeNameOf(TypeMirror typeArgument, String targetPackage) {
     TypeMirror resolved = resolveWildcard(typeArgument);
-    return resolved == null ? ClassName.get(Object.class) : typeNameOf(resolved).box();
+    return resolved == null
+        ? ClassName.get(Object.class)
+        : typeNameOf(resolved, targetPackage).box();
   }
 
   /**
@@ -156,16 +159,24 @@ public final class ProcessorUtils {
     for (Element current = member;
         current.getKind() != ElementKind.PACKAGE;
         current = current.getEnclosingElement()) {
-      Set<Modifier> modifiers = current.getModifiers();
-      if (modifiers.contains(Modifier.PRIVATE)) {
-        return false;
-      }
-      if (!modifiers.contains(Modifier.PUBLIC)
-          && !elements.getPackageOf(current).getQualifiedName().contentEquals(targetPackage)) {
+      if (!visibleFrom(
+          current, elements.getPackageOf(current).getQualifiedName().toString(), targetPackage)) {
         return false;
       }
     }
     return true;
+  }
+
+  /**
+   * Whether one type or member, declared in {@code home}, can be named from {@code targetPackage}:
+   * not private, and either public or declared in that package. This is the one visibility rule
+   * generated code is held to, whether what is named is a member it calls or an annotation it
+   * writes.
+   */
+  private static boolean visibleFrom(Element element, String home, String targetPackage) {
+    Set<Modifier> modifiers = element.getModifiers();
+    return !modifiers.contains(Modifier.PRIVATE)
+        && (modifiers.contains(Modifier.PUBLIC) || home.equals(targetPackage));
   }
 
   /**
@@ -732,7 +743,8 @@ public final class ProcessorUtils {
    * with {@link #typeNameOf(TypeMirror, String)}, which decides exactly.
    *
    * @param type the type to name; must not be null
-   * @return its name, annotated as the source annotated it (non-null)
+   * @return its name, annotated as the source annotated it wherever some file could say so
+   *     (non-null)
    * @since 0.4.10
    */
   public static TypeName typeNameOf(TypeMirror type) {
@@ -798,7 +810,7 @@ public final class ProcessorUtils {
    * private nor deprecated anywhere in its nesting.
    */
   private static boolean writableSomewhere(DeclaredType annotationType) {
-    return writable(annotationType, element -> true);
+    return writable(annotationType, element -> !element.getModifiers().contains(Modifier.PRIVATE));
   }
 
   /**
@@ -808,12 +820,17 @@ public final class ProcessorUtils {
    */
   private static boolean writableFrom(DeclaredType annotationType, String targetPackage) {
     return writable(
-        annotationType,
-        element ->
-            element.getModifiers().contains(Modifier.PUBLIC)
-                || packageOf(element).equals(targetPackage));
+        annotationType, element -> visibleFrom(element, packageOf(element), targetPackage));
   }
 
+  /**
+   * Whether an annotation type can be written, given what counts as visible to the file writing it.
+   *
+   * <p>A deprecation written only as a javadoc {@code @deprecated} tag is not seen: reading that
+   * needs the round's {@link Elements}, which naming a type does not take. Such an annotation is
+   * written, and the generated file carries javac's deprecation warning for it, as it did before
+   * any of them were left off.
+   */
   private static boolean writable(DeclaredType annotationType, Predicate<Element> visible) {
     if (annotationType.getKind() == TypeKind.ERROR) {
       return false;
@@ -821,9 +838,7 @@ public final class ProcessorUtils {
     for (Element current = annotationType.asElement();
         current.getKind() != ElementKind.PACKAGE;
         current = current.getEnclosingElement()) {
-      if (current.getModifiers().contains(Modifier.PRIVATE)
-          || current.getAnnotation(Deprecated.class) != null
-          || !visible.test(current)) {
+      if (current.getAnnotation(Deprecated.class) != null || !visible.test(current)) {
         return false;
       }
     }
@@ -848,7 +863,7 @@ public final class ProcessorUtils {
     Map<Element, TypeMirror> clauses = new HashMap<>();
     bindClause(owner, clauses);
     bindSupertypeClauses((TypeElement) owner.asElement(), new HashSet<>(), clauses);
-    return clauses;
+    return Map.copyOf(clauses);
   }
 
   private static void bindSupertypeClauses(
@@ -902,9 +917,16 @@ public final class ProcessorUtils {
               annotation ->
                   annotations.putIfAbsent(annotation.getAnnotationType().asElement(), annotation));
       // A variable's use keeps what was written on it, and so does each clause binding it on the
-      // way to the owner; the last of them is what the substituted type stands in for.
+      // way to the owner; the last of them is what the substituted type stands in for. A type that
+      // implements its own spec binds each way round - the domain pattern binds the record's
+      // variable to the spec's, the record's own clause binds it back - so each variable is
+      // followed once and a cycle stops where it closes. What the closing clause wrote is not
+      // read: a binding that leads back where it started answers for nothing the walk has not
+      // already passed through.
       TypeMirror twin = declared;
-      while (twin.getKind() == TypeKind.TYPEVAR) {
+      Set<Element> followed = new HashSet<>();
+      while (twin.getKind() == TypeKind.TYPEVAR
+          && followed.add(((TypeVariable) twin).asElement())) {
         twin.getAnnotationMirrors()
             .forEach(
                 annotation ->
@@ -1003,6 +1025,10 @@ public final class ProcessorUtils {
    * annotated {@code Object} is not equal to the bare one, so it survives the removal that the bare
    * bound is still rightly subject to.
    *
+   * <p>Annotations are kept as {@link #typeNameOf(TypeMirror)} keeps them, so a generator that
+   * knows the package it is writing into declares its parameters with {@link
+   * #typeVariableOf(TypeParameterElement, String)} instead.
+   *
    * <p>The bounds are all that is copied. An annotation written on the parameter itself, as in
    * {@code <@Marker T>}, is left behind: one {@code TypeVariableName} both declares a parameter and
    * is written wherever that parameter is named, and a generator reuses the same one for both. An
@@ -1012,7 +1038,7 @@ public final class ProcessorUtils {
    * parameter as {@code <T extends @Nullable Object>}, which is a bound.
    *
    * @param parameter the type parameter to name; must not be null
-   * @return its name, with its bounds annotated as the source annotated them (non-null)
+   * @return its name, with its bounds annotated wherever some file could say so (non-null)
    * @since 0.4.10
    */
   public static TypeVariableName typeVariableOf(TypeParameterElement parameter) {

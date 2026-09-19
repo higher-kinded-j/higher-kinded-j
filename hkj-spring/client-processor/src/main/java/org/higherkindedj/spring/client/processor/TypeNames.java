@@ -10,9 +10,11 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
 import java.util.List;
+import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
@@ -36,8 +38,8 @@ import javax.lang.model.type.WildcardType;
  * shared. Sharing would mean depending on that module, which is an annotation processor: it would
  * join this one on the consumer's processor path and generate optics they never asked for. The two
  * copies are small, and the walk they perform is javapoet's own; if one changes, the other should.
- * Only the one-argument form is copied. The two-argument {@code typeNameOf(type, declared)} puts
- * back what reading a member under an instantiation drops, and a client restates each method as its
+ * Only the form that names a type for a known package is copied. The member form there puts back
+ * what reading a member under an instantiation drops, and a client restates each method as its
  * interface declares it, never read under an instantiation.
  */
 final class TypeNames {
@@ -47,21 +49,26 @@ final class TypeNames {
   }
 
   /**
-   * The name of a type as written, with its type-use annotations kept.
+   * The name of a type as written, with its type-use annotations kept, for a client written into
+   * {@code targetPackage}.
    *
-   * <p>An annotation is kept only where some generated file could write it cleanly. One javac could
-   * not resolve, which is one missing from the compile classpath, as an annotation a base interface
-   * in a jar was compiled against can be, one private anywhere in its nesting, and one deprecated
-   * anywhere in its nesting are left off: the first two fail the build compiling the client, and
-   * the third draws a warning there that no one can suppress.
+   * <p>An annotation is kept only where that package can write it cleanly. One javac could not
+   * resolve, which is one missing from the compile classpath, as an annotation a base interface in
+   * a jar was compiled against can be, one private or package-private to another package, and one
+   * deprecated anywhere in its nesting are left off: the first three fail the build compiling the
+   * client, and the last draws a warning there that no one can suppress. The package matters
+   * because a client restates the methods it inherits, which a base interface in another package
+   * may have annotated with something only that package can name.
    *
    * @param type the type to name; must not be null
-   * @return its name, annotated as the source annotated it (non-null)
+   * @param targetPackage the package the client is written into; must not be null
+   * @return its name, annotated as the source annotated it wherever the client can say so
+   *     (non-null)
    */
-  static TypeName typeNameOf(TypeMirror type) {
+  static TypeName typeNameOf(TypeMirror type, String targetPackage) {
     List<AnnotationSpec> annotations =
         type.getAnnotationMirrors().stream()
-            .filter(annotation -> writableSomewhere(annotation.getAnnotationType()))
+            .filter(annotation -> writableFrom(annotation.getAnnotationType(), targetPackage))
             .map(AnnotationSpec::get)
             .toList();
     // Dispatch on the kind, as javapoet's own visitor does, rather than on the interface: javac's
@@ -69,42 +76,60 @@ final class TypeNames {
     // arm and ask it for a class element it does not have.
     TypeName name =
         switch (type.getKind()) {
-          case ARRAY -> ArrayTypeName.of(typeNameOf(((ArrayType) type).getComponentType()));
-          case WILDCARD -> wildcardNameOf((WildcardType) type);
-          case DECLARED, ERROR -> declaredNameOf((DeclaredType) type);
+          case ARRAY ->
+              ArrayTypeName.of(typeNameOf(((ArrayType) type).getComponentType(), targetPackage));
+          case WILDCARD -> wildcardNameOf((WildcardType) type, targetPackage);
+          case DECLARED, ERROR -> declaredNameOf((DeclaredType) type, targetPackage);
           default -> TypeName.get(type);
         };
     return annotations.isEmpty() ? name : name.annotated(annotations);
   }
 
   /**
-   * Whether some generated file can write this annotation type cleanly: resolved, and neither
-   * private nor deprecated anywhere in its nesting.
+   * Whether a client in {@code targetPackage} can write this annotation type cleanly: resolved,
+   * with every type in its nesting visible from there, and none of them deprecated.
+   *
+   * <p>A deprecation written only as a javadoc tag is not seen here: reading that needs the round's
+   * {@code Elements}, which this walk does not take. Such an annotation is copied, as it was
+   * before.
    */
-  private static boolean writableSomewhere(DeclaredType annotationType) {
+  private static boolean writableFrom(DeclaredType annotationType, String targetPackage) {
     if (annotationType.getKind() == TypeKind.ERROR) {
       return false;
     }
     for (Element current = annotationType.asElement();
         current.getKind() != ElementKind.PACKAGE;
         current = current.getEnclosingElement()) {
-      if (current.getModifiers().contains(Modifier.PRIVATE)
-          || current.getAnnotation(Deprecated.class) != null) {
+      Set<Modifier> modifiers = current.getModifiers();
+      if (modifiers.contains(Modifier.PRIVATE)
+          || current.getAnnotation(Deprecated.class) != null
+          || (!modifiers.contains(Modifier.PUBLIC) && !packageOf(current).equals(targetPackage))) {
         return false;
       }
     }
     return true;
   }
 
-  private static TypeName declaredNameOf(DeclaredType declared) {
+  /** The package a type is declared in, walked out from the type itself. */
+  private static String packageOf(Element element) {
+    Element current = element;
+    while (current.getKind() != ElementKind.PACKAGE) {
+      current = current.getEnclosingElement();
+    }
+    return ((PackageElement) current).getQualifiedName().toString();
+  }
+
+  private static TypeName declaredNameOf(DeclaredType declared, String targetPackage) {
     ClassName rawType = ClassName.get((TypeElement) declared.asElement());
     TypeMirror enclosingType = declared.getEnclosingType();
     // A static member has no enclosing instance type, so javac reports NONE for it and the kind
     // test alone settles both cases.
     TypeName enclosing =
-        enclosingType.getKind() == TypeKind.NONE ? null : typeNameOf(enclosingType);
+        enclosingType.getKind() == TypeKind.NONE ? null : typeNameOf(enclosingType, targetPackage);
     List<TypeName> argumentNames =
-        declared.getTypeArguments().stream().map(TypeNames::typeNameOf).toList();
+        declared.getTypeArguments().stream()
+            .map(argument -> typeNameOf(argument, targetPackage))
+            .toList();
     if (enclosing instanceof ParameterizedTypeName parameterised) {
       return parameterised.nestedClass(rawType.simpleName(), argumentNames);
     }
@@ -119,15 +144,15 @@ final class TypeNames {
         : ParameterizedTypeName.get(rawType, argumentNames.toArray(new TypeName[0]));
   }
 
-  private static TypeName wildcardNameOf(WildcardType wildcard) {
+  private static TypeName wildcardNameOf(WildcardType wildcard, String targetPackage) {
     TypeMirror extendsBound = wildcard.getExtendsBound();
     if (extendsBound != null) {
-      return WildcardTypeName.subtypeOf(typeNameOf(extendsBound));
+      return WildcardTypeName.subtypeOf(typeNameOf(extendsBound, targetPackage));
     }
     TypeMirror superBound = wildcard.getSuperBound();
     return superBound == null
         ? WildcardTypeName.subtypeOf(ClassName.OBJECT)
-        : WildcardTypeName.supertypeOf(typeNameOf(superBound));
+        : WildcardTypeName.supertypeOf(typeNameOf(superBound, targetPackage));
   }
 
   /**
@@ -144,11 +169,15 @@ final class TypeNames {
    * legal at a use - a {@code TYPE_PARAMETER} one is rejected outright as a type argument.
    *
    * @param parameter the type parameter to name; must not be null
-   * @return its name, with its bounds annotated as the source annotated them (non-null)
+   * @param targetPackage the package the client is written into; must not be null
+   * @return its name, with its bounds annotated as the source annotated them wherever the client
+   *     can say so (non-null)
    */
-  static TypeVariableName typeVariableOf(TypeParameterElement parameter) {
+  static TypeVariableName typeVariableOf(TypeParameterElement parameter, String targetPackage) {
     TypeName[] bounds =
-        parameter.getBounds().stream().map(TypeNames::typeNameOf).toArray(TypeName[]::new);
+        parameter.getBounds().stream()
+            .map(bound -> typeNameOf(bound, targetPackage))
+            .toArray(TypeName[]::new);
     return TypeVariableName.get(parameter.getSimpleName().toString(), bounds);
   }
 }
