@@ -3,18 +3,17 @@
 package org.higherkindedj.optics.processing.generator.hkj;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
-import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.traversalsJavac;
 
 import com.google.testing.compile.JavaFileObjects;
-import org.higherkindedj.optics.processing.TraversalProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("EitherGenerator")
 public class EitherGeneratorTest {
   @Test
-  @DisplayName("should generate correct traversal for Either fields")
+  @DisplayName("should generate a traversal for Either fields that draws no lint warning")
   void shouldGenerateCorrectTraversalForEither() {
     final var sourceFile =
         JavaFileObjects.forSourceString(
@@ -35,16 +34,15 @@ public class EitherGeneratorTest {
         final Either<String, Integer> either = source.data();
         if (either.isRight()) {
           final var g_of_b = f.apply(either.getRight());
-          @SuppressWarnings("unchecked") final var g_of_b_casted = (Kind<F, Integer>) g_of_b;
-          return applicative.map(newValue -> new Response(Either.right(newValue)), g_of_b_casted);
+          return applicative.map(newValue -> new Response(Either.right(newValue)), g_of_b);
         } else {
           return applicative.of(source);
         }
         """;
 
-    var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
+    var compilation = traversalsJavac().withOptions("-Xlint:all", "-Werror").compile(sourceFile);
 
-    assertThat(compilation).succeeded();
+    assertThat(compilation).succeededWithoutWarnings();
     assertGeneratedCodeContains(compilation, "com.example.ResponseTraversals", expectedBody);
   }
 }

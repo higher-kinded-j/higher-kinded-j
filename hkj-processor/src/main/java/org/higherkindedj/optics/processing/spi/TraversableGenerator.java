@@ -194,6 +194,14 @@ public interface TraversableGenerator {
   /**
    * Generates the body of the `modifyF` method for a Traversal.
    *
+   * <p>The body is written against the method's parameters: {@code source}, the record; {@code f},
+   * a {@code Function<A, Kind<F, A>>} at the traversal's focus type {@code A}, with the effect
+   * named as {@link #effectVariable} gives it; and {@code applicative}, an {@code Applicative<F>}.
+   * It returns a {@code Kind<F, S>} holding the rebuilt record. {@code f} already answers at the
+   * focus type, so its result is mapped over as it is: a cast to {@code Kind<F, A>} names the type
+   * it already has, which javac reports under {@code -Xlint:cast} in every build that compiles the
+   * generated source.
+   *
    * @param component The record component being processed (e.g., the 'items' field).
    * @param recordClassName The ClassName of the record containing the component.
    * @param allComponents A list of all components in the record, for reconstruction.

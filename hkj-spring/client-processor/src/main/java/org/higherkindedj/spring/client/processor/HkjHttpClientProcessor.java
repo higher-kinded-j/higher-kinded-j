@@ -25,7 +25,6 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
-import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -68,7 +67,6 @@ import org.jspecify.annotations.Nullable;
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.spring.client.HkjHttpClient")
-@SupportedSourceVersion(SourceVersion.RELEASE_25)
 public class HkjHttpClientProcessor extends AbstractProcessor {
 
   private static final String EITHER_PATH = "org.higherkindedj.hkt.effect.EitherPath";
@@ -127,6 +125,11 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
   /** Creates a new processor. */
   public HkjHttpClientProcessor() {}
+
+  @Override
+  public SourceVersion getSupportedSourceVersion() {
+    return SourceVersion.latestSupported();
+  }
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
@@ -478,6 +481,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
             AnnotationSpec.builder(IMPORT_HTTP_SERVICES)
                 .addMember("group", "$S", group)
                 .addMember("types", "$T.class", nativeName)
+                .build())
+        // A class in an exported package that declares no constructor exposes the default one,
+        // which -Xlint:missing-explicit-ctor reports in a named module.
+        .addMethod(
+            MethodSpec.constructorBuilder()
+                .addModifiers(Modifier.PUBLIC)
+                .addJavadoc("Creates the configuration Spring instantiates.\n")
                 .build())
         .addMethod(bean)
         .build();

@@ -443,8 +443,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                   .addMember("value", "$S", "unchecked")
                   .build())
           .addStatement(
-              "return ($T) $T.$L.widen(($T) ($T) op)",
-              ParameterizedTypeName.get(KIND, witnessClass, typeB),
+              "return $T.$L.widen(($T) ($T) op)",
               helperClass,
               singletonName,
               ParameterizedTypeName.get(sourceClass, typeB),
@@ -831,7 +830,15 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             .addAnnotation(GENERATED)
             .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
             .addTypeVariable(typeM)
-            .addSuperinterface(ParameterizedTypeName.get(NATURAL, witnessClass, typeM));
+            .addSuperinterface(ParameterizedTypeName.get(NATURAL, witnessClass, typeM))
+            // A class in an exported package that declares no constructor exposes the default one,
+            // which -Xlint:missing-explicit-ctor reports in a named module.
+            .addMethod(
+                MethodSpec.constructorBuilder()
+                    .addModifiers(Modifier.PROTECTED)
+                    .addJavadoc(
+                        "Creates an interpreter, for a subclass to handle each operation.\n")
+                    .build());
 
     // Abstract handle method per permit
     for (TypeElement permit : permits) {

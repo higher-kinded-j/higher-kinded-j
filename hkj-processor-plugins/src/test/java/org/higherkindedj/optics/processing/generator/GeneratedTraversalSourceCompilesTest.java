@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.generator;
 
-import static com.google.testing.compile.Compiler.javac;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.traversalsJavac;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -14,25 +14,26 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
-import org.higherkindedj.optics.processing.TraversalProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * {@code @GenerateTraversals} never emits source that fails to compile, and focuses the type a
- * container's type argument stands for.
+ * {@code @GenerateTraversals} never emits source that fails to compile or draws a lint warning, and
+ * focuses the type a container's type argument stands for.
  *
  * <p>The argument is written into the generated optic, and a wildcard cannot be written there:
  * {@code new Traversal<Holder, ? extends Leaf>() {}} is illegal as an anonymous class. The tests of
  * the day missed that because every container they wrote was parameterised with a concrete type.
  *
- * <p>So every container shape is compiled through the real processor, and three things are asserted
- * of what comes back: no error is reported; a method is generated for every component that has one
- * to generate; and each method focuses the type the component's argument resolves to. The last two
- * matter because emitting no method at all compiles perfectly well, and so does a traversal that
- * has quietly widened its focus to {@code Object}.
+ * <p>So every container shape is compiled through the real processor, and four things are asserted
+ * of what comes back: no error is reported; no lint warning is reported against a generated file,
+ * since a consumer building with {@code -Werror} cannot suppress one in a file it does not own; a
+ * method is generated for every component that has one to generate; and each method focuses the
+ * type the component's argument resolves to. The last two matter because emitting no method at all
+ * compiles perfectly well, and so does a traversal that has quietly widened its focus to {@code
+ * Object}.
  */
 @DisplayName("Generated Traversal source always compiles")
 class GeneratedTraversalSourceCompilesTest {
@@ -114,6 +115,9 @@ class GeneratedTraversalSourceCompilesTest {
               "super-bounded wildcard",
               "Object",
               "Either<String, ? super Leaf>",
+              "Try<? super Leaf>",
+              "Validated<String, ? super Leaf>",
+              "Maybe<? super Leaf>",
               "Map<String, ? super Leaf>",
               "List<? super Leaf>",
               "Collection<? super Leaf>",
@@ -183,12 +187,13 @@ class GeneratedTraversalSourceCompilesTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("shapes")
-  @DisplayName("should compile, and focus the type each component's argument resolves to")
+  @DisplayName(
+      "should compile without a warning, and focus the type each component's argument resolves to")
   void shouldNeverEmitUncompilableSource(final String label, final Shape shape) {
     final Compilation compilation =
-        javac().withProcessors(new TraversalProcessor()).compile(holder(shape), LEAF);
+        traversalsJavac().withOptions("-Xlint:all").compile(holder(shape), LEAF);
 
-    assertThat(errorsFrom(compilation, GENERATED_OUTPUT))
+    assertThat(locatedIn(compilation.errors(), GENERATED_OUTPUT))
         .as(
             "%s: the processor emitted generated source that does not compile. Resolve the type"
                 + " argument where it is read, so that what is written is denotable",
@@ -196,6 +201,11 @@ class GeneratedTraversalSourceCompilesTest {
         .isEmpty();
     assertThat(compilation.errors().stream().map(GeneratedTraversalSourceCompilesTest::describe))
         .as("%s: the compilation reported errors", label)
+        .isEmpty();
+    assertThat(locatedIn(compilation.warnings(), GENERATED_OUTPUT))
+        .as(
+            "%s: the generated source draws a warning under -Xlint:all, which fails a -Werror build",
+            label)
         .isEmpty();
 
     final String generated = generatedSource(compilation);
@@ -231,10 +241,13 @@ class GeneratedTraversalSourceCompilesTest {
                 .formatted(declaration));
 
     final Compilation compilation =
-        javac().withProcessors(new TraversalProcessor()).compile(holder, LEAF);
+        traversalsJavac().withOptions("-Xlint:all").compile(holder, LEAF);
 
     assertThat(compilation.errors().stream().map(GeneratedTraversalSourceCompilesTest::describe))
         .as("%s: the generated traversals should compile", declaration)
+        .isEmpty();
+    assertThat(locatedIn(compilation.warnings(), GENERATED_OUTPUT))
+        .as("%s: the generated traversals should compile without a warning", declaration)
         .isEmpty();
     assertThat(generatedSource(compilation))
         .as("%s: the record's type variables should reach the generated method", declaration)
@@ -342,11 +355,12 @@ class GeneratedTraversalSourceCompilesTest {
     }
   }
 
-  /** The errors javac located in a file whose name contains {@code marker}. */
-  private static List<String> errorsFrom(final Compilation compilation, final String marker) {
-    return compilation.errors().stream()
-        .filter(error -> error.getSource() != null)
-        .filter(error -> error.getSource().getName().contains(marker))
+  /** The diagnostics javac located in a file whose name contains {@code marker}. */
+  private static List<String> locatedIn(
+      final List<Diagnostic<? extends JavaFileObject>> diagnostics, final String marker) {
+    return diagnostics.stream()
+        .filter(diagnostic -> diagnostic.getSource() != null)
+        .filter(diagnostic -> diagnostic.getSource().getName().contains(marker))
         .map(GeneratedTraversalSourceCompilesTest::describe)
         .toList();
   }

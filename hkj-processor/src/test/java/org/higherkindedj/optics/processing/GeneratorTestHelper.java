@@ -92,8 +92,33 @@ public final class GeneratorTestHelper {
       final List<? extends Processor> processors,
       final Map<String, List<JavaFileObject>> modules)
       throws IOException {
+    return compileModules(dir, processors, modules, Map.of(), List.of());
+  }
+
+  /**
+   * Compiles each module as {@link #compileModules(Path, List, Map)} does, with each module
+   * exporting the packages {@code exports} names for it, and javac given {@code options} as well. A
+   * lint that reads a module's API, such as {@code missing-explicit-ctor}, reports only on an
+   * exported package.
+   *
+   * @param dir the directory to lay the sources and class files out under; each module's class
+   *     files land in {@code out/<module>}
+   * @param processors the processors to run, in the order javac offers them each round
+   * @param modules each module's sources, by module name
+   * @param exports the packages each module exports, by module name
+   * @param options further javac options, such as a lint category
+   * @return every diagnostic the compilation reported
+   * @throws IOException if a source cannot be written
+   */
+  public static List<Diagnostic<? extends JavaFileObject>> compileModules(
+      final Path dir,
+      final List<? extends Processor> processors,
+      final Map<String, List<JavaFileObject>> modules,
+      final Map<String, List<String>> exports,
+      final List<String> options)
+      throws IOException {
     final Path src = dir.resolve("src");
-    final List<String> options =
+    final List<String> javacOptions =
         new ArrayList<>(
             List.of(
                 "--module-source-path",
@@ -104,11 +129,22 @@ public final class GeneratorTestHelper {
                 classpathWith().stream()
                     .map(File::toString)
                     .collect(Collectors.joining(File.pathSeparator))));
+    javacOptions.addAll(options);
     final List<Path> files = new ArrayList<>();
     for (final Map.Entry<String, List<JavaFileObject>> module : new TreeMap<>(modules).entrySet()) {
       final Path root = src.resolve(module.getKey());
-      options.addAll(List.of("--add-reads", module.getKey() + "=ALL-UNNAMED"));
-      files.add(write(root, "module-info.java", "module " + module.getKey() + " {}\n"));
+      javacOptions.addAll(List.of("--add-reads", module.getKey() + "=ALL-UNNAMED"));
+      final String exported =
+          exports.getOrDefault(module.getKey(), List.of()).stream()
+              .map(pkg -> "  exports " + pkg + ";\n")
+              .collect(Collectors.joining());
+      files.add(
+          write(
+              root,
+              "module-info.java",
+              "module "
+                  + module.getKey()
+                  + (exported.isEmpty() ? " {}\n" : " {\n" + exported + "}\n")));
       for (final JavaFileObject source : module.getValue()) {
         // JavaFileObjects.forSourceString names the file /com/example/Contact.java.
         files.add(
@@ -124,7 +160,7 @@ public final class GeneratorTestHelper {
               null,
               fileManager,
               diagnostics,
-              options,
+              javacOptions,
               null,
               fileManager.getJavaFileObjectsFromPaths(files));
       task.setProcessors(processors);

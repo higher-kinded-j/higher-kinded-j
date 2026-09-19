@@ -9,11 +9,17 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.CompilationSubject;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.optics.processing.GeneratorTestHelper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Structural validation tests for the {@link EffectAlgebraProcessor}.
@@ -250,6 +256,20 @@ class EffectAlgebraProcessorTest {
     }
 
     @Test
+    @DisplayName("Should compile the cast-through Functor without a lint warning")
+    void castThroughFunctorDrawsNoLintWarning() {
+      // processing is left out: the generated classes carry jspecify's @NullMarked, which no
+      // processor claims.
+      Compilation compilation =
+          javac()
+              .withProcessors(new EffectAlgebraProcessor())
+              .withOptions("-Xlint:all,-processing", "-Werror")
+              .compile(simpleEffectAlgebra());
+
+      CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
     @DisplayName("Should generate Functor with mapK delegation for continuation algebra")
     void generatesFunctorWithMapK() throws IOException {
       Compilation compilation = compile(mapKEffectAlgebra());
@@ -406,6 +426,36 @@ class EffectAlgebraProcessorTest {
       String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpInterpreter");
 
       assertThat(source).contains("Validation.kind().requireNonNull(fa, Operation.FROM_KIND)");
+    }
+
+    @Test
+    @DisplayName("Should declare a protected constructor for subclasses")
+    void declaresAProtectedConstructor() throws IOException {
+      Compilation compilation = compile(simpleEffectAlgebra());
+      String source = getGeneratedSource(compilation, "test.pkg.ConsoleOpInterpreter");
+
+      assertThat(source).contains("protected ConsoleOpInterpreter()");
+    }
+
+    @Test
+    @DisplayName("Should draw no missing-explicit-ctor warning in a module that exports it")
+    void noMissingConstructorWarningInAnExportingModule(@TempDir Path dir) throws IOException {
+      // A public class that declares no constructor exposes the default one, which
+      // -Xlint:missing-explicit-ctor reports in a named module exporting its package.
+      List<Diagnostic<? extends JavaFileObject>> diagnostics =
+          GeneratorTestHelper.compileModules(
+              dir,
+              List.of(new EffectAlgebraProcessor()),
+              Map.of("effects", List.of(simpleEffectAlgebra())),
+              Map.of("effects", List.of("test.pkg")),
+              List.of("-Xlint:missing-explicit-ctor", "-Werror"));
+
+      assertThat(
+              diagnostics.stream()
+                  .filter(diagnostic -> diagnostic.getKind() != Diagnostic.Kind.NOTE)
+                  .map(diagnostic -> diagnostic.getMessage(null)))
+          .isEmpty();
+      assertThat(dir.resolve("out/effects/test/pkg/ConsoleOpInterpreter.class")).exists();
     }
   }
 

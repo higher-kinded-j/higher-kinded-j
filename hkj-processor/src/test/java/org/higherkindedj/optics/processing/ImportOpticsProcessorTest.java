@@ -294,6 +294,47 @@ class ImportOpticsProcessorTest {
           generated,
           "@SuppressWarnings(\"rawtypes\") public static Traversal<Bounds, List> listsTraversal()");
     }
+
+    @Test
+    @DisplayName("an Optional component's traversal draws no lint warning")
+    void optionalTraversalDrawsNoLintWarning() {
+      // The effect f returns is already in the focus type, the wildcard's bound included, so the
+      // traversal maps it as it stands.
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Doc",
+              """
+              package com.external;
+
+              import java.util.Optional;
+
+              public record Doc(String id, Optional<String> more, Optional<? extends Number> amount) {}
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Doc.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      // Beside the companion processor, as a build that finds its processors on the processor path
+      // runs it, which claims the @Generated marker on the generated file.
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor(), new CompanionAnnotationProcessor())
+              .withOptions("-Xlint:all", "-Werror")
+              .compile(externalRecord, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      final String generated = "com.myapp.optics.DocLenses";
+      assertGeneratedCodeContains(
+          compilation, generated, "public static Traversal<Doc, String> moreTraversal()");
+      assertGeneratedCodeContains(
+          compilation, generated, "public static Traversal<Doc, Number> amountTraversal()");
+    }
   }
 
   @Nested

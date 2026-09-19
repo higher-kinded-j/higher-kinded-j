@@ -3,18 +3,17 @@
 package org.higherkindedj.optics.processing.generator.hkj;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
-import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.generator.GeneratorTestHelper.traversalsJavac;
 
 import com.google.testing.compile.JavaFileObjects;
-import org.higherkindedj.optics.processing.TraversalProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("ValidatedGenerator")
 public class ValidatedGeneratorTest {
   @Test
-  @DisplayName("should generate correct traversal for Validated fields")
+  @DisplayName("should generate a traversal for Validated fields that draws no lint warning")
   void shouldGenerateCorrectTraversalForValidated() {
     final var sourceFile =
         JavaFileObjects.forSourceString(
@@ -35,16 +34,15 @@ public class ValidatedGeneratorTest {
         final Validated<String, String> validated = source.value();
         if (validated.isValid()) {
           final var g_of_b = f.apply(validated.get());
-          @SuppressWarnings("unchecked") final var g_of_b_casted = (Kind<F, String>) g_of_b;
-          return applicative.map(newValue -> new Input(Validated.valid(newValue)), g_of_b_casted);
+          return applicative.map(newValue -> new Input(Validated.valid(newValue)), g_of_b);
         } else {
           return applicative.of(source);
         }
         """;
 
-    var compilation = javac().withProcessors(new TraversalProcessor()).compile(sourceFile);
+    var compilation = traversalsJavac().withOptions("-Xlint:all", "-Werror").compile(sourceFile);
 
-    assertThat(compilation).succeeded();
+    assertThat(compilation).succeededWithoutWarnings();
     assertGeneratedCodeContains(compilation, "com.example.InputTraversals", expectedBody);
   }
 }

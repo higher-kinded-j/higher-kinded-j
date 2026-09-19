@@ -344,11 +344,12 @@ The `TraversalProcessor` will now discover your `NonEmptyListGenerator` via `Ser
 - **Extend `BaseTraversableGenerator`** to inherit `getGenericTypeName()`, `getTypeArgumentName(component, index)` and `generateConstructorArgs()` helper methods. Read every type argument through one of the first two: they resolve a wildcard to the type it stands for, and a wildcard written into generated source does not compile.
 - **Construct the record through `recordTypeName(component, recordClassName)`**, not the class name you were handed: a generic record's traversal is generated in a method carrying its type variables, and naming the record without them constructs a raw instance.
 - **Name the effect through `effectVariable(component)`** wherever the body you emit writes a `Kind<F, …>`: a record is free to declare a type parameter called `F`, and the generated method then declares the effect under another name.
+- **Map over what `f` returns as it is.** The body is written against `source`, `f` and `applicative`, and `f` is a `Function<A, Kind<F, A>>` at the focus type, so its result needs no cast. A cast to `Kind<F, A>` names the type it already has, and javac reports it under `-Xlint:cast` in every build that compiles your generated source.
 - **Use fully qualified names** in `supports()` to avoid false matches with similarly named types.
 - **Reuse `Traversals.traverseList()`** when your type can be converted to a `java.util.List`. Most third-party generators follow this pattern: convert to list, traverse, convert back. A map-shaped type hands itself to `Traversals.traverseMapValues()` instead, which keeps the keys and gives back a JDK `Map` to rebuild from.
 - **Override `getFocusTypeArgumentIndex()`** if your type's traversal target is not the first type parameter (e.g. `Either<L, R>` focuses on index 1).
 - **Override `getCardinality()`** to return `Cardinality.ZERO_OR_ONE` for optional-like types (e.g. `Either`, `Try`, `Validated`). The default `ZERO_OR_MORE` is correct for collection-like types and does not need overriding.
-- **Write integration tests** using Google's compile-testing library to verify generated code compiles and contains the expected statements.
+- **Write integration tests** using Google's compile-testing library to verify generated code compiles and contains the expected statements. Compiling it with `-Xlint:cast,unchecked,rawtypes -Werror` and asserting `succeededWithoutWarnings()` catches a warning your users' builds would otherwise report in a file they cannot edit.
 
 ---
 

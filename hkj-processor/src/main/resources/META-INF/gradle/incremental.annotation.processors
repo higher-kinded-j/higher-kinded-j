@@ -1,6 +1,6 @@
 # Gradle incremental annotation processing registration.
 #
-# Every processor is registered as AGGREGATING. The mapping family (MappingProcessor,
+# Every processor that generates is registered as AGGREGATING. The mapping family (MappingProcessor,
 # MergeProcessor, AssemblyProcessor) genuinely aggregates: MappingProcessor and MergeProcessor
 # resolve nesting and sealed dispatch against a registry of the other annotated specs in the
 # compilation, so their outputs may depend on any annotated element in it. They also read the
@@ -12,8 +12,13 @@
 # produces silently stale outputs, while AGGREGATING is behaviour-preserving for every processor
 # and already restores incremental compilation for consuming source sets. Refining individual
 # processors to ISOLATING needs a per-processor one-origin-per-file audit first.
+#
+# CompanionAnnotationProcessor generates nothing: it only claims the annotations the others read or
+# write, so the one-origin-per-file rule holds for it trivially. ISOLATING leaves Gradle nothing to
+# track, where AGGREGATING would reprocess every type carrying them, every generated class included.
 org.higherkindedj.optics.processing.AccumulatorProcessor,aggregating
 org.higherkindedj.optics.processing.AssemblyProcessor,aggregating
+org.higherkindedj.optics.processing.CompanionAnnotationProcessor,isolating
 org.higherkindedj.optics.processing.ErrorEnvelopeProcessor,aggregating
 org.higherkindedj.optics.processing.FocusProcessor,aggregating
 org.higherkindedj.optics.processing.FoldProcessor,aggregating
