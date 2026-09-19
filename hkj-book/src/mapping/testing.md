@@ -80,7 +80,7 @@ Every rejection follows the processor's what/why/fix standard: the message state
 | A getter-only `List` must name its element type wherever a `build` is emitted; `addAll` cannot be written over a raw or wildcard receiver | [Bean-shaped wire targets](beans_patch.md#bean-shaped-wire-targets) |
 | A getter-only `List` is rejected on a sparse `UpdateSpec`: its getter never answers `null`, so it cannot carry absence | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 | A PATCH bean's getters must answer `null` until set, which is not checked: a default the bean gives itself (a field initialiser, a constructor assignment, a getter that creates its value) reads as sent. Law-check a sparse spec with a freshly constructed bean as the all-absent wire and a current value unlike any default, which catches it | [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
-| A bridged bean property's setter or builder setter must take `null`, which `build` writes for an empty `Optional` | [Bean-shaped wire targets](beans_patch.md#bean-shaped-wire-targets) |
+| A bridged site must take the `null` that `build` writes for an empty `Optional`: a record component, setter or builder setter declared non-null, by a non-null annotation or inside a JSpecify `@NullMarked` scope without `@Nullable`, is refused; one that refuses `null` without declaring it is not checked, and throws from `build` | [Optional fields](basics.md#optional-bridge), [Bean-shaped wire targets](beans_patch.md#bean-shaped-wire-targets) |
 | A raw `List`, `Set` or `Map` component keeps its own null guard but gives up the element null scan (an array keeps it, naming its element type in the type itself) | [Null has an address](basics.md#null-doctrine) |
 
 ---

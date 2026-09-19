@@ -158,7 +158,7 @@ genuinely encodes *absence* as `null` (Jackson's default for an optional field),
 <!-- verify -->
 ```java
 public record Member(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
-public record MemberDto(String name, String nickname, String altEmail) {}   // nullable, by convention
+public record MemberDto(String name, @Nullable String nickname, @Nullable String altEmail) {} // absent: null
 
 @GenerateMapping
 public interface MemberMapping extends MappingSpec<Member, MemberDto> {
@@ -199,6 +199,15 @@ public interface MemberMapping extends MappingSpec<Member, MemberDto> {
   a primitive wire component, a leaf declared over the whole `Optional` rather than the element, a
   sealed mapping, and a locally declared one on an `UpdateSpec` (whose `null` already means *leave
   unchanged*). An already-`Optional` wire component needs no bridge, so that one is a note.
+- A **write site declared non-null** is refused on either wire, since `build` would write the
+  empty `Optional`'s `null` there: a record component, setter or builder-setter parameter carrying
+  a non-null annotation (`@NonNull`, `@Nonnull`, `@NotNull`, Lombok's), or declared inside a
+  JSpecify `@NullMarked` scope without `@Nullable`. Mark it `@Nullable` (any annotation named
+  `Nullable` or `CheckForNull` counts; on an array, `String @Nullable []`); for a compiled class you
+  cannot change, drop the `Optional` or declare a leaf over the whole `Optional`
+  (`ValidatedPrism<String, Optional<String>>`), which wins over the bridge. A type-variable site
+  follows its bounds: plain `<T>` under `@NullMarked` is non-null, `<T extends @Nullable Object>`
+  bridges.
 - **Inherited bridges stay inert** wherever they cannot apply, so one mix-in serves a record spec,
   a bean spec and a PATCH sibling.
 - A present **container** is still scanned for null elements (`tags.1: must not be null`): the
@@ -444,7 +453,8 @@ matter: it maps build-only whatever its width, derived fields included.
   `build` fills through setters or the builder, `parse` reads
   through getters under the same null guard as a record wire, and a domain `Optional<T>` bridges to
   a nullable bean property `T` with no declaration (a record wire opts in per component with
-  `@OptionalBridge`; an empty one writes `null`, so the setter or builder setter must take it),
+  `@OptionalBridge`; an empty one writes `null`, so the setter or builder setter must take it,
+  and one declared non-null is refused),
   except onto a getter-only `List`, which has no unset state to carry absence;
   see `reference/mapping-example.md`. A bean projection with a reference
   property takes the validated `patch` (the property can be unset); an all-primitive one keeps
@@ -720,7 +730,7 @@ before rearranging the spec.
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
 | A JAXB getter-only `List` on an `UpdateSpec` | Its getter creates the list on first call, so it never reads `null`: an omitted field would clear the domain list rather than leave it alone. Rejected; give the property a setter, and a getter that answers `null` until it is set |
 | A PATCH bean that gives itself a default (a field initialiser such as `tags = new ArrayList<>()`, a constructor assignment, a getter that creates its value) | Not detected: the getter never answers `null`, so an omitted field reads as its default and `updateFrom` writes it over the domain. Let every getter answer `null` until set, and law-check with a freshly constructed bean as the all-absent wire and a current value unlike any default, which catches it |
-| A bridged bean property whose setter refuses `null` (`List.copyOf(v)`, a protobuf or Immutables builder) | `build` writes `null` for an empty `Optional`, so it throws. Guard the copy (`v == null ? null : List.copyOf(v)`); for a generated builder, drop the `Optional` or declare a leaf over the whole `Optional` that encodes absence the builder's way |
+| A bridged bean property whose setter refuses `null` (`List.copyOf(v)`, a protobuf or Immutables builder) | `build` writes `null` for an empty `Optional`. A setter declared non-null (`@NonNull`, or `@NullMarked` without `@Nullable`) is refused when it compiles: mark the parameter `@Nullable`. One that refuses `null` without declaring it throws from `build`: guard the copy (`v == null ? null : List.copyOf(v)`); for a generated builder, drop the `Optional` or declare a leaf over the whole `Optional` that encodes absence the builder's way |
 | Bridging a domain `Optional<List<T>>` onto a JAXB getter-only `List` | The getter creates the list on first call, so absence has nowhere to live and would read back as a present empty list. Declare the component `List<T>`, where empty *is* nothing, or give the property both a setter and a getter that returns what the setter stored (a lazily creating getter loses absence on the read even with a setter) |
 | Two nested specs generating the same `Impl` | Nested specs join their enclosing simple names; rename one |
 | Assuming sealed hierarchies are unsupported | They are supported. Give each permitted subtype pair a spec; the parent dispatches |

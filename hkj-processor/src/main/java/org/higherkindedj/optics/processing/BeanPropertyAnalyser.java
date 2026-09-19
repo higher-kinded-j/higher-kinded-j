@@ -147,11 +147,7 @@ final class BeanPropertyAnalyser {
             return null;
           }
           properties.add(
-              readWrite(
-                  name,
-                  getterType,
-                  getter,
-                  new WireShape.WriteSite.Setter(setter.getSimpleName().toString())));
+              readWrite(name, getterType, getter, new WireShape.WriteSite.Setter(setter)));
         } else if (collectionsWrite && isList(getterType)) {
           properties.add(
               readWrite(name, getterType, getter, new WireShape.WriteSite.CollectionAdd(getter)));
@@ -202,7 +198,7 @@ final class BeanPropertyAnalyser {
                 name,
                 getterType,
                 entry.getValue().getSimpleName().toString(),
-                new WireShape.WriteSite.Setter(builderSetter.getSimpleName().toString())));
+                new WireShape.WriteSite.Setter(builderSetter)));
       }
       if (!properties.isEmpty()) {
         unpaired.addAll(
@@ -322,8 +318,7 @@ final class BeanPropertyAnalyser {
                         paramType(owner, entry.getValue()),
                         Optional.<String>empty(),
                         Optional.<WireShape.WriteSite>of(
-                            new WireShape.WriteSite.Setter(
-                                entry.getValue().getSimpleName().toString()))))
+                            new WireShape.WriteSite.Setter(entry.getValue()))))
             .toList();
     return new WireShape.BeanShape(
         bean, properties, Optional.of(strategy), WireShape.Direction.BUILD_ONLY, List.of());

@@ -737,6 +737,87 @@ class GeneratedMappingLawsTest {
 
   @Test
   @DisplayName(
+      "bridged tier under @NullMarked: a @Nullable setter and record component take an empty"
+          + " Optional's null, lawful absent and present alike")
+  void nullableSitesUnderNullMarkedAreLawful() throws ReflectiveOperationException {
+    JavaFileObject markedPackage =
+        JavaFileObjects.forSourceString(
+            "com.marked.package-info",
+            """
+            @NullMarked
+            package com.marked;
+
+            import org.jspecify.annotations.NullMarked;
+            """);
+    JavaFileObject types =
+        JavaFileObjects.forSourceString(
+            "com.marked.Profiles",
+            """
+            package com.marked;
+
+            import java.util.Optional;
+            import org.jspecify.annotations.Nullable;
+
+            public final class Profiles {
+              public record Profile(String name, Optional<String> nickname) {}
+
+              public record ProfileDto(String name, @Nullable String nickname) {}
+
+              public static class ProfileBean {
+                private @Nullable String name;
+                private @Nullable String nickname;
+                public @Nullable String getName() { return name; }
+                public void setName(String v) { name = v; }
+                public @Nullable String getNickname() { return nickname; }
+                public void setNickname(@Nullable String v) { nickname = v; }
+              }
+            }
+            """);
+    JavaFileObject recordMapping =
+        JavaFileObjects.forSourceString(
+            "com.marked.ProfileDtoMapping",
+            """
+            package com.marked;
+
+            import java.util.Optional;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.OptionalBridge;
+
+            @GenerateMapping
+            public interface ProfileDtoMapping
+                extends MappingSpec<Profiles.Profile, Profiles.ProfileDto> {
+              @OptionalBridge
+              Optional<String> nickname();
+            }
+            """);
+    JavaFileObject beanMapping =
+        JavaFileObjects.forSourceString(
+            "com.marked.ProfileBeanMapping",
+            """
+            package com.marked;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface ProfileBeanMapping
+                extends MappingSpec<Profiles.Profile, Profiles.ProfileBean> {}
+            """);
+
+    var result = compileMapping(markedPackage, types, recordMapping, beanMapping);
+    for (String impl :
+        List.of("com.marked.ProfileDtoMappingImpl", "com.marked.ProfileBeanMappingImpl")) {
+      ValidatedPrism<Object, Object> prism = asValidatedPrism(result.instance(impl));
+      MappingLaws.assertMappingLaws(
+          prism, result.newInstance("com.marked.Profiles$Profile", "ada", Optional.empty()));
+      MappingLaws.assertMappingLaws(
+          prism, result.newInstance("com.marked.Profiles$Profile", "ada", Optional.of("al")));
+    }
+  }
+
+  @Test
+  @DisplayName(
       "bridged container tier: an optional list lifts through its element spec, lawful absent,"
           + " empty and present alike")
   void bridgedContainerTierIsLawful() throws ReflectiveOperationException {

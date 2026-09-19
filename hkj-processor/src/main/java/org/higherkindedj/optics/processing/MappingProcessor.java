@@ -46,8 +46,10 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
@@ -692,11 +694,20 @@ public class MappingProcessor extends AbstractProcessor {
    * carrying the annotation is zero-parameter by then, so the name and the annotation identify it.
    */
   private boolean declaresBridge(TypeElement spec, String name) {
+    return bridgeDeclaration(spec, name).isPresent();
+  }
+
+  /**
+   * The spec member declaring the {@link OptionalBridge} on this domain component, under either
+   * placement, if any: a marker, or the component's own leaf.
+   */
+  private Optional<ExecutableElement> bridgeDeclaration(TypeElement spec, String name) {
     return specMembers(spec).stream()
-        .anyMatch(
+        .filter(
             method ->
                 method.getSimpleName().contentEquals(name)
-                    && method.getAnnotation(OptionalBridge.class) != null);
+                    && method.getAnnotation(OptionalBridge.class) != null)
+        .findFirst();
   }
 
   /**
@@ -2228,7 +2239,10 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The wire half of {@link #checkBridgesApply}: the component the bridge writes must be able to
    * hold the {@code null} that encodes absence. A component that cannot is an error; one that needs
-   * no bridge at all is merely redundant, and says so as a note.
+   * no bridge at all is merely redundant, and says so as a note. A primitive is refused here, where
+   * the marker is declared; a reference member declared non-null is refused when the bridge is
+   * resolved ({@link #reportNonNullBridge}), since a bean's is a setter parameter and a bean needs
+   * no marker.
    */
   private boolean checkBridgeWireSide(
       TypeElement spec,
@@ -5700,7 +5714,13 @@ public class MappingProcessor extends AbstractProcessor {
   private String referenceFix(MemberSite member, TypeMirror wireType, TypeMirror domainType) {
     LeafOffer offer = leafOffer(member.spec(), member.name(), wireType, domainType);
     return bridgeOffer(
-            member.spec(), member.registry(), member.name(), wireType, domainType, member.need())
+            member.spec(),
+            member.registry(),
+            member.name(),
+            wireType,
+            domainType,
+            member.need(),
+            nonNullWriteSite(member.wire(), member.wireName()))
         + leafLine(
             member.spec(),
             member.name(),
@@ -5783,7 +5803,8 @@ public class MappingProcessor extends AbstractProcessor {
                     member.name(),
                     wireBoxed,
                     domainBoxed,
-                    member.need())
+                    member.need(),
+                    nonNullWriteSite(member.wire(), member.wireName()))
                 .strip();
     return "Align the component types, or declare "
         + String.join(" and ", wrappers)
@@ -6043,8 +6064,10 @@ public class MappingProcessor extends AbstractProcessor {
     if (present.reported()) {
       return null;
     }
+    NonNullSite nonNull = nonNullWriteSite(wire, wireName);
     if (present.correspondence() == null) {
-      reportUnbridged(spec, registry, domain, wire, name, wireName, wireType, bridged, need, site);
+      reportUnbridged(
+          spec, registry, domain, wire, name, wireName, wireType, bridged, need, site, nonNull);
       return null;
     }
     // A property written through its own getter has no absent state to carry the bridge's empty.
@@ -6054,7 +6077,229 @@ public class MappingProcessor extends AbstractProcessor {
       reportGetterOnlyBridge(spec, domain, name, wireName, domainType, bridged, write);
       return null;
     }
+    // Nor can a site declared non-null, which build would hand the empty Optional's null.
+    if (nonNull != null) {
+      reportNonNullBridge(spec, domain, name, wireType, domainType, bridged, nonNull);
+      return null;
+    }
     return bridgedCorrespondence(present.correspondence(), bridged);
+  }
+
+  /**
+   * A site {@code build} writes a bridged component into that is declared non-null: how a
+   * diagnostic names the member (with what it declares) and the declaration that says so, the
+   * site's declared type, the type declaring it, and why it takes no {@code null}.
+   */
+  private record NonNullSite(
+      String member,
+      String declaration,
+      TypeMirror type,
+      TypeElement declaredBy,
+      NullableAnnotations.NonNullReason reason) {}
+
+  /**
+   * The site a bridged component is written into, when it is declared non-null ({@link
+   * NullableAnnotations#nonNullReason}): a record's component, which its canonical constructor
+   * takes, or the parameter of a bean's setter or builder setter. Null when the site may take a
+   * {@code null} or says nothing either way, and for a bean that is never written.
+   */
+  private static NonNullSite nonNullWriteSite(WireShape wire, String wireName) {
+    return switch (wire) {
+      case WireShape.RecordShape record -> {
+        RecordComponentElement component = componentNamed(record.element(), wireName);
+        String spelt = "'" + record.element().getSimpleName() + "." + wireName + "'";
+        yield NullableAnnotations.nonNullReason(component)
+            .map(
+                reason ->
+                    new NonNullSite(
+                        "the record component " + spelt + ", which is declared non-null",
+                        spelt,
+                        component.asType(),
+                        record.element(),
+                        reason))
+            .orElse(null);
+      }
+      case WireShape.BeanShape bean -> {
+        // A bean that is never written (parse-only) has no setter to hand the null to.
+        if (!(writeSite(bean, wireName) instanceof WireShape.WriteSite.Setter setter)) {
+          yield null;
+        }
+        VariableElement parameter = setter.parameter();
+        TypeElement declaredBy = (TypeElement) setter.method().getEnclosingElement();
+        WireShape.UnpairedAccessor.Role role =
+            bean.strategy().orElseThrow() instanceof WireShape.ConstructionStrategy.Builder
+                ? WireShape.UnpairedAccessor.Role.BUILDER_SETTER
+                : WireShape.UnpairedAccessor.Role.SETTER;
+        // A setter the bean inherits is marked where it is declared, as the analyser says.
+        Optional<TypeElement> inherited =
+            Optional.of(declaredBy)
+                .filter(
+                    type ->
+                        role == WireShape.UnpairedAccessor.Role.SETTER
+                            && !type.equals(bean.element()));
+        String method =
+            setter.method().getSimpleName()
+                + "("
+                + ProcessorUtils.simpleTypeName(parameter.asType())
+                + ")"
+                + BeanPropertyAnalyser.declaredOn(inherited);
+        yield NullableAnnotations.nonNullReason(parameter)
+            .map(
+                reason ->
+                    new NonNullSite(
+                        "the bean property '"
+                            + wireName
+                            + "', whose "
+                            + role.label()
+                            + " "
+                            + method
+                            + " is declared non-null",
+                        "the parameter of " + method,
+                        parameter.asType(),
+                        declaredBy,
+                        reason))
+            .orElse(null);
+      }
+    };
+  }
+
+  /**
+   * The clause that lets a non-null write site take the bridge's {@code null}: mark it {@code
+   * Nullable}, or replace the annotation that rules {@code null} out. An array site is told where
+   * the annotation goes, since one before the type marks the elements, and a site read from a class
+   * file is told the change is made where it is declared, which may not be this build's to make.
+   */
+  private String nullableFix(NonNullSite site) {
+    String fix =
+        switch (site.reason()) {
+          case NullableAnnotations.NonNullReason.Annotated annotated ->
+              "replace @"
+                  + annotated.annotation()
+                  + " on "
+                  + site.declaration()
+                  + " with @Nullable";
+          case NullableAnnotations.NonNullReason.Marked _ ->
+              "mark "
+                  + site.declaration()
+                  + " @Nullable"
+                  + (site.type().getKind() == TypeKind.ARRAY
+                      ? " before its brackets, '"
+                          + nullableArray(site.type())
+                          + "', since a @Nullable before the type marks the elements"
+                      : "");
+        };
+    return MappingIndexes.compiledHere(processingEnv.getElementUtils(), site.declaredBy())
+        ? fix
+        : fix + " where '" + nestedName(site.declaredBy()) + "' is declared, if you build it";
+  }
+
+  /** An array type with {@code @Nullable} on the array itself: {@code String @Nullable [][]}. */
+  private static String nullableArray(TypeMirror array) {
+    String spelt = ProcessorUtils.simpleTypeName(array);
+    int brackets = spelt.indexOf('[');
+    return spelt.substring(0, brackets) + " @Nullable " + spelt.substring(brackets);
+  }
+
+  /** A type's name with its enclosing types and no type arguments: {@code Profile.Builder}. */
+  private String nestedName(TypeElement type) {
+    return ProcessorUtils.simpleTypeName(processingEnv.getTypeUtils().erasure(type.asType()));
+  }
+
+  /**
+   * Refuses an {@code Optional} bridge whose write site is declared non-null. {@code build} writes
+   * an empty {@code Optional} as {@code null}, into the record component or through the setter, so
+   * a declaration that rules {@code null} out is contradicted on every empty value: a checking
+   * setter or constructor throws, and any other keeps a {@code null} its type says it cannot hold.
+   * The fixes each give the pair an honest encoding: a nullable site ({@link #nullableFix}), a
+   * domain component without the {@code Optional}, or a leaf over the whole {@code Optional} that
+   * encodes absence the way the wire does. A marker or bridged leaf the spec declares is named in
+   * the last two, since each replaces it. The primitive half of the same contract is refused where
+   * a marker is declared ({@link #checkBridgeWireSide}); this half needs the bean's write sites,
+   * which only classification knows.
+   */
+  private void reportNonNullBridge(
+      TypeElement spec,
+      TypeElement domain,
+      String name,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      TypeMirror element,
+      NonNullSite site) {
+    String because =
+        switch (site.reason()) {
+          case NullableAnnotations.NonNullReason.Annotated annotated ->
+              "is annotated @" + annotated.annotation();
+          case NullableAnnotations.NonNullReason.Marked marked ->
+              "carries no @Nullable inside @NullMarked "
+                  + marked.scope().getKind().toString().toLowerCase(Locale.ROOT).replace('_', ' ')
+                  + " '"
+                  + switch (marked.scope()) {
+                    case TypeElement type -> nestedName(type);
+                    case QualifiedNameable qualified -> qualified.getQualifiedName();
+                    default -> marked.scope().getSimpleName();
+                  }
+                  + "'";
+        };
+    Optional<ExecutableElement> bridge = bridgeDeclaration(spec, name);
+    String dropped =
+        bridge
+            .map(
+                method ->
+                    (isBridgeMarker(spec, method)
+                            ? " and its @OptionalBridge marker"
+                            : " and the @OptionalBridge on its leaf")
+                        + inheritedNote(method, spec))
+            .orElse("");
+    String replaced =
+        bridge
+            .map(
+                method ->
+                    (isBridgeMarker(spec, method)
+                            ? " in place of the marker"
+                            : " in place of that leaf")
+                        + inheritedNote(method, spec))
+            .orElse("");
+    String nullable = nullableFix(site);
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' is "
+            + ProcessorUtils.simpleTypeName(domainType)
+            + ", bridged to "
+            + site.member()
+            + ".",
+        "The bridge writes an empty Optional as null, and "
+            + site.declaration()
+            + " "
+            + because
+            + ", so build would write the null its declaration rules out, and either throw or"
+            + " leave a null its type says it cannot hold.",
+        Character.toUpperCase(nullable.charAt(0))
+            + nullable.substring(1)
+            + ", since it carries absence; or declare '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' as "
+            + ProcessorUtils.simpleTypeName(element)
+            + ", dropping the Optional"
+            + dropped
+            // Spelt without type-use annotations, which a leaf's isSameType match ignores: a bean's
+            // wire type is its getter's, often @Nullable, and the leaf encodes absence as a value.
+            + "; or add 'default ValidatedPrism<"
+            + TypeName.get(wireType)
+            + ", "
+            + TypeName.get(domainType)
+            + "> "
+            + name
+            + "()' to the spec"
+            + replaced
+            + ", a leaf over the whole Optional that encodes absence the way the wire does.");
   }
 
   /**
@@ -6063,7 +6308,9 @@ public class MappingProcessor extends AbstractProcessor {
    * present value, never the whole {@code Optional}: a leaf over {@code Optional<DE>} is matched as
    * a plain leaf and bypasses the bridge. For a container that is its elements (a {@code Map}'s
    * values), which lift one by one as they would unbridged, so the fix offered is an element leaf
-   * or a spec; a leaf over the whole container stays a valid override.
+   * or a spec; a leaf over the whole container stays a valid override. A member declared non-null
+   * ({@code nonNull}) is not called nullable, and whichever fix is taken it needs a {@code
+   * Nullable} too, or the bridge that fix completes is refused next ({@link #reportNonNullBridge}).
    */
   private void reportUnbridged(
       TypeElement spec,
@@ -6075,7 +6322,8 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireType,
       TypeMirror bridged,
       WireShape.Direction need,
-      LeafSite site) {
+      LeafSite site,
+      NonNullSite nonNull) {
     LeafOffer offer = leafOffer(spec, name, wireType, bridged);
     Diagnostics.error(
         processingEnv.getMessager(),
@@ -6087,7 +6335,8 @@ public class MappingProcessor extends AbstractProcessor {
             + name
             + "' is Optional<"
             + bridged
-            + ">, bridged to the nullable "
+            + ">, bridged to the "
+            + (nonNull == null ? "nullable " : "")
             + wireMemberTerm(wire)
             + " '"
             + wireName
@@ -6147,7 +6396,12 @@ public class MappingProcessor extends AbstractProcessor {
                 : "")
             + ", or align the "
             + (offer.lifts() ? offer.parts() : "element")
-            + " types.");
+            + " types."
+            + (nonNull == null
+                ? ""
+                : " The bridge writes null for an absent value, so also "
+                    + nullableFix(nonNull)
+                    + "."));
   }
 
   /**
@@ -6202,7 +6456,9 @@ public class MappingProcessor extends AbstractProcessor {
    * then bridges like any nullable member, with a leaf from the wrapper to the element where the
    * two differ. {@code site} is how that leaf is declared, in place of any marker, and {@code
    * dropMarker} whether the wrapper leaves a marker the spec declares redundant, as on a bean wire,
-   * which bridges without one. The caller ends the sentence.
+   * which bridges without one. A member declared non-null, as a primitive inside {@code NullMarked}
+   * is, needs its wrapper marked {@code Nullable} too, or the bridge the wrapper allows is refused
+   * next ({@link #reportNonNullBridge}). The caller ends the sentence.
    */
   private String primitiveBridgeFix(
       TypeElement spec,
@@ -6216,6 +6472,7 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror wrapper = boxed(wireType);
     ExecutableElement leaf = findLeaf(spec, name, wrapper, element);
     boolean converted = leaf != null || processingEnv.getTypeUtils().isSameType(wrapper, element);
+    NonNullSite nonNull = nonNullWriteSite(wire, wireName);
     return "Declare '"
         + wireName
         + "' on '"
@@ -6225,7 +6482,8 @@ public class MappingProcessor extends AbstractProcessor {
         + (leaf != null ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts" : "")
         + (converted
             ? dropMarker ? ", and remove the annotation, which a bean wire does not need" : ""
-            : " and add " + site.declaration(name, wrapper, element) + " to the spec");
+            : " and add " + site.declaration(name, wrapper, element) + " to the spec")
+        + (nonNull == null ? "" : ", and " + nullableFix(nonNull));
   }
 
   /**
@@ -6973,7 +7231,9 @@ public class MappingProcessor extends AbstractProcessor {
    * no leaf: it copies, or a single mapping serving the site covers the element pair, which the
    * bridge nests through. With two, the element leaf that chooses between them is offered instead.
    * Empty when the shape cannot bridge. Never asked of a primitive wire member, which cannot hold
-   * the {@code null} and is offered its wrapper first ({@link #primitiveFix}).
+   * the {@code null} and is offered its wrapper first ({@link #primitiveFix}). A component declared
+   * non-null ({@code nonNull}) is told to take a {@code @Nullable} as well, so the offer does not
+   * lead to the refusal a bridge onto it would draw ({@link #reportNonNullBridge}).
    */
   private String bridgeOffer(
       TypeElement spec,
@@ -6981,7 +7241,8 @@ public class MappingProcessor extends AbstractProcessor {
       String name,
       TypeMirror wireType,
       TypeMirror domainType,
-      WireShape.Direction need) {
+      WireShape.Direction need,
+      NonNullSite nonNull) {
     TypeMirror declaredElement = containerElement(domainType, "java.util.Optional");
     if (declaredElement == null || containerElement(wireType, "java.util.Optional") != null) {
       return "";
@@ -6994,20 +7255,24 @@ public class MappingProcessor extends AbstractProcessor {
         processingEnv.getTypeUtils().isSameType(wireType, element)
             || servingCandidates(spec, registry, offer.wire(), offer.domain(), need).chosen().size()
                 == 1;
+    String nullable = nonNull == null ? "" : ", and " + nullableFix(nonNull);
     return needsNoLeaf
         ? "Add '@OptionalBridge "
             + domainType
             + " "
             + name
-            + "();' to the spec, so an absent value reads as a null wire component and back. "
+            + "();' to the spec"
+            + nullable
+            + ", so an absent value reads as a null wire component and back. "
         : "Add '@OptionalBridge default ValidatedPrism<"
             + offer.wire()
             + ", "
             + offer.domain()
             + "> "
             + name
-            + "()' to the spec, a leaf over the ELEMENT types, so an absent value reads as a null"
-            + " wire component and a present one converts. ";
+            + "()' to the spec, a leaf over the ELEMENT types"
+            + nullable
+            + ", so an absent value reads as a null wire component and a present one converts. ";
   }
 
   private String unusableSpecHint(

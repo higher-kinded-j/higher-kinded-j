@@ -7,7 +7,9 @@ import com.palantir.javapoet.TypeName;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -257,11 +259,21 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      */
     CodeBlock write(String receiver, CodeBlock value);
 
-    /** {@code receiver.setX(value)} — a setter or, in a builder frame, a builder setter. */
-    record Setter(String method) implements WriteSite {
+    /**
+     * {@code receiver.setX(value)} — a setter or, in a builder frame, a builder setter. It keeps
+     * the method as declared, so what its parameter says about {@code null} can be read. The
+     * element is valid only within the round that analysed the bean, and compares by identity, so a
+     * {@code Setter} is never compared or kept across rounds.
+     */
+    record Setter(ExecutableElement method) implements WriteSite {
       @Override
       public CodeBlock write(String receiver, CodeBlock value) {
-        return CodeBlock.of("$L.$L($L)", receiver, method, value);
+        return CodeBlock.of("$L.$L($L)", receiver, method.getSimpleName(), value);
+      }
+
+      /** The one parameter the write hands its value to. */
+      VariableElement parameter() {
+        return method.getParameters().getFirst();
       }
     }
 

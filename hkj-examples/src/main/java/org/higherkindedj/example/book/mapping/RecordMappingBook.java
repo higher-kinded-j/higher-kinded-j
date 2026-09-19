@@ -22,6 +22,7 @@ import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The code shown on the book's <a
@@ -375,7 +376,7 @@ interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
 record Member(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
 
 // The wire carries optional data the way a JSON binder does: a nullable component.
-record MemberDto(String name, String nickname, String altEmail) {}
+record MemberDto(String name, @Nullable String nickname, @Nullable String altEmail) {}
 
 @GenerateMapping
 interface MemberMapping extends MappingSpec<Member, MemberDto> {
@@ -458,7 +459,7 @@ interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
 record Referral(String code, Optional<Customer> referrer) {}
 
 // A client with no referrer leaves the object out, which the JSON binder reads as null.
-record ReferralDto(String code, CustomerDto referrer) {}
+record ReferralDto(String code, @Nullable CustomerDto referrer) {}
 
 @GenerateMapping
 interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {
@@ -474,7 +475,7 @@ interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {
 record Guestlist(String event, Optional<List<Customer>> guests) {}
 
 // A client that sends no list leaves the array out, which the JSON binder reads as null.
-record GuestlistDto(String event, List<CustomerDto> guests) {}
+record GuestlistDto(String event, @Nullable List<CustomerDto> guests) {}
 
 @GenerateMapping
 interface GuestlistMapping extends MappingSpec<Guestlist, GuestlistDto> {
