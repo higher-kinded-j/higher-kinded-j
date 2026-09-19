@@ -907,6 +907,69 @@ class ImportOpticsProcessorTest {
       assertGeneratedCodeDoesNotContain(compilation, generated, "Lens<Phantom<A, B>, Integer>");
       assertGeneratedCodeDoesNotContain(compilation, generated, "Lens<Phantom<A, B>, Long>");
     }
+
+    @Test
+    @DisplayName("a retag wither whose bounds name its own parameters pairs")
+    void retagWitherWhoseBoundsNameItsOwnParametersPairs() {
+      // Each bound is checked with every inferred parameter in place, as the call checks it. In
+      // Ranked, V's bound U reads as T, and U's Comparable<U> as Comparable<T>; in Sorted,
+      // Comparable<? super U> reads as Comparable<? super T>.
+      final var ranked =
+          JavaFileObjects.forSourceString(
+              "com.external.Ranked",
+              """
+              package com.external;
+
+              public final class Ranked<T extends Comparable<T>, S extends T> {
+                  private final String label;
+                  public Ranked(String label) { this.label = label; }
+                  public String label() { return label; }
+                  public <U extends Comparable<U>, V extends U> Ranked<U, V> withLabel(String label) {
+                      return new Ranked<>(label);
+                  }
+              }
+              """);
+      final var sorted =
+          JavaFileObjects.forSourceString(
+              "com.external.Sorted",
+              """
+              package com.external;
+
+              public final class Sorted<T extends Comparable<? super T>> {
+                  private final Integer rank;
+                  public Sorted(Integer rank) { this.rank = rank; }
+                  public Integer rank() { return rank; }
+                  public <U extends Comparable<? super U>> Sorted<U> withRank(Integer rank) {
+                      return new Sorted<>(rank);
+                  }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Ranked.class, com.external.Sorted.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(ranked, sorted, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.RankedLenses",
+          "public static <T extends Comparable<T>, S extends T> Lens<Ranked<T, S>, String> label()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.SortedLenses",
+          "public static <T extends Comparable<? super T>> Lens<Sorted<T>, Integer> rank()");
+    }
   }
 
   @Nested

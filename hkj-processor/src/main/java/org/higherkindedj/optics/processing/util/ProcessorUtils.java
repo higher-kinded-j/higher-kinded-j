@@ -12,9 +12,11 @@ import com.palantir.javapoet.WildcardTypeName;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -487,9 +489,14 @@ public final class ProcessorUtils {
    * <p>Two shapes do. A return that is {@code owner} or a subtype of it, read under {@code owner}'s
    * instantiation. And a retag, {@code <U> Draft<U> withId(String)} on a {@code Draft<T>}: the
    * owner's class with some arguments replaced by type variables the method declares, which the
-   * call infers back to the owner's own. Each such variable counts only where it appears once and
-   * its bound admits the argument it stands in for, the two things inference would check at the
-   * call. A raw return, one under other arguments ({@code Draft<String>}) and a supertype hand back
+   * call infers back to the owner's own. That inference is repeated here. Each such variable is
+   * bound to the owner's argument where the return first names it against a concrete argument; a
+   * wildcard argument binds nothing, since the call reads it as a range rather than a type. Every
+   * bound of each variable then has to admit its argument with all of them in place, since a bound
+   * may name another ({@code <A, B extends A>}) or the variable itself ({@code <U extends
+   * Comparable<? super U>>}), and the return with them in place has to be the owner. A variable
+   * that only a wildcard stands for is left unbound, which refuses a retag javac might still infer.
+   * A raw return, one under other arguments ({@code Draft<String>}) and a supertype hand back
    * something else.
    *
    * @param types the round's type utilities; must not be null
@@ -499,41 +506,99 @@ public final class ProcessorUtils {
    * @since 0.4.11
    */
   public static boolean returnsOwner(Types types, DeclaredType owner, ExecutableElement method) {
-    TypeMirror returned = returnTypeIn(types, owner, method);
-    return types.isSubtype(returned, owner) || retagsOwner(types, owner, method, returned);
+    return types.isSubtype(returnTypeIn(types, owner, method), owner)
+        || retagsOwner(types, owner, method);
   }
 
-  private static boolean retagsOwner(
-      Types types, DeclaredType owner, ExecutableElement method, TypeMirror returned) {
+  private static boolean retagsOwner(Types types, DeclaredType owner, ExecutableElement method) {
+    // The call reads the method on its receiver's captured type, where each of the owner's
+    // wildcards is a type of its own, and binds the method's variables against the owner as
+    // written, which is what the generated lens hands its result back as.
+    TypeMirror returned = returnTypeIn(types, (DeclaredType) types.capture(owner), method);
     // asElement answers null for a primitive or void return, which equals no element.
     if (!owner.asElement().equals(types.asElement(returned))) {
       return false;
     }
-    DeclaredType declared = (DeclaredType) returned;
-    List<? extends TypeMirror> returnedArguments = declared.getTypeArguments();
-    Set<Element> inferred = new HashSet<>();
-    List<TypeMirror> arguments = new ArrayList<>();
+    List<? extends TypeMirror> returnedArguments = ((DeclaredType) returned).getTypeArguments();
+    List<? extends TypeMirror> ownerArguments = owner.getTypeArguments();
+    Map<Element, TypeMirror> inferred = new HashMap<>();
+    List<TypeVariable> variables = new ArrayList<>();
     for (int i = 0; i < returnedArguments.size(); i++) {
       TypeMirror argument = returnedArguments.get(i);
-      TypeMirror ownerArgument = owner.getTypeArguments().get(i);
-      boolean inferable =
+      boolean bindable =
           argument.getKind() == TypeKind.TYPEVAR
               && method.getTypeParameters().contains(((TypeVariable) argument).asElement())
-              && types.isSubtype(ownerArgument, ((TypeVariable) argument).getUpperBound())
-              && inferred.add(((TypeVariable) argument).asElement());
-      arguments.add(inferable ? ownerArgument : argument);
+              && ownerArguments.get(i).getKind() != TypeKind.WILDCARD;
+      if (bindable) {
+        TypeVariable variable = (TypeVariable) argument;
+        // The first binding stands, as it does for inference; a later place is checked, not bound.
+        if (inferred.putIfAbsent(variable.asElement(), ownerArguments.get(i)) == null) {
+          variables.add(variable);
+        }
+      }
     }
     if (inferred.isEmpty()) {
       return false;
     }
-    TypeMirror[] inferredArguments = arguments.toArray(TypeMirror[]::new);
-    TypeElement element = (TypeElement) declared.asElement();
-    TypeMirror enclosing = declared.getEnclosingType();
-    DeclaredType candidate =
-        enclosing.getKind() == TypeKind.DECLARED
-            ? types.getDeclaredType((DeclaredType) enclosing, element, inferredArguments)
-            : types.getDeclaredType(element, inferredArguments);
-    return types.isSubtype(candidate, owner);
+    return variables.stream().allMatch(variable -> admits(types, variable, inferred))
+        && types.isSubtype(substitute(types, returned, inferred), owner);
+  }
+
+  /**
+   * Whether every bound of {@code variable} admits the argument it is bound to, read with every
+   * inferred variable in place. The bounds are read off the return rather than the declaration, so
+   * a bound naming the owner's own parameters is read under the owner's instantiation.
+   */
+  private static boolean admits(
+      Types types, TypeVariable variable, Map<Element, TypeMirror> inferred) {
+    TypeMirror argument = inferred.get(variable.asElement());
+    return boundsOf(variable).stream()
+        .allMatch(bound -> types.isSubtype(argument, substitute(types, bound, inferred)));
+  }
+
+  /**
+   * {@code type} with each type variable {@code inferred} names replaced by what it stands for.
+   *
+   * <p>A type that names none of them is handed back as it is, never rebuilt, so a shape the
+   * builders would reject, such as a wildcard nested in a wildcard's bound, is left alone. One that
+   * names one is a type variable, an array, a wildcard or a declared type, and is rebuilt around
+   * its substituted parts, the enclosing type included.
+   */
+  private static TypeMirror substitute(
+      Types types, TypeMirror type, Map<Element, TypeMirror> inferred) {
+    if (inferred.keySet().stream().noneMatch(variable -> mentions(type, variable))) {
+      return type;
+    }
+    return switch (type.getKind()) {
+      case TYPEVAR -> inferred.get(((TypeVariable) type).asElement());
+      case ARRAY ->
+          types.getArrayType(substitute(types, ((ArrayType) type).getComponentType(), inferred));
+      case WILDCARD -> {
+        WildcardType wildcard = (WildcardType) type;
+        yield types.getWildcardType(
+            substituteBound(types, wildcard.getExtendsBound(), inferred),
+            substituteBound(types, wildcard.getSuperBound(), inferred));
+      }
+      default -> {
+        // The one shape left that can name a variable, since a bound's intersection arrives
+        // split into its arms.
+        DeclaredType declared = (DeclaredType) type;
+        TypeMirror[] arguments =
+            declared.getTypeArguments().stream()
+                .map(argument -> substitute(types, argument, inferred))
+                .toArray(TypeMirror[]::new);
+        TypeMirror enclosing = substitute(types, declared.getEnclosingType(), inferred);
+        TypeElement element = (TypeElement) declared.asElement();
+        yield enclosing.getKind() == TypeKind.DECLARED
+            ? types.getDeclaredType((DeclaredType) enclosing, element, arguments)
+            : types.getDeclaredType(element, arguments);
+      }
+    };
+  }
+
+  private static TypeMirror substituteBound(
+      Types types, TypeMirror bound, Map<Element, TypeMirror> inferred) {
+    return bound == null ? null : substitute(types, bound, inferred);
   }
 
   /**

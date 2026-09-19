@@ -70,9 +70,9 @@ public class ImportOpticsProcessor extends AbstractProcessor {
 
   /** What makes a class one with wither methods, for the refusals that find none. */
   private static final String WITHER_METHODS_ARE =
-      "A class has wither methods when a public 'withX' hands back the class itself, under its own"
-          + " type arguments or as a subtype, beside a public 'x()', 'getX()' or 'isX()' returning"
-          + " exactly what 'withX' takes.";
+      "A class has wither methods when a public 'withX' hands back the class, under its own type"
+          + " arguments, as a subtype, or as a retag the call infers back to it, beside a public"
+          + " 'x()', 'getX()' or 'isX()' returning exactly what 'withX' takes.";
 
   @Override
   public SourceVersion getSupportedSourceVersion() {

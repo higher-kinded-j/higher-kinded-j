@@ -218,7 +218,7 @@ package com.myapp.optics;
 ~~~admonish info title="Key Takeaways"
 * **`@ImportOptics` brings types you do not own into the same optic algebra as your own.** The generated optics compose with `andThen` exactly like the ones generated from your own records.
 * **Four shapes are auto-detected**: records and wither classes give lenses, sealed types and enums give prisms.
-* **The wither rule is strict about types.** `withX(T)` needs a getter returning exactly `T`, which is why `LocalDate` has no month lens, and has to hand back the class itself.
+* **The wither rule is strict about types.** `withX(T)` needs a getter returning exactly `T`, which is why `LocalDate` has no month lens, and has to return the class under its own type arguments, a subtype of it, or a retag the call infers back to it.
 * **Collection fields get a traversal too**, named `<field>Traversal`.
 * **Builders and predicate-based types need a spec interface**, which is the subject of the next two pages.
 ~~~
