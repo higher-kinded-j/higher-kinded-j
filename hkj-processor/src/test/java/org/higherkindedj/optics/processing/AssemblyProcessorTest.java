@@ -102,6 +102,8 @@ class AssemblyProcessorTest {
       assertThat(source)
           .contains("Validated<NonEmptyList<FieldError>, Integer> value")
           .contains("a1 -> a2 -> a3 -> new User(a1, a2, a3)")
+          .contains("catch (RuntimeException refused)")
+          .contains("\"not a valid User\"")
           .contains("NonEmptyList.semigroup()");
       // Accumulator on the function side: age (the newest field) is the ap receiver.
       assertThat(source).contains("this.age.ap(this.email.ap(this.name.map(");

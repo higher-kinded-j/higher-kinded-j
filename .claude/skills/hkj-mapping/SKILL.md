@@ -430,10 +430,25 @@ matter: it maps build-only whatever its width, derived fields included.
   guard but gives up the element scan (the emitted helper is generic, and a raw argument erases
   it) - declare the type arguments to get the scan back; an array names its element type in the
   type itself and keeps the scan. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
-  parse-iso coherence scoped to non-null wires); a bean's guarded reads still cost the Iso tier,
+  parse-iso coherence scoped to non-null wires the domain accepts); a bean's guarded reads still cost the Iso tier,
   because an unset bean property is a representable state. The same guard covers every
   reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return
   merge stays total by its declaration).
+- **A domain record's own invariant is a located `FieldError` too.** Once every component has
+  parsed, the canonical constructor runs, and a `RuntimeException` it throws (a compact
+  constructor's `if (lo > hi) throw new IllegalArgumentException("lo > hi")`) becomes an error at
+  the record's own path carrying the exception's message: `ranges.1: lo > hi` for a nested record,
+  unlabelled at the top level, beside every error accumulated around it (`not a valid Range` when
+  the message is missing or blank). It covers every surface that builds the record whole from
+  parsed parts: `parse`, the validated `patch`, a flattened group, a fallible merge and
+  `@GenerateAssembly`'s `assemble()`. The exception propagates from the total optics,
+  `asIso().reverseGet` and a projection's `asLens().set`, and from a sparse `UpdateSpec`'s
+  `apply`, which sets one field at a time and does not support an invariant spanning the fields
+  it sets yet. Any `RuntimeException` counts, so a constructor bug reaches the client as its
+  message, with the stack trace dropped: keep the constructor to argument checks with
+  client-facing messages, and single-field rules in leaves, which locate at the field and
+  accumulate with the record's other errors. For `MappingLaws`, a patch or parse-only rejection
+  sample must fail on a component: a top-level invariant error is unlabelled by design.
 - **A `Map` lifts its values, and its keys through `@MapKey`.** Without a key leaf the keys pass
   through by identity and their types must match. `@MapKey("component")` names the domain
   component (the method name is free, since the value leaf already owns the component's name):
@@ -658,7 +673,8 @@ Validated<NonEmptyList<FieldError>, Customer> customer =
 
 **When to prefer the hand-written ladder instead.** `Validated.fields()` / `Validated.accumulate()`
 (and their `Path` and `EitherOrBoth` twins, described in `/hkj-guide`) do the same job without annotating
-the record. Use `@GenerateAssembly` when you want the component *names* checked by the compiler at
+the record, with one difference: `apply(...)` runs the function you hand it, so a constructor's
+exception propagates from the ladder, while `assemble()` reports it as an unlabelled `FieldError`. Use `@GenerateAssembly` when you want the component *names* checked by the compiler at
 each stage; use the ladder for ad-hoc assembly or for a record you do not own.
 
 **The ladder is capped at 16 components; `@GenerateAssembly` is not.** The generator emits a curried

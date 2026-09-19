@@ -11,6 +11,7 @@ Most mappings are boring, and the mapper treats them that way: same-named, same-
 - Renaming components with `@MapField`, and computing wire-only fields with derived getters
 - Why a wire `null` becomes a located error, never an exception
 - Declaring the one field where a `null` means *absent* instead, with `@OptionalBridge`
+- How an invariant the domain's own constructor enforces reports, located at the record
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -226,6 +227,28 @@ A bridged component is a non-identity correspondence, so the mapping does not ga
 
 ---
 
+## A record's own invariants {#constructor-invariants}
+
+A domain record often guards itself: a compact constructor that throws when its components disagree. `parse` keeps that guard and still returns a value. Once every component of the record has parsed, the generated code calls its canonical constructor, and a `RuntimeException` the constructor throws becomes a `FieldError` at the record's own path, carrying the exception's message:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:invariant_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:invariant_usage}}
+```
+
+The second stay fails at `stays.1`, and the missing guest is still reported beside it. The rules:
+
+- **The record is the address.** A cross-field invariant belongs to no single component, so it locates where the record does: under the component that holds it (`stays.1`), or unlabelled at the top level.
+- **The constructor runs last.** It needs every component, so it runs only once all of them have parsed. A record therefore reports either its components' errors or its invariant, never both, while everything around it keeps accumulating as usual.
+- **The message is what the client reads**, so write it for them. An exception without a message, or with a blank one, reads `not a valid Stay`.
+- **Any `RuntimeException` counts, bugs included.** The null guard keeps a `null` out of the constructor, but a constructor that divides by zero or dereferences something of its own fails the same way: its message goes to the client and its stack trace is dropped. Keep the constructor to checks on its arguments, with messages written for a client.
+- **A rule about one field alone belongs in a [leaf](#validated-leaves)**: it locates at the field and accumulates with the record's other errors.
+
+The same guard covers every surface that builds the record whole from parsed parts: the [projection's `patch`](tiers.md#leaf-carrying-projections-the-validated-patch), a [flattened](structure.md#flattening-a-nested-component-onto-a-flat-wire) group, the fallible [`@GenerateMerge`](merge_envelopes.md), and [`@GenerateAssembly`](../monads/validated_assembly.md#generating-the-companion-generateassembly)'s `assemble()`. Two surfaces cannot return an error, so there the exception propagates: `asIso().reverseGet` and a projection's `asLens().set`, total optics meant for values already known to be lawful. The [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec) sets each present field on its own, so it does not support an invariant spanning the fields it sets yet: the constructor sees each intermediate value, and its exception propagates from `apply`. A nested record the PATCH replaces whole still parses through its own spec, guard included.
+
+---
+
 ## The fine print {#the-fine-print}
 
 Nothing above requires this section; come back when a corner case finds you.
@@ -259,7 +282,7 @@ Four shapes are rejected, each with a what/why/fix diagnostic: a *locally declar
 
 ### Derived fields and the emission tiers
 
-A spec with any derived field never emits `asIso()`: the wire round trip recomputes the derived component, so it is an identity only for wire values that were already consistent. A mapping whose *only* extra is a derived field is *total-parse*: no **well-formed** wire value can fail it (the null guards above still apply, and a fallible leaf elsewhere in the spec still makes the whole parse fallible). Combining a derived field with a projection (a wire otherwise smaller than the domain) is rejected, because the projection's `asLens()` write-back could never honour a component that `build` recomputes. [The Emission Tiers](tiers.md) is the full story.
+A spec with any derived field never emits `asIso()`: the wire round trip recomputes the derived component, so it is an identity only for wire values that were already consistent. A mapping whose *only* extra is a derived field is *total-parse*: no **well-formed** wire value can fail it (the null guards above still apply, a domain constructor's [invariant](#constructor-invariants) can still refuse a value, and a fallible leaf elsewhere in the spec still makes the whole parse fallible). Combining a derived field with a projection (a wire otherwise smaller than the domain) is rejected, because the projection's `asLens()` write-back could never honour a component that `build` recomputes. [The Emission Tiers](tiers.md) is the full story.
 
 ### Bind in the caller, not on the spec {#bind-in-the-caller}
 
@@ -273,6 +296,7 @@ MapStruct's idiom declares a mapper's instance on the mapper's own interface. Th
 * **Leaves convert, renames rename, getters derive**: `ValidatedPrism` leaves for type-differing fields, `@MapField` for names, `Getter` defaults for wire-only fields
 * **Null is located, never thrown**: one rule across both wire shapes and inside containers; only a null wire itself stays the caller's error
 * **Absence is declared, never guessed**: `@OptionalBridge` opts one `Optional` component into reading `null` as absent, and on a record wire nothing else does
+* **A record's own invariant is located too**: an exception from its constructor becomes a `FieldError` at the record's path, beside every other error
 ~~~
 
 ~~~admonish tip title="See Also"

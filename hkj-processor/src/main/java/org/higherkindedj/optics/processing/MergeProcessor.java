@@ -57,9 +57,12 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>The fallible path carries the mapper family's null doctrine: every reference-typed
  * source-component read is null-guarded through the shared {@code hkj$ifPresent} helper, so a null
  * component is a located, accumulated {@code FieldError} ({@code must not be null}), never an
- * exception — a null source <em>argument</em> stays the caller's {@code requireNonNull}. A merge
+ * exception — a null source <em>argument</em> stays the caller's {@code requireNonNull}. Its target
+ * constructor call is {@link GuardedConstruction guarded} as {@code parse}'s is, so an invariant
+ * the target's constructor enforces is an unlabelled {@code FieldError}, not an exception. A merge
  * whose method declares the plain target return is total by that declaration: nulls flow through to
- * the target constructor exactly as {@code build} copies them.
+ * the target constructor exactly as {@code build} copies them, and so does whatever that
+ * constructor throws.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMerge")
@@ -818,26 +821,34 @@ public class MergeProcessor extends AbstractProcessor {
                   fill.component()));
         }
       }
+      // The merge method's parameters carry the spec author's names, so they are reserved
+      // against the emitted lambda parameters (and, past one ladder, the chunk locals). Either
+      // form ends in the guarded constructor call: an invariant the target's constructor
+      // enforces refuses the merged combination at the root instead of throwing.
+      Set<String> reserved = new LinkedHashSet<>();
+      for (VariableElement source : mergeMethod.getParameters()) {
+        reserved.add(source.getSimpleName().toString());
+      }
       if (legs.size() <= ArityCeilings.ASSEMBLY) {
-        CodeBlock.Builder chain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
-        legs.forEach(chain::add);
-        chain.add("\n.apply($T::new)", targetName);
-        method.addStatement("$L", chain.build());
+        method.addCode(
+            GuardedConstruction.returning(
+                GuardedConstruction.ladder(
+                    legs,
+                    GuardedConstruction.applyThunk(
+                        GuardedConstruction.parameterNames(
+                            fills.stream().map(Fill::component).toList(), reserved),
+                        targetName)),
+                targetName));
       } else {
-        // Wider than one fields() ladder: chunked ladders, identical error semantics. The merge
-        // method's parameters carry the spec author's names, so they are reserved against the
-        // emitted chunk locals and lambda parameters.
-        Set<String> reserved = new LinkedHashSet<>();
-        for (VariableElement source : mergeMethod.getParameters()) {
-          reserved.add(source.getSimpleName().toString());
-        }
+        // Wider than one fields() ladder: chunked ladders, identical error semantics.
         method.addCode(
             ChunkedAssembly.emit(
                 legs,
                 VALIDATED,
                 NEL,
                 reserved,
-                values -> CodeBlock.of("new $T($L)", targetName, CodeBlock.join(values, ", "))));
+                targetName,
+                values -> GuardedConstruction.thunk(targetName, CodeBlock.join(values, ", "))));
       }
     } else {
       CodeBlock.Builder args = CodeBlock.builder();
@@ -858,6 +869,9 @@ public class MergeProcessor extends AbstractProcessor {
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addAnnotation(GENERATED)
             .addSuperinterface(specName)
+            // The Impl inherits the spec's member types, which would shadow an imported type of
+            // the same simple name (a nested 'Supplier' or 'Objects'); javapoet qualifies those.
+            .avoidClashesWithNestedClasses(spec)
             .addJavadoc(
                 "Generated forward-only merge for {@link $T}: one target assembled from several"
                     + " sources, no inverse (truthful types).\n",
@@ -869,10 +883,10 @@ public class MergeProcessor extends AbstractProcessor {
                     .build())
             .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build())
             .addMethod(method.build());
-    // The guard rides only the fallible path; a plain-return merge is total by declaration and
-    // never references it. A fallible merge always references it: the return-type discipline
-    // rejects a Validated return over pure identities, and a fallible fill is always a guarded
-    // reference read.
+    // The guards ride only the fallible path; a plain-return merge is total by declaration and
+    // never references them. A fallible merge always references hkj$ifPresent (the return-type
+    // discipline rejects a Validated return over pure identities, and a fallible fill is always a
+    // guarded reference read) and always ends in the guarded constructor call.
     if (shape.fallibleDeclared()) {
       implBuilder.addMethod(MappingProcessor.ifPresentHelper());
       if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.LIST)) {
@@ -887,6 +901,7 @@ public class MergeProcessor extends AbstractProcessor {
       if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.MAP)) {
         implBuilder.addMethod(MappingProcessor.valuesPresentHelper());
       }
+      implBuilder.addMethod(GuardedConstruction.helper());
     }
     writeFile(spec, specName.packageName(), implBuilder.build());
   }

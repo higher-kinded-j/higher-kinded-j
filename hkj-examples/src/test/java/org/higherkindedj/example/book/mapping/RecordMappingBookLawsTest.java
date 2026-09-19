@@ -32,6 +32,27 @@ class RecordMappingBookLawsTest {
   }
 
   @Test
+  void reservationMappingLocatesAStaysInvariantAndObeysTheLaws() {
+    ReservationDto accepted =
+        new ReservationDto("Ada", List.of(new StayDto("2026-03-01", "2026-03-04")));
+    ReservationDto refused =
+        new ReservationDto("Ada", List.of(new StayDto("2026-03-09", "2026-03-07")));
+    MappingLaws.assertMappingLaws(
+        ReservationMappingImpl.INSTANCE.asValidatedPrism(), accepted, refused);
+
+    // The located errors the page shows, exactly:
+    assertThatValidated(
+            ReservationMappingImpl.INSTANCE.parse(
+                new ReservationDto(
+                    null,
+                    List.of(
+                        new StayDto("2026-03-01", "2026-03-04"),
+                        new StayDto("2026-03-09", "2026-03-07")))))
+        .isInvalid()
+        .hasFieldErrors("guest: must not be null", "stays.1: checkOut must be after checkIn");
+  }
+
+  @Test
   void contactPatchMappingObeysTheSparseLaws() {
     // ANCHOR: update_laws
     MappingLaws.assertMappingLaws(

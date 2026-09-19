@@ -115,11 +115,13 @@ class MappingProcessorTest {
           .contains("public UserDto build(User domain)")
           .contains("new UserDto(domain.name(), email().build(domain.email()), domain.age())")
           .contains("public Validated<NonEmptyList<FieldError>, User> parse(UserDto wire)")
-          .contains("return Validated.fields()")
+          .contains("return hkj$construct(")
+          .contains("Validated.fields()")
           .contains(".field(\"name\", hkj$ifPresent(wire.name(), Validated::validNel))")
           .contains(".field(\"email\", hkj$ifPresent(wire.email(), email()::parse))")
           .contains(".field(\"age\", Validated.validNel(wire.age()))")
-          .contains(".apply(User::new)")
+          .contains(".apply((name, email, age) -> () -> new User(name, email, age)),")
+          .contains("\"not a valid User\");")
           .doesNotContain("asIso");
     }
   }
@@ -3660,8 +3662,11 @@ class MappingProcessorTest {
           .contains(".field(\"email\", hkj$ifPresent(wire.email(), email()::parse))")
           .contains(".field(\"notes\", hkj$ifPresent(wire.notes(), Validated::validNel))")
           .contains(".field(\"age\", Validated.validNel(wire.age()))")
-          // projected components bind by name; unprojected read from the domain argument
-          .contains(".apply((email, notes, age) -> new Account(domain.id(), email, notes, age))")
+          // projected components bind by name; an unprojected one is read from the domain
+          // argument once the components validate, outside the constructor's guard
+          .contains(".apply((email, notes, age) -> {")
+          .contains("var id = domain.id();")
+          .contains("return () -> new Account(id, email, notes, age);")
           .doesNotContain("asLens() {")
           .doesNotContain("asIso")
           .doesNotContain("asValidatedPrism");
@@ -4362,7 +4367,9 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.SitePatchMappingImpl");
       Assertions.assertThat(generated)
-          .contains(".apply((domain_, wire_) -> new Site(domain.id(), domain_, wire_))");
+          .contains(".apply((domain_, wire_) -> {")
+          .contains("var id = domain.id();")
+          .contains("return () -> new Site(id, domain_, wire_);");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
@@ -4429,7 +4436,8 @@ class MappingProcessorTest {
       Compilation compilation = compile(odd, oddPatchDto, oddPatchMapping);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.OddPatchMappingImpl"))
-          .contains(".apply((domain__, domain_) -> new Odd(domain.id(), domain__, domain_))");
+          .contains(".apply((domain__, domain_) -> {")
+          .contains("return () -> new Odd(id, domain__, domain_);");
     }
 
     @Test
@@ -5216,7 +5224,7 @@ class MappingProcessorTest {
               spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.WideMappingImpl"))
-          .contains(".apply(Records.D::new)")
+          .contains("() -> new Records.D(")
           .doesNotContain("Tuple16::new");
     }
 

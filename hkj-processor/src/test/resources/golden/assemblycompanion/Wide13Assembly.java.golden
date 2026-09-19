@@ -608,10 +608,17 @@ public final class Wide13Assembly {
 
     /**
      * Assembles the record via its canonical constructor; every error is collected, in
-     * component-declaration order.
+     * component-declaration order. Once every component is valid, an exception the
+     * constructor throws is the record's invariant refusing them: an unlabelled error
+     * carrying its message.
      */
     public Validated<NonEmptyList<FieldError>, Wide13> assemble() {
-      return this.f13.ap(this.f12.ap(this.f11.ap(this.f10.ap(this.f9.ap(this.f8.ap(this.f7.ap(this.f6.ap(this.f5.ap(this.f4.ap(this.f3.ap(this.f2.ap(this.f1.map(a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> a10 -> a11 -> a12 -> a13 -> new Wide13(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup());
+      try {
+        return this.f13.ap(this.f12.ap(this.f11.ap(this.f10.ap(this.f9.ap(this.f8.ap(this.f7.ap(this.f6.ap(this.f5.ap(this.f4.ap(this.f3.ap(this.f2.ap(this.f1.map(a1 -> a2 -> a3 -> a4 -> a5 -> a6 -> a7 -> a8 -> a9 -> a10 -> a11 -> a12 -> a13 -> new Wide13(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup()), NonEmptyList.semigroup());
+      } catch (RuntimeException refused) {
+        String message = refused.getMessage();
+        return Validated.invalidNel(FieldError.of(message == null || message.isBlank() ? "not a valid Wide13" : message));
+      }
     }
   }
 }
