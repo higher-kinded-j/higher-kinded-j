@@ -35,8 +35,10 @@ import java.lang.annotation.Target;
  * On that fallible path every reference-typed source-component read is null-guarded: a null
  * component is a located, accumulated {@code FieldError} ({@code must not be null}), never an
  * exception, while a null source <em>argument</em> stays the caller's {@code NullPointerException}.
- * A plain-return merge is total by its declaration, and nulls flow through to the target
- * constructor.
+ * The target's constructor runs once every fill is valid, and an exception it throws (the target's
+ * own invariant) is an unlabelled {@code FieldError} carrying its message. A plain-return merge is
+ * total by its declaration: nulls flow through to the target constructor, and whatever it throws
+ * propagates.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)

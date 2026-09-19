@@ -26,6 +26,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -108,7 +109,13 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * a wrong value). What stays bean-only is the <em>absence</em> contract: only a bean property is
  * legitimately unset, so only bean guards cost the Iso tier — {@code asIso()} is truthful for an
  * all-primitive bean, while a lossless record mapping keeps it with the parse-iso coherence law
- * scoped to wires whose reference components are non-null.
+ * scoped to wires whose reference components are non-null and whose values the domain accepts.
+ *
+ * <p>Once every component has parsed, the domain's canonical constructor runs inside a {@link
+ * GuardedConstruction guard}: a {@code RuntimeException} it throws (the record's own invariant)
+ * becomes a {@code FieldError} at the record's path, in {@code parse}, the validated {@code patch}
+ * and a flattened group alike. The total optics, {@code asIso().reverseGet} and {@code
+ * asLens().set}, cannot return an error, so there it propagates.
  *
  * <p>The wire may be a bean-shaped class instead of a record ({@link WireShape}): {@code build}
  * fills it through setters or a builder and {@code parse} reads it through getters; a domain {@code
@@ -3915,7 +3922,8 @@ public class MappingProcessor extends AbstractProcessor {
 
     MethodSpec updateFrom =
         MethodSpec.methodBuilder("updateFrom")
-            .addAnnotations(pairSuppression(domainDeclared, wire))
+            // A sparse spec never flattens a group (checkNoFlattened).
+            .addAnnotations(pairSuppression(domainDeclared, wire, List.of()))
             .addModifiers(Modifier.PUBLIC)
             .returns(accumulatedReturn)
             .addParameter(wireName, "wire")
@@ -7445,14 +7453,26 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * One leg of the parse ladder: the name its value takes as a lambda parameter of the ladder's
+   * terminal, its {@code .field(...)} code, and the lambda parameters that code declares itself (a
+   * flattened group's own terminal), which a chunked ladder's locals must stay clear of.
+   */
+  private record Leg(String name, CodeBlock code, List<String> declares) {
+
+    Leg {
+      declares = List.copyOf(declares);
+    }
+  }
+
+  /**
    * The parse ladder's legs, one per domain component. A flattened component's members (contiguous
    * in classification order) fold into one leg carrying their own {@code fields()} ladder, which
    * assembles the group's record and locates every failure under the component's name ({@code
-   * address.street}): the located-null doctrine and the leaf vocabulary apply inside the group
-   * exactly as at the top level. A derived field contributes no leg.
+   * address.street}): the located-null doctrine, the leaf vocabulary and the constructor guard
+   * apply inside the group exactly as at the top level. A derived field contributes no leg.
    */
-  private List<CodeBlock> parseLegs(WireShape wire, List<Correspondence> comps) {
-    List<CodeBlock> legs = new ArrayList<>();
+  private List<Leg> parseLegs(WireShape wire, List<Correspondence> comps) {
+    List<Leg> legs = new ArrayList<>();
     for (List<Correspondence> run : runs(comps)) {
       Correspondence first = run.getFirst();
       if (first.group() == null) {
@@ -7462,17 +7482,36 @@ public class MappingProcessor extends AbstractProcessor {
         CodeBlock leg =
             parseLeg(wire, first, wireRead(wire, first.wireName()), guardedRead(first, wire));
         if (!leg.isEmpty()) {
-          legs.add(leg);
+          legs.add(new Leg(first.name(), leg, List.of()));
         }
         continue;
       }
-      CodeBlock.Builder inner = CodeBlock.builder().add("$T.fields()$>", VALIDATED);
-      for (Correspondence member : run) {
-        inner.add(
-            parseLeg(wire, member, wireRead(wire, member.wireName()), guardedRead(member, wire)));
-      }
-      inner.add("\n.apply($T::new)$<", first.group().type());
-      legs.add(CodeBlock.of("\n.field($S, $L)", first.group().name(), inner.build()));
+      List<String> params =
+          GuardedConstruction.parameterNames(
+              run.stream().map(Correspondence::name).toList(), Set.of("wire"));
+      CodeBlock inner =
+          GuardedConstruction.ladder(
+              run.stream()
+                  .map(
+                      member ->
+                          parseLeg(
+                              wire,
+                              member,
+                              wireRead(wire, member.wireName()),
+                              guardedRead(member, wire)))
+                  .toList(),
+              GuardedConstruction.applyThunk(params, first.group().type()));
+      // The group's guarded call is an argument of the outer ladder's field, which offers it no
+      // target type, so the explicit type argument is what types the group's constructor thunk.
+      legs.add(
+          new Leg(
+              first.group().name(),
+              CodeBlock.of(
+                  "\n.<$T>field($S, $L)",
+                  first.group().type(),
+                  first.group().name(),
+                  GuardedConstruction.call(inner, first.group().type())),
+              params));
     }
     return legs;
   }
@@ -7562,7 +7601,8 @@ public class MappingProcessor extends AbstractProcessor {
    * legitimately unset in normal use, so its guarded read can fail, and {@link #totalReads} counts
    * it. A record wire's guard exists for hostile input (a null-carrying JSON binding), not for a
    * representable absent state, so a lossless record mapping keeps {@code asIso()} — the parse-iso
-   * coherence law is scoped to wires whose reference components are non-null.
+   * coherence law is scoped to wires whose reference components are non-null and whose values the
+   * domain accepts.
    */
   private static boolean lossyRead(Correspondence c, WireShape wire) {
     return wire instanceof WireShape.BeanShape && guardedRead(c, wire);
@@ -7819,7 +7859,7 @@ public class MappingProcessor extends AbstractProcessor {
     CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
 
     CodeBlock reverseArgs = reverseArgs(wire, comps);
-    List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire);
+    List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
 
     TypeSpec.Builder implBuilder =
         implSkeleton(
@@ -7888,7 +7928,7 @@ public class MappingProcessor extends AbstractProcessor {
                 parseMethod(
                     domainName,
                     wireName,
-                    pairSuppression(domainDeclared, wire),
+                    pairSuppression(domainDeclared, wire, comps),
                     parseBody(wire, comps, domainName)))
             .addMethod(asValidatedParseMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
@@ -7930,7 +7970,7 @@ public class MappingProcessor extends AbstractProcessor {
                 buildMethod(
                     domainName,
                     wireName,
-                    pairSuppression(domainDeclared, wire),
+                    pairSuppression(domainDeclared, wire, comps),
                     wireBuildBody(wire, wireName, comps)))
             .addMethod(asValidatedBuildMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
@@ -7940,23 +7980,30 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The accumulating {@code parse} body over the correspondences' legs: one {@code
    * Validated.fields()} ladder, or chunked ladders past the arity ceiling with identical error
-   * semantics. Shared by the full and parse-only tiers, which parse alike.
+   * semantics. Either ends in the {@link GuardedConstruction guarded} constructor call, so an
+   * invariant the domain's constructor enforces refuses at the root instead of throwing. Shared by
+   * the full and parse-only tiers, which parse alike.
    */
   private CodeBlock parseBody(WireShape wire, List<Correspondence> comps, TypeName domainName) {
-    List<CodeBlock> parseLegs = parseLegs(wire, comps);
-    if (parseLegs.size() <= ArityCeilings.ASSEMBLY) {
-      CodeBlock.Builder parseChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
-      parseLegs.forEach(parseChain::add);
-      parseChain.add("\n.apply($T::new)", domainName);
-      return CodeBlock.builder().addStatement("$L", parseChain.build()).build();
+    List<Leg> legs = parseLegs(wire, comps);
+    List<CodeBlock> code = legs.stream().map(Leg::code).toList();
+    if (legs.size() <= ArityCeilings.ASSEMBLY) {
+      return GuardedConstruction.returning(
+          GuardedConstruction.ladder(
+              code,
+              GuardedConstruction.applyThunk(
+                  GuardedConstruction.parameterNames(
+                      legs.stream().map(Leg::name).toList(), Set.of("wire")),
+                  domainName)),
+          domainName);
     }
-    // Wider than one fields() ladder: chunked ladders, identical error semantics.
+    // Wider than one fields() ladder: chunked ladders, identical error semantics. A flattened
+    // group's terminal declares its lambda parameters inside a chunk local's initialiser, where
+    // that local and every earlier one are in scope (JLS 6.3), so the locals keep clear of them.
+    Set<String> reserved = new LinkedHashSet<>(List.of("wire"));
+    legs.forEach(leg -> reserved.addAll(leg.declares()));
     return ChunkedAssembly.emit(
-        parseLegs,
-        VALIDATED,
-        NEL,
-        Set.of("wire"),
-        values -> CodeBlock.of("new $T($L)", domainName, CodeBlock.join(values, ", ")));
+        code, VALIDATED, NEL, reserved, domainName, values -> CodeBlock.join(values, ", "));
   }
 
   /**
@@ -7979,7 +8026,8 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * Adds the guard and null-scan helpers the legs call, each only where some leg calls it, in the
-   * one order every reading tier emits them.
+   * one order every reading tier emits them, then the {@code hkj$construct} helper every reading
+   * tier's constructor call goes through.
    */
   private void addReadHelpers(
       TypeSpec.Builder implBuilder, List<Correspondence> comps, WireShape wire) {
@@ -7998,6 +8046,7 @@ public class MappingProcessor extends AbstractProcessor {
     if (comps.stream().anyMatch(MappingProcessor::scansMap)) {
       implBuilder.addMethod(valuesPresentHelper());
     }
+    implBuilder.addMethod(GuardedConstruction.helper());
   }
 
   /**
@@ -8142,7 +8191,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     CodeBlock buildBody = wireBuildBody(wire, wireName, comps);
-    List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire);
+    List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
 
     List<CodeBlock> patchLegs = new ArrayList<>();
     for (Correspondence c : comps) {
@@ -8153,46 +8202,29 @@ public class MappingProcessor extends AbstractProcessor {
       patchLegs.add(parseLeg(wire, c, wireRead(wire, c.wireName()), guardedRead(c, wire)));
     }
 
+    // The write-back ends in the guarded constructor call either way: an invariant the domain's
+    // constructor enforces refuses the patched combination at the root instead of throwing.
     CodeBlock patchBody;
     if (patchLegs.size() <= ArityCeilings.ASSEMBLY) {
-      CodeBlock.Builder patchChain = CodeBlock.builder().add("return $T.fields()", VALIDATED);
-      patchLegs.forEach(patchChain::add);
-
-      // Lambda parameters are named after the projected components, but the enclosing method
-      // already declares 'domain' and 'wire', and a lambda parameter may not shadow either (JLS
-      // 6.4). Colliding names take underscore suffixes until free of the method parameters AND of
-      // every component name (a renamed parameter must not capture another component's reference).
-      Set<String> takenParamNames = new LinkedHashSet<>(List.of("domain", "wire"));
-      for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
-        takenParamNames.add(domainComponent.getSimpleName().toString());
-      }
+      // Lambda parameters are named after the projected components, clear of the enclosing
+      // method's 'domain' and 'wire'.
+      List<String> params =
+          GuardedConstruction.parameterNames(
+              comps.stream().map(Correspondence::name).toList(), Set.of("domain", "wire"));
       Map<String, String> lambdaParamFor = new LinkedHashMap<>();
-      for (Correspondence c : comps) {
-        String candidate = c.name();
-        if (candidate.equals("domain") || candidate.equals("wire")) {
-          do {
-            candidate = candidate + "_";
-          } while (takenParamNames.contains(candidate));
-        }
-        takenParamNames.add(candidate);
-        lambdaParamFor.put(c.name(), candidate);
+      for (int i = 0; i < comps.size(); i++) {
+        lambdaParamFor.put(comps.get(i).name(), params.get(i));
       }
-
-      CodeBlock.Builder lambdaParams = CodeBlock.builder();
-      boolean firstParam = true;
-      for (Correspondence c : comps) {
-        if (!firstParam) {
-          lambdaParams.add(", ");
-        }
-        firstParam = false;
-        lambdaParams.add("$L", lambdaParamFor.get(c.name()));
-      }
-      patchChain.add(
-          "\n.apply(($L) -> new $T($L))",
-          lambdaParams.build(),
-          domainName,
-          patchCtorArgs(domain, comps, name -> CodeBlock.of("$L", lambdaParamFor.get(name))));
-      patchBody = CodeBlock.builder().addStatement("$L", patchChain.build()).build();
+      patchBody =
+          GuardedConstruction.returning(
+              GuardedConstruction.ladder(
+                  patchLegs,
+                  GuardedConstruction.applyThunk(
+                      params,
+                      domainName,
+                      patchCtorArgs(
+                          domain, comps, name -> CodeBlock.of("$L", lambdaParamFor.get(name))))),
+              domainName);
     } else {
       // Wider than one fields() ladder: chunked ladders; projected components read from the
       // tuples, unprojected components from the domain argument, exactly as the lambda form.
@@ -8202,6 +8234,7 @@ public class MappingProcessor extends AbstractProcessor {
               VALIDATED,
               NEL,
               Set.of("domain", "wire"),
+              domainName,
               values -> {
                 // values align 1:1 with comps: every projected leg emits exactly one .field
                 // (a projection can never carry a DERIVED correspondence, the only empty leg),
@@ -8210,8 +8243,7 @@ public class MappingProcessor extends AbstractProcessor {
                 for (int i = 0; i < comps.size(); i++) {
                   valueFor.put(comps.get(i).name(), values.get(i));
                 }
-                return CodeBlock.of(
-                    "new $T($L)", domainName, patchCtorArgs(domain, comps, valueFor::get));
+                return patchCtorArgs(domain, comps, valueFor::get);
               });
     }
 
@@ -8372,7 +8404,8 @@ public class MappingProcessor extends AbstractProcessor {
                     + " components cannot be reconstructed (truthful types).\n",
                 leafFields(spec))
             .addMethod(
-                buildMethod(domainName, wireName, pairSuppression(domainDeclared, wire), buildBody))
+                buildMethod(
+                    domainName, wireName, pairSuppression(domainDeclared, wire, comps), buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("asLens")
                     .addModifiers(Modifier.PUBLIC)
@@ -8679,6 +8712,9 @@ public class MappingProcessor extends AbstractProcessor {
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(implName)
             .addOriginatingElement(spec)
+            // The Impl inherits the spec's member types, which would shadow an imported type of
+            // the same simple name (a nested 'Supplier' or 'Objects'); javapoet qualifies those.
+            .avoidClashesWithNestedClasses(spec)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addAnnotation(GENERATED)
             // Each type parameter is restated with its bounds in the class's own type-parameter
@@ -8803,19 +8839,42 @@ public class MappingProcessor extends AbstractProcessor {
    * types from either side's components: an element or bridged leg, a patch's assembly, a chunk's
    * tuple. Which ones do is the emitter's detail, so each method asks of the whole pair, and one
    * holding no such lambda carries it too: a {@code build} on either wire shape, or a projection's
-   * when the raw type is on a component it drops. A flattened group's inner components are not
-   * asked. Their wire side is a wire component already, and their domain side is written out in one
-   * place only, the array-constructor reference of a lifted inner array ({@code List[]::new}),
-   * which javac does not report.
+   * when the raw type is on a component it drops. A flattened group's inner components are asked
+   * too: their wire side is a wire component already, and their domain side types the lambda
+   * parameters of the group's own constructor thunk.
    */
-  private List<AnnotationSpec> pairSuppression(DeclaredType domainDeclared, WireShape wire) {
+  private List<AnnotationSpec> pairSuppression(
+      DeclaredType domainDeclared, WireShape wire, List<Correspondence> comps) {
     TypeElement domain = (TypeElement) domainDeclared.asElement();
+    Set<String> groups =
+        comps.stream()
+            .map(Correspondence::group)
+            .filter(Objects::nonNull)
+            .map(Group::name)
+            .collect(Collectors.toSet());
     return ProcessorUtils.rawTypesSuppression(
         Stream.concat(
                 domain.getRecordComponents().stream()
-                    .map(component -> componentType(domainDeclared, component)),
+                    .flatMap(component -> withGroupMembers(domainDeclared, component, groups)),
                 wire.components().stream().map(WireShape.WireComponent::type))
             .toList());
+  }
+
+  /**
+   * A domain component's type, followed, when the component is a flattened group, by its record's
+   * own component types under the component's instantiation.
+   */
+  private Stream<TypeMirror> withGroupMembers(
+      DeclaredType domainDeclared, RecordComponentElement component, Set<String> groups) {
+    TypeMirror type = componentType(domainDeclared, component);
+    if (!groups.contains(component.getSimpleName().toString())) {
+      return Stream.of(type);
+    }
+    DeclaredType group = (DeclaredType) type;
+    return Stream.concat(
+        Stream.of(type),
+        ((TypeElement) group.asElement())
+            .getRecordComponents().stream().map(member -> componentType(group, member)));
   }
 
   /**

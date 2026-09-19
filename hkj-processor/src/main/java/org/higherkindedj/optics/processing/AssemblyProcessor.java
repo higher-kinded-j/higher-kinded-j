@@ -37,10 +37,11 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>For an annotated {@code record User(String name, int age)} it generates a same-package {@code
  * UserAssembly}: a staged, order-enforcing builder over {@code Validated<NonEmptyList<FieldError>,
  * User>} with one named method per component (labels come from the component names) and a terminal
- * {@code assemble()} that invokes the canonical constructor. The merge is a nested curried {@code
- * Validated.ap} chain with {@code NonEmptyList.semigroup()} (the accumulator on the function side,
- * so errors emerge in component-declaration order), giving exact arity with no ceiling and no
- * mechanism beyond the #581 primitives.
+ * {@code assemble()} that invokes the canonical constructor, {@link GuardedConstruction guarded} as
+ * the mappers' is, so an invariant the constructor enforces is an error rather than an exception.
+ * The merge is a nested curried {@code Validated.ap} chain with {@code NonEmptyList.semigroup()}
+ * (the accumulator on the function side, so errors emerge in component-declaration order), giving
+ * exact arity with no ceiling and no mechanism beyond the #581 primitives.
  *
  * <p>This exact-arity curried chain deliberately differs from {@link ChunkedAssembly}, which the
  * mappers use past 16 legs: the staged companion carries each component's type on its own stage
@@ -281,19 +282,22 @@ public class AssemblyProcessor extends AbstractProcessor {
         .build();
   }
 
-  /** The terminal merge: a nested curried {@code ap} chain, accumulator on the function side. */
+  /**
+   * The terminal merge: a nested curried {@code ap} chain, accumulator on the function side, inside
+   * the {@link GuardedConstruction#returningCaught guard}. The stages hold values already
+   * validated, so the chain runs nothing but the constructor, and an invariant it enforces is an
+   * unlabelled error rather than an exception.
+   */
   private MethodSpec assembleMethod(
       ClassName recordName, List<? extends RecordComponentElement> components) {
     int arity = components.size();
     CodeBlock.Builder curried = CodeBlock.builder();
+    CodeBlock.Builder args = CodeBlock.builder();
     for (int i = 1; i <= arity; i++) {
       curried.add("a$L -> ", i);
+      args.add(i == 1 ? "a$L" : ", a$L", i);
     }
-    curried.add("new $T(", recordName);
-    for (int i = 1; i <= arity; i++) {
-      curried.add(i == 1 ? "a$L" : ", a$L", i);
-    }
-    curried.add(")");
+    curried.add("new $T($L)", recordName, args.build());
 
     CodeBlock expr = CodeBlock.of("this.$N.map($L)", name(components, 0), curried.build());
     for (int i = 1; i < arity; i++) {
@@ -307,8 +311,10 @@ public class AssemblyProcessor extends AbstractProcessor {
         .returns(ParameterizedTypeName.get(VALIDATED, CHANNEL, recordName))
         .addJavadoc(
             "Assembles the record via its canonical constructor; every error is collected, in\n"
-                + "component-declaration order.\n")
-        .addStatement("return $L", expr)
+                + "component-declaration order. Once every component is valid, an exception the\n"
+                + "constructor throws is the record's invariant refusing them: an unlabelled error\n"
+                + "carrying its message.\n")
+        .addCode(GuardedConstruction.returningCaught(expr, recordName))
         .build();
   }
 

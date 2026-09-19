@@ -92,6 +92,11 @@ import java.lang.annotation.Target;
  *       missing record component null just the same. A bean's guarded reads make {@code asIso()}
  *       truthful only for an all-primitive bean; a lossless record mapping keeps {@code asIso()},
  *       its guards covering hostile bindings only.
+ *   <li>Once every component has parsed, the domain's canonical constructor runs, and a {@code
+ *       RuntimeException} it throws (the record's own invariant) becomes a {@code FieldError} at
+ *       the record's path carrying its message, in {@code parse}, the validated {@code patch} and a
+ *       flattened group alike. {@code asIso().reverseGet} and {@code asLens().set} cannot return an
+ *       error, so there the exception propagates.
  *   <li>The wire may be a bean-shaped class instead of a record: a mutable class with a no-args
  *       constructor and getters/setters, or an immutable one with a builder. {@code build} fills it
  *       through setters or a builder — or, for a getter-only {@code List}, through {@code
@@ -120,7 +125,9 @@ import java.lang.annotation.Target;
  *       set: a default the bean gives itself, from a field initialiser, its constructor or a getter
  *       that creates one, reads as sent. The two write-backs are deliberate opposites: {@code
  *       patch} is dense (a missing value is an error), {@code updateFrom} is sparse (a missing
- *       value means keep the current one).
+ *       value means keep the current one). {@code updateFrom} sets each present field on its own
+ *       through the record's constructor, so an invariant spanning the fields it sets is not
+ *       supported yet.
  * </ul>
  */
 @Target(ElementType.TYPE)

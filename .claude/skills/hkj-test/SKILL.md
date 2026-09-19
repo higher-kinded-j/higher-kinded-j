@@ -387,6 +387,8 @@ MappingLaws.assertMappingLaws(Impl.INSTANCE.asValidatedBuild(), domainSample);
 
 Also `MappingLaws.assertBuildAgreesWithIso(iso, mapping, domainSample)` and `assertParseAgreesWithIso(iso, mapping, wireSample)` for the two halves of the lossless tier. The single-sample overload passes on a genuinely fallible mapping without ever exercising a failure path. If the spec has a fallible leaf, use the two-wire-sample overload with a non-parsing sample.
 
+A domain whose constructor enforces an invariant (a compact constructor that throws) parses a refused value to an `Invalid` at the record's path, which at the top level is unlabelled. So for the patch and parse-only overloads, whose rejection law requires every error to be located, the invalid wire must fail on a component, not merely on a combination the constructor refuses; and the parse-iso coherence sample must be a value the constructor accepts, since `asIso().reverseGet` throws on a refused one.
+
 ---
 
 ## Deterministic Time (SteppableClock)

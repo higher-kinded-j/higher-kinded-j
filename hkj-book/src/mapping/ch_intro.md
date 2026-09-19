@@ -157,7 +157,7 @@ Two pages are enough to ship. [Record Mapping Basics](basics.md) declares a mapp
 - The whole lane on one worked boundary: [the Capstone](capstone.md)
 
 ~~~admonish info title="In This Chapter"
-- **Record Mapping Basics** – Declare a mapping as one empty interface and get both directions: a `build` that cannot fail and a `parse` that reports every bad field at once. Then add conversions, renames, computed fields, and the one field whose `null` means *absent*.
+- **Record Mapping Basics** – Declare a mapping as one empty interface and get both directions: a `build` that cannot fail and a `parse` that reports every bad field at once. Then add conversions, renames, computed fields, the one field whose `null` means *absent*, and a record's own invariants.
 - **Standard Codecs and Shared Vocabulary** – The stock conversions (UUIDs, dates, enums, money) as one factory call each, and the mix-in pattern that shares your conversions across every spec in an API.
 - **Nesting, Containers, and Sealed Hierarchies** – Specs nest automatically and failures compose into dotted paths; `List`, `Set`, arrays, `Optional` and `Map` map their elements (and, with `@MapKey`, a map's keys); sealed pairs dispatch exhaustively in both directions.
 - **The Emission Tiers** – Which spec shapes earn `asIso()`, `asLens()`, the validated `patch`, `asValidatedPrism()` or one of its halves, and the one-call law check that proves each in your own tests.

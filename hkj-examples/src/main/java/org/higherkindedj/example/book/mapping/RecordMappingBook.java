@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,6 +22,7 @@ import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.edit.Edits;
+import org.higherkindedj.optics.validated.StandardCodecs;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.jspecify.annotations.Nullable;
 
@@ -81,6 +83,22 @@ public final class RecordMappingBook {
     System.out.println(memberMapping.build(new Member("Ada", Optional.empty(), Optional.empty())));
     System.out.println(memberMapping.parse(new MemberDto("Ada", null, null)));
     System.out.println(memberMapping.parse(new MemberDto("Ada", "countess", "not-an-email")));
+
+    // ANCHOR: invariant_usage
+    ReservationMappingImpl.INSTANCE.parse(
+        new ReservationDto(
+            null,
+            List.of(
+                new StayDto("2026-03-01", "2026-03-04"), new StayDto("2026-03-09", "2026-03-07"))));
+    // Invalid(NonEmptyList[guest: must not be null, stays.1: checkOut must be after checkIn])
+    // ANCHOR_END: invariant_usage
+    System.out.println(
+        ReservationMappingImpl.INSTANCE.parse(
+            new ReservationDto(
+                null,
+                List.of(
+                    new StayDto("2026-03-01", "2026-03-04"),
+                    new StayDto("2026-03-09", "2026-03-07")))));
 
     // ANCHOR: mixin_usage
     // One vocabulary, two mappings - the inherited rename and leaf apply to both:
@@ -397,6 +415,38 @@ interface MemberMapping extends MappingSpec<Member, MemberDto> {
 }
 
 // ANCHOR_END: bridge_spec
+
+// ANCHOR: invariant_spec
+// The domain guards itself: a stay must end after it starts. The wire carries no such rule.
+record Stay(LocalDate checkIn, LocalDate checkOut) {
+  Stay {
+    if (!checkOut.isAfter(checkIn)) {
+      throw new IllegalArgumentException("checkOut must be after checkIn");
+    }
+  }
+}
+
+record StayDto(String checkIn, String checkOut) {}
+
+record Reservation(String guest, List<Stay> stays) {}
+
+record ReservationDto(String guest, List<StayDto> stays) {}
+
+@GenerateMapping
+interface StayMapping extends MappingSpec<Stay, StayDto> {
+  default ValidatedPrism<String, LocalDate> checkIn() {
+    return StandardCodecs.localDate();
+  }
+
+  default ValidatedPrism<String, LocalDate> checkOut() {
+    return StandardCodecs.localDate();
+  }
+}
+
+@GenerateMapping
+interface ReservationMapping extends MappingSpec<Reservation, ReservationDto> {}
+
+// ANCHOR_END: invariant_spec
 
 // ANCHOR: mixin_spec
 // Plain vocabulary - not a spec itself. Any spec whose records share these
