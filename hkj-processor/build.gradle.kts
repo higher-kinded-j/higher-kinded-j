@@ -294,7 +294,9 @@ pitest {
 
     // Exclude slow golden file tests from mutation runs to avoid minion timeouts
     excludedTestClasses.set(setOf(
-        "org.higherkindedj.optics.processing.ForComprehensionGoldenFileTest"
+        "org.higherkindedj.optics.processing.ForComprehensionGoldenFileTest",
+        // Its javac runs in a process of its own, which no mutant reaches
+        "org.higherkindedj.optics.processing.ProcessorRegistrationTest"
     ))
 
     // Exclude test infrastructure from mutation

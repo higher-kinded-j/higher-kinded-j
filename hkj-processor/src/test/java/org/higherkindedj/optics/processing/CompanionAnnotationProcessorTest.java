@@ -12,17 +12,9 @@ import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import javax.annotation.processing.Processor;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -154,7 +146,7 @@ class CompanionAnnotationProcessorTest {
     @DisplayName("every annotation hkj-annotations declares is claimed by an hkj processor")
     void everyAnnotationIsClaimed() {
       final Set<String> claimed =
-          hkjProcessors()
+          GeneratorTestHelper.registeredProcessors()
               .flatMap(processor -> processor.getSupportedAnnotationTypes().stream())
               .collect(Collectors.toUnmodifiableSet());
 
@@ -187,7 +179,7 @@ class CompanionAnnotationProcessorTest {
           new CompanionAnnotationProcessor().getSupportedAnnotationTypes();
 
       assertThat(
-              hkjProcessors()
+              GeneratorTestHelper.registeredProcessors()
                   .filter(processor -> !(processor instanceof CompanionAnnotationProcessor)))
           .allSatisfy(
               processor ->
@@ -197,50 +189,10 @@ class CompanionAnnotationProcessorTest {
     }
 
     @Test
-    @DisplayName("is registered with Gradle as isolating, and every hkj processor is registered")
+    @DisplayName("is registered with Gradle as isolating")
     void isRegisteredWithGradleAsIsolating() throws IOException {
-      final Map<String, String> registered = gradleRegistrations();
-
-      assertThat(registered)
+      assertThat(GeneratorTestHelper.gradleRegistrations())
           .containsEntry(CompanionAnnotationProcessor.class.getName(), "isolating");
-      assertThat(hkjProcessors().map(processor -> processor.getClass().getName()))
-          .as("a processor Gradle does not know of turns incremental compilation off")
-          .allSatisfy(name -> assertThat(registered).containsKey(name));
     }
-  }
-
-  /** Every processor this module registers with the service loader, loaded as javac loads it. */
-  private static Stream<Processor> hkjProcessors() {
-    return ServiceLoader.load(Processor.class, CompanionAnnotationProcessor.class.getClassLoader())
-        .stream()
-        .filter(provider -> provider.type().getName().startsWith("org.higherkindedj."))
-        .map(ServiceLoader.Provider::get);
-  }
-
-  /** The processors named in Gradle's incremental registration, with their categories. */
-  private static Map<String, String> gradleRegistrations() throws IOException {
-    final List<URL> registrations =
-        Collections.list(
-            CompanionAnnotationProcessor.class
-                .getClassLoader()
-                .getResources("META-INF/gradle/incremental.annotation.processors"));
-    assertThat(registrations).isNotEmpty();
-    final StringBuilder lines = new StringBuilder();
-    for (URL registration : registrations) {
-      try (InputStream in = registration.openStream()) {
-        lines.append(new String(in.readAllBytes(), StandardCharsets.UTF_8)).append('\n');
-      }
-    }
-    return lines
-        .toString()
-        .lines()
-        .map(String::strip)
-        .filter(line -> !line.isEmpty() && !line.startsWith("#"))
-        // The registration can sit on the classpath more than once; a processor named twice with
-        // different categories still fails to collect.
-        .distinct()
-        .map(line -> line.split(","))
-        .collect(
-            Collectors.toUnmodifiableMap(entry -> entry[0].strip(), entry -> entry[1].strip()));
   }
 }
