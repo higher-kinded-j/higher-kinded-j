@@ -751,6 +751,10 @@ public final class Path {
    *         .apply(User::new);
    * }</pre>
    *
+   * <p>Where the record's constructor may refuse the fields, end with {@code construct(User::new,
+   * "not a valid User")} instead of {@code apply}: a {@code RuntimeException} it throws becomes an
+   * unlabelled {@code FieldError} on the path rather than escaping.
+   *
    * @return the stateless entry stage
    * @see #accumulate()
    */

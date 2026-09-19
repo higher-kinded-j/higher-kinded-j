@@ -33,6 +33,14 @@ import javax.tools.JavaFileObject;
  * EitherOrBoth.zipWithAccum} (both combine {@code semigroup.combine(accumulated, next)}, likewise
  * declaration order). The {@code Fields} flavour prepends labels via {@code FieldError.at} on the
  * incoming value before the merge, so accumulation itself never inspects labels.
+ *
+ * <p>The {@code Fields} flavour also ends in {@code construct(f, fallbackMessage)}, beside {@code
+ * apply} (the same refusal rule {@link GuardedConstruction} emits for the generated mappings, kept
+ * separate because that one guards a constructor call it writes itself): a function that may refuse
+ * the accumulated fields, typically a record's canonical constructor enforcing an invariant, runs
+ * inside a guard that reports a {@code RuntimeException} it throws as an unlabelled {@code
+ * FieldError}. The generic flavour has no {@code FieldError} to build, so it offers {@code apply}
+ * only.
  */
 final class AccumulatorStepGenerator {
 
@@ -53,6 +61,14 @@ final class AccumulatorStepGenerator {
 
   /** One of the six stage families. */
   private record Family(String prefix, Carrier carrier, boolean labelled, String packageName) {}
+
+  /**
+   * How a carrier's {@code construct} binds the accumulated fields to the guarded call: what opens
+   * the bind, the call that wraps the constructed value, the refusal, and what closes it. Only the
+   * caller's function sits inside the guard, so the wrapping call, which rejects a {@code null} the
+   * function returned, throws to the caller as {@code apply} does.
+   */
+  private record GuardedBind(String bind, String wrap, String refused, String end) {}
 
   private static final List<Family> FAMILIES =
       List.of(
@@ -120,6 +136,9 @@ final class AccumulatorStepGenerator {
       appendAndMethod(sb, family, arity);
     }
     appendApplyMethod(sb, family, arity);
+    if (family.labelled()) {
+      appendConstructMethod(sb, family, arity);
+    }
     sb.append("}\n");
     return sb.toString();
   }
@@ -145,6 +164,10 @@ final class AccumulatorStepGenerator {
     // effect and eitherorboth families import FieldError from the validated package.
     if (family.labelled() && !VALIDATED_PACKAGE.equals(family.packageName())) {
       imports.add("org.higherkindedj.hkt.validated.FieldError");
+      if (family.carrier() == Carrier.VALIDATION_PATH) {
+        // construct binds the path's Validated to the guarded call.
+        imports.add("org.higherkindedj.hkt.validated.Validated");
+      }
     }
     imports.add("org.higherkindedj.optics.annotations.Generated");
     imports.stream().sorted().forEach(i -> sb.append("import ").append(i).append(";\n"));
@@ -185,8 +208,11 @@ final class AccumulatorStepGenerator {
     if (terminal) {
       sb.append(" *\n");
       sb.append(
-          " * <p>Terminal stage: {@code apply} only. For wider assemblies, nest a sub-record per\n"
-              + " * group of fields.\n");
+          family.labelled()
+              ? " * <p>Terminal stage: {@code apply} or {@code construct} only. For wider"
+                  + " assemblies, nest a\n * sub-record per group of fields.\n"
+              : " * <p>Terminal stage: {@code apply} only. For wider assemblies, nest a sub-record"
+                  + " per\n * group of fields.\n");
     }
     sb.append(" */\n");
   }
@@ -380,7 +406,19 @@ final class AccumulatorStepGenerator {
   }
 
   private static void appendApplyMethod(StringBuilder sb, Family family, int arity) {
-    sb.append("  /** Completes the assembly by applying {@code f} to the accumulated fields. */\n");
+    if (family.labelled()) {
+      sb.append("  /**\n");
+      sb.append("   * Completes the assembly by applying {@code f} to the accumulated fields.\n");
+      sb.append(
+          "   *\n   * <p>{@code f} runs whatever it is handed, so an exception it throws escapes"
+              + " the assembly.\n   * Where it may refuse the fields, a record's canonical"
+              + " constructor enforcing an invariant,\n   * {@code construct} guards the call"
+              + " instead.\n");
+      sb.append("   */\n");
+    } else {
+      sb.append(
+          "  /** Completes the assembly by applying {@code f} to the accumulated fields. */\n");
+    }
     sb.append("  public <R> ")
         .append(surfaceType(family, "R"))
         .append(" apply(")
@@ -392,6 +430,103 @@ final class AccumulatorStepGenerator {
             ? "accumulated.map(f)"
             : "accumulated.map(t -> f.apply(" + applySpread(arity) + "))";
     sb.append("    return ").append(mapped).append(";\n");
+    sb.append("  }\n");
+  }
+
+  /**
+   * The labelled families' guarded terminal: {@code construct}, for a function that may refuse the
+   * accumulated fields, typically a record's canonical constructor enforcing an invariant. It runs
+   * only once every field is valid, and a {@code RuntimeException} it throws becomes an unlabelled
+   * {@code FieldError} carrying its message, or {@code fallbackMessage} when that is missing or
+   * blank, so an enclosing {@code field(label, ...)} locates it. Only {@code f} runs inside the
+   * guard. A tolerant ({@code EitherOrBoth}) refusal keeps the warnings already accumulated.
+   */
+  private static void appendConstructMethod(StringBuilder sb, Family family, int arity) {
+    boolean tolerant = family.carrier() == Carrier.EITHER_OR_BOTH;
+    sb.append("\n  /**\n");
+    sb.append(
+        "   * Completes the assembly like {@code apply}, for a function that may refuse the"
+            + " accumulated\n"
+            + "   * fields, typically a record's canonical constructor enforcing an invariant. Once"
+            + " every\n"
+            + "   * field is valid, a {@code RuntimeException} {@code f} throws becomes an"
+            + " unlabelled {@code\n"
+            + "   * FieldError} carrying its message, or {@code fallbackMessage} when that is"
+            + " missing or blank,\n"
+            + "   * so an enclosing {@code field(label, ...)} locates it. Only {@code f} runs"
+            + " inside the guard,\n"
+            + "   * so a {@code null} it returns still throws as it does from {@code apply}. Any"
+            + " {@code\n"
+            + "   * RuntimeException} counts, so a bug in {@code f} reaches whoever reads the"
+            + " errors as its\n"
+            + "   * message: keep it to checks on its arguments.\n");
+    if (tolerant) {
+      sb.append("   * A refusal keeps every warning accumulated so far, beside the refusal.\n");
+    }
+    sb.append("   *\n");
+    sb.append("   * @param f the function over the accumulated fields; must not be null\n");
+    sb.append(
+        "   * @param fallbackMessage the message when the exception carries none, such as {@code \"not"
+            + " a\n"
+            + "   *     valid Range\"}; must not be null or blank\n");
+    sb.append("   * @param <R> the assembled type\n");
+    sb.append(
+        "   * @return the assembled value, or the fields' "
+            + (tolerant ? "warnings and the refusal" : "errors, or the refusal")
+            + "\n");
+    sb.append(
+        "   * @throws NullPointerException if {@code f} or {@code fallbackMessage} is null\n");
+    sb.append("   * @throws IllegalArgumentException if {@code fallbackMessage} is blank\n");
+    sb.append("   */\n");
+    sb.append("  public <R> ")
+        .append(surfaceType(family, "R"))
+        .append(" construct(")
+        .append(applyFunctionType(arity))
+        .append(" f, String fallbackMessage) {\n");
+    sb.append("    Objects.requireNonNull(f, \"f must not be null\");\n");
+    sb.append(
+        "    Objects.requireNonNull(fallbackMessage, \"fallbackMessage must not be null\");\n");
+    sb.append("    if (fallbackMessage.isBlank()) {\n");
+    sb.append("      throw new IllegalArgumentException(\"fallbackMessage must not be blank\");\n");
+    sb.append("    }\n");
+    String call = "f.apply(" + (arity == 1 ? "t" : applySpread(arity)) + ")";
+    String refusal =
+        "FieldError.of(message == null || message.isBlank() ? fallbackMessage : message)";
+    GuardedBind guard =
+        switch (family.carrier()) {
+          case VALIDATED ->
+              new GuardedBind(
+                  "accumulated.flatMap(\n        ",
+                  "Validated.validNel",
+                  "Validated.invalidNel(" + refusal + ")",
+                  ")");
+          case VALIDATION_PATH ->
+              new GuardedBind(
+                  "Path.validatedNel(\n        accumulated.run().flatMap(\n            ",
+                  "Validated.validNel",
+                  "Validated.invalidNel(" + refusal + ")",
+                  "))");
+          case EITHER_OR_BOTH ->
+              new GuardedBind(
+                  "accumulated.flatMap(\n        NonEmptyList.semigroup(),\n        ",
+                  "EitherOrBoth.right",
+                  "EitherOrBoth.left(NonEmptyList.single(" + refusal + "))",
+                  ")");
+        };
+    // The lambda's body indents under wherever the bind left it, so every carrier reads alike.
+    String lambda = " ".repeat(guard.bind().length() - guard.bind().lastIndexOf('\n') - 1);
+    String body = lambda + "  ";
+    String inner = body + "  ";
+    sb.append("    return ").append(guard.bind()).append("t -> {\n");
+    sb.append(body).append("R constructed;\n");
+    sb.append(body).append("try {\n");
+    sb.append(inner).append("constructed = ").append(call).append(";\n");
+    sb.append(body).append("} catch (RuntimeException refused) {\n");
+    sb.append(inner).append("String message = refused.getMessage();\n");
+    sb.append(inner).append("return ").append(guard.refused()).append(";\n");
+    sb.append(body).append("}\n");
+    sb.append(body).append("return ").append(guard.wrap()).append("(constructed);\n");
+    sb.append(lambda).append("}").append(guard.end()).append(";\n");
     sb.append("  }\n");
   }
 }

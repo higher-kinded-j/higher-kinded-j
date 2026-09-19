@@ -113,6 +113,36 @@ class AssemblyPropertyTest {
     assertThat(result.getRight().isJust()).isEqualTo(!anyLeft);
   }
 
+  @Property(tries = 50)
+  @Label("construct agrees with apply where the function returns, and reports where it throws")
+  void constructAgreesWithApply(
+      @ForAll("validateds") Validated<NonEmptyList<String>, Integer> va,
+      @ForAll("validateds") Validated<NonEmptyList<String>, Integer> vb) {
+    Validated<NonEmptyList<FieldError>, Integer> fa = va.mapError(e -> e.map(FieldError::of));
+    Validated<NonEmptyList<FieldError>, Integer> fb = vb.mapError(e -> e.map(FieldError::of));
+    Validated<NonEmptyList<FieldError>, Integer> constructed =
+        Validated.fields()
+            .field("a", fa)
+            .field("b", fb)
+            .construct(
+                (a, b) -> {
+                  if (a > b) {
+                    throw new IllegalArgumentException("a > b");
+                  }
+                  return a + b;
+                },
+                "not a valid pair");
+    Validated<NonEmptyList<FieldError>, Integer> applied =
+        Validated.fields().field("a", fa).field("b", fb).apply(Integer::sum);
+
+    boolean refused = fa.isValid() && fb.isValid() && fa.get() > fb.get();
+    if (refused) {
+      assertThat(constructed).isEqualTo(Validated.invalidNel(FieldError.of("a > b")));
+    } else {
+      assertThat(constructed).isEqualTo(applied);
+    }
+  }
+
   @Provide
   Arbitrary<Validated<NonEmptyList<String>, Integer>> validateds() {
     return AssemblyArbitraries.validateds();

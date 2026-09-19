@@ -3,17 +3,33 @@
 package org.higherkindedj.example.book.monads.assembly;
 
 import static org.higherkindedj.hkt.assertions.FieldErrorAssert.assertThatFieldError;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The located-error assertion shown on the book's Accumulating Assembly page. The page {@code
- * {{#include}}}s the anchored region, so the snippet it displays is this test, and it is green.
+ * The located-error assertion shown on the book's Accumulating Assembly page, whose anchored region
+ * the page {@code {{#include}}}s, so the snippet it displays is this test and it is green; beside
+ * it, the errors behind the result the page's {@code construct} example prints.
  */
-@DisplayName("a located FieldError carries its path")
+@DisplayName("the assembly page's located errors")
 class ValidatedAssemblyBookTest {
+
+  @Test
+  @DisplayName("construct reports the window's refusal as the page shows it")
+  void constructReportsTheWindowRefusal() {
+    // The errors behind the result the page prints:
+    assertThatValidated(
+            Validated.fields()
+                .field("opens", ValidatedAssemblyBook.parseDate("2026-03-09"))
+                .field("closes", ValidatedAssemblyBook.parseDate("2026-03-07"))
+                .construct(Window::new, "not a valid Window"))
+        .isInvalid()
+        .hasFieldErrors("closes must be after opens");
+  }
 
   @Test
   void locatedErrorsCarryTheirPath() {

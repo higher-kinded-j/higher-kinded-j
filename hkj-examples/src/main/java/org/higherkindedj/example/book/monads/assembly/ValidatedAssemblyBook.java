@@ -4,6 +4,7 @@ package org.higherkindedj.example.book.monads.assembly;
 
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.time.LocalDate;
 import java.util.List;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.MonadError;
@@ -15,6 +16,7 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.optics.annotations.GenerateAssembly;
+import org.higherkindedj.optics.validated.StandardCodecs;
 
 /**
  * The code shown on the book's <a
@@ -59,6 +61,17 @@ public final class ValidatedAssemblyBook {
     // ANCHOR_END: fields
     System.out.println(assembled);
 
+    // ANCHOR: construct
+    Validated<NonEmptyList<FieldError>, Window> window =
+        Validated.fields()
+            .field("opens", parseDate("2026-03-09"))
+            .field("closes", parseDate("2026-03-07"))
+            .construct(Window::new, "not a valid Window"); // apply(Window::new) would throw
+
+    // Invalid(NonEmptyList[closes must be after opens]) - unlabelled: the whole window is refused
+    // ANCHOR_END: construct
+    System.out.println(window);
+
     // ANCHOR: nesting
     Validated<NonEmptyList<FieldError>, Address> address =
         Validated.fields()
@@ -102,6 +115,10 @@ public final class ValidatedAssemblyBook {
             .assemble(); // canonical constructor baked in
     // ANCHOR_END: generated_usage
     System.out.println(generated);
+  }
+
+  static Validated<NonEmptyList<FieldError>, LocalDate> parseDate(String s) {
+    return StandardCodecs.localDate().parse(s);
   }
 
   static Validated<NonEmptyList<FieldError>, Name> parseName(String s) {
@@ -159,6 +176,18 @@ record Age(int value) {}
 record User(Name name, Email email, Age age) {}
 
 // ANCHOR_END: generated_spec
+
+// ANCHOR: construct_record
+// The record guards itself: a window must close after it opens.
+record Window(LocalDate opens, LocalDate closes) {
+  Window {
+    if (!closes.isAfter(opens)) {
+      throw new IllegalArgumentException("closes must be after opens");
+    }
+  }
+}
+
+// ANCHOR_END: construct_record
 
 record Address(String street, String zip) {}
 

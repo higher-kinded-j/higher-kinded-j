@@ -3,7 +3,9 @@
 package org.higherkindedj.hkt.validated;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.List;
@@ -42,6 +44,31 @@ class ValidatedAssemblyTest {
 
   private static List<String> errorPaths(Validated<NonEmptyList<FieldError>, ?> result) {
     return result.fold(nel -> nel.map(FieldError::pathString).toJavaList(), _ -> List.<String>of());
+  }
+
+  /** A record whose compact constructor refuses a reversed span. */
+  private record Span(int lo, int hi) {
+    Span {
+      if (lo > hi) {
+        throw new IllegalArgumentException("lo > hi");
+      }
+    }
+  }
+
+  /** A record whose compact constructor refuses a blank name, with a message or without one. */
+  private record Name(String value) {
+    Name {
+      if (value.isEmpty()) {
+        throw new IllegalArgumentException();
+      }
+      if (value.isBlank()) {
+        throw new IllegalArgumentException(" ");
+      }
+    }
+  }
+
+  private static Validated<NonEmptyList<FieldError>, Integer> okI(int value) {
+    return Validated.validNel(value);
   }
 
   @Nested
@@ -1210,6 +1237,158 @@ class ValidatedAssemblyTest {
       var order = Validated.fields().field("order", address).apply(a1 -> a1);
 
       assertThat(errorPaths(order)).containsExactly("order.address.zip");
+    }
+  }
+
+  @Nested
+  @DisplayName("construct(): the function's refusal as a located FieldError")
+  class Construct {
+
+    @Test
+    @DisplayName("A refusal is an unlabelled error carrying the exception's message")
+    void refusalCarriesTheMessage() {
+      var refused =
+          Validated.fields()
+              .field("lo", okI(5))
+              .field("hi", okI(1))
+              .construct(Span::new, "not a valid Span");
+      assertThatValidated(refused).isInvalid().hasFieldErrors("lo > hi");
+    }
+
+    @Test
+    @DisplayName("A value the function accepts assembles exactly as apply would")
+    void acceptedValueAssembles() {
+      var accepted =
+          Validated.fields()
+              .field("lo", okI(1))
+              .field("hi", okI(5))
+              .construct(Span::new, "not a valid Span");
+      assertThatValidated(accepted).isValid().hasValue(new Span(1, 5));
+    }
+
+    @Test
+    @DisplayName("A missing or blank message reads the fallback")
+    void missingOrBlankMessageReadsTheFallback() {
+      assertThatValidated(
+              Validated.fields().field("value", okF("")).construct(Name::new, "not a valid Name"))
+          .isInvalid()
+          .hasFieldErrors("not a valid Name");
+      assertThatValidated(
+              Validated.fields().field("value", okF(" ")).construct(Name::new, "not a valid Name"))
+          .isInvalid()
+          .hasFieldErrors("not a valid Name");
+    }
+
+    @Test
+    @DisplayName("The function never runs while a field is invalid, so only the fields report")
+    void functionWaitsForEveryField() {
+      var invalid =
+          Validated.fields()
+              .field("lo", Validated.<FieldError, Integer>invalidNel(FieldError.of("not a number")))
+              .field("hi", okI(1))
+              .<Span>construct(
+                  (lo, hi) -> {
+                    throw new AssertionError("must not run");
+                  },
+                  "not a valid Span");
+      assertThatValidated(invalid).isInvalid().hasFieldErrors("lo: not a number");
+    }
+
+    @Test
+    @DisplayName("Only a RuntimeException is a refusal: an Error propagates")
+    void errorPropagates() {
+      assertThatThrownBy(
+              () ->
+                  Validated.fields()
+                      .field("lo", okI(1))
+                      .field("hi", okI(5))
+                      .<Span>construct(
+                          (lo, hi) -> {
+                            throw new LinkageError("broken");
+                          },
+                          "not a valid Span"))
+          .isInstanceOf(LinkageError.class)
+          .hasMessage("broken");
+    }
+
+    @Test
+    @DisplayName("A nested refusal is located by the enclosing label, beside its siblings' errors")
+    void nestedRefusalIsLocated() {
+      var trip =
+          Validated.fields()
+              .field("name", badF("must not be blank"))
+              .field(
+                  "span",
+                  Validated.fields()
+                      .field("lo", okI(5))
+                      .field("hi", okI(1))
+                      .construct(Span::new, "not a valid Span"))
+              .apply((name, span) -> name + span);
+      assertThatValidated(trip)
+          .isInvalid()
+          .hasFieldErrors("name: must not be blank", "span: lo > hi");
+    }
+
+    @Test
+    @DisplayName("Arity 3 and the arity-16 ceiling spread the fields in declaration order")
+    void widerAritiesSpreadInOrder() {
+      var three =
+          Validated.fields()
+              .field("f1", okF("v1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .construct((a1, a2, a3) -> String.join("+", a1, a2, a3), "not a valid join");
+      assertThatValidated(three).isValid().hasValue("v1+v2+v3");
+
+      var sixteen =
+          Validated.fields()
+              .field("f1", okF("v1"))
+              .field("f2", okF("v2"))
+              .field("f3", okF("v3"))
+              .field("f4", okF("v4"))
+              .field("f5", okF("v5"))
+              .field("f6", okF("v6"))
+              .field("f7", okF("v7"))
+              .field("f8", okF("v8"))
+              .field("f9", okF("v9"))
+              .field("f10", okF("v10"))
+              .field("f11", okF("v11"))
+              .field("f12", okF("v12"))
+              .field("f13", okF("v13"))
+              .field("f14", okF("v14"))
+              .field("f15", okF("v15"))
+              .field("f16", okF("stop"))
+              .construct(
+                  (a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) -> {
+                    if (a16.equals("stop")) {
+                      throw new IllegalStateException(a1 + " to " + a16);
+                    }
+                    return a1;
+                  },
+                  "not a valid row");
+      assertThatValidated(sixteen).isInvalid().hasFieldErrors("v1 to stop");
+    }
+
+    @Test
+    @DisplayName("Only the function is guarded: a null it returns throws, as it does from apply")
+    void aNullReturnIsNotARefusal() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  Validated.fields()
+                      .field("lo", okI(1))
+                      .<Span>construct(lo -> null, "not a valid Span"));
+    }
+
+    @Test
+    @DisplayName("construct rejects a null function, and a null or blank fallback message")
+    void rejectsNulls() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Validated.fields().field("lo", okI(1)).construct(null, "fallback"));
+      assertThatNullPointerException()
+          .isThrownBy(() -> Validated.fields().field("lo", okI(1)).construct(lo -> lo, null));
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> Validated.fields().field("lo", okI(1)).construct(lo -> lo, " "));
     }
   }
 

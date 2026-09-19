@@ -277,6 +277,13 @@ Validated<NonEmptyList<String>, User> u =
         .apply(User::new);
 ```
 
+**A constructor that may refuse the fields** (a compact constructor enforcing an invariant): end a
+labelled ladder with `construct(User::new, "not a valid User")` instead of `apply(User::new)`. Once
+every field is valid, a `RuntimeException` the constructor throws becomes an unlabelled `FieldError`
+carrying its message, or the fallback when it has none, so an enclosing `field(label, ...)` locates
+it; `apply` lets it escape. Only the labelled builders have it, and on `EitherOrBoth` a refusal keeps
+the warnings collected so far.
+
 **Past 16 fields, reach for `@GenerateAssembly`** (see `/hkj-mapping`): it emits a curried `ap` chain
 at exactly the record's arity, so it has no ceiling. This ladder stops at 16.
 

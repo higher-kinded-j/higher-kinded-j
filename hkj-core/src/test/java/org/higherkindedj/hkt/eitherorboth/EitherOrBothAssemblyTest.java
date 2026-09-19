@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.eitherorboth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.EitherOrBothAssert.assertThatEitherOrBoth;
 
@@ -57,6 +58,27 @@ class EitherOrBothAssemblyTest {
 
   private static String valueOf(EitherOrBoth<?, String> result) {
     return result.fold(_ -> "", value -> value, (_, value) -> value);
+  }
+
+  /** A record whose compact constructor refuses a reversed span. */
+  private record Span(int lo, int hi) {
+    Span {
+      if (lo > hi) {
+        throw new IllegalArgumentException("lo > hi");
+      }
+    }
+  }
+
+  private static EitherOrBoth<NonEmptyList<FieldError>, Integer> rightI(int value) {
+    return EitherOrBoth.right(value);
+  }
+
+  private static EitherOrBoth<NonEmptyList<FieldError>, Integer> bothI(String message, int value) {
+    return EitherOrBoth.both(NonEmptyList.single(FieldError.of(message)), value);
+  }
+
+  private static List<String> rendered(NonEmptyList<FieldError> errors) {
+    return errors.map(FieldError::toString).toJavaList();
   }
 
   @Nested
@@ -1205,6 +1227,111 @@ class EitherOrBothAssemblyTest {
       assertThat(warningPaths(tolerant)).containsExactly("f1", "f16");
       assertThat(valueOf(tolerant))
           .isEqualTo("v1+v2+v3+v4+v5+v6+v7+v8+v9+v10+v11+v12+v13+v14+v15+v16");
+    }
+  }
+
+  @Nested
+  @DisplayName("construct(): the function's refusal joins the warnings as a Left")
+  class Construct {
+
+    @Test
+    @DisplayName("A refusal of warning-free fields is a Left carrying the exception's message")
+    void refusalIsALeft() {
+      var refused =
+          EitherOrBoth.fields()
+              .field("lo", rightI(5))
+              .field("hi", rightI(1))
+              .construct(Span::new, "not a valid Span");
+      assertThatEitherOrBoth(refused)
+          .hasLeftSatisfying(left -> assertThat(rendered(left)).containsExactly("lo > hi"));
+    }
+
+    @Test
+    @DisplayName("A refusal keeps every warning accumulated so far, in declaration order")
+    void refusalKeepsTheWarnings() {
+      var refused =
+          EitherOrBoth.fields()
+              .field("lo", bothI("rounded", 5))
+              .field("hi", rightI(1))
+              .construct(Span::new, "not a valid Span");
+      assertThatEitherOrBoth(refused)
+          .hasLeftSatisfying(
+              left -> assertThat(rendered(left)).containsExactly("lo: rounded", "lo > hi"));
+    }
+
+    @Test
+    @DisplayName("An accepted value keeps its warnings beside it")
+    void acceptedValueKeepsItsWarnings() {
+      var accepted =
+          EitherOrBoth.fields()
+              .field("lo", rightI(1))
+              .field("hi", bothI("rounded", 5))
+              .construct(Span::new, "not a valid Span");
+      assertThatEitherOrBoth(accepted)
+          .hasBothSatisfying(
+              (warnings, span) -> {
+                assertThat(rendered(warnings)).containsExactly("hi: rounded");
+                assertThat(span).isEqualTo(new Span(1, 5));
+              });
+    }
+
+    @Test
+    @DisplayName("A Left field stops the function, and the Left is unchanged")
+    void leftFieldStopsTheFunction() {
+      var left =
+          EitherOrBoth.fields()
+              .field(
+                  "lo",
+                  EitherOrBoth.<NonEmptyList<FieldError>, Integer>left(
+                      NonEmptyList.single(FieldError.of("not a number"))))
+              .field("hi", rightI(1))
+              .<Span>construct(
+                  (lo, hi) -> {
+                    throw new AssertionError("must not run");
+                  },
+                  "not a valid Span");
+      assertThatEitherOrBoth(left)
+          .hasLeftSatisfying(
+              errors -> assertThat(rendered(errors)).containsExactly("lo: not a number"));
+    }
+
+    @Test
+    @DisplayName("A missing message reads the fallback")
+    void missingMessageReadsTheFallback() {
+      var refused =
+          EitherOrBoth.fields()
+              .field("n", rightI(-1))
+              .<Integer>construct(
+                  n -> {
+                    throw new IllegalArgumentException();
+                  },
+                  "not a valid count");
+      assertThatEitherOrBoth(refused)
+          .hasLeftSatisfying(
+              left -> assertThat(rendered(left)).containsExactly("not a valid count"));
+    }
+
+    @Test
+    @DisplayName("Only the function is guarded: a null it returns throws, as it does from apply")
+    void aNullReturnIsNotARefusal() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  EitherOrBoth.fields()
+                      .field("n", rightI(1))
+                      .<Span>construct(n -> null, "not a valid Span"));
+    }
+
+    @Test
+    @DisplayName("construct rejects a null function, and a null or blank fallback message")
+    void rejectsNulls() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () -> EitherOrBoth.fields().field("n", rightI(1)).construct(null, "fallback"));
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherOrBoth.fields().field("n", rightI(1)).construct(n -> n, null));
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> EitherOrBoth.fields().field("n", rightI(1)).construct(n -> n, " "));
     }
   }
 

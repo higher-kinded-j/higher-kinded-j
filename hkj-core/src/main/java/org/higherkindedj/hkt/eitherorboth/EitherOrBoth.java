@@ -476,6 +476,11 @@ public sealed interface EitherOrBoth<L, R> extends EitherOrBothKind<L, R>, Eithe
    *         .apply(Config::new);                                // value still flows
    * }</pre>
    *
+   * <p>Where the record's constructor may refuse the fields, end with {@code construct(Config::new,
+   * "not a valid Config")} instead of {@code apply}: a {@code RuntimeException} it throws becomes a
+   * {@code Left} carrying an unlabelled {@code FieldError} beside every warning collected so far,
+   * rather than escaping.
+   *
    * @return the stateless entry stage
    * @see #accumulate()
    */

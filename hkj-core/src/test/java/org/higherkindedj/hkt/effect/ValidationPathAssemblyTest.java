@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
@@ -47,6 +48,19 @@ class ValidationPathAssemblyTest {
     return result
         .run()
         .fold(nel -> nel.map(FieldError::pathString).toJavaList(), _ -> List.<String>of());
+  }
+
+  /** A record whose compact constructor refuses a reversed span. */
+  private record Span(int lo, int hi) {
+    Span {
+      if (lo > hi) {
+        throw new IllegalArgumentException("lo > hi");
+      }
+    }
+  }
+
+  private static ValidationPath<NonEmptyList<FieldError>, Integer> okI(int value) {
+    return Path.validNel(value);
   }
 
   @Nested
@@ -1169,6 +1183,78 @@ class ValidationPathAssemblyTest {
                           a16));
       assertThatValidated(invalid.run()).isInvalid();
       assertThat(errorPaths(invalid)).containsExactly("f1", "f16");
+    }
+  }
+
+  @Nested
+  @DisplayName("construct(): the function's refusal as a located FieldError")
+  class Construct {
+
+    @Test
+    @DisplayName("A refusal is an unlabelled error carrying the exception's message")
+    void refusalCarriesTheMessage() {
+      var refused =
+          Path.fields()
+              .field("lo", okI(5))
+              .field("hi", okI(1))
+              .construct(Span::new, "not a valid Span");
+      assertThatValidated(refused.run()).isInvalid().hasFieldErrors("lo > hi");
+    }
+
+    @Test
+    @DisplayName("A value the function accepts assembles exactly as apply would")
+    void acceptedValueAssembles() {
+      var accepted =
+          Path.fields()
+              .field("lo", okI(1))
+              .field("hi", okI(5))
+              .construct(Span::new, "not a valid Span");
+      assertThatValidated(accepted.run()).isValid().hasValue(new Span(1, 5));
+    }
+
+    @Test
+    @DisplayName("An invalid field stops the function; a blank message reads the fallback")
+    void invalidFieldAndBlankMessage() {
+      var invalid =
+          Path.fields()
+              .field("lo", badF("not a number"))
+              .field("hi", okI(1))
+              .<Span>construct(
+                  (lo, hi) -> {
+                    throw new AssertionError("must not run");
+                  },
+                  "not a valid Span");
+      assertThatValidated(invalid.run()).isInvalid().hasFieldErrors("lo: not a number");
+
+      var blank =
+          Path.fields()
+              .field("n", okI(-1))
+              .<Integer>construct(
+                  n -> {
+                    throw new IllegalArgumentException(" ");
+                  },
+                  "not a valid count");
+      assertThatValidated(blank.run()).isInvalid().hasFieldErrors("not a valid count");
+    }
+
+    @Test
+    @DisplayName("Only the function is guarded: a null it returns throws, as it does from apply")
+    void aNullReturnIsNotARefusal() {
+      assertThatNullPointerException()
+          .isThrownBy(
+              () ->
+                  Path.fields().field("n", okI(1)).<Span>construct(n -> null, "not a valid Span"));
+    }
+
+    @Test
+    @DisplayName("construct rejects a null function, and a null or blank fallback message")
+    void rejectsNulls() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.fields().field("n", okI(1)).construct(null, "fallback"));
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.fields().field("n", okI(1)).construct(n -> n, null));
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> Path.fields().field("n", okI(1)).construct(n -> n, ""));
     }
   }
 
