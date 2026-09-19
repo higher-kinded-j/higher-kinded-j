@@ -40,13 +40,15 @@ final class ChunkedAssembly {
   /**
    * Emits the chunk locals and the combining {@code return} statement for {@code legs.size() >
    * ArityCeilings.ASSEMBLY}. Each leg is a {@code \n.field(...)} fragment in declaration order;
-   * {@code args} receives one value expression per leg, in the same order, and returns the
-   * arguments of the {@code type} constructor they assemble into, whose call is guarded as {@link
-   * GuardedConstruction} guards a single ladder's. {@code reserved} carries the enclosing method's
-   * parameter names: the emitted locals and lambda parameters ({@code c1..}, {@code t1..}, the
-   * singleton ladder's {@code v}) take underscore suffixes until free of them, since a generated
-   * local may not redeclare, nor a lambda parameter shadow, a method parameter (JLS 6.4) — and
-   * merge methods carry the spec author's own parameter names.
+   * {@code construct} receives one value expression per leg, in the same order, and returns the
+   * {@code type} constructor thunk they assemble into ({@link GuardedConstruction#thunk} or {@link
+   * GuardedConstruction#boundThunk}), whose call is guarded as a single ladder's is. {@code
+   * reserved} carries every name the emitted locals and lambda parameters ({@code c1..}, {@code
+   * t1..}, the singleton ladder's {@code v}) must stay clear of, and they take underscore suffixes
+   * until free of them: the enclosing method's parameters, since a generated local may not
+   * redeclare, nor a lambda parameter shadow, a method parameter (JLS 6.4), and merge methods carry
+   * the spec author's own parameter names; and the names a leg or the thunk declares itself, which
+   * sit where the chunk locals are in scope.
    */
   static CodeBlock emit(
       List<CodeBlock> legs,
@@ -54,7 +56,7 @@ final class ChunkedAssembly {
       ClassName nel,
       Set<String> reserved,
       TypeName type,
-      Function<List<CodeBlock>, CodeBlock> args) {
+      Function<List<CodeBlock>, CodeBlock> construct) {
     Set<String> taken = new HashSet<>(reserved);
     CodeBlock.Builder body =
         CodeBlock.builder()
@@ -90,7 +92,7 @@ final class ChunkedAssembly {
     for (String tupleName : tupleNames) {
       curried.add("$L -> ", tupleName);
     }
-    curried.add("$L", GuardedConstruction.thunk(type, args.apply(values)));
+    curried.add("$L", construct.apply(values));
     CodeBlock combined = CodeBlock.of("$L.map($L)", chunkNames.getFirst(), curried.build());
     for (int chunk = 1; chunk < chunkNames.size(); chunk++) {
       combined =

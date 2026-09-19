@@ -9,6 +9,7 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.tools.JavaFileObject;
@@ -191,6 +192,24 @@ class ConstructorInvariantTest {
 
               public record SlotCardDto(int lo, int hi) {}
 
+              public record Reading(UUID code, int lo, int hi, String note) {
+                @Override
+                public String note() {
+                  throw new IllegalStateException("accessor failed");
+                }
+              }
+
+              public record ReadingDto(String code, int lo, int hi) {}
+
+              public record WideReading(UUID id, %2$s, String note) {
+                @Override
+                public String note() {
+                  throw new IllegalStateException("accessor failed");
+                }
+              }
+
+              public record WideReadingDto(String id, %2$s) {}
+
               public record Wide(%1$s) {
                 public Wide {
                   if (f1 > f2) {
@@ -314,6 +333,21 @@ class ConstructorInvariantTest {
               @GenerateMapping
               public interface SlotMapping extends MappingSpec<Records.Slot, Records.SlotDto> {
                 default ValidatedPrism<String, UUID> code() {
+                  return StandardCodecs.uuid();
+                }
+              }
+
+              @GenerateMapping
+              public interface ReadingMapping extends MappingSpec<Records.Reading, Records.ReadingDto> {
+                default ValidatedPrism<String, UUID> code() {
+                  return StandardCodecs.uuid();
+                }
+              }
+
+              @GenerateMapping
+              public interface WideReadingMapping
+                  extends MappingSpec<Records.WideReading, Records.WideReadingDto> {
+                default ValidatedPrism<String, UUID> id() {
                   return StandardCodecs.uuid();
                 }
               }
@@ -484,6 +518,18 @@ class ConstructorInvariantTest {
                     .assemble();
               }
 
+              public static Object accessorPatch() {
+                return SpecsReadingMappingImpl.INSTANCE.patch(
+                    new Records.Reading(UUID.fromString(ID), 1, 2, "n"),
+                    new Records.ReadingDto(ID, 1, 5));
+              }
+
+              public static Object chunkedAccessorPatch() {
+                return SpecsWideReadingMappingImpl.INSTANCE.patch(
+                    new Records.WideReading(UUID.fromString(ID), 1, 2%2$s, "n"),
+                    new Records.WideReadingDto(ID, 1, 5%2$s));
+              }
+
               public static Object reverseGet() {
                 return SpecsRangeMappingImpl.INSTANCE.asIso().reverseGet(new Records.RangeDto(5, 1));
               }
@@ -644,6 +690,19 @@ class ConstructorInvariantTest {
   @DisplayName("@GenerateAssembly's assemble() reports the invariant")
   void assembleReportsTheInvariant() throws ReflectiveOperationException {
     assertThatValidated(probe("assembled")).isInvalid().hasFieldErrors("passwords differ");
+  }
+
+  @Test
+  @DisplayName(
+      "a patch reads its unprojected components outside the guard, so an exception from the"
+          + " domain's own accessor propagates rather than posing as the invariant")
+  void accessorExceptionPropagatesFromPatch() {
+    for (String probe : List.of("accessorPatch", "chunkedAccessorPatch")) {
+      assertThatThrownBy(() -> compiled.invokeStatic(PKG + ".Probes", probe))
+          .as(probe)
+          .hasRootCauseInstanceOf(IllegalStateException.class)
+          .hasRootCauseMessage("accessor failed");
+    }
   }
 
   @Test

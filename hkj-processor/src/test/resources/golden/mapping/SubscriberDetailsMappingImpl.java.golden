@@ -36,7 +36,10 @@ public final class SubscriberDetailsMappingImpl implements SubscriberDetailsMapp
         Validated.fields()
             .field("email", hkj$ifPresent(wire.email(), email()::parse))
             .field("age", Validated.validNel(wire.age()))
-            .apply((email, age) -> () -> new Subscriber(domain.id(), email, age)),
+            .apply((email, age) -> {
+              var id = domain.id();
+              return () -> new Subscriber(id, email, age);
+            }),
         "not a valid Subscriber");
   }
 

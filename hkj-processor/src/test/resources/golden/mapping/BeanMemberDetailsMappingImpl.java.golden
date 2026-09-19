@@ -43,7 +43,10 @@ public final class MemberDetailsMappingImpl implements MemberDetailsMapping {
             .field("email", hkj$ifPresent(wire.getEmail(), email()::parse))
             .field("nickname", Validated.validNel(Optional.ofNullable(wire.getNickname())))
             .field("age", Validated.validNel(wire.getAge()))
-            .apply((name, email, nickname, age) -> () -> new Member(domain.id(), name, email, nickname, age)),
+            .apply((name, email, nickname, age) -> {
+              var id = domain.id();
+              return () -> new Member(id, name, email, nickname, age);
+            }),
         "not a valid Member");
   }
 

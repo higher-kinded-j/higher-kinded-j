@@ -848,7 +848,7 @@ public class MergeProcessor extends AbstractProcessor {
                 NEL,
                 reserved,
                 targetName,
-                values -> CodeBlock.join(values, ", ")));
+                values -> GuardedConstruction.thunk(targetName, CodeBlock.join(values, ", "))));
       }
     } else {
       CodeBlock.Builder args = CodeBlock.builder();

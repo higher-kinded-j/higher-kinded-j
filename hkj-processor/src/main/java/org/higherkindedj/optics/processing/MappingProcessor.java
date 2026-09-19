@@ -8003,7 +8003,12 @@ public class MappingProcessor extends AbstractProcessor {
     Set<String> reserved = new LinkedHashSet<>(List.of("wire"));
     legs.forEach(leg -> reserved.addAll(leg.declares()));
     return ChunkedAssembly.emit(
-        code, VALIDATED, NEL, reserved, domainName, values -> CodeBlock.join(values, ", "));
+        code,
+        VALIDATED,
+        NEL,
+        reserved,
+        domainName,
+        values -> GuardedConstruction.thunk(domainName, CodeBlock.join(values, ", ")));
   }
 
   /**
@@ -8203,47 +8208,63 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     // The write-back ends in the guarded constructor call either way: an invariant the domain's
-    // constructor enforces refuses the patched combination at the root instead of throwing.
+    // constructor enforces refuses the patched combination at the root instead of throwing. Every
+    // domain component takes a name clear of the method's 'domain' and 'wire': a projected one's
+    // is its lambda parameter, an unprojected one's the local its read binds to, outside the
+    // guard, so an exception from the domain's own accessor is not taken for the invariant.
+    List<String> componentNames =
+        domain.getRecordComponents().stream()
+            .map(component -> component.getSimpleName().toString())
+            .toList();
+    List<String> names =
+        GuardedConstruction.parameterNames(componentNames, Set.of("domain", "wire"));
+    Map<String, CodeBlock> nameFor = new LinkedHashMap<>();
+    for (int i = 0; i < componentNames.size(); i++) {
+      nameFor.put(componentNames.get(i), CodeBlock.of("$L", names.get(i)));
+    }
+    Set<String> projected =
+        comps.stream().map(Correspondence::name).collect(Collectors.toUnmodifiableSet());
+    List<String> unprojected =
+        componentNames.stream().filter(name -> !projected.contains(name)).toList();
+    List<CodeBlock> unprojectedReads =
+        unprojected.stream()
+            .map(name -> CodeBlock.of("var $L = domain.$L()", nameFor.get(name), name))
+            .toList();
     CodeBlock patchBody;
     if (patchLegs.size() <= ArityCeilings.ASSEMBLY) {
-      // Lambda parameters are named after the projected components, clear of the enclosing
-      // method's 'domain' and 'wire'.
-      List<String> params =
-          GuardedConstruction.parameterNames(
-              comps.stream().map(Correspondence::name).toList(), Set.of("domain", "wire"));
-      Map<String, String> lambdaParamFor = new LinkedHashMap<>();
-      for (int i = 0; i < comps.size(); i++) {
-        lambdaParamFor.put(comps.get(i).name(), params.get(i));
-      }
       patchBody =
           GuardedConstruction.returning(
               GuardedConstruction.ladder(
                   patchLegs,
-                  GuardedConstruction.applyThunk(
-                      params,
-                      domainName,
-                      patchCtorArgs(
-                          domain, comps, name -> CodeBlock.of("$L", lambdaParamFor.get(name))))),
+                  GuardedConstruction.apply(
+                      comps.stream().map(c -> nameFor.get(c.name()).toString()).toList(),
+                      GuardedConstruction.boundThunk(
+                          unprojectedReads, domainName, patchCtorArgs(domain, nameFor::get)))),
               domainName);
     } else {
       // Wider than one fields() ladder: chunked ladders; projected components read from the
-      // tuples, unprojected components from the domain argument, exactly as the lambda form.
+      // tuples, unprojected components from the locals their reads bind, exactly as the lambda
+      // form. Those locals sit inside the chunk combination, where every chunk local is in scope,
+      // so the chunk locals keep clear of them.
+      Set<String> reserved = new LinkedHashSet<>(List.of("domain", "wire"));
+      unprojected.forEach(name -> reserved.add(nameFor.get(name).toString()));
       patchBody =
           ChunkedAssembly.emit(
               patchLegs,
               VALIDATED,
               NEL,
-              Set.of("domain", "wire"),
+              reserved,
               domainName,
               values -> {
                 // values align 1:1 with comps: every projected leg emits exactly one .field
                 // (a projection can never carry a DERIVED correspondence, the only empty leg),
                 // so index i pairs comps.get(i) with its parsed value.
-                Map<String, CodeBlock> valueFor = new LinkedHashMap<>();
+                Map<String, CodeBlock> valueFor = new LinkedHashMap<>(nameFor);
                 for (int i = 0; i < comps.size(); i++) {
                   valueFor.put(comps.get(i).name(), values.get(i));
                 }
-                return patchCtorArgs(domain, comps, valueFor::get);
+                return GuardedConstruction.boundThunk(
+                    unprojectedReads, domainName, patchCtorArgs(domain, valueFor::get));
               });
     }
 
@@ -8336,23 +8357,14 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The patch constructor arguments: projected components take the supplied value expression,
-   * unprojected components read from the domain argument.
+   * The patch constructor arguments, in domain component order, each the expression {@code valueOf}
+   * gives for the component's name: a projected component's parsed value, an unprojected one's
+   * bound read.
    */
-  private static CodeBlock patchCtorArgs(
-      TypeElement domain, List<Correspondence> comps, Function<String, CodeBlock> projectedValue) {
-    CodeBlock.Builder args = CodeBlock.builder();
-    boolean first = true;
-    for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
-      String name = domainComponent.getSimpleName().toString();
-      boolean projected = comps.stream().anyMatch(c -> c.name().equals(name));
-      if (!first) {
-        args.add(", ");
-      }
-      first = false;
-      args.add(projected ? projectedValue.apply(name) : CodeBlock.of("domain.$L()", name));
-    }
-    return args.build();
+  private static CodeBlock patchCtorArgs(TypeElement domain, Function<String, CodeBlock> valueOf) {
+    return domain.getRecordComponents().stream()
+        .map(component -> valueOf.apply(component.getSimpleName().toString()))
+        .collect(CodeBlock.joining(", "));
   }
 
   private void writeLensImpl(

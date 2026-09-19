@@ -117,16 +117,31 @@ final class GuardedConstruction {
   }
 
   /**
-   * A {@code fields()} ladder's terminal over the legs' lambda parameters: {@code .apply((lo, hi)
-   * -> () -> new Range(lo, hi))}, with {@code args} the constructor arguments over those names.
+   * The constructor thunk behind the reads its arguments close over, {@code { var note =
+   * domain.note(); return () -> new Slot(code, lo, hi, note); }}: each read runs once the
+   * components have validated, as before, but outside the guard, so an exception it throws is not
+   * mistaken for the record's invariant.
    */
-  static CodeBlock applyThunk(List<String> params, TypeName type, CodeBlock args) {
-    return CodeBlock.of("\n.apply(($L) -> $L)", String.join(", ", params), thunk(type, args));
+  static CodeBlock boundThunk(List<CodeBlock> reads, TypeName type, CodeBlock args) {
+    CodeBlock.Builder block = CodeBlock.builder().add("{\n$>");
+    reads.forEach(read -> block.add("$L;\n", read));
+    return block.add("return $L;\n$<}", thunk(type, args)).build();
   }
 
-  /** {@link #applyThunk} over arguments that are exactly the parameters, in order. */
+  /**
+   * A {@code fields()} ladder's terminal over the legs' lambda parameters, {@code .apply((lo, hi)
+   * -> body)}, where {@code body} ends in a constructor thunk.
+   */
+  static CodeBlock apply(List<String> params, CodeBlock body) {
+    return CodeBlock.of("\n.apply(($L) -> $L)", String.join(", ", params), body);
+  }
+
+  /**
+   * {@link #apply} over a bare thunk whose arguments are exactly the parameters, in order: {@code
+   * .apply((lo, hi) -> () -> new Range(lo, hi))}.
+   */
   static CodeBlock applyThunk(List<String> params, TypeName type) {
-    return applyThunk(params, type, CodeBlock.of("$L", String.join(", ", params)));
+    return apply(params, thunk(type, CodeBlock.of("$L", String.join(", ", params))));
   }
 
   /**

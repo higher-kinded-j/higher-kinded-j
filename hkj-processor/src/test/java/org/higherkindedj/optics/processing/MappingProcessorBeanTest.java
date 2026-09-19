@@ -2319,8 +2319,10 @@ class MappingProcessorBeanTest {
           // A reference read is guarded into a located error; a primitive read cannot be null.
           .contains(".field(\"name\", hkj$ifPresent(wire.getName(), Validated::validNel))")
           .contains(".field(\"age\", Validated.validNel(wire.getAge()))")
-          // The unprojected component is read from the domain argument.
-          .contains(".apply((name, age) -> () -> new Employee(name, domain.department(), age))")
+          // The unprojected component is read from the domain argument, outside the guard.
+          .contains(".apply((name, age) -> {")
+          .contains("var department = domain.department();")
+          .contains("return () -> new Employee(name, department, age);")
           .contains("private static <S, A> Validated<NonEmptyList<FieldError>, A> hkj$ifPresent(")
           .doesNotContain("asLens() {")
           .doesNotContain("parse(")
@@ -2526,7 +2528,8 @@ class MappingProcessorBeanTest {
           .contains("b.label(domain.label());")
           .contains("return b.build();")
           .contains(".field(\"label\", hkj$ifPresent(wire.getLabel(), Validated::validNel))")
-          .contains("new Pin(x, domain.y(), label)");
+          .contains("var y = domain.y();")
+          .contains("new Pin(x, y, label)");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.PinMappingImpl");
@@ -2817,8 +2820,8 @@ class MappingProcessorBeanTest {
           .contains(".field(\"scores\", hkj$valuesPresent(wire.getScores()))")
           .contains(".field(\"tags\", hkj$ifPresent(wire.getTags(), tags()::parseAll))")
           // A component named after the method parameter takes a suffixed lambda parameter.
-          .contains(
-              "new Profile(domain.id(), domain_, active, notes, scores, tags, domain.version())");
+          .contains("var version = domain.version();")
+          .contains("new Profile(id, domain_, active, notes, scores, tags, version)");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.ProfileMappingImpl");
