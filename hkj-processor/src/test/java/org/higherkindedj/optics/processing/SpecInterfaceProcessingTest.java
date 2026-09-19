@@ -12,6 +12,7 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.util.List;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -398,6 +399,293 @@ class SpecInterfaceProcessingTest {
       final String expectedWitherUsage = "source.withYear(newValue)";
       assertGeneratedCodeContains(
           compilation, "com.myapp.LocalDateOpticsImpl", expectedWitherUsage);
+    }
+
+    @Test
+    @DisplayName("a wither returning the source type raw is refused")
+    void witherReturningTheSourceTypeRawIsRefused() {
+      final var external =
+          JavaFileObjects.forSourceString(
+              "com.external.Draft",
+              """
+              package com.external;
+
+              @SuppressWarnings("rawtypes")
+              public final class Draft<T> {
+                  private final String id;
+                  public Draft(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public Draft withId(String id) { return new Draft<>(id); }
+              }
+              """);
+      final var spec =
+          JavaFileObjects.forSourceString(
+              "com.myapp.DraftOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Draft;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              public interface DraftOpticsSpec<T> extends OpticsSpec<Draft<T>> {
+                  @Wither(value = "withId", getter = "id")
+                  Lens<Draft<T>, String> id();
+              }
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(external, spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("@Wither: 'withId' returns 'Draft', not the source type 'Draft<T>'");
+    }
+
+    @Test
+    @DisplayName("a wither inherited from a generic supertype, returning it, is refused")
+    void witherReturningAGenericSupertypeIsRefused() {
+      final var base =
+          JavaFileObjects.forSourceString(
+              "com.external.Base",
+              """
+              package com.external;
+
+              public class Base<T> {
+                  protected final String id;
+                  public Base(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public Base<T> withId(String id) { return new Base<>(id); }
+              }
+              """);
+      final var sub =
+          JavaFileObjects.forSourceString(
+              "com.external.Sub",
+              """
+              package com.external;
+
+              public class Sub extends Base<String> {
+                  public Sub(String id) { super(id); }
+              }
+              """);
+      final var spec =
+          JavaFileObjects.forSourceString(
+              "com.myapp.SubOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Sub;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              public interface SubOpticsSpec extends OpticsSpec<Sub> {
+                  @Wither(value = "withId", getter = "id")
+                  Lens<Sub, String> id();
+              }
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(base, sub, spec);
+
+      assertThat(compilation).failed();
+      // Read on Sub, Base<T>'s return is Base<String>: the instantiation Sub's extends clause
+      // names.
+      assertThat(compilation)
+          .hadErrorContaining("'withId' returns 'Base<String>', not the source type 'Sub'");
+    }
+
+    @Test
+    @DisplayName("a wither is read under the arguments the spec names")
+    void witherIsReadUnderTheArgumentsTheSpecNames() {
+      // withId returns Renamed<String>, which is the source type here, though not under a spec
+      // over Renamed<T>.
+      final var external =
+          JavaFileObjects.forSourceString(
+              "com.external.Renamed",
+              """
+              package com.external;
+
+              public final class Renamed<T> {
+                  private final String id;
+                  public Renamed(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public Renamed<String> withId(String id) { return new Renamed<>(id); }
+              }
+              """);
+      final var spec =
+          JavaFileObjects.forSourceString(
+              "com.myapp.RenamedOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Renamed;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              public interface RenamedOpticsSpec extends OpticsSpec<Renamed<String>> {
+                  @Wither(value = "withId", getter = "id")
+                  Lens<Renamed<String>, String> id();
+              }
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(external, spec);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.RenamedOptics", "source.withId(newValue)");
+    }
+
+    @Test
+    @DisplayName("only a wither the generated call can reach answers for the return")
+    void onlyAWitherTheGeneratedCallCanReachAnswersForTheReturn() {
+      // Each decoy returns the source type, and none is a one-parameter instance method the
+      // generated class can call, so none may vouch for the withId that is.
+      final var external =
+          JavaFileObjects.forSourceString(
+              "com.external.Renamed",
+              """
+              package com.external;
+
+              public final class Renamed<T> {
+                  private final String id;
+                  public Renamed(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public Renamed<Integer> withId(String id) { return new Renamed<>(id); }
+                  public Renamed<T> withId(String id, int copies) { return new Renamed<>(id); }
+                  public static Renamed<String> withId(Object id) {
+                      return new Renamed<>(String.valueOf(id));
+                  }
+                  private Renamed<String> withId(Integer id) {
+                      return new Renamed<>(String.valueOf(id));
+                  }
+              }
+              """);
+      final var spec =
+          JavaFileObjects.forSourceString(
+              "com.myapp.RenamedOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Renamed;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              public interface RenamedOpticsSpec extends OpticsSpec<Renamed<String>> {
+                  @Wither(value = "withId", getter = "id")
+                  Lens<Renamed<String>, String> id();
+              }
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(external, spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withId' returns 'Renamed<Integer>', not the source type 'Renamed<String>'");
+    }
+
+    @Test
+    @DisplayName("a retag wither is inferred back to the source type")
+    void retagWitherIsInferredBackToTheSourceType() {
+      final var external =
+          JavaFileObjects.forSourceString(
+              "com.external.Draft",
+              """
+              package com.external;
+
+              public final class Draft<T> {
+                  private final String id;
+                  public Draft(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public <U> Draft<U> withId(String id) { return new Draft<>(id); }
+              }
+              """);
+      final var spec =
+          JavaFileObjects.forSourceString(
+              "com.myapp.DraftOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Draft;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              public interface DraftOpticsSpec<T> extends OpticsSpec<Draft<T>> {
+                  @Wither(value = "withId", getter = "id")
+                  Lens<Draft<T>, String> id();
+              }
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(external, spec);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(compilation, "com.myapp.DraftOptics", "source.withId(newValue)");
+    }
+
+    @Test
+    @DisplayName("a wither the source type does not declare is left to javac")
+    void witherTheSourceTypeDoesNotDeclareIsLeftToJavac() {
+      // Only the return is checked: a misspelt name has no return to check.
+      final var external =
+          JavaFileObjects.forSourceString(
+              "com.external.Plain",
+              """
+              package com.external;
+
+              public final class Plain {
+                  private final String id;
+                  public Plain(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public Plain withId(String id) { return new Plain(id); }
+              }
+              """);
+      final var spec =
+          JavaFileObjects.forSourceString(
+              "com.myapp.PlainOpticsSpec",
+              """
+              package com.myapp;
+
+              import com.external.Plain;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              public interface PlainOpticsSpec extends OpticsSpec<Plain> {
+                  @Wither(value = "withIdentifier", getter = "id")
+                  Lens<Plain, String> id();
+              }
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(external, spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@Wither:"));
     }
   }
 

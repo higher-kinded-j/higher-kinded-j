@@ -20,6 +20,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
@@ -32,6 +33,7 @@ import org.higherkindedj.optics.processing.external.SpecInterfaceGenerator;
 import org.higherkindedj.optics.processing.external.TypeAnalysis;
 import org.higherkindedj.optics.processing.external.TypeKindAnalyser;
 import org.higherkindedj.optics.processing.util.Diagnostics;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Annotation processor for {@link ImportOptics}.
@@ -65,6 +67,12 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.ImportOptics")
 public class ImportOpticsProcessor extends AbstractProcessor {
+
+  /** What makes a class one with wither methods, for the refusals that find none. */
+  private static final String WITHER_METHODS_ARE =
+      "A class has wither methods when a public 'withX' hands back the class itself, under its own"
+          + " type arguments or as a subtype, beside a public 'x()', 'getX()' or 'isX()' returning"
+          + " exactly what 'withX' takes.";
 
   @Override
   public SourceVersion getSupportedSourceVersion() {
@@ -216,6 +224,12 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     ExternalPrismGenerator prismGenerator =
         new ExternalPrismGenerator(processingEnv.getFiler(), processingEnv.getMessager());
 
+    // Asked before the shape, not after a wither pairs: read from a class file, a hidden
+    // parameter's own signatures resolve both names to the inner one, so none would pair.
+    if (hidesAnEnclosingTypeParameter(sourceElement, typeElement)) {
+      return;
+    }
+
     TypeAnalysis analysis = typeAnalyser.analyseType(typeElement);
 
     switch (analysis.typeKind()) {
@@ -251,7 +265,8 @@ public class ImportOpticsProcessor extends AbstractProcessor {
                   + typeElement.getQualifiedName()
                   + "' is a mutable class without wither"
                   + " methods.",
-              "Lenses require immutable updates, and no copy mechanism was found.",
+              "Lenses require immutable updates, and no copy mechanism was found. "
+                  + WITHER_METHODS_ARE,
               "Define an OpticsSpec interface with custom copy logic, or add wither methods.");
         } else {
           Diagnostics.error(
@@ -261,7 +276,8 @@ public class ImportOpticsProcessor extends AbstractProcessor {
               "type '"
                   + typeElement.getQualifiedName()
                   + "' is not a record, sealed interface, enum, or class with wither methods.",
-              "The processor cannot determine how to generate optics for this shape.",
+              "The processor cannot determine how to generate optics for this shape. "
+                  + WITHER_METHODS_ARE,
               "Make the type one of those shapes, or define an OpticsSpec interface for it.");
         }
       }
@@ -319,6 +335,54 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     }
 
     return result;
+  }
+
+  /**
+   * Reports an inner class that declares a type parameter under a name one of its enclosing classes
+   * already uses, and returns whether it did.
+   *
+   * <p>Inside the inner class the enclosing parameter is hidden, which is harmless there. The
+   * generated lenses name the class under both, {@code Outer<T>.In<T>}, and declare every parameter
+   * in scope on each method, where one method cannot declare two of the same name. A top-level or
+   * static type has only its own parameters in scope, whose names are distinct.
+   *
+   * @param sourceElement the annotated element, for error reporting
+   * @param type the imported type
+   * @return true when a parameter hides another and an error was reported
+   */
+  private boolean hidesAnEnclosingTypeParameter(Element sourceElement, TypeElement type) {
+    List<TypeParameterElement> inScope = ProcessorUtils.typeParametersInScope(type);
+    for (int later = 1; later < inScope.size(); later++) {
+      TypeParameterElement inner = inScope.get(later);
+      for (int earlier = 0; earlier < later; earlier++) {
+        TypeParameterElement outer = inScope.get(earlier);
+        if (outer.getSimpleName().contentEquals(inner.getSimpleName())) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              sourceElement,
+              "@ImportOptics",
+              "type '"
+                  + type.getQualifiedName()
+                  + "' names the type parameter '"
+                  + inner.getSimpleName()
+                  + "' of '"
+                  + inner.getGenericElement().getSimpleName()
+                  + "', which hides the '"
+                  + outer.getSimpleName()
+                  + "' of its enclosing class '"
+                  + outer.getGenericElement().getSimpleName()
+                  + "'.",
+              "The generated lenses name it as '"
+                  + ProcessorUtils.simpleTypeName(type.asType())
+                  + "' and declare every one of those parameters on each method, and a method"
+                  + " cannot declare two type parameters with the same name.",
+              "Import it through an OpticsSpec interface instead, which names the type under type"
+                  + " parameters of its own, and give each field a @Wither lens.");
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private void note(String msg, Element e) {

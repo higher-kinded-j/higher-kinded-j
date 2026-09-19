@@ -553,20 +553,24 @@ public class SpecInterfaceAnalyser {
               CopyStrategyInfo.forBuilder(getter, toBuilder, setter, build)));
     }
 
+    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
+    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
+    // makes the cast total; 'is a declared type' on its own would not.
+    DeclaredType declaredSource = (DeclaredType) sourceType;
+
     // Check for @Wither
     AnnotationMirror wither = findAnnotation(method, WITHER_FQN);
     if (wither != null) {
       String getter = getAnnotationString(wither, "getter", "");
       String witherMethod = getAnnotationString(wither, "value", "");
+      if (rebuildsThroughWitherOfAnotherType(
+          method, declaredSource, sourceTypeElement, witherMethod, targetPackage)) {
+        return Optional.empty();
+      }
       return Optional.of(
           new CopyStrategyResult(
               CopyStrategyKind.WITHER, CopyStrategyInfo.forWither(getter, witherMethod)));
     }
-
-    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
-    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
-    // makes the cast total; 'is a declared type' on its own would not, as #728 found.
-    DeclaredType declaredSource = (DeclaredType) sourceType;
 
     // Check for @ViaConstructor
     AnnotationMirror viaConstructor = findAnnotation(method, VIA_CONSTRUCTOR_FQN);
@@ -618,6 +622,73 @@ public class SpecInterfaceAnalyser {
             + "' to set through it, and only the strategy says how that type is copied.",
         "Add @ViaBuilder, @Wither, @ViaConstructor, or @ViaCopyAndSet to the method.");
     return Optional.empty();
+  }
+
+  /**
+   * Reports a {@code @Wither} naming a method that hands back something other than the source type,
+   * and returns whether it did.
+   *
+   * <p>The generated set function returns what the wither returns, as the source type, so the
+   * wither has to hand back that type as {@link ProcessorUtils#returnsOwner} reads it. A supertype,
+   * or the type under other arguments ({@code Draft<String>} read on a {@code Draft<T>}), does not
+   * compile there, and a raw return is an unchecked conversion in a file the author cannot edit.
+   * Each candidate is read on the source type as the spec names it, so {@code Draft<String>
+   * withId(String)} serves an {@code OpticsSpec<Draft<String>>} as it should.
+   *
+   * <p>Only the return is checked, over the one-parameter instance methods the generated class can
+   * call. A name none of them carries is left to javac, which reports it at the generated call.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param sourceType the source type {@code S}, as the spec names it
+   * @param sourceTypeElement the element of {@code S}, whose members are searched
+   * @param witherName the method the annotation names
+   * @param targetPackage the package the optics class is generated into
+   * @return true when every such method of that name hands back something else, and an error was
+   *     reported
+   */
+  private boolean rebuildsThroughWitherOfAnotherType(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      TypeElement sourceTypeElement,
+      String witherName,
+      String targetPackage) {
+    List<ExecutableElement> candidates =
+        ElementFilter.methodsIn(elementUtils.getAllMembers(sourceTypeElement)).stream()
+            .filter(
+                candidate ->
+                    candidate.getSimpleName().contentEquals(witherName)
+                        && candidate.getParameters().size() == 1
+                        && !candidate.getModifiers().contains(Modifier.STATIC)
+                        && ProcessorUtils.reachableFrom(elementUtils, candidate, targetPackage))
+            .toList();
+    if (candidates.isEmpty()
+        || candidates.stream()
+            .anyMatch(candidate -> ProcessorUtils.returnsOwner(typeUtils, sourceType, candidate))) {
+      return false;
+    }
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    String returned =
+        ProcessorUtils.simpleTypeName(
+            ProcessorUtils.returnTypeIn(typeUtils, sourceType, candidates.getFirst()));
+    Diagnostics.error(
+        messager,
+        method,
+        "@Wither",
+        "'" + witherName + "' returns '" + returned + "', not the source type '" + source + "'.",
+        "The generated lens sets through '"
+            + witherName
+            + "' and hands its result back as a '"
+            + source
+            + "', which a '"
+            + returned
+            + "' is not.",
+        "Name a wither that returns '"
+            + source
+            + "', or declare the spec over the type the wither does return when that is an"
+            + " instantiation of the same class; otherwise rebuild '"
+            + source
+            + "' with @ViaBuilder, @ViaConstructor or @ViaCopyAndSet.");
+    return true;
   }
 
   /**

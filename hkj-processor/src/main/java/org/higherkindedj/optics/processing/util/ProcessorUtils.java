@@ -10,6 +10,7 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.List;
@@ -337,12 +338,55 @@ public final class ProcessorUtils {
    * @since 0.4.11
    */
   public static List<AnnotationSpec> rawTypesSuppression(TypeMirror written, TypeElement owner) {
+    return rawTypesSuppression(written, owner.getTypeParameters());
+  }
+
+  /**
+   * The {@code @SuppressWarnings("rawtypes")} annotations for a generated member that redeclares
+   * the given type parameters as well as naming a type of its own. It serves a member that
+   * redeclares more than one type's parameters, such as those {@link #typeParametersInScope}
+   * returns.
+   *
+   * @param written the type the member is generated around; must not be null
+   * @param redeclared the type parameters the member redeclares, bounds and all; must not be null
+   * @return the suppression when the type or one of those bounds names a raw type, else no
+   *     annotations
+   * @since 0.4.11
+   */
+  public static List<AnnotationSpec> rawTypesSuppression(
+      TypeMirror written, List<? extends TypeParameterElement> redeclared) {
     return rawTypesSuppression(
         Stream.concat(
                 Stream.of(written),
-                owner.getTypeParameters().stream()
-                    .flatMap(parameter -> parameter.getBounds().stream()))
+                redeclared.stream().flatMap(parameter -> parameter.getBounds().stream()))
             .toList());
+  }
+
+  /**
+   * The type parameters a use of {@code type} has to supply, outermost first: those of each class
+   * it is an inner class of, then its own.
+   *
+   * <p>An inner class is written under its enclosing class's arguments, {@code Outer<X>.Line}, and
+   * left without them it is raw (JLS 4.8) even when it declares no parameters of its own. A static
+   * member, like a top-level type, has no enclosing instance type, so it contributes its own
+   * parameters alone. The walk follows {@code getEnclosingType}, as {@link #firstRawIn} does.
+   *
+   * @param type the type a generated member names; must not be null
+   * @return the parameters in scope for it, possibly empty; unmodifiable
+   * @since 0.4.11
+   */
+  public static List<TypeParameterElement> typeParametersInScope(TypeElement type) {
+    return typeParametersNamedBy((DeclaredType) type.asType());
+  }
+
+  private static List<TypeParameterElement> typeParametersNamedBy(DeclaredType declared) {
+    TypeMirror enclosing = declared.getEnclosingType();
+    Stream<TypeParameterElement> outer =
+        enclosing.getKind() == TypeKind.DECLARED
+            ? typeParametersNamedBy((DeclaredType) enclosing).stream()
+            : Stream.empty();
+    return Stream.concat(outer, ((TypeElement) declared.asElement()).getTypeParameters().stream())
+        .toList();
   }
 
   /**
@@ -434,6 +478,62 @@ public final class ProcessorUtils {
   public static TypeMirror firstParameterTypeIn(
       Types types, DeclaredType owner, ExecutableElement method) {
     return memberOf(types, owner, method).getParameterTypes().getFirst();
+  }
+
+  /**
+   * Whether a method, read on {@code owner}, hands back an {@code owner}: a wither a generated lens
+   * rebuilds through has to, since the lens returns what it returns as the owner.
+   *
+   * <p>Two shapes do. A return that is {@code owner} or a subtype of it, read under {@code owner}'s
+   * instantiation. And a retag, {@code <U> Draft<U> withId(String)} on a {@code Draft<T>}: the
+   * owner's class with some arguments replaced by type variables the method declares, which the
+   * call infers back to the owner's own. Each such variable counts only where it appears once and
+   * its bound admits the argument it stands in for, the two things inference would check at the
+   * call. A raw return, one under other arguments ({@code Draft<String>}) and a supertype hand back
+   * something else.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param owner the type the method is read on, as the generated code names it; must not be null
+   * @param method the method to read; must not be null
+   * @return true when its return is an {@code owner}, or infers to one
+   * @since 0.4.11
+   */
+  public static boolean returnsOwner(Types types, DeclaredType owner, ExecutableElement method) {
+    TypeMirror returned = returnTypeIn(types, owner, method);
+    return types.isSubtype(returned, owner) || retagsOwner(types, owner, method, returned);
+  }
+
+  private static boolean retagsOwner(
+      Types types, DeclaredType owner, ExecutableElement method, TypeMirror returned) {
+    // asElement answers null for a primitive or void return, which equals no element.
+    if (!owner.asElement().equals(types.asElement(returned))) {
+      return false;
+    }
+    DeclaredType declared = (DeclaredType) returned;
+    List<? extends TypeMirror> returnedArguments = declared.getTypeArguments();
+    Set<Element> inferred = new HashSet<>();
+    List<TypeMirror> arguments = new ArrayList<>();
+    for (int i = 0; i < returnedArguments.size(); i++) {
+      TypeMirror argument = returnedArguments.get(i);
+      TypeMirror ownerArgument = owner.getTypeArguments().get(i);
+      boolean inferable =
+          argument.getKind() == TypeKind.TYPEVAR
+              && method.getTypeParameters().contains(((TypeVariable) argument).asElement())
+              && types.isSubtype(ownerArgument, ((TypeVariable) argument).getUpperBound())
+              && inferred.add(((TypeVariable) argument).asElement());
+      arguments.add(inferable ? ownerArgument : argument);
+    }
+    if (inferred.isEmpty()) {
+      return false;
+    }
+    TypeMirror[] inferredArguments = arguments.toArray(TypeMirror[]::new);
+    TypeElement element = (TypeElement) declared.asElement();
+    TypeMirror enclosing = declared.getEnclosingType();
+    DeclaredType candidate =
+        enclosing.getKind() == TypeKind.DECLARED
+            ? types.getDeclaredType((DeclaredType) enclosing, element, inferredArguments)
+            : types.getDeclaredType(element, inferredArguments);
+    return types.isSubtype(candidate, owner);
   }
 
   /**

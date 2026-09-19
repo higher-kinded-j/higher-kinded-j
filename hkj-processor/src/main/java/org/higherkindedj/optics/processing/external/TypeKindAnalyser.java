@@ -160,7 +160,8 @@ public class TypeKindAnalyser {
    * <ul>
    *   <li>Be named {@code withXxx} where {@code xxx} is the field name
    *   <li>Take exactly one parameter
-   *   <li>Return the same type as the declaring class
+   *   <li>Hand back the declaring class under its own type arguments, as {@link
+   *       ProcessorUtils#returnsOwner} reads it
    *   <li>Be public and non-static
    * </ul>
    *
@@ -169,7 +170,8 @@ public class TypeKindAnalyser {
    */
   public List<WitherInfo> detectWitherMethods(TypeElement classElement) {
     List<WitherInfo> withers = new ArrayList<>();
-    TypeMirror classType = classElement.asType();
+    // A class element's own type is always a declared type.
+    DeclaredType classType = (DeclaredType) classElement.asType();
 
     for (var enclosed : classElement.getEnclosedElements()) {
       if (enclosed.getKind() != ElementKind.METHOD) {
@@ -195,9 +197,10 @@ public class TypeKindAnalyser {
         continue;
       }
 
-      // Must return the same type (or a subtype) as the declaring class
-      TypeMirror returnType = method.getReturnType();
-      if (!typeUtils.isAssignable(returnType, typeUtils.erasure(classType))) {
+      // Must hand back the declaring class as declared: the lens returns the result as that type,
+      // so a raw return would be an unchecked conversion, and 'Tagged<String>' from a 'Tagged<T>'
+      // no conversion at all.
+      if (!ProcessorUtils.returnsOwner(typeUtils, classType, method)) {
         continue;
       }
 

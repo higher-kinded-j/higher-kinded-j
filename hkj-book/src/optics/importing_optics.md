@@ -125,8 +125,10 @@ OrderStatusPrisms.shipped()    // and so on, one per constant
 Immutable JDK types and many library types follow the wither pattern: `getX()` reads, `withX(value)` returns a modified copy.
 
 ~~~admonish warning title="The pairing rule, exactly"
-A lens is generated for `withXxx(T)` only when the type also has a public no-arg method named `xxx()`, `getXxx()` or `isXxx()` **returning exactly `T`**. That is stricter than it looks. `LocalDate` gets `year()`, `dayOfMonth()` and `dayOfYear()`, but *not* a month lens: `withMonth` takes an `int`, while `getMonth()` returns `Month`, so the pair does not typecheck and the field is skipped. When a wither you expected is missing from the generated class, this rule is almost always why: reach for a [spec interface](optics_spec_interfaces.md) and name the getter yourself.
+A lens is generated for `withXxx(T)` only when the type also has a public no-arg method named `xxx()`, `getXxx()` or `isXxx()` **returning exactly `T`**, and `withXxx` itself returns the type under its own type arguments, or a subtype of it. That is stricter than it looks. `LocalDate` gets `year()`, `dayOfMonth()` and `dayOfYear()`, but *not* a month lens: `withMonth` takes an `int`, while `getMonth()` returns `Month`, so the pair does not typecheck and the field is skipped. A wither on a `Tagged<T>` that returns a raw `Tagged`, or a `Tagged<String>`, is skipped the same way, since the lens hands its result back as a `Tagged<T>`; a retag, `<U> Tagged<U> withId(String)`, pairs, because the call infers `U` back to `T`. When a wither you expected is missing from the generated class, this rule is almost always why. Where the getter is the mismatch, reach for a [spec interface](optics_spec_interfaces.md) and name the getter yourself. Where the return is, a spec over the type the wither does return, `OpticsSpec<Tagged<String>>`, can use it; a raw return cannot be used by either route.
 ~~~
+
+An inner class of a generic class is imported under its enclosing class's type parameters, since that is how the type has to be written once the enclosing class takes arguments: `@ImportOptics({Outer.Line.class})` on a `class Outer<X>` gives `<X> Lens<Outer<X>.Line, String>`.
 
 ---
 
@@ -174,7 +176,7 @@ Some types resist it:
 
 **Builder patterns.** No withers, no all-args constructor. JOOQ POJOs, Lombok `@Builder`, Immutables, AutoValue, Protobuf messages all copy through a builder, and there is no naming convention the processor can assume.
 
-**Non-standard naming.** `config.derivedWith(newValue)` rather than `withX`, or a getter whose return type does not match the wither parameter (the `LocalDate.getMonth()` case above).
+**Non-standard naming.** `config.derivedWith(newValue)` rather than `withX`, a getter whose return type does not match the wither parameter (the `LocalDate.getMonth()` case above), or a wither that returns the type under other arguments.
 
 **Predicate-based type discrimination.** Jackson's `JsonNode` uses `isObject()` and `isArray()` rather than a sealed hierarchy, so there is nothing to enumerate.
 
@@ -216,7 +218,7 @@ package com.myapp.optics;
 ~~~admonish info title="Key Takeaways"
 * **`@ImportOptics` brings types you do not own into the same optic algebra as your own.** The generated optics compose with `andThen` exactly like the ones generated from your own records.
 * **Four shapes are auto-detected**: records and wither classes give lenses, sealed types and enums give prisms.
-* **The wither rule is strict about types.** `withX(T)` needs a getter returning exactly `T`, which is why `LocalDate` has no month lens.
+* **The wither rule is strict about types.** `withX(T)` needs a getter returning exactly `T`, which is why `LocalDate` has no month lens, and has to hand back the class itself.
 * **Collection fields get a traversal too**, named `<field>Traversal`.
 * **Builders and predicate-based types need a spec interface**, which is the subject of the next two pages.
 ~~~
