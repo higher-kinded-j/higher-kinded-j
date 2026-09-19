@@ -704,7 +704,10 @@ class MergeProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("target component 'Target.balance' has no usable fill");
-      assertThat(compilation).hadErrorContaining("box the primitive on one side");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'Source.balance' and 'Target.balance' both int, or both java.lang.Integer,"
+                  + " so that they copy.");
 
       JavaFileObject primitiveSource =
           JavaFileObjects.forSourceString(
@@ -732,7 +735,130 @@ class MergeProcessorTest {
                   }
                   """));
       assertThat(reversed).failed();
-      assertThat(reversed).hadErrorContaining("box the primitive on one side");
+      assertThat(reversed)
+          .hadErrorContaining(
+              "Declare 'Source.balance' and 'Target.balance' both int, or both java.lang.Integer,"
+                  + " so that they copy.");
+    }
+
+    @Test
+    @DisplayName(
+        "a primitive pair of different types is offered the wrappers and a leaf over them, and a"
+            + " non-record pair no spec")
+    void primitiveAndNonRecordFixesCanBeFollowed() {
+      JavaFileObject shapes =
+          JavaFileObjects.forSourceString(
+              "com.example.Shapes",
+              """
+              package com.example;
+
+              public final class Shapes {
+                public record Other(String name) {}
+
+                public record Span(int days) {}
+
+                public record SpanTarget(long days, String name) {}
+
+                public record Credit(Integer credit) {}
+
+                public record CreditTarget(long credit, String name) {}
+
+                public record Ident(String id) {}
+
+                public record IdentTarget(java.util.UUID id, String name) {}
+
+                public record Count(int count) {}
+
+                public record CountTarget(Long count, String name) {}
+              }
+              """);
+      Compilation compilation =
+          compile(
+              RECORDS,
+              shapes,
+              spec(
+                  "SpanAssembly",
+                  """
+                  public interface SpanAssembly {
+                    Validated<NonEmptyList<FieldError>, Shapes.SpanTarget> assemble(
+                        Shapes.Span span, Shapes.Other other);
+                  }
+                  """),
+              spec(
+                  "NearSpanAssembly",
+                  """
+                  public interface NearSpanAssembly {
+                    Validated<NonEmptyList<FieldError>, Shapes.SpanTarget> assemble(
+                        Shapes.Span span, Shapes.Other other);
+
+                    default ValidatedPrism<String, String> days() {
+                      return ValidatedPrism.of(Validated::validNel, s -> s);
+                    }
+                  }
+                  """),
+              spec(
+                  "CreditAssembly",
+                  """
+                  public interface CreditAssembly {
+                    Validated<NonEmptyList<FieldError>, Shapes.CreditTarget> assemble(
+                        Shapes.Credit credit, Shapes.Other other);
+
+                    default ValidatedPrism<Integer, Long> credit() {
+                      return ValidatedPrism.of(i -> Validated.validNel(i.longValue()), Long::intValue);
+                    }
+                  }
+                  """),
+              spec(
+                  "IdentAssembly",
+                  """
+                  public interface IdentAssembly {
+                    Validated<NonEmptyList<FieldError>, Shapes.IdentTarget> assemble(
+                        Shapes.Ident ident, Shapes.Other other);
+                  }
+                  """),
+              spec(
+                  "CountAssembly",
+                  """
+                  public interface CountAssembly {
+                    Validated<NonEmptyList<FieldError>, Shapes.CountTarget> assemble(
+                        Shapes.Count count, Shapes.Other other);
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Align the component types, or declare 'Span.days' as java.lang.Integer and"
+                  + " 'SpanTarget.days' as java.lang.Long, and add 'default"
+                  + " ValidatedPrism<java.lang.Integer, java.lang.Long> days()' to the spec"
+                  + " (source first, target second).");
+      // a near miss on a primitive pair is told why no leaf fits, and the leaf it could have
+      // replaces it
+      assertThat(compilation)
+          .hadErrorContaining(
+              "exists but returns"
+                  + " 'org.higherkindedj.optics.validated.ValidatedPrism<java.lang.String,"
+                  + "java.lang.String>'. A ValidatedPrism names reference types only");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "and replace 'days()' with 'default ValidatedPrism<java.lang.Integer,"
+                  + " java.lang.Long> days()' (source first, target second).");
+      // a leaf already over the wrappers is all the pair needs once they are declared
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Align the component types, or declare 'CreditTarget.credit' as java.lang.Long, which"
+                  + " the leaf 'credit()' then converts.");
+      // a String against a UUID is no pair a spec can map, so none is offered
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add 'default ValidatedPrism<java.lang.String, java.util.UUID> id()' to the spec"
+                  + " (source first, target second).");
+      // only the primitive side changes
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Align the component types, or declare 'Count.count' as java.lang.Integer, and add"
+                  + " 'default ValidatedPrism<java.lang.Integer, java.lang.Long> count()' to the spec"
+                  + " (source first, target second).");
+      Assertions.assertThat(compilation.errors()).hasSize(5);
     }
 
     @Test

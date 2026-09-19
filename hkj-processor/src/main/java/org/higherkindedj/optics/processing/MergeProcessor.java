@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.FilerException;
 import javax.annotation.processing.Processor;
@@ -34,6 +35,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import org.higherkindedj.optics.annotations.ArityCeilings;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
@@ -553,22 +555,30 @@ public class MergeProcessor extends AbstractProcessor {
                 ContainerKind.NONE));
         continue;
       }
+      TypeMirror sourceType = sourceComponent.asType();
+      TypeMirror targetType = targetComponent.asType();
       boolean primitiveInvolved =
-          sourceComponent.asType().getKind().isPrimitive()
-              || targetComponent.asType().getKind().isPrimitive();
+          sourceType.getKind().isPrimitive() || targetType.getKind().isPrimitive();
+      // A spec is offered only for a record pair, the one it can map.
       String fix =
           primitiveInvolved
-              ? "Align the component types on the two records - a ValidatedPrism cannot carry a"
-                  + " primitive type argument, so box the primitive on one side."
-              : "Add 'default ValidatedPrism<"
-                  + sourceComponent.asType()
-                  + ", "
-                  + targetComponent.asType()
-                  + "> "
-                  + name
-                  + "()' to the spec (source first, target second), or declare a @GenerateMapping"
-                  + " spec mapping those records,"
-                  + MappingProcessor.declarationSites(processingEnv, spec)
+              ? primitiveFix(spec, asRecord(holder.asType()), target, name, sourceType, targetType)
+              : ProcessorUtils.capitalise(
+                      leafLine(
+                          spec,
+                          name,
+                          "'default ValidatedPrism<"
+                              + sourceType
+                              + ", "
+                              + targetType
+                              + "> "
+                              + name
+                              + "()'"))
+                  + " (source first, target second)"
+                  + (Stream.of(sourceType, targetType).allMatch(type -> asRecord(type) != null)
+                      ? ", or declare a @GenerateMapping spec mapping those records,"
+                          + MappingProcessor.declarationSites(processingEnv, spec)
+                      : "")
                   + ".";
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -576,32 +586,117 @@ public class MergeProcessor extends AbstractProcessor {
           TAG,
           "target component '" + target.getSimpleName() + "." + name + "' has no usable fill.",
           "The types differ ("
-              + sourceComponent.asType()
+              + sourceType
               + " vs "
-              + targetComponent.asType()
+              + targetType
               + ") and no matching leaf method was found."
-              + leafNearMissHint(spec, name)
-              + unusableSpecHint(registry, sourceComponent.asType(), targetComponent.asType()),
+              + leafNearMissHint(spec, name, sourceType, targetType)
+              + (primitiveInvolved ? MappingProcessor.PRIMITIVE_REASON : "")
+              + unusableSpecHint(registry, sourceType, targetType),
           fix);
       return null;
     }
     return fills;
   }
 
-  private String leafNearMissHint(TypeElement spec, String name) {
-    for (ExecutableElement method : ElementFilter.methodsIn(spec.getEnclosedElements())) {
-      if (method.getSimpleName().contentEquals(name) && method.isDefault()) {
-        return " A default method '"
-            + name
-            + "()' exists but returns '"
-            + method.getReturnType()
-            + "'"
-            + (method.getParameters().isEmpty() ? "" : " and declares parameters")
-            + " — a leaf must be a zero-parameter default method returning exactly"
-            + " ValidatedPrism<SourceComponent, TargetComponent> (source first, target second).";
-      }
+  /**
+   * The fix for a pair with a primitive side, which no leaf can fill ({@link
+   * MappingProcessor#PRIMITIVE_REASON}). A primitive and its own wrapper need only agree; any other
+   * pair is aligned, or its primitive sides declared as their wrappers and filled through a leaf
+   * over those.
+   */
+  private String primitiveFix(
+      TypeElement spec,
+      TypeElement source,
+      TypeElement target,
+      String name,
+      TypeMirror sourceType,
+      TypeMirror targetType) {
+    Types types = processingEnv.getTypeUtils();
+    TypeMirror sourceBoxed = MappingProcessor.boxed(types, sourceType);
+    TypeMirror targetBoxed = MappingProcessor.boxed(types, targetType);
+    String sourceMember = "'" + source.getSimpleName() + "." + name + "'";
+    String targetMember = "'" + target.getSimpleName() + "." + name + "'";
+    if (types.isSameType(sourceBoxed, targetBoxed)) {
+      return "Declare "
+          + sourceMember
+          + " and "
+          + targetMember
+          + " both "
+          + types.unboxedType(sourceBoxed)
+          + ", or both "
+          + sourceBoxed
+          + ", so that they copy.";
     }
-    return "";
+    List<String> wrappers = new ArrayList<>();
+    if (sourceType.getKind().isPrimitive()) {
+      wrappers.add(sourceMember + " as " + sourceBoxed);
+    }
+    if (targetType.getKind().isPrimitive()) {
+      wrappers.add(targetMember + " as " + targetBoxed);
+    }
+    ExecutableElement leaf = findLeaf(spec, name, sourceBoxed, targetBoxed);
+    return "Align the component types, or declare "
+        + String.join(" and ", wrappers)
+        + (leaf != null
+            ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts."
+            : ", and "
+                + leafLine(
+                    spec,
+                    name,
+                    "'default ValidatedPrism<"
+                        + sourceBoxed
+                        + ", "
+                        + targetBoxed
+                        + "> "
+                        + name
+                        + "()'")
+                + " (source first, target second).");
+  }
+
+  /**
+   * How a fix line introduces a leaf named after the component, lower case: added to the spec, or,
+   * where the spec already has a same-named default method that is not the leaf the pair needs, in
+   * its place, since the spec cannot declare both.
+   */
+  private String leafLine(TypeElement spec, String name, String declaration) {
+    return sameNamedDefault(spec, name) instanceof ExecutableElement existing
+        ? "replace '" + existing.getSimpleName() + "()' with " + declaration
+        : "add " + declaration + " to the spec";
+  }
+
+  /** A default method on the spec named after the component, which a leaf would have to replace. */
+  private static ExecutableElement sameNamedDefault(TypeElement spec, String name) {
+    return ElementFilter.methodsIn(spec.getEnclosedElements()).stream()
+        .filter(method -> method.getSimpleName().contentEquals(name) && method.isDefault())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * Says why a same-named default method is not the component's leaf, spelling out the leaf that
+   * would be; a primitive side has none, which the caller explains.
+   */
+  private String leafNearMissHint(
+      TypeElement spec, String name, TypeMirror sourceType, TypeMirror targetType) {
+    ExecutableElement method = sameNamedDefault(spec, name);
+    if (method == null) {
+      return "";
+    }
+    return " A default method '"
+        + name
+        + "()' exists but returns '"
+        + method.getReturnType()
+        + "'"
+        + (method.getParameters().isEmpty() ? "" : " and declares parameters")
+        + (sourceType.getKind().isPrimitive() || targetType.getKind().isPrimitive()
+            ? "."
+            : " — a leaf must be a zero-parameter default method returning exactly"
+                + " ValidatedPrism<"
+                + sourceType
+                + ", "
+                + targetType
+                + "> (source first, target second).");
   }
 
   private String unusableSpecHint(

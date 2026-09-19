@@ -4967,7 +4967,11 @@ class MappingProcessorTest {
                   """),
               spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("Make 'quantity' a wrapper type");
+      // the leaf already converts to the wrapper, so the wrapper is all the fix asks for
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Align the component types, or declare 'Order.quantity' as java.lang.Integer, which"
+                  + " the leaf 'quantity()' then converts.");
       Assertions.assertThat(compilation.errors().toString())
           .doesNotContain("ValidatedPrism<java.lang.String, int>");
     }
@@ -12527,7 +12531,8 @@ class MappingProcessorTest {
           .hadErrorContaining(
               "Declare '@OptionalBridge default ValidatedPrism<com.example.MemberDto,"
                   + " com.example.Member> entries()', as the component's only spec method, on this"
-                  + " spec, or map the pair with its own @GenerateMapping spec.");
+                  + " spec, or map com.example.MemberDto to com.example.Member with its own"
+                  + " @GenerateMapping spec.");
 
       // the fix, followed: the leaf replaces the marker and is supplied to the element-mapped spec
       JavaFileObject leafed =
@@ -13006,8 +13011,9 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("a primitive wire component is never offered the bridge in the refusal")
-    void aPrimitiveWireComponentIsNotOfferedTheBridge() {
+    @DisplayName(
+        "a primitive wire component is offered the bridge only once declared as its wrapper")
+    void aPrimitiveWireComponentIsOfferedTheBridgeOnlyAsItsWrapper() {
       JavaFileObject domain =
           JavaFileObjects.forSourceString(
               "com.example.Reading",
@@ -13041,8 +13047,13 @@ class MappingProcessorTest {
       Compilation compilation = compile(domain, dto, spec);
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("has no usable source");
-      Assertions.assertThat(compilation.diagnostics())
-          .noneMatch(d -> d.toString().contains("@OptionalBridge"));
+      // An int can never hold the null an empty Optional bridges to, so the wrapper comes first.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Align the component types, or declare the record component 'ReadingDto.value' as"
+                  + " java.lang.Integer, which can hold the null an empty Optional bridges to, and"
+                  + " add '@OptionalBridge java.util.Optional<java.lang.Integer> value();' to the"
+                  + " spec");
     }
 
     @Test

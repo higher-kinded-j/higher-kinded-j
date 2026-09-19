@@ -165,6 +165,10 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static final List<String> ELEMENT_CONTAINERS = List.of("java.util.List", "java.util.Set");
 
+  /** The containers lifting takes, each of which a pair must declare exactly to lift. */
+  private static final List<String> LIFTABLE_CONTAINERS =
+      List.of("java.util.List", "java.util.Set", "java.util.Optional", "java.util.Map");
+
   private static final ClassName VALIDATED_PRISM_TYPE =
       ClassName.get("org.higherkindedj.optics.validated", "ValidatedPrism");
   private static final ClassName VALIDATED_PARSE_TYPE =
@@ -1949,9 +1953,10 @@ public class MappingProcessor extends AbstractProcessor {
                 + leafDomain
                 + " it is an ordinary whole-component leaf, which parses a null wire value to a"
                 + " located 'must not be null' rather than to an empty Optional.",
+            // A primitive wire member is named by its wrapper, the one type a leaf can name.
             "Declare the leaf as 'ValidatedPrism<"
                 + wire.componentNamed(renames.getOrDefault(name, name))
-                    .map(c -> c.type().toString())
+                    .map(c -> boxed(c.type()).toString())
                     .orElse("WireComponent")
                 + ", "
                 + containerElement(domainType, "java.util.Optional")
@@ -1993,7 +1998,14 @@ public class MappingProcessor extends AbstractProcessor {
       if (wireComponent == null) {
         continue;
       }
-      if (!checkBridgeWireSide(spec, method, name, wire, wireComponent, local)) {
+      if (!checkBridgeWireSide(
+          spec,
+          method,
+          name,
+          bridgeElement(containerElement(domainType, "java.util.Optional")),
+          wire,
+          wireComponent,
+          local)) {
         return false;
       }
     }
@@ -2222,10 +2234,14 @@ public class MappingProcessor extends AbstractProcessor {
       TypeElement spec,
       ExecutableElement method,
       String name,
+      TypeMirror element,
       WireShape wire,
       WireShape.WireComponent wireComponent,
       boolean local) {
     if (wireComponent.type().getKind().isPrimitive()) {
+      // Removing the annotation is no way out: the domain Optional still has nothing to map to,
+      // and a bean wire bridges without the annotation anyway. On a bean the wrapper leaves a
+      // marker declared here redundant, so the fix drops it with the primitive.
       Diagnostics.error(
           processingEnv.getMessager(),
           method,
@@ -2244,7 +2260,16 @@ public class MappingProcessor extends AbstractProcessor {
               + " is declared "
               + wireComponent.type()
               + ", which can never be null.",
-          "Declare '" + wireComponent.name() + "' as the wrapper type, or remove the annotation.");
+          primitiveBridgeFix(
+                  spec,
+                  wire,
+                  name,
+                  wireComponent.name(),
+                  wireComponent.type(),
+                  element,
+                  LeafSite.bridged(true, wire),
+                  local && wire instanceof WireShape.BeanShape)
+              + ".");
       return false;
     }
     // The two shapes that need no bridge are redundant rather than wrong: the mapping is generated
@@ -3250,7 +3275,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     WireShape.BeanShape wireShape =
-        new BeanPropertyAnalyser(processingEnv).analyse(spec, wireBean, TAG);
+        new BeanPropertyAnalyser(processingEnv).analysePatch(spec, wireBean, TAG);
     if (wireShape == null || !checkPatchBeanTwoWay(spec, wireShape)) {
       return;
     }
@@ -3384,6 +3409,9 @@ public class MappingProcessor extends AbstractProcessor {
       // as the more specific declaration.
       ExecutableElement leaf = findLeaf(spec, domainName, wireType, domainType);
       if (leaf != null) {
+        if (!checkKeyLeafReached(spec, domainName, leaf, wireType, domainType, LeafSite.PLAIN)) {
+          return null;
+        }
         edits.add(
             UpdateEdit.validated(
                 domainName,
@@ -3437,7 +3465,7 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
 
-      reportNoUpdateSource(spec, domain, property, domainComp);
+      reportNoUpdateSource(spec, registry, domain, wire, property, domainComp);
       return null;
     }
     return edits;
@@ -3588,9 +3616,7 @@ public class MappingProcessor extends AbstractProcessor {
         "the wire property '" + property.name() + "' is primitive and can never be absent.",
         "An all-absent PATCH body must fold to the identity update, but a primitive property always"
             + " carries a value (its default), so its 'absent' state cannot be distinguished.",
-        "Use the wrapper type for '"
-            + property.name()
-            + "' on the PATCH DTO (e.g. Integer, Boolean).");
+        "Declare '" + property.name() + "' on the PATCH DTO as " + boxed(property.type()) + ".");
   }
 
   /**
@@ -3675,12 +3701,23 @@ public class MappingProcessor extends AbstractProcessor {
         "Point the @MapField rename at a distinct component, or drop one of the properties.");
   }
 
-  /** A wire property matches a domain component by name but neither by type nor through a leaf. */
+  /**
+   * A wire property matches a domain component by name but neither by type, through a leaf, nor
+   * through a spec serving a parse; a spec that maps the pair without one is named, as a dense
+   * lookup names it.
+   */
   private void reportNoUpdateSource(
       TypeElement spec,
+      List<RegisteredSpec> registry,
       TypeElement domain,
+      WireShape wire,
       WireShape.WireComponent property,
       RecordComponentElement domainComp) {
+    // An element leaf may delegate to a nested Impl, so a one-directional one is named over the
+    // pair such a leaf is offered over.
+    LeafOffer offer =
+        leafOffer(
+            spec, domainComp.getSimpleName().toString(), property.type(), domainComp.asType());
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,
@@ -3701,16 +3738,58 @@ public class MappingProcessor extends AbstractProcessor {
             + " pair declared as exactly List, Set, an array, Optional or Map — through an"
             + " element leaf lifted"
             + " over the container."
-            + leafNearMissHint(spec, domainComp.getSimpleName().toString()),
-        // A leaf cannot target a primitive component: a ValidatedPrism's domain arg is a reference
-        // type, so findLeaf's isSameType(wrapper, primitive) can never match. Steer to alignment.
+            + leafNearMissHint(
+                spec, domainComp.getSimpleName().toString(), property.type(), domainComp.asType())
+            + (domainComp.asType().getKind().isPrimitive() ? PRIMITIVE_REASON : "")
+            + unusableSpecHint(
+                registry,
+                offer.wire(),
+                offer.domain(),
+                WireShape.Direction.PARSE_ONLY,
+                "be nested in a sparse update, which parses what it reads"),
         domainComp.asType().getKind().isPrimitive()
-            ? "Align the types: make '"
-                + domainComp.getSimpleName()
-                + "' a wrapper type, or match the wire property to "
-                + domainComp.asType()
-                + "."
+            ? primitiveUpdateFix(spec, domain, wire, property, domainComp)
             : updateLeafSuggestion(spec, property, domainComp));
+  }
+
+  /**
+   * The sparse fix for a primitive domain component, which no leaf can target ({@link
+   * #PRIMITIVE_REASON}). The property cannot be primitive either, since a PATCH property must be
+   * able to be absent; its wrapper, though, writes straight into the component. Otherwise the
+   * component becomes the wrapper and a leaf converts into that.
+   */
+  private String primitiveUpdateFix(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape wire,
+      WireShape.WireComponent property,
+      RecordComponentElement domainComp) {
+    String name = domainComp.getSimpleName().toString();
+    TypeMirror wrapper = boxed(domainComp.asType());
+    ExecutableElement leaf = findLeaf(spec, name, property.type(), wrapper);
+    return "Declare '"
+        + property.name()
+        + "' on '"
+        + wire.element().getSimpleName()
+        + "' as "
+        + wrapper
+        + ", which a sparse update writes straight into the "
+        + domainComp.asType()
+        + " component, or declare '"
+        + domain.getSimpleName()
+        + "."
+        + name
+        + "' as "
+        + wrapper
+        + (leaf != null
+            ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts."
+            : " and add a leaf 'default ValidatedPrism<"
+                + property.type()
+                + ", "
+                + wrapper
+                + "> "
+                + name
+                + "()'.");
   }
 
   /**
@@ -3725,8 +3804,12 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror domainType = domainComp.asType();
     String name = domainComp.getSimpleName().toString();
     TypeMirror[] lifted = liftedPair(spec, name, wireType, domainType);
+    // A same-named default method is the near miss the why names, which a leaf replaces.
+    String declare =
+        sameNamedDefault(spec, name) == null ? "Declare " : "Replace '" + name + "()' with ";
     if (lifted != null) {
-      return "Declare an element leaf 'default ValidatedPrism<"
+      return declare
+          + "an element leaf 'default ValidatedPrism<"
           + lifted[0]
           + ", "
           + lifted[1]
@@ -3741,7 +3824,8 @@ public class MappingProcessor extends AbstractProcessor {
           + name
           + "()', or align the types.";
     }
-    return "Declare a leaf 'default ValidatedPrism<"
+    return declare
+        + "a leaf 'default ValidatedPrism<"
         + wireType
         + ", "
         + domainType
@@ -4098,14 +4182,25 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * How a use site's fix lines declare the leaf that would stand in for a nested spec: named after
    * the component, over the pair being resolved. A component carrying an {@code @OptionalBridge}
-   * marker needs the annotation on that leaf, and the leaf must be the component's only spec
-   * method, since a marker and a same-named leaf are one method with incompatible return types;
-   * every other site declares a bare leaf.
+   * marker needs the leaf to be its only spec method, since a marker and a same-named leaf are one
+   * method with incompatible return types; on a record wire the leaf carries the annotation too, as
+   * the bridge needs it there, and on a bean wire, which bridges without it, the leaf is bare.
+   * Every other site declares a bare leaf.
    */
   private record LeafSite(String annotation, String placement) {
     static final LeafSite PLAIN = new LeafSite("", "");
     static final LeafSite BRIDGE_MARKER =
         new LeafSite("@OptionalBridge ", ", as the component's only spec method,");
+    static final LeafSite BEAN_MARKER = new LeafSite("", ", as the component's only spec method,");
+
+    /** The site for a bridged component: where it carries the marker, and on which wire. */
+    static LeafSite bridged(boolean marked, WireShape wire) {
+      return !marked ? PLAIN : wire instanceof WireShape.BeanShape ? BEAN_MARKER : BRIDGE_MARKER;
+    }
+
+    boolean marked() {
+      return !equals(PLAIN);
+    }
 
     String declaration(String name, TypeMirror wireType, TypeMirror domainType) {
       return "'"
@@ -4314,6 +4409,16 @@ public class MappingProcessor extends AbstractProcessor {
         prisms.add(nested.accessor());
         continue;
       }
+      // A leaf on this spec, named after the component, serves only a single-leaf mapping: with
+      // several, one name cannot say which leaf it stands in for. There the leaf offered is over
+      // the whole pair and builds the composition itself, and no spec is offered, since the other
+      // leaves may want theirs too. A leaf already named after the component is replaced, as the
+      // spec cannot declare both; a spec is offered only for a record pair, the one it can map.
+      boolean single = leaves.size() == 1;
+      boolean records =
+          single && Stream.of(elementWire, elementDomain).allMatch(type -> asRecord(type) != null);
+      String declare =
+          sameNamedDefault(spec, name) == null ? "Declare " : "Replace '" + name + "()' with ";
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -4329,13 +4434,37 @@ public class MappingProcessor extends AbstractProcessor {
               + ") for its leaf '"
               + leaf.getSimpleName()
               + "' has no mapping.",
-          "An element-mapped Impl is built by of(...), one ValidatedPrism per abstract leaf; the"
-              + " prism must come from a leaf on this spec or another mapping,"
+          "An element-mapped Impl is built by of(...), one ValidatedPrism per abstract leaf. "
+              + (single
+                  ? "The prism must come from a leaf on this spec or another mapping,"
+                  : "'"
+                      + match.describe()
+                      + "' has "
+                      + leaves.size()
+                      + " leaves, and a leaf on this spec named after the component can stand in"
+                      + " only for a single-leaf mapping, so each prism must come from another"
+                      + " mapping,")
               + declarationSites(processingEnv, spec)
-              + ".",
-          "Declare "
-              + site.declaration(name, elementWire, elementDomain)
-              + " on this spec, or map the pair with its own @GenerateMapping spec.");
+              + "."
+              + unusableSpecHint(
+                  registry, elementWire, elementDomain, WireShape.Direction.BIDIRECTIONAL),
+          (single
+                  ? declare + site.declaration(name, elementWire, elementDomain) + " on this spec"
+                  : declare
+                      + site.declaration(name, wireType, domainType)
+                      + " on this spec, returning "
+                      + match.impl().canonicalName()
+                      + ".of(...).asValidatedPrism() with one ValidatedPrism per leaf, in the order "
+                      + leaves.stream()
+                          .map(l -> "'" + l.getSimpleName() + "'")
+                          .collect(Collectors.joining(", ")))
+              + (records
+                  ? ", or map "
+                      + elementWire
+                      + " to "
+                      + elementDomain
+                      + " with its own @GenerateMapping spec."
+                  : "."));
       return new PrismResolution(null, true);
     }
     return new PrismResolution(
@@ -5499,6 +5628,7 @@ public class MappingProcessor extends AbstractProcessor {
       // A container lifts its elements one by one, so the leaf and the spec that would give it a
       // source are over its elements, exactly as for a bridged one.
       LeafOffer offer = leafOffer(spec, name, wireType, domainType);
+      MemberSite member = new MemberSite(spec, registry, domain, wire, name, wireName, need);
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -5513,44 +5643,169 @@ public class MappingProcessor extends AbstractProcessor {
               + " vs "
               + domainType
               + ") and no matching leaf method was found."
-              + leafNearMissHint(spec, name)
+              + leafNearMissHint(spec, name, wireType, domainType)
+              + (hasPrimitive(wireType, domainType) ? PRIMITIVE_REASON : "")
+              + liftingRuleHint(spec, name, wireType, domainType)
               + unusableSpecHint(registry, offer.wire(), offer.domain(), need)
               + " Found on "
               + domain.getSimpleName()
               + ": "
               + domainNames
               + ".",
-          // A leaf cannot target a primitive component: a ValidatedPrism's domain argument is a
-          // reference type, so findLeaf's isSameType(wrapper, primitive) can never match, and
-          // suggesting 'ValidatedPrism<..., int>' would be uncompilable Java. Steer to
-          // alignment, as the sparse tier does.
-          domainType.getKind().isPrimitive()
-              ? "Make '"
-                  + name
-                  + "' a wrapper type (a ValidatedPrism cannot focus a primitive component), or"
-                  + " align the component types."
-              : bridgeOffer(spec, registry, name, wireType, domainType, need)
-                  + "Add 'default ValidatedPrism<"
-                  + offer.wire()
-                  + ", "
-                  + offer.domain()
-                  + "> "
-                  + name
-                  + "()' to the spec"
-                  + (offer.lifts() ? ", a leaf over the " + offer.parts() + " types" : "")
-                  // A spec is offered only for a record pair, as the bridged refusal offers it.
-                  + (offer.records()
-                      ? ", or declare a @GenerateMapping spec mapping those records,"
-                          + declarationSites(processingEnv, spec)
-                      : "")
-                  + "."
-                  + (projection
-                      ? " On a projection, a leaf's write-back can fail, so the projection"
-                          + " maps through the validated patch(domain, wire), never asLens()."
-                      : ""));
+          (hasPrimitive(wireType, domainType)
+                  ? primitiveFix(member, wireType, domainType)
+                  : referenceFix(member, wireType, domainType))
+              + (projection
+                  ? " On a projection, a leaf's write-back can fail, so the projection"
+                      + " maps through the validated patch(domain, wire), never asLens()."
+                  : ""));
       return null;
     }
     return resolved.correspondence();
+  }
+
+  /**
+   * One member a no-usable-source refusal is about: the spec, the specs it resolves nested pairs
+   * among, the domain record and wire the member belongs to, its domain and wire names, and the
+   * direction the site uses. Gathered once, so the fix lines computed for it read the same site.
+   */
+  private record MemberSite(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeElement domain,
+      WireShape wire,
+      String name,
+      String wireName,
+      WireShape.Direction need) {
+
+    MemberSite {
+      registry = List.copyOf(registry);
+    }
+  }
+
+  /** Why a pair with a primitive side is offered no leaf of its own. Shared with the merge. */
+  static final String PRIMITIVE_REASON =
+      " A ValidatedPrism names reference types only, so no leaf converts a primitive component.";
+
+  private static boolean hasPrimitive(TypeMirror wireType, TypeMirror domainType) {
+    return wireType.getKind().isPrimitive() || domainType.getKind().isPrimitive();
+  }
+
+  /**
+   * The fix for a pair of reference types nothing maps: the Optional bridge where the pair has its
+   * shape, then the leaf over the pair (over its elements where a container lifts them), a spec
+   * where both sides are records, and the declaration that would let a container lift where it does
+   * not as declared.
+   */
+  private String referenceFix(MemberSite member, TypeMirror wireType, TypeMirror domainType) {
+    LeafOffer offer = leafOffer(member.spec(), member.name(), wireType, domainType);
+    return bridgeOffer(
+            member.spec(), member.registry(), member.name(), wireType, domainType, member.need())
+        + leafLine(
+            member.spec(),
+            member.name(),
+            "'default ValidatedPrism<"
+                + offer.wire()
+                + ", "
+                + offer.domain()
+                + "> "
+                + member.name()
+                + "()'")
+        + (offer.lifts() ? ", a leaf over the " + offer.parts() + " types" : "")
+        // A spec is offered only for a record pair, as the bridged refusal offers it.
+        + (offer.records()
+            ? ", or declare a @GenerateMapping spec mapping those records,"
+                + declarationSites(processingEnv, member.spec())
+            : "")
+        + liftableOffer(member, wireType, domainType)
+        + ".";
+  }
+
+  /**
+   * How a fix line introduces a leaf named after the component: added to the spec, or, where the
+   * spec already has a same-named default method that is not the leaf the pair needs, in its place,
+   * since the spec cannot declare both.
+   */
+  private String leafLine(TypeElement spec, String name, String declaration) {
+    return sameNamedDefault(spec, name) instanceof ExecutableElement existing
+        ? "Replace '" + existing.getSimpleName() + "()' with " + declaration
+        : "Add " + declaration + " to the spec";
+  }
+
+  /** A default method named after the component, which a leaf for it would have to replace. */
+  private ExecutableElement sameNamedDefault(TypeElement spec, String name) {
+    return specMembers(spec).stream()
+        .filter(method -> method.getSimpleName().contentEquals(name) && method.isDefault())
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * The fix for a pair with a primitive side, which no leaf can map ({@link #PRIMITIVE_REASON}). A
+   * primitive and its own wrapper need only agree; any other pair is aligned, or its primitive
+   * sides declared as their wrappers and the pair then mapped as any reference pair is: through a
+   * leaf the spec already has over the wrappers, the Optional bridge, or a new leaf.
+   */
+  private String primitiveFix(MemberSite member, TypeMirror wireType, TypeMirror domainType) {
+    Types types = processingEnv.getTypeUtils();
+    TypeMirror wireBoxed = boxed(wireType);
+    TypeMirror domainBoxed = boxed(domainType);
+    String wireMember =
+        "'" + member.wire().element().getSimpleName() + "." + member.wireName() + "'";
+    String domainMember = "'" + member.domain().getSimpleName() + "." + member.name() + "'";
+    if (types.isSameType(wireBoxed, domainBoxed)) {
+      return "Declare "
+          + wireMember
+          + " and "
+          + domainMember
+          + " both "
+          + types.unboxedType(wireBoxed)
+          + ", or both "
+          + wireBoxed
+          + ", so that they copy.";
+    }
+    List<String> wrappers = new ArrayList<>();
+    if (wireType.getKind().isPrimitive()) {
+      wrappers.add("the " + wireMemberTerm(member.wire()) + " " + wireMember + " as " + wireBoxed);
+    }
+    if (domainType.getKind().isPrimitive()) {
+      wrappers.add(domainMember + " as " + domainBoxed);
+    }
+    ExecutableElement leaf = findLeaf(member.spec(), member.name(), wireBoxed, domainBoxed);
+    // Only a primitive wire member meets a domain Optional here, so a bridge offer is about the
+    // null the wrapper can then hold.
+    String bridge =
+        leaf != null
+            ? ""
+            : bridgeOffer(
+                    member.spec(),
+                    member.registry(),
+                    member.name(),
+                    wireBoxed,
+                    domainBoxed,
+                    member.need())
+                .strip();
+    return "Align the component types, or declare "
+        + String.join(" and ", wrappers)
+        + (leaf != null
+            ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts."
+            : bridge.isEmpty()
+                ? ", and " + lowerFirst(referenceFix(member, wireBoxed, domainBoxed))
+                : ", which can hold the null an empty Optional bridges to, and "
+                    + lowerFirst(bridge));
+  }
+
+  private TypeMirror boxed(TypeMirror type) {
+    return boxed(processingEnv.getTypeUtils(), type);
+  }
+
+  /** The wrapper type of a primitive, or the type itself. Shared with the merge processor. */
+  static TypeMirror boxed(Types types, TypeMirror type) {
+    return type instanceof PrimitiveType primitive ? types.boxedClass(primitive).asType() : type;
+  }
+
+  private static String lowerFirst(String sentence) {
+    return Character.toLowerCase(sentence.charAt(0)) + sentence.substring(1);
   }
 
   /**
@@ -5588,6 +5843,9 @@ public class MappingProcessor extends AbstractProcessor {
     // ValidatedPrism<X, X> can validate or normalise a component the types alone would copy.
     ExecutableElement directLeaf = findLeaf(spec, name, wireType, domainType);
     if (directLeaf != null) {
+      if (!checkKeyLeafReached(spec, name, directLeaf, wireType, domainType, site)) {
+        return PairResolution.REPORTED;
+      }
       return PairResolution.of(
           new Correspondence(
               name, wireName, Kind.LEAF, CodeBlock.of("$L()", directLeaf.getSimpleName())));
@@ -5770,16 +6028,23 @@ public class MappingProcessor extends AbstractProcessor {
     // Number> bridges on Number rather than dead-ending: no leaf can ever be declared over a
     // wildcard, so refusing here would leave the author a diagnostic with no reachable fix.
     TypeMirror bridged = bridgeElement(optionalElement);
-    // A component carrying the marker needs any leaf a fix line offers in a spec's place to carry
-    // the annotation too, and to replace it.
-    LeafSite site = declaresBridge(spec, name) ? LeafSite.BRIDGE_MARKER : LeafSite.PLAIN;
+    // A component carrying the marker needs any leaf a fix line offers in a spec's place to
+    // replace it, carrying the annotation on a record wire.
+    LeafSite site = LeafSite.bridged(declaresBridge(spec, name), wire);
+    // An empty Optional is a null on the wire, which a primitive can never hold, so no conversion
+    // of the present value could make the pair map. Only a bean without a marker reaches here with
+    // one: a marker on a primitive member is refused where the marker is checked.
+    if (wireType.getKind().isPrimitive()) {
+      reportPrimitiveBridge(spec, domain, wire, name, wireName, wireType, domainType, bridged);
+      return null;
+    }
     PairResolution present =
         resolvePair(spec, registry, name, wireName, wireType, bridged, need, site);
     if (present.reported()) {
       return null;
     }
     if (present.correspondence() == null) {
-      reportUnbridged(spec, registry, domain, wire, name, wireName, wireType, bridged, need);
+      reportUnbridged(spec, registry, domain, wire, name, wireName, wireType, bridged, need, site);
       return null;
     }
     // A property written through its own getter has no absent state to carry the bridge's empty.
@@ -5809,7 +6074,8 @@ public class MappingProcessor extends AbstractProcessor {
       String wireName,
       TypeMirror wireType,
       TypeMirror bridged,
-      WireShape.Direction need) {
+      WireShape.Direction need,
+      LeafSite site) {
     LeafOffer offer = leafOffer(spec, name, wireType, bridged);
     Diagnostics.error(
         processingEnv.getMessager(),
@@ -5859,13 +6125,20 @@ public class MappingProcessor extends AbstractProcessor {
                 : "element types, not the Optional")
             + ")."
             + unusableSpecHint(registry, offer.wire(), offer.domain(), need),
-        "Declare '@OptionalBridge default ValidatedPrism<"
+        // A bean bridges without the annotation, so its leaf is bare, and replaces the marker
+        // only where the spec carries one.
+        "Declare '"
+            + site.annotation()
+            + "default ValidatedPrism<"
             + offer.wire()
             + ", "
             + offer.domain()
             + "> "
             + name
-            + "()' as the component's only spec method, replacing any marker for it"
+            + "()'"
+            + (site.marked()
+                ? " as the component's only spec method, replacing any marker for it"
+                : " on the spec")
             // A spec is offered only for a record pair: the commonest refusal is a value type
             // against a String, which no spec can map, and every pair reads the spec in the why.
             + (offer.records()
@@ -5875,6 +6148,84 @@ public class MappingProcessor extends AbstractProcessor {
             + ", or align the "
             + (offer.lifts() ? offer.parts() : "element")
             + " types.");
+  }
+
+  /**
+   * Refuses a bean's bridge onto a primitive property, which can never hold the {@code null} that
+   * stands for an empty {@code Optional}. No leaf rescues it, since a leaf converts only a present
+   * value and cannot name a primitive either, so the fix declares the property as its wrapper, or,
+   * where the element is that wrapper already, drops the {@code Optional} from the domain so the
+   * two primitives copy. Only a bean without a marker reaches here: a marker on a primitive member
+   * is refused where the marker is checked.
+   */
+  private void reportPrimitiveBridge(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape wire,
+      String name,
+      String wireName,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      TypeMirror bridged) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' is "
+            + domainType
+            + ", bridged to the "
+            + wireMemberTerm(wire)
+            + " '"
+            + wireName
+            + "', which is the primitive "
+            + wireType
+            + ".",
+        "An empty Optional is a null on the wire, and "
+            + wireType
+            + " can never hold one, so the "
+            + wireMemberTerm(wire)
+            + " cannot carry an absent value either way; no leaf can change that, since a leaf"
+            + " converts only a present value and a ValidatedPrism cannot name a primitive.",
+        primitiveBridgeFix(spec, wire, name, wireName, wireType, bridged, LeafSite.PLAIN, false)
+            + (processingEnv.getTypeUtils().isSameType(boxed(wireType), bridged)
+                ? ", or declare '" + domain.getSimpleName() + "." + name + "' as " + wireType
+                : "")
+            + ".");
+  }
+
+  /**
+   * The fix for a bridge onto a primitive wire member: declare the member as its wrapper, which
+   * then bridges like any nullable member, with a leaf from the wrapper to the element where the
+   * two differ. {@code site} is how that leaf is declared, in place of any marker, and {@code
+   * dropMarker} whether the wrapper leaves a marker the spec declares redundant, as on a bean wire,
+   * which bridges without one. The caller ends the sentence.
+   */
+  private String primitiveBridgeFix(
+      TypeElement spec,
+      WireShape wire,
+      String name,
+      String wireName,
+      TypeMirror wireType,
+      TypeMirror element,
+      LeafSite site,
+      boolean dropMarker) {
+    TypeMirror wrapper = boxed(wireType);
+    ExecutableElement leaf = findLeaf(spec, name, wrapper, element);
+    boolean converted = leaf != null || processingEnv.getTypeUtils().isSameType(wrapper, element);
+    return "Declare '"
+        + wireName
+        + "' on '"
+        + wire.element().getSimpleName()
+        + "' as "
+        + wrapper
+        + (leaf != null ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts" : "")
+        + (converted
+            ? dropMarker ? ", and remove the annotation, which a bean wire does not need" : ""
+            : " and add " + site.declaration(name, wrapper, element) + " to the spec");
   }
 
   /**
@@ -6171,6 +6522,119 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * Whether a key leaf declared on this spec is reached, refusing one that a leaf over the whole
+   * component pre-empts. The whole-component leaf is tried before a {@code Map}'s key and value
+   * leaves, so the keys never reach the key leaf, and a key leaf that silently never runs is the
+   * typo'd-leaf hazard again. An inherited key leaf stays inert, as one naming nothing does: a
+   * mix-in may carry it for specs that map the component by its parts, while this one maps it
+   * whole. {@code site} is how a leaf is declared in the whole leaf's place, carrying the
+   * annotation where a record wire's bridge needs it.
+   */
+  private boolean checkKeyLeafReached(
+      TypeElement spec,
+      String name,
+      ExecutableElement wholeLeaf,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      LeafSite site) {
+    ExecutableElement keyLeaf =
+        specMembers(spec).stream()
+            .filter(method -> declaredLocally(method, spec))
+            .filter(
+                method ->
+                    method.getAnnotation(MapKey.class) instanceof MapKey declared
+                        && declared.value().equals(name))
+            .findFirst()
+            .orElse(null);
+    if (keyLeaf == null) {
+      return true;
+    }
+    String whole = "'" + wholeLeaf.getSimpleName() + "()'";
+    String key = "'" + keyLeaf.getSimpleName() + "()'";
+    String keepWhole = "remove " + key + " to keep converting '" + name + "' whole";
+    // Mapping by parts is offered only where it works once the whole leaf goes: the spec declares
+    // that leaf, so it can replace it, and the key leaf converts the keys of the Map left, which
+    // on a bean is the one its Optional bridges. The value leaf beside it is offered only where
+    // the values can be named (liftedPair).
+    TypeMirror domainMap =
+        containerElement(domainType, "java.util.Optional") instanceof TypeMirror element
+            ? bridgeElement(element)
+            : domainType;
+    DeclaredType[] maps = declaredLocally(wholeLeaf, spec) ? mapPair(wireType, domainMap) : null;
+    TypeMirror[] values =
+        maps != null
+                && findKeyLeaf(
+                        spec,
+                        name,
+                        maps[0].getTypeArguments().getFirst(),
+                        maps[1].getTypeArguments().getFirst())
+                    != null
+            ? liftedPair(spec, name, wireType, domainMap)
+            : null;
+    String fix;
+    if (values == null) {
+      fix = ProcessorUtils.capitalise(keepWhole) + ".";
+    } else if (processingEnv.getTypeUtils().isSameType(values[0], values[1])) {
+      // A record wire's bridge is declared by the annotation, so the whole leaf gives way to the
+      // bare marker rather than to nothing.
+      fix =
+          (site.annotation().isEmpty()
+                  ? "Remove " + whole
+                  : "Replace "
+                      + whole
+                      + " with the marker '"
+                      + site.annotation()
+                      + processingEnv
+                          .getTypeUtils()
+                          .getDeclaredType(
+                              processingEnv.getElementUtils().getTypeElement("java.util.Optional"),
+                              domainMap)
+                      + " "
+                      + name
+                      + "();'")
+              + ", so the keys convert through "
+              + key
+              + " and the values copy, or "
+              + keepWhole
+              + ".";
+    } else {
+      fix =
+          "Replace "
+              + whole
+              + " with the value leaf '"
+              + site.annotation()
+              + "default ValidatedPrism<"
+              + values[0]
+              + ", "
+              + values[1]
+              + "> "
+              + name
+              + "()', which converts the values while "
+              + key
+              + " converts the keys, or "
+              + keepWhole
+              + ".";
+    }
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        keyLeaf,
+        TAG,
+        "@MapKey(\""
+            + name
+            + "\") leaf "
+            + key
+            + " never runs: "
+            + whole
+            + inheritedNote(wholeLeaf, spec)
+            + " is a leaf over the whole component '"
+            + name
+            + "'.",
+        "A whole-component leaf is tried before a Map's key and value leaves.",
+        fix);
+    return false;
+  }
+
+  /**
    * The (wire, domain) element types when both sides declare the <em>same</em> element container —
    * exactly {@code List} or exactly {@code Set}, each parameterised — else null.
    *
@@ -6347,20 +6811,148 @@ public class MappingProcessor extends AbstractProcessor {
             .isSameType(returnType.getTypeArguments().get(1), domainType);
   }
 
-  private String leafNearMissHint(TypeElement spec, String name) {
-    for (ExecutableElement method : specMembers(spec)) {
-      if (method.getSimpleName().contentEquals(name) && method.isDefault()) {
-        return " A default method '"
-            + name
-            + "()' exists but returns '"
-            + memberTypeIn(spec, method)
-            + "'"
-            + (method.getParameters().isEmpty() ? "" : " and declares parameters")
-            + " — a leaf must be a zero-parameter default method returning exactly"
-            + " ValidatedPrism<WireComponent, DomainComponent> (wire first, domain second).";
+  /**
+   * Says why a same-named default method is not the pair's leaf, spelling out the leaves that would
+   * be: the one over the whole pair, and the one over its elements where a container lifts them.
+   * Neither exists for a primitive side, which no {@code ValidatedPrism} can name, and which the
+   * caller explains.
+   */
+  private String leafNearMissHint(
+      TypeElement spec, String name, TypeMirror wireType, TypeMirror domainType) {
+    ExecutableElement method = sameNamedDefault(spec, name);
+    if (method == null) {
+      return "";
+    }
+    LeafOffer offer = leafOffer(spec, name, wireType, domainType);
+    return " A default method '"
+        + name
+        + "()' exists but returns '"
+        + memberTypeIn(spec, method)
+        + "'"
+        + (method.getParameters().isEmpty() ? "" : " and declares parameters")
+        + (hasPrimitive(wireType, domainType)
+            ? "."
+            : " — a leaf must be a zero-parameter default method returning exactly"
+                + " ValidatedPrism<"
+                + wireType
+                + ", "
+                + domainType
+                + "> (wire first, domain second)"
+                + (offer.lifts()
+                    ? ", or ValidatedPrism<"
+                        + offer.wire()
+                        + ", "
+                        + offer.domain()
+                        + "> over the "
+                        + offer.parts()
+                        + " types"
+                    : "")
+                + ".");
+  }
+
+  /**
+   * The lifting rule, said where two containers meet that do not lift as declared: element lifting,
+   * through a leaf or a spec, reaches one level into a component both sides declare as the same one
+   * of the containers {@link #liftedPair} accepts. Said for containers that are not those, and for
+   * lifted elements that are containers again, where a leaf over the inner elements is the likely
+   * mistake. Empty for any other pair.
+   */
+  private String liftingRuleHint(
+      TypeElement spec, String name, TypeMirror wireType, TypeMirror domainType) {
+    LeafOffer offer = leafOffer(spec, name, wireType, domainType);
+    return containerLike(offer.wire()) && containerLike(offer.domain())
+        ? " Element lifting, through a leaf or a spec, reaches one level into a component both"
+            + " sides declare as the same container, named exactly: List, Set, Optional, an array"
+            + " of a reference type, or a Map, whose values lift, each over an element type named"
+            + " rather than a wildcard."
+        : "";
+  }
+
+  /** Whether a type is a container of any kind: an array, an Optional, a Collection or a Map. */
+  private boolean containerLike(TypeMirror type) {
+    Types types = processingEnv.getTypeUtils();
+    Elements elements = processingEnv.getElementUtils();
+    return type.getKind() == TypeKind.ARRAY
+        || isExactly(type, "java.util.Optional")
+        || Stream.of("java.util.Collection", "java.util.Map")
+            .anyMatch(
+                container ->
+                    types.isSubtype(
+                        types.erasure(type),
+                        types.erasure(elements.getTypeElement(container).asType())));
+  }
+
+  /**
+   * For a container pair that does not lift as declared, the declaration that would: each side as
+   * the exact container it already is ({@code ArrayList<E>} is a {@code List<E>}), its elements
+   * named rather than bounded by an {@code extends} wildcard. Offered only when that pair has a
+   * source, so that following it maps the component: the elements copy, a leaf named after the
+   * component converts them, or the one plain spec serving the site maps them (an element-mapped
+   * one resolves only once its own leaves do). Empty otherwise, for a pair that lifts as declared,
+   * whose elements would have resolved already if they had a source, and for a generic record,
+   * whose declaration names type variables where these types are instantiated.
+   */
+  private String liftableOffer(MemberSite member, TypeMirror wireType, TypeMirror domainType) {
+    TypeMirror wireView = liftableView(wireType);
+    TypeMirror domainView = liftableView(domainType);
+    TypeMirror[] elements =
+        Stream.of(member.domain(), member.wire().element())
+                .anyMatch(owner -> !owner.getTypeParameters().isEmpty())
+            ? null
+            : liftedPair(member.spec(), member.name(), wireView, domainView);
+    if (elements == null) {
+      return "";
+    }
+    ExecutableElement leaf = findLeaf(member.spec(), member.name(), elements[0], elements[1]);
+    List<RegisteredSpec> serving =
+        servingCandidates(member.spec(), member.registry(), elements[0], elements[1], member.need())
+            .chosen();
+    String through =
+        processingEnv.getTypeUtils().isSameType(elements[0], elements[1])
+            ? "copies"
+            : leaf != null
+                ? "lifts through the leaf '" + leaf.getSimpleName() + "()'"
+                : serving.size() == 1 && abstractLeaves(serving.getFirst().spec()).isEmpty()
+                    ? "lifts through '" + serving.getFirst().describe() + "'"
+                    : null;
+    return through == null
+        ? ""
+        : ", or declare the component as "
+            + domainView
+            + " on '"
+            + member.domain().getSimpleName()
+            + "' and as "
+            + wireView
+            + " on '"
+            + member.wire().element().getSimpleName()
+            + "', which then "
+            + through;
+  }
+
+  /**
+   * The exact container a type already is, as lifting names it: its {@code List}, {@code Set},
+   * {@code Optional} or {@code Map} supertype, an {@code extends} wildcard argument read as its
+   * bound. The type itself when it is none of those, or when an argument is unbounded or bounded
+   * below, which names no element type to declare.
+   */
+  private TypeMirror liftableView(TypeMirror type) {
+    if (!(type instanceof DeclaredType)) {
+      return type;
+    }
+    Types types = processingEnv.getTypeUtils();
+    for (String container : LIFTABLE_CONTAINERS) {
+      if (ProcessorUtils.supertypeOf(
+              types, type, processingEnv.getElementUtils().getTypeElement(container))
+          instanceof DeclaredType view) {
+        List<TypeMirror> arguments =
+            view.getTypeArguments().stream().map(ProcessorUtils::resolveWildcard).toList();
+        return arguments.stream().anyMatch(argument -> argument == null)
+            ? type
+            : types.getDeclaredType(
+                (TypeElement) view.asElement(), arguments.toArray(TypeMirror[]::new));
       }
     }
-    return "";
+    return type;
   }
 
   /** How a diagnostic names one wire member: a bean has properties, a record has components. */
@@ -6380,7 +6972,8 @@ public class MappingProcessor extends AbstractProcessor {
    * chooses by what the field means. The bare marker is offered wherever the present element needs
    * no leaf: it copies, or a single mapping serving the site covers the element pair, which the
    * bridge nests through. With two, the element leaf that chooses between them is offered instead.
-   * Empty when the shape cannot bridge.
+   * Empty when the shape cannot bridge. Never asked of a primitive wire member, which cannot hold
+   * the {@code null} and is offered its wrapper first ({@link #primitiveFix}).
    */
   private String bridgeOffer(
       TypeElement spec,
@@ -6390,9 +6983,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror domainType,
       WireShape.Direction need) {
     TypeMirror declaredElement = containerElement(domainType, "java.util.Optional");
-    if (declaredElement == null
-        || wireType.getKind().isPrimitive()
-        || containerElement(wireType, "java.util.Optional") != null) {
+    if (declaredElement == null || containerElement(wireType, "java.util.Optional") != null) {
       return "";
     }
     TypeMirror element = bridgeElement(declaredElement);
@@ -6424,6 +7015,20 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror wireType,
       TypeMirror domainType,
       WireShape.Direction need) {
+    return unusableSpecHint(
+        registry, wireType, domainType, need, "be nested in a mapping that " + site(need));
+  }
+
+  /**
+   * Names a spec that maps the pair but does not serve the site, and what it lacks; {@code purpose}
+   * is what the site would have used it for. Empty when no registered spec maps the pair.
+   */
+  private String unusableSpecHint(
+      List<RegisteredSpec> registry,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      WireShape.Direction need,
+      String purpose) {
     return registry.stream()
         .filter(r -> !r.serves(need))
         .filter(
@@ -6431,7 +7036,7 @@ public class MappingProcessor extends AbstractProcessor {
                 processingEnv.getTypeUtils().isSameType(r.domain(), domainType)
                     && processingEnv.getTypeUtils().isSameType(r.wire(), wireType))
         .findFirst()
-        .map(r -> r.unusable("maps this pair", "be nested in a mapping that " + site(need), need))
+        .map(r -> r.unusable("maps this pair", purpose, need))
         .orElse("");
   }
 
@@ -7522,12 +8127,98 @@ public class MappingProcessor extends AbstractProcessor {
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
+  /** A permitted subtype of a sealed pair, and whether it is on the wire side. */
+  private record Permitted(TypeMirror subtype, boolean wireSide) {}
+
+  /**
+   * Whether every permitted subtype on both sides is one sealed dispatch can delegate, reporting
+   * each that is not, so that one compilation names them all. For any such subtype the missing-spec
+   * refusal would offer a spec that could never serve the dispatch.
+   */
+  private boolean checkDispatchable(TypeElement spec, TypeElement domain, TypeElement wire) {
+    List<Permitted> refused =
+        Stream.concat(
+                domain.getPermittedSubclasses().stream()
+                    .map(subtype -> new Permitted(subtype, false)),
+                wire.getPermittedSubclasses().stream().map(subtype -> new Permitted(subtype, true)))
+            .filter(permitted -> !dispatchable(permitted))
+            .toList();
+    refused.forEach(permitted -> reportUndispatchable(spec, domain, wire, permitted));
+    return refused.isEmpty();
+  }
+
+  /**
+   * Whether dispatch can hand a subtype to the one spec mapping it, which needs a type a spec can
+   * name: a record or a sealed interface, or on the wire side a bean as well, and not generic,
+   * since dispatch leaves a generic subtype's type arguments free and no spec's pair matches that.
+   */
+  private static boolean dispatchable(Permitted permitted) {
+    TypeMirror subtype = permitted.subtype();
+    return ((TypeElement) ((DeclaredType) subtype).asElement()).getTypeParameters().isEmpty()
+        && (asRecord(subtype) != null
+            || asSealed(subtype) != null
+            || (permitted.wireSide() && asBean(subtype) != null));
+  }
+
+  private void reportUndispatchable(
+      TypeElement spec, TypeElement domain, TypeElement wire, Permitted permitted) {
+    TypeMirror subtype = permitted.subtype();
+    TypeElement type = (TypeElement) ((DeclaredType) subtype).asElement();
+    boolean generic = !type.getTypeParameters().isEmpty();
+    // An interface or an abstract class stands for subtypes of its own, so a sealed interface with
+    // its own sealed spec is the nearer shape; anything else is nearest a record.
+    boolean abstractType = type.getModifiers().contains(Modifier.ABSTRACT);
+    String shape =
+        generic
+            ? "generic"
+            : switch (type.getKind()) {
+              case ENUM -> "an enum";
+              case INTERFACE -> "an interface that is not sealed";
+              default -> abstractType ? "an abstract class" : "a class";
+            };
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "permitted subtype '"
+            + subtype
+            + "' of '"
+            + (permitted.wireSide() ? wire : domain).getSimpleName()
+            + "' is "
+            + shape
+            + ", which sealed dispatch does not support yet.",
+        "Dispatch delegates each subtype to the one spec mapping it, and "
+            + (generic
+                ? "no spec matches '"
+                    + subtype
+                    + "' for every type argument dispatch can meet: a spec over one instantiation"
+                    + " covers only that one."
+                : "a spec maps only a record or a sealed interface"
+                    + (permitted.wireSide() ? ", or on the wire side a bean" : "")
+                    + "."),
+        "Declare '"
+            + type.getSimpleName()
+            + (generic
+                ? "' without type parameters"
+                : abstractType
+                    ? "' as a sealed interface, mapped by a sealed spec of its own, or as a record"
+                    : "' as a record")
+            + ", or drop this spec and map the pair with a hand-written ValidatedPrism<"
+            + wire.getSimpleName()
+            + ", "
+            + domain.getSimpleName()
+            + "> leaf wherever it nests.");
+  }
+
   /** One dispatch arm of a sealed mapping: a domain subtype, its wire subtype, and the impl. */
   private record SealedPair(TypeMirror domain, TypeMirror wire, ClassName impl) {}
 
   private void processSealedSpec(
       TypeElement spec, List<RegisteredSpec> registry, TypeElement domain, TypeElement wire) {
     List<? extends TypeMirror> wirePermitted = wire.getPermittedSubclasses();
+    if (!checkDispatchable(spec, domain, wire)) {
+      return;
+    }
     List<SealedPair> pairs = new ArrayList<>();
     for (TypeMirror domainSubtype : domain.getPermittedSubclasses()) {
       Candidates nearest =

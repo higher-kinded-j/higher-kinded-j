@@ -44,7 +44,7 @@ Containers lift the same way, and each one locates a failure by whatever identif
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_usage}}
 ```
 
-Lifting needs the *same* container on both sides. A `List` against a `Set`, or an array against a `List`, is not a pair: it reports as a plain type mismatch rather than silently changing what the collection promises. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead, and it [nests through the element's spec](#optional-nested-objects) all the same. An array of primitives (`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive, and a primitive element cannot be null. An array element type must also be able to name its own constructor, since lifting builds a new array: a type variable or a parameterised element (`T[]`, `List<Tag>[]`) is refused, because the generated `T[]::new` is generic array creation.
+Lifting needs the *same* container on both sides. A `List` against a `Set`, or an array against a `List`, is not a pair: it reports as a plain type mismatch rather than silently changing what the collection promises. The container must also be named exactly, one level deep: an `ArrayList`, a `SortedSet` or a `Collection` does not lift, nor does a wildcard element such as `List<? extends Customer>`, and a leaf over the elements of a nested container (the `String` inside `Optional<List<String>>`) is not lifted twice. The refusal says so, and where the component would lift once both sides declare the same exact container, say `List<Customer>` against `List<CustomerDto>`, it offers that declaration. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead, and it [nests through the element's spec](#optional-nested-objects) all the same. An array of primitives (`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive, and a primitive element cannot be null. An array element type must also be able to name its own constructor, since lifting builds a new array: a type variable or a parameterised element (`T[]`, `List<Tag>[]`) is refused, because the generated `T[]::new` is generic array creation.
 
 Locating a set element by its own rendering is the only honest answer available: a set has no index, and its iteration order is not part of its contract, so numbering the elements would name a *different* one on the next run. The value is what identifies the element, so that is what the path says.
 
@@ -94,6 +94,8 @@ A present list lifts element by element, exactly as a `List<Customer>` component
 ### Converting Map keys {#converting-map-keys}
 
 A `Map` component's value leaf is named after the component, like every other leaf. Its keys need a second leaf, and Java forbids two zero-parameter methods sharing that name - so a key leaf carries `@MapKey`, and the annotation names the component it belongs to. Either side may convert alone: a key leaf without a value leaf converts the keys and copies the values.
+
+A leaf over the whole `Map` is tried before either, so it would leave a key leaf for the same component with nothing to convert. A key leaf the spec declares itself is refused beside one, wherever the whole-map leaf is declared, and the fix offers the value leaf in its place where that works, or removing the key leaf. A key leaf inherited from a mix-in stays inert beside a whole-map leaf, so one vocabulary can serve specs that map the component by its parts and specs that map it whole.
 
 Without a key leaf, keys can only pass through, so their types must match exactly; a mismatch is a compile error that offers the annotation as the fix.
 
@@ -195,7 +197,7 @@ A `MappingSpec` over two **sealed interfaces** dispatches over the permitted sub
 //   };
 ```
 
-A domain subtype without a spec, or a wire subtype nothing produces, is a compile error: the dispatch cannot be partial.
+A domain subtype without a spec, or a wire subtype nothing produces, is a compile error: the dispatch cannot be partial. Each subtype must also be one a spec can map: a record or a sealed interface, or on the wire side a bean as well. A generic subtype, an enum, or any other class is not supported yet.
 
 ---
 
