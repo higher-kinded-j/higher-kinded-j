@@ -5,14 +5,20 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeContains;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGeneratedCodeDoesNotContain;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectory;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
 
 import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.nio.file.Path;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Integration tests for {@link ImportOpticsProcessor}.
@@ -241,6 +247,40 @@ class ImportOpticsProcessorTest {
           compilation,
           "com.myapp.optics.BoundedBagLenses",
           "@SuppressWarnings(\"rawtypes\") private static final class IdsTraversal<T extends List>");
+    }
+
+    @Test
+    @DisplayName("a type parameter named like the generated class does not hide it")
+    void typeParameterNamedLikeTheGeneratedClassDoesNotHideIt() {
+      final var externalRecord =
+          JavaFileObjects.forSourceString(
+              "com.external.Box",
+              """
+              package com.external;
+
+              public record Box<BoxLenses>(BoxLenses value) {}
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Box.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(externalRecord, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.BoxLenses",
+          "return com.myapp.optics.BoxLenses.<BoxLenses>value().set(newValue, source);");
     }
 
     @Test
@@ -645,11 +685,451 @@ class ImportOpticsProcessorTest {
           "@SuppressWarnings(\"rawtypes\") public static <T extends List> Lens<BoundedBox<T>,"
               + " String> id()");
     }
+
+    @Test
+    @DisplayName("an inner class of a generic class is named under its enclosing class's arguments")
+    void innerClassOfAGenericClassIsNamedUnderItsEnclosingClassArguments() {
+      // Written without the enclosing class's arguments an inner class is raw, and a field typed by
+      // the enclosing class's parameter names a variable nothing declares.
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.external.Outer",
+              """
+              package com.external;
+
+              import java.util.List;
+
+              @SuppressWarnings("rawtypes")
+              public class Outer<X extends List> {
+                  public final class Val {
+                      private final X value;
+                      public Val(X value) { this.value = value; }
+                      public X value() { return value; }
+                      public Val withValue(X value) { return new Val(value); }
+                  }
+
+                  public final class In<Y> {
+                      private final Y item;
+                      public In(Y item) { this.item = item; }
+                      public Y item() { return item; }
+                      public In<Y> withItem(Y item) { return new In<>(item); }
+                  }
+
+                  public final class Tag<P> {
+                      private final String label;
+                      public Tag(String label) { this.label = label; }
+                      public String label() { return label; }
+                      public <U> Tag<U> withLabel(String label) { return new Tag<>(label); }
+                  }
+
+                  public class Mid {
+                      public final class Deep {
+                          private final String id;
+                          public Deep(String id) { this.id = id; }
+                          public String id() { return id; }
+                          public Deep withId(String id) { return new Deep(id); }
+                      }
+                  }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({
+                  com.external.Outer.Val.class,
+                  com.external.Outer.In.class,
+                  com.external.Outer.Tag.class,
+                  com.external.Outer.Mid.Deep.class
+              })
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(outer, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.ValLenses",
+          "public static <X extends List> Lens<Outer<X>.Val, X> value()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.InLenses",
+          "public static <X extends List, Y> Outer<X>.In<Y> withItem(Outer<X>.In<Y> source,"
+              + " Y newItem) { return InLenses.<X, Y>item().set(newItem, source); }");
+      // The retag is inferred back to the class under the enclosing class's arguments too.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.TagLenses",
+          "public static <X extends List, P> Lens<Outer<X>.Tag<P>, String> label()");
+      // Deep's own field is clean, so only the bound it redeclares from Outer can call for this.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.DeepLenses",
+          "@SuppressWarnings(\"rawtypes\") public static <X extends List>"
+              + " Lens<Outer<X>.Mid.Deep, String> id()");
+    }
+
+    @Test
+    @DisplayName("a wither is paired only when it returns the class under its own arguments")
+    void witherIsPairedOnlyWhenItReturnsTheClassUnderItsOwnArguments() {
+      // The lens hands the wither's result back as the class itself: a raw return would be an
+      // unchecked conversion, and one under other arguments no conversion at all.
+      final var tagged =
+          JavaFileObjects.forSourceString(
+              "com.external.Tagged",
+              """
+              package com.external;
+
+              @SuppressWarnings("rawtypes")
+              public class Tagged<T> {
+                  private final String id;
+                  private final String name;
+                  private final String tag;
+                  private final int count;
+
+                  public Tagged(String id, String name, String tag, int count) {
+                      this.id = id;
+                      this.name = name;
+                      this.tag = tag;
+                      this.count = count;
+                  }
+
+                  public String id() { return id; }
+                  public String name() { return name; }
+                  public String tag() { return tag; }
+                  public int count() { return count; }
+
+                  public Tagged withId(String id) { return new Tagged<>(id, name, tag, count); }
+                  public Tagged<String> withName(String name) {
+                      return new Tagged<>(id, name, tag, count);
+                  }
+                  public Tagged<?> withTag(String tag) { return new Tagged<>(id, name, tag, count); }
+                  public Special<T> withCount(int count) {
+                      return new Special<>(id, name, tag, count);
+                  }
+
+                  public static final class Special<T> extends Tagged<T> {
+                      public Special(String id, String name, String tag, int count) {
+                          super(id, name, tag, count);
+                      }
+                  }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Tagged.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(tagged, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      final String generated = "com.myapp.optics.TaggedLenses";
+      // A subtype is still the class, so its wither pairs.
+      assertGeneratedCodeContains(
+          compilation, generated, "public static <T> Lens<Tagged<T>, Integer> count()");
+      // id, name and tag are all String fields, so no String lens means none of the three paired.
+      assertGeneratedCodeDoesNotContain(compilation, generated, "Lens<Tagged<T>, String>");
+    }
+
+    @Test
+    @DisplayName("a retag wither pairs when the call infers its own parameter back")
+    void retagWitherPairsWhenTheCallInfersItsOwnParameterBack() {
+      // withId's U is inferred to A at the generated call. withName's U cannot be A, which its
+      // bound does not admit, and withCode's cannot be both A and B.
+      final var phantom =
+          JavaFileObjects.forSourceString(
+              "com.external.Phantom",
+              """
+              package com.external;
+
+              public final class Phantom<A, B> {
+                  private final String id;
+                  private final Integer name;
+                  private final Long code;
+
+                  public Phantom(String id, Integer name, Long code) {
+                      this.id = id;
+                      this.name = name;
+                      this.code = code;
+                  }
+
+                  public String id() { return id; }
+                  public Integer name() { return name; }
+                  public Long code() { return code; }
+
+                  public <U> Phantom<U, B> withId(String id) {
+                      return new Phantom<>(id, name, code);
+                  }
+                  public <U extends Number> Phantom<U, B> withName(Integer name) {
+                      return new Phantom<>(id, name, code);
+                  }
+                  public <U> Phantom<U, U> withCode(Long code) {
+                      return new Phantom<>(id, name, code);
+                  }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Phantom.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(phantom, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      final String generated = "com.myapp.optics.PhantomLenses";
+      assertGeneratedCodeContains(
+          compilation, generated, "public static <A, B> Lens<Phantom<A, B>, String> id()");
+      assertGeneratedCodeDoesNotContain(compilation, generated, "Lens<Phantom<A, B>, Integer>");
+      assertGeneratedCodeDoesNotContain(compilation, generated, "Lens<Phantom<A, B>, Long>");
+    }
+
+    @Test
+    @DisplayName("a retag wither whose bounds name its own parameters pairs")
+    void retagWitherWhoseBoundsNameItsOwnParametersPairs() {
+      // Each bound is checked with every inferred parameter in place, as the call checks it. In
+      // Ranked, V's bound U reads as T, and U's Comparable<U> as Comparable<T>; in Sorted,
+      // Comparable<? super U> reads as Comparable<? super T>.
+      final var ranked =
+          JavaFileObjects.forSourceString(
+              "com.external.Ranked",
+              """
+              package com.external;
+
+              public final class Ranked<T extends Comparable<T>, S extends T> {
+                  private final String label;
+                  public Ranked(String label) { this.label = label; }
+                  public String label() { return label; }
+                  public <U extends Comparable<U>, V extends U> Ranked<U, V> withLabel(String label) {
+                      return new Ranked<>(label);
+                  }
+              }
+              """);
+      final var sorted =
+          JavaFileObjects.forSourceString(
+              "com.external.Sorted",
+              """
+              package com.external;
+
+              public final class Sorted<T extends Comparable<? super T>> {
+                  private final Integer rank;
+                  public Sorted(Integer rank) { this.rank = rank; }
+                  public Integer rank() { return rank; }
+                  public <U extends Comparable<? super U>> Sorted<U> withRank(Integer rank) {
+                      return new Sorted<>(rank);
+                  }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Ranked.class, com.external.Sorted.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(ranked, sorted, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.RankedLenses",
+          "public static <T extends Comparable<T>, S extends T> Lens<Ranked<T, S>, String> label()");
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.SortedLenses",
+          "public static <T extends Comparable<? super T>> Lens<Sorted<T>, Integer> rank()");
+    }
   }
 
   @Nested
   @DisplayName("Error Cases")
   class ErrorCases {
+
+    @Test
+    @DisplayName("an inner class under a type parameter hiding an enclosing one is refused")
+    void innerClassUnderATypeParameterHidingAnEnclosingOneIsRefused() {
+      // Mid's T hides Outer's, so the message names Mid, not the imported class that sits in it.
+      final var outer =
+          JavaFileObjects.forSourceString(
+              "com.external.Outer",
+              """
+              package com.external;
+
+              public class Outer<T> {
+                  public class Mid<T> {
+                      public final class In {
+                          private final String id;
+                          public In(String id) { this.id = id; }
+                          public String id() { return id; }
+                          public In withId(String id) { return new In(id); }
+                      }
+                  }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Outer.Mid.In.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(outer, packageInfo);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "type 'com.external.Outer.Mid.In' names the type parameter 'T' of 'Mid', which"
+                  + " hides the 'T' of its enclosing class 'Outer'")
+          .inFile(packageInfo);
+      assertThat(compilation).hadErrorContaining("'Outer<T>.Mid<T>.In'");
+    }
+
+    @Test
+    @DisplayName("a hidden type parameter is refused on a class read from a jar too")
+    void hiddenTypeParameterIsRefusedOnAClassReadFromAJar(@TempDir Path tmp) throws IOException {
+      // In a class file both names read back as the inner parameter, so no wither pairs there: the
+      // refusal is asked before the pairing is, or this class would meet the generic one.
+      final var library =
+          javac()
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.external.Outer",
+                      """
+                      package com.external;
+
+                      public class Outer<T> {
+                          public final class In<T> {
+                              private final T item;
+                              public In(T item) { this.item = item; }
+                              public T item() { return item; }
+                              public In<T> withItem(T item) { return new In<>(item); }
+                          }
+                      }
+                      """));
+      assertThat(library).succeeded();
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Outer.In.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withClasspath(classpathWith(classDirectory(library, tmp)))
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(packageInfo);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "names the type parameter 'T' of 'In', which hides the 'T' of its enclosing class"
+                  + " 'Outer'")
+          .inFile(packageInfo);
+    }
+
+    @Test
+    @DisplayName(
+        "a class whose only wither returns another type is told what pairs, mutable or not")
+    void classWhoseOnlyWitherReturnsAnotherTypeIsToldWhatPairs() {
+      final var renamed =
+          JavaFileObjects.forSourceString(
+              "com.external.Renamed",
+              """
+              package com.external;
+
+              public final class Renamed<T> {
+                  private final String id;
+                  public Renamed(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public Renamed<String> withId(String id) { return new Renamed<>(id); }
+              }
+              """);
+      final var settable =
+          JavaFileObjects.forSourceString(
+              "com.external.Settable",
+              """
+              package com.external;
+
+              public final class Settable<T> {
+                  private String id;
+                  public Settable(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public void setId(String id) { this.id = id; }
+                  public Settable<String> withId(String id) { return new Settable<>(id); }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics(
+                  value = {com.external.Renamed.class, com.external.Settable.class},
+                  allowMutable = true)
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .compile(renamed, settable, packageInfo);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "type 'com.external.Renamed' is not a record, sealed interface, enum, or class with"
+                  + " wither methods");
+      assertThat(compilation)
+          .hadErrorContaining("type 'com.external.Settable' is a mutable class without wither");
+      // Both refusals say what would pair, since each class has a withX that does not.
+      Assertions.assertThat(compilation.errors())
+          .filteredOn(
+              error ->
+                  error
+                      .getMessage(null)
+                      .contains("A class has wither methods when a public 'withX' hands back"))
+          .hasSize(2);
+    }
 
     @Test
     @DisplayName("should reject mutable class without allowMutable flag")

@@ -318,7 +318,7 @@ package com.myapp.optics;
 import org.higherkindedj.optics.annotations.ImportOptics;
 ```
 
-Generates `LocalDateLenses` with `year()`, `monthValue()`, `dayOfMonth()` by auto-detecting wither methods.
+Generates `LocalDateLenses` with `year()`, `dayOfMonth()` and `dayOfYear()` by auto-detecting wither methods. A wither pairs only with a getter returning exactly what it takes, so there is no month lens: `withMonth(int)` meets `getMonth()`, which returns `Month`.
 
 ### Full Control: `OpticsSpec`
 

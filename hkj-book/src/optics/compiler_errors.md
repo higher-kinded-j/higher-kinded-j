@@ -51,6 +51,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`is a default method`](#xopticsspecfoo-is-a-default-method) | A spec interface method has a body |
 | [`which is a type variable`](#xopticsspec-declares-opticsspecs-which-is-a-type-variable) | `OpticsSpec<S>` names a type parameter rather than a type |
 | [`which names the raw type 'Box'`](#xopticsspec-declares-opticsspecbox-which-names-the-raw-type-box) | The source type is missing its type arguments |
+| [`which hides the 'T' of its enclosing class`](#importoptics-type--names-the-type-parameter-t-of--which-hides-the-t-of-its-enclosing-class-) | An imported inner class reuses a type-parameter name of its enclosing class |
 | [`rather than as the List interface`](#throughfield--reaches-field-items-which-is-declared-as-arrayliststring-rather-than-as-the-list-interface) | `@ThroughField`'s lens focuses a concrete container, or another interface |
 | [`which the spec does not declare`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` has no lens for the field to compose with |
 | [`hands back as 'String'`](#throughfield--declares-focus-integer-over-field-items-of-type-liststring-whose-elements-the-standard-traversal-hands-back-as-string) | `@ThroughField`'s declared focus is not what the traversal returns |
@@ -63,6 +64,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`is not public and so cannot be named from`](#viacopyandset-copyconstructor-names--which-is-not-public-and-so-cannot-be-named-from-) | `copyConstructor` names a type the generated class cannot see |
 | [`and no constructor accepts`](#viacopyandset-copyconstructor-names--which--reaches-as--and-no-constructor-accepts) | No copy constructor takes the supertype you named |
 | [`is written with a wildcard type argument`](#viacopyandset--is-written-with-a-wildcard-type-argument) | A constructor rebuild cannot be written for a wildcard source type |
+| [`not the source type`](#wither--returns--not-the-source-type-) | The method `@Wither` names returns something other than the source type |
 | [`focuses '...', which is not a '...'`](#importoptics--focuses--which-is-not-a-) | A generated prism's focus is a value rather than a variant of the source |
 | [`cannot find symbol`, inside `XPrisms.java`](#cannot-find-symbol-inside-the-generated-xprismsjava-after-using-matchwhen) | A `@MatchWhen` predicate or getter name is misspelt |
 | [`requires a prism hint annotation`](#prism-method-x-requires-a-prism-hint-annotation-instanceof-or-matchwhen) | A spec `Prism` method has neither `@InstanceOf` nor `@MatchWhen` |
@@ -484,6 +486,46 @@ interface BoxOpticsSpec extends OpticsSpec<Box> {
 ```
 ~~~
 
+### "@ImportOptics: type '...' names the type parameter 'T' of '...', which hides the 'T' of its enclosing class '...'"
+
+An inner class imported by class literal declares a type parameter under a name its enclosing class already uses.
+
+**Fix.** Import it through a spec interface, which names the type under type parameters of its own, `interface InOpticsSpec<A, B> extends OpticsSpec<Outer<A>.In<B>>`, and give each field a `@Wither` lens. See [Generic Spec Interfaces](optics_spec_interfaces.md#generic-spec-interfaces).
+
+~~~admonish note title="Why" collapsible=true
+An inner class of a generic class is imported under its enclosing class's type parameters, because without them the type would be raw: `@ImportOptics({Outer.In.class})` names `Outer<X>.In<Y>` and declares both parameters on each generated method. Inside `In`, a parameter named like `Outer`'s hides it, which is harmless there, but one method cannot declare two type parameters with the same name. A static nested class has no enclosing instance type and takes only its own parameters, so it never draws this.
+
+A class read from a jar draws it too, but its compiled signatures cannot tell the two parameters apart and read both as the inner one. For such a class the spec names them as one: `OpticsSpec<Outer<A>.In<A>>`.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "which hides the 'T' of its enclosing class 'Outer'" -->
+```java
+class Outer<T> {
+
+    final class In<T> {
+
+        private final T item;
+
+        In(T item) {
+            this.item = item;
+        }
+
+        public T item() {
+            return item;
+        }
+
+        public In<T> withItem(T item) {
+            return new In<>(item);
+        }
+    }
+}
+
+@ImportOptics({Outer.In.class})
+class OuterImports {}
+```
+~~~
+
 ### "@ThroughField: '...' reaches field 'items', which is declared as `ArrayList<String>` rather than as the List interface"
 
 The spec's own lens for the field focuses something narrower than a container interface: a concrete container such as `ArrayList`, or another interface such as `Deque`. Auto-detection matches `List`, `Set`, `Collection`, `Map`, `Optional` and reference-type arrays, on the interface itself.
@@ -790,6 +832,46 @@ interface SlotOpticsSpec extends OpticsSpec<Slot<?>> {
 
     @ViaCopyAndSet(setter = "setLabel")
     Lens<Slot<?>, String> label();
+}
+```
+~~~
+
+### "@Wither: '...' returns '...', not the source type '...'"
+
+The method a spec's `@Wither` names hands back something other than the source type the spec declares: that type raw, the type under other arguments, or a supertype.
+
+**Fix.** Name a wither that returns the source type. Where the wither returns the type under fixed arguments, `Draft<String> withId(String)` on a `Draft<T>`, declare the spec over that instantiation, `OpticsSpec<Draft<String>>`, and it serves as it is. Otherwise rebuild the source type with `@ViaBuilder`, `@ViaConstructor` or `@ViaCopyAndSet`. See [Copy Strategies](copy_strategies.md#wither-types-with-withx-methods).
+
+~~~admonish note title="Why" collapsible=true
+The generated lens sets through the wither and hands its result back as the source type. A raw return gets there only by an unchecked conversion, in a generated file your own `@SuppressWarnings` does not reach, and any other type does not get there at all: `Base<String>`, inherited by a `Sub extends Base<String>`, is not a `Sub`. The wither is read on the source type as the spec names it, which is why the fixed-argument case above works, and a retag, `<U> Draft<U> withId(String)`, is accepted because the call infers `U` back to the spec's argument. A variable that only a wildcard argument stands for, as in a spec over `Draft<? extends Number>`, is not inferred, and such a wither is refused. Only the return is checked, over the one-parameter instance methods the generated class can call: a name none of them carries is reported by javac, at the call in the generated file. Imported by class literal instead, `@ImportOptics({Draft.class})`, such a wither is not paired at all, under the [pairing rule](importing_optics.md#wither-classes-to-lenses).
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "not the source type 'Draft<T>'" -->
+```java
+final class Draft<T> {
+
+    private final String id;
+
+    Draft(String id) {
+        this.id = id;
+    }
+
+    public String id() {
+        return id;
+    }
+
+    @SuppressWarnings("rawtypes")
+    public Draft withId(String id) {
+        return new Draft<>(id);
+    }
+}
+
+@ImportOptics
+interface DraftOpticsSpec<T> extends OpticsSpec<Draft<T>> {
+
+    @Wither(value = "withId", getter = "id")
+    Lens<Draft<T>, String> id();
 }
 ```
 ~~~

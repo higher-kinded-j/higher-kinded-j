@@ -110,7 +110,9 @@ public class ExternalLensGenerator {
 
     // Generate with methods
     for (FieldInfo field : analysis.fields()) {
-      lensesClassBuilder.addMethod(createWithMethod(field, recordElement, recordTypeName));
+      lensesClassBuilder.addMethod(
+          createWithMethod(
+              field, recordElement, recordTypeName, ClassName.get(targetPackage, lensesClassName)));
     }
 
     // Generate traversal methods for container fields
@@ -163,7 +165,9 @@ public class ExternalLensGenerator {
     // Generate with methods
     for (int i = 0; i < analysis.fields().size(); i++) {
       FieldInfo field = analysis.fields().get(i);
-      lensesClassBuilder.addMethod(createWithMethod(field, classElement, classTypeName));
+      lensesClassBuilder.addMethod(
+          createWithMethod(
+              field, classElement, classTypeName, ClassName.get(targetPackage, lensesClassName)));
     }
 
     writeFile(targetPackage, lensesClassBuilder.build());
@@ -224,6 +228,7 @@ public class ExternalLensGenerator {
       FieldInfo field, WitherInfo wither, TypeElement classElement, TypeName classTypeName) {
 
     TypeName fieldTypeName = ProcessorUtils.typeNameOf(field.type());
+    List<TypeParameterElement> typeParameters = ProcessorUtils.typeParametersInScope(classElement);
 
     ParameterizedTypeName lensTypeName =
         ParameterizedTypeName.get(ClassName.get(Lens.class), classTypeName, fieldTypeName.box());
@@ -239,11 +244,11 @@ public class ExternalLensGenerator {
                 classTypeName,
                 fieldTypeName.box())
             // The lens type and the class's type-parameter bounds are written out here.
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), classElement))
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), typeParameters))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(lensTypeName);
 
-    for (TypeParameterElement typeParam : classElement.getTypeParameters()) {
+    for (TypeParameterElement typeParam : typeParameters) {
       methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
 
@@ -258,12 +263,13 @@ public class ExternalLensGenerator {
     return methodBuilder.build();
   }
 
-  private MethodSpec createWithMethod(FieldInfo field, TypeElement typeElement, TypeName typeName) {
+  private MethodSpec createWithMethod(
+      FieldInfo field, TypeElement typeElement, TypeName typeName, ClassName lensesClass) {
 
     TypeName fieldTypeName = ProcessorUtils.typeNameOf(field.type());
     String methodName = "with" + ProcessorUtils.capitalise(field.name());
     String parameterName = "new" + ProcessorUtils.capitalise(field.name());
-    String lensesClassName = typeElement.getSimpleName().toString() + "Lenses";
+    List<TypeParameterElement> typeParameters = ProcessorUtils.typeParametersInScope(typeElement);
 
     MethodSpec.Builder methodBuilder =
         MethodSpec.methodBuilder(methodName)
@@ -280,13 +286,12 @@ public class ExternalLensGenerator {
                 parameterName,
                 field.name(),
                 typeName)
-            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), typeElement))
+            .addAnnotations(ProcessorUtils.rawTypesSuppression(field.type(), typeParameters))
             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
             .returns(typeName)
             .addParameter(typeName, "source")
             .addParameter(fieldTypeName, parameterName);
 
-    List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
     for (TypeParameterElement typeParam : typeParameters) {
       methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam));
     }
@@ -299,9 +304,10 @@ public class ExternalLensGenerator {
     if (typeArguments.isEmpty()) {
       methodBuilder.addStatement("return $L().set($L, source)", field.name(), parameterName);
     } else {
+      // $T, not the simple name: a type parameter named like the companion would shadow it.
       methodBuilder.addStatement(
-          "return $L.<$L>$L().set($L, source)",
-          lensesClassName,
+          "return $T.<$L>$L().set($L, source)",
+          lensesClass,
           typeArguments,
           field.name(),
           parameterName);
@@ -449,16 +455,10 @@ public class ExternalLensGenerator {
     return null;
   }
 
+  // The type under its own type variables, and an inner class under its enclosing class's too,
+  // Outer<X>.Line: named from the element alone it would be raw.
   private TypeName getParameterisedTypeName(TypeElement typeElement) {
-    List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
-    if (typeParameters.isEmpty()) {
-      return ClassName.get(typeElement);
-    } else {
-      List<TypeVariableName> typeVars =
-          typeParameters.stream().map(ProcessorUtils::typeVariableOf).toList();
-      return ParameterizedTypeName.get(
-          ClassName.get(typeElement), typeVars.toArray(new TypeName[0]));
-    }
+    return ProcessorUtils.typeNameOf(typeElement.asType());
   }
 
   @ExcludeFromJacocoGeneratedReport

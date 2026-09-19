@@ -177,7 +177,7 @@ interface MoneyOpticsSpec extends OpticsSpec<Money> {
 }
 ```
 
-Naming both halves explicitly is what makes this strategy work where auto-detection cannot: `@ImportOptics` requires the getter's return type to match the wither's parameter exactly, and here you simply say which pair to use.
+Naming both halves explicitly is what makes this strategy work where auto-detection cannot: `@ImportOptics` requires the getter's return type to match the wither's parameter exactly, and here you simply say which pair to use. The wither still has to hand back the source type, read under the arguments the spec gives it: on a `Draft<T>`, a `Draft<String> withId(String)` serves an `OpticsSpec<Draft<String>>`, and a wither that returns the type raw, or as a supertype, is refused at the spec method. See the entry in [Compiler Errors](compiler_errors.md#wither--returns--not-the-source-type-).
 
 ### `@ViaConstructor`: constructor-only value types
 
