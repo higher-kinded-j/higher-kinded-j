@@ -1348,6 +1348,60 @@ public final class ProcessorUtils {
     return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
   }
 
+  /** How few edits apart two names must be for one to be offered as a misspelling of the other. */
+  public static final int NEAR_MISS = 3;
+
+  /**
+   * The candidate nearest {@code name}, when it is few enough edits away to be offered as what was
+   * meant. Of candidates equally near, the first is kept.
+   *
+   * @param name the name as written; must not be null
+   * @param candidates the names it could have meant, in the order to prefer them; must not be null
+   * @return the nearest candidate under {@link #NEAR_MISS} edits, or empty when none is that near
+   * @since 0.4.11
+   */
+  public static Optional<String> nearestName(String name, List<String> candidates) {
+    String best = null;
+    int bestDistance = NEAR_MISS;
+    for (String candidate : candidates) {
+      int distance = editDistance(name, candidate);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = candidate;
+      }
+    }
+    return Optional.ofNullable(best);
+  }
+
+  /**
+   * The Levenshtein distance between two names: the fewest single-character insertions, deletions
+   * and substitutions that turn one into the other.
+   *
+   * @param a one name; must not be null
+   * @param b the other; must not be null
+   * @return the distance, zero when the names are equal
+   * @since 0.4.11
+   */
+  public static int editDistance(String a, String b) {
+    int[] previous = new int[b.length() + 1];
+    int[] current = new int[b.length() + 1];
+    for (int j = 0; j <= b.length(); j++) {
+      previous[j] = j;
+    }
+    for (int i = 1; i <= a.length(); i++) {
+      current[0] = i;
+      for (int j = 1; j <= b.length(); j++) {
+        int substitution = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+        current[j] =
+            Math.min(Math.min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + substitution);
+      }
+      int[] swap = previous;
+      previous = current;
+      current = swap;
+    }
+    return previous[b.length()];
+  }
+
   /**
    * The modules compiled from source here that declare {@code packageName}, in name order. javac
    * writes a generated file into the module that declares its package, and a filer refuses a file

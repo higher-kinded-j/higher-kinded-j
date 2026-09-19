@@ -265,13 +265,22 @@ public class ExternalLensGenerator {
       methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, targetPackage));
     }
 
-    // Use wither method for setting: source.withYear(newValue)
+    // Set through the wither: source.withYear(newValue). The lens hands the setter a boxed value,
+    // which would bind an overload taking the box, or a supertype of it, ahead of a wither taking
+    // a primitive, so where the name is overloaded such a parameter is passed unboxed and the call
+    // binds the method that paired.
+    TypeMirror parameterType = wither.parameterType();
+    CodeBlock argument =
+        parameterType.getKind().isPrimitive() && wither.overloaded()
+            ? CodeBlock.of("($T) newValue", TypeName.get(parameterType))
+            : CodeBlock.of("newValue");
     methodBuilder.addStatement(
-        "return $T.of($T::$L, (source, newValue) -> source.$L(newValue))",
+        "return $T.of($T::$L, (source, newValue) -> source.$L($L))",
         Lens.class,
         classTypeName,
         wither.getterMethodName(),
-        wither.witherMethodName());
+        wither.witherMethodName(),
+        argument);
 
     return methodBuilder.build();
   }

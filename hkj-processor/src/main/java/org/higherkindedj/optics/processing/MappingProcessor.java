@@ -1083,8 +1083,8 @@ public class MappingProcessor extends AbstractProcessor {
         .filter(other -> other.reads() != accessor.reads())
         .filter(other -> !uncarried.containsKey(other.name()) && !offered.contains(other.name()))
         .filter(other -> processingEnv.getTypeUtils().isSameType(other.type(), accessor.type()))
-        .map(other -> Map.entry(other, levenshtein(accessor.name(), other.name())))
-        .filter(near -> near.getValue() < NEAR_MISS)
+        .map(other -> Map.entry(other, ProcessorUtils.editDistance(accessor.name(), other.name())))
+        .filter(near -> near.getValue() < ProcessorUtils.NEAR_MISS)
         .min(Map.Entry.comparingByValue())
         .map(Map.Entry::getKey);
   }
@@ -2524,41 +2524,11 @@ public class MappingProcessor extends AbstractProcessor {
     return true;
   }
 
-  /** How few edits apart two names must be for one to be offered as a misspelling of the other. */
-  private static final int NEAR_MISS = 3;
-
   /** A nearest-name hint for the unmatched-leaf diagnostic, when one is close enough to help. */
   private static String didYouMean(String name, List<String> candidates) {
-    String best = null;
-    int bestDistance = NEAR_MISS;
-    for (String candidate : candidates) {
-      int distance = levenshtein(name, candidate);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = candidate;
-      }
-    }
-    return best == null ? "" : " Did you mean '" + best + "()'?";
-  }
-
-  private static int levenshtein(String a, String b) {
-    int[] previous = new int[b.length() + 1];
-    int[] current = new int[b.length() + 1];
-    for (int j = 0; j <= b.length(); j++) {
-      previous[j] = j;
-    }
-    for (int i = 1; i <= a.length(); i++) {
-      current[0] = i;
-      for (int j = 1; j <= b.length(); j++) {
-        int substitution = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
-        current[j] =
-            Math.min(Math.min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + substitution);
-      }
-      int[] swap = previous;
-      previous = current;
-      current = swap;
-    }
-    return previous[b.length()];
+    return ProcessorUtils.nearestName(name, candidates)
+        .map(best -> " Did you mean '" + best + "()'?")
+        .orElse("");
   }
 
   /**

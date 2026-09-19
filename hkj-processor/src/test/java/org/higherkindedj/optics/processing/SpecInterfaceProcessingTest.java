@@ -441,7 +441,8 @@ class SpecInterfaceProcessingTest {
 
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("@Wither: 'withId' returns 'Draft', not the source type 'Draft<T>'");
+          .hadErrorContaining(
+              "@Wither: 'withId(String)' returns 'Draft', not the source type 'Draft<T>'");
     }
 
     @Test
@@ -496,7 +497,7 @@ class SpecInterfaceProcessingTest {
       // Read on Sub, Base<T>'s return is Base<String>: the instantiation Sub's extends clause
       // names.
       assertThat(compilation)
-          .hadErrorContaining("'withId' returns 'Base<String>', not the source type 'Sub'");
+          .hadErrorContaining("'withId(String)' returns 'Base<String>', not the source type 'Sub'");
     }
 
     @Test
@@ -550,8 +551,9 @@ class SpecInterfaceProcessingTest {
     @Test
     @DisplayName("only a wither the generated call can reach answers for the return")
     void onlyAWitherTheGeneratedCallCanReachAnswersForTheReturn() {
-      // Each decoy returns the source type, and none is a one-parameter instance method the
-      // generated class can call, so none may vouch for the withId that is.
+      // Each decoy returns the source type, and none is the method the call binds: a String binds
+      // withId(String) ahead of the static withId(Object), the two-parameter one takes no single
+      // argument, and the private one cannot be called at all.
       final var external =
           JavaFileObjects.forSourceString(
               "com.external.Renamed",
@@ -596,7 +598,8 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "@Wither: 'withId' returns 'Renamed<Integer>', not the source type 'Renamed<String>'");
+              "@Wither: 'withId(String)' returns 'Renamed<Integer>', not the source type"
+                  + " 'Renamed<String>'");
     }
 
     @Test
@@ -1005,52 +1008,869 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "'withId' returns 'Box<U>', not the source type 'Box<? extends Number>'");
+              "'withId(String)' returns 'Box<U>', not the source type 'Box<? extends Number>'");
       assertThat(compilation).hadErrorContaining("not the source type 'Pair<String, ?>'");
+    }
+  }
+
+  @Nested
+  @DisplayName("@Wither Call Binding")
+  class WitherCallBinding {
+
+    /** A class in {@code com.external}, the package every spec here imports from. */
+    private static JavaFileObject external(String simpleName, String body) {
+      return JavaFileObjects.forSourceString(
+          "com.external." + simpleName, "package com.external;\n\n" + body);
+    }
+
+    /**
+     * A spec interface in {@code com.myapp}, with the external classes and annotations in scope.
+     */
+    private static JavaFileObject spec(String simpleName, String body) {
+      return JavaFileObjects.forSourceString(
+          "com.myapp." + simpleName,
+          """
+          package com.myapp;
+
+          import com.external.*;
+          import org.higherkindedj.optics.Lens;
+          import org.higherkindedj.optics.annotations.*;
+
+          """
+              + body);
+    }
+
+    /** Compiles under the lint a call bound to the wrong method would trip, as an error. */
+    private static Compilation compile(JavaFileObject... sources) {
+      return javac()
+          .withProcessors(new ImportOpticsProcessor())
+          .withOptions("-Xlint:unchecked,rawtypes,static", "-Werror")
+          .compile(sources);
     }
 
     @Test
-    @DisplayName("a wither the source type does not declare is left to javac")
-    void witherTheSourceTypeDoesNotDeclareIsLeftToJavac() {
-      // Only the return is checked: a misspelt name has no return to check.
-      final var external =
-          JavaFileObjects.forSourceString(
-              "com.external.Plain",
-              """
-              package com.external;
+    @DisplayName("each lens is checked against the overload its focus binds")
+    void eachLensIsCheckedAgainstTheOverloadItsFocusBinds() {
+      // In each class one overload returns the source type, and it is not the one the call binds:
+      // an Integer binds withN(Integer), which needs no unboxing, and a String binds
+      // withId(String), the most specific overload that takes one.
+      var compilation =
+          compile(
+              external(
+                  "Boxed",
+                  """
+                  public final class Boxed {
+                      private final int n;
+                      public Boxed(int n) { this.n = n; }
+                      public int n() { return n; }
+                      public Boxed withN(int n) { return new Boxed(n); }
+                      public Object withN(Integer n) { return this; }
+                  }
+                  """),
+              external(
+                  "RawDraft",
+                  """
+                  @SuppressWarnings("rawtypes")
+                  public final class RawDraft<T> {
+                      private final String id;
+                      public RawDraft(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public RawDraft withId(String id) { return new RawDraft<>(id); }
+                      public RawDraft<T> withId(Object id) {
+                          return new RawDraft<>(String.valueOf(id));
+                      }
+                  }
+                  """),
+              external(
+                  "Tagged",
+                  """
+                  public final class Tagged<T> {
+                      private final String id;
+                      public Tagged(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public Tagged<String> withId(String id) { return new Tagged<>(id); }
+                      public Tagged<T> withId(Integer id) {
+                          return new Tagged<>(String.valueOf(id));
+                      }
+                  }
+                  """),
+              spec(
+                  "BoxedOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BoxedOpticsSpec extends OpticsSpec<Boxed> {
+                      @Wither(value = "withN", getter = "n")
+                      Lens<Boxed, Integer> n();
+                  }
+                  """),
+              spec(
+                  "RawDraftOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface RawDraftOpticsSpec<T> extends OpticsSpec<RawDraft<T>> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<RawDraft<T>, String> id();
+                  }
+                  """),
+              spec(
+                  "TaggedOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TaggedOpticsSpec<T> extends OpticsSpec<Tagged<T>> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Tagged<T>, String> id();
+                  }
+                  """));
 
-              public final class Plain {
-                  private final String id;
-                  public Plain(String id) { this.id = id; }
-                  public String id() { return id; }
-                  public Plain withId(String id) { return new Plain(id); }
-              }
-              """);
-      final var spec =
-          JavaFileObjects.forSourceString(
-              "com.myapp.PlainOpticsSpec",
-              """
-              package com.myapp;
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withN(Integer)' returns 'Object', not the source type 'Boxed'. The"
+                  + " generated lens sets through 'source.withN(newValue)' with the new value"
+                  + " typed 'Integer', which binds 'withN(Integer)', and hands its result back as"
+                  + " the source type 'Boxed', which 'Object' is not.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withId(String)' returns 'RawDraft', not the source type 'RawDraft<T>'");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withId(String)' returns 'Tagged<String>', not the source type"
+                  + " 'Tagged<T>'");
+      assertThat(compilation).hadErrorCount(3);
+    }
 
-              import com.external.Plain;
-              import org.higherkindedj.optics.Lens;
-              import org.higherkindedj.optics.annotations.ImportOptics;
-              import org.higherkindedj.optics.annotations.OpticsSpec;
-              import org.higherkindedj.optics.annotations.Wither;
+    @Test
+    @DisplayName("the most specific overload is the one checked")
+    void theMostSpecificOverloadIsTheOneChecked() {
+      // Counter's Integer reaches no reference overload, so it binds the most specific primitive
+      // one, withN(int) over withN(long). Named's String binds withId(String) over the
+      // CharSequence and Object overloads. Shape inherits withId(String) from Sized and from
+      // Tinted, and the call takes the one with the most specific return.
+      var compilation =
+          compile(
+              external(
+                  "Counter",
+                  """
+                  public final class Counter {
+                      private final int n;
+                      public Counter(int n) { this.n = n; }
+                      public int n() { return n; }
+                      public Object withN(long n) { return this; }
+                      public Counter withN(int n) { return new Counter(n); }
+                  }
+                  """),
+              external(
+                  "Named",
+                  """
+                  public final class Named {
+                      private final String id;
+                      public Named(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public Object withId(Object id) { return this; }
+                      public Object withId(CharSequence id) { return this; }
+                      public Named withId(String id) { return new Named(id); }
+                  }
+                  """),
+              external("Sized", "public interface Sized { Shape withId(String id); }\n"),
+              external("Tinted", "public interface Tinted { Object withId(String id); }\n"),
+              external("Shape", "public interface Shape extends Sized, Tinted { String id(); }\n"),
+              spec(
+                  "CounterOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CounterOpticsSpec extends OpticsSpec<Counter> {
+                      @Wither(value = "withN", getter = "n")
+                      Lens<Counter, Integer> n();
+                  }
+                  """),
+              spec(
+                  "NamedOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface NamedOpticsSpec extends OpticsSpec<Named> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Named, String> id();
+                  }
+                  """),
+              spec(
+                  "ShapeOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface ShapeOpticsSpec extends OpticsSpec<Shape> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Shape, String> id();
+                  }
+                  """));
 
-              @ImportOptics
-              public interface PlainOpticsSpec extends OpticsSpec<Plain> {
-                  @Wither(value = "withIdentifier", getter = "id")
-                  Lens<Plain, String> id();
-              }
-              """);
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(compilation, "com.myapp.CounterOptics", "source.withN(newValue)");
+      assertGeneratedCodeContains(compilation, "com.myapp.ShapeOptics", "source.withId(newValue)");
+    }
 
-      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(external, spec);
+    @Test
+    @DisplayName("a call that rests on inference is left to javac")
+    void callThatRestsOnInferenceIsLeftToJavac() {
+      // Label's parameter is one of its own type variables, and Tags' String reaches withFirst
+      // only as the element of its array. The one method each call might bind returns the source
+      // type, so the check passes it, and javac settles the call.
+      var compilation =
+          compile(
+              external(
+                  "Label",
+                  """
+                  public final class Label {
+                      private final String text;
+                      public Label(String text) { this.text = text; }
+                      public String text() { return text; }
+                      public <V extends CharSequence> Label withText(V text) {
+                          return new Label(text.toString());
+                      }
+                  }
+                  """),
+              external(
+                  "Tags",
+                  """
+                  public final class Tags {
+                      private final String first;
+                      public Tags(String first) { this.first = first; }
+                      public String first() { return first; }
+                      public Tags withFirst(String... tags) { return new Tags(tags[0]); }
+                  }
+                  """),
+              spec(
+                  "LabelOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LabelOpticsSpec extends OpticsSpec<Label> {
+                      @Wither(value = "withText", getter = "text")
+                      Lens<Label, String> text();
+                  }
+                  """),
+              spec(
+                  "TagsOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface TagsOpticsSpec extends OpticsSpec<Tags> {
+                      @Wither(value = "withFirst", getter = "first")
+                      Lens<Tags, String> first();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a call that rests on inference is refused when nothing it might bind fits")
+    void callThatRestsOnInferenceIsRefusedWhenNothingItMightBindFits() {
+      var compilation =
+          compile(
+              external(
+                  "Note",
+                  """
+                  public final class Note {
+                      private final String text;
+                      public Note(String text) { this.text = text; }
+                      public String text() { return text; }
+                      public <V extends CharSequence> Object withText(V text) { return this; }
+                  }
+                  """),
+              spec(
+                  "NoteOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface NoteOpticsSpec extends OpticsSpec<Note> {
+                      @Wither(value = "withText", getter = "text")
+                      Lens<Note, String> text();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withText(V)' returns 'Object', not the source type 'Note'. The generated"
+                  + " lens sets through 'withText(V)' and hands its result back as the source"
+                  + " type 'Note', which 'Object' is not.");
+    }
+
+    @Test
+    @DisplayName("a wither the generated class shares a package with is called")
+    void witherTheGeneratedClassSharesAPackageWithIsCalled() {
+      // Declared without a modifier, and callable here because the optics are generated into the
+      // package that declares it.
+      var compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.myapp.Parcel",
+                  """
+                  package com.myapp;
+
+                  public final class Parcel {
+                      private final String id;
+                      public Parcel(String id) { this.id = id; }
+                      public String id() { return id; }
+                      Parcel withId(String id) { return new Parcel(id); }
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.myapp.ParcelOpticsSpec",
+                  """
+                  package com.myapp;
+
+                  import org.higherkindedj.optics.Lens;
+                  import org.higherkindedj.optics.annotations.ImportOptics;
+                  import org.higherkindedj.optics.annotations.OpticsSpec;
+                  import org.higherkindedj.optics.annotations.Wither;
+
+                  @ImportOptics
+                  public interface ParcelOpticsSpec extends OpticsSpec<Parcel> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Parcel, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a wildcard focus reaching no one-parameter method is left to javac")
+    void wildcardFocusReachingNoOneParameterMethodIsLeftToJavac() {
+      var compilation =
+          compile(
+              external(
+                  "Pair2",
+                  """
+                  public final class Pair2 {
+                      private final String id;
+                      public Pair2(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public Pair2 withId(String id, int copies) { return new Pair2(id); }
+                  }
+                  """),
+              spec(
+                  "Pair2OpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface Pair2OpticsSpec extends OpticsSpec<Pair2> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Pair2, ?> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@Wither:"));
+    }
+
+    @Test
+    @DisplayName("a static wither under a wildcard focus is refused, naming what it sets through")
+    void staticWitherUnderAWildcardFocusIsRefused() {
+      // Which method such a call binds is javac's to settle, so the refusal names the method
+      // rather than the value that chose it.
+      var compilation =
+          compile(
+              external(
+                  "Seal",
+                  """
+                  public final class Seal {
+                      private final String id;
+                      public Seal(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public static Seal withId(String id) { return new Seal(id); }
+                  }
+                  """),
+              spec(
+                  "SealOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface SealOpticsSpec extends OpticsSpec<Seal> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Seal, ? extends CharSequence> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withId(String)' is static, so the generated lens cannot rebuild a 'Seal'"
+                  + " through it. The generated lens sets through 'withId(String)', and a static"
+                  + " method never reads the 'Seal' it is called on.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a wildcard focus is left to javac, which infers it from the getter")
+    void wildcardFocusIsLeftToJavac() {
+      // A lens whose focus is a wildcard is inferred from its getter as much as from the
+      // wildcard: Memo's is Lens<Memo, String>, not the CharSequence its bound names, so
+      // withA(String) is the method the call binds. Reading the bound as the argument would
+      // refuse every one of these, and each compiles.
+      var compilation =
+          compile(
+              external(
+                  "Memo",
+                  """
+                  public final class Memo {
+                      private final String a;
+                      private final String b;
+                      private final String c;
+                      public Memo(String a, String b, String c) {
+                          this.a = a;
+                          this.b = b;
+                          this.c = c;
+                      }
+                      public String a() { return a; }
+                      public String b() { return b; }
+                      public String c() { return c; }
+                      public Memo withA(String a) { return new Memo(a, b, c); }
+                      public Object withA(CharSequence a) { return this; }
+                      public Memo withB(String b) { return new Memo(a, b, c); }
+                      public Memo withC(String c) { return new Memo(a, b, c); }
+                      public Object withC(Object c) { return this; }
+                  }
+                  """),
+              spec(
+                  "MemoOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface MemoOpticsSpec extends OpticsSpec<Memo> {
+                      @Wither(value = "withA", getter = "a")
+                      Lens<Memo, ? extends CharSequence> a();
+
+                      @Wither(value = "withB", getter = "b")
+                      Lens<Memo, ? super String> b();
+
+                      @Wither(value = "withC", getter = "c")
+                      Lens<Memo, ?> c();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a wither the source type inherits from a package-private class is called")
+    void witherInheritedFromAPackagePrivateClassIsCalled() {
+      // The call names no type but Ledger's own, so a public method it inherits is one it can
+      // call, wherever that method was declared.
+      var compilation =
+          compile(
+              external(
+                  "Ledger",
+                  """
+                  public final class Ledger extends LedgerBase<String> {
+                      public Ledger(String id) { super(id); }
+                  }
+
+                  class LedgerBase<T> {
+                      private final String id;
+                      LedgerBase(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public Ledger withId(String id) { return new Ledger(id); }
+                  }
+                  """),
+              spec(
+                  "LedgerOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface LedgerOpticsSpec extends OpticsSpec<Ledger> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Ledger, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("an overload that loses the choice does not answer for the call")
+    void overloadThatLosesTheChoiceDoesNotAnswerForTheCall() {
+      // withId(String) is more specific than the generic overload, so the call binds it and its
+      // return is the one checked, though the generic one hands the source type back.
+      var compilation =
+          compile(
+              external(
+                  "Draft2",
+                  """
+                  public final class Draft2 {
+                      private final String id;
+                      public Draft2(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public <V extends CharSequence> Draft2 withId(V id) {
+                          return new Draft2(id.toString());
+                      }
+                      public Object withId(String id) { return this; }
+                  }
+                  """),
+              spec(
+                  "Draft2OpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface Draft2OpticsSpec extends OpticsSpec<Draft2> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Draft2, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withId(String)' returns 'Object', not the source type 'Draft2'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a static method the call might bind is refused too")
+    void staticMethodTheCallMightBindIsRefusedToo() {
+      // A variable-arity call is left to javac, but whatever it settles on has to read the value
+      // it is called on, and a static method never does.
+      var compilation =
+          compile(
+              external(
+                  "Batch",
+                  """
+                  public final class Batch {
+                      private final String id;
+                      public Batch(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public static Batch withId(String... ids) { return new Batch(ids[0]); }
+                  }
+                  """),
+              spec(
+                  "BatchOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BatchOpticsSpec extends OpticsSpec<Batch> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Batch, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withId(String...)' is static, so the generated lens cannot rebuild a"
+                  + " 'Batch' through it. The generated lens sets through"
+                  + " 'source.withId(newValue)'");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a source type that does not resolve is left to javac")
+    void sourceTypeThatDoesNotResolveIsLeftToJavac() {
+      var compilation =
+          compile(
+              spec(
+                  "GhostOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface GhostOpticsSpec extends OpticsSpec<com.external.Ghost> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<com.external.Ghost, String> id();
+                  }
+                  """));
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("cannot find symbol");
       Assertions.assertThat(compilation.errors())
           .noneMatch(error -> error.getMessage(null).contains("@Wither:"));
+    }
+
+    @Test
+    @DisplayName("a focus no method of the name takes is refused, listing them")
+    void focusNoMethodOfTheNameTakesIsRefusedListingThem() {
+      // A three-parameter variable-arity method needs two arguments before its array, so it takes
+      // no single one. Cell's parameter is its T, which the wildcard leaves unknown, so its remedy
+      // is the source type; Account's T is the spec's own, and its remedy stays the focus.
+      var compilation =
+          compile(
+              external(
+                  "Account",
+                  """
+                  public final class Account<T> {
+                      private final String id;
+                      public Account(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public Account<T> withId(Integer id) {
+                          return new Account<>(String.valueOf(id));
+                      }
+                      public Account<T> withId(String id, int copies) { return new Account<>(id); }
+                      public Account<T> withId(String first, String second, String... rest) {
+                          return new Account<>(first);
+                      }
+                  }
+                  """),
+              external(
+                  "Cell",
+                  """
+                  public final class Cell<T> {
+                      private final T value;
+                      public Cell(T value) { this.value = value; }
+                      public T value() { return value; }
+                      public Cell<T> withValue(T value) { return new Cell<>(value); }
+                  }
+                  """),
+              spec(
+                  "AccountOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface AccountOpticsSpec<T> extends OpticsSpec<Account<T>> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Account<T>, String> id();
+                  }
+                  """),
+              spec(
+                  "CellOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface CellOpticsSpec extends OpticsSpec<Cell<?>> {
+                      @Wither(value = "withValue", getter = "value")
+                      Lens<Cell<?>, Object> value();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: No method 'withId' of 'Account<T>' takes the lens's focus type 'String'."
+                  + " The generated lens sets through 'source.withId(newValue)' with the new value"
+                  + " typed 'String'.");
+      assertThat(compilation).hadErrorContaining("withId(String, String, String...)");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Name a wither that takes the value the getter reads, or point 'getter' at an"
+                  + " accessor one of them takes and declare the focus as its type; otherwise"
+                  + " rebuild 'Account<T>' with @ViaBuilder, @ViaConstructor or"
+                  + " @ViaCopyAndSet.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: No method 'withValue' of 'Cell<?>' takes the lens's focus type 'Object'."
+                  + " The generated lens sets through 'source.withValue(newValue)' with the new"
+                  + " value typed 'Object'. Found on 'Cell<?>': [withValue(?)]. A parameter a"
+                  + " wildcard of 'Cell<?>' stands in takes no value at all, since the type it"
+                  + " stands for is unknown. Declare the spec over the type each wildcard stands"
+                  + " for, or rebuild 'Cell<?>' with @ViaBuilder, @ViaConstructor or"
+                  + " @ViaCopyAndSet.");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("a call javac cannot choose for is refused, and the focus that chooses compiles")
+    void callJavacCannotChooseForIsRefusedAndTheFocusThatChoosesCompiles() {
+      final var ident =
+          external(
+              "Ident",
+              """
+              public final class Ident {
+                  private final String id;
+                  public Ident(String id) { this.id = id; }
+                  public String id() { return id; }
+                  public Ident withId(java.io.Serializable id) { return new Ident(id.toString()); }
+                  public Ident withId(CharSequence id) { return new Ident(id.toString()); }
+              }
+              """);
+
+      var ambiguous =
+          compile(
+              ident,
+              spec(
+                  "IdentOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface IdentOpticsSpec extends OpticsSpec<Ident> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Ident, String> id();
+                  }
+                  """));
+
+      assertThat(ambiguous).failed();
+      assertThat(ambiguous)
+          .hadErrorContaining(
+              "@Wither: The generated call to 'withId' cannot choose between"
+                  + " 'withId(Serializable)' and 'withId(CharSequence)'. The generated lens sets"
+                  + " through 'source.withId(newValue)' with the new value typed 'String', which"
+                  + " each of them takes, with no parameter more specific than every other."
+                  + " Declare the lens's focus as the parameter type of the one you mean");
+      assertThat(ambiguous).hadErrorCount(1);
+
+      // The fix line, followed: a CharSequence focus reaches only withId(CharSequence).
+      var chosen =
+          compile(
+              ident,
+              spec(
+                  "IdentOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface IdentOpticsSpec extends OpticsSpec<Ident> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Ident, CharSequence> id();
+                  }
+                  """));
+
+      assertThat(chosen).succeededWithoutWarnings();
+    }
+
+    @Test
+    @DisplayName("a static method the call binds is refused")
+    void staticMethodTheCallBindsIsRefused() {
+      // A String binds the static withId(CharSequence) ahead of the instance withId(Object).
+      var compilation =
+          compile(
+              external(
+                  "Stamp",
+                  """
+                  public final class Stamp {
+                      private final String id;
+                      public Stamp(String id) { this.id = id; }
+                      public String id() { return id; }
+                      public static Stamp withId(CharSequence id) { return new Stamp(id.toString()); }
+                      public Object withId(Object id) { return this; }
+                  }
+                  """),
+              spec(
+                  "StampOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface StampOpticsSpec extends OpticsSpec<Stamp> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Stamp, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'withId(CharSequence)' is static, so the generated lens cannot rebuild a"
+                  + " 'Stamp' through it. The generated lens sets through 'source.withId(newValue)'"
+                  + " with the new value typed 'String', which binds 'withId(CharSequence)', and a"
+                  + " static method never reads the 'Stamp' it is called on. Declare the lens's"
+                  + " focus as the parameter type of an instance overload, name an instance"
+                  + " wither, or rebuild 'Stamp' with @ViaBuilder, @ViaConstructor or"
+                  + " @ViaCopyAndSet.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a wither name the source type does not have is refused, offering its withers")
+    void witherNameTheSourceTypeDoesNotHaveIsRefusedOfferingItsWithers() {
+      // Only a one-parameter instance method that hands Plain back is offered, with the
+      // parameter that says which value it takes: not the static one, the two-parameter one or
+      // the one returning a String.
+      var compilation =
+          compile(
+              external(
+                  "Plain",
+                  """
+                  public final class Plain {
+                      private final String id;
+                      private final String name;
+                      public Plain(String id, String name) {
+                          this.id = id;
+                          this.name = name;
+                      }
+                      public String id() { return id; }
+                      public String name() { return name; }
+                      public Plain withName(String name) { return new Plain(id, name); }
+                      public Plain withId(String id) { return new Plain(id, name); }
+                      public Plain withId(Integer id) { return new Plain(String.valueOf(id), name); }
+                      public static Plain withDefaults(String id) { return new Plain(id, ""); }
+                      public Plain withBoth(String id, String name) { return new Plain(id, name); }
+                      public String withSuffix(String suffix) { return id + suffix; }
+                  }
+                  """),
+              external(
+                  "Bare",
+                  """
+                  public final class Bare {
+                      private final String id;
+                      public Bare(String id) { this.id = id; }
+                      public String id() { return id; }
+                  }
+                  """),
+              external(
+                  "Hidden",
+                  """
+                  public final class Hidden {
+                      private final String id;
+                      public Hidden(String id) { this.id = id; }
+                      public String id() { return id; }
+                      Hidden withId(String id) { return new Hidden(id); }
+                      public Hidden withName(String name) { return new Hidden(name); }
+                  }
+                  """),
+              spec(
+                  "PlainOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PlainOpticsSpec extends OpticsSpec<Plain> {
+                      @Wither(value = "withIdd", getter = "id")
+                      Lens<Plain, String> id();
+                  }
+                  """),
+              spec(
+                  "PlainNameOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface PlainNameOpticsSpec extends OpticsSpec<Plain> {
+                      @Wither(value = "withIdentifier", getter = "name")
+                      Lens<Plain, String> name();
+                  }
+                  """),
+              spec(
+                  "BareOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BareOpticsSpec extends OpticsSpec<Bare> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Bare, String> id();
+                  }
+                  """),
+              spec(
+                  "HiddenOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface HiddenOpticsSpec extends OpticsSpec<Hidden> {
+                      @Wither(value = "withId", getter = "id")
+                      Lens<Hidden, String> id();
+                  }
+                  """));
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'Plain' has no method 'withIdd' for the generated lens to call. The"
+                  + " generated lens sets through 'source.withIdd(newValue)', so it needs a method"
+                  + " of that name on 'Plain', declared or inherited. Did you mean 'withId'?"
+                  + " Withers found on 'Plain': [withId(Integer), withId(String),"
+                  + " withName(String)]. Name one of the withers found on 'Plain' that takes the"
+                  + " value 'String' the getter reads, or rebuild 'Plain' with @ViaBuilder,"
+                  + " @ViaConstructor or @ViaCopyAndSet.");
+      // Too far from any wither to be offered as a misspelling of one.
+      Assertions.assertThat(compilation.errors())
+          .filteredOn(error -> error.getMessage(null).contains("'withIdentifier'"))
+          .singleElement()
+          .satisfies(
+              error ->
+                  Assertions.assertThat(error.getMessage(null))
+                      .contains(
+                          "Withers found on 'Plain': [withId(Integer), withId(String),"
+                              + " withName(String)].")
+                      .doesNotContain("Did you mean"));
+      // Declared, but not where the generated class can call it, and the message says so.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'Hidden' has no method 'withId' for the generated lens to call. The"
+                  + " generated lens sets through 'source.withId(newValue)', so it needs a method"
+                  + " of that name the generated class in 'com.myapp' can call, and 'withId' is"
+                  + " declared where it cannot. Withers found on 'Hidden': [withName(String)].");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Wither: 'Bare' has no method 'withId' for the generated lens to call. The"
+                  + " generated lens sets through 'source.withId(newValue)', so it needs a method"
+                  + " of that name on 'Bare', declared or inherited. No one-parameter instance"
+                  + " method of 'Bare' hands it back. Rebuild 'Bare' with @ViaBuilder,"
+                  + " @ViaConstructor or @ViaCopyAndSet.");
+      // Reported at the spec, so javac never meets the call in a generated file.
+      assertThat(compilation).hadErrorCount(4);
     }
   }
 

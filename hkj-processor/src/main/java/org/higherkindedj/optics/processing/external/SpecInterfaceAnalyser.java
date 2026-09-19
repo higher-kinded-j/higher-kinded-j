@@ -432,7 +432,8 @@ public class SpecInterfaceAnalyser {
 
     switch (opticKind) {
       case LENS -> {
-        var copyResult = parseCopyStrategy(method, sourceType, sourceTypeElement, targetPackage);
+        var copyResult =
+            parseCopyStrategy(method, sourceType, sourceTypeElement, focusType, targetPackage);
         if (copyResult.isEmpty()) {
           // parseCopyStrategy has reported why: either no strategy annotation at all, or one
           // whose values were rejected.
@@ -531,6 +532,7 @@ public class SpecInterfaceAnalyser {
    * @param method the abstract lens method
    * @param sourceType the source type {@code S}, which annotation values are resolved against
    * @param sourceTypeElement the resolved element for {@code S}
+   * @param focusType the focus type {@code A}, which a wither is called with
    * @param targetPackage the package the optics class is generated into
    * @return the strategy and its values, or empty if the method carries no strategy annotation or
    *     one whose values were rejected; either way an error has been reported
@@ -539,6 +541,7 @@ public class SpecInterfaceAnalyser {
       ExecutableElement method,
       TypeMirror sourceType,
       TypeElement sourceTypeElement,
+      TypeMirror focusType,
       String targetPackage) {
     // Check for @ViaBuilder
     AnnotationMirror viaBuilder = findAnnotation(method, VIA_BUILDER_FQN);
@@ -563,8 +566,8 @@ public class SpecInterfaceAnalyser {
     if (wither != null) {
       String getter = getAnnotationString(wither, "getter", "");
       String witherMethod = getAnnotationString(wither, "value", "");
-      if (rebuildsThroughWitherOfAnotherType(
-          method, declaredSource, sourceTypeElement, witherMethod, targetPackage)) {
+      if (rebuildsThroughUnusableWither(
+          method, declaredSource, sourceTypeElement, focusType, witherMethod, targetPackage)) {
         return Optional.empty();
       }
       return Optional.of(
@@ -625,70 +628,415 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
-   * Reports a {@code @Wither} naming a method that hands back something other than the source type,
-   * and returns whether it did.
+   * Reports a {@code @Wither} whose generated call does not bind a method that rebuilds the source
+   * type, and returns whether it did.
+   *
+   * <p>The generated lens sets through {@code source.withX(newValue)}, with {@code newValue} typed
+   * by the lens's focus, and javac picks among the methods of that name by that type. So it is the
+   * method the call binds, as {@link WitherBinding} repeats javac's choice, that is checked, not
+   * any method that carries the name. The call has to bind one method, an instance method, since a
+   * static one never reads the value it is called on, and that method has to hand back the source
+   * type. Every method of the name that the generated class can reach is weighed, of any arity,
+   * static or not, as javac weighs them.
+   *
+   * <p>Where the choice rests on inference that is not repeated, the candidates are read leniently:
+   * the name passes when one of them is an instance method that hands back the source type, and
+   * javac settles the rest at the generated call. A wildcard focus is read that way too, since the
+   * type such a lens infers is drawn from the getter as much as from the wildcard.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param sourceType the source type {@code S}, as the spec names it
+   * @param sourceTypeElement the element of {@code S}, whose members are searched
+   * @param focusType the lens's focus type, which the wither is called with
+   * @param witherName the method the annotation names
+   * @param targetPackage the package the optics class is generated into
+   * @return true when the call binds no such method, and an error was reported; a source type that
+   *     did not resolve is left to javac
+   */
+  private boolean rebuildsThroughUnusableWither(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      TypeElement sourceTypeElement,
+      TypeMirror focusType,
+      String witherName,
+      String targetPackage) {
+    // A source type that did not resolve has no members to read, and javac's own error names the
+    // type that is missing, which is the one worth reading.
+    if (sourceType.getKind() == TypeKind.ERROR) {
+      return false;
+    }
+    List<ExecutableElement> members =
+        ElementFilter.methodsIn(elementUtils.getAllMembers(sourceTypeElement));
+    List<ExecutableElement> callable =
+        members.stream().filter(member -> callableOn(member, targetPackage)).toList();
+    List<ExecutableElement> named =
+        callable.stream()
+            .filter(member -> member.getSimpleName().contentEquals(witherName))
+            .toList();
+    if (named.isEmpty()) {
+      boolean declared =
+          members.stream().anyMatch(member -> member.getSimpleName().contentEquals(witherName));
+      reportMissingWither(
+          method, sourceType, callable, focusType, witherName, targetPackage, declared);
+      return true;
+    }
+    // A wildcard focus is inferred from the getter's type as much as from the wildcard itself, so
+    // the type the call passes is not the one the spec writes, and which method it binds is
+    // javac's to settle.
+    if (focusType.getKind() == TypeKind.WILDCARD) {
+      return noCandidateRebuilds(
+          method,
+          sourceType,
+          named.stream().filter(candidate -> candidate.getParameters().size() == 1).toList(),
+          null);
+    }
+    return switch (WitherBinding.resolve(typeUtils, sourceType, focusType, named)) {
+      case WitherBinding.Binds(ExecutableElement bound) -> {
+        if (bound.getModifiers().contains(Modifier.STATIC)) {
+          reportStaticWither(method, sourceType, bound, focusType);
+          yield true;
+        }
+        if (ProcessorUtils.returnsOwner(typeUtils, sourceType, bound)) {
+          yield false;
+        }
+        // Only an overloaded name needs the focus to say which method it binds.
+        reportWitherOfAnotherType(method, sourceType, bound, named.size() > 1 ? focusType : null);
+        yield true;
+      }
+      case WitherBinding.NoneApplies() -> {
+        reportInapplicableWither(method, sourceType, focusType, named);
+        yield true;
+      }
+      case WitherBinding.Ambiguous(List<ExecutableElement> methods) -> {
+        reportAmbiguousWither(method, sourceType, focusType, methods);
+        yield true;
+      }
+      case WitherBinding.Undecided(List<ExecutableElement> candidates) ->
+          noCandidateRebuilds(method, sourceType, candidates, focusType);
+    };
+  }
+
+  /**
+   * Reports a name none of whose candidates rebuilds the source type, and returns whether it did.
+   *
+   * <p>This is the lenient reading, for a call whose binding rests on inference the checks do not
+   * repeat. Whichever candidate javac settles on has to be an instance method that hands the source
+   * type back, so the name passes as soon as one of them is, and is refused when none is: a static
+   * method never reads the value it is called on, and another type does not compile where the lens
+   * hands its result back as the source type.
+   *
+   * @param method the annotated lens method, for error reporting
+   * @param sourceType the source type {@code S}, as the spec names it
+   * @param candidates the methods the call might bind; an empty list is left alone, since the call
+   *     then binds nothing these checks can read and javac reports it
+   * @param choosing the focus that chose among them, or null where no one type did
+   * @return true when none of them rebuilds the source type, and an error was reported
+   */
+  private boolean noCandidateRebuilds(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      List<ExecutableElement> candidates,
+      TypeMirror choosing) {
+    if (candidates.isEmpty()) {
+      return false;
+    }
+    List<ExecutableElement> rebuilding =
+        candidates.stream()
+            .filter(candidate -> ProcessorUtils.returnsOwner(typeUtils, sourceType, candidate))
+            .toList();
+    if (rebuilding.isEmpty()) {
+      reportWitherOfAnotherType(method, sourceType, candidates.getFirst(), null);
+      return true;
+    }
+    if (rebuilding.stream()
+        .anyMatch(candidate -> !candidate.getModifiers().contains(Modifier.STATIC))) {
+      return false;
+    }
+    reportStaticWither(method, sourceType, rebuilding.getFirst(), choosing);
+    return true;
+  }
+
+  /**
+   * Whether the generated class can call a member on the source type.
+   *
+   * <p>The call names no type but the source's own, so it is the member's own access that decides,
+   * not where it was declared: a {@code public} method a package-private class declares is called
+   * through the public type that inherits it, as javac calls it. {@code protected} counts as
+   * package access, since a generated companion extends nothing.
+   */
+  private boolean callableOn(ExecutableElement member, String targetPackage) {
+    Set<Modifier> modifiers = member.getModifiers();
+    if (modifiers.contains(Modifier.PRIVATE)) {
+      return false;
+    }
+    return modifiers.contains(Modifier.PUBLIC)
+        || elementUtils.getPackageOf(member).getQualifiedName().contentEquals(targetPackage);
+  }
+
+  /**
+   * Reports a {@code @Wither} naming no method the generated class can call, offering the source
+   * type's withers: its one-parameter instance methods that hand it back.
+   */
+  private void reportMissingWither(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      List<ExecutableElement> callable,
+      TypeMirror focusType,
+      String witherName,
+      String targetPackage,
+      boolean declared) {
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    List<ExecutableElement> withers =
+        callable.stream()
+            .filter(
+                member ->
+                    member.getParameters().size() == 1
+                        && !member.getModifiers().contains(Modifier.STATIC)
+                        && ProcessorUtils.returnsOwner(typeUtils, sourceType, member))
+            .toList();
+    String sets =
+        "The generated lens sets through 'source."
+            + witherName
+            + "(newValue)', so it needs a method of that name "
+            + (declared
+                ? "the generated class in '"
+                    + targetPackage
+                    + "' can call, and '"
+                    + witherName
+                    + "' is declared where it cannot."
+                : "on '" + source + "', declared or inherited.");
+    if (withers.isEmpty()) {
+      Diagnostics.error(
+          messager,
+          method,
+          "@Wither",
+          "'" + source + "' has no method '" + witherName + "' for the generated lens to call.",
+          sets + " No one-parameter instance method of '" + source + "' hands it back.",
+          ProcessorUtils.capitalise(rebuildWith(source)) + ".");
+      return;
+    }
+    List<String> names =
+        withers.stream()
+            .map(member -> member.getSimpleName().toString())
+            .distinct()
+            .sorted()
+            .toList();
+    List<String> signatures =
+        withers.stream()
+            .map(member -> signatureOn(sourceType, member))
+            .distinct()
+            .sorted()
+            .toList();
+    Diagnostics.error(
+        messager,
+        method,
+        "@Wither",
+        "'" + source + "' has no method '" + witherName + "' for the generated lens to call.",
+        sets
+            + ProcessorUtils.nearestName(witherName, names)
+                .map(near -> " Did you mean '" + near + "'?")
+                .orElse("")
+            + " Withers found on '"
+            + source
+            + "': "
+            + signatures
+            + ".",
+        "Name one of the withers found on '"
+            + source
+            + "' that takes the value '"
+            + ProcessorUtils.simpleTypeName(focusType)
+            + "' the getter reads, or "
+            + rebuildWith(source)
+            + ".");
+  }
+
+  /** Reports a {@code @Wither} none of whose methods takes the value the lens sets. */
+  private void reportInapplicableWither(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      TypeMirror focusType,
+      List<ExecutableElement> named) {
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    String witherName = named.getFirst().getSimpleName().toString();
+    String found =
+        settingThrough(witherName, focusType)
+            + ". Found on '"
+            + source
+            + "': "
+            + named.stream().map(member -> signatureOn(sourceType, member)).toList()
+            + ".";
+    // A parameter typed by one of the source's wildcards takes no value whatever the focus, so the
+    // remedy there is the source type, not the focus.
+    boolean wildcardSource =
+        sourceType.getTypeArguments().stream()
+            .anyMatch(typeArgument -> typeArgument.getKind() == TypeKind.WILDCARD);
+    Diagnostics.error(
+        messager,
+        method,
+        "@Wither",
+        "No method '"
+            + witherName
+            + "' of '"
+            + source
+            + "' takes the lens's focus type '"
+            + ProcessorUtils.simpleTypeName(focusType)
+            + "'.",
+        wildcardSource
+            ? found
+                + " A parameter a wildcard of '"
+                + source
+                + "' stands in takes no value at all, since the type it stands for is unknown."
+            : found,
+        (wildcardSource
+                ? "Declare the spec over the type each wildcard stands for, or "
+                    + rebuildWith(source)
+                : "Name a wither that takes the value the getter reads, or point 'getter' at an"
+                    + " accessor one of them takes and declare the focus as its type; otherwise "
+                    + rebuildWith(source))
+            + ".");
+  }
+
+  /** Reports a {@code @Wither} whose call takes more than one method equally well. */
+  private void reportAmbiguousWither(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      TypeMirror argument,
+      List<ExecutableElement> methods) {
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    String witherName = methods.getFirst().getSimpleName().toString();
+    List<String> signatures =
+        methods.stream().map(member -> "'" + signatureOn(sourceType, member) + "'").toList();
+    Diagnostics.error(
+        messager,
+        method,
+        "@Wither",
+        "The generated call to '"
+            + witherName
+            + "' cannot choose between "
+            + String.join(", ", signatures.subList(0, signatures.size() - 1))
+            + " and "
+            + signatures.getLast()
+            + ".",
+        settingThrough(witherName, argument)
+            + ", which each of them takes, with no parameter more specific than every other.",
+        "Declare the lens's focus as the parameter type of the one you mean, or "
+            + rebuildWith(source)
+            + ".");
+  }
+
+  /**
+   * Reports a {@code @Wither} whose call binds a static method: a static method never reads the
+   * value it is called on, so it cannot rebuild it.
+   */
+  private void reportStaticWither(
+      ExecutableElement method,
+      DeclaredType sourceType,
+      ExecutableElement bound,
+      TypeMirror choosing) {
+    String source = ProcessorUtils.simpleTypeName(sourceType);
+    String signature = signatureOn(sourceType, bound);
+    String sets =
+        choosing == null
+            ? "The generated lens sets through '" + signature + "'"
+            : settingThrough(bound.getSimpleName().toString(), choosing)
+                + ", which binds '"
+                + signature
+                + "'";
+    Diagnostics.error(
+        messager,
+        method,
+        "@Wither",
+        "'"
+            + signature
+            + "' is static, so the generated lens cannot rebuild a '"
+            + source
+            + "' through it.",
+        sets + ", and a static method never reads the '" + source + "' it is called on.",
+        "Declare the lens's focus as the parameter type of an instance overload, name an instance"
+            + " wither, or "
+            + rebuildWith(source)
+            + ".");
+  }
+
+  /**
+   * Reports a {@code @Wither} whose call binds a method that hands back something other than the
+   * source type.
    *
    * <p>The generated set function returns what the wither returns, as the source type, so the
    * wither has to hand back that type as {@link ProcessorUtils#returnsOwner} reads it. A supertype,
    * or the type under other arguments ({@code Draft<String>} read on a {@code Draft<T>}), does not
    * compile there, and a raw return is an unchecked conversion in a file the author cannot edit.
-   * Each candidate is read on the source type as the spec names it, so {@code Draft<String>
+   * The wither is read on the source type as the spec names it, so {@code Draft<String>
    * withId(String)} serves an {@code OpticsSpec<Draft<String>>} as it should.
-   *
-   * <p>Only the return is checked, over the one-parameter instance methods the generated class can
-   * call. A name none of them carries is left to javac, which reports it at the generated call.
    *
    * @param method the annotated lens method, for error reporting
    * @param sourceType the source type {@code S}, as the spec names it
-   * @param sourceTypeElement the element of {@code S}, whose members are searched
-   * @param witherName the method the annotation names
-   * @param targetPackage the package the optics class is generated into
-   * @return true when every such method of that name hands back something else, and an error was
-   *     reported
+   * @param bound the method the call binds
+   * @param choosing the argument that chose {@code bound} among overloads of its name, or null when
+   *     it has none
    */
-  private boolean rebuildsThroughWitherOfAnotherType(
+  private void reportWitherOfAnotherType(
       ExecutableElement method,
       DeclaredType sourceType,
-      TypeElement sourceTypeElement,
-      String witherName,
-      String targetPackage) {
-    List<ExecutableElement> candidates =
-        ElementFilter.methodsIn(elementUtils.getAllMembers(sourceTypeElement)).stream()
-            .filter(
-                candidate ->
-                    candidate.getSimpleName().contentEquals(witherName)
-                        && candidate.getParameters().size() == 1
-                        && !candidate.getModifiers().contains(Modifier.STATIC)
-                        && ProcessorUtils.reachableFrom(elementUtils, candidate, targetPackage))
-            .toList();
-    if (candidates.isEmpty()
-        || candidates.stream()
-            .anyMatch(candidate -> ProcessorUtils.returnsOwner(typeUtils, sourceType, candidate))) {
-      return false;
-    }
+      ExecutableElement bound,
+      TypeMirror choosing) {
     String source = ProcessorUtils.simpleTypeName(sourceType);
+    String signature = signatureOn(sourceType, bound);
     String returned =
-        ProcessorUtils.simpleTypeName(
-            ProcessorUtils.returnTypeIn(typeUtils, sourceType, candidates.getFirst()));
+        ProcessorUtils.simpleTypeName(ProcessorUtils.returnTypeIn(typeUtils, sourceType, bound));
+    String sets =
+        choosing == null
+            ? "The generated lens sets through '" + signature + "'"
+            : settingThrough(bound.getSimpleName().toString(), choosing)
+                + ", which binds '"
+                + signature
+                + "',";
     Diagnostics.error(
         messager,
         method,
         "@Wither",
-        "'" + witherName + "' returns '" + returned + "', not the source type '" + source + "'.",
-        "The generated lens sets through '"
-            + witherName
-            + "' and hands its result back as a '"
+        "'" + signature + "' returns '" + returned + "', not the source type '" + source + "'.",
+        sets
+            + " and hands its result back as the source type '"
             + source
-            + "', which a '"
+            + "', which '"
             + returned
             + "' is not.",
         "Name a wither that returns '"
             + source
             + "', or declare the spec over the type the wither does return when that is an"
-            + " instantiation of the same class; otherwise rebuild '"
-            + source
-            + "' with @ViaBuilder, @ViaConstructor or @ViaCopyAndSet.");
-    return true;
+            + " instantiation of the same class; otherwise "
+            + rebuildWith(source)
+            + ".");
+  }
+
+  /** The remedy every wither refusal ends on, for a diagnostic's fix: an unfinished clause. */
+  private static String rebuildWith(String source) {
+    return "rebuild '" + source + "' with @ViaBuilder, @ViaConstructor or @ViaCopyAndSet";
+  }
+
+  /** How the generated setter calls the wither, for a diagnostic's reason: an unfinished clause. */
+  private static String settingThrough(String witherName, TypeMirror argument) {
+    return "The generated lens sets through 'source."
+        + witherName
+        + "(newValue)' with the new value typed '"
+        + ProcessorUtils.simpleTypeName(argument)
+        + "'";
+  }
+
+  /** A method as the source type sees it, {@code withId(String)}, telling overloads apart. */
+  private String signatureOn(DeclaredType sourceType, ExecutableElement member) {
+    List<? extends TypeMirror> parameters =
+        ProcessorUtils.memberOf(typeUtils, sourceType, member).getParameterTypes();
+    List<String> names =
+        new ArrayList<>(parameters.stream().map(ProcessorUtils::simpleTypeName).toList());
+    if (member.isVarArgs()) {
+      // The last parameter is an array the author wrote as a variable-arity one.
+      String last = names.getLast();
+      names.set(names.size() - 1, last.substring(0, last.length() - "[]".length()) + "...");
+    }
+    return member.getSimpleName()
+        + String.join(", ", names).transform(joined -> "(" + joined + ")");
   }
 
   /**

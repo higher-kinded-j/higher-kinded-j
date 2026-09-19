@@ -2,20 +2,27 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.external;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -213,10 +220,62 @@ public class TypeKindAnalyser {
         continue; // No getter found, skip this wither
       }
 
-      withers.add(WitherInfo.of(method, fieldName, getterName));
+      withers.add(WitherInfo.of(method, fieldName, getterName, isOverloaded(classElement, method)));
     }
 
     return withers;
+  }
+
+  /**
+   * Whether another one-parameter method of the wither's name could take the generated call.
+   *
+   * <p>The lens hands its setter a boxed value, and javac's first phase prefers a method that takes
+   * it without unboxing, so an overload taking the box, a supertype of it or a type variable binds
+   * ahead of a wither taking a primitive. The generated lens passes such a parameter unboxed where
+   * one exists. Where none does, the call has only the wither to bind and the cast would be noise.
+   *
+   * <p>Only a method the call could bind counts: one that takes the boxed value, and one the
+   * generated class could call, so a {@code private} overload and one no boxed value reaches are
+   * both left out. An override declares the same parameter type and is the same method to a caller,
+   * so it is not one either; the search is by parameter type rather than by declaring type for that
+   * reason.
+   *
+   * @param classElement the class the wither is read on
+   * @param wither the wither method
+   * @return true when the class, or a supertype, declares another one-parameter method of the name
+   */
+  private boolean isOverloaded(TypeElement classElement, ExecutableElement wither) {
+    TypeMirror declared = wither.getParameters().getFirst().asType();
+    TypeMirror parameter = typeUtils.erasure(declared);
+    // What the lens hands the setter, which is what the call is resolved with.
+    TypeMirror argument =
+        declared.getKind().isPrimitive()
+            ? typeUtils.boxedClass((PrimitiveType) declared).asType()
+            : declared;
+    Name name = wither.getSimpleName();
+    Deque<TypeMirror> queue = new ArrayDeque<>();
+    Set<String> seen = new HashSet<>();
+    queue.add(classElement.asType());
+    while (!queue.isEmpty()) {
+      TypeMirror current = queue.poll();
+      // Every supertype of a class is declared; nothing else reaches the queue.
+      TypeElement element = (TypeElement) ((DeclaredType) current).asElement();
+      if (!seen.add(element.getQualifiedName().toString())) {
+        continue;
+      }
+      for (ExecutableElement method : ElementFilter.methodsIn(element.getEnclosedElements())) {
+        if (method.getSimpleName().equals(name)
+            && method.getParameters().size() == 1
+            && !method.getModifiers().contains(Modifier.PRIVATE)) {
+          TypeMirror other = typeUtils.erasure(method.getParameters().getFirst().asType());
+          if (!typeUtils.isSameType(other, parameter) && typeUtils.isAssignable(argument, other)) {
+            return true;
+          }
+        }
+      }
+      queue.addAll(typeUtils.directSupertypes(current));
+    }
+    return false;
   }
 
   private String extractFieldName(String witherMethodName) {

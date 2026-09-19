@@ -17,13 +17,16 @@ import javax.lang.model.type.TypeMirror;
  * @param parameterType the type of the wither method's parameter
  * @param witherMethod the executable element representing the wither method
  * @param getterMethodName the name of the corresponding getter method (e.g., "getYear" or "year")
+ * @param overloaded whether the class has another one-parameter method of the same name, which a
+ *     call could bind instead of this one
  */
 public record WitherInfo(
     String fieldName,
     String witherMethodName,
     TypeMirror parameterType,
     ExecutableElement witherMethod,
-    String getterMethodName) {
+    String getterMethodName,
+    boolean overloaded) {
 
   /**
    * Creates a WitherInfo from a detected wither method.
@@ -31,15 +34,20 @@ public record WitherInfo(
    * @param witherMethod the wither method element
    * @param fieldName the derived field name
    * @param getterMethodName the corresponding getter method name
+   * @param overloaded whether another one-parameter method of the name could take the call
    * @return a new WitherInfo for the method
    */
   public static WitherInfo of(
-      ExecutableElement witherMethod, String fieldName, String getterMethodName) {
+      ExecutableElement witherMethod,
+      String fieldName,
+      String getterMethodName,
+      boolean overloaded) {
     return new WitherInfo(
         fieldName,
         witherMethod.getSimpleName().toString(),
         witherMethod.getParameters().getFirst().asType(),
         witherMethod,
-        getterMethodName);
+        getterMethodName,
+        overloaded);
   }
 }
