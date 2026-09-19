@@ -446,6 +446,12 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    * <p>Nesting composes: {@code .field("address", Address.parseFields(dto.address()))} prefixes
    * {@code "address."} onto the inner errors' paths.
    *
+   * <p>Where the record's constructor may refuse the fields, end with {@code construct(User::new,
+   * "not a valid User")} instead of {@code apply}: once every field is valid, a {@code
+   * RuntimeException} the constructor throws becomes an unlabelled {@code FieldError} carrying its
+   * message, so an enclosing {@code field(label, ...)} locates it rather than the exception
+   * escaping.
+   *
    * <p>Inference note: an inline factory literal needs a type witness, because a chained stage
    * receives no target typing (for example {@code Validated.<FieldError, String>invalidNel(...)});
    * values with declared types, such as the results of leaf validators, need none.

@@ -27,7 +27,10 @@
  *
  * <p>The {@code fields()} flavour fixes the error channel to {@code NonEmptyList<}{@link
  * org.higherkindedj.hkt.validated.FieldError}{@code >}, and {@code field(label, value)} prepends
- * the label onto each error's path so nested assemblies compose ({@code "address.zip"}). The
+ * the label onto each error's path so nested assemblies compose ({@code "address.zip"}). Where the
+ * value's own constructor may refuse the fields, it ends in {@code construct(User::new, "not a
+ * valid User")} rather than {@code apply}: a {@code RuntimeException} the constructor throws
+ * becomes an unlabelled {@code FieldError} carrying its message instead of escaping. The
  * {@code @GenerateAccumulators} annotation below triggers generation of the staged builder classes
  * for all three carriers ({@code Validated} here, {@code ValidationPath} in {@code
  * org.higherkindedj.hkt.effect}, and {@code EitherOrBoth} in {@code

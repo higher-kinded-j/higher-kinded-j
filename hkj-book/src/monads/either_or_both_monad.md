@@ -182,7 +182,7 @@ The combination primitive behind it is `zipWithAccum(other, semigroup, combiner)
 - [Validated](validated_monad.md): pure error accumulation with no partial value
 - [NonEmptyList](nonemptylist_monad.md): the non-empty warning channel a `Both` pairs with
 - [Semigroups and Monoids](../functional/semigroup_and_monoid.md): how the left channel accumulates
-- [Accumulating Assembly](validated_assembly.md): the open-arity `accumulate()` / `fields()` builder
+- [Accumulating Assembly](validated_assembly.md): the open-arity `accumulate()` / `fields()` builder, whose [`construct`](validated_assembly.md#construct) terminal turns a constructor's refusal into a `Left` that keeps the warnings collected so far
 ~~~
 
 ---

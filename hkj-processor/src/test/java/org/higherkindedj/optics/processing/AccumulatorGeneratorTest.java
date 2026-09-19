@@ -102,7 +102,7 @@ class AccumulatorGeneratorTest {
     }
 
     @Test
-    @DisplayName("The terminal arity has apply only: no and(), no field()")
+    @DisplayName("The terminal arity only completes the assembly: no and(), no field()")
     void terminalArityHasNoGrowth() throws IOException {
       for (String family :
           List.of(
@@ -113,7 +113,7 @@ class AccumulatorGeneratorTest {
               "EitherOrBothAccum12",
               "EitherOrBothFields12")) {
         String source = generatedSource(family);
-        assertThat(source).doesNotContain(" and(").doesNotContain(" field(");
+        assertThat(source).doesNotContain(" and(").doesNotContain(" field(String label");
         assertThat(source).contains("apply(");
       }
     }
@@ -124,7 +124,37 @@ class AccumulatorGeneratorTest {
       assertThat(generatedSource("ValidatedFields2"))
           .contains("field(String label,")
           .contains("errors.map(err -> err.at(label))");
-      assertThat(generatedSource("ValidatedAccum2")).doesNotContain(" field(");
+      assertThat(generatedSource("ValidatedAccum2")).doesNotContain(" field(String label");
+    }
+
+    @Test
+    @DisplayName(
+        "Fields flavour ends in a guarded construct beside apply, at every carrier; Accum does"
+            + " not")
+    void fieldsFlavourHasConstruct() throws IOException {
+      assertThat(generatedSource("ValidatedFields1"))
+          .contains("construct(Function<? super A, ? extends R> f, String fallbackMessage)")
+          .contains("accumulated.flatMap(")
+          .contains("constructed = f.apply(t);")
+          .contains("return Validated.validNel(constructed);")
+          .contains("catch (RuntimeException refused)")
+          .contains("message == null || message.isBlank() ? fallbackMessage : message");
+      assertThat(generatedSource("ValidatedFields3"))
+          .contains("construct(Function3<? super A, ? super B, ? super C, ? extends R> f,")
+          .contains("constructed = f.apply(t._1(), t._2(), t._3());");
+      assertThat(generatedSource("ValidationPathFields2"))
+          .contains("import org.higherkindedj.hkt.validated.Validated;")
+          .contains("Path.validatedNel(\n        accumulated.run().flatMap(");
+      assertThat(generatedSource("EitherOrBothFields2"))
+          .contains("accumulated.flatMap(\n        NonEmptyList.semigroup(),")
+          .contains("EitherOrBoth.left(NonEmptyList.single(FieldError.of(");
+      assertThat(generatedSource("ValidatedFields12"))
+          .contains("Terminal stage: {@code apply} or {@code construct} only.");
+      assertThat(generatedSource("ValidatedAccum12"))
+          .contains("Terminal stage: {@code apply} only.")
+          .doesNotContain("construct(");
+      assertThat(generatedSource("ValidationPathAccum2"))
+          .doesNotContain("import org.higherkindedj.hkt.validated.Validated;");
     }
 
     @Test

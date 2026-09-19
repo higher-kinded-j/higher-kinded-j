@@ -685,13 +685,15 @@ Validated<NonEmptyList<FieldError>, Customer> customer =
 
 **When to prefer the hand-written ladder instead.** `Validated.fields()` / `Validated.accumulate()`
 (and their `Path` and `EitherOrBoth` twins, described in `/hkj-guide`) do the same job without annotating
-the record, with one difference: `apply(...)` runs the function you hand it, so a constructor's
-exception propagates from the ladder, while `assemble()` reports it as an unlabelled `FieldError`. Use `@GenerateAssembly` when you want the component *names* checked by the compiler at
+the record. End a labelled ladder with `construct(Record::new, "not a valid Record")` rather than
+`apply(Record::new)` when the constructor may refuse the fields: `apply` runs the function you hand
+it, so the exception propagates, while `construct`, like `assemble()`, reports it as an unlabelled
+`FieldError`. Use `@GenerateAssembly` when you want the component *names* checked by the compiler at
 each stage; use the ladder for ad-hoc assembly or for a record you do not own.
 
 **The ladder is capped at 16 components; `@GenerateAssembly` is not.** The generator emits a curried
 `Validated.ap` chain at exactly the record's arity, so a 17-component record is fine. The ladder
-stops at `ValidatedFields16`, which offers only `apply(...)` and no further `.field(...)`. So for a
+stops at `ValidatedFields16`, whose `apply`/`construct` complete the assembly with no further `.field(...)`. So for a
 wide record, the annotation is the answer, not the workaround.
 
 ---

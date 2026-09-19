@@ -65,6 +65,7 @@
 | `.zipWith3Accum(b, c, fn)` | Combine three, accumulating errors | ValidationPath, EitherOrBothPath |
 | `.andAlso(other)` | Accumulate errors, keep left value | ValidationPath, EitherOrBothPath |
 | `fields().field(label, v)...apply(Ctor::new)` | Open-arity record assembly, located errors | Validated, Path (ValidationPath), EitherOrBoth |
+| `fields().field(label, v)...construct(Ctor::new, "not a valid X")` | The same, for a constructor that may refuse the fields: its exception becomes a `FieldError` | Validated, Path (ValidationPath), EitherOrBoth |
 
 ### Error Handling
 

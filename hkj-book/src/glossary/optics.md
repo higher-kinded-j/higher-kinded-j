@@ -624,7 +624,7 @@ Validated<NonEmptyList<FieldError>, PatchableUser> updated =
 
 ## Validated Assembly
 
-**Definition:** Open-arity assembly of a record from N independently validated fields, with every error collected and no `Semigroup` argument, no arity wall, and no `Kind` ceremony. `Validated.fields()` opens a labelled assembly over `NonEmptyList<FieldError>`; each `field(label, value)` adds one validated field, and `apply(...)` completes it with a constructor reference of exactly the accumulated arity. The same shape exists across three carriers: `Validated` (strict), `ValidationPath` (railway, via `Path.fields()`), and `EitherOrBoth` (tolerant).
+**Definition:** Open-arity assembly of a record from N independently validated fields, with every error collected and no `Semigroup` argument, no arity wall, and no `Kind` ceremony. `Validated.fields()` opens a labelled assembly over `NonEmptyList<FieldError>`; each `field(label, value)` adds one validated field, and `apply(...)` completes it with a constructor reference of exactly the accumulated arity, or `construct(...)` when that constructor may refuse the fields, reporting its exception as a `FieldError`. The same shape exists across three carriers: `Validated` (strict), `ValidationPath` (railway, via `Path.fields()`), and `EitherOrBoth` (tolerant).
 
 **Example:**
 <!-- verify -->
