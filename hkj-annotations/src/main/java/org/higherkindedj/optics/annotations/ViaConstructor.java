@@ -33,9 +33,9 @@ import java.lang.annotation.Target;
  *
  * <p>Where the class declares more than one constructor taking as many arguments, the call binds by
  * the types the getters hand back. A lens focuses a primitive boxed, so the focus is unboxed to its
- * getter's type wherever that settles the call on the constructor taking exactly that type;
- * elsewhere it is passed as it is, and a getter that hands back a wrapper where the constructor
- * takes the primitive can reach an overload taking a supertype.
+ * getter's type wherever one of those constructors takes exactly that type; where none does, it is
+ * passed as it is, and a getter that hands back a wrapper where the constructor takes the primitive
+ * can reach an overload taking a supertype.
  *
  * <p>Example:
  *

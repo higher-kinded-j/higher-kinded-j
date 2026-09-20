@@ -872,27 +872,26 @@ public class SpecInterfaceAnalyser {
    * The primitive {@code read} is unboxed to where that cannot move the call, or null to pass the
    * focus boxed.
    *
-   * <p>Unboxing settles the call only when the candidates leave it nowhere else to go: more than
-   * one of them, so the call is overloaded at all; one taking exactly {@code read}, which the
-   * unboxed value then fits without conversion; and every other taking a reference type, which no
-   * unboxed value reaches without boxing, something the first phase of overload resolution does not
-   * do (JLS 15.12.2.2). A second primitive among them is one the unboxed value could widen to, so
-   * the focus stays boxed and the call binds where it did.
+   * <p>Unboxed, the focus has the type its getter hands back, and every other argument is a getter
+   * read already, so the call binds exactly where the rebuild {@code new S(source.cents(),
+   * source.owner())} binds: the constructor or method the strategy describes. The question is only
+   * whether to write the cast at all, and the answer is whether one of the candidates takes exactly
+   * {@code read}. That one is applicable by strict invocation, and it is the most specific of the
+   * candidates that are: another primitive is either unreachable, because a narrowing conversion is
+   * never applied to an argument, or wider than {@code read}, which makes {@code read}'s own the
+   * more specific (JLS 15.12.2.5); a reference parameter needs boxing, which the first phase does
+   * not do (JLS 15.12.2.2).
+   *
+   * <p>Where no candidate takes it, unboxing could move the call, as it would from {@code P(Long,
+   * String)} to a {@code P(double, String)} the boxed focus never reached, so the focus is passed
+   * as it is. A lone candidate is not overloaded at all and needs no cast to settle it.
    */
   private TypeMirror unboxedFocus(TypeMirror read, List<TypeMirror> candidates) {
     if (candidates.size() < 2) {
       return null;
     }
-    boolean taken = false;
-    for (TypeMirror candidate : candidates) {
-      if (!candidate.getKind().isPrimitive()) {
-        continue;
-      }
-      if (!typeUtils.isSameType(candidate, read)) {
-        return null;
-      }
-      taken = true;
-    }
+    boolean taken =
+        candidates.stream().anyMatch(candidate -> typeUtils.isSameType(candidate, read));
     return taken ? typeUtils.getPrimitiveType(read.getKind()) : null;
   }
 
@@ -908,10 +907,11 @@ public class SpecInterfaceAnalyser {
    * applicable.
    *
    * <p>The candidates are the constructors of the call's own arity, read at the focus's place, and
-   * {@link #unboxedFocus} decides among them; the focus also has to be an argument of the call at
-   * all, which a {@code parameterOrder} naming other getters leaves it out of. Answering it here,
-   * with {@code Types}, leaves the generator the one rule {@code @ViaCopyAndSet}'s cast follows: a
-   * null type means no cast.
+   * {@link #unboxedFocus} decides among them; one that no other argument fits is among them
+   * harmlessly, since it cannot take a call it is not applicable to. The focus also has to be an
+   * argument of the call at all, which a {@code parameterOrder} naming other getters leaves it out
+   * of. Answering it here, with {@code Types}, leaves the generator the one rule
+   * {@code @ViaCopyAndSet}'s cast follows: a null type means no cast.
    *
    * @param method the annotated optic method, named after its getter
    * @param source the source type {@code S}

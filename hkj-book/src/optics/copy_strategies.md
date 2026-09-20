@@ -168,7 +168,7 @@ Reads and writes through a bare `Traversal` go through the `Traversals` utility:
 ~~~admonish warning title="Overloaded constructors, withers and setters"
 Every strategy writes the focus through something that can be overloaded: the constructor `parameterOrder` describes, the `@Wither` method, the builder's setter, the setter `@ViaCopyAndSet` calls. A lens focuses a primitive boxed, and Java offers an overloaded call the candidates needing no unboxing first, so a `Long` reaches a `withAmount(Number)` before a `withAmount(long)`.
 
-The focus is therefore unboxed to its getter's type wherever that settles the call on the one taking exactly that type. Where another candidate takes a primitive as well, unboxing could move the call, so the focus is passed as it is and the call binds where it did.
+The focus is therefore unboxed to its getter's type wherever one of the candidates takes exactly that type. The call then binds where `new Money(source.amount(), source.currency())` would, every argument the type its own getter hands back. Where no candidate takes that type, as when the constructor takes the wrapper, unboxing could move the call somewhere the boxed focus never reached, so it is passed as it is.
 
 That leaves one shape to watch: a getter returning `Long` where the constructor or method takes `long`, beside one taking `Number`, reaches the `Number` one and sets whatever it computes. Have the getters return the types the constructor and methods take, and run `LensLaws` over the lens.
 ~~~

@@ -374,6 +374,44 @@ class CanonicalConstructorTest {
               }
             }
             """);
+    // Candidates the unboxed focus cannot reach: an int one, which no argument narrows to, and
+    // one no other argument fits. Neither can take the call, so neither holds the unboxing back.
+    JavaFileObject narrow =
+        source(
+            PKG + ".ext.Narrow",
+            """
+            package com.example.canonical.ext;
+
+            public final class Narrow {
+              private final long cents;
+              private final String owner;
+
+              public Narrow(long cents, String owner) {
+                this.cents = cents;
+                this.owner = owner;
+              }
+
+              public Narrow(Number major, String owner) {
+                this(Math.round(major.doubleValue() * 100), owner);
+              }
+
+              public Narrow(int cents, String owner) {
+                this((long) cents, owner);
+              }
+
+              public Narrow(double cents, Integer scale) {
+                this(Math.round(cents), String.valueOf(scale));
+              }
+
+              public long cents() {
+                return cents;
+              }
+
+              public String owner() {
+                return owner;
+              }
+            }
+            """);
     // A parameterOrder that names no getter for the focus: the call passes it nowhere.
     JavaFileObject unpassed =
         source(
@@ -571,6 +609,7 @@ class CanonicalConstructorTest {
             import com.example.canonical.ext.Built;
             import com.example.canonical.ext.Coin;
             import com.example.canonical.ext.Legacy;
+            import com.example.canonical.ext.Narrow;
             import com.example.canonical.ext.Unpassed;
             import com.example.canonical.ext.Widening;
             import org.higherkindedj.optics.Lens;
@@ -594,6 +633,12 @@ class CanonicalConstructorTest {
               public interface BoxedParameterSpec extends OpticsSpec<BoxedParameter> {
                 @ViaConstructor(parameterOrder = {"cents", "owner"})
                 Lens<BoxedParameter, Long> cents();
+              }
+
+              @ImportOptics
+              public interface NarrowSpec extends OpticsSpec<Narrow> {
+                @ViaConstructor(parameterOrder = {"cents", "owner"})
+                Lens<Narrow, Long> cents();
               }
 
               @ImportOptics
@@ -759,6 +804,12 @@ class CanonicalConstructorTest {
                     .cents();
               }
 
+              public static long viaConstructorUnreachableCandidates() {
+                return com.example.canonical.app.Narrow.cents()
+                    .set(1234L, new com.example.canonical.ext.Narrow(1L, "owner"))
+                    .cents();
+              }
+
               public static long viaConstructorBoxedParameter() {
                 return com.example.canonical.app.BoxedParameter.cents()
                     .set(1234L, new com.example.canonical.ext.BoxedParameter(1L, "owner"))
@@ -832,6 +883,7 @@ class CanonicalConstructorTest {
                 boxed,
                 widening,
                 boxedParameter,
+                narrow,
                 unpassed,
                 coin,
                 legacy,
@@ -881,7 +933,8 @@ class CanonicalConstructorTest {
         "viaConstructor",
         "viaConstructorBoxed",
         "viaConstructorWidening",
-        "viaConstructorBoxedParameter"
+        "viaConstructorBoxedParameter",
+        "viaConstructorUnreachableCandidates"
       })
   @DisplayName(
       "a @ViaConstructor call binds where the getters' own values do, unboxing the focus only"
