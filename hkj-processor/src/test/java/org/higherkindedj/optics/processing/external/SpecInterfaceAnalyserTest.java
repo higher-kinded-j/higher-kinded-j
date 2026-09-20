@@ -20,6 +20,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKin
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKind;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1253,12 +1254,14 @@ class SpecInterfaceAnalyserTest {
                 processingEnv.getMessager());
 
         // "getter" is present but its value is a String, not a List or TypeMirror
-        arrayForStringValue = analyser.getAnnotationStringArray(viaBuilderMirror, "getter");
-        mirrorForStringValue = analyser.getAnnotationTypeMirror(viaBuilderMirror, "getter");
+        arrayForStringValue = ProcessorUtils.getAnnotationStringArray(viaBuilderMirror, "getter");
+        mirrorForStringValue = ProcessorUtils.getAnnotationTypeMirror(viaBuilderMirror, "getter");
 
         // "missing" matches no element name at all
-        arrayForMissingElement = analyser.getAnnotationStringArray(viaBuilderMirror, "missing");
-        mirrorForMissingElement = analyser.getAnnotationTypeMirror(viaBuilderMirror, "missing");
+        arrayForMissingElement =
+            ProcessorUtils.getAnnotationStringArray(viaBuilderMirror, "missing");
+        mirrorForMissingElement =
+            ProcessorUtils.getAnnotationTypeMirror(viaBuilderMirror, "missing");
 
         return false;
       }

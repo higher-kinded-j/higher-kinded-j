@@ -6,7 +6,6 @@ import java.util.*;
 import java.util.Arrays;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -554,12 +553,12 @@ public class SpecInterfaceAnalyser {
     String fieldName = method.getSimpleName().toString();
 
     // Check for @ViaBuilder
-    AnnotationMirror viaBuilder = findAnnotation(method, VIA_BUILDER_FQN);
+    AnnotationMirror viaBuilder = ProcessorUtils.findAnnotation(method, VIA_BUILDER_FQN);
     if (viaBuilder != null) {
-      String getter = getAnnotationString(viaBuilder, "getter", "");
-      String toBuilder = getAnnotationString(viaBuilder, "toBuilder", "toBuilder");
-      String setter = getAnnotationString(viaBuilder, "setter", "");
-      String build = getAnnotationString(viaBuilder, "build", "build");
+      String getter = ProcessorUtils.getAnnotationString(viaBuilder, "getter", "");
+      String toBuilder = ProcessorUtils.getAnnotationString(viaBuilder, "toBuilder", "toBuilder");
+      String setter = ProcessorUtils.getAnnotationString(viaBuilder, "setter", "");
+      String build = ProcessorUtils.getAnnotationString(viaBuilder, "build", "build");
       if (readsThroughUnusableGetter(
               method,
               "@ViaBuilder",
@@ -586,10 +585,10 @@ public class SpecInterfaceAnalyser {
     }
 
     // Check for @Wither
-    AnnotationMirror wither = findAnnotation(method, WITHER_FQN);
+    AnnotationMirror wither = ProcessorUtils.findAnnotation(method, WITHER_FQN);
     if (wither != null) {
-      String getter = getAnnotationString(wither, "getter", "");
-      String witherMethod = getAnnotationString(wither, "value", "");
+      String getter = ProcessorUtils.getAnnotationString(wither, "getter", "");
+      String witherMethod = ProcessorUtils.getAnnotationString(wither, "value", "");
       if (readsThroughUnusableGetter(
               method,
               "@Wither",
@@ -608,12 +607,13 @@ public class SpecInterfaceAnalyser {
     }
 
     // Check for @ViaConstructor
-    AnnotationMirror viaConstructor = findAnnotation(method, VIA_CONSTRUCTOR_FQN);
+    AnnotationMirror viaConstructor = ProcessorUtils.findAnnotation(method, VIA_CONSTRUCTOR_FQN);
     if (viaConstructor != null) {
       if (rebuildsThroughUnwritableConstructor(method, declaredSource, "@ViaConstructor")) {
         return Optional.empty();
       }
-      String[] parameterOrder = getAnnotationStringArray(viaConstructor, "parameterOrder");
+      String[] parameterOrder =
+          ProcessorUtils.getAnnotationStringArray(viaConstructor, "parameterOrder");
       if (readsThroughUnusableGetter(
               method,
               "@ViaConstructor",
@@ -632,13 +632,14 @@ public class SpecInterfaceAnalyser {
     }
 
     // Check for @ViaCopyAndSet
-    AnnotationMirror viaCopyAndSet = findAnnotation(method, VIA_COPY_AND_SET_FQN);
+    AnnotationMirror viaCopyAndSet = ProcessorUtils.findAnnotation(method, VIA_COPY_AND_SET_FQN);
     if (viaCopyAndSet != null) {
       if (rebuildsThroughUnwritableConstructor(method, declaredSource, "@ViaCopyAndSet")) {
         return Optional.empty();
       }
-      String copyConstructor = getAnnotationString(viaCopyAndSet, "copyConstructor", "");
-      String setter = getAnnotationString(viaCopyAndSet, "setter", "");
+      String copyConstructor =
+          ProcessorUtils.getAnnotationString(viaCopyAndSet, "copyConstructor", "");
+      String setter = ProcessorUtils.getAnnotationString(viaCopyAndSet, "setter", "");
       if (readsThroughUnusableGetter(
               method,
               "@ViaCopyAndSet",
@@ -2184,12 +2185,12 @@ public class SpecInterfaceAnalyser {
       TypeMirror focusType,
       TypeElement specInterface) {
     // Check for @InstanceOf
-    AnnotationMirror instanceOf = findAnnotation(method, INSTANCE_OF_FQN);
+    AnnotationMirror instanceOf = ProcessorUtils.findAnnotation(method, INSTANCE_OF_FQN);
     if (instanceOf != null) {
       // @InstanceOf.value() is mandatory, but an unresolvable class constant (a typo, or a
       // not-yet-generated type) is modelled as an erroneous attribute whose value is a String,
       // not a TypeMirror - so this CAN be null and must fall through to the hint diagnostic.
-      TypeMirror targetType = getAnnotationTypeMirror(instanceOf, "value");
+      TypeMirror targetType = ProcessorUtils.getAnnotationTypeMirror(instanceOf, "value");
       if (targetType == null) {
         reportMissingPrismHint(method);
         return Optional.empty();
@@ -2228,10 +2229,10 @@ public class SpecInterfaceAnalyser {
     }
 
     // Check for @MatchWhen
-    AnnotationMirror matchWhen = findAnnotation(method, MATCH_WHEN_FQN);
+    AnnotationMirror matchWhen = ProcessorUtils.findAnnotation(method, MATCH_WHEN_FQN);
     if (matchWhen != null) {
-      String predicate = getAnnotationString(matchWhen, "predicate", "");
-      String getter = getAnnotationString(matchWhen, "getter", "");
+      String predicate = ProcessorUtils.getAnnotationString(matchWhen, "predicate", "");
+      String getter = ProcessorUtils.getAnnotationString(matchWhen, "getter", "");
       return Optional.of(
           new PrismHintResult(
               PrismHintKind.MATCH_WHEN, PrismHintInfo.forMatchWhen(predicate, getter)));
@@ -2419,9 +2420,9 @@ public class SpecInterfaceAnalyser {
       TypeElement specInterface,
       TypeMirror focusType) {
     // Check for @TraverseWith
-    AnnotationMirror traverseWith = findAnnotation(method, TRAVERSE_WITH_FQN);
+    AnnotationMirror traverseWith = ProcessorUtils.findAnnotation(method, TRAVERSE_WITH_FQN);
     if (traverseWith != null) {
-      String traversalReference = getAnnotationString(traverseWith, "value", "");
+      String traversalReference = ProcessorUtils.getAnnotationString(traverseWith, "value", "");
       return Optional.of(
           new TraversalHintResult(
               TraversalHintKind.TRAVERSE_WITH,
@@ -2429,10 +2430,10 @@ public class SpecInterfaceAnalyser {
     }
 
     // Check for @ThroughField
-    AnnotationMirror throughField = findAnnotation(method, THROUGH_FIELD_FQN);
+    AnnotationMirror throughField = ProcessorUtils.findAnnotation(method, THROUGH_FIELD_FQN);
     if (throughField != null) {
-      String fieldName = getAnnotationString(throughField, "field", "");
-      String traversal = getAnnotationString(throughField, "traversal", "");
+      String fieldName = ProcessorUtils.getAnnotationString(throughField, "field", "");
+      String traversal = ProcessorUtils.getAnnotationString(throughField, "traversal", "");
 
       // Auto-detect traversal if not specified
       if (traversal.isEmpty()) {
@@ -2849,60 +2850,6 @@ public class SpecInterfaceAnalyser {
       }
     }
 
-    return null;
-  }
-
-  // ----- Annotation Utility Methods -----
-
-  private AnnotationMirror findAnnotation(Element element, String annotationFqn) {
-    for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
-      TypeElement annotationType = (TypeElement) mirror.getAnnotationType().asElement();
-      if (annotationType.getQualifiedName().contentEquals(annotationFqn)) {
-        return mirror;
-      }
-    }
-    return null;
-  }
-
-  private String getAnnotationString(
-      AnnotationMirror annotation, String elementName, String defaultValue) {
-    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
-        annotation.getElementValues().entrySet()) {
-      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
-        // getValue() never returns null for a present annotation element.
-        return entry.getValue().getValue().toString();
-      }
-    }
-    return defaultValue;
-  }
-
-  // Package-private for tests.
-  String[] getAnnotationStringArray(AnnotationMirror annotation, String elementName) {
-    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
-        annotation.getElementValues().entrySet()) {
-      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
-        Object value = entry.getValue().getValue();
-        if (value instanceof List<?> list) {
-          return list.stream()
-              .map(v -> ((AnnotationValue) v).getValue().toString())
-              .toArray(String[]::new);
-        }
-      }
-    }
-    return new String[0];
-  }
-
-  // Package-private for tests.
-  TypeMirror getAnnotationTypeMirror(AnnotationMirror annotation, String elementName) {
-    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
-        annotation.getElementValues().entrySet()) {
-      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
-        Object value = entry.getValue().getValue();
-        if (value instanceof TypeMirror typeMirror) {
-          return typeMirror;
-        }
-      }
-    }
     return null;
   }
 

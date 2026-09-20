@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -1346,6 +1347,94 @@ public final class ProcessorUtils {
       return s;
     }
     return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
+  }
+
+  /**
+   * The mirror of an annotation on an element, or null where it carries none of that type.
+   *
+   * @param element the annotated element; must not be null
+   * @param annotationFqn the annotation's fully qualified name; must not be null
+   * @return the mirror, or null
+   * @since 0.4.11
+   */
+  public static AnnotationMirror findAnnotation(Element element, String annotationFqn) {
+    for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
+      // An annotation type is always a declared type, and its element a TypeElement.
+      TypeElement annotationType = (TypeElement) mirror.getAnnotationType().asElement();
+      if (annotationType.getQualifiedName().contentEquals(annotationFqn)) {
+        return mirror;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * A string an annotation carries, or {@code defaultValue} where it does not name that element.
+   *
+   * <p>An element left at its declared default is not written into the mirror, so the caller's own
+   * default stands for it.
+   *
+   * @param annotation the annotation's mirror; must not be null
+   * @param elementName the element to read; must not be null
+   * @param defaultValue what to answer where the annotation does not name it
+   * @return the string, or the default
+   * @since 0.4.11
+   */
+  public static String getAnnotationString(
+      AnnotationMirror annotation, String elementName, String defaultValue) {
+    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+        annotation.getElementValues().entrySet()) {
+      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
+        // getValue() never returns null for a present annotation element.
+        return entry.getValue().getValue().toString();
+      }
+    }
+    return defaultValue;
+  }
+
+  /**
+   * The strings an annotation's array element carries, empty where it names none.
+   *
+   * @param annotation the annotation's mirror; must not be null
+   * @param elementName the element to read; must not be null
+   * @return the strings, in the order written (non-null)
+   * @since 0.4.11
+   */
+  public static String[] getAnnotationStringArray(AnnotationMirror annotation, String elementName) {
+    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+        annotation.getElementValues().entrySet()) {
+      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
+        Object value = entry.getValue().getValue();
+        if (value instanceof List<?> list) {
+          return list.stream()
+              .map(element -> ((AnnotationValue) element).getValue().toString())
+              .toArray(String[]::new);
+        }
+      }
+    }
+    return new String[0];
+  }
+
+  /**
+   * The type an annotation's class-constant element names, or null where it names none.
+   *
+   * @param annotation the annotation's mirror; must not be null
+   * @param elementName the element to read; must not be null
+   * @return the type, or null
+   * @since 0.4.11
+   */
+  public static TypeMirror getAnnotationTypeMirror(
+      AnnotationMirror annotation, String elementName) {
+    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+        annotation.getElementValues().entrySet()) {
+      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
+        Object value = entry.getValue().getValue();
+        if (value instanceof TypeMirror typeMirror) {
+          return typeMirror;
+        }
+      }
+    }
+    return null;
   }
 
   /** How few edits apart two names must be for one to be offered as a misspelling of the other. */
