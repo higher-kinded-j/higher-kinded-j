@@ -34,6 +34,58 @@ import org.junit.jupiter.api.Test;
 @DisplayName("SpecInterfaceAnalyser")
 class SpecInterfaceAnalyserTest {
 
+  /**
+   * A record with the builder its specs name: {@code getName}, {@code toBuilder}/{@code
+   * newBuilder}, the builder's {@code name}/{@code withName}, and {@code build}/{@code create}.
+   * Every strategy a spec here declares has to find the methods it names.
+   */
+  private static JavaFileObject person() {
+    return JavaFileObjects.forSourceString(
+        "com.test.Person",
+        """
+        package com.test;
+        public record Person(String name) {
+            public String getName() { return name; }
+            public Builder toBuilder() { return new Builder(name); }
+            public Builder newBuilder() { return new Builder(name); }
+
+            public static final class Builder {
+                private String name;
+                Builder(String name) { this.name = name; }
+                public Builder name(String name) { this.name = name; return this; }
+                public Builder withName(String name) { this.name = name; return this; }
+                public Person build() { return new Person(name); }
+                public Person create() { return new Person(name); }
+            }
+        }
+        """);
+  }
+
+  /** The same, with an {@code age} the builder can set too. */
+  private static JavaFileObject personWithAge() {
+    return JavaFileObjects.forSourceString(
+        "com.test.Person",
+        """
+        package com.test;
+        public record Person(String name, int age) {
+            public String getName() { return name; }
+            public Builder toBuilder() { return new Builder(name, age); }
+            public Builder newBuilder() { return new Builder(name, age); }
+
+            public static final class Builder {
+                private String name;
+                private int age;
+                Builder(String name, int age) { this.name = name; this.age = age; }
+                public Builder name(String name) { this.name = name; return this; }
+                public Builder withName(String name) { this.name = name; return this; }
+                public Builder age(int age) { this.age = age; return this; }
+                public Person build() { return new Person(name, age); }
+                public Person create() { return new Person(name, age); }
+            }
+        }
+        """);
+  }
+
   /** Common source files needed for tests. */
   private static final JavaFileObject OPTICS_SPEC =
       JavaFileObjects.forSourceString(
@@ -279,28 +331,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should extract source type from OpticsSpec<S>")
     void shouldExtractSourceType() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name, age); }
-                  public Builder newBuilder() { return new Builder(name, age); }
-
-                  public static final class Builder {
-                      private String name;
-                      private int age;
-                      Builder(String name, int age) { this.name = name; this.age = age; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Builder age(int age) { this.age = age; return this; }
-                      public Person build() { return new Person(name, age); }
-                      public Person create() { return new Person(name, age); }
-                  }
-              }
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -326,28 +357,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should identify abstract methods requiring generation")
     void shouldIdentifyAbstractMethods() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name, age); }
-                  public Builder newBuilder() { return new Builder(name, age); }
-
-                  public static final class Builder {
-                      private String name;
-                      private int age;
-                      Builder(String name, int age) { this.name = name; this.age = age; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Builder age(int age) { this.age = age; return this; }
-                      public Person build() { return new Person(name, age); }
-                      public Person create() { return new Person(name, age); }
-                  }
-              }
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -379,28 +389,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should reject a default method rather than analysing the interface")
     void shouldRejectDefaultMethods() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name, age); }
-                  public Builder newBuilder() { return new Builder(name, age); }
-
-                  public static final class Builder {
-                      private String name;
-                      private int age;
-                      Builder(String name, int age) { this.name = name; this.age = age; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Builder age(int age) { this.age = age; return this; }
-                      public Person build() { return new Person(name, age); }
-                      public Person create() { return new Person(name, age); }
-                  }
-              }
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -430,28 +419,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should ignore static methods in spec interface")
     void shouldIgnoreStaticMethods() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name, age); }
-                  public Builder newBuilder() { return new Builder(name, age); }
-
-                  public static final class Builder {
-                      private String name;
-                      private int age;
-                      Builder(String name, int age) { this.name = name; this.age = age; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Builder age(int age) { this.age = age; return this; }
-                      public Person build() { return new Person(name, age); }
-                      public Person create() { return new Person(name, age); }
-                  }
-              }
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -485,26 +453,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should detect Lens return type")
     void shouldDetectLens() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name); }
-                  public Builder newBuilder() { return new Builder(name); }
-
-                  public static final class Builder {
-                      private String name;
-                      Builder(String name) { this.name = name; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Person build() { return new Person(name); }
-                      public Person create() { return new Person(name); }
-                  }
-              }
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -610,26 +559,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should parse @ViaBuilder with defaults")
     void shouldParseViaBuilderDefaults() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name); }
-                  public Builder newBuilder() { return new Builder(name); }
-
-                  public static final class Builder {
-                      private String name;
-                      Builder(String name) { this.name = name; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Person build() { return new Person(name); }
-                      public Person create() { return new Person(name); }
-                  }
-              }
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -659,26 +589,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should parse @ViaBuilder with custom values")
     void shouldParseViaBuilderCustom() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name); }
-                  public Builder newBuilder() { return new Builder(name); }
-
-                  public static final class Builder {
-                      private String name;
-                      Builder(String name) { this.name = name; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Person build() { return new Person(name); }
-                      public Person create() { return new Person(name); }
-                  }
-              }
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -896,26 +807,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should return empty for method with non-declared return type")
     void shouldReturnEmptyForPrimitiveReturnType() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name); }
-                  public Builder newBuilder() { return new Builder(name); }
-
-                  public static final class Builder {
-                      private String name;
-                      Builder(String name) { this.name = name; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Person build() { return new Person(name); }
-                      public Person create() { return new Person(name); }
-                  }
-              }
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -937,26 +829,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should return empty when optic has too few type arguments")
     void shouldReturnEmptyForOpticWithoutTypeArgs() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name); }
-                  public Builder newBuilder() { return new Builder(name); }
-
-                  public static final class Builder {
-                      private String name;
-                      Builder(String name) { this.name = name; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Person build() { return new Person(name); }
-                      public Person create() { return new Person(name); }
-                  }
-              }
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -1028,26 +901,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should skip non-OpticsSpec super-interfaces when extracting the source type")
     void shouldSkipNonOpticsSpecSuperInterfaces() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name); }
-                  public Builder newBuilder() { return new Builder(name); }
-
-                  public static final class Builder {
-                      private String name;
-                      Builder(String name) { this.name = name; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Person build() { return new Person(name); }
-                      public Person create() { return new Person(name); }
-                  }
-              }
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -1270,26 +1124,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should fall back to defaults when element values do not match the expected shape")
     void shouldFallBackWhenElementValuesDoNotMatch() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name); }
-                  public Builder newBuilder() { return new Builder(name); }
-
-                  public static final class Builder {
-                      private String name;
-                      Builder(String name) { this.name = name; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Person build() { return new Person(name); }
-                      public Person create() { return new Person(name); }
-                  }
-              }
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -1327,28 +1162,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should extract focus type from Lens<S, A>")
     void shouldExtractFocusType() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {
-                  public String getName() { return name; }
-                  public Builder toBuilder() { return new Builder(name, age); }
-                  public Builder newBuilder() { return new Builder(name, age); }
-
-                  public static final class Builder {
-                      private String name;
-                      private int age;
-                      Builder(String name, int age) { this.name = name; this.age = age; }
-                      public Builder name(String name) { this.name = name; return this; }
-                      public Builder withName(String name) { this.name = name; return this; }
-                      public Builder age(int age) { this.age = age; return this; }
-                      public Person build() { return new Person(name, age); }
-                      public Person create() { return new Person(name, age); }
-                  }
-              }
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(
