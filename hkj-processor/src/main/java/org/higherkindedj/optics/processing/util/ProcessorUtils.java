@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing.util;
 import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ArrayTypeName;
 import com.palantir.javapoet.ClassName;
+import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeVariableName;
@@ -1268,6 +1269,80 @@ public final class ProcessorUtils {
       return isRaw(declaredType);
     }
     return typeArguments.stream().anyMatch(arg -> arg.getKind() == TypeKind.WILDCARD);
+  }
+
+  /**
+   * Whether a call constructing {@code type} from {@code arity} arguments has another constructor
+   * to bind to: {@code type} declares more than one constructor taking {@code arity} parameters.
+   * Only those compete. The phases of overload resolution before variable arity (JLS 15.12.2.2 and
+   * 15.12.2.3) read a constructor at its declared parameter count, and the constructor meant is
+   * applicable by the second of them.
+   *
+   * @param type the type constructed; must not be null
+   * @param arity the number of arguments the call passes
+   * @return true when more than one constructor of {@code type} takes {@code arity} parameters
+   * @since 0.4.11
+   */
+  public static boolean overloadsConstructor(TypeElement type, int arity) {
+    return ElementFilter.constructorsIn(type.getEnclosedElements()).stream()
+            .filter(constructor -> constructor.getParameters().size() == arity)
+            .count()
+        > 1;
+  }
+
+  /**
+   * The argument a generated call passes to {@code record}'s canonical constructor for a component
+   * of type {@code component}, from {@code boxed}, an expression of the component's boxed type: the
+   * lambda parameter a {@code Validated} ladder hands on, or a lens's {@code newValue}.
+   *
+   * <p>It is {@code boxed} itself, or {@code (long) boxed} where the component is primitive and the
+   * record {@link #overloadsConstructor overloads} its canonical constructor. The first phase of
+   * overload resolution allows no unboxing (JLS 15.12.2.2), so a {@code Long} finds {@code
+   * Money(Number, String)} applicable, and binds to it, before the canonical {@code Money(long,
+   * String)} is considered. With every argument exactly its component's type, the canonical
+   * constructor is the most specific one applicable. The cast is written only where another
+   * constructor competes, and only on a boxed value: on one already primitive, javac reports it as
+   * redundant.
+   *
+   * <p>The cast names the primitive itself, which no package can hide and no annotation belongs on,
+   * so it is written from the type rather than through {@link #typeNameOf}.
+   *
+   * @param record the record constructed, whose components answer whether a cast is needed; must
+   *     not be null
+   * @param component the component's type as the record declares it; must not be null
+   * @param boxed an expression of the component's boxed type; must not be null
+   * @return the argument for the component
+   * @since 0.4.11
+   */
+  public static CodeBlock canonicalArgument(
+      TypeElement record, TypeMirror component, CodeBlock boxed) {
+    return component.getKind().isPrimitive()
+            && overloadsConstructor(record, record.getRecordComponents().size())
+        ? CodeBlock.of("($T) $L", TypeName.get(component).withoutAnnotations(), boxed)
+        : boxed;
+  }
+
+  /**
+   * The arguments a generated lens's set function, {@code (source, newValue) -> new Money(newValue,
+   * source.currency())}, passes to {@code record}'s canonical constructor: every component read
+   * from {@code source} as it was, and {@code focused} replaced by {@code newValue}. The lens
+   * focuses a primitive component boxed, so {@code newValue} goes through {@link
+   * #canonicalArgument}; each read already has its component's own type.
+   *
+   * @param record the record the lens rebuilds; must not be null
+   * @param focused the name of the component the lens focuses; must not be null
+   * @return the arguments in component order, comma-separated
+   * @since 0.4.11
+   */
+  public static String rebuildArguments(TypeElement record, String focused) {
+    return record.getRecordComponents().stream()
+        .map(
+            component ->
+                component.getSimpleName().contentEquals(focused)
+                    ? canonicalArgument(record, component.asType(), CodeBlock.of("newValue"))
+                        .toString()
+                    : "source." + component.getSimpleName() + "()")
+        .collect(Collectors.joining(", "));
   }
 
   /**

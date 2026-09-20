@@ -11,6 +11,11 @@ import java.lang.annotation.Target;
  * Marks a Java record for which a Lenses utility class should be generated. The generated class
  * will be named by appending "Lenses" to the record's name.
  *
+ * <p>Each generated lens sets its field through the record's canonical constructor, passing every
+ * other component as it was, so a compact constructor that normalises or checks a component runs on
+ * every write. Another constructor the record declares is never the one called, even one taking as
+ * many parameters.
+ *
  * <p>By default, the generated class is placed in the same package as the annotated record. Use the
  * {@link #targetPackage()} element to specify a different package for the generated class.
  */

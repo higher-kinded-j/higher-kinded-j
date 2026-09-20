@@ -14,6 +14,7 @@ import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.FilerException;
 import javax.annotation.processing.Processor;
@@ -202,7 +203,7 @@ public class AssemblyProcessor extends AbstractProcessor {
                     .build());
 
     for (int stage = 0; stage <= arity; stage++) {
-      outer.addType(stageType(companion, recordName, components, stage));
+      outer.addType(stageType(companion, record, components, stage));
     }
     return JavaFile.builder(packageName, outer.build()).build();
   }
@@ -210,7 +211,7 @@ public class AssemblyProcessor extends AbstractProcessor {
   /** Stage {@code i} holds the first {@code i} components; stage {@code arity} is terminal. */
   private TypeSpec stageType(
       ClassName companion,
-      ClassName recordName,
+      TypeElement record,
       List<? extends RecordComponentElement> components,
       int stage) {
     int arity = components.size();
@@ -256,7 +257,7 @@ public class AssemblyProcessor extends AbstractProcessor {
     if (stage < arity) {
       builder.addMethod(componentMethod(companion, components, stage));
     } else {
-      builder.addMethod(assembleMethod(recordName, components));
+      builder.addMethod(assembleMethod(record, components));
     }
     return builder.build();
   }
@@ -286,18 +287,21 @@ public class AssemblyProcessor extends AbstractProcessor {
    * The terminal merge: a nested curried {@code ap} chain, accumulator on the function side, inside
    * the {@link GuardedConstruction#returningCaught guard}. The stages hold values already
    * validated, so the chain runs nothing but the constructor, and an invariant it enforces is an
-   * unlabelled error rather than an exception.
+   * unlabelled error rather than an exception. The stages hand each value on boxed, so a primitive
+   * component is unboxed where another constructor could otherwise bind ({@link
+   * GuardedConstruction#canonicalArguments}).
    */
   private MethodSpec assembleMethod(
-      ClassName recordName, List<? extends RecordComponentElement> components) {
+      TypeElement record, List<? extends RecordComponentElement> components) {
+    ClassName recordName = ClassName.get(record);
     int arity = components.size();
     CodeBlock.Builder curried = CodeBlock.builder();
-    CodeBlock.Builder args = CodeBlock.builder();
     for (int i = 1; i <= arity; i++) {
       curried.add("a$L -> ", i);
-      args.add(i == 1 ? "a$L" : ", a$L", i);
     }
-    curried.add("new $T($L)", recordName, args.build());
+    List<CodeBlock> values =
+        IntStream.rangeClosed(1, arity).mapToObj(i -> CodeBlock.of("a$L", i)).toList();
+    curried.add("new $T($L)", recordName, GuardedConstruction.canonicalArguments(record, values));
 
     CodeBlock expr = CodeBlock.of("this.$N.map($L)", name(components, 0), curried.build());
     for (int i = 1; i < arity; i++) {

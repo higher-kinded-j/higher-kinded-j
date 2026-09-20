@@ -5,7 +5,6 @@ package org.higherkindedj.optics.processing;
 import com.palantir.javapoet.*;
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -1293,15 +1292,11 @@ public class NavigatorClassGenerator {
    *
    * @param component the record component
    * @param recordElement the record being processed
-   * @param allComponents all components of the record
    * @param recordTypeName the record's type name
    * @return the method spec
    */
   public MethodSpec createNavigatorMethod(
-      RecordComponentElement component,
-      TypeElement recordElement,
-      List<? extends RecordComponentElement> allComponents,
-      TypeName recordTypeName) {
+      RecordComponentElement component, TypeElement recordElement, TypeName recordTypeName) {
 
     String componentName = component.getSimpleName().toString();
 
@@ -1347,14 +1342,7 @@ public class NavigatorClassGenerator {
     }
 
     // Build the constructor arguments for the setter lambda
-    String constructorArgs =
-        allComponents.stream()
-            .map(
-                c ->
-                    c.getSimpleName().toString().equals(componentName)
-                        ? "newValue"
-                        : "source." + c.getSimpleName() + "()")
-            .collect(Collectors.joining(", "));
+    String constructorArgs = ProcessorUtils.rebuildArguments(recordElement, componentName);
 
     // The widening is the one the static Focus method would have carried, from the same analysis,
     // and the component name rides along as the path's field-name segment so that a navigated path

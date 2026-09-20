@@ -105,7 +105,7 @@ public class ExternalLensGenerator {
     // Generate lens methods
     for (FieldInfo field : analysis.fields()) {
       lensesClassBuilder.addMethod(
-          createRecordLensMethod(field, recordElement, components, recordTypeName, targetPackage));
+          createRecordLensMethod(field, recordElement, recordTypeName, targetPackage));
     }
 
     // Generate with methods
@@ -182,11 +182,7 @@ public class ExternalLensGenerator {
   }
 
   private MethodSpec createRecordLensMethod(
-      FieldInfo field,
-      TypeElement recordElement,
-      List<? extends RecordComponentElement> allComponents,
-      TypeName recordTypeName,
-      String targetPackage) {
+      FieldInfo field, TypeElement recordElement, TypeName recordTypeName, String targetPackage) {
 
     TypeName componentTypeName = ProcessorUtils.typeNameOf(field.type(), targetPackage);
 
@@ -213,14 +209,7 @@ public class ExternalLensGenerator {
       methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, targetPackage));
     }
 
-    String constructorArgs =
-        allComponents.stream()
-            .map(
-                c ->
-                    c.getSimpleName().toString().equals(field.name())
-                        ? "newValue"
-                        : "source." + c.getSimpleName() + "()")
-            .collect(Collectors.joining(", "));
+    String constructorArgs = ProcessorUtils.rebuildArguments(recordElement, field.name());
 
     methodBuilder.addStatement(
         "return $T.of($T::$L, (source, newValue) -> new $T($L))",

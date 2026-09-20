@@ -91,7 +91,7 @@ public class SetterProcessor extends AbstractProcessor {
 
     for (RecordComponentElement component : components) {
       settersClassBuilder.addMethod(
-          createSetterMethod(component, recordElement, components, recordTypeName, packageName));
+          createSetterMethod(component, recordElement, recordTypeName, packageName));
     }
 
     for (RecordComponentElement component : components) {
@@ -124,7 +124,6 @@ public class SetterProcessor extends AbstractProcessor {
   private MethodSpec createSetterMethod(
       RecordComponentElement component,
       TypeElement recordElement,
-      List<? extends RecordComponentElement> allComponents,
       TypeName recordTypeName,
       String packageName) {
 
@@ -154,14 +153,7 @@ public class SetterProcessor extends AbstractProcessor {
       methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
     }
 
-    String constructorArgs =
-        allComponents.stream()
-            .map(
-                c ->
-                    c.getSimpleName().toString().equals(componentName)
-                        ? "newValue"
-                        : "source." + c.getSimpleName() + "()")
-            .collect(Collectors.joining(", "));
+    String constructorArgs = ProcessorUtils.rebuildArguments(recordElement, componentName);
 
     methodBuilder.addStatement(
         "return $T.fromGetSet($T::$L, (source, newValue) -> new $T($L))",

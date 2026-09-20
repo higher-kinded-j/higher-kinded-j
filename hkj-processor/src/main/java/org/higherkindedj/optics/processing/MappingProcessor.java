@@ -4277,11 +4277,18 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The flattened domain component an inner correspondence belongs to: its name and record type.
-   * Membership is the one emission axis beside {@link Kind}; the sparse tier never forms a group
-   * ({@code checkNoFlattened}) as the Kind canary makes it choose an emission for each kind.
+   * The flattened domain component an inner correspondence belongs to: its name, its record type as
+   * the domain instantiates it, and that record's element, whose constructors the group's own
+   * constructor call resolves among. Membership is the one emission axis beside {@link Kind}; the
+   * sparse tier never forms a group ({@code checkNoFlattened}) as the Kind canary makes it choose
+   * an emission for each kind.
+   *
+   * <p>Every member of a group carries the one instance {@link Flattened#group()} made for it, and
+   * the runs the parse ladder folds are found by comparing them. A mirror's {@code equals} is
+   * identity, so a group built afresh for each member would leave every one of them a run of its
+   * own.
    */
-  private record Group(String name, TypeName type) {}
+  private record Group(String name, TypeName type, TypeElement record) {}
 
   /**
    * {@code prism} is an expression yielding the ValidatedPrism for every non-identity kind, except
@@ -5039,14 +5046,10 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * A domain record component spread across the wire's flat components: the marker's name, the
-   * component's record type (under the domain's instantiation), and its components' names. Looked
-   * up by {@code name()} only: the record's own equality covers a mirror, whose {@code equals} is
-   * identity and says nothing about the type.
-   */
-  /**
    * A flattened component: its name, its record type under the domain's instantiation, that type as
-   * the Impl names it, the record, and the record's own components.
+   * the Impl names it, the record, and the record's own components. Looked up by {@code name()}
+   * only: the record's own equality covers a mirror, whose {@code equals} is identity and says
+   * nothing about the type.
    */
   private record Flattened(
       String name, DeclaredType type, TypeName typeName, TypeElement record, List<String> inner) {
@@ -5056,7 +5059,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     Group group() {
-      return new Group(name, typeName);
+      return new Group(name, typeName, record);
     }
   }
 
@@ -7852,7 +7855,7 @@ public class MappingProcessor extends AbstractProcessor {
                               wireRead(wire, member.wireName()),
                               guardedRead(member, wire)))
                   .toList(),
-              GuardedConstruction.applyThunk(params, first.group().type()));
+              GuardedConstruction.applyThunk(params, first.group().record(), first.group().type()));
       // The group's guarded call is an argument of the outer ladder's field, which offers it no
       // target type, so the explicit type argument is what types the group's constructor thunk.
       legs.add(
@@ -7872,6 +7875,11 @@ public class MappingProcessor extends AbstractProcessor {
    * The constructor arguments of {@code asIso()}'s reverse direction, in domain component order,
    * each read straight from the wire: a lossless mapping copies every component by identity, and a
    * flattened group's members reassemble its record in place.
+   *
+   * <p>Each read already has its component's own type, since a pair whose sides differ in boxing is
+   * refused ({@link #primitiveFix}), so the canonical constructor is the most specific one
+   * applicable with nothing to unbox, unlike the assemblies that carry their values through a
+   * {@code Validated} ladder.
    */
   private static CodeBlock reverseArgs(WireShape wire, List<Correspondence> comps) {
     return runs(comps).stream()
@@ -8223,7 +8231,8 @@ public class MappingProcessor extends AbstractProcessor {
                 leafFields(spec))
             .addMethod(buildMethod(domainName, wireName, suppression, buildBody))
             .addMethod(
-                parseMethod(domainName, wireName, suppression, parseBody(wire, comps, domainName)))
+                parseMethod(
+                    domainName, wireName, suppression, parseBody(wire, comps, domain, domainName)))
             .addMethod(asValidatedPrismMethod(wireName, domainName));
 
     addMarkerStubs(implBuilder, spec);
@@ -8281,7 +8290,7 @@ public class MappingProcessor extends AbstractProcessor {
                     domainName,
                     wireName,
                     pairSuppression(domainDeclared, wire, comps),
-                    parseBody(wire, comps, domainName)))
+                    parseBody(wire, comps, (TypeElement) domainDeclared.asElement(), domainName)))
             .addMethod(asValidatedParseMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
     addReadHelpers(implBuilder, comps, wire);
@@ -8332,11 +8341,12 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The accumulating {@code parse} body over the correspondences' legs: one {@code
    * Validated.fields()} ladder, or chunked ladders past the arity ceiling with identical error
-   * semantics. Either ends in the {@link GuardedConstruction guarded} constructor call, so an
-   * invariant the domain's constructor enforces refuses at the root instead of throwing. Shared by
-   * the full and parse-only tiers, which parse alike.
+   * semantics. Either ends in the {@link GuardedConstruction guarded} call of {@code domain}'s
+   * canonical constructor, so an invariant it enforces refuses at the root instead of throwing.
+   * Shared by the full and parse-only tiers, which parse alike.
    */
-  private CodeBlock parseBody(WireShape wire, List<Correspondence> comps, TypeName domainName) {
+  private CodeBlock parseBody(
+      WireShape wire, List<Correspondence> comps, TypeElement domain, TypeName domainName) {
     List<Leg> legs = parseLegs(wire, comps);
     List<CodeBlock> code = legs.stream().map(Leg::code).toList();
     if (legs.size() <= ArityCeilings.ASSEMBLY) {
@@ -8346,6 +8356,7 @@ public class MappingProcessor extends AbstractProcessor {
               GuardedConstruction.applyThunk(
                   GuardedConstruction.parameterNames(
                       legs.stream().map(Leg::name).toList(), Set.of("wire")),
+                  domain,
                   domainName)),
           domainName);
     }
@@ -8360,7 +8371,9 @@ public class MappingProcessor extends AbstractProcessor {
         NEL,
         reserved,
         domainName,
-        values -> GuardedConstruction.thunk(domainName, CodeBlock.join(values, ", ")));
+        values ->
+            GuardedConstruction.thunk(
+                domainName, GuardedConstruction.canonicalArguments(domain, values)));
   }
 
   /**
@@ -8591,7 +8604,9 @@ public class MappingProcessor extends AbstractProcessor {
                   GuardedConstruction.apply(
                       comps.stream().map(c -> nameFor.get(c.name()).toString()).toList(),
                       GuardedConstruction.boundThunk(
-                          unprojectedReads, domainName, patchCtorArgs(domain, nameFor::get)))),
+                          unprojectedReads,
+                          domainName,
+                          patchCtorArgs(domain, projected, nameFor::get)))),
               domainName);
     } else {
       // Wider than one fields() ladder: chunked ladders; projected components read from the
@@ -8616,7 +8631,7 @@ public class MappingProcessor extends AbstractProcessor {
                   valueFor.put(comps.get(i).name(), values.get(i));
                 }
                 return GuardedConstruction.boundThunk(
-                    unprojectedReads, domainName, patchCtorArgs(domain, valueFor::get));
+                    unprojectedReads, domainName, patchCtorArgs(domain, projected, valueFor::get));
               });
     }
 
@@ -8710,12 +8725,21 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The patch constructor arguments, in domain component order, each the expression {@code valueOf}
-   * gives for the component's name: a projected component's parsed value, an unprojected one's
-   * bound read.
+   * gives for the component's name: a {@code projected} component's parsed value, which the ladder
+   * hands on boxed and {@link ProcessorUtils#canonicalArgument} unboxes where an overload competes,
+   * or an unprojected one's bound read, which already has the component's own type.
    */
-  private static CodeBlock patchCtorArgs(TypeElement domain, Function<String, CodeBlock> valueOf) {
+  private static CodeBlock patchCtorArgs(
+      TypeElement domain, Set<String> projected, Function<String, CodeBlock> valueOf) {
     return domain.getRecordComponents().stream()
-        .map(component -> valueOf.apply(component.getSimpleName().toString()))
+        .map(
+            component -> {
+              String name = component.getSimpleName().toString();
+              CodeBlock value = valueOf.apply(name);
+              return projected.contains(name)
+                  ? ProcessorUtils.canonicalArgument(domain, component.asType(), value)
+                  : value;
+            })
         .collect(CodeBlock.joining(", "));
   }
 

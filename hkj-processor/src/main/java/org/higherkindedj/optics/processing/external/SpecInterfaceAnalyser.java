@@ -540,6 +540,11 @@ public class SpecInterfaceAnalyser {
       TypeMirror sourceType,
       TypeElement sourceTypeElement,
       String targetPackage) {
+    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
+    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
+    // makes the cast total; 'is a declared type' on its own would not.
+    DeclaredType declaredSource = (DeclaredType) sourceType;
+
     // Check for @ViaBuilder
     AnnotationMirror viaBuilder = findAnnotation(method, VIA_BUILDER_FQN);
     if (viaBuilder != null) {
@@ -550,13 +555,14 @@ public class SpecInterfaceAnalyser {
       return Optional.of(
           new CopyStrategyResult(
               CopyStrategyKind.VIA_BUILDER,
-              CopyStrategyInfo.forBuilder(getter, toBuilder, setter, build)));
+              CopyStrategyInfo.forBuilder(
+                  getter,
+                  toBuilder,
+                  setter,
+                  build,
+                  builderFocusType(
+                      method, declaredSource, sourceTypeElement, getter, toBuilder, setter))));
     }
-
-    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
-    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
-    // makes the cast total; 'is a declared type' on its own would not.
-    DeclaredType declaredSource = (DeclaredType) sourceType;
 
     // Check for @Wither
     AnnotationMirror wither = findAnnotation(method, WITHER_FQN);
@@ -569,7 +575,12 @@ public class SpecInterfaceAnalyser {
       }
       return Optional.of(
           new CopyStrategyResult(
-              CopyStrategyKind.WITHER, CopyStrategyInfo.forWither(getter, witherMethod)));
+              CopyStrategyKind.WITHER,
+              CopyStrategyInfo.forWither(
+                  getter,
+                  witherMethod,
+                  writtenFocusType(
+                      method, declaredSource, sourceTypeElement, getter, witherMethod))));
     }
 
     // Check for @ViaConstructor
@@ -581,7 +592,11 @@ public class SpecInterfaceAnalyser {
       String[] parameterOrder = getAnnotationStringArray(viaConstructor, "parameterOrder");
       return Optional.of(
           new CopyStrategyResult(
-              CopyStrategyKind.VIA_CONSTRUCTOR, CopyStrategyInfo.forConstructor(parameterOrder)));
+              CopyStrategyKind.VIA_CONSTRUCTOR,
+              CopyStrategyInfo.forConstructor(
+                  parameterOrder,
+                  constructorFocusType(
+                      method, declaredSource, sourceTypeElement, parameterOrder))));
     }
 
     // Check for @ViaCopyAndSet
@@ -592,10 +607,12 @@ public class SpecInterfaceAnalyser {
       }
       String copyConstructor = getAnnotationString(viaCopyAndSet, "copyConstructor", "");
       String setter = getAnnotationString(viaCopyAndSet, "setter", "");
+      TypeMirror written = writtenFocusType(method, declaredSource, sourceTypeElement, "", setter);
       if (copyConstructor.isEmpty()) {
         return Optional.of(
             new CopyStrategyResult(
-                CopyStrategyKind.VIA_COPY_AND_SET, CopyStrategyInfo.forCopyAndSet(null, setter)));
+                CopyStrategyKind.VIA_COPY_AND_SET,
+                CopyStrategyInfo.forCopyAndSet(null, setter, written)));
       }
       return resolveCopyConstructorParameterType(
               method, declaredSource, targetPackage, copyConstructor)
@@ -609,7 +626,8 @@ public class SpecInterfaceAnalyser {
                       // parameter type means no cast - rather than a comparison of rendered names.
                       CopyStrategyInfo.forCopyAndSet(
                           typeUtils.isSameType(parameterType, sourceType) ? null : parameterType,
-                          setter)));
+                          setter,
+                          written)));
     }
 
     Diagnostics.error(
@@ -745,6 +763,181 @@ public class SpecInterfaceAnalyser {
             : "Declare the source type static, or use @Wither, which rebuilds through a method and"
                 + " needs no constructor.");
     return true;
+  }
+
+  /**
+   * The primitive type the method a strategy writes through takes the focus as, or null to pass
+   * {@code newValue} unchanged: the wither of {@code @Wither}, the setter of
+   * {@code @ViaCopyAndSet}, both called on the source type. Overloaded at one parameter, they
+   * choose among themselves exactly as constructors do, so {@link #constructorFocusType}'s rule
+   * applies unchanged.
+   *
+   * @param method the annotated optic method
+   * @param receiver the type the call is made on
+   * @param receiverElement that type's element
+   * @param getter the getter named by the strategy, or empty to read the optic method's own name
+   * @param written the name of the method the focus is passed to
+   * @return the primitive type to unbox the focus to, or null
+   */
+  private TypeMirror writtenFocusType(
+      ExecutableElement method,
+      DeclaredType receiver,
+      TypeElement receiverElement,
+      String getter,
+      String written) {
+    return Optional.ofNullable(primitiveRead(method, receiver, receiverElement, getter))
+        .map(read -> unboxedFocus(read, writtenParameters(receiverElement, written)))
+        .orElse(null);
+  }
+
+  /**
+   * The primitive type {@code @ViaBuilder}'s setter takes the focus as, or null to pass {@code
+   * newValue} unchanged. The setter is called on the builder {@code toBuilder()} hands back, not on
+   * the source, so the candidates are read there; a {@code toBuilder} that names no method of the
+   * source leaves the call to javac, and nothing is unboxed.
+   *
+   * @param method the annotated optic method
+   * @param source the source type {@code S}
+   * @param sourceElement the source type's element
+   * @param getter the getter the strategy names, or empty to read the optic method's own name
+   * @param toBuilder the name of the method handing back the builder
+   * @param setter the builder's setter, or empty to read the optic method's own name
+   * @return the primitive type to unbox the focus to, or null
+   */
+  private TypeMirror builderFocusType(
+      ExecutableElement method,
+      DeclaredType source,
+      TypeElement sourceElement,
+      String getter,
+      String toBuilder,
+      String setter) {
+    String named = setter.isEmpty() ? method.getSimpleName().toString() : setter;
+    return Optional.ofNullable(primitiveRead(method, source, sourceElement, getter))
+        .flatMap(
+            read ->
+                builderOf(source, sourceElement, toBuilder)
+                    .map(builder -> unboxedFocus(read, writtenParameters(builder, named))))
+        .orElse(null);
+  }
+
+  /**
+   * The builder {@code toBuilder} hands back, or empty where the source declares no such method, or
+   * one handing back something with no members to call. Either way nothing is unboxed, and javac
+   * reports the call the generator writes.
+   */
+  private Optional<TypeElement> builderOf(
+      DeclaredType source, TypeElement sourceElement, String toBuilder) {
+    return zeroArgumentMethods(source, sourceElement, toBuilder).map(typeUtils::asElement).stream()
+        .flatMap(element -> ElementFilter.typesIn(List.of(element)).stream())
+        .findFirst();
+  }
+
+  /**
+   * The type the lens reads its focus through, when that is a primitive: the zero-argument method
+   * the strategy names, or the optic method's own name where it names none. Null for a getter that
+   * hands back a reference type, which the call takes as it is, and for one the source does not
+   * declare, which javac reports at the generated call.
+   */
+  private TypeMirror primitiveRead(
+      ExecutableElement method, DeclaredType receiver, TypeElement receiverElement, String getter) {
+    String named = getter.isEmpty() ? method.getSimpleName().toString() : getter;
+    return zeroArgumentMethods(receiver, receiverElement, named)
+        .filter(type -> type.getKind().isPrimitive())
+        .orElse(null);
+  }
+
+  /** The type the zero-argument method {@code named} hands back, read on {@code receiver}. */
+  private Optional<TypeMirror> zeroArgumentMethods(
+      DeclaredType receiver, TypeElement receiverElement, String named) {
+    return ElementFilter.methodsIn(elementUtils.getAllMembers(receiverElement)).stream()
+        .filter(candidate -> candidate.getSimpleName().contentEquals(named))
+        .filter(candidate -> candidate.getParameters().isEmpty())
+        .map(candidate -> memberTypeOf(receiver, candidate))
+        .findFirst();
+  }
+
+  /**
+   * The parameter types of the one-argument methods named {@code written} on {@code
+   * receiverElement}, the candidates a call passing one argument chooses among.
+   */
+  private List<TypeMirror> writtenParameters(TypeElement receiverElement, String written) {
+    return ElementFilter.methodsIn(elementUtils.getAllMembers(receiverElement)).stream()
+        .filter(candidate -> candidate.getSimpleName().contentEquals(written))
+        .filter(candidate -> candidate.getParameters().size() == 1)
+        .map(candidate -> candidate.getParameters().getFirst().asType())
+        .toList();
+  }
+
+  /**
+   * The primitive {@code read} is unboxed to where that cannot move the call, or null to pass the
+   * focus boxed.
+   *
+   * <p>Unboxed, the focus has the type its getter hands back, and every other argument is a getter
+   * read already, so the call binds exactly where the rebuild {@code new S(source.cents(),
+   * source.owner())} binds: the constructor or method the strategy describes. The question is only
+   * whether to write the cast at all, and the answer is whether one of the candidates takes exactly
+   * {@code read}. That one is applicable by strict invocation, and it is the most specific of the
+   * candidates that are: another primitive is either unreachable, because a narrowing conversion is
+   * never applied to an argument, or wider than {@code read}, which makes {@code read}'s own the
+   * more specific (JLS 15.12.2.5); a reference parameter needs boxing, which the first phase does
+   * not do (JLS 15.12.2.2).
+   *
+   * <p>Where no candidate takes it, unboxing could move the call, as it would from {@code P(Long,
+   * String)} to a {@code P(double, String)} the boxed focus never reached, so the focus is passed
+   * as it is. A lone candidate is not overloaded at all and needs no cast to settle it.
+   */
+  private TypeMirror unboxedFocus(TypeMirror read, List<TypeMirror> candidates) {
+    if (candidates.size() < 2) {
+      return null;
+    }
+    boolean taken =
+        candidates.stream().anyMatch(candidate -> typeUtils.isSameType(candidate, read));
+    return taken ? typeUtils.getPrimitiveType(read.getKind()) : null;
+  }
+
+  /**
+   * The primitive type {@code @ViaConstructor}'s constructor call passes the focus as, or null to
+   * pass {@code newValue} unchanged.
+   *
+   * <p>The lens focuses a primitive boxed, and the first phase of overload resolution allows no
+   * unboxing (JLS 15.12.2.2), so a {@code Long} can bind to a {@code (Number, String)} overload
+   * before the {@code (long, String)} one is considered. The call means the constructor that {@code
+   * new S(source.cents(), source.currency())} binds to, every argument read through its own getter,
+   * so unboxing the focus to its getter's type leaves that same constructor the most specific one
+   * applicable.
+   *
+   * <p>The candidates are the constructors of the call's own arity, read at the focus's place, and
+   * {@link #unboxedFocus} decides among them; one that no other argument fits is among them
+   * harmlessly, since it cannot take a call it is not applicable to. The focus also has to be an
+   * argument of the call at all, which a {@code parameterOrder} naming other getters leaves it out
+   * of. Answering it here, with {@code Types}, leaves the generator the one rule
+   * {@code @ViaCopyAndSet}'s cast follows: a null type means no cast.
+   *
+   * @param method the annotated optic method, named after its getter
+   * @param source the source type {@code S}
+   * @param sourceElement the source type's element
+   * @param parameterOrder the getters the constructor call reads its arguments from, in order
+   * @return the primitive type to unbox the focus to, or null
+   */
+  private TypeMirror constructorFocusType(
+      ExecutableElement method,
+      DeclaredType source,
+      TypeElement sourceElement,
+      String[] parameterOrder) {
+    int focus = List.of(parameterOrder).indexOf(method.getSimpleName().toString());
+    if (focus < 0) {
+      // The call passes the focus nowhere, so there is no argument to unbox.
+      return null;
+    }
+    List<TypeMirror> candidates =
+        ElementFilter.constructorsIn(sourceElement.getEnclosedElements()).stream()
+            .map(ExecutableElement::getParameters)
+            .filter(parameters -> parameters.size() == parameterOrder.length)
+            .map(parameters -> parameters.get(focus).asType())
+            .toList();
+    return Optional.ofNullable(primitiveRead(method, source, sourceElement, ""))
+        .map(read -> unboxedFocus(read, candidates))
+        .orElse(null);
   }
 
   /**

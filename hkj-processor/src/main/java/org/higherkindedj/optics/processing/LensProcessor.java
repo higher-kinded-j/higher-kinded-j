@@ -108,7 +108,7 @@ public class LensProcessor extends AbstractProcessor {
 
     for (RecordComponentElement component : components) {
       lensesClassBuilder.addMethod(
-          createLensMethod(component, recordElement, components, recordTypeName, packageName));
+          createLensMethod(component, recordElement, recordTypeName, packageName));
     }
 
     for (RecordComponentElement component : components) {
@@ -141,7 +141,6 @@ public class LensProcessor extends AbstractProcessor {
   private MethodSpec createLensMethod(
       RecordComponentElement component,
       TypeElement recordElement,
-      List<? extends RecordComponentElement> allComponents,
       TypeName recordTypeName,
       String packageName) {
 
@@ -171,14 +170,7 @@ public class LensProcessor extends AbstractProcessor {
       methodBuilder.addTypeVariable(ProcessorUtils.typeVariableOf(typeParam, packageName));
     }
 
-    String constructorArgs =
-        allComponents.stream()
-            .map(
-                c ->
-                    c.getSimpleName().toString().equals(componentName)
-                        ? "newValue"
-                        : "source." + c.getSimpleName() + "()")
-            .collect(Collectors.joining(", "));
+    String constructorArgs = ProcessorUtils.rebuildArguments(recordElement, componentName);
 
     methodBuilder.addStatement(
         "return $T.of($T::$L, (source, newValue) -> new $T($L))",

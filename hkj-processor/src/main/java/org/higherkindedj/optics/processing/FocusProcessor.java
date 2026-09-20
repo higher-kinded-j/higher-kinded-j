@@ -222,9 +222,7 @@ public class FocusProcessor extends AbstractProcessor {
 
       // Try to create a navigator method if navigators are enabled
       if (navigatorGenerator != null) {
-        method =
-            navigatorGenerator.createNavigatorMethod(
-                component, recordElement, components, recordTypeName);
+        method = navigatorGenerator.createNavigatorMethod(component, recordElement, recordTypeName);
       }
 
       // Fall back to the static FocusPath method when no navigator took the field. The one
@@ -240,8 +238,7 @@ public class FocusProcessor extends AbstractProcessor {
           reportUndenotableContainer(component, widening.declined());
         }
         method =
-            createFocusPathMethod(
-                component, recordElement, components, recordTypeName, widening, packageName);
+            createFocusPathMethod(component, recordElement, recordTypeName, widening, packageName);
       }
 
       focusClassBuilder.addMethod(method);
@@ -277,7 +274,6 @@ public class FocusProcessor extends AbstractProcessor {
   private MethodSpec createFocusPathMethod(
       RecordComponentElement component,
       TypeElement recordElement,
-      List<? extends RecordComponentElement> allComponents,
       TypeName recordTypeName,
       WideningAnalysis.Widening widening,
       String packageName) {
@@ -331,14 +327,7 @@ public class FocusProcessor extends AbstractProcessor {
     }
 
     // Build the constructor arguments for the setter lambda
-    String constructorArgs =
-        allComponents.stream()
-            .map(
-                c ->
-                    c.getSimpleName().toString().equals(componentName)
-                        ? "newValue"
-                        : "source." + c.getSimpleName() + "()")
-            .collect(Collectors.joining(", "));
+    String constructorArgs = ProcessorUtils.rebuildArguments(recordElement, componentName);
 
     // Generate code based on path type widening. The component name rides along as the path's
     // field-name segment, so generated paths self-locate.
