@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing.external;
 import java.util.List;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 
 /**
@@ -290,11 +291,8 @@ public record SpecAnalysis(
    * @param fieldTraversal the explicit traversal for the field (for @ThroughField)
    * @param checkedComposition whether the composition can be emitted without the raw cast, so javac
    *     checks it: true only for an auto-detected traversal over a denotable lens focus
-   * @param lensFocus the focus the spec's lens for the field declares, which the checked
-   *     composition names in a local so the generic lens call is target-typed; null on the cast
-   *     path
-   * @param lens the spec's lens for the field as the spec has it, whose focus {@code lensFocus} is;
-   *     null on the cast path
+   * @param lens the spec's lens for the field as the spec has it, which the checked composition
+   *     names in a local so the generic lens call is target-typed; null on the cast path
    * @param lensDeclared the same lens as its method declares it, so the local keeps what the
    *     declaration wrote on a type variable's use; null on the cast path
    */
@@ -303,9 +301,19 @@ public record SpecAnalysis(
       String fieldName,
       String fieldTraversal,
       boolean checkedComposition,
-      TypeMirror lensFocus,
-      TypeMirror lens,
+      DeclaredType lens,
       TypeMirror lensDeclared) {
+
+    /**
+     * The focus the spec's lens for the field declares, which is what the container traversal
+     * composes onto. The analyser accepts a lens only with both its type arguments, so the focus is
+     * read off the lens itself rather than carried beside it.
+     *
+     * @return the lens focus, or null on the cast path, where there is no lens
+     */
+    public TypeMirror lensFocus() {
+      return lens == null ? null : lens.getTypeArguments().get(1);
+    }
 
     /**
      * Creates an empty traversal hint info.
@@ -313,7 +321,7 @@ public record SpecAnalysis(
      * @return an empty TraversalHintInfo
      */
     public static TraversalHintInfo empty() {
-      return new TraversalHintInfo("", "", "", false, null, null, null);
+      return new TraversalHintInfo("", "", "", false, null, null);
     }
 
     /**
@@ -323,7 +331,7 @@ public record SpecAnalysis(
      * @return a TraversalHintInfo for explicit traversal
      */
     public static TraversalHintInfo forTraverseWith(String traversalReference) {
-      return new TraversalHintInfo(traversalReference, "", "", false, null, null, null);
+      return new TraversalHintInfo(traversalReference, "", "", false, null, null);
     }
 
     /**
@@ -337,7 +345,7 @@ public record SpecAnalysis(
      * @return a TraversalHintInfo for field-based traversal
      */
     public static TraversalHintInfo forThroughField(String fieldName, String traversal) {
-      return new TraversalHintInfo("", fieldName, traversal, false, null, null, null);
+      return new TraversalHintInfo("", fieldName, traversal, false, null, null);
     }
 
     /**
@@ -347,18 +355,13 @@ public record SpecAnalysis(
      *
      * @param fieldName the field name to traverse through
      * @param traversal the standard traversal for the field's container interface
-     * @param lensFocus the focus the spec's lens for the field declares
      * @param lens the spec's lens for the field as the spec has it
      * @param lensDeclared the same lens as its method declares it
      * @return a TraversalHintInfo whose composition javac checks
      */
     public static TraversalHintInfo forCheckedThroughField(
-        String fieldName,
-        String traversal,
-        TypeMirror lensFocus,
-        TypeMirror lens,
-        TypeMirror lensDeclared) {
-      return new TraversalHintInfo("", fieldName, traversal, true, lensFocus, lens, lensDeclared);
+        String fieldName, String traversal, DeclaredType lens, TypeMirror lensDeclared) {
+      return new TraversalHintInfo("", fieldName, traversal, true, lens, lensDeclared);
     }
   }
 }

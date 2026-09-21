@@ -1491,7 +1491,6 @@ public class SpecInterfaceAnalyser {
                     ? TraversalHintInfo.forCheckedThroughField(
                         fieldName,
                         autoDetected.get().reference(),
-                        autoDetected.get().lensFocus(),
                         autoDetected.get().lens().type(),
                         autoDetected.get().lens().declared())
                     : TraversalHintInfo.forThroughField(
@@ -1554,7 +1553,40 @@ public class SpecInterfaceAnalyser {
     // decides the type detected from: a getter may return ArrayList behind a Lens<S, List<String>>,
     // and it is the lens the traversal composes with.
     LensMember lens = declaredLens(specInterface, fieldName);
-    if (lens == null) {
+    // A raw lens is declared but has no focus, so there is nothing for the container traversal to
+    // compose onto; it is refused where a missing one is, and told apart in the message. What is
+    // raw may be the lens method or a clause on the way to it: reading a member under a raw
+    // supertype erases it, wherever on that path the raw clause sits. The declaration is what
+    // tells the two apart, so asking for the method's type arguments never sends the author to a
+    // declaration that already has them.
+    boolean raw = lens != null && lens.type().getTypeArguments().size() != 2;
+    boolean rawClause = raw && ProcessorUtils.firstRawIn(lens.declared()) == null;
+    if (lens == null || raw) {
+      String problem;
+      String fix;
+      if (rawClause) {
+        problem = "', which the spec reads raw through a supertype clause";
+        fix =
+            "Give the clause that brings '"
+                + fieldName
+                + "' in its type arguments, or declare '"
+                + fieldName
+                + "' on the spec itself with its copy strategy";
+      } else if (raw) {
+        problem = "', which the spec declares raw";
+        fix =
+            "Declare '"
+                + fieldName
+                + "' with both its type arguments, as Lens<Source, Focus>, or use @TraverseWith for"
+                + " a traversal that stands on its own";
+      } else {
+        problem = "', which the spec does not declare";
+        fix =
+            "Declare a Lens method named '"
+                + fieldName
+                + "' on the spec, with its copy strategy, or use @TraverseWith for a traversal that"
+                + " stands on its own";
+      }
       Diagnostics.error(
           messager,
           method,
@@ -1565,13 +1597,10 @@ public class SpecInterfaceAnalyser {
               + method.getSimpleName()
               + "' composes through a lens named '"
               + fieldName
-              + "', which the spec does not declare",
+              + problem,
           "The generated traversal calls the spec's own lens for the field and composes the"
-              + " container traversal after it",
-          "Declare a Lens method named '"
-              + fieldName
-              + "' on the spec, with its copy strategy, or use @TraverseWith for a traversal that"
-              + " stands on its own");
+              + " container traversal after it, so the lens has to say what it focuses on",
+          fix);
       return Optional.empty();
     }
     fieldType = extractFocusType(lens.type());
@@ -1714,7 +1743,7 @@ public class SpecInterfaceAnalyser {
     // parameters it declares on the method.
     boolean checked = !ProcessorUtils.hasUndenotableTypeArguments(fieldType);
 
-    return Optional.of(new AutoDetectedTraversal(traversalRef, checked, fieldType, lens));
+    return Optional.of(new AutoDetectedTraversal(traversalRef, checked, lens));
   }
 
   /** The word the mismatch diagnostic uses for what a container's traversal hands back. */
@@ -1732,11 +1761,11 @@ public class SpecInterfaceAnalyser {
    * @param reference the standard traversal for the field's container interface
    * @param checkedComposition true when the lens focus is denotable, making the method a candidate
    *     for the uncast composition
-   * @param lensFocus the focus the spec's lens for the field declares
-   * @param lens that lens, as the spec has it and as its method declares it
+   * @param lens the spec's lens for the field, as the spec has it and as its method declares it,
+   *     which is where its focus is read from
    */
   private record AutoDetectedTraversal(
-      String reference, boolean checkedComposition, TypeMirror lensFocus, LensMember lens) {}
+      String reference, boolean checkedComposition, LensMember lens) {}
 
   /**
    * A lens method of the spec: its return type read under the spec's instantiation, and as the
@@ -1748,8 +1777,8 @@ public class SpecInterfaceAnalyser {
   private record LensMember(DeclaredType type, TypeMirror declared) {}
 
   /**
-   * The spec's own lens for {@code fieldName}, or null when the spec declares no lens by that name
-   * (or a raw one).
+   * The spec's own lens for {@code fieldName}, or null when the spec declares no lens by that name.
+   * A raw one is answered as it is declared; it has no focus, and the caller says so.
    */
   private LensMember declaredLens(TypeElement specInterface, String fieldName) {
     DeclaredType specType = (DeclaredType) specInterface.asType();

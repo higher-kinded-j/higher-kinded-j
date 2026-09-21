@@ -31,7 +31,6 @@ import javax.lang.model.util.Types;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 
 @DisplayName("ProcessorUtils - shared processor string helpers")
 class ProcessorUtilsTest {
@@ -864,6 +863,44 @@ class ProcessorUtilsTest {
     }
 
     @Test
+    @DisplayName("without a package, keeps what some file could name and leaves off the rest")
+    void withoutAPackageKeepsWhatSomeFileCouldName() {
+      // A generator that does not know its package names with the one-argument form: a
+      // package-private annotation can be written from its own package, where such a file lands,
+      // while an unresolved, private or deprecated one could not be written cleanly anywhere.
+      var subject =
+          JavaFileObjects.forSourceString(
+              "com.test.Subject",
+              """
+              package com.test;
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Target;
+              @SuppressWarnings("unused")
+              public class Subject {
+                  @Target(ElementType.TYPE_USE)
+                  private @interface Hidden {}
+                  @Missing String unresolved;
+                  @Local String local;
+                  @Hidden String hidden;
+                  @Old String old;
+              }
+              @Target(ElementType.TYPE_USE)
+              @interface Local {}
+              @Deprecated
+              @Target(ElementType.TYPE_USE)
+              @interface Old {}
+              """);
+      var processor = new CapturingProcessor();
+      javac().withProcessors(processor).compile(subject);
+
+      assertThat(processor.names)
+          .containsEntry("unresolved", "java.lang.String")
+          .containsEntry("local", "java.lang. @com.test.Local String")
+          .containsEntry("hidden", "java.lang.String")
+          .containsEntry("old", "java.lang.String");
+    }
+
+    @Test
     @DisplayName("names a type javac could not resolve the way a resolved one is named")
     void namesAnUnresolvedTypeTheWayAResolvedOneIsNamed() {
       // A processor runs before every type is resolvable, so an ERROR type reaches the walk. It
@@ -894,7 +931,6 @@ class ProcessorUtilsTest {
    * restating an inherited or generic member reads it.
    */
   @Nested
-  @TestInstance(TestInstance.Lifecycle.PER_CLASS)
   @DisplayName("typeNameOf under an instantiation")
   class TypeNamesUnderAnInstantiation {
 
@@ -966,7 +1002,7 @@ class ProcessorUtilsTest {
     private static final String NULLABLE = "@org.jspecify.annotations.Nullable";
 
     /** The rendered names, from one compilation every test here shares. */
-    private final Map<String, String> names = probe();
+    private static final Map<String, String> NAMES = probe();
 
     /** Compiles the subject and hands back the rendered names. */
     private static Map<String, String> probe() {
@@ -1004,7 +1040,7 @@ class ProcessorUtilsTest {
     void keepsAnAnnotatedVariableUseTheSubstitutionDrops() {
       // Under the declaring type itself T is bound to T, and javac's substitution still hands back
       // a bare T: the annotation is the declaration's to supply.
-      assertThat(names)
+      assertThat(NAMES)
           .containsEntry("self.value", NULLABLE + " T")
           .containsEntry("self.items", "java.util.List<" + NULLABLE + " T>")
           .containsEntry("self.elements", NULLABLE + " T[]")
@@ -1016,7 +1052,7 @@ class ProcessorUtilsTest {
     @Test
     @DisplayName("writes the annotation onto whatever replaces the variable")
     void writesTheAnnotationOntoTheReplacement() {
-      assertThat(names)
+      assertThat(NAMES)
           .containsEntry("string.value", "java.lang. " + NULLABLE + " String")
           .containsEntry("string.items", "java.util.List<java.lang. " + NULLABLE + " String>")
           .containsEntry("string.elements", "java.lang. " + NULLABLE + " String[]")
@@ -1029,7 +1065,7 @@ class ProcessorUtilsTest {
     @Test
     @DisplayName("does not write an annotation twice where the replacement already carries it")
     void doesNotWriteAnAnnotationTwice() {
-      assertThat(names)
+      assertThat(NAMES)
           .containsEntry("annotated.value", "java.lang. " + NULLABLE + " String")
           .containsEntry("annotated.items", "java.util.List<java.lang. " + NULLABLE + " String>");
     }
@@ -1039,7 +1075,7 @@ class ProcessorUtilsTest {
     void annotatesAReplacementWithNoDeclaredPartsAsAWhole() {
       // An array standing where the variable was written has no counterpart in the declaration
       // below that point, so the annotation lands on the array and the walk goes on alone.
-      assertThat(names)
+      assertThat(NAMES)
           .containsEntry("array.value", "java.lang.String " + NULLABLE + " []")
           .containsEntry("array.items", "java.util.List<java.lang.String " + NULLABLE + " []>");
     }
@@ -1050,7 +1086,7 @@ class ProcessorUtilsTest {
       // Only an owner written with a wildcard argument puts one where a variable was, and no spec
       // can extend a mix-in that way. javapoet writes no annotation on a wildcard, so none shows;
       // what is pinned is that the bound is named from the wildcard itself.
-      assertThat(names)
+      assertThat(NAMES)
           .containsEntry("wildcard.value", "? extends java.lang.Number")
           .containsEntry("wildcard.items", "java.util.List<? extends java.lang.Number>");
     }
@@ -1059,18 +1095,18 @@ class ProcessorUtilsTest {
     @DisplayName("names a raw read by what it reads, with nothing of the declaration to pair")
     void namesARawReadByWhatItReads() {
       // A raw owner erases the member, so the declared arguments have nothing to stand beside.
-      assertThat(names)
+      assertThat(NAMES)
           .containsEntry("raw.items", "java.util.List")
           .containsEntry("raw.any", "java.util.List");
     }
 
     @Test
-    @DisplayName("keeps an annotation only where the file being written can name it")
-    void keepsAnAnnotationOnlyWhereTheFileCanNameIt() {
+    @DisplayName("keeps an annotation only where the file being written can write it cleanly")
+    void keepsAnAnnotationOnlyWhereTheFileCanWriteItCleanly() {
       // Reading under the instantiation dropped these already. Put back, one javac cannot resolve,
       // one private, or one package-private to another package would fail the build compiling the
-      // generated file, and a deprecated one would draw a warning there no one can suppress; one
-      // package-private to the file's own package is kept.
+      // generated file, and one deprecated anywhere in its nesting would draw a warning there no
+      // one can suppress; one package-private to the file's own package is kept.
       var scope =
           JavaFileObjects.forSourceString(
               "com.test.Scope",
@@ -1087,11 +1123,17 @@ class ProcessorUtilsTest {
                       @Enclosing.Nested T nested();
                       @Hidden T hidden();
                       @Old T old();
+                      @Ageing.Inner T ageing();
                   }
               }
               @Deprecated
               @Target(ElementType.TYPE_USE)
               @interface Old {}
+              @Deprecated
+              class Ageing {
+                  @Target(ElementType.TYPE_USE)
+                  public @interface Inner {}
+              }
               @Target(ElementType.TYPE_USE)
               @interface Local {}
               class Enclosing {
@@ -1115,47 +1157,11 @@ class ProcessorUtilsTest {
           .containsEntry("string.local", "java.lang. @com.test.Local String")
           .containsEntry("string.nested", "java.lang. @com.test.Enclosing.Nested String")
           .containsEntry("string.hidden", "java.lang.String")
-          .containsEntry("string.old", "java.lang.String");
+          .containsEntry("string.old", "java.lang.String")
+          .containsEntry("string.ageing", "java.lang.String");
       assertThat(elsewhere.names)
           .containsEntry("string.local", "java.lang.String")
           .containsEntry("string.nested", "java.lang.String");
-    }
-
-    @Test
-    @DisplayName("without a package, keeps what some file could name and leaves off the rest")
-    void withoutAPackageKeepsWhatSomeFileCouldName() {
-      // A generator that does not know its package names with the one-argument form: a
-      // package-private annotation can be written from its own package, where such a file lands.
-      var subject =
-          JavaFileObjects.forSourceString(
-              "com.test.Subject",
-              """
-              package com.test;
-              import java.lang.annotation.ElementType;
-              import java.lang.annotation.Target;
-              @SuppressWarnings("unused")
-              public class Subject {
-                  @Target(ElementType.TYPE_USE)
-                  private @interface Hidden {}
-                  @Missing String unresolved;
-                  @Local String local;
-                  @Hidden String hidden;
-                  @Old String old;
-              }
-              @Target(ElementType.TYPE_USE)
-              @interface Local {}
-              @Deprecated
-              @Target(ElementType.TYPE_USE)
-              @interface Old {}
-              """);
-      var processor = new TypeNames.CapturingProcessor();
-      javac().withProcessors(processor).compile(subject);
-
-      assertThat(processor.names)
-          .containsEntry("unresolved", "java.lang.String")
-          .containsEntry("local", "java.lang. @com.test.Local String")
-          .containsEntry("hidden", "java.lang.String")
-          .containsEntry("old", "java.lang.String");
     }
   }
 }

@@ -54,9 +54,21 @@ public class ArrayGenerator extends BaseTraversableGenerator {
       final RecordComponentElement component,
       final ClassName recordClassName,
       final List<? extends RecordComponentElement> allComponents) {
+    // A caller that names no package gets the record's own, which is where a companion lands
+    // unless a targetPackage or an import sends it elsewhere.
+    return generateModifyF(
+        component, recordClassName, allComponents, recordClassName.packageName());
+  }
+
+  @Override
+  public CodeBlock generateModifyF(
+      final RecordComponentElement component,
+      final ClassName recordClassName,
+      final List<? extends RecordComponentElement> allComponents,
+      final String targetPackage) {
 
     final String componentName = component.getSimpleName().toString();
-    final TypeName elementType = elementType(component);
+    final TypeName elementType = elementType(component, targetPackage);
     final TypeName focusType = elementType.box();
 
     // The new value is in a variable named `newArray`.
@@ -164,9 +176,9 @@ public class ArrayGenerator extends BaseTraversableGenerator {
    * The array's element type, unboxed: {@code int} for an {@code int[]}, {@code String} for a
    * {@code String[]}. The base implementation reads a type argument, which an array does not have.
    */
-  private TypeName elementType(final RecordComponentElement component) {
+  private TypeName elementType(final RecordComponentElement component, final String targetPackage) {
     if (component.asType() instanceof ArrayType arrayType) {
-      return ProcessorUtils.typeNameOf(arrayType.getComponentType());
+      return ProcessorUtils.typeNameOf(arrayType.getComponentType(), targetPackage);
     }
     return ClassName.get(Object.class); // Fallback
   }

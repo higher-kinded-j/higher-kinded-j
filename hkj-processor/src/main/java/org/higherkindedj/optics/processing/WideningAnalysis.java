@@ -232,7 +232,7 @@ public final class WideningAnalysis {
       ProcessingEnvironment processingEnv,
       List<TraversableGenerator> traversableGenerators,
       String targetPackage) {
-    this.kindAnalyser = new KindFieldAnalyser(processingEnv);
+    this.kindAnalyser = new KindFieldAnalyser(processingEnv, targetPackage);
     this.generatorRegistry =
         GeneratorRegistry.of(traversableGenerators, processingEnv.getMessager());
     this.targetPackage = targetPackage;

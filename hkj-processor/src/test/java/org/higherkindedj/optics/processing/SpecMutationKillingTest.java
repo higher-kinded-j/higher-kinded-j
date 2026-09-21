@@ -17,7 +17,9 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.processing.external.ContainerType;
 import org.higherkindedj.optics.processing.external.CopyStrategyCodeGenerator;
@@ -462,7 +464,7 @@ class SpecMutationKillingTest {
     void throughFieldCheckedCompositionSkipsTheCast() {
       TraversalHintInfo info =
           TraversalHintInfo.forCheckedThroughField(
-              "items", "org.higherkindedj.optics.util.Traversals.forList()", null, null, null);
+              "items", "org.higherkindedj.optics.util.Traversals.forList()", null, null);
       ParameterizedTypeName lensReturnType =
           ParameterizedTypeName.get(
               ClassName.get("org.higherkindedj.optics", "Lens"),
@@ -1272,6 +1274,54 @@ class SpecMutationKillingTest {
 
   // =============================================================================
   // Helper Infrastructure
+  @Nested
+  @DisplayName("TraversalHintInfo reads its focus off the lens it carries")
+  class TraversalHintFocus {
+
+    @Test
+    @DisplayName("the checked path reads the lens's second type argument")
+    void theCheckedPathReadsTheLensSecondTypeArgument() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "com.test.Bag",
+              """
+              package com.test;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              public interface Bag {
+                  Lens<Bag, List<String>> items();
+              }
+              """);
+
+      String focus =
+          runGeneratorInProcessor(
+              "com.test.Bag",
+              proc -> {
+                TypeMirror lens =
+                    ElementFilter.methodsIn(
+                            ((DeclaredType) proc.getTypeMirror()).asElement().getEnclosedElements())
+                        .getFirst()
+                        .getReturnType();
+                return TraversalHintInfo.forCheckedThroughField(
+                        "items", "Traversals.forList()", (DeclaredType) lens, lens)
+                    .lensFocus()
+                    .toString();
+              },
+              source);
+
+      assertThat(focus).isEqualTo("java.util.List<java.lang.String>");
+    }
+
+    @Test
+    @DisplayName("the cast path carries no lens, so there is no focus to read")
+    void theCastPathCarriesNoLens() {
+      assertThat(TraversalHintInfo.empty().lensFocus()).isNull();
+      assertThat(TraversalHintInfo.forTraverseWith("Traversals.forList()").lensFocus()).isNull();
+      assertThat(TraversalHintInfo.forThroughField("items", "Traversals.forList()").lensFocus())
+          .isNull();
+    }
+  }
+
   // =============================================================================
 
   @FunctionalInterface

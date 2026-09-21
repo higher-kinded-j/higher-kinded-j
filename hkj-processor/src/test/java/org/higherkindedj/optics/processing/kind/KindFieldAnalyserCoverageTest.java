@@ -84,7 +84,7 @@ class KindFieldAnalyserCoverageTest {
       TypeElement typeElement = processingEnv.getElementUtils().getTypeElement(targetTypeName);
       if (typeElement != null) {
         analysisAttempted = true;
-        KindFieldAnalyser analyser = new KindFieldAnalyser(processingEnv);
+        KindFieldAnalyser analyser = new KindFieldAnalyser(processingEnv, "com.test");
 
         for (RecordComponentElement component : typeElement.getRecordComponents()) {
           results.add(analyser.analyse(component));

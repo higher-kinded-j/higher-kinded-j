@@ -235,8 +235,24 @@ public interface TraversableGenerator {
         RecordComponentElement component,
         ClassName recordClassName,
         List<? extends RecordComponentElement> allComponents);
+
+    /**
+     * The same, for a body written into targetPackage. Override this one when the
+     * body names a component's type; the default calls the form above.
+     */
+    default CodeBlock generateModifyF(
+        RecordComponentElement component,
+        ClassName recordClassName,
+        List<? extends RecordComponentElement> allComponents,
+        String targetPackage) {
+        return generateModifyF(component, recordClassName, allComponents);
+    }
 }
 ```
+
+~~~admonish note title="Naming a type in the body"
+A body that writes out a component's type, such as a local it declares, is not always written into that type's package: a companion generated under a `targetPackage`, or the optics generated for a type reached with `@ImportOptics`, land elsewhere. Name such a type with `ProcessorUtils.typeNameOf(type, targetPackage)` from the four-argument `generateModifyF`, and a type-use annotation that package cannot name, one package-private to the component's own package, is left off rather than copied into a file that could not compile with it. `BaseTraversableGenerator.getTypeArgumentName(component, index, targetPackage)` does the same for a type argument. A generator that names no type of its own needs neither.
+~~~
 
 ~~~admonish note title="Cardinality and Navigator Generation"
 The `getCardinality()` method influences both `@GenerateTraversals` and `@GenerateFocus(generateNavigators = true)`. When the Focus processor generates navigator classes, it consults each SPI generator's cardinality to determine whether a field should produce an `AffinePath` (zero or one element) or a `TraversalPath` (zero or more elements). Without this, SPI-registered types would default to `FocusPath`, losing the correct widening semantics.

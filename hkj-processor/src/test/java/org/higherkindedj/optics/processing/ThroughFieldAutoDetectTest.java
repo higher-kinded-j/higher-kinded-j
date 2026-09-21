@@ -259,10 +259,136 @@ class ThroughFieldAutoDetectTest {
           .hadErrorContaining(
               "@ThroughField: 'SackSpec.eachItem' composes through a lens named 'items', which the"
                   + " spec does not declare. The generated traversal calls the spec's own lens for"
-                  + " the field and composes the container traversal after it. Declare a Lens"
-                  + " method named 'items' on the spec, with its copy strategy, or use"
-                  + " @TraverseWith for a traversal that stands on its own.");
+                  + " the field and composes the container traversal after it, so the lens has to"
+                  + " say what it focuses on. Declare a Lens method named 'items' on the spec, with"
+                  + " its copy strategy, or use @TraverseWith for a traversal that stands on its"
+                  + " own.");
       assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should refuse a raw lens for the field, and say that is what it is")
+    void shouldRefuseWhenTheLensForTheFieldIsRaw() {
+      // A raw lens has no focus for the container traversal to compose onto. Read as a missing
+      // lens it would send the author looking for a method that is right there, so it is named
+      // for what it is. The spec's own raw clause is beside the point: what is raw is the
+      // declaration, which is where the author has to make the change.
+      var container =
+          JavaFileObjects.forSourceString(
+              "com.external.Sack",
+              """
+              package com.external;
+              import java.util.List;
+              public record Sack(List<String> items) {
+                  public Sack withItems(List<String> items) { return new Sack(items); }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.SackSpec",
+              """
+              package com.test;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+              import org.higherkindedj.optics.annotations.Wither;
+              import com.external.Sack;
+
+              @ImportOptics
+              @SuppressWarnings("rawtypes")
+              public interface SackSpec extends OpticsSpec<Sack>, Tagged {
+                  @ThroughField(field = "items")
+                  Traversal<Sack, String> eachItem();
+
+                  @Wither("withItems")
+                  Lens items();
+              }
+
+              interface Tagged<T> {}
+              """);
+
+      Compilation compilation = compile(container, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ThroughField: 'SackSpec.eachItem' composes through a lens named 'items', which the"
+                  + " spec declares raw. The generated traversal calls the spec's own lens for the"
+                  + " field and composes the container traversal after it, so the lens has to say"
+                  + " what it focuses on. Declare 'items' with both its type arguments, as"
+                  + " Lens<Source, Focus>, or use @TraverseWith for a traversal that stands on its"
+                  + " own.");
+    }
+
+    @Test
+    @DisplayName("should refuse a lens read raw through a clause above it, and ask for the clause")
+    void shouldRefuseWhenTheLensIsReadRawThroughAMixIn() {
+      // The lens method declares both its type arguments; a clause on the way to it drops them,
+      // and reading the member under a raw supertype erases it. The raw clause is not the spec's
+      // own, so the answer cannot come from reading its extends list: it comes from the lens
+      // declaration, which has what the read has lost.
+      var container =
+          JavaFileObjects.forSourceString(
+              "com.external.Sack",
+              """
+              package com.external;
+              import java.util.List;
+              public record Sack(List<String> items) {
+                  public Sack withItems(List<String> items) { return new Sack(items); }
+              }
+              """);
+      var bits =
+          JavaFileObjects.forSourceString(
+              "com.test.Bits",
+              """
+              package com.test;
+              import com.external.Sack;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              public interface Bits<T> {
+                  @Wither("withItems")
+                  Lens<Sack, List<String>> items();
+              }
+              """);
+      var mid =
+          JavaFileObjects.forSourceString(
+              "com.test.Mid",
+              """
+              package com.test;
+
+              @SuppressWarnings("rawtypes")
+              public interface Mid extends Bits {}
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.SackSpec",
+              """
+              package com.test;
+              import com.external.Sack;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+
+              @ImportOptics
+              public interface SackSpec extends OpticsSpec<Sack>, Mid {
+                  @ThroughField(field = "items")
+                  Traversal<Sack, String> eachItem();
+              }
+              """);
+
+      Compilation compilation = compile(container, bits, mid, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "composes through a lens named 'items', which the spec reads raw through a supertype"
+                  + " clause. The generated traversal calls the spec's own lens for the field and"
+                  + " composes the container traversal after it, so the lens has to say what it"
+                  + " focuses on. Give the clause that brings 'items' in its type arguments, or"
+                  + " declare 'items' on the spec itself with its copy strategy.");
     }
 
     @Test

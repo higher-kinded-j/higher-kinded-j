@@ -172,7 +172,9 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
         processingEnv.getElementUtils().getPackageOf(iface).getQualifiedName().toString();
     String simpleName = iface.getSimpleName().toString();
     List<TypeVariableName> typeVars =
-        iface.getTypeParameters().stream().map(TypeNames::typeVariableOf).toList();
+        iface.getTypeParameters().stream()
+            .map(parameter -> TypeNames.typeVariableOf(parameter, packageName))
+            .toList();
     boolean generic = !typeVars.isEmpty();
 
     ClassName nativeName = ClassName.get(packageName, simpleName + "HttpExchange");
@@ -223,6 +225,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       List<TypeVariableName> typeVars,
       List<ExecutableElement> methods,
       List<ReturnInfo> infos) {
+    String packageName = nativeName.packageName();
     TypeSpec.Builder builder =
         TypeSpec.interfaceBuilder(nativeName)
             .addModifiers(Modifier.PUBLIC)
@@ -242,13 +245,13 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
     for (int i = 0; i < methods.size(); i++) {
       ExecutableElement method = methods.get(i);
-      TypeName successType = TypeNames.typeNameOf(infos.get(i).success());
+      TypeName successType = TypeNames.typeNameOf(infos.get(i).success(), packageName);
       MethodSpec.Builder nativeMethod =
           MethodSpec.methodBuilder(method.getSimpleName().toString())
               .addModifiers(Modifier.PUBLIC, Modifier.ABSTRACT)
               .returns(ParameterizedTypeName.get(RESPONSE_ENTITY, successType));
       for (var typeParam : method.getTypeParameters()) {
-        nativeMethod.addTypeVariable(TypeNames.typeVariableOf(typeParam));
+        nativeMethod.addTypeVariable(TypeNames.typeVariableOf(typeParam, packageName));
       }
       // Copy the mapping annotations (@GetExchange, @PostExchange, version attrs, …) verbatim, but
       // not the HKJ client meta-annotations (@OnStatus/@OnStatuses) nor @Override — the generated
@@ -261,7 +264,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       // Copy parameters with their binding annotations (@PathVariable, @RequestBody, …).
       // ParameterSpec.get(VariableElement) drops annotations, so copy them explicitly.
       for (VariableElement parameter : method.getParameters()) {
-        nativeMethod.addParameter(copyParameter(parameter));
+        nativeMethod.addParameter(copyParameter(parameter, packageName));
       }
       builder.addMethod(nativeMethod.build());
     }
@@ -278,6 +281,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       List<TypeVariableName> typeVars,
       List<ExecutableElement> methods,
       List<ReturnInfo> infos) {
+    String packageName = facadeName.packageName();
     TypeSpec.Builder builder =
         TypeSpec.classBuilder(facadeName)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -323,21 +327,26 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
 
     for (int i = 0; i < methods.size(); i++) {
       builder.addMethod(
-          buildFacadeMethod(iface, methods.get(i), infos.get(i), decoderFields.get(i)));
+          buildFacadeMethod(
+              iface, methods.get(i), infos.get(i), decoderFields.get(i), packageName));
     }
     return builder.build();
   }
 
   private MethodSpec buildFacadeMethod(
-      TypeElement iface, ExecutableElement method, ReturnInfo info, @Nullable String decoderField) {
+      TypeElement iface,
+      ExecutableElement method,
+      ReturnInfo info,
+      @Nullable String decoderField,
+      String packageName) {
     String name = method.getSimpleName().toString();
     MethodSpec.Builder facadeMethod =
         MethodSpec.methodBuilder(name)
             .addAnnotation(Override.class)
             .addModifiers(Modifier.PUBLIC)
-            .returns(TypeNames.typeNameOf(method.getReturnType()));
+            .returns(TypeNames.typeNameOf(method.getReturnType(), packageName));
     for (var typeParam : method.getTypeParameters()) {
-      facadeMethod.addTypeVariable(TypeNames.typeVariableOf(typeParam));
+      facadeMethod.addTypeVariable(TypeNames.typeVariableOf(typeParam, packageName));
     }
     String args =
         method.getParameters().stream()
@@ -346,7 +355,8 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
     for (VariableElement parameter : method.getParameters()) {
       facadeMethod.addParameter(
           ParameterSpec.builder(
-                  TypeNames.typeNameOf(parameter.asType()), parameter.getSimpleName().toString())
+                  TypeNames.typeNameOf(parameter.asType(), packageName),
+                  parameter.getSimpleName().toString())
               .build());
     }
 
@@ -501,10 +511,10 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
    * name gets one injected from the source parameter — the processor knows the name even when the
    * consuming build does not compile with {@code -parameters}.
    */
-  private ParameterSpec copyParameter(VariableElement parameter) {
+  private ParameterSpec copyParameter(VariableElement parameter, String packageName) {
     String parameterName = parameter.getSimpleName().toString();
     ParameterSpec.Builder builder =
-        ParameterSpec.builder(TypeNames.typeNameOf(parameter.asType()), parameterName);
+        ParameterSpec.builder(TypeNames.typeNameOf(parameter.asType(), packageName), parameterName);
     for (AnnotationMirror mirror : parameter.getAnnotationMirrors()) {
       AnnotationSpec spec = AnnotationSpec.get(mirror);
       if (needsExplicitName(mirror, parameter)) {

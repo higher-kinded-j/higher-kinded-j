@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
 import com.google.testing.compile.JavaFileObjects;
+import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.TypeName;
@@ -41,6 +42,10 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("Type arguments read from real record components")
 class TypeArgumentNameTest {
+
+  /** The package-private annotation the fixture writes on its element type. */
+  private static final AnnotationSpec TAG =
+      AnnotationSpec.builder(ClassName.get("com.example", "Tag")).build();
 
   /** A generator whose type-argument helpers are all the test needs. */
   private static final BaseTraversableGenerator BASE =
@@ -93,6 +98,34 @@ class TypeArgumentNameTest {
             // Neither wildcard stands for a type of its own, so each is read as Object.
             entry("anything", ClassName.get(Object.class)),
             entry("sink", ClassName.get(Object.class)));
+  }
+
+  @Test
+  @DisplayName(
+      "getTypeArgumentName keeps an annotation only where the file being written can name it")
+  void keepsAnAnnotationOnlyWhereTheFileCanNameIt() {
+    final var tagged =
+        JavaFileObjects.forSourceString(
+            "com.example.Tagged",
+            """
+            package com.example;
+
+            import java.lang.annotation.ElementType;
+            import java.lang.annotation.Target;
+            import java.util.List;
+
+            public record Tagged(List<@Tag String> tags) {}
+
+            @Target(ElementType.TYPE_USE)
+            @interface Tag {}
+            """);
+
+    // The annotation is package-private to com.example, so a file written there can name it and
+    // one written anywhere else cannot.
+    assertThat(read(tagged, component -> BASE.getTypeArgumentName(component, 0, "com.example")))
+        .containsOnly(entry("tags", ClassName.get(String.class).annotated(TAG)));
+    assertThat(read(tagged, component -> BASE.getTypeArgumentName(component, 0, "com.away")))
+        .containsOnly(entry("tags", ClassName.get(String.class)));
   }
 
   @Test

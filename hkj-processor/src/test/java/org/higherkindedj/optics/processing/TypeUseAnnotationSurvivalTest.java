@@ -551,6 +551,13 @@ class TypeUseAnnotationSurvivalTest {
                         @GenerateMapping
                         interface KeyedMapping<X> extends MappingSpec<Keyed<X>, KeyedDto<X>> {}
 
+                        record Cycle<X>(Box<@Nullable X> box) implements CycleMapping<X> {}
+
+                        record CycleDto<X>(BoxDto<X> box) {}
+
+                        @GenerateMapping
+                        interface CycleMapping<T> extends MappingSpec<Cycle<T>, CycleDto<T>> {}
+
                         record Patched(Box<@Nullable String> box) {}
 
                         class PatchedPatch {
@@ -599,6 +606,12 @@ class TypeUseAnnotationSurvivalTest {
           compilation,
           "com.example.NestKeyedMappingImpl",
           "NestBoxMappingImpl.<@Nullable X>instance()");
+      // A domain that implements its own spec binds its variable to the spec's and back again,
+      // so the walk from the use site closes rather than going round.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.example.NestCycleMappingImpl",
+          "NestBoxMappingImpl.<@Nullable T>instance()");
       // A sparse update's domain is never generic, so there is nothing to recover, and nothing
       // lost.
       assertGeneratedCodeContains(
@@ -834,7 +847,12 @@ class TypeUseAnnotationSurvivalTest {
     void aPackagePrivateAnnotationIsKeptAtHomeAndLeftOffElsewhere() {
       Compilation compilation =
           javac()
-              .withProcessors(new LensProcessor(), new MappingProcessor())
+              .withProcessors(
+                  new LensProcessor(),
+                  new TraversalProcessor(),
+                  new FoldProcessor(),
+                  new FocusProcessor(),
+                  new MappingProcessor())
               .compile(
                   source(
                       "com.home.Tag",
@@ -848,24 +866,60 @@ class TypeUseAnnotationSurvivalTest {
                       @interface Tag {}
                       """),
                   source(
+                      "com.home.Old",
+                      """
+                      package com.home;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Deprecated
+                      @Target(ElementType.TYPE_USE)
+                      public @interface Old {}
+                      """),
+                  source(
                       "com.home.Named",
                       """
                       package com.home;
 
+                      import java.util.List;
+                      import org.higherkindedj.hkt.Kind;
+                      import org.higherkindedj.hkt.list.ListKind;
+                      import org.higherkindedj.optics.annotations.GenerateFocus;
+                      import org.higherkindedj.optics.annotations.GenerateFolds;
                       import org.higherkindedj.optics.annotations.GenerateLenses;
+                      import org.higherkindedj.optics.annotations.GenerateTraversals;
 
                       @GenerateLenses
-                      public record Named(@Tag String name) {}
+                      @GenerateTraversals
+                      @GenerateFolds
+                      @GenerateFocus
+                      public record Named(
+                          @Tag @Old String name,
+                          List<@Tag String> tags,
+                          Kind<ListKind.Witness, @Tag String> members) {}
                       """),
                   source(
                       "com.home.Moved",
                       """
                       package com.home;
 
+                      import java.util.List;
+                      import org.higherkindedj.hkt.Kind;
+                      import org.higherkindedj.hkt.list.ListKind;
+                      import org.higherkindedj.optics.annotations.GenerateFocus;
+                      import org.higherkindedj.optics.annotations.GenerateFolds;
                       import org.higherkindedj.optics.annotations.GenerateLenses;
+                      import org.higherkindedj.optics.annotations.GenerateTraversals;
 
                       @GenerateLenses(targetPackage = "com.away")
-                      public record Moved(@Tag String name) {}
+                      @GenerateTraversals(targetPackage = "com.away")
+                      @GenerateFolds(targetPackage = "com.away")
+                      @GenerateFocus(targetPackage = "com.away")
+                      public record Moved(
+                          @Tag String name,
+                          List<@Tag String> tags,
+                          Kind<ListKind.Witness, @Tag String> members) {}
                       """),
                   source(
                       "com.home.NameLeaf",
@@ -901,10 +955,21 @@ class TypeUseAnnotationSurvivalTest {
                       """));
 
       assertThat(compilation).succeeded();
+      // The deprecated one is left off even at home, where it could be named: writing it would
+      // draw a warning in a file no one can put a @SuppressWarnings on.
       assertGeneratedCodeContains(
           compilation, "com.home.NamedLenses", "public static Lens<Named, @Tag String> name()");
       assertGeneratedCodeContains(
           compilation, "com.away.MovedLenses", "public static Lens<Moved, String> name()");
+      // A container's element and a Kind's element are named as the type they stand for, which is
+      // the same decision made from the same package or from another one.
+      assertGeneratedCodeContains(
+          compilation, "com.home.NamedTraversals", "Traversal<Named, @Tag String> tags()");
+      assertGeneratedCodeContains(
+          compilation, "com.away.MovedTraversals", "Traversal<Moved, String> tags()");
+      assertGeneratedCodeContains(compilation, "com.away.MovedFolds", "Fold<Moved, String> tags()");
+      assertGeneratedCodeContains(
+          compilation, "com.away.MovedFocus", "TraversalPath<Moved, String> members()");
       // The mix-in's package-private annotation, restated by an Impl in the spec's package.
       assertGeneratedCodeContains(
           compilation,
@@ -913,12 +978,24 @@ class TypeUseAnnotationSurvivalTest {
     }
 
     @Test
-    @DisplayName("@ImportOptics leaves off one private to the type it imports")
+    @DisplayName(
+        "@ImportOptics leaves off one private to the type it imports, and one it cannot see")
     void importOpticsLeavesOffAPrivateAnnotation() {
       Compilation compilation =
           javac()
               .withProcessors(new ImportOpticsProcessor())
               .compile(
+                  source(
+                      "com.external.Tag",
+                      """
+                      package com.external;
+
+                      import java.lang.annotation.ElementType;
+                      import java.lang.annotation.Target;
+
+                      @Target(ElementType.TYPE_USE)
+                      @interface Tag {}
+                      """),
                   source(
                       "com.external.Customer",
                       """
@@ -926,8 +1003,13 @@ class TypeUseAnnotationSurvivalTest {
 
                       import java.lang.annotation.ElementType;
                       import java.lang.annotation.Target;
+                      import java.util.List;
+                      import java.util.Optional;
 
-                      public record Customer(@Customer.Internal String name) {
+                      public record Customer(
+                          @Customer.Internal String name,
+                          List<@Tag String> tags,
+                          Optional<@Tag String> note) {
                         @Target(ElementType.TYPE_USE)
                         private @interface Internal {}
                       }
@@ -946,6 +1028,15 @@ class TypeUseAnnotationSurvivalTest {
           compilation,
           "com.myapp.optics.CustomerLenses",
           "public static Lens<Customer, String> name()");
+      // The optics land in the importing package, which the imported type's own package-private
+      // annotation cannot reach, elements included: in the traversal's focus, and in the local a
+      // generator plugged in through the SPI declares in the body it writes.
+      assertGeneratedCodeContains(
+          compilation,
+          "com.myapp.optics.CustomerLenses",
+          "public static Traversal<Customer, String> tagsTraversal()");
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.optics.CustomerLenses", "final Optional<String> optional =");
     }
   }
 

@@ -217,7 +217,8 @@ public class TraversalProcessor extends AbstractProcessor {
         return null;
       }
       focusType =
-          ProcessorUtils.resolvedTypeNameOf(declaredType.getTypeArguments().get(typeArgumentIndex));
+          ProcessorUtils.resolvedTypeNameOf(
+              declaredType.getTypeArguments().get(typeArgumentIndex), packageName);
 
     } else {
       noteNoTraversal(
@@ -237,7 +238,8 @@ public class TraversalProcessor extends AbstractProcessor {
         ParameterizedTypeName.get(ClassName.get(Traversal.class), recordTypeName, focusType);
 
     final CodeBlock modifyFBody =
-        generator.generateModifyF(component, recordClassName, recordElement.getRecordComponents());
+        generator.generateModifyF(
+            component, recordClassName, recordElement.getRecordComponents(), packageName);
 
     // Create F extends WitnessArity<TypeArity.Unary>
     final ParameterizedTypeName witnessArityBound =

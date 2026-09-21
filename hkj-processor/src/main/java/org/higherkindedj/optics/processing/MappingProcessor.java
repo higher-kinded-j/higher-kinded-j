@@ -4204,7 +4204,7 @@ public class MappingProcessor extends AbstractProcessor {
    * raw type as the update method is. Its type-use annotations are new names, though, so only those
    * the Impl's package can write cleanly are kept ({@link ProcessorUtils#typeNameOf(TypeMirror,
    * String)}): a {@code @Nullable} survives, while one missing from the classpath, out of reach or
-   * deprecated is left off, as inference left it off before.
+   * deprecated is left off.
    */
   private TypeSpec componentsRecord(
       DeclaredType domainDeclared, List<String> written, String implPackage) {
@@ -4666,6 +4666,10 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Records, for each variable of the registered spec's domain, the name at its place in {@code
    * named}, which unification has already matched against the domain part for part.
+   *
+   * <p>A variable the domain names twice takes its first place: unification reads past the
+   * annotations, so {@code Pair<T, T>} matched against {@code Pair<@Nullable String, String>} is a
+   * match either way round, and the first is the one written.
    */
   private static void collectWitnesses(
       TypeMirror domain, TypeName named, Map<Element, TypeName> witnesses) {

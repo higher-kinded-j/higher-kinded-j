@@ -568,6 +568,8 @@ A `@ThroughField` traversal is generated as the spec's own lens for the field co
 
 **Fix.** Declare the lens method for the field on the spec, or use `@TraverseWith` to name a traversal over the source type that stands on its own.
 
+A lens declared raw, `Lens items()`, reads as `which the spec declares raw`. It is refused for the same reason: the traversal composes onto what the lens focuses, and a raw lens says nothing about that. Declare it with both type arguments, as `Lens<Sack, List<String>>`.
+
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which the spec does not declare" -->
 ```java
