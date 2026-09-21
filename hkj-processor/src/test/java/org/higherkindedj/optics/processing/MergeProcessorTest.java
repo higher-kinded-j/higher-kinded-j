@@ -10,8 +10,14 @@ import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invok
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.tools.JavaFileObject;
@@ -1564,7 +1570,8 @@ class MergeProcessorTest {
           .contains(".field(\"codes\", hkj$allPresent(source.codes()))")
           // a primitive array has no element that could be null
           .contains(".field(\"ranks\", hkj$ifPresent(source.ranks(), Validated::validNel))")
-          .contains("Set<E> values")
+          .contains(
+              "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
           .contains("E[] values");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -1593,9 +1600,9 @@ class MergeProcessorTest {
 
     @Test
     @DisplayName(
-        "a raw identity container fill gives up the element scan and stays a guarded read: the"
-            + " generic helper cannot type a raw argument")
-    void rawIdentityContainerFillsStayGuardedReads() throws Exception {
+        "a raw identity container fill is scanned like a parameterised one: the helper returns its"
+            + " argument's own type, so a raw argument needs no unchecked conversion")
+    void rawIdentityContainerFillsAreScanned() throws Exception {
       JavaFileObject records =
           JavaFileObjects.forSourceString(
               "com.example.RawBags",
@@ -1629,35 +1636,53 @@ class MergeProcessorTest {
               }
               """);
       Compilation compilation = compileLinted(records, spec);
-      assertThat(compilation).succeeded();
+      assertThat(compilation).succeededWithoutWarnings();
       Assertions.assertThat(generatedSource(compilation, "com.example.RawBagAssemblyImpl"))
-          .contains(".field(\"tags\", hkj$ifPresent(source.tags(), Validated::validNel))")
-          .contains(".field(\"codes\", hkj$ifPresent(source.codes(), Validated::validNel))")
-          .contains(".field(\"scores\", hkj$ifPresent(source.scores(), Validated::validNel))")
-          .doesNotContain("hkj$allPresent")
-          .doesNotContain("hkj$valuesPresent");
+          .contains(".field(\"tags\", hkj$allPresent(source.tags()))")
+          .contains(".field(\"codes\", hkj$allPresent(source.codes()))")
+          .contains(".field(\"scores\", hkj$valuesPresent(source.scores()))");
 
-      // The component guard survives the lost element scan: a null container still locates.
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.RawBagAssemblyImpl");
-      Object source =
+      Constructor<?> sourceOf =
           result
               .loadClass("com.example.RawBags$Source")
-              .getDeclaredConstructor(List.class, java.util.Set.class, java.util.Map.class)
-              .newInstance(null, null, null);
+              .getDeclaredConstructor(List.class, Set.class, Map.class);
       Object extra =
           result
               .loadClass("com.example.RawBags$Extra")
               .getDeclaredConstructor(String.class)
               .newInstance("n");
+
+      // A null container locates at the component.
       @SuppressWarnings("unchecked")
-      Validated<NonEmptyList<FieldError>, Object> merged =
-          (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "assemble", source, extra);
-      Assertions.assertThat(merged.getError().toJavaList())
+      Validated<NonEmptyList<FieldError>, Object> absent =
+          (Validated<NonEmptyList<FieldError>, Object>)
+              invoke(impl, "assemble", sourceOf.newInstance(null, null, null), extra);
+      Assertions.assertThat(absent.getError().toJavaList())
           .containsExactly(
               new FieldError(List.of("tags"), "must not be null"),
               new FieldError(List.of("codes"), "must not be null"),
               new FieldError(List.of("scores"), "must not be null"));
+
+      // And a null inside one locates too.
+      Set<String> codes = new HashSet<>();
+      codes.add(null);
+      Map<String, String> scores = new HashMap<>();
+      scores.put("k", null);
+      @SuppressWarnings("unchecked")
+      Validated<NonEmptyList<FieldError>, Object> holed =
+          (Validated<NonEmptyList<FieldError>, Object>)
+              invoke(
+                  impl,
+                  "assemble",
+                  sourceOf.newInstance(Arrays.asList("a", null), codes, scores),
+                  extra);
+      Assertions.assertThat(holed.getError().toJavaList())
+          .containsExactly(
+              new FieldError(List.of("tags", "1"), "must not be null"),
+              new FieldError(List.of("codes"), "must not contain a null element"),
+              new FieldError(List.of("scores", "k"), "must not be null"));
     }
 
     @Test

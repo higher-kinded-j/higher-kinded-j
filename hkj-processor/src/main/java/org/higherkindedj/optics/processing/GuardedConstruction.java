@@ -189,14 +189,7 @@ final class GuardedConstruction {
     taken.addAll(legs);
     List<String> params = new ArrayList<>(legs.size());
     for (String leg : legs) {
-      StringBuilder name = new StringBuilder(leg);
-      if (reserved.contains(leg)) {
-        do {
-          name.append('_');
-        } while (taken.contains(name.toString()));
-        taken.add(name.toString());
-      }
-      params.add(name.toString());
+      params.add(reserved.contains(leg) ? ProcessorUtils.freeName(leg, taken) : leg);
     }
     return List.copyOf(params);
   }

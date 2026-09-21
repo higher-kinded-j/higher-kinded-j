@@ -87,11 +87,11 @@ import java.lang.annotation.Target;
  *       and unify structurally.
  *   <li>Every reference-typed {@code parse} read is null-guarded into a located {@code FieldError}
  *       (inside containers too: a null element or map value locates by index or key, identity
- *       copies included, except that a raw {@code List}, {@code Set} or {@code Map} keeps only its
- *       own guard), on both wire shapes: an unset bean property is null, and a JSON binder leaves a
- *       missing record component null just the same. A bean's guarded reads make {@code asIso()}
- *       truthful only for an all-primitive bean; a lossless record mapping keeps {@code asIso()},
- *       its guards covering hostile bindings only.
+ *       copies included, at every depth and however the container is declared), on both wire
+ *       shapes: an unset bean property is null, and a JSON binder leaves a missing record component
+ *       null just the same. A bean's guarded reads make {@code asIso()} truthful only for an
+ *       all-primitive bean; a lossless record mapping keeps {@code asIso()}, its guards covering
+ *       hostile bindings only.
  *   <li>Once every component has parsed, the domain's canonical constructor runs, and a {@code
  *       RuntimeException} it throws (the record's own invariant) becomes a {@code FieldError} at
  *       the record's path carrying its message, in {@code parse}, the validated {@code patch} and a

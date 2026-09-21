@@ -1246,6 +1246,27 @@ public final class ProcessorUtils {
   }
 
   /**
+   * A name for a local or lambda parameter in generated code that no name already in scope takes:
+   * the candidate, underscore-suffixed until free of {@code taken}, which then claims it. A lambda
+   * parameter may not shadow a local or a parameter of the method holding it (JLS 6.4), and a merge
+   * method's parameters carry the spec author's own names, so generated code cannot assume any name
+   * is free.
+   *
+   * @param candidate the name to use when it is free
+   * @param taken the names already in scope; the returned name is added to it
+   * @return {@code candidate}, or {@code candidate} followed by as many underscores as it takes
+   * @since 0.4.11
+   */
+  public static String freeName(String candidate, Set<String> taken) {
+    StringBuilder name = new StringBuilder(candidate);
+    while (taken.contains(name.toString())) {
+      name.append('_');
+    }
+    taken.add(name.toString());
+    return name.toString();
+  }
+
+  /**
    * A type-variable name a method generated inside the record's own type variables can declare
    * without shadowing one of them.
    *

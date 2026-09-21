@@ -386,9 +386,10 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.LabelsMappingImpl"))
           .contains(".field(\"names\", hkj$allPresent(wire.names()))")
-          // the Set overload, not the List one
-          .contains("Validated<NonEmptyList<FieldError>, Set<E>> hkj$allPresent(Set<E> values)")
-          .doesNotContain("List<E> values")
+          // the one collection helper, which tells a set by what the value is at run time
+          .contains(
+              "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
+          .contains("boolean set = values instanceof Set")
           .contains("public Iso<Labels, LabelsDto> asIso()");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -780,8 +781,8 @@ class MappingProcessorTest {
       assertThat(withLeaf).failed();
       assertThat(withLeaf).hadErrorContaining("cannot name an array constructor");
 
-      // Without a leaf the same pair still copies by identity: no array is created, so it
-      // stays legal and is left alone.
+      // Without a leaf the same pair still copies by identity, its List elements scanned in
+      // turn: no array is created, so it stays legal.
       Compilation leafless =
           compile(
               types,
@@ -791,7 +792,8 @@ class MappingProcessorTest {
                       + " Records.PlainDto> {}"));
       assertThat(leafless).succeeded();
       Assertions.assertThat(generatedSource(leafless, "com.example.PlainMappingImpl"))
-          .contains(".field(\"sections\", hkj$allPresent(wire.sections()))");
+          .contains(
+              ".field(\"sections\", hkj$allPresent(wire.sections(), e -> hkj$allPresent(e)))");
     }
 
     @Test
@@ -4104,7 +4106,8 @@ class MappingProcessorTest {
       Compilation compilation = compile(EMAIL, crew, crewPatchDto, crewPatchMapping);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CrewPatchMappingImpl"))
-          .contains("Set<E> values")
+          .contains(
+              "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
           .contains("E[] values");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);

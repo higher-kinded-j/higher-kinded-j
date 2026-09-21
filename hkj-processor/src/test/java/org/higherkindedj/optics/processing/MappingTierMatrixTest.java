@@ -12,13 +12,17 @@ import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
@@ -52,13 +56,12 @@ import org.junit.jupiter.params.provider.MethodSource;
  * as a DTO's initialiser gives it, so an empty Optional round-trips only because {@code build}
  * writes its absence rather than leaving the property as the bean was constructed.
  *
- * <p>The raw and wildcard identity containers are here for the second rule the dense tiers carry:
- * an identity {@code List}, {@code Set} or {@code Map} adds the element null scan only where the
- * emitted generic helper can type. A raw container erases the call, so it gives the scan up in
- * every tier and takes the plain guarded leg; a wildcard argument is only a problem where the
- * scan's result type is pinned rather than inferred, which is the sparse tier, so the dense tiers
- * keep the scan for it, and so does the bridged leg, which names its Optional's argument outright.
- * {@code MappingProcessorUpdateTest} pins the sparse half of the same rule.
+ * <p>The identity container rows are here for the second rule the dense tiers carry: a null
+ * anywhere inside an identity container is a located invalid at its full path, however the
+ * container is declared: nested, through a subtype or a supertype, raw, with a wildcard argument,
+ * inside an {@code Optional}, or bridged. The scan's helper returns its argument's own type, so
+ * none of those shapes costs the scan, and every one is compiled here under the same lint as the
+ * rest. {@code MappingProcessorUpdateTest} pins the sparse half of the same rule.
  *
  * <p>A raw type is also a warning in generated code that the author's own suppression cannot reach,
  * so the rows naming one pin that each Impl member writing it out or inferring it answers for it
@@ -214,10 +217,9 @@ class MappingTierMatrixTest {
             false,
             false,
             (_, seed) -> List.of(seed)),
-        // A raw container gives up the element scan the generic helper cannot type, and takes the
-        // plain guarded leg instead - the rule the sparse tier states too (see
-        // MappingProcessorUpdateTest). It stays an identity copy, so it selects the same tier the
-        // parameterised List does, and its null reference still locates.
+        // A raw container is scanned like a parameterised one: the helper takes its argument's
+        // own type, so a raw argument needs no unchecked conversion. It stays an identity copy,
+        // so it selects the same tier the parameterised List does.
         new Case(
             "raw identity List",
             "rawlist",
@@ -273,6 +275,113 @@ class MappingTierMatrixTest {
             false,
             false,
             (_, seed) -> List.of(List.of(seed))),
+        // The scan reaches every level the type names, and a container declared through a
+        // subtype or a supertype of the one it holds.
+        new Case(
+            "nested identity List",
+            "nestedlist",
+            "List<List<String>>",
+            "List<List<String>>",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> List.of(List.of(seed))),
+        new Case(
+            "identity List of wildcard Lists",
+            "wildcardlists",
+            "List<? extends List<String>>",
+            "List<? extends List<String>>",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> List.of(List.of(seed))),
+        new Case(
+            "identity Map of Lists",
+            "mapoflists",
+            "Map<String, List<String>>",
+            "Map<String, List<String>>",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> Map.of(seed, List.of(seed))),
+        new Case(
+            "identity array of arrays",
+            "arrayofarrays",
+            "String[][]",
+            "String[][]",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> new String[][] {{seed}}),
+        new Case(
+            "identity ArrayList",
+            "arraylist",
+            "java.util.ArrayList<String>",
+            "java.util.ArrayList<String>",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> new ArrayList<>(List.of(seed))),
+        new Case(
+            "identity Collection",
+            "collection",
+            "java.util.Collection<String>",
+            "java.util.Collection<String>",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> List.of(seed)),
+        new Case(
+            "identity LinkedHashMap",
+            "linkedhashmap",
+            "java.util.LinkedHashMap<String, Integer>",
+            "java.util.LinkedHashMap<String, Integer>",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> new LinkedHashMap<>(Map.of(seed, 1))),
+        // An Optional cannot hold a null, but the List inside it can.
+        new Case(
+            "identity Optional of a List",
+            "optionallist",
+            "Optional<List<String>>",
+            "Optional<List<String>>",
+            "",
+            "",
+            true,
+            false,
+            true,
+            false,
+            false,
+            (_, seed) -> Optional.of(List.of(seed))),
         new Case(
             "converting leaf",
             "leaf",
@@ -405,6 +514,19 @@ class MappingTierMatrixTest {
             true,
             false,
             (_, seed) -> Optional.of(List.of(seed))),
+        new Case(
+            "Optional bridge onto a nested List",
+            "bridgednestedlist",
+            "Optional<List<List<String>>>",
+            "List<List<String>>",
+            "@OptionalBridge Optional<List<List<String>>> x();\n",
+            "",
+            false,
+            false,
+            true,
+            true,
+            false,
+            (_, seed) -> Optional.of(List.of(List.of(seed)))),
         // A raw element reaches the marker's stub, the patch assembly and the bean's write, and
         // each answers for it.
         new Case(
@@ -599,45 +721,160 @@ class MappingTierMatrixTest {
 
   @Test
   @DisplayName(
-      "the identity null scan follows what the emitted helper can type: a raw container takes the"
-          + " plain guarded leg, a wildcard-argument one keeps the scan")
-  void identityScanFollowsTypability() {
-    // Only these three specs read: the record projection is total on all three cases, so it
+      "every identity container is read through its null scan, raw and wildcard-argument ones"
+          + " alike, and never through the plain guard")
+  void everyIdentityContainerIsScanned() {
+    // Only these three specs read: the record projection is total on all these cases, so it
     // copies by lens and parses nothing.
     for (String spec : List.of("RecordFullMapping", "BeanFullMapping", "BeanProjectionMapping")) {
-      Assertions.assertThat(generatedImpl(caseNamed("raw identity List"), spec))
-          .as("raw List, %s", spec)
-          .contains("hkj$ifPresent(")
-          .doesNotContain("hkj$allPresent");
-      Assertions.assertThat(generatedImpl(caseNamed("raw identity Set"), spec))
-          .as("raw Set, %s", spec)
-          .contains("hkj$ifPresent(")
-          .doesNotContain("hkj$allPresent");
-      Assertions.assertThat(generatedImpl(caseNamed("raw identity Map"), spec))
-          .as("raw Map, %s", spec)
-          .contains("hkj$ifPresent(")
-          .doesNotContain("hkj$valuesPresent");
-      Assertions.assertThat(
-              generatedImpl(caseNamed("identity List with a wildcard argument"), spec))
-          .as("wildcard List, %s", spec)
-          .contains("hkj$allPresent(");
+      for (String name :
+          List.of(
+              "raw identity List",
+              "raw identity Set",
+              "identity List with a wildcard argument",
+              "identity ArrayList",
+              "identity Collection")) {
+        Assertions.assertThat(generatedImpl(caseNamed(name), spec))
+            .as("%s, %s", name, spec)
+            .contains("hkj$allPresent(")
+            .doesNotContain("hkj$ifPresent(");
+      }
+      for (String name : List.of("raw identity Map", "identity LinkedHashMap")) {
+        Assertions.assertThat(generatedImpl(caseNamed(name), spec))
+            .as("%s, %s", name, spec)
+            .contains("hkj$valuesPresent(")
+            .doesNotContain("hkj$ifPresent(");
+      }
     }
   }
 
   @Test
   @DisplayName(
-      "what the raw container gives up is only the element scan: a null element parses valid, and"
-          + " the list is still copied by reference")
-  void aRawContainerCopiesByReferenceWithoutScanning() throws ReflectiveOperationException {
-    Case c = caseNamed("raw identity List");
-    List<String> withNull = Arrays.asList("a", null);
-    Object impl = impl(c, "RecordFullMapping");
-    Validated<NonEmptyList<FieldError>, Object> parsed =
-        parse(impl, recordWire(c, "RecordFull", 7, withNull));
-    assertThatValidated(parsed).isValid().hasValue(domain(c, withNull));
-    Assertions.assertThat(component(parsed.get(), "x"))
-        .as("identity legs copy, they do not rebuild")
-        .isSameAs(withNull);
+      "an identity container is scanned, never rebuilt: a valid one, raw or declared through a"
+          + " subtype, is the very reference the wire held")
+  void aScannedContainerIsCopiedByReference() throws ReflectiveOperationException {
+    for (Case c : List.of(caseNamed("raw identity List"), caseNamed("identity ArrayList"))) {
+      Object held = new ArrayList<>(List.of("a"));
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          parse(impl(c, "RecordFullMapping"), recordWire(c, "RecordFull", 7, held));
+      assertThatValidated(parsed).as("%s", c).isValid().hasValue(domain(c, held));
+      Assertions.assertThat(component(parsed.get(), "x"))
+          .as("%s: identity legs copy, they do not rebuild", c)
+          .isSameAs(held);
+    }
+  }
+
+  /**
+   * A wire value for one case's {@code x} with a {@code null} somewhere inside it, and where that
+   * null locates.
+   */
+  record Holed(String caseName, Supplier<Object> value, String expected) {
+    @Override
+    public String toString() {
+      return caseName;
+    }
+  }
+
+  private static <T> List<T> withNull(T first) {
+    return Arrays.asList(first, null);
+  }
+
+  private static <K> Map<K, Object> nullUnder(K key) {
+    Map<K, Object> map = new LinkedHashMap<>();
+    map.put(key, null);
+    return map;
+  }
+
+  static Stream<Holed> holed() {
+    return Stream.of(
+        new Holed("identity List", () -> withNull("a"), "x.1: must not be null"),
+        new Holed("identity Map", () -> nullUnder("k"), "x.k: must not be null"),
+        new Holed(
+            "identity List with a wildcard argument", () -> withNull("a"), "x.1: must not be null"),
+        new Holed("raw identity List", () -> withNull("a"), "x.1: must not be null"),
+        new Holed(
+            "raw identity Set",
+            () -> new HashSet<>(withNull("a")),
+            "x: must not contain a null element"),
+        new Holed("raw identity Map", () -> nullUnder("k"), "x.k: must not be null"),
+        new Holed(
+            "raw List inside an identity List",
+            () -> List.of(withNull("a")),
+            "x.0.1: must not be null"),
+        new Holed("nested identity List", () -> List.of(withNull("a")), "x.0.1: must not be null"),
+        new Holed(
+            "identity List of wildcard Lists",
+            () -> List.of(withNull("a")),
+            "x.0.1: must not be null"),
+        new Holed(
+            "identity Map of Lists", () -> Map.of("k", withNull("a")), "x.k.1: must not be null"),
+        new Holed(
+            "identity array of arrays",
+            () -> new String[][] {{"a"}, {"b", null}},
+            "x.1.1: must not be null"),
+        new Holed(
+            "identity ArrayList", () -> new ArrayList<>(withNull("a")), "x.1: must not be null"),
+        new Holed("identity Collection", () -> withNull("a"), "x.1: must not be null"),
+        new Holed(
+            "identity LinkedHashMap",
+            () -> new LinkedHashMap<>(nullUnder("k")),
+            "x.k: must not be null"),
+        new Holed(
+            "identity Optional of a List",
+            () -> Optional.of(withNull("a")),
+            "x.1: must not be null"),
+        new Holed(
+            "Optional bridge onto an identity List", () -> withNull("a"), "x.1: must not be null"),
+        new Holed(
+            "Optional bridge onto a wildcard List", () -> withNull("a"), "x.1: must not be null"),
+        new Holed("Optional bridge onto a raw List", () -> withNull("a"), "x.1: must not be null"),
+        new Holed(
+            "Optional bridge onto a nested List",
+            () -> List.of(withNull("a")),
+            "x.0.1: must not be null"));
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("holed")
+  @DisplayName(
+      "a null anywhere inside an identity container locates at its full path, on every shape that"
+          + " reads it")
+  void aNullInsideLocatesAtItsFullPath(Holed h) throws ReflectiveOperationException {
+    Case c = caseNamed(h.caseName());
+    Object domain = domain(c, c.value().apply(tagFactory(c), "a"));
+    Object beanFull = invoke(impl(c, "BeanFullMapping"), "build", domain);
+    invoke(beanFull, "setX", h.value().get());
+    Object beanProjection = invoke(impl(c, "BeanProjectionMapping"), "build", domain);
+    invoke(beanProjection, "setX", h.value().get());
+
+    assertThatValidated(
+            parse(impl(c, "RecordFullMapping"), recordWire(c, "RecordFull", 7, h.value().get())))
+        .as("%s: record parse", c)
+        .isInvalid()
+        .hasFieldErrors(h.expected());
+    assertThatValidated(parse(impl(c, "BeanFullMapping"), beanFull))
+        .as("%s: bean parse", c)
+        .isInvalid()
+        .hasFieldErrors(h.expected());
+    // A total record projection copies by lens and reads nothing (see
+    // unsetComponentIsLocatedOrEmpty).
+    if (!c.recordTotal()) {
+      assertThatValidated(
+              validated(
+                  invoke(
+                      impl(c, "RecordProjectionMapping"),
+                      "patch",
+                      domain,
+                      recordWire(c, "RecordProjection", h.value().get()))))
+          .as("%s: record patch", c)
+          .isInvalid()
+          .hasFieldErrors(h.expected());
+    }
+    assertThatValidated(
+            validated(invoke(impl(c, "BeanProjectionMapping"), "patch", domain, beanProjection)))
+        .as("%s: bean patch", c)
+        .isInvalid()
+        .hasFieldErrors(h.expected());
   }
 
   private static Object component(Object record, String name) throws ReflectiveOperationException {

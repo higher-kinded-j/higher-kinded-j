@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 import org.higherkindedj.optics.annotations.ArityCeilings;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Emits an accumulating {@code Validated} assembly wider than one {@code Validated.fields()}
@@ -67,8 +68,8 @@ final class ChunkedAssembly {
     List<String> tupleNames = new ArrayList<>();
     for (int leg = 0; leg < legs.size(); ) {
       int chunk = chunkNames.size() + 1;
-      String chunkName = free("c" + chunk, taken);
-      String tupleName = free("t" + chunk, taken);
+      String chunkName = ProcessorUtils.freeName("c" + chunk, taken);
+      String tupleName = ProcessorUtils.freeName("t" + chunk, taken);
       chunkNames.add(chunkName);
       tupleNames.add(tupleName);
       int size = Math.min(ArityCeilings.ASSEMBLY, legs.size() - leg);
@@ -77,7 +78,7 @@ final class ChunkedAssembly {
       legs.subList(leg, leg + size).forEach(ladder::add);
       leg += size;
       if (size == 1) {
-        String identity = free("v", taken);
+        String identity = ProcessorUtils.freeName("v", taken);
         ladder.add("\n.apply($L -> $L)", identity, identity);
         values.add(CodeBlock.of("$L", tupleName));
       } else {
@@ -100,15 +101,5 @@ final class ChunkedAssembly {
               "$L.ap(\n$>$>$L,\n$T.semigroup()$<$<)", chunkNames.get(chunk), combined, nel);
     }
     return body.add(GuardedConstruction.returning(combined, type)).build();
-  }
-
-  /** The candidate name, underscore-suffixed until free of {@code taken}, then claimed. */
-  private static String free(String candidate, Set<String> taken) {
-    StringBuilder name = new StringBuilder(candidate);
-    while (taken.contains(name.toString())) {
-      name.append('_');
-    }
-    taken.add(name.toString());
-    return name.toString();
   }
 }
