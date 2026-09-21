@@ -976,9 +976,10 @@ class ImportOpticsProcessorTest {
     void overloadedPrimitiveWitherIsCalledUnboxedSoThePairedMethodBinds() {
       // The lens hands the setter a boxed value, which every other withX here takes without
       // unboxing: the raw one, the one returning Object, the inherited one taking Number and the
-      // generic one. Each would bind ahead of the method paired with the getter. withPlain's
-      // overloads are not such a method, one being private and the other taking a type no boxed
-      // value reaches, and withTick has only an override, the same method to a caller.
+      // generic one. Each would bind ahead of the method paired with the getter. None of
+      // withPlain's overloads is such a method: one is private, one takes a type no boxed value
+      // reaches, and one takes two arguments where the call passes one. withTick has only an
+      // override, which is the same method to a caller.
       final var counter =
           JavaFileObjects.forSourceString(
               "com.external.Counter",
@@ -1019,6 +1020,7 @@ class ImportOpticsProcessorTest {
                   public <V> Object withRank(V rank) { return this; }
                   public Counter<T> withPlain(int plain) { return copy(); }
                   public Object withPlain(java.io.File plain) { return this; }
+                  public Object withPlain(int plain, int extra) { return this; }
                   private Counter<T> withPlain(String plain) { return copy(); }
                   @Override
                   public Counter<T> withTick(int tick) { return copy(); }
