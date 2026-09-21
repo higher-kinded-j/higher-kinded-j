@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
@@ -187,14 +188,25 @@ class MappingProcessorRoundsTest {
     return compile(new TypeWriter(generated), options, List.of(), sources);
   }
 
-  /**
-   * The writer goes first: javac does not offer a round to a processor supporting every annotation
-   * once an earlier processor has claimed that round's annotations.
-   */
   private static Compilation compile(
       TypeWriter writer, List<String> options, List<Path> classDirs, JavaFileObject... sources) {
+    return compile(
+        writer, List.of(new MappingProcessor(), new MergeProcessor()), options, classDirs, sources);
+  }
+
+  /**
+   * The writer goes first, then the {@code mapping} processors: javac does not offer a round to a
+   * processor supporting every annotation once an earlier processor has claimed that round's
+   * annotations.
+   */
+  private static Compilation compile(
+      TypeWriter writer,
+      List<Processor> mapping,
+      List<String> options,
+      List<Path> classDirs,
+      JavaFileObject... sources) {
     return javac()
-        .withProcessors(writer, new MappingProcessor(), new MergeProcessor())
+        .withProcessors(Stream.<Processor>concat(Stream.of(writer), mapping.stream()).toList())
         .withOptions(
             Stream.concat(Stream.of("-Xlint:unchecked,rawtypes", "-Werror"), options.stream())
                 .toList())
@@ -350,6 +362,38 @@ class MappingProcessorRoundsTest {
     assertThat(compilation).succeededWithoutWarnings();
     Assertions.assertThat(generatedSource(compilation, "OrderMappingImpl"))
         .contains("ContactMappingImpl.INSTANCE.asValidatedPrism()");
+  }
+
+  @Test
+  @DisplayName(
+      "where the compiler cannot say which file a type came from, a spec waits for what its"
+          + " declaration names, and so do the specs nesting it")
+  void specsWaitWithoutAFileObjectLookup() {
+    // A compiler that cannot say where a type was read from has the records read as class files,
+    // which name the types they nest through and make nothing wait. A spec's own declaration is
+    // read as ever, since the processor met the spec in source.
+    Compilation compilation =
+        compile(
+            new TypeWriter(Map.of("ContactVocabulary", CONTACT_VOCABULARY)),
+            GeneratorTestHelper.withoutFileObjectLookup(
+                new MappingProcessor(), new MergeProcessor()),
+            List.of(),
+            List.of(),
+            CONTACT,
+            CONTACT_DTO,
+            WAITING_CONTACT_MAPPING,
+            source("Order", "public record Order(String id, Contact contact) {}"),
+            source("OrderDto", "public record OrderDto(String id, ContactDto contact) {}"),
+            spec("OrderMapping", "Order", "OrderDto"),
+            NAMED,
+            REACHED,
+            CARD,
+            source("CardAssembly", CARD_ASSEMBLY));
+    assertThat(compilation).succeededWithoutWarnings();
+    Assertions.assertThat(generatedSource(compilation, "OrderMappingImpl"))
+        .contains("ContactMappingImpl.INSTANCE.asValidatedPrism()");
+    Assertions.assertThat(generatedSource(compilation, "CardAssemblyImpl"))
+        .contains("ContactMappingImpl.INSTANCE");
   }
 
   @Test

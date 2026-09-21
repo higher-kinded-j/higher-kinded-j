@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.withoutFileObjectLookup;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
 import com.google.testing.compile.Compilation;
@@ -27,6 +28,7 @@ import java.util.jar.JarOutputStream;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
@@ -1185,14 +1187,19 @@ class MappingProcessorClasspathTest {
       return file;
     }
 
-    @Test
-    @DisplayName("a spec of this compilation met through a first-round entry is still local")
-    void anEntryWrittenInAnEarlierRoundNamesALocalSpec() throws Exception {
-      // The generator goes first: javac skips a wildcard processor in a round whose annotations
-      // an earlier processor has already claimed, and the mapping processor claims its own.
+    /**
+     * Compiles a local customer spec beside the upstream one, with a spec nesting the pair that the
+     * generator writes in the first round, and asserts the nesting resolves to the local spec. The
+     * generator goes first: javac skips a wildcard processor in a round whose annotations an
+     * earlier processor has already claimed, and the mapping processor claims its own.
+     */
+    private void assertAnEarlierRoundEntryNamesALocalSpec(List<Processor> mapping)
+        throws IOException {
       Compilation compilation =
           compiler(upstream())
-              .withProcessors(new LateSpecGenerator(), new MappingProcessor(), new MergeProcessor())
+              .withProcessors(
+                  Stream.<Processor>concat(Stream.of(new LateSpecGenerator()), mapping.stream())
+                      .toList())
               .compile(DOWNSTREAM_TYPES, customerMapping("com.downstream", "CustomerMapping"));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.downstream.LateInvoiceMappingImpl"))
@@ -1202,6 +1209,63 @@ class MappingProcessorClasspathTest {
           .hadNoteContaining(
               "field 'customer' resolves through 'CustomerMapping' in this compilation, not"
                   + " through [com.upstream.CustomerMapping (classpath)]");
+    }
+
+    @Test
+    @DisplayName("a spec of this compilation met through a first-round entry is still local")
+    void anEntryWrittenInAnEarlierRoundNamesALocalSpec() throws Exception {
+      assertAnEarlierRoundEntryNamesALocalSpec(
+          List.of(new MappingProcessor(), new MergeProcessor()));
+    }
+
+    @Test
+    @DisplayName(
+        "where the compiler cannot say which file a type came from, a spec met through a"
+            + " first-round entry is still local")
+    void anEntryWrittenInAnEarlierRoundNamesALocalSpecWithoutAFileObjectLookup() throws Exception {
+      // The compiler cannot say the entry's spec is compiled here, but the processor met it.
+      assertAnEarlierRoundEntryNamesALocalSpec(
+          withoutFileObjectLookup(new MappingProcessor(), new MergeProcessor()));
+    }
+
+    @Test
+    @DisplayName(
+        "where the compiler cannot say which file a type came from, a dependency's spec still nests"
+            + " through its Impl")
+    void aDependencysSpecNestsWithoutAFileObjectLookup() throws Exception {
+      Compilation compilation =
+          compiler(upstream())
+              .withProcessors(withoutFileObjectLookup(new MappingProcessor(), new MergeProcessor()))
+              .compile(DOWNSTREAM_TYPES, INVOICE_MAPPING);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.downstream.InvoiceMappingImpl"))
+          .contains("com.upstream.CustomerMappingImpl")
+          .contains("CustomerMappingImpl.INSTANCE.asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName("an entry naming a type compiled here without @GenerateMapping is passed over")
+    void anEntryNamingAnUnannotatedLocalTypeIsPassedOver() throws Exception {
+      // A previous build's entry and Impl, still on the classpath, name a spec the sources no
+      // longer generate. The declaration compiled here is the type the entry names, and it is not
+      // a spec, so nothing nests through the stale Impl.
+      JavaFileObject unannotated =
+          JavaFileObjects.forSourceString(
+              "com.upstream.CustomerMapping",
+              """
+              package com.upstream;
+
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public interface CustomerMapping
+                  extends MappingSpec<Upstream.Customer, Upstream.CustomerDto> {}
+              """);
+      Compilation compilation =
+          compiler(upstream()).compile(DOWNSTREAM_TYPES, unannotated, INVOICE_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target field 'InvoiceDto.customer' has no usable source");
+      Assertions.assertThat(compilation.errors()).hasSize(1);
     }
 
     @Test

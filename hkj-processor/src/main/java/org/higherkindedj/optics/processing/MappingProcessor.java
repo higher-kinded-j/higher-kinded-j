@@ -260,10 +260,14 @@ public class MappingProcessor extends AbstractProcessor {
    * carries.
    *
    * <p>A classpath spec is read from its class file by the same rules as a spec in source; the
-   * index only names it (see {@code MappingIndexes}). An entry naming a type compiled here is an
-   * earlier round's or the previous build's, and passed over: a spec of this compilation registers
-   * from source, or waits. A named module reads no index, having written none. An entry whose spec
-   * has lost its Impl registers as unusable, so that a use site needing the pair is told why (a
+   * index only names it (see {@code MappingIndexes}). An entry naming a spec this compilation has
+   * met is an earlier round's or the previous build's, and passed over, since the spec registers
+   * from source or waits; telling so takes no file lookup. An entry naming any other type the
+   * compiler reports compiled here is passed over too: the previous build's, for a type that is no
+   * longer a spec. Where the compiler cannot say which file a type was read from (see {@link
+   * ProcessorUtils#compiledFromSource}), only the first holds, and the second registers as a
+   * classpath spec. A named module reads no index, having written none. An entry whose spec has
+   * lost its Impl registers as unusable, so that a use site needing the pair is told why (a
    * diagnostic at scan time would fire whether or not anything needs the pair, twice when both
    * processors scan, and as an unsuppressable warning).
    *
@@ -287,8 +291,13 @@ public class MappingProcessor extends AbstractProcessor {
     if (!(MappingIndexes.indexUse(env, compiled) instanceof MappingIndexes.IndexUse.Usable)) {
       return List.copyOf(registry);
     }
+    Set<WaitingSpecs.TypeKey> met =
+        specs.stream()
+            .map(spec -> WaitingSpecs.TypeKey.of(elements, spec))
+            .collect(Collectors.toSet());
     for (TypeElement spec : MappingIndexes.classpathSpecs(elements)) {
-      if (MappingIndexes.compiledHere(elements, spec)) {
+      if (met.contains(WaitingSpecs.TypeKey.of(elements, spec))
+          || ProcessorUtils.compiledFromSource(elements, spec)) {
         continue;
       }
       Origin origin =
@@ -6471,7 +6480,8 @@ public class MappingProcessor extends AbstractProcessor {
    * The clause that lets a non-null write site take the bridge's {@code null}: mark it {@code
    * Nullable}, or replace the annotation that rules {@code null} out. An array site is told where
    * the annotation goes, since one before the type marks the elements, and a site read from a class
-   * file is told the change is made where it is declared, which may not be this build's to make.
+   * file is told the change is made where it is declared, which may not be this build's to make. So
+   * is a site the compiler cannot place, since that clause holds of a source site too.
    */
   private String nullableFix(NonNullSite site) {
     String fix =
@@ -6492,7 +6502,7 @@ public class MappingProcessor extends AbstractProcessor {
                           + "', since a @Nullable before the type marks the elements"
                       : "");
         };
-    return MappingIndexes.compiledHere(processingEnv.getElementUtils(), site.declaredBy())
+    return ProcessorUtils.compiledFromSource(processingEnv.getElementUtils(), site.declaredBy())
         ? fix
         : fix + " where '" + nestedName(site.declaredBy()) + "' is declared, if you build it";
   }

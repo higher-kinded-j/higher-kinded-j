@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.processing.AbstractProcessor;
+import javax.lang.model.util.Elements;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -326,6 +327,36 @@ class ProcessorArchitectureRules {
         .should(readTheRegistryOnlyFrom(REGISTRY_READERS))
         .allowEmptyShould(true)
         .check(classes);
+  }
+
+  /**
+   * Only the guarded lookup asks which file an element was read from.
+   *
+   * <p>{@code Elements.getFileObjectOf} is a default method that throws unless the compiler
+   * overrides it, as javac does, so a processor calling it directly aborts the compilation wherever
+   * it is left unsupported. {@code ProcessorUtils.compiledFromSource} is the one caller: it answers
+   * for an element the compiler cannot place as for one read from a class file, and every other
+   * question about an element's file goes through it. Collecting the callers rather than forbidding
+   * the rest also fails the rule if it stops seeing the one caller it allows.
+   */
+  @Test
+  @DisplayName("Only the guarded lookup should ask which file an element was read from")
+  void only_the_guarded_lookup_should_ask_which_file_an_element_was_read_from() {
+    Set<String> askers =
+        StreamSupport.stream(classes.spliterator(), false)
+            .flatMap(ProcessorArchitectureRules::callsAndReferencesFrom)
+            .filter(access -> access.getTarget().getOwner().isAssignableTo(Elements.class))
+            .filter(access -> access.getTarget().getName().equals("getFileObjectOf"))
+            .map(
+                access ->
+                    access.getOriginOwner().getSimpleName() + "." + access.getOrigin().getName())
+            .collect(Collectors.toSet());
+
+    assertThat(askers)
+        .as(
+            "call ProcessorUtils.compiledFromSource instead, which answers for an element the"
+                + " compiler cannot place as for one read from a class file")
+        .isEqualTo(Set.of("ProcessorUtils.compiledFromSource"));
   }
 
   /**

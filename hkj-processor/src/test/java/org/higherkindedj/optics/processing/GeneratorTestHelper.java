@@ -10,6 +10,9 @@ import com.google.testing.compile.Compilation;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -18,14 +21,26 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.processing.Completion;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
@@ -81,6 +96,109 @@ public final class GeneratorTestHelper {
       classpath.add(dir.toFile());
     }
     return classpath;
+  }
+
+  /**
+   * The processors, each handed an {@code Elements} whose {@code getFileObjectOf} is unsupported,
+   * as the JDK's default method is in a compiler that does not override it. Everything else is
+   * javac's own, and the processors of one compilation share one such {@code Elements}, as they
+   * share javac's.
+   *
+   * @param processors the processors to wrap, in the order javac offers them each round
+   * @return the wrapped processors, in the same order
+   */
+  public static List<Processor> withoutFileObjectLookup(final Processor... processors) {
+    final Map<Elements, Elements> limited = new IdentityHashMap<>();
+    return Stream.of(processors)
+        .<Processor>map(processor -> new WithoutFileObjectLookup(processor, limited))
+        .toList();
+  }
+
+  private static final class WithoutFileObjectLookup implements Processor {
+
+    private final Processor delegate;
+
+    /** javac's {@code Elements} for each compilation, to the limited one its processors share. */
+    private final Map<Elements, Elements> limited;
+
+    WithoutFileObjectLookup(final Processor delegate, final Map<Elements, Elements> limited) {
+      this.delegate = delegate;
+      this.limited = limited;
+    }
+
+    @Override
+    public Set<String> getSupportedOptions() {
+      return delegate.getSupportedOptions();
+    }
+
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
+      return delegate.getSupportedAnnotationTypes();
+    }
+
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+      return delegate.getSupportedSourceVersion();
+    }
+
+    @Override
+    public void init(final ProcessingEnvironment env) {
+      final Elements elements =
+          limited.computeIfAbsent(
+              env.getElementUtils(),
+              javacs ->
+                  proxy(
+                      Elements.class,
+                      javacs,
+                      method -> {
+                        throw new UnsupportedOperationException(method.getName());
+                      },
+                      "getFileObjectOf"));
+      delegate.init(proxy(ProcessingEnvironment.class, env, method -> elements, "getElementUtils"));
+    }
+
+    @Override
+    public boolean process(
+        final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv) {
+      return delegate.process(annotations, roundEnv);
+    }
+
+    @Override
+    public Iterable<? extends Completion> getCompletions(
+        final Element element,
+        final AnnotationMirror annotation,
+        final ExecutableElement member,
+        final String userText) {
+      return delegate.getCompletions(element, annotation, member, userText);
+    }
+
+    /**
+     * {@code target} seen through {@code type}, with the method named {@code replaced} answered by
+     * {@code replacement} and every other method passed through. Identity is the proxy's own.
+     */
+    private static <T> T proxy(
+        final Class<T> type,
+        final T target,
+        final Function<Method, Object> replacement,
+        final String replaced) {
+      return type.cast(
+          Proxy.newProxyInstance(
+              type.getClassLoader(),
+              new Class<?>[] {type},
+              (proxy, method, args) ->
+                  switch (method.getName()) {
+                    case "equals" -> proxy == args[0];
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case String name when name.equals(replaced) -> replacement.apply(method);
+                    default -> {
+                      try {
+                        yield method.invoke(target, args);
+                      } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                      }
+                    }
+                  }));
+    }
   }
 
   /**

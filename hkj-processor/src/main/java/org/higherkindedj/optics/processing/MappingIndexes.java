@@ -19,7 +19,6 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
-import javax.tools.JavaFileObject;
 import org.higherkindedj.optics.annotations.MappingIndexEntry;
 
 /**
@@ -96,18 +95,6 @@ final class MappingIndexes {
         .filter(module -> !module.isUnnamed())
         .<IndexUse>map(IndexUse.OwnedBy::new)
         .orElseGet(IndexUse.Usable::new);
-  }
-
-  /**
-   * Whether {@code spec} is being compiled from source here rather than read from a class file. An
-   * index entry generated in an earlier round of this compilation lists such a spec, which is this
-   * compilation's own, not a dependency's.
-   */
-  static boolean compiledHere(Elements elements, TypeElement spec) {
-    return Optional.ofNullable(elements.getFileObjectOf(spec))
-        .map(JavaFileObject::getKind)
-        .filter(JavaFileObject.Kind.SOURCE::equals)
-        .isPresent();
   }
 
   /**

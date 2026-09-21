@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.processing.Processor;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
@@ -104,21 +105,66 @@ class SharedPackageModulesTest {
             SOURCES));
   }
 
+  @Test
+  @DisplayName(
+      "where the compiler cannot say which file a type came from, each processor reports the file"
+          + " it could not write as a name already taken")
+  void eachProcessorReportsTheRefusedFileWithoutAFileObjectLookup() throws IOException {
+    // Which modules declare the package in source is the compiler's to say; one that cannot say
+    // leaves each processor its report of a name already taken.
+    List<String> errors =
+        errors(
+            GeneratorTestHelper.withoutFileObjectLookup(
+                new MappingProcessor(),
+                new MergeProcessor(),
+                new ErrorEnvelopeProcessor(),
+                new AssemblyProcessor()),
+            Map.of("billing", SOURCES, "shipping", SOURCES));
+    Assertions.assertThat(errors)
+        .anyMatch(
+            error ->
+                error.startsWith(
+                    "@GenerateMapping: could not write the generated mapping for 'ContactMapping'"))
+        .anyMatch(
+            error ->
+                error.startsWith(
+                    "@GenerateMerge: could not write the generated merge for 'CardMerge'"))
+        .anyMatch(
+            error ->
+                error.startsWith(
+                    "@GenerateErrorEnvelope: could not write the generated companion for"
+                        + " 'FooError'"))
+        .anyMatch(
+            error ->
+                error.startsWith(
+                    "@GenerateAssembly on " + PKG + ".Solo: the companion class SoloAssembly"))
+        .allSatisfy(
+            error ->
+                Assertions.assertThat(error)
+                    .contains("already exists")
+                    .doesNotContain("more than one module"));
+  }
+
+  /** The error messages of compiling {@code modules} together with {@code processors}. */
+  private List<String> errors(
+      List<? extends Processor> processors, Map<String, List<JavaFileObject>> modules)
+      throws IOException {
+    return GeneratorTestHelper.compileModules(tmp, processors, modules).stream()
+        .filter(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
+        .map(diagnostic -> diagnostic.getMessage(null))
+        .toList();
+  }
+
   private void assertEachProcessorNamesTheSharedPackage(Map<String, List<JavaFileObject>> modules)
       throws IOException {
     List<String> errors =
-        GeneratorTestHelper.compileModules(
-                tmp,
-                List.of(
-                    new MappingProcessor(),
-                    new MergeProcessor(),
-                    new ErrorEnvelopeProcessor(),
-                    new AssemblyProcessor()),
-                modules)
-            .stream()
-            .filter(diagnostic -> diagnostic.getKind() == Diagnostic.Kind.ERROR)
-            .map(diagnostic -> diagnostic.getMessage(null))
-            .toList();
+        errors(
+            List.of(
+                new MappingProcessor(),
+                new MergeProcessor(),
+                new ErrorEnvelopeProcessor(),
+                new AssemblyProcessor()),
+            modules);
     Assertions.assertThat(errors)
         .anyMatch(
             error ->
