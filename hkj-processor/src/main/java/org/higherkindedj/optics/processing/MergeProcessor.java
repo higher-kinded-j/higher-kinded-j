@@ -16,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
@@ -369,15 +370,27 @@ public class MergeProcessor extends AbstractProcessor {
 
   /**
    * One target-component fill: from which source parameter, through which leaf (if any), whether
-   * the fallible path must null-guard the read — every prism read and every reference-typed
-   * identity read, mirroring {@code MappingProcessor.guardedRead} — and the {@link NullScan} an
-   * identity fill of a container carries there, the one the mapping tiers give the same type, so
-   * the two processors cannot answer a null element differently.
+   * the fallible path must null-guard the read (every prism read and every reference-typed identity
+   * read, mirroring {@code MappingProcessor.guardedRead}), the {@link NullScan} an identity fill of
+   * a container carries there, and the {@link ContainerCopy} it reads its source through on either
+   * path. The scan and the copy are the ones the mapping tiers give the same type, so the two
+   * processors cannot answer a null element differently, and a target never shares a container with
+   * a source.
    */
   private record Fill(
-      String component, String sourceParam, CodeBlock prism, boolean guardedRead, NullScan scan) {
+      String component,
+      String sourceParam,
+      CodeBlock prism,
+      boolean guardedRead,
+      NullScan scan,
+      ContainerCopy copy) {
     boolean fallible() {
       return prism != null;
+    }
+
+    /** The source read, through the fill's copy; {@code taken} holds the names in scope. */
+    CodeBlock read(Set<String> taken) {
+      return ContainerCopy.through(copy, CodeBlock.of("$L.$L()", sourceParam, component), taken);
     }
   }
 
@@ -452,7 +465,8 @@ public class MergeProcessor extends AbstractProcessor {
                 NullScan.of(
                     sourceComponent.asType(),
                     processingEnv.getTypeUtils(),
-                    processingEnv.getElementUtils())));
+                    processingEnv.getElementUtils()),
+                ContainerCopy.of(sourceComponent.asType())));
         continue;
       }
       if (leaf != null) {
@@ -462,6 +476,7 @@ public class MergeProcessor extends AbstractProcessor {
                 holder.getSimpleName().toString(),
                 CodeBlock.of("$L()", leaf.getSimpleName()),
                 true,
+                null,
                 null));
         continue;
       }
@@ -519,6 +534,7 @@ public class MergeProcessor extends AbstractProcessor {
                 holder.getSimpleName().toString(),
                 nested.getFirst().nestingPrism(),
                 true,
+                null,
                 null));
         continue;
       }
@@ -718,17 +734,22 @@ public class MergeProcessor extends AbstractProcessor {
     MethodSpec.Builder method =
         MethodSpec.methodBuilder(mergeMethod.getSimpleName().toString())
             .addAnnotation(Override.class)
-            // The fill infers the target's component types, and the null scans the element types
-            // their lambdas take, so a raw type in either lands in this method; the signature
-            // cannot carry one, since generic sources and targets are refused.
+            // The fill infers the target's component types, and the null scans and copies the
+            // element types their lambdas take, so a raw type in any lands in this method; the
+            // signature cannot carry one, since generic sources and targets are refused.
             .addAnnotations(
                 ProcessorUtils.rawTypesSuppression(
-                    Stream.concat(
+                    Stream.of(
                             shape.target().getRecordComponents().stream().map(Element::asType),
                             fills.stream()
                                 .map(Fill::scan)
                                 .filter(Objects::nonNull)
-                                .flatMap(NullScan::inferred))
+                                .flatMap(NullScan::inferred),
+                            fills.stream()
+                                .map(Fill::copy)
+                                .filter(Objects::nonNull)
+                                .flatMap(ContainerCopy::inferred))
+                        .flatMap(Function.identity())
                         .toList()))
             .addModifiers(Modifier.PUBLIC)
             .returns(
@@ -744,11 +765,13 @@ public class MergeProcessor extends AbstractProcessor {
           source.getSimpleName() + " must not be null");
     }
 
+    // The element lambdas nest inside the merge method, so they keep clear of the spec author's
+    // own parameter names.
+    Set<String> sourceNames =
+        mergeMethod.getParameters().stream()
+            .map(source -> source.getSimpleName().toString())
+            .collect(Collectors.toUnmodifiableSet());
     if (shape.fallibleDeclared()) {
-      Set<String> sourceNames =
-          mergeMethod.getParameters().stream()
-              .map(source -> source.getSimpleName().toString())
-              .collect(Collectors.toUnmodifiableSet());
       List<CodeBlock> legs = new ArrayList<>();
       for (Fill fill : fills) {
         // Every reference read is null-guarded (the null doctrine): a null source
@@ -763,32 +786,25 @@ public class MergeProcessor extends AbstractProcessor {
                   fill.component(),
                   fill.prism()));
         } else if (fill.scan() != null) {
-          // The element lambdas nest inside the merge method, so they keep clear of the spec
-          // author's own parameter names.
           legs.add(
               CodeBlock.of(
                   "\n.field($S, $L)",
                   fill.component(),
-                  fill.scan()
-                      .on(
-                          CodeBlock.of("$L.$L()", fill.sourceParam(), fill.component()),
-                          sourceNames)));
+                  fill.scan().on(fill.read(sourceNames), sourceNames)));
         } else if (fill.guardedRead()) {
           legs.add(
               CodeBlock.of(
-                  "\n.field($S, hkj$$ifPresent($L.$L(), $T::validNel))",
+                  "\n.field($S, hkj$$ifPresent($L, $T::validNel))",
                   fill.component(),
-                  fill.sourceParam(),
-                  fill.component(),
+                  fill.read(sourceNames),
                   VALIDATED));
         } else {
           legs.add(
               CodeBlock.of(
-                  "\n.field($S, $T.validNel($L.$L()))",
+                  "\n.field($S, $T.validNel($L))",
                   fill.component(),
                   VALIDATED,
-                  fill.sourceParam(),
-                  fill.component()));
+                  fill.read(sourceNames)));
         }
       }
       // The merge method's parameters carry the spec author's names, so they are reserved
@@ -832,7 +848,7 @@ public class MergeProcessor extends AbstractProcessor {
           args.add(", ");
         }
         first = false;
-        args.add("$L.$L()", fill.sourceParam(), fill.component());
+        args.add(fill.read(sourceNames));
       }
       method.addStatement("return new $T($L)", targetName, args.build());
     }
@@ -867,6 +883,9 @@ public class MergeProcessor extends AbstractProcessor {
           NullScan.helpers(fills.stream().map(Fill::scan).filter(Objects::nonNull)));
       implBuilder.addMethod(GuardedConstruction.helper());
     }
+    // Either path copies, so the target shares no container with a source.
+    implBuilder.addMethods(
+        ContainerCopy.helpers(fills.stream().map(Fill::copy).filter(Objects::nonNull)));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 

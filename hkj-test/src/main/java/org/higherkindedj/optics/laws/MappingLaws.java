@@ -21,8 +21,10 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  * exposed optics - one {@code assertMappingLaws} overload per emission tier.
  *
  * <p>Flat {@code assert...} helpers in the same style as the other optic-law classes; comparison is
- * by {@code equals} - right for records. Pick the overload matching the surface the generator
- * emitted:
+ * by {@code equals} - right for records, except one with an array component: a record compares an
+ * array by reference, and every identity leg hands over a clone, so no round trip is equal to its
+ * start there. Compare such a record's arrays elementwise instead. Pick the overload matching the
+ * surface the generator emitted:
  *
  * <ul>
  *   <li>lossless tier ({@code asIso()} present): pass the iso and the prism from {@code
@@ -36,9 +38,9 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *       container - is a located invalid, so "total" is scoped to wires whose reference components
  *       and container elements are non-null, and whose values the domain's constructor accepts):
  *       pass a domain sample whose reference components and identity-container elements are
- *       themselves non-null ({@code build} copies identity containers verbatim, so a null element
- *       in the sample produces exactly the excluded wire and the law fails) - the round trip
- *       through {@code build}.
+ *       themselves non-null ({@code build} copies identity containers element for element, so a
+ *       null element in the sample produces exactly the excluded wire and the law fails) - the
+ *       round trip through {@code build}.
  *   <li>sparse-update tier ({@code updateFrom()} only, from an {@code UpdateSpec}): pass the {@code
  *       updateFrom} method reference, a domain sample, and an all-absent, a valid and an invalid
  *       wire - the identity, idempotence and validation laws.
@@ -118,7 +120,7 @@ public final class MappingLaws {
    *
    * <p>Scoped to wire samples whose reference components are non-null and whose values the domain's
    * constructor accepts: a null-carrying wire parses to a located {@code Invalid} while {@code
-   * reverseGet} copies the null verbatim, and a value the constructor refuses parses to an {@code
+   * reverseGet} copies the null as it is, and a value the constructor refuses parses to an {@code
    * Invalid} while {@code reverseGet} throws, so coherence deliberately extends to neither. Feed
    * such wires to {@code parse} directly and assert the accumulation instead.
    */
@@ -163,11 +165,11 @@ public final class MappingLaws {
    * component, or a null element inside an identity container, is a located invalid, so "total" is
    * scoped to wires whose reference components and container elements are non-null, and whose
    * values the domain's constructor accepts), so there is no no-parse check. The scoping is the
-   * caller's fixture contract: {@code build} copies identity containers verbatim, so {@code
-   * domainSample} must not carry a null reference component or a null identity-container element,
-   * or the round trip lands on exactly the excluded wire and this law (correctly) fails. And the
-   * section law on {@code build(domainSample)} would be checking {@code build(a) == build(a)} once
-   * the round trip holds, so it is deliberately not asserted.
+   * caller's fixture contract: {@code build} copies identity containers element for element, so
+   * {@code domainSample} must not carry a null reference component or a null identity-container
+   * element, or the round trip lands on exactly the excluded wire and this law (correctly) fails.
+   * And the section law on {@code build(domainSample)} would be checking {@code build(a) ==
+   * build(a)} once the round trip holds, so it is deliberately not asserted.
    *
    * <p>This is the strongest guarantee a derived-field mapping offers: only NON-derived components
    * round-trip, and {@code build(domainSample)} is a wire value whose derived components are

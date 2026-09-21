@@ -3,7 +3,10 @@ package com.example.oneway;
 
 import java.lang.Object;
 import java.lang.String;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -31,7 +34,7 @@ public final class CustomerViewMappingImpl implements CustomerViewMapping {
         Validated.fields()
             .field("name", hkj$ifPresent(wire.getName(), Validated::validNel))
             .field("email", hkj$ifPresent(wire.getEmail(), email()::parse))
-            .field("tags", hkj$allPresent(wire.getTags()))
+            .field("tags", hkj$allPresent(hkj$copyOf(wire.getTags())))
             .field("nickname", Validated.validNel(Optional.ofNullable(wire.getNickname())))
             .apply((name, email, tags, nickname) -> () -> new Customer(name, email, tags, nickname)),
         "not a valid Customer");
@@ -89,5 +92,12 @@ public final class CustomerViewMappingImpl implements CustomerViewMapping {
             return Validated.invalidNel(FieldError.of(message == null || message.isBlank() ? fallbackMessage : message));
           }
         });
+  }
+
+  /**
+   * Copies an identity-copied list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
+   */
+  private static <E> List<E> hkj$copyOf(List<? extends E> values) {
+    return values == null ? null : Collections.unmodifiableList(new ArrayList<>(values));
   }
 }

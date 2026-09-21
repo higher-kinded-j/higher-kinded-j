@@ -266,13 +266,24 @@ The null guard covers every reference-typed `parse` read that is not [bridged](#
 - A container class that fixes its own element type, such as a tree node declared `class Node extends ArrayList<Node>`, can hold itself at any depth. It is scanned one level into itself: where the class recurs, its elements are checked for `null` but not scanned inside.
 - Only these containers are looked inside. An `Iterable` or `Stream` component, and the library's own `Maybe` and `NonEmptyList`, are guarded against `null` themselves, but nothing inside them is scanned yet.
 - The values a [`@MapKey`](structure.md#converting-map-keys) map copies are scanned the same way, located under their source key.
-- An identity container still copies by reference; the scan only locates nulls, it never rebuilds.
+- The scan only locates nulls. What the leg hands over is a [copy](#what-an-identity-leg-hands-over), made before the scan runs, so the scan reads exactly what the wire held.
 - A `null` container *component* is guarded like any reference read (`emails: must not be null`).
 - A [bridged](#optional-bridge) container excuses only the absent case: `null` reads as empty, and a *present* container is scanned exactly as an unbridged one is.
 
 What stays the caller's error (`NullPointerException`), by contract: a `null` *wire* itself, a `null` map *key* (a structurally broken map, not a wrong value), and calling the bulk forms directly with a `null` list or map. A key is never scanned inside, even when it is a container.
 
 Absence-as-a-meaning is deliberate everywhere it appears. A record component cannot express it by itself (it can only be wrong), so it takes either the [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec), where every `null` means *leave unchanged*, or an [`@OptionalBridge`](#optional-bridge) component, where one named field's `null` means *absent*. Neither is inferred; both are declarations.
+
+### What an identity leg hands over
+
+A same-typed container crosses the boundary as a copy, never as the container that was read, in both directions. Changing a wire's list after `parse` leaves the domain alone, and changing a built wire's list after `build` does not reach back into the domain. The same holds for `asIso()`, `asLens()`, the validated `patch`, a sparse [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec), a [bridged](#optional-bridge) component, the values a [`@MapKey`](structure.md#converting-map-keys) map carries, and a [`@GenerateMerge`](merge_envelopes.md#merging-several-sources-generatemerge) fill.
+
+- The copy is the one an element-lifted leg already hands back: unmodifiable, in the source's order, with a `Set` copied as a set and any other `Collection` as a list. A sorted source (`TreeSet`, `TreeMap`) keeps its order but not its comparator.
+- It carries what it copies. A `null` element stays where it was (the [null scan](#the-null-contract-precisely) decides what `parse` makes of it, and `build` stays total), and a `null` container copies to `null`.
+- Every level inside is copied too: each list inside a `List<List<String>>`, each value of a `Map<String, List<String>>`, each row of a `String[][]`, and the container an `Optional` holds.
+- An array is copied with `clone()`, a primitive array included. A record compares an array component by reference, so a record with an array component and no `equals` of its own is not equal to its own round trip (see [Diagnostics and limits](testing.md#diagnostics-and-limits)).
+- A copy keeps the declared type, so only a level declared as exactly `List`, `Set`, `Collection`, `Map` or `Optional`, or as an array, is copied. A subtype (`ArrayList`, `LinkedHashMap`, `TreeSet`), any other interface (`Deque`, `SortedSet`), a type variable, and an element declared through a wildcard (the rows of a `List<? extends List<String>>`) are handed over as they are, and so is everything inside them. Declare the interface type, or copy in the record's compact constructor, where sharing would matter.
+- A raw container is copied, but what it holds is not looked inside.
 
 ### How the two `default` families are told apart
 

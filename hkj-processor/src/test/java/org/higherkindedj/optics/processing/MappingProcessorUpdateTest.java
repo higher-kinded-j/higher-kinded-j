@@ -1224,7 +1224,7 @@ class MappingProcessorUpdateTest {
                 new FieldError(List.of("tags", "1"), "must not be null"),
                 new FieldError(List.of("labels", "tier"), "must not be null"));
 
-        // A clean identity container still replaces wholesale, by reference.
+        // A clean identity container still replaces wholesale, as a copy of the wire's list.
         Object cleanDto =
             result.loadClass("com.example.TaggedPatchDto").getDeclaredConstructor().newInstance();
         List<String> replacement = List.of("new", "shiny");
@@ -1235,7 +1235,9 @@ class MappingProcessorUpdateTest {
             (Validated<NonEmptyList<FieldError>, Object>)
                 invoke(cleanAccumulated, "apply", current);
         Assertions.assertThat(replaced.isValid()).isTrue();
-        Assertions.assertThat(invoke(replaced.get(), "tags")).isSameAs(replacement);
+        Assertions.assertThat(invoke(replaced.get(), "tags"))
+            .isEqualTo(replacement)
+            .isNotSameAs(replacement);
         Assertions.assertThat(invoke(replaced.get(), "labels"))
             .isEqualTo(java.util.Map.of("tier", "gold"));
       } catch (ReflectiveOperationException e) {
@@ -1737,10 +1739,13 @@ class MappingProcessorUpdateTest {
       assertThat(compilation).succeededWithoutWarnings();
       String generated = generatedSource(compilation, "com.example.WildBagPatchMappingImpl");
       Assertions.assertThat(generated)
-          .contains("wire.getWilds(), WildBagPatchMappingImpl::hkj$allPresent")
-          .contains("wire.getAttrs(), WildBagPatchMappingImpl::hkj$valuesPresent")
-          .contains("wire.getRawTags(), WildBagPatchMappingImpl::hkj$allPresent")
-          .contains("wire.getRawLabels(), WildBagPatchMappingImpl::hkj$valuesPresent")
+          .contains("hkj$copyOf(wire.getWilds()), WildBagPatchMappingImpl::hkj$allPresent")
+          .contains("hkj$copyOf(wire.getAttrs()), WildBagPatchMappingImpl::hkj$valuesPresent")
+          .contains(
+              "hkj$copyOf((List<?>) wire.getRawTags()), WildBagPatchMappingImpl::hkj$allPresent")
+          .contains(
+              "hkj$copyOf((Map<?, ?>) wire.getRawLabels()),"
+                  + " WildBagPatchMappingImpl::hkj$valuesPresent")
           .doesNotContain("Edit.setIfPresent(");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -1851,7 +1856,8 @@ class MappingProcessorUpdateTest {
       // The raw List inside the identity Optional is scanned; the Optional of a raw List is
       // what the scan's inferred lambda parameter holds.
       Assertions.assertThat(generatedSource(compilation, "com.example.RawPatchedMappingImpl"))
-          .contains("wire.getContacts(), e -> hkj$presentWithin(e, e2 -> hkj$allPresent(e2))")
+          .contains(
+              "hkj$copyOf(wire.getContacts(), e -> hkj$copyOf((List<?>) e)), e -> hkj$presentWithin(e, e2 -> hkj$allPresent(e2))")
           .contains("parseIfPresent(");
     }
 
@@ -2713,7 +2719,7 @@ class MappingProcessorUpdateTest {
       Compilation compilation = compile(TAGGED, dto, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.TaggedMappingImpl"))
-          .contains("wire.getTags().addAll(domain.tags());");
+          .contains("wire.getTags().addAll(hkj$copyOf(domain.tags()));");
     }
 
     @Test

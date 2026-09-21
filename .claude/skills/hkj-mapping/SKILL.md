@@ -470,7 +470,16 @@ matter: it maps build-only whatever its width, derived fields included.
   declare the same exact container on both sides (`List<Customer>` against `List<CustomerDto>`)
   to lift. A leaf over the inner elements of
   `Optional<List<String>>` is not lifted twice. A record carrying an array component has identity
-  `equals`, so `MappingLaws` cannot law-check it - assert the round trip elementwise.
+  `equals`, and every identity leg hands over a clone, so `MappingLaws` cannot law-check it -
+  assert the round trip elementwise.
+- **Identity containers cross as copies, both ways.** `parse`, `build`, `asIso()`, `asLens()`,
+  `patch`, sparse `updateFrom`, a bridge, a `@MapKey` map's values and a `@GenerateMerge` fill all
+  hand over an unmodifiable copy in the source's order (a set as a set, a null element carried,
+  every level inside copied too), so mutating a wire after `parse`, or a built wire after `build`,
+  never reaches the other side. Only a level declared exactly `List`, `Set`, `Collection`, `Map`,
+  `Optional` or as an array is copied: a subtype (`ArrayList`, `TreeSet`), another interface
+  (`Deque`), a type variable or a wildcard element is still shared. A built bean's list is
+  unmodifiable, so do not add to it afterwards.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args

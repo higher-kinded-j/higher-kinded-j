@@ -359,7 +359,7 @@ class MappingProcessorOneDirectionalTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(notesMention(compilation, "maps parse-only")).isFalse();
       Assertions.assertThat(generatedSource(compilation, "CrateDtoMappingImpl"))
-          .contains("wire.getItems().addAll(domain.items());")
+          .contains("wire.getItems().addAll(hkj$copyOf(domain.items()));")
           .contains("asValidatedPrism()");
     }
 

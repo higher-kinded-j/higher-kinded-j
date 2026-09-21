@@ -856,8 +856,8 @@ class MappingProcessorBeanTest {
       String generated = generatedSource(compilation, "com.example.DocMappingImpl");
       Assertions.assertThat(generated)
           .contains("wire.setTitle(domain.title());")
-          .contains("wire.getTags().addAll(domain.tags());")
-          .contains(".field(\"tags\", hkj$allPresent(wire.getTags()))");
+          .contains("wire.getTags().addAll(hkj$copyOf(domain.tags()));")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(wire.getTags())))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
@@ -1071,8 +1071,8 @@ class MappingProcessorBeanTest {
       Compilation compilation = compileLinted(domain, wire, docMapping("DocDto"));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.DocMappingImpl"))
-          .contains("wire.setTags(domain.tags());")
-          .contains("wire.setMore(domain.more());");
+          .contains("wire.setTags(hkj$copyOf((List<?>) domain.tags()));")
+          .contains("wire.setMore(hkj$copyOf(domain.more()));");
     }
 
     @Test
@@ -2150,7 +2150,7 @@ class MappingProcessorBeanTest {
       Compilation compilation = compileLinted(domain, LIVE_LIST_DTO, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.BookmarksMappingImpl"))
-          .contains("wire.getUrls().addAll(domain.urls());");
+          .contains("wire.getUrls().addAll(hkj$copyOf(domain.urls()));");
     }
 
     @Test
@@ -2622,7 +2622,7 @@ class MappingProcessorBeanTest {
           .contains(
               ".field(\"customer\", hkj$ifPresent(wire.getCustomer(),"
                   + " CustomerMappingImpl.INSTANCE.asValidatedPrism()::parse))")
-          .contains(".field(\"tags\", hkj$allPresent(wire.getTags()))");
+          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(wire.getTags())))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.OrderCardMappingImpl");
@@ -2813,11 +2813,11 @@ class MappingProcessorBeanTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.ProfileMappingImpl"))
           .contains("wire.setActive(domain.active());")
-          .contains("wire.getNotes().addAll(domain.notes());")
+          .contains("wire.getNotes().addAll(hkj$copyOf(domain.notes()));")
           .contains(".field(\"domain\", hkj$ifPresent(wire.getDomain(), Validated::validNel))")
           .contains(".field(\"active\", Validated.validNel(wire.isActive()))")
-          .contains(".field(\"notes\", hkj$allPresent(wire.getNotes()))")
-          .contains(".field(\"scores\", hkj$valuesPresent(wire.getScores()))")
+          .contains(".field(\"notes\", hkj$allPresent(hkj$copyOf(wire.getNotes())))")
+          .contains(".field(\"scores\", hkj$valuesPresent(hkj$copyOf(wire.getScores())))")
           .contains(".field(\"tags\", hkj$ifPresent(wire.getTags(), tags()::parseAll))")
           // A component named after the method parameter takes a suffixed lambda parameter.
           .contains("var version = domain.version();")
