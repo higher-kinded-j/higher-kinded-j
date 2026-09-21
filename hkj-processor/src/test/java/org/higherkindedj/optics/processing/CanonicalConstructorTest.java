@@ -658,12 +658,6 @@ class CanonicalConstructorTest {
                 @ViaBuilder(setter = "cents")
                 Lens<Built, Long> cents();
               }
-
-              @ImportOptics
-              public interface UnpassedSpec extends OpticsSpec<Unpassed> {
-                @ViaConstructor(parameterOrder = {"owner"})
-                Lens<Unpassed, Long> tag();
-              }
             }
             """);
     JavaFileObject probes =
@@ -816,12 +810,6 @@ class CanonicalConstructorTest {
                     .cents();
               }
 
-              public static long focusPassedNowhere() {
-                return com.example.canonical.app.Unpassed.tag()
-                    .set(1234L, new com.example.canonical.ext.Unpassed("owner", 7L))
-                    .tag();
-              }
-
               public static long wither() {
                 return com.example.canonical.app.Coin.cents()
                     .set(1234L, new com.example.canonical.ext.Coin(1L))
@@ -954,12 +942,64 @@ class CanonicalConstructorTest {
 
   @Test
   @DisplayName(
-      "a @ViaConstructor parameterOrder that names no getter for the focus leaves it out of the"
-          + " call, so there is no argument to unbox")
-  void focusPassedNowhere() throws ReflectiveOperationException {
-    // The call the parameterOrder describes, new Unpassed(source.owner()), passes the focus
-    // nowhere, so the value it sets is the one that constructor gives the component.
-    assertThat(probe("focusPassedNowhere")).isEqualTo(0L);
+      "a @ViaConstructor parameterOrder that names no argument for the focus is refused, since"
+          + " setting through it would change nothing")
+  void focusPassedNowhereIsRefused() {
+    // The call such an order describes, new Unpassed(source.owner()), passes the focus nowhere,
+    // so set would hand back whatever that constructor gives the component and the lens would
+    // not obey its own laws. It is refused at the spec method rather than generated.
+    var spec =
+        source(
+            PKG + ".app.UnpassedSpec",
+            """
+            package com.example.canonical.app;
+
+            import com.example.canonical.ext.Unpassed;
+            import org.higherkindedj.optics.Lens;
+            import org.higherkindedj.optics.annotations.ImportOptics;
+            import org.higherkindedj.optics.annotations.OpticsSpec;
+            import org.higherkindedj.optics.annotations.ViaConstructor;
+
+            @ImportOptics
+            public interface UnpassedSpec extends OpticsSpec<Unpassed> {
+              @ViaConstructor(parameterOrder = {"owner"})
+              Lens<Unpassed, Long> tag();
+            }
+            """);
+
+    var compilation =
+        javac()
+            .withProcessors(new ImportOpticsProcessor())
+            .compile(
+                source(
+                    PKG + ".ext.Unpassed",
+                    """
+                    package com.example.canonical.ext;
+
+                    public final class Unpassed {
+                      private final String owner;
+                      private final long tag;
+
+                      public Unpassed(String owner, long tag) {
+                        this.owner = owner;
+                        this.tag = tag;
+                      }
+
+                      public String owner() {
+                        return owner;
+                      }
+
+                      public long tag() {
+                        return tag;
+                      }
+                    }
+                    """),
+                spec);
+
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining(
+            "@ViaConstructor: 'parameterOrder' names no argument for the lens's own 'tag'.");
   }
 
   @Test

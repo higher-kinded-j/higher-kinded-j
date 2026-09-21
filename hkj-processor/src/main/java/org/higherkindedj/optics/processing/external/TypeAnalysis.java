@@ -18,6 +18,8 @@ import javax.lang.model.element.TypeElement;
  * @param permittedSubtypes permitted subtypes for sealed interfaces
  * @param enumConstants enum constants for enum types
  * @param hasMutableFields whether the type has mutable fields (setters)
+ * @param withersLeftOut the wither pairs a lens was not generated for, because another wither pairs
+ *     with the same field name and only one lens can carry it
  */
 public record TypeAnalysis(
     TypeElement typeElement,
@@ -26,7 +28,19 @@ public record TypeAnalysis(
     List<WitherInfo> witherMethods,
     List<TypeElement> permittedSubtypes,
     List<String> enumConstants,
-    boolean hasMutableFields) {
+    boolean hasMutableFields,
+    List<LeftOutWither> withersLeftOut) {
+
+  /**
+   * A wither that pairs with a field name another wither already pairs with.
+   *
+   * <p>Both are named where this is reported, since which one was kept is the part the author has
+   * to know.
+   *
+   * @param generated the wither the lens is generated from
+   * @param skipped the wither left out
+   */
+  public record LeftOutWither(WitherInfo generated, WitherInfo skipped) {}
 
   /** The kind of type that was analysed. */
   public enum TypeKind {
@@ -55,7 +69,7 @@ public record TypeAnalysis(
    */
   public static TypeAnalysis forRecord(TypeElement typeElement, List<FieldInfo> fields) {
     return new TypeAnalysis(
-        typeElement, TypeKind.RECORD, fields, List.of(), List.of(), List.of(), false);
+        typeElement, TypeKind.RECORD, fields, List.of(), List.of(), List.of(), false, List.of());
   }
 
   /**
@@ -74,7 +88,8 @@ public record TypeAnalysis(
         List.of(),
         permittedSubtypes,
         List.of(),
-        false);
+        false,
+        List.of());
   }
 
   /**
@@ -86,23 +101,33 @@ public record TypeAnalysis(
    */
   public static TypeAnalysis forEnum(TypeElement typeElement, List<String> enumConstants) {
     return new TypeAnalysis(
-        typeElement, TypeKind.ENUM, List.of(), List.of(), List.of(), enumConstants, false);
+        typeElement,
+        TypeKind.ENUM,
+        List.of(),
+        List.of(),
+        List.of(),
+        enumConstants,
+        false,
+        List.of());
   }
 
   /**
    * Creates an analysis result for a class with wither methods.
    *
    * @param typeElement the class type element
-   * @param fields the fields derived from wither methods
-   * @param witherMethods the detected wither methods
+   * @param fields the fields derived from wither methods, one per wither and in the same order,
+   *     which is how a generator reads the two together
+   * @param witherMethods the wither methods a lens is generated from, one per field name
    * @param hasMutableFields whether the class also has setter methods
+   * @param withersLeftOut the wither pairs no lens is generated from
    * @return a new TypeAnalysis for the wither class
    */
   public static TypeAnalysis forWitherClass(
       TypeElement typeElement,
       List<FieldInfo> fields,
       List<WitherInfo> witherMethods,
-      boolean hasMutableFields) {
+      boolean hasMutableFields,
+      List<LeftOutWither> withersLeftOut) {
     return new TypeAnalysis(
         typeElement,
         TypeKind.WITHER_CLASS,
@@ -110,7 +135,8 @@ public record TypeAnalysis(
         witherMethods,
         List.of(),
         List.of(),
-        hasMutableFields);
+        hasMutableFields,
+        withersLeftOut);
   }
 
   /**
@@ -128,7 +154,8 @@ public record TypeAnalysis(
         List.of(),
         List.of(),
         List.of(),
-        hasMutableFields);
+        hasMutableFields,
+        List.of());
   }
 
   /**

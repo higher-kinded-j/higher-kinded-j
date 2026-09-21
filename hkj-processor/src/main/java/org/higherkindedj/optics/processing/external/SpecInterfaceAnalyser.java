@@ -5,15 +5,12 @@ package org.higherkindedj.optics.processing.external;
 import java.util.*;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
@@ -65,12 +62,6 @@ public class SpecInterfaceAnalyser {
   private static final String GETTER_FQN = "org.higherkindedj.optics.Getter";
   private static final String FOLD_FQN = "org.higherkindedj.optics.Fold";
 
-  private static final String VIA_BUILDER_FQN = "org.higherkindedj.optics.annotations.ViaBuilder";
-  private static final String WITHER_FQN = "org.higherkindedj.optics.annotations.Wither";
-  private static final String VIA_CONSTRUCTOR_FQN =
-      "org.higherkindedj.optics.annotations.ViaConstructor";
-  private static final String VIA_COPY_AND_SET_FQN =
-      "org.higherkindedj.optics.annotations.ViaCopyAndSet";
   private static final String INSTANCE_OF_FQN = "org.higherkindedj.optics.annotations.InstanceOf";
   private static final String MATCH_WHEN_FQN = "org.higherkindedj.optics.annotations.MatchWhen";
   private static final String TRAVERSE_WITH_FQN =
@@ -82,6 +73,7 @@ public class SpecInterfaceAnalyser {
   private final Elements elementUtils;
   private final Messager messager;
   private final InstanceOfNarrowing instanceOfNarrowing;
+  private final CopyStrategyChecks copyStrategyChecks;
 
   /**
    * Creates a new SpecInterfaceAnalyser.
@@ -95,6 +87,7 @@ public class SpecInterfaceAnalyser {
     this.elementUtils = elementUtils;
     this.messager = messager;
     this.instanceOfNarrowing = new InstanceOfNarrowing(typeUtils);
+    this.copyStrategyChecks = new CopyStrategyChecks(typeUtils, elementUtils, messager);
   }
 
   /**
@@ -432,10 +425,12 @@ public class SpecInterfaceAnalyser {
 
     switch (opticKind) {
       case LENS -> {
-        var copyResult = parseCopyStrategy(method, sourceType, sourceTypeElement, targetPackage);
+        var copyResult =
+            copyStrategyChecks.parse(
+                method, sourceType, sourceTypeElement, focusType, targetPackage);
         if (copyResult.isEmpty()) {
-          // parseCopyStrategy has reported why: either no strategy annotation at all, or one
-          // whose values were rejected.
+          // The checks have reported why: either no strategy annotation at all, or one whose
+          // values were rejected.
           return Optional.empty();
         }
         copyStrategy = copyResult.get().kind();
@@ -521,700 +516,6 @@ public class SpecInterfaceAnalyser {
     return null;
   }
 
-  // ----- Copy Strategy Parsing -----
-
-  private record CopyStrategyResult(CopyStrategyKind kind, CopyStrategyInfo info) {}
-
-  /**
-   * Reads the copy strategy annotation on a lens method.
-   *
-   * @param method the abstract lens method
-   * @param sourceType the source type {@code S}, which annotation values are resolved against
-   * @param sourceTypeElement the resolved element for {@code S}
-   * @param targetPackage the package the optics class is generated into
-   * @return the strategy and its values, or empty if the method carries no strategy annotation or
-   *     one whose values were rejected; either way an error has been reported
-   */
-  private Optional<CopyStrategyResult> parseCopyStrategy(
-      ExecutableElement method,
-      TypeMirror sourceType,
-      TypeElement sourceTypeElement,
-      String targetPackage) {
-    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
-    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
-    // makes the cast total; 'is a declared type' on its own would not.
-    DeclaredType declaredSource = (DeclaredType) sourceType;
-
-    // Check for @ViaBuilder
-    AnnotationMirror viaBuilder = findAnnotation(method, VIA_BUILDER_FQN);
-    if (viaBuilder != null) {
-      String getter = getAnnotationString(viaBuilder, "getter", "");
-      String toBuilder = getAnnotationString(viaBuilder, "toBuilder", "toBuilder");
-      String setter = getAnnotationString(viaBuilder, "setter", "");
-      String build = getAnnotationString(viaBuilder, "build", "build");
-      return Optional.of(
-          new CopyStrategyResult(
-              CopyStrategyKind.VIA_BUILDER,
-              CopyStrategyInfo.forBuilder(
-                  getter,
-                  toBuilder,
-                  setter,
-                  build,
-                  builderFocusType(
-                      method, declaredSource, sourceTypeElement, getter, toBuilder, setter))));
-    }
-
-    // Check for @Wither
-    AnnotationMirror wither = findAnnotation(method, WITHER_FQN);
-    if (wither != null) {
-      String getter = getAnnotationString(wither, "getter", "");
-      String witherMethod = getAnnotationString(wither, "value", "");
-      if (rebuildsThroughWitherOfAnotherType(
-          method, declaredSource, sourceTypeElement, witherMethod, targetPackage)) {
-        return Optional.empty();
-      }
-      return Optional.of(
-          new CopyStrategyResult(
-              CopyStrategyKind.WITHER,
-              CopyStrategyInfo.forWither(
-                  getter,
-                  witherMethod,
-                  writtenFocusType(
-                      method, declaredSource, sourceTypeElement, getter, witherMethod))));
-    }
-
-    // Check for @ViaConstructor
-    AnnotationMirror viaConstructor = findAnnotation(method, VIA_CONSTRUCTOR_FQN);
-    if (viaConstructor != null) {
-      if (rebuildsThroughUnwritableConstructor(method, declaredSource, "@ViaConstructor")) {
-        return Optional.empty();
-      }
-      String[] parameterOrder = getAnnotationStringArray(viaConstructor, "parameterOrder");
-      return Optional.of(
-          new CopyStrategyResult(
-              CopyStrategyKind.VIA_CONSTRUCTOR,
-              CopyStrategyInfo.forConstructor(
-                  parameterOrder,
-                  constructorFocusType(
-                      method, declaredSource, sourceTypeElement, parameterOrder))));
-    }
-
-    // Check for @ViaCopyAndSet
-    AnnotationMirror viaCopyAndSet = findAnnotation(method, VIA_COPY_AND_SET_FQN);
-    if (viaCopyAndSet != null) {
-      if (rebuildsThroughUnwritableConstructor(method, declaredSource, "@ViaCopyAndSet")) {
-        return Optional.empty();
-      }
-      String copyConstructor = getAnnotationString(viaCopyAndSet, "copyConstructor", "");
-      String setter = getAnnotationString(viaCopyAndSet, "setter", "");
-      TypeMirror written = writtenFocusType(method, declaredSource, sourceTypeElement, "", setter);
-      if (copyConstructor.isEmpty()) {
-        return Optional.of(
-            new CopyStrategyResult(
-                CopyStrategyKind.VIA_COPY_AND_SET,
-                CopyStrategyInfo.forCopyAndSet(null, setter, written)));
-      }
-      return resolveCopyConstructorParameterType(
-              method, declaredSource, targetPackage, copyConstructor)
-          .map(
-              parameterType ->
-                  new CopyStrategyResult(
-                      CopyStrategyKind.VIA_COPY_AND_SET,
-                      // Naming S itself is honoured by casting to nothing: a cast to the
-                      // argument's own type says nothing, and javac reports it as redundant.
-                      // Answering it here, with Types, leaves the generator one rule - a null
-                      // parameter type means no cast - rather than a comparison of rendered names.
-                      CopyStrategyInfo.forCopyAndSet(
-                          typeUtils.isSameType(parameterType, sourceType) ? null : parameterType,
-                          setter,
-                          written)));
-    }
-
-    Diagnostics.error(
-        messager,
-        method,
-        "@ImportOptics",
-        "Lens method '" + method.getSimpleName() + "' carries no copy strategy annotation.",
-        "A lens has to rebuild '"
-            + sourceType
-            + "' to set through it, and only the strategy says how that type is copied.",
-        "Add @ViaBuilder, @Wither, @ViaConstructor, or @ViaCopyAndSet to the method.");
-    return Optional.empty();
-  }
-
-  /**
-   * Reports a {@code @Wither} naming a method that hands back something other than the source type,
-   * and returns whether it did.
-   *
-   * <p>The generated set function returns what the wither returns, as the source type, so the
-   * wither has to hand back that type as {@link ProcessorUtils#returnsOwner} reads it. A supertype,
-   * or the type under other arguments ({@code Draft<String>} read on a {@code Draft<T>}), does not
-   * compile there, and a raw return is an unchecked conversion in a file the author cannot edit.
-   * Each candidate is read on the source type as the spec names it, so {@code Draft<String>
-   * withId(String)} serves an {@code OpticsSpec<Draft<String>>} as it should.
-   *
-   * <p>Only the return is checked, over the one-parameter instance methods the generated class can
-   * call. A name none of them carries is left to javac, which reports it at the generated call.
-   *
-   * @param method the annotated lens method, for error reporting
-   * @param sourceType the source type {@code S}, as the spec names it
-   * @param sourceTypeElement the element of {@code S}, whose members are searched
-   * @param witherName the method the annotation names
-   * @param targetPackage the package the optics class is generated into
-   * @return true when every such method of that name hands back something else, and an error was
-   *     reported
-   */
-  private boolean rebuildsThroughWitherOfAnotherType(
-      ExecutableElement method,
-      DeclaredType sourceType,
-      TypeElement sourceTypeElement,
-      String witherName,
-      String targetPackage) {
-    List<ExecutableElement> candidates =
-        ElementFilter.methodsIn(elementUtils.getAllMembers(sourceTypeElement)).stream()
-            .filter(
-                candidate ->
-                    candidate.getSimpleName().contentEquals(witherName)
-                        && candidate.getParameters().size() == 1
-                        && !candidate.getModifiers().contains(Modifier.STATIC)
-                        && ProcessorUtils.reachableFrom(elementUtils, candidate, targetPackage))
-            .toList();
-    if (candidates.isEmpty()
-        || candidates.stream()
-            .anyMatch(candidate -> ProcessorUtils.returnsOwner(typeUtils, sourceType, candidate))) {
-      return false;
-    }
-    String source = ProcessorUtils.simpleTypeName(sourceType);
-    String returned =
-        ProcessorUtils.simpleTypeName(
-            ProcessorUtils.returnTypeIn(typeUtils, sourceType, candidates.getFirst()));
-    Diagnostics.error(
-        messager,
-        method,
-        "@Wither",
-        "'" + witherName + "' returns '" + returned + "', not the source type '" + source + "'.",
-        "The generated lens sets through '"
-            + witherName
-            + "' and hands its result back as a '"
-            + source
-            + "', which a '"
-            + returned
-            + "' is not.",
-        "Name a wither that returns '"
-            + source
-            + "', or declare the spec over the type the wither does return when that is an"
-            + " instantiation of the same class; otherwise rebuild '"
-            + source
-            + "' with @ViaBuilder, @ViaConstructor or @ViaCopyAndSet.");
-    return true;
-  }
-
-  /**
-   * Reports a source type whose own constructor call cannot be written, and returns whether it did.
-   *
-   * <p>A strategy that rebuilds through a constructor emits {@code new S(...)}, and a wildcard
-   * cannot be written as a type argument there: {@code new Node<?>(...)} is not Java, whatever the
-   * arguments. The strategies that rebuild through a wither or a builder name no constructor and
-   * are unaffected, so this is asked per strategy rather than of the source type as a whole.
-   *
-   * <p>Only the outermost arguments matter. A wildcard nested inside one, {@code Node<List<?>>},
-   * writes perfectly well.
-   *
-   * @param method the annotated optic method, for error reporting
-   * @param declared the source type {@code S}
-   * @param annotation the strategy annotation tag, for the diagnostic
-   * @return true when the source type was rejected and an error reported
-   */
-  private boolean rebuildsThroughUnwritableConstructor(
-      ExecutableElement method, DeclaredType declared, String annotation) {
-
-    boolean wildcard =
-        declared.getTypeArguments().stream()
-            .anyMatch(argument -> argument.getKind() == TypeKind.WILDCARD);
-    // A DeclaredType's element is always a TypeElement. Only a member type that is not static
-    // carries an enclosing instance; a nested interface, enum or record is implicitly static.
-    TypeElement element = (TypeElement) declared.asElement();
-    boolean innerClass =
-        element.getNestingKind() == NestingKind.MEMBER
-            && !element.getModifiers().contains(Modifier.STATIC);
-    if (!wildcard && !innerClass) {
-      return false;
-    }
-    String name = ProcessorUtils.simpleTypeName(declared);
-    Diagnostics.error(
-        messager,
-        method,
-        annotation,
-        "'"
-            + name
-            + "' is "
-            + (wildcard ? "written with a wildcard type argument" : "an inner class")
-            + ", and this strategy rebuilds it through a constructor.",
-        "The generated set function calls 'new "
-            + name
-            + "(...)', which is not something that can be written for "
-            + (wildcard
-                ? "a wildcard: a constructor call has to name the type argument."
-                : "an inner class: the call needs an enclosing instance the generated class has"
-                    + " no way to reach."),
-        wildcard
-            ? "Name the type the wildcard stands for, or use @Wither, which rebuilds through a"
-                + " method and needs no constructor."
-            : "Declare the source type static, or use @Wither, which rebuilds through a method and"
-                + " needs no constructor.");
-    return true;
-  }
-
-  /**
-   * The primitive type the method a strategy writes through takes the focus as, or null to pass
-   * {@code newValue} unchanged: the wither of {@code @Wither}, the setter of
-   * {@code @ViaCopyAndSet}, both called on the source type. Overloaded at one parameter, they
-   * choose among themselves exactly as constructors do, so {@link #constructorFocusType}'s rule
-   * applies unchanged.
-   *
-   * @param method the annotated optic method
-   * @param receiver the type the call is made on
-   * @param receiverElement that type's element
-   * @param getter the getter named by the strategy, or empty to read the optic method's own name
-   * @param written the name of the method the focus is passed to
-   * @return the primitive type to unbox the focus to, or null
-   */
-  private TypeMirror writtenFocusType(
-      ExecutableElement method,
-      DeclaredType receiver,
-      TypeElement receiverElement,
-      String getter,
-      String written) {
-    return Optional.ofNullable(primitiveRead(method, receiver, receiverElement, getter))
-        .map(read -> unboxedFocus(read, writtenParameters(receiverElement, written)))
-        .orElse(null);
-  }
-
-  /**
-   * The primitive type {@code @ViaBuilder}'s setter takes the focus as, or null to pass {@code
-   * newValue} unchanged. The setter is called on the builder {@code toBuilder()} hands back, not on
-   * the source, so the candidates are read there; a {@code toBuilder} that names no method of the
-   * source leaves the call to javac, and nothing is unboxed.
-   *
-   * @param method the annotated optic method
-   * @param source the source type {@code S}
-   * @param sourceElement the source type's element
-   * @param getter the getter the strategy names, or empty to read the optic method's own name
-   * @param toBuilder the name of the method handing back the builder
-   * @param setter the builder's setter, or empty to read the optic method's own name
-   * @return the primitive type to unbox the focus to, or null
-   */
-  private TypeMirror builderFocusType(
-      ExecutableElement method,
-      DeclaredType source,
-      TypeElement sourceElement,
-      String getter,
-      String toBuilder,
-      String setter) {
-    String named = setter.isEmpty() ? method.getSimpleName().toString() : setter;
-    return Optional.ofNullable(primitiveRead(method, source, sourceElement, getter))
-        .flatMap(
-            read ->
-                builderOf(source, sourceElement, toBuilder)
-                    .map(builder -> unboxedFocus(read, writtenParameters(builder, named))))
-        .orElse(null);
-  }
-
-  /**
-   * The builder {@code toBuilder} hands back, or empty where the source declares no such method, or
-   * one handing back something with no members to call. Either way nothing is unboxed, and javac
-   * reports the call the generator writes.
-   */
-  private Optional<TypeElement> builderOf(
-      DeclaredType source, TypeElement sourceElement, String toBuilder) {
-    return zeroArgumentMethods(source, sourceElement, toBuilder).map(typeUtils::asElement).stream()
-        .flatMap(element -> ElementFilter.typesIn(List.of(element)).stream())
-        .findFirst();
-  }
-
-  /**
-   * The type the lens reads its focus through, when that is a primitive: the zero-argument method
-   * the strategy names, or the optic method's own name where it names none. Null for a getter that
-   * hands back a reference type, which the call takes as it is, and for one the source does not
-   * declare, which javac reports at the generated call.
-   */
-  private TypeMirror primitiveRead(
-      ExecutableElement method, DeclaredType receiver, TypeElement receiverElement, String getter) {
-    String named = getter.isEmpty() ? method.getSimpleName().toString() : getter;
-    return zeroArgumentMethods(receiver, receiverElement, named)
-        .filter(type -> type.getKind().isPrimitive())
-        .orElse(null);
-  }
-
-  /** The type the zero-argument method {@code named} hands back, read on {@code receiver}. */
-  private Optional<TypeMirror> zeroArgumentMethods(
-      DeclaredType receiver, TypeElement receiverElement, String named) {
-    return ElementFilter.methodsIn(elementUtils.getAllMembers(receiverElement)).stream()
-        .filter(candidate -> candidate.getSimpleName().contentEquals(named))
-        .filter(candidate -> candidate.getParameters().isEmpty())
-        .map(candidate -> memberTypeOf(receiver, candidate))
-        .findFirst();
-  }
-
-  /**
-   * The parameter types of the one-argument methods named {@code written} on {@code
-   * receiverElement}, the candidates a call passing one argument chooses among.
-   */
-  private List<TypeMirror> writtenParameters(TypeElement receiverElement, String written) {
-    return ElementFilter.methodsIn(elementUtils.getAllMembers(receiverElement)).stream()
-        .filter(candidate -> candidate.getSimpleName().contentEquals(written))
-        .filter(candidate -> candidate.getParameters().size() == 1)
-        .map(candidate -> candidate.getParameters().getFirst().asType())
-        .toList();
-  }
-
-  /**
-   * The primitive {@code read} is unboxed to where that cannot move the call, or null to pass the
-   * focus boxed.
-   *
-   * <p>Unboxed, the focus has the type its getter hands back, and every other argument is a getter
-   * read already, so the call binds exactly where the rebuild {@code new S(source.cents(),
-   * source.owner())} binds: the constructor or method the strategy describes. The question is only
-   * whether to write the cast at all, and the answer is whether one of the candidates takes exactly
-   * {@code read}. That one is applicable by strict invocation, and it is the most specific of the
-   * candidates that are: another primitive is either unreachable, because a narrowing conversion is
-   * never applied to an argument, or wider than {@code read}, which makes {@code read}'s own the
-   * more specific (JLS 15.12.2.5); a reference parameter needs boxing, which the first phase does
-   * not do (JLS 15.12.2.2).
-   *
-   * <p>Where no candidate takes it, unboxing could move the call, as it would from {@code P(Long,
-   * String)} to a {@code P(double, String)} the boxed focus never reached, so the focus is passed
-   * as it is. A lone candidate is not overloaded at all and needs no cast to settle it.
-   */
-  private TypeMirror unboxedFocus(TypeMirror read, List<TypeMirror> candidates) {
-    if (candidates.size() < 2) {
-      return null;
-    }
-    boolean taken =
-        candidates.stream().anyMatch(candidate -> typeUtils.isSameType(candidate, read));
-    return taken ? typeUtils.getPrimitiveType(read.getKind()) : null;
-  }
-
-  /**
-   * The primitive type {@code @ViaConstructor}'s constructor call passes the focus as, or null to
-   * pass {@code newValue} unchanged.
-   *
-   * <p>The lens focuses a primitive boxed, and the first phase of overload resolution allows no
-   * unboxing (JLS 15.12.2.2), so a {@code Long} can bind to a {@code (Number, String)} overload
-   * before the {@code (long, String)} one is considered. The call means the constructor that {@code
-   * new S(source.cents(), source.currency())} binds to, every argument read through its own getter,
-   * so unboxing the focus to its getter's type leaves that same constructor the most specific one
-   * applicable.
-   *
-   * <p>The candidates are the constructors of the call's own arity, read at the focus's place, and
-   * {@link #unboxedFocus} decides among them; one that no other argument fits is among them
-   * harmlessly, since it cannot take a call it is not applicable to. The focus also has to be an
-   * argument of the call at all, which a {@code parameterOrder} naming other getters leaves it out
-   * of. Answering it here, with {@code Types}, leaves the generator the one rule
-   * {@code @ViaCopyAndSet}'s cast follows: a null type means no cast.
-   *
-   * @param method the annotated optic method, named after its getter
-   * @param source the source type {@code S}
-   * @param sourceElement the source type's element
-   * @param parameterOrder the getters the constructor call reads its arguments from, in order
-   * @return the primitive type to unbox the focus to, or null
-   */
-  private TypeMirror constructorFocusType(
-      ExecutableElement method,
-      DeclaredType source,
-      TypeElement sourceElement,
-      String[] parameterOrder) {
-    int focus = List.of(parameterOrder).indexOf(method.getSimpleName().toString());
-    if (focus < 0) {
-      // The call passes the focus nowhere, so there is no argument to unbox.
-      return null;
-    }
-    List<TypeMirror> candidates =
-        ElementFilter.constructorsIn(sourceElement.getEnclosedElements()).stream()
-            .map(ExecutableElement::getParameters)
-            .filter(parameters -> parameters.size() == parameterOrder.length)
-            .map(parameters -> parameters.get(focus).asType())
-            .toList();
-    return Optional.ofNullable(primitiveRead(method, source, sourceElement, ""))
-        .map(read -> unboxedFocus(read, candidates))
-        .orElse(null);
-  }
-
-  /**
-   * Resolves the type named by {@code @ViaCopyAndSet(copyConstructor = ...)} to the supertype of
-   * {@code S} that the generated cast will name.
-   *
-   * <p>The attribute names the copy constructor's <em>parameter</em> type, so the emitted argument
-   * is {@code (ParameterType) source}. Four things have to hold for that to compile, and each is
-   * checked here rather than left to javac, which would report it inside a generated file the user
-   * did not write: the name resolves, it names a supertype of {@code S}, the generated class is
-   * allowed to name it, and {@code S} has a constructor that accepts it.
-   *
-   * <p>The supertype is returned as {@code S}'s own {@code extends}/{@code implements} clause
-   * instantiates it, so a base declared {@code Holder<String>} is named with its argument rather
-   * than raw. A clause that is itself raw is named raw, which is what the source says.
-   *
-   * <p>Naming {@code S} itself resolves to {@code S}; the generator then emits no cast, since a
-   * cast to the argument's own type says nothing.
-   *
-   * @param method the annotated optic method, for error reporting
-   * @param sourceType the source type {@code S}
-   * @param targetPackage the package the optics class is generated into
-   * @param copyConstructor the fully qualified name from the annotation; never empty
-   * @return the resolved supertype, or empty if it was rejected (an error has been reported)
-   */
-  private Optional<TypeMirror> resolveCopyConstructorParameterType(
-      ExecutableElement method,
-      DeclaredType sourceType,
-      String targetPackage,
-      String copyConstructor) {
-
-    TypeElement parameterElement = elementUtils.getTypeElement(copyConstructor);
-    if (parameterElement == null) {
-      Diagnostics.error(
-          messager,
-          method,
-          "@ViaCopyAndSet",
-          "copyConstructor names '" + copyConstructor + "', which does not resolve to a type.",
-          "The attribute is a plain string, so it is not resolved against the spec interface's"
-              + " imports, and it takes no type arguments.",
-          "Give the copy constructor's parameter type as a fully qualified class name - a nested"
-              + " class as 'com.example.Outer.Base', a generic base as the class alone - or drop"
-              + " the attribute to pass '"
-              + sourceType
-              + "' unchanged.");
-      return Optional.empty();
-    }
-
-    Optional<TypeMirror> supertype = resolveSupertype(method, sourceType, parameterElement);
-    if (supertype.isEmpty()) {
-      return Optional.empty();
-    }
-
-    if (!isVisibleFrom(parameterElement, targetPackage)) {
-      Diagnostics.error(
-          messager,
-          method,
-          "@ViaCopyAndSet",
-          "copyConstructor names '"
-              + parameterElement.getQualifiedName()
-              + "', which is not public and so cannot be named from '"
-              + targetPackage
-              + "'.",
-          "The generated optics class writes the cast as '("
-              + parameterElement.getSimpleName()
-              + ") source', so it has to be able to name the type; passing the source unchanged"
-              + " never names it.",
-          "Name a public supertype, generate into '"
-              + elementUtils.getPackageOf(parameterElement).getQualifiedName()
-              + "' with @ImportOptics(targetPackage = ...), or drop the attribute.");
-      return Optional.empty();
-    }
-
-    // The cast that will be emitted, not the name the attribute gave: where S pins the supertype's
-    // arguments the two differ, and only the emitted one explains the rejection.
-    if (!hasConstructorAccepting(sourceType, supertype.get(), targetPackage)) {
-      Diagnostics.error(
-          messager,
-          method,
-          "@ViaCopyAndSet",
-          "copyConstructor names '"
-              + parameterElement.getQualifiedName()
-              + "', which '"
-              + ProcessorUtils.simpleTypeName(sourceType)
-              + "' reaches as '"
-              + ProcessorUtils.simpleTypeName(supertype.get())
-              + "', and no constructor accepts.",
-          "The generated set function calls 'new "
-              + ProcessorUtils.simpleTypeName(sourceType)
-              + "(("
-              + ProcessorUtils.simpleTypeName(supertype.get())
-              + ") source)'. Found "
-              + describeSingleArgumentConstructors(sourceType, targetPackage)
-              + ".",
-          "Name a supertype of '"
-              + ProcessorUtils.simpleTypeName(sourceType)
-              + "' that one of those constructors takes, as the class alone without type"
-              + " arguments, or drop the attribute to pass the source unchanged.");
-      return Optional.empty();
-    }
-
-    return supertype;
-  }
-
-  /**
-   * Finds the supertype relation the cast depends on, reporting when it does not hold.
-   *
-   * <p>A hierarchy containing a type this round cannot resolve - one another processor has yet to
-   * generate, say - reads as having no supertypes at all, which would make every name look wrong.
-   * The compiler is asked directly before any name is rejected, so an unreadable hierarchy costs
-   * the instantiation rather than drawing an error that blames the attribute for a missing type
-   * javac is already reporting.
-   *
-   * @param method the annotated optic method, for error reporting
-   * @param sourceType the source type {@code S}
-   * @param parameterElement the resolved element the attribute names
-   * @return the supertype to name, or empty if it was rejected (an error has been reported)
-   */
-  private Optional<TypeMirror> resolveSupertype(
-      ExecutableElement method, TypeMirror sourceType, TypeElement parameterElement) {
-
-    TypeMirror walked = ProcessorUtils.supertypeOf(typeUtils, sourceType, parameterElement);
-    if (walked != null) {
-      return Optional.of(walked);
-    }
-
-    TypeMirror erased = typeUtils.erasure(parameterElement.asType());
-    if (typeUtils.isAssignable(typeUtils.erasure(sourceType), erased)) {
-      return Optional.of(erased);
-    }
-
-    Diagnostics.error(
-        messager,
-        method,
-        "@ViaCopyAndSet",
-        "copyConstructor names '"
-            + parameterElement.getQualifiedName()
-            + "', which '"
-            + sourceType
-            + "' does not extend or implement.",
-        "The generated set function passes the source to the copy constructor as '("
-            + parameterElement.getSimpleName()
-            + ") source', and only a supertype of the source can be cast to there.",
-        "Name a supertype of '" + sourceType + "', or drop the attribute to pass it unchanged.");
-    return Optional.empty();
-  }
-
-  /**
-   * Returns whether the generated class may name {@code type}.
-   *
-   * @param type the type the generated cast would name
-   * @param targetPackage the package the optics class is generated into
-   * @return true if {@code type} is public, or package-private in the generated class's own package
-   */
-  private boolean isVisibleFrom(TypeElement type, String targetPackage) {
-    for (Element enclosing = type; enclosing instanceof TypeElement nested; ) {
-      if (!nested.getModifiers().contains(Modifier.PUBLIC)) {
-        return elementUtils.getPackageOf(type).getQualifiedName().contentEquals(targetPackage);
-      }
-      enclosing = nested.getEnclosingElement();
-    }
-    return true;
-  }
-
-  /**
-   * Returns whether the generated class may call a constructor of {@code member}'s kind.
-   *
-   * <p>{@code protected} is package access here: it reaches a subclass, and the generated optics
-   * class is not one.
-   *
-   * @param member the constructor being considered
-   * @param targetPackage the package the optics class is generated into
-   * @return true if the generated class can call it
-   */
-  private boolean isAccessibleFrom(Element member, String targetPackage) {
-    Set<Modifier> modifiers = member.getModifiers();
-    if (modifiers.contains(Modifier.PRIVATE)) {
-      return false;
-    }
-    if (modifiers.contains(Modifier.PUBLIC)) {
-      return true;
-    }
-    return elementUtils.getPackageOf(member).getQualifiedName().contentEquals(targetPackage);
-  }
-
-  /**
-   * Returns whether {@code sourceType} declares a constructor the generated class can call a single
-   * {@code argument} through.
-   *
-   * @param sourceType the instantiated source type {@code S}, which the constructors are read under
-   * @param argument the type the generated cast produces
-   * @param targetPackage the package the optics class is generated into
-   * @return true if some constructor it can reach accepts it
-   */
-  private boolean hasConstructorAccepting(
-      DeclaredType sourceType, TypeMirror argument, String targetPackage) {
-    for (ExecutableElement constructor :
-        ElementFilter.constructorsIn(sourceType.asElement().getEnclosedElements())) {
-      List<? extends VariableElement> parameters = constructor.getParameters();
-      // A constructor the generated class cannot call is no use, however well it fits.
-      if (parameters.size() != 1 || !isAccessibleFrom(constructor, targetPackage)) {
-        continue;
-      }
-      TypeMirror parameterType = constructorParameterType(sourceType, constructor);
-      if (typeUtils.isAssignable(argument, parameterType)) {
-        return true;
-      }
-      // A varargs parameter is always an array type, so the component is there to read.
-      if (constructor.isVarArgs()
-          && typeUtils.isAssignable(argument, ((ArrayType) parameterType).getComponentType())) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * The constructor's one parameter as seen under the source type's instantiation.
-   *
-   * <p>Read off the constructor directly, the parameter speaks the source type's own declaration:
-   * {@code Node<X>} declaring {@code Node(Base<X> other)} gives {@code Base<X>}. The argument it is
-   * compared against comes from a supertype walk over the instantiated type, so it speaks the
-   * spec's variables, {@code Base<U>}. Where the source type declares parameters of its own the two
-   * can never match until one is rewritten in the other's terms; where it declares none, the
-   * rewrite is a no-op and the declared parameter was already the answer.
-   *
-   * <p>Only the class's own variables are substituted. A constructor that declares parameters of
-   * its own keeps them, and is left to be rejected.
-   *
-   * <p>Unlike {@link #memberTypeOf} this does not guard on {@link
-   * ProcessorUtils#carriesInstantiation}, and needs no guard: a source type naming a raw type is
-   * refused at the spec's declaration (#771) before any member is read, so every type reaching here
-   * supplies its arguments or has none to supply. A guard would bury a fault the gate already
-   * reports.
-   *
-   * @param sourceType the instantiated source type {@code S}
-   * @param constructor a single-argument constructor, whose one parameter is read
-   * @return the parameter type under {@code sourceType}'s instantiation
-   */
-  private TypeMirror constructorParameterType(
-      DeclaredType sourceType, ExecutableElement constructor) {
-    // Total: asMemberOf answers with an ExecutableType for an executable member, and the only
-    // shape that would not - an unresolvable source type, whose members resolve to itself - never
-    // reaches here, because such a type enumerates no constructors for the caller to loop over.
-    ExecutableType asMember = (ExecutableType) typeUtils.asMemberOf(sourceType, constructor);
-    return asMember.getParameterTypes().getFirst();
-  }
-
-  /**
-   * Names the single-argument constructors the generated class can call, for the rejection message.
-   *
-   * <p>Only the reachable ones: naming a constructor the generated class cannot call would send the
-   * reader after a type that fails the same way.
-   *
-   * @param sourceType the instantiated source type {@code S}, so the list names the parameters as
-   *     it sees them
-   * @param targetPackage the package the optics class is generated into
-   * @return the parameter types it takes one at a time, or a phrase saying it takes none
-   */
-  private String describeSingleArgumentConstructors(DeclaredType sourceType, String targetPackage) {
-    // The same instantiation the check uses, so a reader comparing the list against the name they
-    // gave is comparing like with like. The names carry type arguments and the attribute does not,
-    // so the list is there to be recognised rather than copied from.
-    List<String> parameterTypes =
-        ElementFilter.constructorsIn(sourceType.asElement().getEnclosedElements()).stream()
-            .filter(constructor -> constructor.getParameters().size() == 1)
-            .filter(constructor -> isAccessibleFrom(constructor, targetPackage))
-            .map(
-                constructor ->
-                    ProcessorUtils.simpleTypeName(
-                        constructorParameterType(sourceType, constructor)))
-            .toList();
-    return parameterTypes.isEmpty()
-        ? "no single-argument constructor it can call"
-        : "single-argument constructors taking " + parameterTypes;
-  }
-
   // ----- Prism Hint Parsing -----
 
   private record PrismHintResult(PrismHintKind kind, PrismHintInfo info) {}
@@ -1226,12 +527,12 @@ public class SpecInterfaceAnalyser {
       TypeMirror focusType,
       TypeElement specInterface) {
     // Check for @InstanceOf
-    AnnotationMirror instanceOf = findAnnotation(method, INSTANCE_OF_FQN);
+    AnnotationMirror instanceOf = ProcessorUtils.findAnnotation(method, INSTANCE_OF_FQN);
     if (instanceOf != null) {
       // @InstanceOf.value() is mandatory, but an unresolvable class constant (a typo, or a
       // not-yet-generated type) is modelled as an erroneous attribute whose value is a String,
       // not a TypeMirror - so this CAN be null and must fall through to the hint diagnostic.
-      TypeMirror targetType = getAnnotationTypeMirror(instanceOf, "value");
+      TypeMirror targetType = ProcessorUtils.getAnnotationTypeMirror(instanceOf, "value");
       if (targetType == null) {
         reportMissingPrismHint(method);
         return Optional.empty();
@@ -1270,10 +571,10 @@ public class SpecInterfaceAnalyser {
     }
 
     // Check for @MatchWhen
-    AnnotationMirror matchWhen = findAnnotation(method, MATCH_WHEN_FQN);
+    AnnotationMirror matchWhen = ProcessorUtils.findAnnotation(method, MATCH_WHEN_FQN);
     if (matchWhen != null) {
-      String predicate = getAnnotationString(matchWhen, "predicate", "");
-      String getter = getAnnotationString(matchWhen, "getter", "");
+      String predicate = ProcessorUtils.getAnnotationString(matchWhen, "predicate", "");
+      String getter = ProcessorUtils.getAnnotationString(matchWhen, "getter", "");
       return Optional.of(
           new PrismHintResult(
               PrismHintKind.MATCH_WHEN, PrismHintInfo.forMatchWhen(predicate, getter)));
@@ -1461,9 +762,9 @@ public class SpecInterfaceAnalyser {
       TypeElement specInterface,
       TypeMirror focusType) {
     // Check for @TraverseWith
-    AnnotationMirror traverseWith = findAnnotation(method, TRAVERSE_WITH_FQN);
+    AnnotationMirror traverseWith = ProcessorUtils.findAnnotation(method, TRAVERSE_WITH_FQN);
     if (traverseWith != null) {
-      String traversalReference = getAnnotationString(traverseWith, "value", "");
+      String traversalReference = ProcessorUtils.getAnnotationString(traverseWith, "value", "");
       return Optional.of(
           new TraversalHintResult(
               TraversalHintKind.TRAVERSE_WITH,
@@ -1471,10 +772,10 @@ public class SpecInterfaceAnalyser {
     }
 
     // Check for @ThroughField
-    AnnotationMirror throughField = findAnnotation(method, THROUGH_FIELD_FQN);
+    AnnotationMirror throughField = ProcessorUtils.findAnnotation(method, THROUGH_FIELD_FQN);
     if (throughField != null) {
-      String fieldName = getAnnotationString(throughField, "field", "");
-      String traversal = getAnnotationString(throughField, "traversal", "");
+      String fieldName = ProcessorUtils.getAnnotationString(throughField, "field", "");
+      String traversal = ProcessorUtils.getAnnotationString(throughField, "traversal", "");
 
       // Auto-detect traversal if not specified
       if (traversal.isEmpty()) {
@@ -1834,33 +1135,6 @@ public class SpecInterfaceAnalyser {
   }
 
   /**
-   * A member's type as the instantiated source type sees it, unwrapping an accessor's return.
-   *
-   * <p>Read off the element, a member of {@code Holder<T>} speaks {@code T}; the spec instantiated
-   * it as {@code Holder<List<String>>}, so what the traversal has to be detected for is {@code
-   * List<String>}. Reading the declaration instead both rejects a container it could have found and
-   * names a variable the spec never wrote.
-   *
-   * <p>The guard is why this is not {@link ProcessorUtils#memberOf} outright: that helper lets a
-   * raw site erase, and erasing here rejected a container the spec had written (#738). The two
-   * raw-site answers differ on purpose - see {@link ProcessorUtils#memberOf} for the map of which
-   * reader wants which.
-   *
-   * @param sourceType the instantiated source type {@code S}
-   * @param member the accessor to read
-   * @return the member's type under {@code sourceType}'s instantiation
-   */
-  private TypeMirror memberTypeOf(DeclaredType sourceType, ExecutableElement member) {
-    if (!ProcessorUtils.carriesInstantiation(sourceType)) {
-      return member.getReturnType();
-    }
-    // Total: asMemberOf answers with an ExecutableType for an executable member, and the one shape
-    // that would not - an unresolvable source type, whose members resolve to itself - enumerates
-    // no members for the caller to have found.
-    return ((ExecutableType) typeUtils.asMemberOf(sourceType, member)).getReturnType();
-  }
-
-  /**
    * The type a named field has on the instantiated source type.
    *
    * @param sourceType the instantiated source type to search
@@ -1878,7 +1152,7 @@ public class SpecInterfaceAnalyser {
     if (typeElement.getKind() == ElementKind.RECORD) {
       for (var component : typeElement.getRecordComponents()) {
         if (component.getSimpleName().contentEquals(fieldName)) {
-          return memberTypeOf(declaredSource, component.getAccessor());
+          return ProcessorUtils.memberTypeOf(typeUtils, declaredSource, component.getAccessor());
         }
       }
     }
@@ -1903,7 +1177,7 @@ public class SpecInterfaceAnalyser {
           && method.getParameters().isEmpty()
           && method.getModifiers().contains(Modifier.PUBLIC)
           && !method.getModifiers().contains(Modifier.STATIC)) {
-        return memberTypeOf(declaredSource, method);
+        return ProcessorUtils.memberTypeOf(typeUtils, declaredSource, method);
       }
     }
 
@@ -1920,60 +1194,6 @@ public class SpecInterfaceAnalyser {
       }
     }
 
-    return null;
-  }
-
-  // ----- Annotation Utility Methods -----
-
-  private AnnotationMirror findAnnotation(Element element, String annotationFqn) {
-    for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
-      TypeElement annotationType = (TypeElement) mirror.getAnnotationType().asElement();
-      if (annotationType.getQualifiedName().contentEquals(annotationFqn)) {
-        return mirror;
-      }
-    }
-    return null;
-  }
-
-  private String getAnnotationString(
-      AnnotationMirror annotation, String elementName, String defaultValue) {
-    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
-        annotation.getElementValues().entrySet()) {
-      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
-        // getValue() never returns null for a present annotation element.
-        return entry.getValue().getValue().toString();
-      }
-    }
-    return defaultValue;
-  }
-
-  // Package-private for tests.
-  String[] getAnnotationStringArray(AnnotationMirror annotation, String elementName) {
-    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
-        annotation.getElementValues().entrySet()) {
-      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
-        Object value = entry.getValue().getValue();
-        if (value instanceof List<?> list) {
-          return list.stream()
-              .map(v -> ((AnnotationValue) v).getValue().toString())
-              .toArray(String[]::new);
-        }
-      }
-    }
-    return new String[0];
-  }
-
-  // Package-private for tests.
-  TypeMirror getAnnotationTypeMirror(AnnotationMirror annotation, String elementName) {
-    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
-        annotation.getElementValues().entrySet()) {
-      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
-        Object value = entry.getValue().getValue();
-        if (value instanceof TypeMirror typeMirror) {
-          return typeMirror;
-        }
-      }
-    }
     return null;
   }
 

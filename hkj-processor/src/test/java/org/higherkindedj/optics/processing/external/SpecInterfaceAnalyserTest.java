@@ -20,6 +20,7 @@ import org.higherkindedj.optics.processing.external.SpecAnalysis.CopyStrategyKin
 import org.higherkindedj.optics.processing.external.SpecAnalysis.OpticKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.PrismHintKind;
 import org.higherkindedj.optics.processing.external.SpecAnalysis.TraversalHintKind;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,58 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("SpecInterfaceAnalyser")
 class SpecInterfaceAnalyserTest {
+
+  /**
+   * A record with the builder its specs name: {@code getName}, {@code toBuilder}/{@code
+   * newBuilder}, the builder's {@code name}/{@code withName}, and {@code build}/{@code create}.
+   * Every strategy a spec here declares has to find the methods it names.
+   */
+  private static JavaFileObject person() {
+    return JavaFileObjects.forSourceString(
+        "com.test.Person",
+        """
+        package com.test;
+        public record Person(String name) {
+            public String getName() { return name; }
+            public Builder toBuilder() { return new Builder(name); }
+            public Builder newBuilder() { return new Builder(name); }
+
+            public static final class Builder {
+                private String name;
+                Builder(String name) { this.name = name; }
+                public Builder name(String name) { this.name = name; return this; }
+                public Builder withName(String name) { this.name = name; return this; }
+                public Person build() { return new Person(name); }
+                public Person create() { return new Person(name); }
+            }
+        }
+        """);
+  }
+
+  /** The same, with an {@code age} the builder can set too. */
+  private static JavaFileObject personWithAge() {
+    return JavaFileObjects.forSourceString(
+        "com.test.Person",
+        """
+        package com.test;
+        public record Person(String name, int age) {
+            public String getName() { return name; }
+            public Builder toBuilder() { return new Builder(name, age); }
+            public Builder newBuilder() { return new Builder(name, age); }
+
+            public static final class Builder {
+                private String name;
+                private int age;
+                Builder(String name, int age) { this.name = name; this.age = age; }
+                public Builder name(String name) { this.name = name; return this; }
+                public Builder withName(String name) { this.name = name; return this; }
+                public Builder age(int age) { this.age = age; return this; }
+                public Person build() { return new Person(name, age); }
+                public Person create() { return new Person(name, age); }
+            }
+        }
+        """);
+  }
 
   /** Common source files needed for tests. */
   private static final JavaFileObject OPTICS_SPEC =
@@ -278,13 +331,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should extract source type from OpticsSpec<S>")
     void shouldExtractSourceType() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {}
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -310,13 +357,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should identify abstract methods requiring generation")
     void shouldIdentifyAbstractMethods() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {}
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -348,13 +389,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should reject a default method rather than analysing the interface")
     void shouldRejectDefaultMethods() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {}
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -384,13 +419,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should ignore static methods in spec interface")
     void shouldIgnoreStaticMethods() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {}
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -424,13 +453,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should detect Lens return type")
     void shouldDetectLens() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {}
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -536,13 +559,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should parse @ViaBuilder with defaults")
     void shouldParseViaBuilderDefaults() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {}
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -572,13 +589,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should parse @ViaBuilder with custom values")
     void shouldParseViaBuilderCustom() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {}
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -796,13 +807,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should return empty for method with non-declared return type")
     void shouldReturnEmptyForPrimitiveReturnType() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {}
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -824,13 +829,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should return empty when optic has too few type arguments")
     void shouldReturnEmptyForOpticWithoutTypeArgs() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {}
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -902,13 +901,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should skip non-OpticsSpec super-interfaces when extracting the source type")
     void shouldSkipNonOpticsSpecSuperInterfaces() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {}
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -943,6 +936,7 @@ class SpecInterfaceAnalyserTest {
               public class Squad {
                   public java.util.List<String> members;
                   public Squad() {}
+                  public java.util.List<String> readMembers() { return members; }
                   public Squad withMembers(java.util.List<String> members) {
                       Squad copy = new Squad();
                       copy.members = members;
@@ -966,7 +960,7 @@ class SpecInterfaceAnalyserTest {
                   @ThroughField(field = "members")
                   Traversal<Squad, String> eachMember();
 
-                  @Wither("withMembers")
+                  @Wither(value = "withMembers", getter = "readMembers")
                   Lens<Squad, java.util.List<String>> members();
               }
               """);
@@ -989,6 +983,7 @@ class SpecInterfaceAnalyserTest {
               public class GenericSquad<T> {
                   public T members;
                   public GenericSquad() {}
+                  public T readMembers() { return members; }
                   public GenericSquad<T> withMembers(T members) {
                       GenericSquad<T> copy = new GenericSquad<>();
                       copy.members = members;
@@ -1013,7 +1008,7 @@ class SpecInterfaceAnalyserTest {
                   @ThroughField(field = "members")
                   Traversal<GenericSquad<List<String>>, String> eachMember();
 
-                  @Wither("withMembers")
+                  @Wither(value = "withMembers", getter = "readMembers")
                   Lens<GenericSquad<List<String>>, List<String>> members();
               }
               """);
@@ -1113,12 +1108,14 @@ class SpecInterfaceAnalyserTest {
                 processingEnv.getMessager());
 
         // "getter" is present but its value is a String, not a List or TypeMirror
-        arrayForStringValue = analyser.getAnnotationStringArray(viaBuilderMirror, "getter");
-        mirrorForStringValue = analyser.getAnnotationTypeMirror(viaBuilderMirror, "getter");
+        arrayForStringValue = ProcessorUtils.getAnnotationStringArray(viaBuilderMirror, "getter");
+        mirrorForStringValue = ProcessorUtils.getAnnotationTypeMirror(viaBuilderMirror, "getter");
 
         // "missing" matches no element name at all
-        arrayForMissingElement = analyser.getAnnotationStringArray(viaBuilderMirror, "missing");
-        mirrorForMissingElement = analyser.getAnnotationTypeMirror(viaBuilderMirror, "missing");
+        arrayForMissingElement =
+            ProcessorUtils.getAnnotationStringArray(viaBuilderMirror, "missing");
+        mirrorForMissingElement =
+            ProcessorUtils.getAnnotationTypeMirror(viaBuilderMirror, "missing");
 
         return false;
       }
@@ -1127,13 +1124,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should fall back to defaults when element values do not match the expected shape")
     void shouldFallBackWhenElementValuesDoNotMatch() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name) {}
-              """);
+      var person = person();
 
       var spec =
           JavaFileObjects.forSourceString(
@@ -1171,13 +1162,7 @@ class SpecInterfaceAnalyserTest {
     @Test
     @DisplayName("should extract focus type from Lens<S, A>")
     void shouldExtractFocusType() {
-      var person =
-          JavaFileObjects.forSourceString(
-              "com.test.Person",
-              """
-              package com.test;
-              public record Person(String name, int age) {}
-              """);
+      var person = personWithAge();
 
       var spec =
           JavaFileObjects.forSourceString(

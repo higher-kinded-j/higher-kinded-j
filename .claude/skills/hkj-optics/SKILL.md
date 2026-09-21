@@ -44,7 +44,7 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 | `@ViaCopyAndSet` | Mutable type with setters | `@ViaCopyAndSet(setter = "setHost")` |
 | `@ViaConstructor` | Reconstruct via constructor | `@ViaConstructor(parameterOrder = {"x", "y"})` |
 
-`@ViaCopyAndSet` takes `copyConstructor = "com.example.BaseConfig"` — a fully qualified **supertype** — only when the copy constructor is overloaded; the default passes the source unchanged. `@ViaConstructor` needs `parameterOrder`: without it the generated optic throws.
+`@ViaCopyAndSet` takes `copyConstructor = "com.example.BaseConfig"` — a fully qualified **supertype** — only when the copy constructor is overloaded; the default passes the source unchanged. `@ViaConstructor` needs `parameterOrder`: without it the generated optic throws. `@Wither` calls the method with the new value typed by the lens's focus, so where the wither is overloaded the focus type chooses the overload, as javac would: pick the focus to match the overload you mean. The processor refuses, at the spec method, a name the type does not have, a focus no overload takes, a choice javac could not make, a static method, and one returning anything but the source type. Every other name a strategy carries is checked there too: the `getter` it reads through (the lens method's own name for `@ViaCopyAndSet` and `@ViaConstructor`), `@ViaBuilder`'s `toBuilder`/`setter`/`build`, and each accessor in a `@ViaConstructor` `parameterOrder`.
 
 ---
 

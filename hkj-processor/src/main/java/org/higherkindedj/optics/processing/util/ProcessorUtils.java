@@ -26,6 +26,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -635,11 +636,11 @@ public final class ProcessorUtils {
    * a raw site should produce is the caller's question:
    *
    * <ul>
-   *   <li>{@code SpecInterfaceAnalyser.memberTypeOf} guards with {@link #carriesInstantiation} and
-   *       reads the declaration under a raw site. Erasing there rejected a container the spec had
-   *       written, which is the {@code @ThroughField} regression #738 caught. A raw source type is
-   *       now refused at the spec's declaration (#771), so the site the guard reads as declared
-   *       today is a non-generic one.
+   *   <li>{@link #memberTypeOf} guards with {@link #carriesInstantiation} and reads the declaration
+   *       under a raw site. Erasing there rejected a container the spec had written, which is the
+   *       {@code @ThroughField} regression #738 caught. A raw source type is now refused at the
+   *       spec's declaration (#771), so the site the guard reads as declared today is a non-generic
+   *       one.
    *   <li>{@code MappingProcessor.componentType} asks whether the record <em>declares</em>
    *       parameters rather than whether the site supplies them, so that a concrete pair never
    *       relies on {@code asMemberOf} accepting a record component. A raw domain cannot reach it:
@@ -1447,6 +1448,177 @@ public final class ProcessorUtils {
       return s;
     }
     return s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
+  }
+
+  /**
+   * The mirror of an annotation on an element, or null where it carries none of that type.
+   *
+   * @param element the annotated element; must not be null
+   * @param annotationFqn the annotation's fully qualified name; must not be null
+   * @return the mirror, or null
+   * @since 0.4.11
+   */
+  public static AnnotationMirror findAnnotation(Element element, String annotationFqn) {
+    for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
+      // An annotation type is always a declared type, and its element a TypeElement.
+      TypeElement annotationType = (TypeElement) mirror.getAnnotationType().asElement();
+      if (annotationType.getQualifiedName().contentEquals(annotationFqn)) {
+        return mirror;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * A string an annotation carries, or {@code defaultValue} where it does not name that element.
+   *
+   * <p>An element left at its declared default is not written into the mirror, so the caller's own
+   * default stands for it.
+   *
+   * @param annotation the annotation's mirror; must not be null
+   * @param elementName the element to read; must not be null
+   * @param defaultValue what to answer where the annotation does not name it
+   * @return the string, or the default
+   * @since 0.4.11
+   */
+  public static String getAnnotationString(
+      AnnotationMirror annotation, String elementName, String defaultValue) {
+    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+        annotation.getElementValues().entrySet()) {
+      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
+        // getValue() never returns null for a present annotation element.
+        return entry.getValue().getValue().toString();
+      }
+    }
+    return defaultValue;
+  }
+
+  /**
+   * The strings an annotation's array element carries, empty where it names none.
+   *
+   * @param annotation the annotation's mirror; must not be null
+   * @param elementName the element to read; must not be null
+   * @return the strings, in the order written (non-null)
+   * @since 0.4.11
+   */
+  public static String[] getAnnotationStringArray(AnnotationMirror annotation, String elementName) {
+    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+        annotation.getElementValues().entrySet()) {
+      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
+        Object value = entry.getValue().getValue();
+        if (value instanceof List<?> list) {
+          return list.stream()
+              .map(element -> ((AnnotationValue) element).getValue().toString())
+              .toArray(String[]::new);
+        }
+      }
+    }
+    return new String[0];
+  }
+
+  /**
+   * The type an annotation's class-constant element names, or null where it names none.
+   *
+   * @param annotation the annotation's mirror; must not be null
+   * @param elementName the element to read; must not be null
+   * @return the type, or null
+   * @since 0.4.11
+   */
+  public static TypeMirror getAnnotationTypeMirror(
+      AnnotationMirror annotation, String elementName) {
+    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+        annotation.getElementValues().entrySet()) {
+      if (entry.getKey().getSimpleName().contentEquals(elementName)) {
+        Object value = entry.getValue().getValue();
+        if (value instanceof TypeMirror typeMirror) {
+          return typeMirror;
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * A member's type as the instantiated source type sees it, unwrapping an accessor's return.
+   *
+   * <p>Read off the element, a member of {@code Holder<T>} speaks {@code T}; the spec instantiated
+   * it as {@code Holder<List<String>>}, so what the traversal has to be detected for is {@code
+   * List<String>}. Reading the declaration instead both rejects a container it could have found and
+   * names a variable the spec never wrote.
+   *
+   * <p>The guard is why this is not {@link #memberOf} outright: that helper lets a raw site erase,
+   * and erasing here rejected a container the spec had written (#738). The two raw-site answers
+   * differ on purpose - see {@link #memberOf} for the map of which reader wants which.
+   *
+   * @param types the round's type utilities; must not be null
+   * @param sourceType the instantiated source type {@code S}
+   * @param member the accessor to read
+   * @return the member's type under {@code sourceType}'s instantiation
+   * @since 0.4.11
+   */
+  public static TypeMirror memberTypeOf(
+      Types types, DeclaredType sourceType, ExecutableElement member) {
+    if (!carriesInstantiation(sourceType)) {
+      return member.getReturnType();
+    }
+    // Total: asMemberOf answers with an ExecutableType for an executable member, and the one
+    // shape that would not - an unresolvable source type, whose members resolve to itself -
+    // enumerates no members for the caller to have found.
+    return ((ExecutableType) types.asMemberOf(sourceType, member)).getReturnType();
+  }
+
+  /** How few edits apart two names must be for one to be offered as a misspelling of the other. */
+  public static final int NEAR_MISS = 3;
+
+  /**
+   * The candidate nearest {@code name}, when it is few enough edits away to be offered as what was
+   * meant. Of candidates equally near, the first is kept.
+   *
+   * @param name the name as written; must not be null
+   * @param candidates the names it could have meant, in the order to prefer them; must not be null
+   * @return the nearest candidate under {@link #NEAR_MISS} edits, or empty when none is that near
+   * @since 0.4.11
+   */
+  public static Optional<String> nearestName(String name, List<String> candidates) {
+    String best = null;
+    int bestDistance = NEAR_MISS;
+    for (String candidate : candidates) {
+      int distance = editDistance(name, candidate);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = candidate;
+      }
+    }
+    return Optional.ofNullable(best);
+  }
+
+  /**
+   * The Levenshtein distance between two names: the fewest single-character insertions, deletions
+   * and substitutions that turn one into the other.
+   *
+   * @param a one name; must not be null
+   * @param b the other; must not be null
+   * @return the distance, zero when the names are equal
+   * @since 0.4.11
+   */
+  public static int editDistance(String a, String b) {
+    int[] previous = new int[b.length() + 1];
+    int[] current = new int[b.length() + 1];
+    for (int j = 0; j <= b.length(); j++) {
+      previous[j] = j;
+    }
+    for (int i = 1; i <= a.length(); i++) {
+      current[0] = i;
+      for (int j = 1; j <= b.length(); j++) {
+        int substitution = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+        current[j] =
+            Math.min(Math.min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + substitution);
+      }
+      int[] swap = previous;
+      previous = current;
+      current = swap;
+    }
+    return previous[b.length()];
   }
 
   /**

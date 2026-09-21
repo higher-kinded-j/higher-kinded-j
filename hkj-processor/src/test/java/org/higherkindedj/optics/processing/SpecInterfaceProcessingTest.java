@@ -12,7 +12,6 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.util.List;
 import javax.tools.JavaFileObject;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -441,7 +440,8 @@ class SpecInterfaceProcessingTest {
 
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("@Wither: 'withId' returns 'Draft', not the source type 'Draft<T>'");
+          .hadErrorContaining(
+              "@Wither: 'withId(String)' returns 'Draft', not the source type 'Draft<T>'");
     }
 
     @Test
@@ -496,7 +496,7 @@ class SpecInterfaceProcessingTest {
       // Read on Sub, Base<T>'s return is Base<String>: the instantiation Sub's extends clause
       // names.
       assertThat(compilation)
-          .hadErrorContaining("'withId' returns 'Base<String>', not the source type 'Sub'");
+          .hadErrorContaining("'withId(String)' returns 'Base<String>', not the source type 'Sub'");
     }
 
     @Test
@@ -550,8 +550,9 @@ class SpecInterfaceProcessingTest {
     @Test
     @DisplayName("only a wither the generated call can reach answers for the return")
     void onlyAWitherTheGeneratedCallCanReachAnswersForTheReturn() {
-      // Each decoy returns the source type, and none is a one-parameter instance method the
-      // generated class can call, so none may vouch for the withId that is.
+      // Each decoy returns the source type, and none is the method the call binds: a String binds
+      // withId(String) ahead of the static withId(Object), the two-parameter one takes no single
+      // argument, and the private one cannot be called at all.
       final var external =
           JavaFileObjects.forSourceString(
               "com.external.Renamed",
@@ -596,7 +597,8 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "@Wither: 'withId' returns 'Renamed<Integer>', not the source type 'Renamed<String>'");
+              "@Wither: 'withId(String)' returns 'Renamed<Integer>', not the source type"
+                  + " 'Renamed<String>'");
     }
 
     @Test
@@ -1005,52 +1007,8 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "'withId' returns 'Box<U>', not the source type 'Box<? extends Number>'");
+              "'withId(String)' returns 'Box<U>', not the source type 'Box<? extends Number>'");
       assertThat(compilation).hadErrorContaining("not the source type 'Pair<String, ?>'");
-    }
-
-    @Test
-    @DisplayName("a wither the source type does not declare is left to javac")
-    void witherTheSourceTypeDoesNotDeclareIsLeftToJavac() {
-      // Only the return is checked: a misspelt name has no return to check.
-      final var external =
-          JavaFileObjects.forSourceString(
-              "com.external.Plain",
-              """
-              package com.external;
-
-              public final class Plain {
-                  private final String id;
-                  public Plain(String id) { this.id = id; }
-                  public String id() { return id; }
-                  public Plain withId(String id) { return new Plain(id); }
-              }
-              """);
-      final var spec =
-          JavaFileObjects.forSourceString(
-              "com.myapp.PlainOpticsSpec",
-              """
-              package com.myapp;
-
-              import com.external.Plain;
-              import org.higherkindedj.optics.Lens;
-              import org.higherkindedj.optics.annotations.ImportOptics;
-              import org.higherkindedj.optics.annotations.OpticsSpec;
-              import org.higherkindedj.optics.annotations.Wither;
-
-              @ImportOptics
-              public interface PlainOpticsSpec extends OpticsSpec<Plain> {
-                  @Wither(value = "withIdentifier", getter = "id")
-                  Lens<Plain, String> id();
-              }
-              """);
-
-      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(external, spec);
-
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("cannot find symbol");
-      Assertions.assertThat(compilation.errors())
-          .noneMatch(error -> error.getMessage(null).contains("@Wither:"));
     }
   }
 

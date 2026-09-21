@@ -970,6 +970,232 @@ class ImportOpticsProcessorTest {
           "com.myapp.optics.SortedLenses",
           "public static <T extends Comparable<? super T>> Lens<Sorted<T>, Integer> rank()");
     }
+
+    @Test
+    @DisplayName("an overloaded primitive wither is called unboxed, so the paired method binds")
+    void overloadedPrimitiveWitherIsCalledUnboxedSoThePairedMethodBinds() {
+      // The lens hands the setter a boxed value, which every other withX here takes without
+      // unboxing: the raw one, the one returning Object, the inherited one taking Number and the
+      // generic one. Each would bind ahead of the method paired with the getter. None of
+      // withPlain's overloads is such a method: one is private, one takes a type no boxed value
+      // reaches, and one takes two arguments where the call passes one. withTick has only an
+      // override, which is the same method to a caller.
+      final var counter =
+          JavaFileObjects.forSourceString(
+              "com.external.Counter",
+              """
+              package com.external;
+
+              @SuppressWarnings("rawtypes")
+              public final class Counter<T> extends Tally implements Ticking {
+                  private final int n;
+                  private final long total;
+                  private final int size;
+                  private final int rank;
+                  private final int plain;
+                  private final int tick;
+
+                  public Counter(int n, long total, int size, int rank, int plain, int tick) {
+                      this.n = n;
+                      this.total = total;
+                      this.size = size;
+                      this.rank = rank;
+                      this.plain = plain;
+                      this.tick = tick;
+                  }
+
+                  public int n() { return n; }
+                  public long total() { return total; }
+                  public int size() { return size; }
+                  public int rank() { return rank; }
+                  public int plain() { return plain; }
+                  public int tick() { return tick; }
+
+                  public Counter<T> withN(int n) { return copy(); }
+                  public Counter withN(Integer n) { return copy(); }
+                  public Counter<T> withTotal(long total) { return copy(); }
+                  public Object withTotal(Object total) { return this; }
+                  public Counter<T> withSize(int size) { return copy(); }
+                  public Counter<T> withRank(int rank) { return copy(); }
+                  public <V> Object withRank(V rank) { return this; }
+                  public Counter<T> withPlain(int plain) { return copy(); }
+                  public Object withPlain(java.io.File plain) { return this; }
+                  public Object withPlain(int plain, int extra) { return this; }
+                  private Counter<T> withPlain(String plain) { return copy(); }
+                  @Override
+                  public Counter<T> withTick(int tick) { return copy(); }
+
+                  private Counter<T> copy() {
+                      return new Counter<>(n, total, size, rank, plain, tick);
+                  }
+              }
+              """);
+      final var tally =
+          JavaFileObjects.forSourceString(
+              "com.external.Tally",
+              """
+              package com.external;
+
+              public class Tally {
+                  public Object withSize(Number size) { return this; }
+              }
+              """);
+      final var ticking =
+          JavaFileObjects.forSourceString(
+              "com.external.Ticking",
+              """
+              package com.external;
+
+              public interface Ticking {
+                  Object withTick(int tick);
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Counter.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes,cast", "-Werror")
+              .compile(counter, tally, ticking, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      final String generated = "com.myapp.optics.CounterLenses";
+      assertGeneratedCodeContains(compilation, generated, "source.withN((int) newValue)");
+      assertGeneratedCodeContains(compilation, generated, "source.withTotal((long) newValue)");
+      assertGeneratedCodeContains(compilation, generated, "source.withSize((int) newValue)");
+      assertGeneratedCodeContains(compilation, generated, "source.withRank((int) newValue)");
+      // Nothing else of the name could take the call, so the value is passed as the lens holds it.
+      assertGeneratedCodeContains(compilation, generated, "source.withPlain(newValue)");
+      assertGeneratedCodeContains(compilation, generated, "source.withTick(newValue)");
+    }
+
+    @Test
+    @DisplayName("withers reaching one field name generate one lens, and the others are noted")
+    void withersReachingOneFieldNameGenerateOneLens() {
+      // 'n' is spelt all three ways and 'active' two, and the pair the rule prefers is generated
+      // whichever order the class declares its members in: 'n()' first, then 'getActive()' over
+      // 'isActive()'. Generating both would declare the lens method twice. Every note names the
+      // pair that was generated, so a field with three spellings does not contradict itself.
+      final var spelt =
+          JavaFileObjects.forSourceString(
+              "com.external.Spelt",
+              """
+              package com.external;
+
+              public final class Spelt {
+                  private final int n;
+                  private final String active;
+
+                  public Spelt(int n, String active) {
+                      this.n = n;
+                      this.active = active;
+                  }
+
+                  public String getN() { return String.valueOf(n); }
+                  public boolean isN() { return n != 0; }
+                  public int n() { return n; }
+                  public String isActive() { return active; }
+                  public String getActive() { return active; }
+
+                  public Spelt withN(String n) { return new Spelt(Integer.parseInt(n), active); }
+                  public Spelt withN(boolean n) { return new Spelt(n ? 1 : 0, active); }
+                  public Spelt withN(int n) { return new Spelt(n, active); }
+                  public Spelt withActive(String active) { return new Spelt(n, active); }
+              }
+              """);
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics({com.external.Spelt.class})
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation =
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(spelt, packageInfo);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      final String generated = "com.myapp.optics.SpeltLenses";
+      assertGeneratedCodeContains(compilation, generated, "Lens<Spelt, Integer> n()");
+      assertGeneratedCodeDoesNotContain(compilation, generated, "Lens<Spelt, String> n()");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "@ImportOptics: 'Spelt' pairs more than one wither with the field 'n', and only one"
+                  + " lens can carry that name. 'withN(int)' pairs with 'n()' and is generated;"
+                  + " 'withN(String)' pairs with 'getN()' and is left out. Name the one you want"
+                  + " through a spec interface's @Wither, importing the type there rather than by"
+                  + " class literal.");
+      // The third spelling is reported against the same generated pair, not against whichever
+      // one happened to be read first.
+      assertThat(compilation)
+          .hadNoteContaining(
+              "'withN(int)' pairs with 'n()' and is generated; 'withN(boolean)' pairs with"
+                  + " 'isN()' and is left out.");
+      assertThat(compilation)
+          .hadNoteContaining("importing the type there rather than by class literal.");
+      // 'isActive()' is declared first and 'getActive()' still wins, which is the rule rather
+      // than the declaration order speaking.
+      assertGeneratedCodeContains(compilation, generated, "Spelt::getActive");
+    }
+
+    @Test
+    @DisplayName("an overloaded primitive wither sets through the method that paired")
+    void overloadedPrimitiveWitherSetsThroughTheMethodThatPaired() throws Exception {
+      // The overload that takes the box rebuilds through a different route, keeping none of the
+      // other fields. Both hand back a Counted, so the lens compiled cleanly and lost 'label'
+      // on every set. The value set is read back from the object the lens returns.
+      final var counted =
+          JavaFileObjects.forSourceString(
+              "com.external.Counted",
+              """
+              package com.external;
+
+              public final class Counted {
+                  private final int n;
+                  private final String label;
+
+                  public Counted(int n, String label) {
+                      this.n = n;
+                      this.label = label;
+                  }
+
+                  public int n() { return n; }
+                  public String label() { return label; }
+
+                  public Counted withN(int n) { return new Counted(n, label); }
+                  public Counted withN(Integer n) { return new Counted(n, "lost"); }
+              }
+              """);
+
+      var compiled =
+          RuntimeCompilationHelper.compile(
+              counted,
+              RuntimeCompilationHelper.packageInfo("com.myapp.optics", "com.external.Counted"));
+
+      final Object lens = compiled.invokeStatic("com.myapp.optics.CountedLenses", "n");
+      final Object source = compiled.newInstance("com.external.Counted", 1, "keep");
+      final Object updated = compiled.invokeLensSet(lens, 5, source);
+
+      Assertions.assertThat(compiled.invokeLensGet(lens, updated)).isEqualTo(5);
+      Assertions.assertThat(RuntimeCompilationHelper.invoke(updated, "label")).isEqualTo("keep");
+      // set(get(s), s) leaves the object as it was, which the boxed overload did not.
+      final Object unchanged =
+          compiled.invokeLensSet(lens, compiled.invokeLensGet(lens, source), source);
+      Assertions.assertThat(RuntimeCompilationHelper.invoke(unchanged, "label")).isEqualTo("keep");
+    }
   }
 
   @Nested

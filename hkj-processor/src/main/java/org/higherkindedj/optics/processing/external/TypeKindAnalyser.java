@@ -2,20 +2,30 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.external;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -119,13 +129,37 @@ public class TypeKindAnalyser {
   }
 
   private TypeAnalysis analyseClass(TypeElement classElement) {
-    List<WitherInfo> witherMethods = detectWitherMethods(classElement);
+    List<WitherInfo> detected = detectWitherMethods(classElement);
     boolean hasMutableFields = detectMutableFields(classElement);
 
-    if (witherMethods.isEmpty()) {
+    if (detected.isEmpty()) {
       // No withers found - this is an unsupported class
       return TypeAnalysis.unsupported(classElement, hasMutableFields);
     }
+
+    // One lens per field name: a class that spells its getter more than one way has a wither for
+    // each, and the pair whose getter the rule prefers is the one generated. The choice is made
+    // over all of a field's withers before any is reported, so that what the notes say is what
+    // was generated however many spellings there are.
+    Map<String, List<WitherInfo>> byField = new LinkedHashMap<>();
+    for (WitherInfo wither : detected) {
+      byField.computeIfAbsent(wither.fieldName(), field -> new ArrayList<>()).add(wither);
+    }
+    List<WitherInfo> witherMethods = new ArrayList<>();
+    List<TypeAnalysis.LeftOutWither> leftOut = new ArrayList<>();
+    byField.forEach(
+        (field, candidates) -> {
+          // Each rank stands for one getter spelling, and a wither with no getter never reaches
+          // here, so exactly one candidate is lowest.
+          WitherInfo kept =
+              candidates.stream()
+                  .min(Comparator.comparingInt(TypeKindAnalyser::getterRank))
+                  .orElseThrow();
+          witherMethods.add(kept);
+          candidates.stream()
+              .filter(candidate -> candidate != kept)
+              .forEach(candidate -> leftOut.add(new TypeAnalysis.LeftOutWither(kept, candidate)));
+        });
 
     // Convert wither methods to field info
     List<FieldInfo> fields = new ArrayList<>();
@@ -149,7 +183,28 @@ public class TypeKindAnalyser {
       }
     }
 
-    return TypeAnalysis.forWitherClass(classElement, fields, witherMethods, hasMutableFields);
+    return TypeAnalysis.forWitherClass(
+        classElement, fields, List.copyOf(witherMethods), hasMutableFields, List.copyOf(leftOut));
+  }
+
+  /**
+   * The spellings a field's getter is looked for under, in the order the pairing rule prefers them:
+   * the field's own name, then {@code getXxx}, then {@code isXxx}.
+   */
+  private static List<String> getterSpellings(String fieldName) {
+    return List.of(
+        fieldName,
+        "get" + ProcessorUtils.capitalise(fieldName),
+        "is" + ProcessorUtils.capitalise(fieldName));
+  }
+
+  /**
+   * How far down those spellings a wither's getter is. Two withers that reach one field name are
+   * told apart by it, so which lens is generated does not depend on the order the class declares
+   * its members in. The getter is always one of the spellings, since that is what paired it.
+   */
+  private static int getterRank(WitherInfo wither) {
+    return getterSpellings(wither.fieldName()).indexOf(wither.getterMethodName());
   }
 
   /**
@@ -213,10 +268,62 @@ public class TypeKindAnalyser {
         continue; // No getter found, skip this wither
       }
 
-      withers.add(WitherInfo.of(method, fieldName, getterName));
+      withers.add(WitherInfo.of(method, fieldName, getterName, isOverloaded(classElement, method)));
     }
 
     return withers;
+  }
+
+  /**
+   * Whether another one-parameter method of the wither's name could take the generated call.
+   *
+   * <p>The lens hands its setter a boxed value, and javac's first phase prefers a method that takes
+   * it without unboxing, so an overload taking the box, a supertype of it or a type variable binds
+   * ahead of a wither taking a primitive. The generated lens passes such a parameter unboxed where
+   * one exists. Where none does, the call has only the wither to bind and the cast would be noise.
+   *
+   * <p>Only a method the call could bind counts: one that takes the boxed value, and one the
+   * generated class could call, so a {@code private} overload and one no boxed value reaches are
+   * both left out. An override declares the same parameter type and is the same method to a caller,
+   * so it is not one either; the search is by parameter type rather than by declaring type for that
+   * reason.
+   *
+   * @param classElement the class the wither is read on
+   * @param wither the wither method
+   * @return true when the class, or a supertype, declares another one-parameter method of the name
+   */
+  private boolean isOverloaded(TypeElement classElement, ExecutableElement wither) {
+    TypeMirror declared = wither.getParameters().getFirst().asType();
+    TypeMirror parameter = typeUtils.erasure(declared);
+    // What the lens hands the setter, which is what the call is resolved with.
+    TypeMirror argument =
+        declared.getKind().isPrimitive()
+            ? typeUtils.boxedClass((PrimitiveType) declared).asType()
+            : declared;
+    Name name = wither.getSimpleName();
+    Deque<TypeMirror> queue = new ArrayDeque<>();
+    Set<String> seen = new HashSet<>();
+    queue.add(classElement.asType());
+    while (!queue.isEmpty()) {
+      TypeMirror current = queue.poll();
+      // Every supertype of a class is declared; nothing else reaches the queue.
+      TypeElement element = (TypeElement) ((DeclaredType) current).asElement();
+      if (!seen.add(element.getQualifiedName().toString())) {
+        continue;
+      }
+      for (ExecutableElement method : ElementFilter.methodsIn(element.getEnclosedElements())) {
+        if (method.getSimpleName().equals(name)
+            && method.getParameters().size() == 1
+            && !method.getModifiers().contains(Modifier.PRIVATE)) {
+          TypeMirror other = typeUtils.erasure(method.getParameters().getFirst().asType());
+          if (!typeUtils.isSameType(other, parameter) && typeUtils.isAssignable(argument, other)) {
+            return true;
+          }
+        }
+      }
+      queue.addAll(typeUtils.directSupertypes(current));
+    }
+    return false;
   }
 
   private String extractFieldName(String witherMethodName) {
@@ -229,35 +336,29 @@ public class TypeKindAnalyser {
       TypeElement classElement, String fieldName, VariableElement witherParam) {
     TypeMirror expectedType = witherParam.asType();
 
-    // Try various getter naming conventions
-    String[] getterCandidates = {
-      fieldName, // record-style: year()
-      "get" + ProcessorUtils.capitalise(fieldName), // JavaBean: getYear()
-      "is" + ProcessorUtils.capitalise(fieldName) // boolean: isActive()
-    };
+    List<String> getterCandidates = getterSpellings(fieldName);
 
-    for (var enclosed : classElement.getEnclosedElements()) {
-      if (enclosed.getKind() != ElementKind.METHOD) {
-        continue;
-      }
+    // The spellings are tried in order, so a class that declares more than one of them pairs
+    // through the same spelling whichever order its members are read in.
+    for (String candidate : getterCandidates) {
+      for (var enclosed : classElement.getEnclosedElements()) {
+        if (enclosed.getKind() != ElementKind.METHOD) {
+          continue;
+        }
 
-      ExecutableElement method = (ExecutableElement) enclosed;
-      String methodName = method.getSimpleName().toString();
-
-      // Check if method name matches any getter pattern
-      for (String candidate : getterCandidates) {
-        if (methodName.equals(candidate)) {
-          // Must be public, non-static, take no parameters
-          if (!method.getModifiers().contains(Modifier.PUBLIC)
-              || method.getModifiers().contains(Modifier.STATIC)
-              || !method.getParameters().isEmpty()) {
-            continue;
-          }
-
-          // Return type must match wither parameter type
-          if (typeUtils.isSameType(method.getReturnType(), expectedType)) {
-            return methodName;
-          }
+        ExecutableElement method = (ExecutableElement) enclosed;
+        if (!method.getSimpleName().contentEquals(candidate)) {
+          continue;
+        }
+        // Must be public, non-static, take no parameters
+        if (!method.getModifiers().contains(Modifier.PUBLIC)
+            || method.getModifiers().contains(Modifier.STATIC)
+            || !method.getParameters().isEmpty()) {
+          continue;
+        }
+        // Return type must match wither parameter type
+        if (typeUtils.isSameType(method.getReturnType(), expectedType)) {
+          return candidate;
         }
       }
     }
