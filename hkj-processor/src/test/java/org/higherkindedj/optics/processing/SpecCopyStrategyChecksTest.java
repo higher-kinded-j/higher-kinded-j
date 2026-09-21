@@ -61,21 +61,9 @@ class SpecCopyStrategyChecksTest {
     @DisplayName("each lens is checked against the overload its focus binds")
     void eachLensIsCheckedAgainstTheOverloadItsFocusBinds() {
       // In each class one overload returns the source type, and it is not the one the call binds:
-      // an Integer binds withN(Integer), which needs no unboxing, and a String binds
-      // withId(String), the most specific overload that takes one.
+      // a String binds withId(String), the most specific overload that takes one.
       var compilation =
           compile(
-              external(
-                  "Boxed",
-                  """
-                  public final class Boxed {
-                      private final int n;
-                      public Boxed(int n) { this.n = n; }
-                      public int n() { return n; }
-                      public Boxed withN(int n) { return new Boxed(n); }
-                      public Object withN(Integer n) { return this; }
-                  }
-                  """),
               external(
                   "RawDraft",
                   """
@@ -104,15 +92,6 @@ class SpecCopyStrategyChecksTest {
                   }
                   """),
               spec(
-                  "BoxedOpticsSpec",
-                  """
-                  @ImportOptics
-                  public interface BoxedOpticsSpec extends OpticsSpec<Boxed> {
-                      @Wither(value = "withN", getter = "n")
-                      Lens<Boxed, Integer> n();
-                  }
-                  """),
-              spec(
                   "RawDraftOpticsSpec",
                   """
                   @ImportOptics
@@ -134,18 +113,46 @@ class SpecCopyStrategyChecksTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "@Wither: 'withN(Integer)' returns 'Object', not the source type 'Boxed'. The"
-                  + " generated lens sets through 'source.withN(newValue)' with the new value"
-                  + " typed 'Integer', which binds 'withN(Integer)', and hands its result back as"
-                  + " the source type 'Boxed', which 'Object' is not.");
-      assertThat(compilation)
-          .hadErrorContaining(
               "@Wither: 'withId(String)' returns 'RawDraft', not the source type 'RawDraft<T>'");
       assertThat(compilation)
           .hadErrorContaining(
               "@Wither: 'withId(String)' returns 'Tagged<String>', not the source type"
                   + " 'Tagged<T>'");
-      assertThat(compilation).hadErrorCount(3);
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName(
+        "a focus the generated lens unboxes binds the primitive overload, and it is checked")
+    void focusTheGeneratedLensUnboxesBindsThePrimitiveOverload() {
+      // The lens passes an int, not an Integer, so withN(Integer) never takes the call, and its
+      // return is not the one the check reads.
+      var compilation =
+          compile(
+              external(
+                  "Boxed",
+                  """
+                  public final class Boxed {
+                      private final int n;
+                      public Boxed(int n) { this.n = n; }
+                      public int n() { return n; }
+                      public Boxed withN(int n) { return new Boxed(n); }
+                      public Object withN(Integer n) { return this; }
+                  }
+                  """),
+              spec(
+                  "BoxedOpticsSpec",
+                  """
+                  @ImportOptics
+                  public interface BoxedOpticsSpec extends OpticsSpec<Boxed> {
+                      @Wither(value = "withN", getter = "n")
+                      Lens<Boxed, Integer> n();
+                  }
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.BoxedOptics", "source.withN((int) newValue)");
     }
 
     @Test
@@ -212,7 +219,10 @@ class SpecCopyStrategyChecksTest {
                   """));
 
       assertThat(compilation).succeededWithoutWarnings();
-      assertGeneratedCodeContains(compilation, "com.myapp.CounterOptics", "source.withN(newValue)");
+      // A primitive read under an overloaded name is passed unboxed, so the call binds withN(int)
+      // rather than the wider withN(long).
+      assertGeneratedCodeContains(
+          compilation, "com.myapp.CounterOptics", "source.withN((int) newValue)");
       assertGeneratedCodeContains(compilation, "com.myapp.ShapeOptics", "source.withId(newValue)");
     }
 

@@ -117,6 +117,10 @@ final class CopyStrategyChecks {
       String toBuilder = ProcessorUtils.getAnnotationString(viaBuilder, "toBuilder", "toBuilder");
       String setter = ProcessorUtils.getAnnotationString(viaBuilder, "setter", "");
       String build = ProcessorUtils.getAnnotationString(viaBuilder, "build", "build");
+      // As for a wither, the builder's setter is called with the unboxed value where the
+      // generator casts it.
+      TypeMirror builderWritten =
+          builderFocusType(method, declaredSource, sourceTypeElement, getter, toBuilder, setter);
       if (readsThroughUnusableGetter(
               method,
               "@ViaBuilder",
@@ -132,20 +136,14 @@ final class CopyStrategyChecks {
               toBuilder,
               setter.isEmpty() ? fieldName : setter,
               build,
-              focusType,
+              builderWritten == null ? focusType : builderWritten,
               targetPackage)) {
         return Optional.empty();
       }
       return Optional.of(
           new CopyStrategyResult(
               CopyStrategyKind.VIA_BUILDER,
-              CopyStrategyInfo.forBuilder(
-                  getter,
-                  toBuilder,
-                  setter,
-                  build,
-                  builderFocusType(
-                      method, declaredSource, sourceTypeElement, getter, toBuilder, setter))));
+              CopyStrategyInfo.forBuilder(getter, toBuilder, setter, build, builderWritten)));
     }
 
     // Check for @Wither
@@ -153,6 +151,10 @@ final class CopyStrategyChecks {
     if (wither != null) {
       String getter = ProcessorUtils.getAnnotationString(wither, "getter", "");
       String witherMethod = ProcessorUtils.getAnnotationString(wither, "value", "");
+      // The generated lens passes a primitive unboxed where the name is overloaded, so that is
+      // the value the call is resolved with.
+      TypeMirror written =
+          writtenFocusType(method, declaredSource, sourceTypeElement, getter, witherMethod);
       if (readsThroughUnusableGetter(
               method,
               "@Wither",
@@ -162,17 +164,17 @@ final class CopyStrategyChecks {
               focusType,
               targetPackage)
           || rebuildsThroughUnusableWither(
-              method, declaredSource, sourceTypeElement, focusType, witherMethod, targetPackage)) {
+              method,
+              declaredSource,
+              sourceTypeElement,
+              written == null ? focusType : written,
+              witherMethod,
+              targetPackage)) {
         return Optional.empty();
       }
       return Optional.of(
           new CopyStrategyResult(
-              CopyStrategyKind.WITHER,
-              CopyStrategyInfo.forWither(
-                  getter,
-                  witherMethod,
-                  writtenFocusType(
-                      method, declaredSource, sourceTypeElement, getter, witherMethod))));
+              CopyStrategyKind.WITHER, CopyStrategyInfo.forWither(getter, witherMethod, written)));
     }
 
     // Check for @ViaConstructor
@@ -213,6 +215,9 @@ final class CopyStrategyChecks {
       String copyConstructor =
           ProcessorUtils.getAnnotationString(viaCopyAndSet, "copyConstructor", "");
       String setter = ProcessorUtils.getAnnotationString(viaCopyAndSet, "setter", "");
+      // The generated lens passes a primitive unboxed where the name is overloaded, so that is
+      // the value the call is resolved with.
+      TypeMirror written = writtenFocusType(method, declaredSource, sourceTypeElement, "", setter);
       if (readsThroughUnusableGetter(
               method,
               "@ViaCopyAndSet",
@@ -227,11 +232,10 @@ final class CopyStrategyChecks {
               declaredSource,
               sourceTypeElement,
               setter,
-              focusType,
+              written == null ? focusType : written,
               targetPackage)) {
         return Optional.empty();
       }
-      TypeMirror written = writtenFocusType(method, declaredSource, sourceTypeElement, "", setter);
       if (copyConstructor.isEmpty()) {
         return Optional.of(
             new CopyStrategyResult(

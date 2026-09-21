@@ -20,8 +20,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *
  * <ol>
  *   <li>a one-parameter method the argument reaches without boxing or unboxing;
- *   <li>failing that, one it reaches with them, which for a reference argument means a primitive
- *       parameter;
+ *   <li>failing that, one it reaches with them: a primitive parameter for a reference argument, and
+ *       a reference one for the primitive a generated cast passes;
  *   <li>failing that, a variable-arity method.
  * </ol>
  *
@@ -69,8 +69,8 @@ sealed interface WitherBinding {
    *
    * @param types the round's type utilities; must not be null
    * @param source the type of the receiver, as the generated lens names it; must not be null
-   * @param argument the type of the argument; a reference type, since a lens's focus is a type
-   *     argument; must not be null
+   * @param argument the type of the argument: the lens's focus, or the primitive a generated cast
+   *     unboxes it to; must not be null
    * @param named every method of the name the generated class can reach, of any arity, static or
    *     not, since javac weighs them all; must not be null
    * @return the binding (non-null)
@@ -150,8 +150,10 @@ sealed interface WitherBinding {
         .filter(
             method -> {
               TypeMirror parameter = parameterOf(types, receiver, method);
-              // The argument is a reference, so only a primitive parameter needs unboxing.
-              return (!strict || !parameter.getKind().isPrimitive())
+              // Strict invocation is the one that boxes and unboxes nothing, so a parameter and
+              // the argument have to be both primitive or both not.
+              return (!strict
+                      || parameter.getKind().isPrimitive() == argument.getKind().isPrimitive())
                   && types.isAssignable(argument, parameter);
             })
         .toList();
