@@ -985,8 +985,8 @@ class MappingTierMatrixTest {
 
   @Test
   @DisplayName(
-      "an array round-trips elementwise on every write-back: each leg hands over a clone, so the"
-          + " record's own equals, which compares an array by reference, no longer holds")
+      "an array round-trips elementwise on every write-back: each leg hands over a clone, which"
+          + " the record's own equals, comparing an array by reference, does not see as equal")
   void anArrayRoundTripsElementwise() throws ReflectiveOperationException {
     Case c = caseNamed("identity array of arrays");
     Object domain = domain(c, c.value().apply(tagFactory(c), "a"));

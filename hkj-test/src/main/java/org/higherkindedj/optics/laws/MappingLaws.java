@@ -21,10 +21,12 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  * exposed optics - one {@code assertMappingLaws} overload per emission tier.
  *
  * <p>Flat {@code assert...} helpers in the same style as the other optic-law classes; comparison is
- * by {@code equals} - right for records, except one with an array component: a record compares an
- * array by reference, and every identity leg hands over a clone, so no round trip is equal to its
- * start there. Compare such a record's arrays elementwise instead. Pick the overload matching the
- * surface the generator emitted:
+ * by {@code equals}, which is right for records with one exception. A same-typed array crosses a
+ * mapping as a clone, and a record compares an array component by reference, so a record with an
+ * array component and no {@code equals} of its own is never equal to its own round trip: give it an
+ * {@code equals} that uses {@code Arrays.equals}, or assert its round trip elementwise. The same
+ * holds for a {@code Collection} component holding neither a {@code List} nor a {@code Set}, which
+ * crosses as a list. Pick the overload matching the surface the generator emitted:
  *
  * <ul>
  *   <li>lossless tier ({@code asIso()} present): pass the iso and the prism from {@code

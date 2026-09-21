@@ -25,7 +25,8 @@ import java.lang.annotation.Target;
  * }</pre>
  *
  * <p>Each target component is filled from the one source with a same-named component: identity when
- * the types match, through a zero-parameter {@code default} leaf method returning {@code
+ * the types match (a same-typed container fills with a copy, as a {@link GenerateMapping} identity
+ * component does), through a zero-parameter {@code default} leaf method returning {@code
  * ValidatedPrism<SourceComponent, TargetComponent>} (an explicit leaf wins even over a same-typed
  * match, so it can validate or normalise a copied value), or through a sibling
  * {@code @GenerateMapping} spec, in this compilation or in a dependency compiled with the processor

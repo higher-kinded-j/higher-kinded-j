@@ -797,9 +797,11 @@ class MappingProcessorTest {
                   "public interface PlainMapping extends MappingSpec<Records.Plain,"
                       + " Records.PlainDto> {}"));
       assertThat(leafless).succeeded();
+      // The array is copied; the lists in it are handed over as they are, since the array's
+      // runtime type may not hold a copy of one.
       Assertions.assertThat(generatedSource(leafless, "com.example.PlainMappingImpl"))
           .contains(
-              ".field(\"sections\", hkj$allPresent(hkj$copyOf(wire.sections(), e -> hkj$copyOf(e)), e -> hkj$allPresent(e)))");
+              ".field(\"sections\", hkj$allPresent(hkj$copyOf(wire.sections()), e -> hkj$allPresent(e)))");
     }
 
     @Test
@@ -7136,7 +7138,7 @@ class MappingProcessorTest {
           .contains("public static <T> PageMappingImpl<T> instance()")
           .contains("public PageDto<T> build(Page<T> domain)")
           .contains("public Validated<NonEmptyList<FieldError>, Page<T>> parse(PageDto<T> wire)")
-          // identity elements copy by reference under the null-element scan; the primitive
+          // identity elements are handed over as a copy, then null-scanned; the primitive
           // stays bare
           .contains(".field(\"items\", hkj$allPresent(hkj$copyOf(wire.items())))")
           .contains(".field(\"total\", Validated.validNel(wire.total()))")
@@ -7165,8 +7167,8 @@ class MappingProcessorTest {
         Assertions.assertThat(back.isValid()).isTrue();
         Assertions.assertThat(back.get()).isEqualTo(page);
 
-        // The same singleton serves an Integer page: identity elements copy verbatim (element
-        // parsing belongs to leaf and nested legs), and instance() is genuinely cached.
+        // The same singleton serves an Integer page: identity elements are copied unparsed
+        // (element parsing belongs to leaf and nested legs), and instance() is genuinely cached.
         Object integerPage =
             result
                 .loadClass("com.example.PageDto")
@@ -7179,7 +7181,7 @@ class MappingProcessorTest {
         Assertions.assertThat(invoke(integers.get(), "items")).isEqualTo(List.of(7, 8));
         Assertions.assertThat(result.genericInstance("com.example.PageMappingImpl")).isSameAs(impl);
 
-        // Identity legs copy the container by reference, but the null doctrine reaches
+        // An identity leg hands over a copy of the container, and the null doctrine reaches
         // inside: a null ELEMENT is a located, accumulating invalid at its index, exactly
         // as a lifted leg would locate it.
         Object nullElementPage =

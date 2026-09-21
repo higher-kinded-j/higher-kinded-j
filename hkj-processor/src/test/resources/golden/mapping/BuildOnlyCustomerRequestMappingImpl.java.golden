@@ -37,7 +37,7 @@ public final class CustomerRequestMappingImpl implements CustomerRequestMapping 
   }
 
   /**
-   * Copies an identity-copied list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
+   * Copies a same-typed list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
    */
   private static <E> List<E> hkj$copyOf(List<? extends E> values) {
     return values == null ? null : Collections.unmodifiableList(new ArrayList<>(values));

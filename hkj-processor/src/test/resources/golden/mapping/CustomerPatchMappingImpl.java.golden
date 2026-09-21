@@ -89,20 +89,17 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
   }
 
   /**
-   * Copies an identity-copied list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
+   * Copies a same-typed list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
    */
   private static <E> List<E> hkj$copyOf(List<? extends E> values) {
     return values == null ? null : Collections.unmodifiableList(new ArrayList<>(values));
   }
 
   /**
-   * Copies an identity-copied map so the two sides never share it: an unmodifiable map in the same entry order, null values included; a null map copies to null.
+   * Copies a same-typed map so the two sides never share it: an unmodifiable map in the same entry order, null values included; a null map copies to null.
    */
   private static <K, V> Map<K, V> hkj$copyOf(Map<? extends K, ? extends V> values) {
-    if (values == null) {
-      return null;
-    }
-    return Collections.unmodifiableMap(new LinkedHashMap<>(values));
+    return values == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(values));
   }
 
   /**

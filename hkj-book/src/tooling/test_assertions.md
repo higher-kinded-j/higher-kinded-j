@@ -352,6 +352,8 @@ void statusPrismIsLawful() {
 - **Parse-only** (a bean that is only read): pass `asValidatedParse()` with a parsing and a non-parsing wire; checks that the first parses and the second fails with every error located.
 - **Build-only** (a bean that is only written): pass `asValidatedBuild()` with a domain sample; checks that `build` renders it without failing.
 
+The laws compare by `equals`. A same-typed array crosses as a clone, and a record compares an array component by reference, so a record with an array component needs an `equals` of its own that uses `Arrays.equals` before these laws apply to it; otherwise assert its round trip elementwise.
+
 ``` java
 import org.higherkindedj.optics.laws.MappingLaws;
 

@@ -14,6 +14,7 @@ import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeAll;
@@ -24,7 +25,8 @@ import org.junit.jupiter.api.Test;
  * The copy an identity leg hands over in place of the container it read: on every tier, in both
  * directions, the wire and the domain never share a container whose declared type has a copy, at
  * any depth; the copy is unmodifiable, keeps the source's order and carries a null element as it
- * is; and a type with no copy (a subtype, an element declared through a wildcard) is still shared.
+ * is; and a type with no copy (a subtype, an element declared through a wildcard, the collections
+ * inside an array or a set) is handed over as it is.
  *
  * <p>Every fixture compiles in one javac run, under {@code -Xlint:all -Werror}, which also holds
  * every emitted copy helper and every call to one clean. Each case calls one static method of the
@@ -115,7 +117,9 @@ class ContainerCopyTest {
                           Optional<List<String>> maybe,
                           Optional<int[]> maybeInts,
                           List<? extends List<String>> wild,
-                          List<ArrayList<String>> subtypes) {}
+                          List<ArrayList<String>> subtypes,
+                          Set<Collection<String>> bags,
+                          Collection<Collection<String>> heaps) {}
 
                       public record NestedDto(
                           List<List<List<String>>> deep,
@@ -126,20 +130,43 @@ class ContainerCopyTest {
                           Optional<List<String>> maybe,
                           Optional<int[]> maybeInts,
                           List<? extends List<String>> wild,
-                          List<ArrayList<String>> subtypes) {}
+                          List<ArrayList<String>> subtypes,
+                          Set<Collection<String>> bags,
+                          Collection<Collection<String>> heaps) {}
 
                       @GenerateMapping
                       public interface NestedMapping extends MappingSpec<Nested, NestedDto> {}
 
                       @SuppressWarnings("rawtypes")
-                      public record Raw(List list, Map map, Set set, Collection coll, List<List> lists) {}
+                      public record Raw(
+                          List list, Map map, Set set, Collection coll, List<List> lists,
+                          List<List<List>> deep) {}
 
                       @SuppressWarnings("rawtypes")
                       public record RawDto(
-                          List list, Map map, Set set, Collection coll, List<List> lists) {}
+                          List list, Map map, Set set, Collection coll, List<List> lists,
+                          List<List<List>> deep) {}
 
                       @GenerateMapping
                       public interface RawMapping extends MappingSpec<Raw, RawDto> {}
+
+                      // A raw type nested in a lambda parameter warns, on asIso and asLens too.
+                      @SuppressWarnings("rawtypes")
+                      public record RawAccount(String id, List<List<List>> deep) {}
+
+                      @SuppressWarnings("rawtypes")
+                      public record RawView(List<List<List>> deep) {}
+
+                      @GenerateMapping
+                      public interface RawViewMapping extends MappingSpec<RawAccount, RawView> {}
+
+                      // An array's runtime type can be narrower than it is declared.
+                      public record Rows(List<String>[] lists, String[][] grid) {}
+
+                      public record RowsDto(List<String>[] lists, String[][] grid) {}
+
+                      @GenerateMapping
+                      public interface RowsMapping extends MappingSpec<Rows, RowsDto> {}
 
                       // A bean read and written through its getters and setters.
                       public record Member(String name, List<String> tags) {}
@@ -282,6 +309,7 @@ class ContainerCopyTest {
                     import java.util.ArrayList;
                     import java.util.Arrays;
                     import java.util.Collection;
+                    import java.util.Collections;
                     import java.util.LinkedHashMap;
                     import java.util.LinkedHashSet;
                     import java.util.List;
@@ -377,8 +405,8 @@ class ContainerCopyTest {
                         }
                       }
 
-                      /** What each copy turned out to be: its class, or whether it refuses a write. */
-                      public static List<Object> flatCopies() {
+                      /** What each copy turned out to be, by name. */
+                      public static Map<String, Object> flatCopies() {
                         FlatDto wire = flatDto();
                         wire.coll().clear();
                         Flat parsed = FixturesFlatMappingImpl.INSTANCE.parse(wire).get();
@@ -397,15 +425,16 @@ class ContainerCopyTest {
                         } catch (UnsupportedOperationException expected) {
                           mapRejects = true;
                         }
-                        return List.of(
-                            rejectsAdd(parsed.list()),
-                            rejectsAdd(parsed.set()),
-                            rejectsAdd(parsed.coll()),
-                            mapRejects,
-                            parsed.coll() instanceof List<?>,
-                            fromSet instanceof Set<?>,
-                            List.copyOf(fromSet),
-                            parsed.array().getClass().getSimpleName());
+                        Map<String, Object> seen = new LinkedHashMap<>();
+                        seen.put("list refuses a write", rejectsAdd(parsed.list()));
+                        seen.put("set refuses a write", rejectsAdd(parsed.set()));
+                        seen.put("collection refuses a write", rejectsAdd(parsed.coll()));
+                        seen.put("map refuses a write", mapRejects);
+                        seen.put("a deque copies as a list", parsed.coll() instanceof List<?>);
+                        seen.put("a set copies as a set", fromSet instanceof Set<?>);
+                        seen.put("a set keeps its order", List.copyOf(fromSet));
+                        seen.put("an array keeps its class", parsed.array().getClass().getSimpleName());
+                        return seen;
                       }
 
                       /** Order kept, a null element carried, and a null container kept null. */
@@ -439,14 +468,23 @@ class ContainerCopyTest {
                         subtypes.add(new ArrayList<>(list("t")));
                         return new Nested(
                             deep, sets, colls, map("k", list("m")), new String[][] {{"x"}},
-                            Optional.of(list("o")), Optional.of(new int[] {1}), wild, subtypes);
+                            Optional.of(list("o")), Optional.of(new int[] {1}), wild, subtypes,
+                            deques(), deques());
                       }
 
                       private static NestedDto nestedDto() {
                         Nested n = nested();
                         return new NestedDto(
                             n.deep(), n.sets(), n.colls(), n.maps(), n.matrix(), n.maybe(),
-                            n.maybeInts(), n.wild(), n.subtypes());
+                            n.maybeInts(), n.wild(), n.subtypes(), n.bags(), n.heaps());
+                      }
+
+                      /** Two deques with the same element: equal as lists, distinct as deques. */
+                      private static Set<Collection<String>> deques() {
+                        Set<Collection<String>> deques = new LinkedHashSet<>();
+                        deques.add(new ArrayDeque<>(list("d")));
+                        deques.add(new ArrayDeque<>(list("d")));
+                        return deques;
                       }
 
                       private static List<String> nestedShared(Nested d, NestedDto w) {
@@ -463,7 +501,10 @@ class ContainerCopyTest {
                             "wild", d.wild(), w.wild(),
                             "wild.0", d.wild().get(0), w.wild().get(0),
                             "subtypes", d.subtypes(), w.subtypes(),
-                            "subtypes.0", d.subtypes().get(0), w.subtypes().get(0));
+                            "subtypes.0", d.subtypes().get(0), w.subtypes().get(0),
+                            "bags", d.bags(), w.bags(),
+                            "bags.0", d.bags().iterator().next(), w.bags().iterator().next(),
+                            "heaps.0", d.heaps().iterator().next(), w.heaps().iterator().next());
                       }
 
                       public static List<String> nestedParse() {
@@ -474,6 +515,16 @@ class ContainerCopyTest {
                       public static List<String> nestedBuild() {
                         Nested domain = nested();
                         return nestedShared(domain, FixturesNestedMappingImpl.INSTANCE.build(domain));
+                      }
+
+                      /** The sizes of the two sets of deques after build and after parse. */
+                      public static List<Integer> dequesKeepTheirCount() {
+                        Nested domain = nested();
+                        NestedDto built = FixturesNestedMappingImpl.INSTANCE.build(domain);
+                        Nested parsed = FixturesNestedMappingImpl.INSTANCE.parse(built).get();
+                        return List.of(
+                            built.bags().size(), built.heaps().size(),
+                            parsed.bags().size(), parsed.heaps().size());
                       }
 
                       /** A null element a nested copy carries, on build, at every level. */
@@ -491,7 +542,7 @@ class ContainerCopyTest {
                             FixturesNestedMappingImpl.INSTANCE.build(
                                 new Nested(
                                     deep, sets, colls, maps, new String[][] {null}, Optional.empty(),
-                                    Optional.empty(), List.of(), List.of()));
+                                    Optional.empty(), List.of(), List.of(), Set.of(), Set.of()));
                         return Arrays.asList(
                             wire.deep(),
                             wire.sets(),
@@ -507,12 +558,16 @@ class ContainerCopyTest {
                         inner.add("i");
                         List<List> lists = new ArrayList<>();
                         lists.add(inner);
+                        List<List<List>> deep = new ArrayList<>();
+                        deep.add(lists);
                         RawDto wire =
                             new RawDto(
                                 new ArrayList<>(list("a")), new LinkedHashMap<>(map("k", "v")),
-                                new LinkedHashSet<>(list("s")), new ArrayList<>(list("c")), lists);
+                                new LinkedHashSet<>(list("s")), new ArrayList<>(list("c")), lists,
+                                deep);
                         Raw parsed = FixturesRawMappingImpl.INSTANCE.parse(wire).get();
-                        Raw domain = new Raw(wire.list(), wire.map(), wire.set(), wire.coll(), lists);
+                        Raw domain =
+                            new Raw(wire.list(), wire.map(), wire.set(), wire.coll(), lists, deep);
                         RawDto built = FixturesRawMappingImpl.INSTANCE.build(domain);
                         List<String> shared = new ArrayList<>();
                         shared.addAll(
@@ -521,12 +576,41 @@ class ContainerCopyTest {
                                 "map", parsed.map(), wire.map(),
                                 "set", parsed.set(), wire.set(),
                                 "coll", parsed.coll(), wire.coll(),
-                                "lists.0", parsed.lists().get(0), inner));
+                                "lists.0", parsed.lists().get(0), inner,
+                                "deep.0.0", parsed.deep().get(0).get(0), inner));
                         shared.addAll(
                             shared(
                                 "built.list", built.list(), domain.list(),
-                                "built.lists.0", built.lists().get(0), inner));
+                                "built.lists.0", built.lists().get(0), inner,
+                                "iso.deep.0.0",
+                                FixturesRawMappingImpl.INSTANCE.asIso().reverseGet(wire).deep().get(0).get(0),
+                                inner));
+                        RawAccount account = new RawAccount("i", deep);
+                        RawView view = new RawView(deep);
+                        shared.addAll(
+                            shared(
+                                "lens.set.deep.0.0",
+                                FixturesRawViewMappingImpl.INSTANCE.asLens().set(view, account).deep().get(0).get(0),
+                                inner));
                         return shared;
+                      }
+
+                      /** An ArrayList[] behind a List<String>[]: the array copies, its lists stay. */
+                      @SuppressWarnings({"rawtypes", "unchecked"})
+                      public static List<String> rows() {
+                        List<String>[] lists = new ArrayList[] {new ArrayList<>(list("a"))};
+                        RowsDto wire = new RowsDto(lists, new String[][] {{"g"}});
+                        Rows parsed = FixturesRowsMappingImpl.INSTANCE.parse(wire).get();
+                        Rows domain = new Rows(lists, wire.grid());
+                        RowsDto built = FixturesRowsMappingImpl.INSTANCE.build(domain);
+                        Rows back = FixturesRowsMappingImpl.INSTANCE.asIso().reverseGet(wire);
+                        return shared(
+                            "parse.lists", parsed.lists(), lists,
+                            "parse.lists.0", parsed.lists()[0], lists[0],
+                            "parse.grid.0", parsed.grid()[0], wire.grid()[0],
+                            "build.lists", built.lists(), lists,
+                            "build.lists.0", built.lists()[0], lists[0],
+                            "iso.lists.0", back.lists()[0], lists[0]);
                       }
 
                       public static List<String> bean() {
@@ -607,7 +691,7 @@ class ContainerCopyTest {
                       }
 
                       public static List<String> wideAndFlattened() {
-                        String[] f = java.util.Collections.nCopies(16, "x").toArray(String[]::new);
+                        String[] f = Collections.nCopies(16, "x").toArray(String[]::new);
                         WideDto wide =
                             new WideDto(
                                 f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8], f[9], f[10],
@@ -658,7 +742,7 @@ class ContainerCopyTest {
   @Test
   @DisplayName(
       "parse, build and asIso copy a List, Set, Collection, Map and every array; a subtype such"
-          + " as ArrayList is still shared")
+          + " as ArrayList is shared")
   void everyCopyableLevelIsCopied() throws ReflectiveOperationException {
     assertThat(probe("flatParse")).isEqualTo(List.of("arrayList"));
     assertThat(probe("flatBuild")).isEqualTo(List.of("arrayList"));
@@ -673,7 +757,16 @@ class ContainerCopyTest {
           + " array keeps its runtime component type")
   void aCopyIsUnmodifiable() throws ReflectiveOperationException {
     assertThat(probe("flatCopies"))
-        .isEqualTo(List.of(true, true, true, true, true, true, List.of("z", "y"), "String[]"));
+        .isEqualTo(
+            Map.of(
+                "list refuses a write", true,
+                "set refuses a write", true,
+                "collection refuses a write", true,
+                "map refuses a write", true,
+                "a deque copies as a list", true,
+                "a set copies as a set", true,
+                "a set keeps its order", List.of("z", "y"),
+                "an array keeps its class", "String[]"));
   }
 
   @Test
@@ -697,11 +790,29 @@ class ContainerCopyTest {
       "every level inside is copied too, a list, set, collection, map value, array and Optional"
           + " value alike; below a wildcard or a subtype the elements are shared")
   void nestedLevelsAreCopied() throws ReflectiveOperationException {
-    assertThat(probe("nestedParse")).isEqualTo(List.of("wild.0", "subtypes.0"));
-    assertThat(probe("nestedBuild")).isEqualTo(List.of("wild.0", "subtypes.0"));
+    assertThat(probe("nestedParse"))
+        .isEqualTo(List.of("wild.0", "subtypes.0", "bags.0", "heaps.0"));
+    assertThat(probe("nestedBuild"))
+        .isEqualTo(List.of("wild.0", "subtypes.0", "bags.0", "heaps.0"));
     // Three levels deep, each lambda is named for its depth.
     assertThat(generated("FixturesNestedMappingImpl"))
         .contains("hkj$copyOf(domain.deep(), e -> hkj$copyOf(e, e2 -> hkj$copyOf(e2)))");
+  }
+
+  @Test
+  @DisplayName(
+      "the collections inside a set are handed over as they are, so two that are equal only as"
+          + " lists stay two")
+  void aSetOfCollectionsKeepsEveryElement() throws ReflectiveOperationException {
+    assertThat(probe("dequesKeepTheirCount")).isEqualTo(List.of(2, 2, 2, 2));
+  }
+
+  @Test
+  @DisplayName(
+      "an array is copied whatever its runtime type, and so are rows that are arrays; collections"
+          + " inside it are handed over as they are")
+  void anArrayOfCollectionsIsCloned() throws ReflectiveOperationException {
+    assertThat(probe("rows")).isEqualTo(List.of("parse.lists.0", "build.lists.0", "iso.lists.0"));
   }
 
   @Test
@@ -724,6 +835,11 @@ class ContainerCopyTest {
           + " one copies too")
   void rawContainersAreCopied() throws ReflectiveOperationException {
     assertThat(probe("raw")).isEqualTo(List.of());
+    // A raw type nested in a lambda parameter is answered by the member, asIso and asLens too.
+    assertThat(generated("FixturesRawMappingImpl"))
+        .containsPattern("@SuppressWarnings\\(\"rawtypes\"\\)\\s+public Iso<");
+    assertThat(generated("FixturesRawViewMappingImpl"))
+        .containsPattern("@SuppressWarnings\\(\"rawtypes\"\\)\\s+public Lens<");
     assertThat(generated("FixturesRawMappingImpl"))
         .contains("hkj$copyOf((List<?>) wire.list())")
         .contains("hkj$copyOf((Map<?, ?>) wire.map())")

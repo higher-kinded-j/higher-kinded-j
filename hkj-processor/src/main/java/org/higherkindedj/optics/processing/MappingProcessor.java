@@ -3615,9 +3615,9 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
 
-      // Same type (or a wrapper of a primitive component) — including a same-typed List, Map or
-      // nested record — writes the present value straight in (wholesale replacement); identity
-      // containers additionally scan for null elements/values, as in the dense tiers.
+      // Same type, or a wrapper of a primitive component, including a same-typed List, Map or
+      // nested record: writes the present value in (wholesale replacement), a container as a copy,
+      // and scans an identity container for null elements/values, as in the dense tiers.
       if (identityMatch(wireType, domainType)) {
         edits.add(
             UpdateEdit.identity(domainName, property.name(), domainType, nullScan(domainType)));
@@ -7118,7 +7118,7 @@ public class MappingProcessor extends AbstractProcessor {
     NullScan values = nullScan(domainValue);
     ContainerCopy map = ContainerCopy.of(domainType);
     return new Correspondence(name, wireName, Kind.MAP_KEYS, keys)
-        .withIdentity(values, map.inner() == null ? null : map)
+        .withIdentity(values, map.nested() ? map : null)
         .withDomainElement(values == null ? null : wildcardWitness(domainValue, implPackage(spec)));
   }
 
@@ -8098,6 +8098,8 @@ public class MappingProcessor extends AbstractProcessor {
       ClassName iso = ClassName.get("org.higherkindedj.optics", "Iso");
       implBuilder.addMethod(
           MethodSpec.methodBuilder("asIso")
+              // Its reverse direction reads through the copies, whose lambdas infer element types.
+              .addAnnotations(suppression)
               .addModifiers(Modifier.PUBLIC)
               .returns(ParameterizedTypeName.get(iso, domainName, wireName))
               .addJavadoc(
@@ -8574,6 +8576,8 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     CodeBlock buildBody = wireBuildBody(wire, wireName, comps, implPackage(spec));
+    // The lens's set reads through the copies, whose lambdas infer element types, as build does.
+    List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
 
     CodeBlock.Builder setArgs = CodeBlock.builder();
     boolean first = true;
@@ -8601,11 +8605,10 @@ public class MappingProcessor extends AbstractProcessor {
                     + " {@code asLens()} write-back. No {@code parse} is emitted — the dropped"
                     + " components cannot be reconstructed (truthful types).\n",
                 leafFields(spec))
-            .addMethod(
-                buildMethod(
-                    domainName, wireName, pairSuppression(domainDeclared, wire, comps), buildBody))
+            .addMethod(buildMethod(domainName, wireName, suppression, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("asLens")
+                    .addAnnotations(suppression)
                     .addModifiers(Modifier.PUBLIC)
                     .returns(ParameterizedTypeName.get(lens, domainName, wireName))
                     .addJavadoc(

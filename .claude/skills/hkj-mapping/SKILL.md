@@ -470,16 +470,19 @@ matter: it maps build-only whatever its width, derived fields included.
   declare the same exact container on both sides (`List<Customer>` against `List<CustomerDto>`)
   to lift. A leaf over the inner elements of
   `Optional<List<String>>` is not lifted twice. A record carrying an array component has identity
-  `equals`, and every identity leg hands over a clone, so `MappingLaws` cannot law-check it -
-  assert the round trip elementwise.
-- **Identity containers cross as copies, both ways.** `parse`, `build`, `asIso()`, `asLens()`,
+  `equals`, and a same-typed array crosses as a clone, so unless the record defines `equals` with
+  `Arrays.equals`, `MappingLaws` cannot law-check it: assert the round trip elementwise.
+- **Same-typed containers cross as copies, both ways.** `parse`, `build`, `asIso()`, `asLens()`,
   `patch`, sparse `updateFrom`, a bridge, a `@MapKey` map's values and a `@GenerateMerge` fill all
-  hand over an unmodifiable copy in the source's order (a set as a set, a null element carried,
-  every level inside copied too), so mutating a wire after `parse`, or a built wire after `build`,
-  never reaches the other side. Only a level declared exactly `List`, `Set`, `Collection`, `Map`,
-  `Optional` or as an array is copied: a subtype (`ArrayList`, `TreeSet`), another interface
-  (`Deque`), a type variable or a wildcard element is still shared. A built bean's list is
-  unmodifiable, so do not add to it afterwards.
+  hand over a copy of a same-typed `List`, `Set`, `Collection`, `Map` or `Optional` (unmodifiable,
+  in the source's order, a set as a set, a null element carried, every level inside copied too)
+  or array (a clone, still writable), so mutating a wire after `parse`, or a built wire after
+  `build`, does not reach the other side. Only a level declared exactly as one of those is copied:
+  a subtype (`ArrayList`, `TreeSet`), another interface (`Deque`), a same-typed record, a type
+  variable, a wildcard element, the collections inside an array and the `Collection`s inside a
+  set are handed over as they are. A copied sorted set or map keeps its order but not its
+  comparator. A list set on a built bean is unmodifiable, so do not add to it afterwards; a
+  getter-only list filled through `getX().addAll(...)` stays the bean's own.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args
@@ -770,6 +773,7 @@ before rearranging the spec.
 | Mistake | Fix |
 |---------|-----|
 | Annotating the *record* with `@GenerateMapping` | It goes on the **spec interface**. That is what lets you map records you do not own |
+| Adding to a list after `build` (`bean.getTags().add(...)`) | A same-typed list crosses as an unmodifiable copy, so the add throws `UnsupportedOperationException`: set a new list, or copy it first (`new ArrayList<>(bean.getTags())`) |
 | Declaring the instance on the spec, MapStruct-style (`CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;` inside `CustomerMapping`, or inside a mix-in it extends) | Compiles, but reads `null` (a `NullPointerException` at the first `MAPPER.parse(...)`) whenever the Impl is used before the constant is first read and the interface holding it declares a leaf, a derived field or any `private` helper: the JVM initialises that interface inside the Impl's own initialisation, before `INSTANCE` is assigned. Concurrent first use can deadlock instead. Bind it in the caller: a local, a `private static final CustomerMappingImpl` field there, or an injected surface |
 | Expecting `parse` from a lossy projection | A projection drops data, so it cannot be inverted. You get `asLens()` (all-identity) or the validated `patch` (leaf-carrying, or a bean with a reference property), not `parse` |
 | A PATCH request bean on `MappingSpec` | A bean smaller than the domain compiles as a projection whose `patch` is dense: an unset property is `must not be null`, and an unset bridged `Optional` clears the value. For null-means-keep, extend `UpdateSpec` |

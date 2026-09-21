@@ -354,7 +354,7 @@ The individual laws are also exposed if you want them as separate test methods: 
 
 ### MappingLaws (`@GenerateMapping`)
 
-A generated mapper emits a different optic per tier, so pick the overload matching the tier you asked for:
+A generated mapper emits a different optic per tier, so pick the overload matching the tier you asked for. The laws compare by `equals`, and a same-typed array crosses as a clone, so a record with an array component needs an `equals` using `Arrays.equals` (or an elementwise assertion instead).
 
 ```java
 // lossless tier -> asIso()

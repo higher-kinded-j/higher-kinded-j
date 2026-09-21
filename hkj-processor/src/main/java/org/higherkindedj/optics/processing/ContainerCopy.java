@@ -20,6 +20,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -36,20 +37,28 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * each of its elements (or values) takes in turn, and {@code element} the type those elements have,
  * which the lambda carrying {@code inner} takes its parameter as.
  *
- * <p>Every copy is the one {@code Traversals} rebuilds a traversed container into and the one an
+ * <p>Every copy has the shape {@code Traversals} rebuilds a traversed container into, and an
  * element-lifted leg's bulk forms hand back: a fresh, unmodifiable container in the source's order,
- * a set as a set and any other collection as a list. It carries what the source holds, a {@code
- * null} element included, and a {@code null} container copies to {@code null}, so a copy never
- * decides anything the null scan or the read's guard answers for, and {@code build} stays total. A
- * sorted or comparator-keyed source ({@code TreeSet}, {@code TreeMap}) keeps its order but not its
- * comparator. An array copies by {@code clone()}, so it keeps its runtime component type. Map keys
- * are structural, and never copied inside.
+ * a set as a set and any other collection as a list. Unlike those bulk forms, it carries what the
+ * source holds, a {@code null} element included, and a {@code null} container copies to {@code
+ * null}, so a copy never decides anything the null scan or the read's guard answers for, and {@code
+ * build} stays total. The helpers are generated into each Impl, as the null scan's are, rather than
+ * called from the library: no library form copies without refusing a {@code null}. A copy compares
+ * the way a list, set or map does: a sorted or comparator-keyed source ({@code TreeSet}, {@code
+ * TreeMap}) keeps its order but not its comparator, and a source that compares by identity ({@code
+ * IdentityHashMap}, an {@code ArrayDeque} in a {@code Collection}) compares by its elements. Map
+ * keys are structural, and never copied inside.
+ *
+ * <p>An array copies by {@code clone()}, which keeps its runtime component type, and that can be
+ * narrower than the declared one (an {@code ArrayList[]} behind a {@code List<String>[]}), so only
+ * a row that is itself an array, whose clone keeps its own class, is copied inside it.
  *
  * <p>Any other type has no copy: a subtype such as {@code ArrayList}, {@code TreeSet} or {@code
  * LinkedHashMap}, any other interface ({@code Deque}, {@code SortedSet}), a type variable, or an
  * element declared through a wildcard. The copy stops there, and that level and everything inside
- * it are shared, as they were before any copy. A raw container copies, but its elements, which name
- * no type, are not copied inside.
+ * it are handed over as they are. So are the collections inside a level that may be a set when they
+ * are declared as {@code Collection}, since copying one into a list could make two of them equal. A
+ * raw container copies, but its elements, which name no type, are not copied inside.
  *
  * <p>The walk always ends: each level's element is a proper part of the type the level was given.
  */
@@ -90,7 +99,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     }
   }
 
-  /** The declared containers, in the order a type is tried against them. */
+  /** The declared containers a type is matched against, by exact name. */
   private static final List<Shape> DECLARED =
       List.of(Shape.LIST, Shape.SET, Shape.COLLECTION, Shape.MAP, Shape.OPTIONAL);
 
@@ -98,16 +107,22 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    * The copy a value of this type takes, or null when the type has none (see the class javadoc).
    * Kind tests, not {@code instanceof}: javac's intersection type implements {@code DeclaredType}.
    *
-   * @param type the declared type of the identity-copied value
+   * @param type the declared type of the value an identity leg hands over
    * @return the copy, or null
    */
   static ContainerCopy of(TypeMirror type) {
     return switch (type.getKind()) {
       case ARRAY -> {
         TypeMirror component = ((ArrayType) type).getComponentType();
+        // An array's copy is a clone, which keeps the source's runtime component type, and that can
+        // be narrower than the declared one (an ArrayList[] behind a List<String>[]). Only a row
+        // that is an array itself is sure to fit back in, since its own clone keeps its class.
         yield component.getKind().isPrimitive()
             ? new ContainerCopy(Shape.PRIMITIVE_ARRAY, null, component)
-            : new ContainerCopy(Shape.ARRAY, of(component), component);
+            : new ContainerCopy(
+                Shape.ARRAY,
+                component.getKind() == TypeKind.ARRAY ? of(component) : null,
+                component);
       }
       case DECLARED -> declared((DeclaredType) type);
       default -> null;
@@ -123,9 +138,17 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
         TypeMirror element = arguments.isEmpty() ? null : arguments.get(shape.argument);
         ContainerCopy inner = element == null ? null : of(element);
         // An Optional is immutable: it is a level only when its value is one.
-        return shape == Shape.OPTIONAL && inner == null
-            ? null
-            : new ContainerCopy(shape, inner, element);
+        if (shape == Shape.OPTIONAL && inner == null) {
+          return null;
+        }
+        // A Collection that is neither a list nor a set copies into a list, which compares by its
+        // elements where the source may compare by identity (an ArrayDeque), so two such elements
+        // of a set would become equal and collapse into one. A level that may be a set keeps them.
+        boolean mayCollapse =
+            (shape == Shape.SET || shape == Shape.COLLECTION)
+                && inner != null
+                && inner.shape == Shape.COLLECTION;
+        return new ContainerCopy(shape, mayCollapse ? null : inner, element);
       }
     }
     return null;
@@ -160,11 +183,16 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     return copy == null ? value : copy.on(value, taken);
   }
 
+  /** Whether the copy reaches inside this level's elements, not just the level itself. */
+  boolean nested() {
+    return inner != null;
+  }
+
   /**
    * The copy of {@code value}: this level's helper, with the next level's copy riding along as a
    * lambda, its parameter clear of every name in {@code taken}.
    */
-  CodeBlock on(CodeBlock value, Set<String> taken) {
+  private CodeBlock on(CodeBlock value, Set<String> taken) {
     return on(value, taken, 0);
   }
 
@@ -300,7 +328,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   private static MethodSpec listHelper() {
     return collectionBuilder(
             Shape.LIST,
-            "Copies an identity-copied list so the two sides never share it: an unmodifiable list"
+            "Copies a same-typed list so the two sides never share it: an unmodifiable list"
                 + " in the same order, null elements included; a null list copies to null.\n")
         .addStatement(
             "return values == null ? null : $T.unmodifiableList(new $T<>(values))",
@@ -312,7 +340,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   private static MethodSpec nestedListHelper() {
     return collectionBuilder(
             Shape.LIST,
-            "Copies an identity-copied list of containers so the two sides never share it: an"
+            "Copies a same-typed list of containers so the two sides never share it: an"
                 + " unmodifiable list in the same order, each present element copied in turn and"
                 + " null elements included; a null list copies to null.\n")
         .addParameter(elementCopy(E), "each")
@@ -325,7 +353,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   private static MethodSpec setHelper() {
     return collectionBuilder(
             Shape.SET,
-            "Copies an identity-copied set so the two sides never share it: an unmodifiable set in"
+            "Copies a same-typed set so the two sides never share it: an unmodifiable set in"
                 + " the same iteration order, a null element included; a null set copies to"
                 + " null.\n")
         .addStatement(
@@ -338,7 +366,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   private static MethodSpec nestedSetHelper() {
     return collectionBuilder(
             Shape.SET,
-            "Copies an identity-copied set of containers so the two sides never share it: an"
+            "Copies a same-typed set of containers so the two sides never share it: an"
                 + " unmodifiable set in the same iteration order, each present element copied in"
                 + " turn and a null element included; a null set copies to null.\n")
         .addParameter(elementCopy(E), "each")
@@ -351,7 +379,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   private static MethodSpec collectionHelper() {
     return collectionBuilder(
             Shape.COLLECTION,
-            "Copies an identity-copied collection so the two sides never share it: a set as an"
+            "Copies a same-typed collection so the two sides never share it: a set as an"
                 + " unmodifiable set in the same iteration order, anything else as an unmodifiable"
                 + " list in the same order, null elements included; a null collection copies to"
                 + " null.\n")
@@ -370,7 +398,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   private static MethodSpec nestedCollectionHelper() {
     return collectionBuilder(
             Shape.COLLECTION,
-            "Copies an identity-copied collection of containers so the two sides never share it:"
+            "Copies a same-typed collection of containers so the two sides never share it:"
                 + " a set as an unmodifiable set in the same iteration order, anything else as an"
                 + " unmodifiable list in the same order, each present element copied in turn and"
                 + " null elements included; a null collection copies to null.\n")
@@ -390,7 +418,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     TypeVariableName v = TypeVariableName.get("V");
     return helperBuilder(
             ParameterizedTypeName.get(Shape.MAP.container, k, v),
-            "Copies an identity-copied map so the two sides never share it: an unmodifiable map"
+            "Copies a same-typed map so the two sides never share it: an unmodifiable map"
                 + " in the same entry order, null values included; a null map copies to null.\n",
             k,
             v)
@@ -398,8 +426,10 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
             ParameterizedTypeName.get(
                 Shape.MAP.container, WildcardTypeName.subtypeOf(k), WildcardTypeName.subtypeOf(v)),
             "values")
-        .addCode(nullToNull("values"))
-        .addStatement("return $T.unmodifiableMap(new $T<>(values))", COLLECTIONS, LINKED_HASH_MAP)
+        .addStatement(
+            "return values == null ? null : $T.unmodifiableMap(new $T<>(values))",
+            COLLECTIONS,
+            LINKED_HASH_MAP)
         .build();
   }
 
@@ -408,7 +438,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     TypeVariableName v = TypeVariableName.get("V");
     return helperBuilder(
             ParameterizedTypeName.get(Shape.MAP.container, k, v),
-            "Copies an identity-copied map of containers so the two sides never share it: an"
+            "Copies a same-typed map of containers so the two sides never share it: an"
                 + " unmodifiable map in the same entry order, each present value copied in turn and"
                 + " null values included; a null map copies to null.\n",
             k,
@@ -440,7 +470,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     TypeVariableName e = TypeVariableName.get("E");
     return helperBuilder(
             ArrayTypeName.of(e),
-            "Copies an identity-copied array so the two sides never share it: a clone, null"
+            "Copies a same-typed array so the two sides never share it: a clone, null"
                 + " elements included; a null array copies to null.\n",
             e)
         .addParameter(ArrayTypeName.of(e), "values")
@@ -452,9 +482,9 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     TypeVariableName e = TypeVariableName.get("E");
     return helperBuilder(
             ArrayTypeName.of(e),
-            "Copies an identity-copied array of containers so the two sides never share it: a"
-                + " clone, each present element copied in turn and null elements included; a null"
-                + " array copies to null.\n",
+            "Copies a same-typed array of arrays so the two sides never share it: a clone, each"
+                + " present row copied in turn and null rows included; a null array copies to"
+                + " null.\n",
             e)
         .addParameter(ArrayTypeName.of(e), "values")
         .addParameter(elementCopy(e), "each")
@@ -472,7 +502,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
   private static MethodSpec primitiveArrayHelper(TypeName component) {
     return helperBuilder(
             ArrayTypeName.of(component),
-            "Copies an identity-copied array so the two sides never share it: a clone; a null"
+            "Copies a same-typed array so the two sides never share it: a clone; a null"
                 + " array copies to null.\n")
         .addParameter(ArrayTypeName.of(component), "values")
         .addStatement("return values == null ? null : values.clone()")
@@ -483,7 +513,7 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
     TypeVariableName e = TypeVariableName.get("E");
     return helperBuilder(
             ParameterizedTypeName.get(Shape.OPTIONAL.container, e),
-            "Copies an identity-copied Optional of a container so the two sides never share the"
+            "Copies a same-typed Optional of a container so the two sides never share the"
                 + " container: the present value's copy; a null Optional copies to null.\n",
             e)
         .addParameter(

@@ -118,21 +118,21 @@ public final class CrewMappingImpl implements CrewMapping {
   }
 
   /**
-   * Copies an identity-copied set so the two sides never share it: an unmodifiable set in the same iteration order, a null element included; a null set copies to null.
+   * Copies a same-typed set so the two sides never share it: an unmodifiable set in the same iteration order, a null element included; a null set copies to null.
    */
   private static <E> Set<E> hkj$copyOf(Set<? extends E> values) {
     return values == null ? null : Collections.unmodifiableSet(new LinkedHashSet<>(values));
   }
 
   /**
-   * Copies an identity-copied array so the two sides never share it: a clone, null elements included; a null array copies to null.
+   * Copies a same-typed array so the two sides never share it: a clone, null elements included; a null array copies to null.
    */
   private static <E> E[] hkj$copyOf(E[] values) {
     return values == null ? null : values.clone();
   }
 
   /**
-   * Copies an identity-copied array so the two sides never share it: a clone; a null array copies to null.
+   * Copies a same-typed array so the two sides never share it: a clone; a null array copies to null.
    */
   private static int[] hkj$copyOf(int[] values) {
     return values == null ? null : values.clone();
