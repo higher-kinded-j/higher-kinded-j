@@ -1555,11 +1555,12 @@ public class SpecInterfaceAnalyser {
     LensMember lens = declaredLens(specInterface, fieldName);
     // A raw lens is declared but has no focus, so there is nothing for the container traversal to
     // compose onto; it is refused where a missing one is, and told apart in the message. What is
-    // raw may be the lens method or the clause the spec reaches it through: a raw mix-in erases
-    // every member read under it, so asking for the method's type arguments would send the author
-    // to a declaration that already has them.
+    // raw may be the lens method or a clause on the way to it: reading a member under a raw
+    // supertype erases it, wherever on that path the raw clause sits. The declaration is what
+    // tells the two apart, so asking for the method's type arguments never sends the author to a
+    // declaration that already has them.
     boolean raw = lens != null && lens.type().getTypeArguments().size() != 2;
-    boolean rawClause = raw && readsThroughARawClause(specInterface);
+    boolean rawClause = raw && ProcessorUtils.firstRawIn(lens.declared()) == null;
     if (lens == null || raw) {
       String problem;
       String fix;
@@ -1793,20 +1794,6 @@ public class SpecInterfaceAnalyser {
       }
     }
     return null;
-  }
-
-  /**
-   * Whether the spec reaches its inherited members through a clause written without its type
-   * arguments. Reading a member under a raw supertype erases it, so a lens declared with both its
-   * arguments arrives raw, and the clause is what the author has to change.
-   */
-  private static boolean readsThroughARawClause(TypeElement specInterface) {
-    for (TypeMirror clause : specInterface.getInterfaces()) {
-      if (ProcessorUtils.firstRawIn(clause) != null) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /** A type name with its indefinite article, for a diagnostic that reads as a sentence. */

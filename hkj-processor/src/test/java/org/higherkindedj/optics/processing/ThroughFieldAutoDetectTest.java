@@ -271,7 +271,8 @@ class ThroughFieldAutoDetectTest {
     void shouldRefuseWhenTheLensForTheFieldIsRaw() {
       // A raw lens has no focus for the container traversal to compose onto. Read as a missing
       // lens it would send the author looking for a method that is right there, so it is named
-      // for what it is.
+      // for what it is. The spec's own raw clause is beside the point: what is raw is the
+      // declaration, which is where the author has to make the change.
       var container =
           JavaFileObjects.forSourceString(
               "com.external.Sack",
@@ -296,14 +297,16 @@ class ThroughFieldAutoDetectTest {
               import com.external.Sack;
 
               @ImportOptics
-              public interface SackSpec extends OpticsSpec<Sack> {
+              @SuppressWarnings("rawtypes")
+              public interface SackSpec extends OpticsSpec<Sack>, Tagged {
                   @ThroughField(field = "items")
                   Traversal<Sack, String> eachItem();
 
-                  @SuppressWarnings("rawtypes")
                   @Wither("withItems")
                   Lens items();
               }
+
+              interface Tagged<T> {}
               """);
 
       Compilation compilation = compile(container, spec);
@@ -319,11 +322,12 @@ class ThroughFieldAutoDetectTest {
     }
 
     @Test
-    @DisplayName("should refuse a lens read raw through a mix-in, and ask for the clause")
+    @DisplayName("should refuse a lens read raw through a clause above it, and ask for the clause")
     void shouldRefuseWhenTheLensIsReadRawThroughAMixIn() {
-      // The lens method declares both its type arguments; the spec's own clause drops them, and
-      // reading the member under a raw supertype erases it. Asking for the method's arguments
-      // would send the author to a declaration that already has them.
+      // The lens method declares both its type arguments; a clause on the way to it drops them,
+      // and reading the member under a raw supertype erases it. The raw clause is not the spec's
+      // own, so the answer cannot come from reading its extends list: it comes from the lens
+      // declaration, which has what the read has lost.
       var container =
           JavaFileObjects.forSourceString(
               "com.external.Sack",
@@ -349,6 +353,15 @@ class ThroughFieldAutoDetectTest {
                   Lens<Sack, List<String>> items();
               }
               """);
+      var mid =
+          JavaFileObjects.forSourceString(
+              "com.test.Mid",
+              """
+              package com.test;
+
+              @SuppressWarnings("rawtypes")
+              public interface Mid extends Bits {}
+              """);
       var spec =
           JavaFileObjects.forSourceString(
               "com.test.SackSpec",
@@ -361,14 +374,13 @@ class ThroughFieldAutoDetectTest {
               import org.higherkindedj.optics.annotations.ThroughField;
 
               @ImportOptics
-              @SuppressWarnings("rawtypes")
-              public interface SackSpec extends OpticsSpec<Sack>, Bits {
+              public interface SackSpec extends OpticsSpec<Sack>, Mid {
                   @ThroughField(field = "items")
                   Traversal<Sack, String> eachItem();
               }
               """);
 
-      Compilation compilation = compile(container, bits, spec);
+      Compilation compilation = compile(container, bits, mid, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
