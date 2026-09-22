@@ -119,7 +119,11 @@ class ContainerCopyTest {
                           List<? extends List<String>> wild,
                           List<ArrayList<String>> subtypes,
                           Set<Collection<String>> bags,
-                          Collection<Collection<String>> heaps) {}
+                          Collection<Collection<String>> heaps,
+                          Set<Optional<Collection<String>>> wrapped,
+                          Set<List<Collection<String>>> inLists,
+                          Set<String[]> stamps,
+                          Set<List<List<String>>> grids) {}
 
                       public record NestedDto(
                           List<List<List<String>>> deep,
@@ -132,7 +136,11 @@ class ContainerCopyTest {
                           List<? extends List<String>> wild,
                           List<ArrayList<String>> subtypes,
                           Set<Collection<String>> bags,
-                          Collection<Collection<String>> heaps) {}
+                          Collection<Collection<String>> heaps,
+                          Set<Optional<Collection<String>>> wrapped,
+                          Set<List<Collection<String>>> inLists,
+                          Set<String[]> stamps,
+                          Set<List<List<String>>> grids) {}
 
                       @GenerateMapping
                       public interface NestedMapping extends MappingSpec<Nested, NestedDto> {}
@@ -469,22 +477,54 @@ class ContainerCopyTest {
                         return new Nested(
                             deep, sets, colls, map("k", list("m")), new String[][] {{"x"}},
                             Optional.of(list("o")), Optional.of(new int[] {1}), wild, subtypes,
-                            deques(), deques());
+                            deques(), deques(), wrappedDeques(), listedDeques(), stamps(), grids());
                       }
 
                       private static NestedDto nestedDto() {
                         Nested n = nested();
                         return new NestedDto(
                             n.deep(), n.sets(), n.colls(), n.maps(), n.matrix(), n.maybe(),
-                            n.maybeInts(), n.wild(), n.subtypes(), n.bags(), n.heaps());
+                            n.maybeInts(), n.wild(), n.subtypes(), n.bags(), n.heaps(), n.wrapped(),
+                            n.inLists(), n.stamps(), n.grids());
                       }
 
-                      /** Two deques with the same element: equal as lists, distinct as deques. */
+                      /** Two collections with the same element: equal as lists, distinct as they are. */
                       private static Set<Collection<String>> deques() {
                         Set<Collection<String>> deques = new LinkedHashSet<>();
                         deques.add(new ArrayDeque<>(list("d")));
-                        deques.add(new ArrayDeque<>(list("d")));
+                        deques.add(new ArrayList<>(list("d")));
                         return deques;
+                      }
+
+                      /** The same two, each inside an Optional, and each inside a List. */
+                      private static Set<Optional<Collection<String>>> wrappedDeques() {
+                        Set<Optional<Collection<String>>> wrapped = new LinkedHashSet<>();
+                        for (Collection<String> each : deques()) {
+                          wrapped.add(Optional.of(each));
+                        }
+                        return wrapped;
+                      }
+
+                      private static Set<List<Collection<String>>> listedDeques() {
+                        Set<List<Collection<String>>> listed = new LinkedHashSet<>();
+                        for (Collection<String> each : deques()) {
+                          listed.add(new ArrayList<>(List.of(each)));
+                        }
+                        return listed;
+                      }
+
+                      /** A set element whose own elements cannot merge: the copy still applies. */
+                      private static Set<List<List<String>>> grids() {
+                        Set<List<List<String>>> grids = new LinkedHashSet<>();
+                        grids.add(new ArrayList<>(List.of(list("g"))));
+                        return grids;
+                      }
+
+                      /** An array inside a set: a clone is a value of its own, so it is copied. */
+                      private static Set<String[]> stamps() {
+                        Set<String[]> stamps = new LinkedHashSet<>();
+                        stamps.add(new String[] {"s"});
+                        return stamps;
                       }
 
                       private static List<String> nestedShared(Nested d, NestedDto w) {
@@ -504,7 +544,18 @@ class ContainerCopyTest {
                             "subtypes.0", d.subtypes().get(0), w.subtypes().get(0),
                             "bags", d.bags(), w.bags(),
                             "bags.0", d.bags().iterator().next(), w.bags().iterator().next(),
-                            "heaps.0", d.heaps().iterator().next(), w.heaps().iterator().next());
+                            "heaps.0", d.heaps().iterator().next(), w.heaps().iterator().next(),
+                            "wrapped.0",
+                            d.wrapped().iterator().next().get(),
+                            w.wrapped().iterator().next().get(),
+                            "inLists.0",
+                            d.inLists().iterator().next().get(0),
+                            w.inLists().iterator().next().get(0),
+                            "stamps.0", d.stamps().iterator().next(), w.stamps().iterator().next(),
+                            "grids.0", d.grids().iterator().next(), w.grids().iterator().next(),
+                            "grids.0.0",
+                            d.grids().iterator().next().get(0),
+                            w.grids().iterator().next().get(0));
                       }
 
                       public static List<String> nestedParse() {
@@ -517,14 +568,15 @@ class ContainerCopyTest {
                         return nestedShared(domain, FixturesNestedMappingImpl.INSTANCE.build(domain));
                       }
 
-                      /** The sizes of the two sets of deques after build and after parse. */
+                      /** The sizes of every set whose elements hold a collection, both ways. */
                       public static List<Integer> dequesKeepTheirCount() {
                         Nested domain = nested();
                         NestedDto built = FixturesNestedMappingImpl.INSTANCE.build(domain);
                         Nested parsed = FixturesNestedMappingImpl.INSTANCE.parse(built).get();
                         return List.of(
-                            built.bags().size(), built.heaps().size(),
-                            parsed.bags().size(), parsed.heaps().size());
+                            built.bags().size(), built.heaps().size(), built.wrapped().size(),
+                            built.inLists().size(), parsed.bags().size(), parsed.heaps().size(),
+                            parsed.wrapped().size(), parsed.inLists().size());
                       }
 
                       /** A null element a nested copy carries, on build, at every level. */
@@ -542,7 +594,8 @@ class ContainerCopyTest {
                             FixturesNestedMappingImpl.INSTANCE.build(
                                 new Nested(
                                     deep, sets, colls, maps, new String[][] {null}, Optional.empty(),
-                                    Optional.empty(), List.of(), List.of(), Set.of(), Set.of()));
+                                    Optional.empty(), List.of(), List.of(), Set.of(), Set.of(),
+                                    Set.of(), Set.of(), Set.of(), Set.of()));
                         return Arrays.asList(
                             wire.deep(),
                             wire.sets(),
@@ -790,10 +843,11 @@ class ContainerCopyTest {
       "every level inside is copied too, a list, set, collection, map value, array and Optional"
           + " value alike; below a wildcard or a subtype the elements are shared")
   void nestedLevelsAreCopied() throws ReflectiveOperationException {
-    assertThat(probe("nestedParse"))
-        .isEqualTo(List.of("wild.0", "subtypes.0", "bags.0", "heaps.0"));
-    assertThat(probe("nestedBuild"))
-        .isEqualTo(List.of("wild.0", "subtypes.0", "bags.0", "heaps.0"));
+    // A set element that holds no Collection keeps its copy, inside and out (grids, stamps).
+    List<String> handedOver =
+        List.of("wild.0", "subtypes.0", "bags.0", "heaps.0", "wrapped.0", "inLists.0");
+    assertThat(probe("nestedParse")).isEqualTo(handedOver);
+    assertThat(probe("nestedBuild")).isEqualTo(handedOver);
     // Three levels deep, each lambda is named for its depth.
     assertThat(generated("FixturesNestedMappingImpl"))
         .contains("hkj$copyOf(domain.deep(), e -> hkj$copyOf(e, e2 -> hkj$copyOf(e2)))");
@@ -801,10 +855,10 @@ class ContainerCopyTest {
 
   @Test
   @DisplayName(
-      "the collections inside a set are handed over as they are, so two that are equal only as"
-          + " lists stay two")
+      "an element of a set holding a collection is handed over as it is, however deeply, so two"
+          + " that a copy would make equal stay two; an array in a set is still copied")
   void aSetOfCollectionsKeepsEveryElement() throws ReflectiveOperationException {
-    assertThat(probe("dequesKeepTheirCount")).isEqualTo(List.of(2, 2, 2, 2));
+    assertThat(probe("dequesKeepTheirCount")).isEqualTo(List.of(2, 2, 2, 2, 2, 2, 2, 2));
   }
 
   @Test

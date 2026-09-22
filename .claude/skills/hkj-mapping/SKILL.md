@@ -479,8 +479,8 @@ matter: it maps build-only whatever its width, derived fields included.
   or array (a clone, still writable), so mutating a wire after `parse`, or a built wire after
   `build`, does not reach the other side. Only a level declared exactly as one of those is copied:
   a subtype (`ArrayList`, `TreeSet`), another interface (`Deque`), a same-typed record, a type
-  variable, a wildcard element, the collections inside an array and the `Collection`s inside a
-  set are handed over as they are. A copied sorted set or map keeps its order but not its
+  variable, a wildcard element, the collections inside an array and any element of a set that
+  holds a `Collection` are handed over as they are. A copied sorted set or map keeps its order but not its
   comparator. A list set on a built bean is unmodifiable, so do not add to it afterwards; a
   getter-only list filled through `getX().addAll(...)` stays the bean's own.
 - **The mapped record need not be yours.** The annotation sits on *your spec interface*, never on

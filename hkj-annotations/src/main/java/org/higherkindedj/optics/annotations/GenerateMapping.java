@@ -98,8 +98,8 @@ import java.lang.annotation.Target;
  *       too. Only a level declared exactly {@code List}, {@code Set}, {@code Collection}, {@code
  *       Map} or {@code Optional}, or as an array (by {@code clone()}), has a copy of its own type;
  *       a subtype such as {@code ArrayList}, any other interface, a same-typed record, a type
- *       variable, an element declared through a wildcard, the collections inside an array and the
- *       {@code Collection}s inside a set are handed over as they are.
+ *       variable, an element declared through a wildcard, the collections inside an array and any
+ *       element of a set that holds a {@code Collection} are handed over as they are.
  *   <li>Once every component has parsed, the domain's canonical constructor runs, and a {@code
  *       RuntimeException} it throws (the record's own invariant) becomes a {@code FieldError} at
  *       the record's path carrying its message, in {@code parse}, the validated {@code patch} and a

@@ -56,9 +56,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>Any other type has no copy: a subtype such as {@code ArrayList}, {@code TreeSet} or {@code
  * LinkedHashMap}, any other interface ({@code Deque}, {@code SortedSet}), a type variable, or an
  * element declared through a wildcard. The copy stops there, and that level and everything inside
- * it are handed over as they are. So are the collections inside a level that may be a set when they
- * are declared as {@code Collection}, since copying one into a list could make two of them equal. A
- * raw container copies, but its elements, which name no type, are not copied inside.
+ * it are handed over as they are. So are the elements of a level that may be a set when copying one
+ * could make two of them equal, which is any element holding a {@code Collection}, however deeply:
+ * that copies into a list, which compares by its elements where an {@code ArrayDeque} compares by
+ * identity. A raw container copies, but its elements, which name no type, are not copied inside.
  *
  * <p>The walk always ends: each level's element is a proper part of the type the level was given.
  */
@@ -141,13 +142,10 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
         if (shape == Shape.OPTIONAL && inner == null) {
           return null;
         }
-        // A Collection that is neither a list nor a set copies into a list, which compares by its
-        // elements where the source may compare by identity (an ArrayDeque), so two such elements
-        // of a set would become equal and collapse into one. A level that may be a set keeps them.
+        // A level that may be a set hands its elements over as they are where copying one could
+        // make two of them equal, which would collapse them into a single element.
         boolean mayCollapse =
-            (shape == Shape.SET || shape == Shape.COLLECTION)
-                && inner != null
-                && inner.shape == Shape.COLLECTION;
+            (shape == Shape.SET || shape == Shape.COLLECTION) && inner != null && inner.mayMerge();
         return new ContainerCopy(shape, mayCollapse ? null : inner, element);
       }
     }
@@ -181,6 +179,18 @@ record ContainerCopy(ContainerCopy.Shape shape, ContainerCopy inner, TypeMirror 
    */
   static CodeBlock through(ContainerCopy copy, CodeBlock value, Set<String> taken) {
     return copy == null ? value : copy.on(value, taken);
+  }
+
+  /**
+   * Whether copying a value of this type can make it equal to one it differed from. A {@code
+   * Collection} that is neither a list nor a set copies into a list, which compares by its elements
+   * where the source may compare by identity (an {@code ArrayDeque}), so two such values become
+   * equal; and a level holding one passes that on, since its own equality is its elements'. An
+   * array never does: it compares by identity, each clone is a value of its own, and the only level
+   * inside one is another array.
+   */
+  private boolean mayMerge() {
+    return shape == Shape.COLLECTION || (inner != null && inner.mayMerge());
   }
 
   /** Whether the copy reaches inside this level's elements, not just the level itself. */
