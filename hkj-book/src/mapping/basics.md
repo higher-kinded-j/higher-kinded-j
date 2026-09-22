@@ -255,17 +255,22 @@ Nothing above requires this section; come back when a corner case finds you.
 
 ### The null contract, precisely
 
-The null guard covers every reference-typed `parse` read that is not [bridged](#optional-bridge), on record and bean wires alike, and reaches inside containers, identity-copied ones included:
+The null guard covers every reference-typed `parse` read that is not [bridged](#optional-bridge), on record and bean wires alike, and reaches inside containers, identity-copied ones included, at every depth:
 
 - A `null` element or map value locates the way its container locates anything ([lifting grammar](structure.md#nesting-containers-and-recursion)) - by index in a `List` or array (`emails.1: must not be null`), by key in a `Map` - whether the container lifts through a leaf ([the bulk forms](../optics/validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity. The index is a plain positional segment, matching the map-key grammar.
 - A `null` element of a `Set` has no rendering to locate by, and a set holds at most one, so it reports unlocated under the component: `emails: must not contain a null element` - distinct from `must not be null`, which says the set itself is absent.
 - An array of primitives (`int[]`) carries no element scan: a primitive element cannot be null. The component is still a reference, so a `null` *array* is guarded like any other read.
+- An identity container is scanned at every level its type names, so a `null` deep inside carries its full path: `grid.0.1` in a `List<List<String>>`, `byKey.k.1` in a `Map<String, List<String>>`, `matrix.0.1` in a `String[][]`. An `Optional` cannot hold a `null`, but one holding a container is scanned through, and locates at the component itself, since it holds only the one value (`nicknames.1`).
+- How the container is declared does not matter. Any `Collection` counts, and any `Map`: a subtype (`ArrayList`, `LinkedHashMap`, `EnumMap`), a supertype (`Collection`), a raw type, one with a wildcard argument, or a type variable bounded by one. A collection that is a `Set` when it is parsed follows the set rule above; any other locates by position, in iteration order.
+- A failure inside a set's element locates under that element's rendering, as a set element that fails its leaf does: `tagged.[b, null].1` for a `Set<List<String>>`. The rendering is the element's `toString()`, so an element containing a dot reads as deeper nesting in `pathString()`, while `FieldError.path()` keeps it as one segment.
+- A container class that fixes its own element type, such as a tree node declared `class Node extends ArrayList<Node>`, can hold itself at any depth. It is scanned one level into itself: where the class recurs, its elements are checked for `null` but not scanned inside.
+- Only these containers are looked inside. An `Iterable` or `Stream` component, and the library's own `Maybe` and `NonEmptyList`, are guarded against `null` themselves, but nothing inside them is scanned yet.
+- The values a [`@MapKey`](structure.md#converting-map-keys) map copies are scanned the same way, located under their source key.
 - An identity container still copies by reference; the scan only locates nulls, it never rebuilds.
 - A `null` container *component* is guarded like any reference read (`emails: must not be null`).
-- A **raw** `List`, `Set` or `Map` component keeps that component guard but gives up the element scan: the emitted helper is generic, and a raw argument erases both the call and its result, so no scanning leg it produced would compile. Declare the type arguments to get the scan back. An array is unaffected, naming its element type in the type itself.
-- A [bridged](#optional-bridge) container excuses only the absent case: `null` reads as empty, and a *present* list or map is scanned for null elements exactly as an unbridged one is, including where its type arguments carry a wildcard. The raw carve-out above is the only one either leg makes.
+- A [bridged](#optional-bridge) container excuses only the absent case: `null` reads as empty, and a *present* container is scanned exactly as an unbridged one is.
 
-What stays the caller's error (`NullPointerException`), by contract: a `null` *wire* itself, a `null` map *key* (a structurally broken map, not a wrong value), and calling the bulk forms directly with a `null` list or map.
+What stays the caller's error (`NullPointerException`), by contract: a `null` *wire* itself, a `null` map *key* (a structurally broken map, not a wrong value), and calling the bulk forms directly with a `null` list or map. A key is never scanned inside, even when it is a container.
 
 Absence-as-a-meaning is deliberate everywhere it appears. A record component cannot express it by itself (it can only be wrong), so it takes either the [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec), where every `null` means *leave unchanged*, or an [`@OptionalBridge`](#optional-bridge) component, where one named field's `null` means *absent*. Neither is inferred; both are declarations.
 

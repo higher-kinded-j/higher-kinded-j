@@ -426,14 +426,17 @@ matter: it maps build-only whatever its width, derived fields included.
   containers, each locating the way its container does: by index in a `List` or array
   (`emails.1: must not be null`), by key in a `Map`, and by the element's own rendering in a
   `Set` (`emails.nope`) - a null set element is the unlocated `emails: must not contain a null
-  element`, a set holding at most one. A primitive array carries no element scan. What stays
-  the caller's `NullPointerException`: a null *wire* itself, and a null map *key* (a structurally
-  broken map, not a wrong value). A null container *component* is guarded like any reference read
+  element`, a set holding at most one. An identity container is scanned at every level its type
+  names (`grid.0.1` in a `List<List<String>>`, `byKey.k.1` in a `Map<String, List<String>>`), an
+  `Optional` holding a container included, and however it is declared: any `Collection` or `Map`
+  subtype or supertype (`ArrayList`, `Collection`, `LinkedHashMap`), raw, wildcard-argument, or a
+  type variable bounded by one. A `@MapKey` map's copied values are scanned too. A class that
+  fixes its own element (`class Node extends ArrayList<Node>`) is scanned one level into itself.
+  `Iterable`, `Stream`, `Maybe` and `NonEmptyList` are not looked inside yet. A primitive array
+  carries no element scan. What stays the caller's `NullPointerException`: a null *wire* itself,
+  and a null map *key* (a structurally broken map, not a wrong value). A null container *component* is guarded like any reference read
   (`emails: must not be null`); only calling `parseAll`/`parseValues` directly with a null
-  list/map is the caller's error. A **raw** `List`/`Set`/`Map` component keeps the component
-  guard but gives up the element scan (the emitted helper is generic, and a raw argument erases
-  it) - declare the type arguments to get the scan back; an array names its element type in the
-  type itself and keeps the scan. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
+  list/map is the caller's error. A lossless record mapping keeps `asIso()` (its guards cover hostile bindings, with
   parse-iso coherence scoped to non-null wires the domain accepts); a bean's guarded reads still cost the Iso tier,
   because an unset bean property is a representable state. The same guard covers every
   reference-typed source read on a `@GenerateMerge` `assemble`'s fallible path (a plain-return
@@ -567,9 +570,10 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   serves a full spec and its PATCH sibling. Replacement is wholesale; each failing element is
   located (`phones.1`). A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) wins as the
   more specific declaration. Nested specs do not lift here — delegate via an element leaf to the
-  nested Impl's `asValidatedPrism()`. Same-typed identity containers are null-scanned
-  (`tags.1: must not be null`; a set's unlocated, as `tags: must not contain a null element`)
-  when properly parameterised; raw/wildcard ones are written as sent. `@MapKey` applies here too.
+  nested Impl's `asValidatedPrism()`. Same-typed identity containers are null-scanned at every
+  depth, as on the dense tiers (`tags.1: must not be null`; a set's unlocated, as `tags: must not
+  contain a null element`), an `Optional` holding a container included. `@MapKey` applies here
+  too.
 - A **getter-only `List`** property is rejected here: its getter creates the list on first call,
   so it never reads `null` and an omitted field would clear the domain value. Give it a setter,
   and a getter that answers `null` until it is set (no initialiser, no list created on first call).

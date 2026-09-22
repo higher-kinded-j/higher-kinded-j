@@ -11,8 +11,11 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -1290,9 +1293,12 @@ class MappingProcessorUpdateTest {
       Assertions.assertThat(generated)
           .contains("phones()::parseAll")
           .contains("CrewPatchMappingImpl::hkj$allPresent")
-          // only the Set overload is declared - the emitted helpers follow the components
-          .contains("Set<E> values")
-          .doesNotContain("List<E> values");
+          // only the one-level collection helper is declared - the emitted helpers follow the
+          // components
+          .contains(
+              "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
+          .doesNotContain("E[] values")
+          .doesNotContain("Function<? super E");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       try {
@@ -1659,16 +1665,16 @@ class MappingProcessorUpdateTest {
     }
 
     /**
-     * The sparse half of the shared typability rule. A raw container gives the scan up in every
-     * tier; a wildcard one gives it up only here, where {@code setIfPresent}'s method reference
-     * must produce the component's exact type. {@code MappingTierMatrixTest} pins the dense half,
-     * which keeps the scan for a wildcard.
+     * The sparse half of the rule {@code MappingTierMatrixTest} pins for the dense tiers: every
+     * identity container carries the scan, raw and wildcard alike. The scan helper returns its
+     * argument's own type, so a raw argument needs no unchecked conversion, and the parser's pinned
+     * result type meets a wildcard argument without capturing it.
      */
     @Test
     @DisplayName(
-        "raw and wildcard identity containers stay plain identity writes: the scan helper cannot"
-            + " type them, and the generated code must always compile")
-    void rawAndWildcardIdentityContainersStayPlainWrites() {
+        "raw and wildcard identity containers are scanned on the sparse tier too, and the generated"
+            + " code compiles")
+    void rawAndWildcardIdentityContainersAreScanned() {
       JavaFileObject domain =
           JavaFileObjects.forSourceString(
               "com.example.WildBag",
@@ -1723,14 +1729,48 @@ class MappingProcessorUpdateTest {
               @GenerateMapping
               public interface WildBagPatchMapping extends UpdateSpec<WildBag, WildBagPatchDto> {}
               """);
-      Compilation compilation = compile(domain, dto, spec);
-      assertThat(compilation).succeeded();
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+              .compile(domain, dto, spec);
+      assertThat(compilation).succeededWithoutWarnings();
       String generated = generatedSource(compilation, "com.example.WildBagPatchMappingImpl");
       Assertions.assertThat(generated)
-          .contains("Edit.setIfPresent(")
-          .doesNotContain("hkj$allPresent")
-          .doesNotContain("hkj$valuesPresent")
-          .doesNotContain("parseIfPresent");
+          .contains("wire.getWilds(), WildBagPatchMappingImpl::hkj$allPresent")
+          .contains("wire.getAttrs(), WildBagPatchMappingImpl::hkj$valuesPresent")
+          .contains("wire.getRawTags(), WildBagPatchMappingImpl::hkj$allPresent")
+          .contains("wire.getRawLabels(), WildBagPatchMappingImpl::hkj$valuesPresent")
+          .doesNotContain("Edit.setIfPresent(");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = result.instance("com.example.WildBagPatchMappingImpl");
+        Object current =
+            construct(result, "com.example.WildBag", List.of(), Map.of(), List.of(), Map.of());
+        Object patch =
+            result.loadClass("com.example.WildBagPatchDto").getDeclaredConstructor().newInstance();
+        Map<String, Integer> attrs = new HashMap<>();
+        attrs.put("k", null);
+        Map<String, String> rawLabels = new HashMap<>();
+        rawLabels.put("k", null);
+        invoke(patch, "setWilds", Arrays.asList("a", null));
+        invoke(patch, "setAttrs", attrs);
+        invoke(patch, "setRawTags", Arrays.asList(null, "b"));
+        invoke(patch, "setRawLabels", rawLabels);
+        @SuppressWarnings("unchecked")
+        Validated<NonEmptyList<FieldError>, Object> located =
+            (Validated<NonEmptyList<FieldError>, Object>)
+                invoke(invoke(impl, "updateFrom", patch), "apply", current);
+        Assertions.assertThat(located.getError().toJavaList())
+            .containsExactly(
+                new FieldError(List.of("wilds", "1"), "must not be null"),
+                new FieldError(List.of("attrs", "k"), "must not be null"),
+                new FieldError(List.of("rawTags", "0"), "must not be null"),
+                new FieldError(List.of("rawLabels", "k"), "must not be null"));
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
     }
 
     @Test
@@ -1808,8 +1848,10 @@ class MappingProcessorUpdateTest {
               .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
               .compile(label, domain, dto, spec);
       assertThat(compilation).succeededWithoutWarnings();
+      // The raw List inside the identity Optional is scanned; the Optional of a raw List is
+      // what the scan's inferred lambda parameter holds.
       Assertions.assertThat(generatedSource(compilation, "com.example.RawPatchedMappingImpl"))
-          .contains("Edit.setIfPresent(")
+          .contains("wire.getContacts(), e -> hkj$presentWithin(e, e2 -> hkj$allPresent(e2))")
           .contains("parseIfPresent(");
     }
 
@@ -1904,16 +1946,14 @@ class MappingProcessorUpdateTest {
     @Test
     @DisplayName("a new correspondence Kind must choose its sparse emission before landing")
     void kindCanary() {
-      // writeUpdateImpl's parser switch, buildCall, parseCall and bridgeParseLeg each route the
-      // kinds they do not list through a default arm, to a leaf's or a lifted container's call, so
-      // a new Kind would silently take one. A new constant fails this pin: give it an explicit arm
-      // in each (the dense buildValue and parseLeg switches are compiler-enforced already) before
-      // extending this list.
-      Assertions.assertThat(java.util.Arrays.stream(MappingProcessor.Kind.values()).map(Enum::name))
+      // writeUpdateImpl's parser switch, buildCall and parseCall each route the kinds they do not
+      // list through a default arm, to a leaf's or a lifted container's call, and bridgeParseLeg
+      // sends every kind but IDENTITY through parseCall, so a new Kind would silently take one. A
+      // new constant fails this pin: give it an explicit arm in each (the dense buildValue and
+      // parseLeg switches are compiler-enforced already) before extending this list.
+      Assertions.assertThat(Arrays.stream(MappingProcessor.Kind.values()).map(Enum::name))
           .containsExactlyInAnyOrder(
               "IDENTITY",
-              "IDENTITY_ELEMENTS",
-              "IDENTITY_MAP",
               "LEAF",
               "ELEMENTS",
               "ARRAY",

@@ -14,7 +14,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.FilerException;
@@ -30,7 +32,6 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -367,57 +368,17 @@ public class MergeProcessor extends AbstractProcessor {
   }
 
   /**
-   * One target-component fill: from which source parameter, through which leaf (if any), and
-   * whether the fallible path must null-guard the read — every prism read and every reference-typed
-   * identity read, mirroring {@code MappingProcessor.guardedRead}.
+   * One target-component fill: from which source parameter, through which leaf (if any), whether
+   * the fallible path must null-guard the read — every prism read and every reference-typed
+   * identity read, mirroring {@code MappingProcessor.guardedRead} — and the {@link NullScan} an
+   * identity fill of a container carries there, the one the mapping tiers give the same type, so
+   * the two processors cannot answer a null element differently.
    */
   private record Fill(
-      String component,
-      String sourceParam,
-      CodeBlock prism,
-      boolean guardedRead,
-      ContainerKind containerKind) {
+      String component, String sourceParam, CodeBlock prism, boolean guardedRead, NullScan scan) {
     boolean fallible() {
       return prism != null;
     }
-  }
-
-  /**
-   * Identity fills of container components scan for null elements/values on the fallible path, the
-   * same doctrine {@code MappingProcessor} applies to its own identity containers - and over the
-   * same containers, so the two processors cannot answer a null element differently.
-   */
-  private enum ContainerKind {
-    NONE,
-    LIST,
-    SET,
-    ARRAY,
-    MAP
-  }
-
-  /**
-   * A raw container gives up the scan, the rule {@link MappingProcessor#scanTypable} states for the
-   * mapping tiers: the helper is generic, and a raw argument erases the call and its result, so a
-   * scanning fill would leave the {@code fields()} ladder untypable. It falls back to the plain
-   * guarded read, giving up only the element scan. A wildcard argument keeps the scan here, as it
-   * does on the dense mapping tiers, because the ladder infers the leg's result type; an array
-   * names its element type in the type itself, so neither rule touches it.
-   */
-  private static ContainerKind containerKind(TypeMirror type) {
-    if (MappingProcessor.isExactly(type, "java.util.List")) {
-      return MappingProcessor.scanTypable(type) ? ContainerKind.LIST : ContainerKind.NONE;
-    }
-    if (MappingProcessor.isExactly(type, "java.util.Set")) {
-      return MappingProcessor.scanTypable(type) ? ContainerKind.SET : ContainerKind.NONE;
-    }
-    // A primitive array has no element that could be null, so it needs no scan.
-    if (type instanceof ArrayType array && !array.getComponentType().getKind().isPrimitive()) {
-      return ContainerKind.ARRAY;
-    }
-    if (MappingProcessor.isExactly(type, "java.util.Map")) {
-      return MappingProcessor.scanTypable(type) ? ContainerKind.MAP : ContainerKind.NONE;
-    }
-    return ContainerKind.NONE;
   }
 
   private List<Fill> classify(
@@ -488,7 +449,10 @@ public class MergeProcessor extends AbstractProcessor {
                 holder.getSimpleName().toString(),
                 null,
                 !sourceComponent.asType().getKind().isPrimitive(),
-                containerKind(sourceComponent.asType())));
+                NullScan.of(
+                    sourceComponent.asType(),
+                    processingEnv.getTypeUtils(),
+                    processingEnv.getElementUtils())));
         continue;
       }
       if (leaf != null) {
@@ -498,7 +462,7 @@ public class MergeProcessor extends AbstractProcessor {
                 holder.getSimpleName().toString(),
                 CodeBlock.of("$L()", leaf.getSimpleName()),
                 true,
-                ContainerKind.NONE));
+                null));
         continue;
       }
       MappingProcessor.Candidates candidates =
@@ -555,7 +519,7 @@ public class MergeProcessor extends AbstractProcessor {
                 holder.getSimpleName().toString(),
                 nested.getFirst().nestingPrism(),
                 true,
-                ContainerKind.NONE));
+                null));
         continue;
       }
       TypeMirror sourceType = sourceComponent.asType();
@@ -754,12 +718,18 @@ public class MergeProcessor extends AbstractProcessor {
     MethodSpec.Builder method =
         MethodSpec.methodBuilder(mergeMethod.getSimpleName().toString())
             .addAnnotation(Override.class)
-            // The fill infers the target's component types, so a raw type in one lands in this
-            // method; the signature cannot carry one, since generic sources and targets are
-            // refused.
+            // The fill infers the target's component types, and the null scans the element types
+            // their lambdas take, so a raw type in either lands in this method; the signature
+            // cannot carry one, since generic sources and targets are refused.
             .addAnnotations(
                 ProcessorUtils.rawTypesSuppression(
-                    shape.target().getRecordComponents().stream().map(Element::asType).toList()))
+                    Stream.concat(
+                            shape.target().getRecordComponents().stream().map(Element::asType),
+                            fills.stream()
+                                .map(Fill::scan)
+                                .filter(Objects::nonNull)
+                                .flatMap(NullScan::inferred))
+                        .toList()))
             .addModifiers(Modifier.PUBLIC)
             .returns(
                 ProcessorUtils.typeNameOf(mergeMethod.getReturnType(), specName.packageName()));
@@ -775,6 +745,10 @@ public class MergeProcessor extends AbstractProcessor {
     }
 
     if (shape.fallibleDeclared()) {
+      Set<String> sourceNames =
+          mergeMethod.getParameters().stream()
+              .map(source -> source.getSimpleName().toString())
+              .collect(Collectors.toUnmodifiableSet());
       List<CodeBlock> legs = new ArrayList<>();
       for (Fill fill : fills) {
         // Every reference read is null-guarded (the null doctrine): a null source
@@ -788,23 +762,17 @@ public class MergeProcessor extends AbstractProcessor {
                   fill.sourceParam(),
                   fill.component(),
                   fill.prism()));
-        } else if (fill.containerKind() == ContainerKind.LIST
-            || fill.containerKind() == ContainerKind.SET
-            || fill.containerKind() == ContainerKind.ARRAY) {
-          // One call text for all three: hkj$allPresent is overloaded on the container.
+        } else if (fill.scan() != null) {
+          // The element lambdas nest inside the merge method, so they keep clear of the spec
+          // author's own parameter names.
           legs.add(
               CodeBlock.of(
-                  "\n.field($S, hkj$$allPresent($L.$L()))",
+                  "\n.field($S, $L)",
                   fill.component(),
-                  fill.sourceParam(),
-                  fill.component()));
-        } else if (fill.containerKind() == ContainerKind.MAP) {
-          legs.add(
-              CodeBlock.of(
-                  "\n.field($S, hkj$$valuesPresent($L.$L()))",
-                  fill.component(),
-                  fill.sourceParam(),
-                  fill.component()));
+                  fill.scan()
+                      .on(
+                          CodeBlock.of("$L.$L()", fill.sourceParam(), fill.component()),
+                          sourceNames)));
         } else if (fill.guardedRead()) {
           legs.add(
               CodeBlock.of(
@@ -895,18 +863,8 @@ public class MergeProcessor extends AbstractProcessor {
     // guarded reference read) and always ends in the guarded constructor call.
     if (shape.fallibleDeclared()) {
       implBuilder.addMethod(MappingProcessor.ifPresentHelper());
-      if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.LIST)) {
-        implBuilder.addMethod(MappingProcessor.allPresentHelper());
-      }
-      if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.SET)) {
-        implBuilder.addMethod(MappingProcessor.allPresentSetHelper());
-      }
-      if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.ARRAY)) {
-        implBuilder.addMethod(MappingProcessor.allPresentArrayHelper());
-      }
-      if (fills.stream().anyMatch(f -> f.containerKind() == ContainerKind.MAP)) {
-        implBuilder.addMethod(MappingProcessor.valuesPresentHelper());
-      }
+      implBuilder.addMethods(
+          NullScan.helpers(fills.stream().map(Fill::scan).filter(Objects::nonNull)));
       implBuilder.addMethod(GuardedConstruction.helper());
     }
     writeFile(spec, specName.packageName(), implBuilder.build());

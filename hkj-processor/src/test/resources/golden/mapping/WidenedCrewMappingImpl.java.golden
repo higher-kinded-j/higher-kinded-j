@@ -3,6 +3,7 @@ package com.example.widened;
 
 import java.lang.Object;
 import java.lang.String;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -59,18 +60,24 @@ public final class CrewMappingImpl implements CrewMapping {
   }
 
   /**
-   * Guards an identity-copied set: a null element is an unlocated invalid, a set holding at most one.
+   * Guards an identity-copied collection: a null element is a located invalid at its position, accumulating, or, in a set, which has no positions, the unlocated {@code must not contain a null element}.
    */
-  private static <E> Validated<NonEmptyList<FieldError>, Set<E>> hkj$allPresent(Set<E> values) {
+  private static <C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(
+      C values) {
     if (values == null) {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
+    boolean set = values instanceof Set;
+    NonEmptyList<FieldError> failures = null;
+    int i = 0;
     for (Object element : values) {
       if (element == null) {
-        return Validated.invalidNel(FieldError.of("must not contain a null element"));
+        NonEmptyList<FieldError> located = NonEmptyList.of(set ? FieldError.of("must not contain a null element") : FieldError.of("must not be null").at(String.valueOf(i)));
+        failures = failures == null ? located : NonEmptyList.<FieldError>semigroup().combine(failures, located);
       }
+      i++;
     }
-    return Validated.valid(values);
+    return failures == null ? Validated.valid(values) : Validated.invalid(failures);
   }
 
   /**
