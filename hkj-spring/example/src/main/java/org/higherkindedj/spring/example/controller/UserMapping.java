@@ -23,6 +23,7 @@ import org.higherkindedj.spring.example.domain.User;
  * an absent field becomes a located {@code FieldError} ({@code "must not be null"}) and a {@code
  * null} never reaches a leaf.
  */
+// ANCHOR: quickstart_spec
 @GenerateMapping
 public interface UserMapping extends MappingSpec<User, UserDto> {
 
@@ -41,6 +42,8 @@ public interface UserMapping extends MappingSpec<User, UserDto> {
                 : Validated.invalidNel(FieldError.of("not a valid email address")),
         email -> email);
   }
+
+  // ANCHOR_END: quickstart_spec
 
   /** Validates a present first name as non-blank; the null test is defence in depth as above. */
   default ValidatedPrism<String, String> firstName() {

@@ -345,5 +345,5 @@ MapStruct's idiom declares a mapper's instance on the mapper's own interface. Th
 
 ---
 
-**Previous:** [Mapping at the Boundary](ch_intro.md)
+**Previous:** [Quickstart: Your First 422](quickstart.md)
 **Next:** [Standard Codecs and Shared Vocabulary](codecs.md)

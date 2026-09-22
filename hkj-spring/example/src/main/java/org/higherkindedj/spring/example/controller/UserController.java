@@ -111,10 +111,13 @@ public class UserController {
    * @param dto the wire-side user representation
    * @return the parse result — every located field error, or the parsed User
    */
+  // ANCHOR: quickstart_endpoint
   @PostMapping("/parse")
   public Validated<NonEmptyList<FieldError>, User> parseUser(@RequestBody UserDto dto) {
     return userCodec.parse(dto);
   }
+
+  // ANCHOR_END: quickstart_endpoint
 
   /**
    * Partially update a user (sparse PATCH).

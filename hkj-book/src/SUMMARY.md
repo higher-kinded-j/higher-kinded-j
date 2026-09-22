@@ -120,6 +120,7 @@
     - [Decision Trees](optics/decision_trees.md)
 
 - [Mapping at the Boundary](mapping/ch_intro.md)
+  - [Quickstart: Your First 422](mapping/quickstart.md)
   - [Record Mapping Basics](mapping/basics.md)
   - [Standard Codecs and Shared Vocabulary](mapping/codecs.md)
   - [Nesting, Containers, and Sealed Hierarchies](mapping/structure.md)
@@ -129,6 +130,8 @@
   - [Merge and Error Envelopes](mapping/merge_envelopes.md)
   - [Injecting, Testing, and Diagnostics](mapping/testing.md)
   - [Capstone: One 422, Every Bad Field](mapping/capstone.md)
+  - [Mapper at a Glance](mapping/at_a_glance.md)
+    - [Coming from MapStruct and Bean Validation](mapping/from_mapstruct.md)
 
 - [Monad Transformers & MTL](transformers/ch_intro.md)
   - [Path or Transformer?](transformers/when_to_drop_to_transformers.md)

@@ -42,7 +42,7 @@ class BookIncludeTest {
    * with a stale hand-copied fence, would otherwise be invisible: the remaining includes would
    * still all resolve, and the snippet gate no longer covers those pages.
    */
-  private static final int MINIMUM_INCLUDES = 112;
+  private static final int MINIMUM_INCLUDES = 144;
 
   /** Any include, in any form, so an unanchored one cannot slip past unchecked. */
   private static final Pattern ANY_INCLUDE = Pattern.compile("\\{\\{#include\\s+([^}]+)}}");
@@ -144,10 +144,15 @@ class BookIncludeTest {
   }
 
   @Test
-  @DisplayName("every include is the anchored form")
+  @DisplayName("every include is the anchored form, or a whole golden file")
   void everyIncludeIsAnchored() throws IOException {
-    // The resolve test only understands `file:anchor`. A whole-file or line-range include would be
-    // silently unchecked, including one pointing at a file that does not exist.
+    // The resolve test only understands `file:anchor`. A line-range include would be silently
+    // unchecked, and would quietly show the wrong lines the moment the file it points into grows.
+    //
+    // A golden file is the one whole-file include worth allowing. It is generated output, pinned
+    // byte for byte by the processor's own golden-file test, so it cannot carry an ANCHOR comment
+    // (that would change the very bytes under test) and it cannot drift without failing there
+    // first. Showing a reader exactly what the processor writes is worth the exception.
     try (Stream<Path> pages = Files.walk(BOOK)) {
       pages
           .filter(p -> p.toString().endsWith(".md"))
@@ -155,7 +160,9 @@ class BookIncludeTest {
               page -> {
                 Matcher m = ANY_INCLUDE.matcher(read(page));
                 while (m.find()) {
-                  assertThat(m.group(1))
+                  String target = m.group(1).trim();
+                  if (isWholeGoldenFile(page, target)) continue;
+                  assertThat(target)
                       .as(
                           "%s uses an unanchored include (%s), which this test cannot verify",
                           BOOK.relativize(page), m.group())
@@ -163,6 +170,16 @@ class BookIncludeTest {
                 }
               });
     }
+  }
+
+  /** A whole-file include of a golden file that exists, which is the one allowed exception. */
+  private static boolean isWholeGoldenFile(Path page, String target) {
+    if (!target.endsWith(".golden")) return false;
+    Path resolved = page.getParent().resolve(target).normalize();
+    assertThat(resolved)
+        .as("%s includes a golden file that does not exist (%s)", BOOK.relativize(page), target)
+        .exists();
+    return true;
   }
 
   @Test
