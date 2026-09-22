@@ -69,6 +69,24 @@ Because nesting is *delegation* (a full mapping's `Impl` exposes [`asValidatedPr
 The rendered path uses the `toString()` of each key, or of each set element, so one containing a dot looks the same as deeper nesting, and two distinct ones whose renderings collide share a location. The structured `FieldError` path list stays exact regardless, holding the whole rendering as one segment, and every error is still reported.
 ~~~
 
+~~~admonish question title="Checkpoint: where does each failure locate?" id="check-structure-paths"
+A client sends `CrewMapping` a set holding `"nope"`, an array holding `["ada@example.org", "also-nope"]`, and a map with the single entry `"bad-key": "a note"`. Every bad value fails the same email leaf.
+
+Write the three paths the client reads back, then say which one could mislead them.
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-structure-paths-answer"
+**`members.nope`, `reserves.1` and `notes.bad-key`.** A set has no index, so it locates by the element's own rendering; an array locates by position, like a list; a map locates by the key as the client sent it.
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:check_container_paths}}
+```
+
+The misleading one is the set. `members.nope` names a value, not a position, so a client reading paths as positions will look for a field called `nope`. A key containing a dot misleads the same way, which is why the structured segments stay exact while the rendered path does not.
+
+Where this lives: [Nesting, containers, and recursion](#nesting-containers-and-recursion).
+~~~
+
 ### Optional nested objects {#optional-nested-objects}
 
 When a JSON client leaves an object out, or sends `null` for it, the binder leaves a plain nullable `CustomerDto` where the domain holds an `Optional<Customer>`. That pair is the [`@OptionalBridge`](basics.md#optional-bridge) shape, and it nests like every other: when a spec maps the element pair, the marker is all the component needs.

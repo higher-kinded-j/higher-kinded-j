@@ -7,6 +7,7 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -89,5 +90,33 @@ class StandardCodecsBookTest {
             AssetMappingImpl.INSTANCE.parse(
                 new AssetDto(upper.toLowerCase(java.util.Locale.ROOT), "rack")))
         .isInvalid();
+  }
+
+  @Test
+  @DisplayName("instant() accepts exactly the spellings it renders")
+  void instantAcceptsExactlyWhatItRenders() {
+    // ANCHOR: check_instant_canon
+    String id = "123e4567-e89b-12d3-a456-426614174000";
+
+    // Instant.toString() writes Z for a zero offset, and fractions in three-digit groups.
+    assertThatValidated(
+            ReadingMappingImpl.INSTANCE.parse(new ReadingDto(id, "2026-07-28T12:34:56Z")))
+        .isValid();
+    assertThatValidated(
+            ReadingMappingImpl.INSTANCE.parse(new ReadingDto(id, "2026-07-28T12:34:56.500Z")))
+        .isValid();
+
+    // It renders no fraction at all when the fraction is zero, and never one digit.
+    List<String> rejected =
+        List.of(
+            "2026-07-28T12:34:56.000Z", // a browser's toISOString()
+            "2026-07-28T12:34:56.5Z", // one digit where Instant writes three
+            "2026-07-28T12:34:56+00:00"); // Python's isoformat(), a spelled-out zero offset
+    for (String spelling : rejected) {
+      assertThatValidated(ReadingMappingImpl.INSTANCE.parse(new ReadingDto(id, spelling)))
+          .isInvalid()
+          .hasFieldErrors("takenAt: not an ISO-8601 instant (expected e.g. 2026-07-28T12:34:56Z)");
+    }
+    // ANCHOR_END: check_instant_canon
   }
 }

@@ -4,11 +4,13 @@ package org.higherkindedj.example.book.mapping;
 
 import static org.higherkindedj.optics.validated.StandardCodecs.bigDecimal;
 import static org.higherkindedj.optics.validated.StandardCodecs.enumByName;
+import static org.higherkindedj.optics.validated.StandardCodecs.instant;
 import static org.higherkindedj.optics.validated.StandardCodecs.localDate;
 import static org.higherkindedj.optics.validated.StandardCodecs.offsetDateTime;
 import static org.higherkindedj.optics.validated.StandardCodecs.uuid;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -89,4 +91,23 @@ interface AssetMapping extends MappingSpec<Asset, AssetDto> {
         uuid -> uuid.toString().toUpperCase(Locale.ROOT));
   }
 }
+
 // ANCHOR_END: canonical_leaf
+
+// ANCHOR: instant_spec
+record Reading(UUID id, Instant takenAt) {}
+
+record ReadingDto(String id, String takenAt) {}
+
+@GenerateMapping
+interface ReadingMapping extends MappingSpec<Reading, ReadingDto> {
+  default ValidatedPrism<String, UUID> id() {
+    return uuid();
+  }
+
+  // instant() renders as Instant.toString() does, and accepts exactly that.
+  default ValidatedPrism<String, Instant> takenAt() {
+    return instant();
+  }
+}
+// ANCHOR_END: instant_spec
