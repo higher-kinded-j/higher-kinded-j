@@ -385,7 +385,7 @@ class MappingProcessorTest {
       Compilation compilation = compile(domain, wire, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.LabelsMappingImpl"))
-          .contains(".field(\"names\", hkj$allPresent(wire.names()))")
+          .contains(".field(\"names\", hkj$allPresent(hkj$copyOf(wire.names())))")
           // the one collection helper, which tells a set by what the value is at run time
           .contains(
               "<C extends Collection<?>> Validated<NonEmptyList<FieldError>, C> hkj$allPresent(")
@@ -405,8 +405,12 @@ class MappingProcessorTest {
       Validated<NonEmptyList<FieldError>, Object> parsed =
           (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
       assertThatValidated(parsed).isValid();
-      // Identity legs copy, they do not rebuild: the same set reference passes through.
-      Assertions.assertThat(invoke(parsed.get(), "names")).isSameAs(names);
+      // An identity leg hands over a copy: an equal set in the same order, never the wire's own.
+      Assertions.assertThat(invoke(parsed.get(), "names"))
+          .isEqualTo(names)
+          .isNotSameAs(names)
+          .asInstanceOf(InstanceOfAssertFactories.ITERABLE)
+          .containsExactly("a", "b");
 
       Set<String> withNull = new LinkedHashSet<>(List.of("a"));
       withNull.add(null);
@@ -476,7 +480,8 @@ class MappingProcessorTest {
                   + " EmailAddress[]::new)))")
           // A primitive array has no element that could be null, so it carries no element
           // scan - but the component is still a reference, so the read stays null-guarded.
-          .contains(".field(\"scores\", hkj$ifPresent(wire.scores(), Validated::validNel))")
+          .contains(
+              ".field(\"scores\", hkj$ifPresent(hkj$copyOf(wire.scores()), Validated::validNel))")
           .doesNotContain("hkj$allPresent");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -531,10 +536,11 @@ class MappingProcessorTest {
       Compilation compilation = compile(domain, wire, spec);
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.CodesMappingImpl"))
-          .contains(".field(\"tags\", hkj$allPresent(wire.tags()))")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(wire.tags())))")
           .contains("Validated<NonEmptyList<FieldError>, E[]> hkj$allPresent(E[] values)")
           // a primitive array cannot hold a null element, so it takes the plain identity leg
-          .contains(".field(\"counts\", hkj$ifPresent(wire.counts(), Validated::validNel))");
+          .contains(
+              ".field(\"counts\", hkj$ifPresent(hkj$copyOf(wire.counts()), Validated::validNel))");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.CodesMappingImpl");
@@ -791,9 +797,11 @@ class MappingProcessorTest {
                   "public interface PlainMapping extends MappingSpec<Records.Plain,"
                       + " Records.PlainDto> {}"));
       assertThat(leafless).succeeded();
+      // The array is copied; the lists in it are handed over as they are, since the array's
+      // runtime type may not hold a copy of one.
       Assertions.assertThat(generatedSource(leafless, "com.example.PlainMappingImpl"))
           .contains(
-              ".field(\"sections\", hkj$allPresent(wire.sections(), e -> hkj$allPresent(e)))");
+              ".field(\"sections\", hkj$allPresent(hkj$copyOf(wire.sections()), e -> hkj$allPresent(e)))");
     }
 
     @Test
@@ -2053,10 +2061,10 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       String generated = generatedSource(compilation, "com.example.LabelsMappingImpl");
       Assertions.assertThat(generated)
-          .contains("new LabelsDto(domain.tags())")
-          // identity maps copy by reference, but parse scans values: a null value is a located
-          // invalid under its key, and the guard does not cost the Iso tier
-          .contains(".field(\"tags\", hkj$valuesPresent(wire.tags()))")
+          .contains("new LabelsDto(hkj$copyOf(domain.tags()))")
+          // identity maps are copied, and parse scans the copy's values: a null value is a
+          // located invalid under its key, and the guard does not cost the Iso tier
+          .contains(".field(\"tags\", hkj$valuesPresent(hkj$copyOf(wire.tags())))")
           .contains("public Iso<Labels, LabelsDto> asIso()")
           .doesNotContain("parseValues")
           .doesNotContain("buildValues");
@@ -7130,9 +7138,9 @@ class MappingProcessorTest {
           .contains("public static <T> PageMappingImpl<T> instance()")
           .contains("public PageDto<T> build(Page<T> domain)")
           .contains("public Validated<NonEmptyList<FieldError>, Page<T>> parse(PageDto<T> wire)")
-          // identity elements copy by reference under the null-element scan; the primitive
+          // identity elements are handed over as a copy, then null-scanned; the primitive
           // stays bare
-          .contains(".field(\"items\", hkj$allPresent(wire.items()))")
+          .contains(".field(\"items\", hkj$allPresent(hkj$copyOf(wire.items())))")
           .contains(".field(\"total\", Validated.validNel(wire.total()))")
           // a lossless threaded mapping keeps the Iso tier, threaded
           .contains("public Iso<Page<T>, PageDto<T>> asIso()");
@@ -7159,8 +7167,8 @@ class MappingProcessorTest {
         Assertions.assertThat(back.isValid()).isTrue();
         Assertions.assertThat(back.get()).isEqualTo(page);
 
-        // The same singleton serves an Integer page: identity elements copy verbatim (element
-        // parsing belongs to leaf and nested legs), and instance() is genuinely cached.
+        // The same singleton serves an Integer page: identity elements are copied unparsed
+        // (element parsing belongs to leaf and nested legs), and instance() is genuinely cached.
         Object integerPage =
             result
                 .loadClass("com.example.PageDto")
@@ -7173,7 +7181,7 @@ class MappingProcessorTest {
         Assertions.assertThat(invoke(integers.get(), "items")).isEqualTo(List.of(7, 8));
         Assertions.assertThat(result.genericInstance("com.example.PageMappingImpl")).isSameAs(impl);
 
-        // Identity legs copy the container by reference, but the null doctrine reaches
+        // An identity leg hands over a copy of the container, and the null doctrine reaches
         // inside: a null ELEMENT is a located, accumulating invalid at its index, exactly
         // as a lifted leg would locate it.
         Object nullElementPage =
@@ -9654,7 +9662,7 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       // The scan is a guard, not fallibility: the identity mapping keeps its Iso tier.
       Assertions.assertThat(generatedSource(compilation, "com.example.BasketMappingImpl"))
-          .contains(".field(\"tags\", hkj$allPresent(wire.tags()))")
+          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(wire.tags())))")
           .contains("public Iso<Basket, BasketDto> asIso()");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -9670,8 +9678,8 @@ class MappingProcessorTest {
       Validated<NonEmptyList<FieldError>, Object> parsed =
           (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", dto);
       Assertions.assertThat(parsed.isValid()).isTrue();
-      // Identity legs copy, they do not rebuild: the same list reference passes through.
-      Assertions.assertThat(invoke(parsed.get(), "tags")).isSameAs(tags);
+      // An identity leg hands over a copy: an equal list, never the wire's own.
+      Assertions.assertThat(invoke(parsed.get(), "tags")).isEqualTo(tags).isNotSameAs(tags);
 
       Object badDto =
           result
@@ -9824,8 +9832,8 @@ class MappingProcessorTest {
       assertThat(compilation).succeeded();
       Assertions.assertThat(generatedSource(compilation, "com.example.Profile2MappingImpl"))
           .contains("public Validated<NonEmptyList<FieldError>, Profile2> patch(")
-          .contains(".field(\"tags\", hkj$allPresent(wire.tags()))")
-          .contains(".field(\"scores\", hkj$valuesPresent(wire.scores()))");
+          .contains(".field(\"tags\", hkj$allPresent(hkj$copyOf(wire.tags())))")
+          .contains(".field(\"scores\", hkj$valuesPresent(hkj$copyOf(wire.scores())))");
     }
 
     @SuppressWarnings("unchecked")

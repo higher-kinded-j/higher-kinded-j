@@ -3,7 +3,10 @@ package com.example.updatelifting;
 
 import java.lang.Object;
 import java.lang.String;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,8 +44,8 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
             Edit.parseIfPresent(Setter.fromGetSet(Components::phones, (c, v) -> new Components(c.name(), v, c.speedDial(), c.fax(), c.tags(), c.labels())), wire.getPhones(), phones()::parseAll).at("phones"),
             Edit.parseIfPresent(Setter.fromGetSet(Components::speedDial, (c, v) -> new Components(c.name(), c.phones(), v, c.fax(), c.tags(), c.labels())), wire.getSpeedDial(), speedDial()::parseValues).at("speedDial"),
             Edit.parseIfPresent(Setter.fromGetSet(Components::fax, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), v, c.tags(), c.labels())), wire.getFax(), o -> o.map(v -> fax().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))).at("fax"),
-            Edit.parseIfPresent(Setter.fromGetSet(Components::tags, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), v, c.labels())), wire.getTags(), CustomerPatchMappingImpl::hkj$allPresent).at("tags"),
-            Edit.parseIfPresent(Setter.fromGetSet(Components::labels, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), c.tags(), v)), wire.getLabels(), CustomerPatchMappingImpl::hkj$valuesPresent).at("labels"));
+            Edit.parseIfPresent(Setter.fromGetSet(Components::tags, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), v, c.labels())), hkj$copyOf(wire.getTags()), CustomerPatchMappingImpl::hkj$allPresent).at("tags"),
+            Edit.parseIfPresent(Setter.fromGetSet(Components::labels, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), c.tags(), v)), hkj$copyOf(wire.getLabels()), CustomerPatchMappingImpl::hkj$valuesPresent).at("labels"));
   }
 
   /**
@@ -83,6 +86,20 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
       }
     }
     return failures == null ? Validated.valid(values) : Validated.invalid(failures);
+  }
+
+  /**
+   * Copies a same-typed list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
+   */
+  private static <E> List<E> hkj$copyOf(List<? extends E> values) {
+    return values == null ? null : Collections.unmodifiableList(new ArrayList<>(values));
+  }
+
+  /**
+   * Copies a same-typed map so the two sides never share it: an unmodifiable map in the same entry order, null values included; a null map copies to null.
+   */
+  private static <K, V> Map<K, V> hkj$copyOf(Map<? extends K, ? extends V> values) {
+    return values == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(values));
   }
 
   /**

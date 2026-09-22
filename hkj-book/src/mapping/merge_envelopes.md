@@ -25,7 +25,7 @@ A merge is declared entirely by a spec method's signature: **several** sources i
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:merge_usage}}
 ```
 
-Each target component fills from the one source with a same-named component: identity when the types match, through a `ValidatedPrism` leaf when they differ, or through a sibling `@GenerateMapping` spec (the `customer` below parses through `CustomerMappingImpl`, and failures locate as dotted paths):
+Each target component fills from the one source with a same-named component: identity when the types match (a same-typed container fills with a [copy](basics.md#same-typed-containers-cross-as-copies)), through a `ValidatedPrism` leaf when they differ, or through a sibling `@GenerateMapping` spec (the `customer` below parses through `CustomerMappingImpl`, and failures locate as dotted paths):
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:nested_merge_spec}}

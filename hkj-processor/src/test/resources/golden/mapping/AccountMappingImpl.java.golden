@@ -3,7 +3,10 @@ package com.example.fallible;
 
 import java.lang.Object;
 import java.lang.String;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -27,7 +30,7 @@ public final class AccountMappingImpl implements AccountMapping {
 
   public AccountDto build(Account domain) {
     Objects.requireNonNull(domain, "domain must not be null");
-    return new AccountDto(domain.name(), email().build(domain.email()), cc().buildAll(domain.cc()), domain.tags(), domain.lead().map(lead()::build), contacts().buildValues(domain.contacts()), AddressMappingImpl.INSTANCE.asValidatedPrism().build(domain.address()), display().get(domain));
+    return new AccountDto(domain.name(), email().build(domain.email()), cc().buildAll(domain.cc()), hkj$copyOf(domain.tags()), domain.lead().map(lead()::build), contacts().buildValues(domain.contacts()), AddressMappingImpl.INSTANCE.asValidatedPrism().build(domain.address()), display().get(domain));
   }
 
   public Validated<NonEmptyList<FieldError>, Account> parse(AccountDto wire) {
@@ -37,7 +40,7 @@ public final class AccountMappingImpl implements AccountMapping {
             .field("name", hkj$ifPresent(wire.name(), Validated::validNel))
             .field("email", hkj$ifPresent(wire.email(), email()::parse))
             .field("cc", hkj$ifPresent(wire.cc(), cc()::parseAll))
-            .field("tags", hkj$allPresent(wire.tags()))
+            .field("tags", hkj$allPresent(hkj$copyOf(wire.tags())))
             .field("lead", hkj$ifPresent(wire.lead(), o -> o.map(v -> lead().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))))
             .field("contacts", hkj$ifPresent(wire.contacts(), contacts()::parseValues))
             .field("address", hkj$ifPresent(wire.address(), AddressMappingImpl.INSTANCE.asValidatedPrism()::parse))
@@ -97,5 +100,12 @@ public final class AccountMappingImpl implements AccountMapping {
             return Validated.invalidNel(FieldError.of(message == null || message.isBlank() ? fallbackMessage : message));
           }
         });
+  }
+
+  /**
+   * Copies a same-typed list so the two sides never share it: an unmodifiable list in the same order, null elements included; a null list copies to null.
+   */
+  private static <E> List<E> hkj$copyOf(List<? extends E> values) {
+    return values == null ? null : Collections.unmodifiableList(new ArrayList<>(values));
   }
 }

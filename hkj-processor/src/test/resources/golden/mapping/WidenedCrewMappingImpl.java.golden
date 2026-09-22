@@ -4,6 +4,8 @@ package com.example.widened;
 import java.lang.Object;
 import java.lang.String;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -26,7 +28,7 @@ public final class CrewMappingImpl implements CrewMapping {
 
   public CrewDto build(Crew domain) {
     Objects.requireNonNull(domain, "domain must not be null");
-    return new CrewDto(members().buildAll(domain.members()), reserves().buildAll(domain.reserves(), String[]::new), domain.tags(), domain.codes(), domain.ranks(), noteKey().buildKeys(domain.notes()), escalationKey().buildEntries(domain.escalations(), escalations()));
+    return new CrewDto(members().buildAll(domain.members()), reserves().buildAll(domain.reserves(), String[]::new), hkj$copyOf(domain.tags()), hkj$copyOf(domain.codes()), hkj$copyOf(domain.ranks()), noteKey().buildKeys(domain.notes()), escalationKey().buildEntries(domain.escalations(), escalations()));
   }
 
   public Validated<NonEmptyList<FieldError>, Crew> parse(CrewDto wire) {
@@ -35,9 +37,9 @@ public final class CrewMappingImpl implements CrewMapping {
         Validated.fields()
             .field("members", hkj$ifPresent(wire.members(), members()::parseAll))
             .field("reserves", hkj$ifPresent(wire.reserves(), v -> reserves().parseAll(v, Email[]::new)))
-            .field("tags", hkj$allPresent(wire.tags()))
-            .field("codes", hkj$allPresent(wire.codes()))
-            .field("ranks", hkj$ifPresent(wire.ranks(), Validated::validNel))
+            .field("tags", hkj$allPresent(hkj$copyOf(wire.tags())))
+            .field("codes", hkj$allPresent(hkj$copyOf(wire.codes())))
+            .field("ranks", hkj$ifPresent(hkj$copyOf(wire.ranks()), Validated::validNel))
             .field("notes", hkj$ifPresent(wire.notes(), noteKey()::parseKeys))
             .field("escalations", hkj$ifPresent(wire.escalations(), v -> escalationKey().parseEntries(v, escalations())))
             .apply((members, reserves, tags, codes, ranks, notes, escalations) -> () -> new Crew(members, reserves, tags, codes, ranks, notes, escalations)),
@@ -113,5 +115,26 @@ public final class CrewMappingImpl implements CrewMapping {
             return Validated.invalidNel(FieldError.of(message == null || message.isBlank() ? fallbackMessage : message));
           }
         });
+  }
+
+  /**
+   * Copies a same-typed set so the two sides never share it: an unmodifiable set in the same iteration order, a null element included; a null set copies to null.
+   */
+  private static <E> Set<E> hkj$copyOf(Set<? extends E> values) {
+    return values == null ? null : Collections.unmodifiableSet(new LinkedHashSet<>(values));
+  }
+
+  /**
+   * Copies a same-typed array so the two sides never share it: a clone, null elements included; a null array copies to null.
+   */
+  private static <E> E[] hkj$copyOf(E[] values) {
+    return values == null ? null : values.clone();
+  }
+
+  /**
+   * Copies a same-typed array so the two sides never share it: a clone; a null array copies to null.
+   */
+  private static int[] hkj$copyOf(int[] values) {
+    return values == null ? null : values.clone();
   }
 }

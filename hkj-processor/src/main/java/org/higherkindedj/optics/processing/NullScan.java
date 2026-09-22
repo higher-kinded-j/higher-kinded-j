@@ -46,13 +46,13 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * null element}, as {@code ValidatedParse.parseAll} reports it. Map keys are structural: a null key
  * stays the caller's {@code NullPointerException}, and a key is never scanned inside.
  *
- * <p>An identity leg copies, it never rebuilds, so every helper returns its argument unchanged
- * under the argument's own type ({@code <C extends Collection<?>>}). That is what lets the leg keep
- * whatever the component declares: a subtype stays a subtype, a raw container stays raw without an
- * unchecked conversion, and a wildcard argument is inferred into the leg rather than captured
- * against it. An element's scan is a lambda, so the nested forms bound their element type from
- * above ({@code Collection<? extends E>}), which leaves a wildcard-argument container free to
- * capture once, at the call.
+ * <p>A scan only checks, it never rebuilds: it runs over the copy the leg hands over (see {@link
+ * ContainerCopy}), so every helper returns its argument unchanged under the argument's own type
+ * ({@code <C extends Collection<?>>}). That is what lets the leg keep whatever the component
+ * declares: a subtype stays a subtype, a raw container stays raw without an unchecked conversion,
+ * and a wildcard argument is inferred into the leg rather than captured against it. An element's
+ * scan is a lambda, so the nested forms bound their element type from above ({@code Collection<?
+ * extends E>}), which leaves a wildcard-argument container free to capture once, at the call.
  *
  * <p>An {@code Optional} is a level only when its value is itself a container: an {@code
  * Optional<String>} cannot hold a {@code null}, so it needs no scan, and an {@code OPTIONAL} scan

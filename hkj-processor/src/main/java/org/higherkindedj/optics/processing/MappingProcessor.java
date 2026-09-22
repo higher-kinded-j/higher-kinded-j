@@ -98,9 +98,9 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * build} plus a lawful {@code asLens()} write-back when every projected read is total, or a
  * validated {@code patch(domain, wire)} write-back when any component maps through a leaf, a nested
  * spec, a container lifting either of those, or a bridge, or reads a bean's reference property; an
- * identity container copies verbatim, so on a record wire it keeps the lens; no {@code parse}
- * either way (truthful types). Sealed interface pairs dispatch {@code build}/{@code parse} over
- * their permitted subtype pairs, each delegating to its own spec.
+ * identity container copies element for element, so on a record wire it keeps the lens; no {@code
+ * parse} either way (truthful types). Sealed interface pairs dispatch {@code build}/{@code parse}
+ * over their permitted subtype pairs, each delegating to its own spec.
  *
  * <p>One null doctrine covers both wire shapes: every reference-typed {@code parse} read is
  * null-guarded into a located {@code FieldError} — an unset bean property is null, and a JSON
@@ -204,9 +204,9 @@ public class MappingProcessor extends AbstractProcessor {
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
 
   /**
-   * The names a leg's expression can see, which a {@link NullScan}'s element lambdas must not
-   * shadow: the reading methods' parameters, and the {@code v} a lifted or bridged leg's own lambda
-   * binds.
+   * The names a leg's expression can see, which the element lambdas of a {@link NullScan} or a
+   * {@link ContainerCopy} must not shadow: the reading methods' parameters, and the {@code v} a
+   * lifted or bridged leg's own lambda binds.
    */
   private static final Set<String> SCAN_SCOPE = Set.of("wire", "domain", "v");
 
@@ -843,9 +843,10 @@ public class MappingProcessor extends AbstractProcessor {
    * — and only when — the leg has to name it. The bridged leg wraps the read back into the domain's
    * {@code Optional}, and {@code Optional} is invariant, so an element whose own type arguments
    * include a wildcard must be named: inference would capture it, and {@code Optional<List<CAP>>}
-   * is not the declared {@code Optional<List<? extends X>>}. A wildcard deeper than the element's
-   * own arguments never captures, and neither does anything else, so every other pair keeps the
-   * shorter inferred leg.
+   * is not the declared {@code Optional<List<? extends X>>}. A raw element that copies is named for
+   * the same reason: its copy is made through the wildcard view, and {@code Optional<List<CAP>>} is
+   * not {@code Optional<List>} either. A wildcard deeper than the element's own arguments never
+   * captures, and neither does anything else, so every other pair keeps the shorter inferred leg.
    */
   private static Correspondence bridgedCorrespondence(
       Correspondence present, TypeMirror element, String targetPackage) {
@@ -855,9 +856,12 @@ public class MappingProcessor extends AbstractProcessor {
         Kind.OPTIONAL_BRIDGE,
         null,
         null,
-        wildcardWitness(element, targetPackage),
+        present.copy() != null && present.copy().raw()
+            ? ProcessorUtils.typeNameOf(element, targetPackage)
+            : wildcardWitness(element, targetPackage),
         null,
         present,
+        null,
         null);
   }
 
@@ -3481,7 +3485,8 @@ public class MappingProcessor extends AbstractProcessor {
    * parser chosen by kind ({@code parse}, {@code parseAll}, {@code parseValues}, the
    * element-of-Optional lambda, or — for an identity edit whose type names containers, which
    * carries no prism yet still parses — its {@link NullScan}). {@code scan} is the null scan the
-   * edit's identity-copied part carries, as {@link Correspondence#scan()} describes.
+   * edit's identity-copied part carries, and {@code copy} the copy it reads the wire through, as
+   * {@link Correspondence#scan()} and {@link Correspondence#copy()} describe.
    */
   private record UpdateEdit(
       String domainName,
@@ -3490,14 +3495,16 @@ public class MappingProcessor extends AbstractProcessor {
       CodeBlock prism,
       TypeName domainElement,
       CodeBlock valuePrism,
-      NullScan scan) {
+      NullScan scan,
+      ContainerCopy copy) {
 
-    static UpdateEdit identity(String domainName, String wireName, NullScan scan) {
-      return new UpdateEdit(domainName, wireName, Kind.IDENTITY, null, null, null, scan);
+    static UpdateEdit identity(String domainName, String wireName, TypeMirror type, NullScan scan) {
+      return new UpdateEdit(
+          domainName, wireName, Kind.IDENTITY, null, null, null, scan, ContainerCopy.of(type));
     }
 
     static UpdateEdit validated(String domainName, String wireName, Kind kind, CodeBlock prism) {
-      return new UpdateEdit(domainName, wireName, kind, prism, null, null, null);
+      return new UpdateEdit(domainName, wireName, kind, prism, null, null, null, null);
     }
 
     /**
@@ -3512,7 +3519,8 @@ public class MappingProcessor extends AbstractProcessor {
           c.prism(),
           c.domainElement(),
           c.valuePrism(),
-          c.scan());
+          c.scan(),
+          c.copy());
     }
 
     boolean parsed() {
@@ -3536,10 +3544,10 @@ public class MappingProcessor extends AbstractProcessor {
    * return type, and no {@code ValidatedPrism}'s type arguments can match a container pair and its
    * own element pair at once.
    *
-   * <p>Identity containers keep wholesale replacement but gain the dense tiers' {@link NullScan}: a
-   * present same-typed container passes by reference only when nothing inside it is null, at any
-   * depth; a null inside is a located, accumulating invalid at its full path, so the located-null
-   * doctrine holds on the sparse tier too.
+   * <p>Identity containers keep wholesale replacement but gain the dense tiers' {@link NullScan}
+   * and {@link ContainerCopy}: a present same-typed container is written as a copy, and only when
+   * nothing inside it is null, at any depth; a null inside is a located, accumulating invalid at
+   * its full path, so the located-null doctrine holds on the sparse tier too.
    */
   private List<UpdateEdit> classifyUpdate(
       TypeElement spec,
@@ -3607,11 +3615,12 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
 
-      // Same type (or a wrapper of a primitive component) — including a same-typed List, Map or
-      // nested record — writes the present value straight in (wholesale replacement); identity
-      // containers additionally scan for null elements/values, as in the dense tiers.
+      // Same type, or a wrapper of a primitive component, including a same-typed List, Map or
+      // nested record: writes the present value in (wholesale replacement), a container as a copy,
+      // and scans an identity container for null elements/values, as in the dense tiers.
       if (identityMatch(wireType, domainType)) {
-        edits.add(UpdateEdit.identity(domainName, property.name(), nullScan(domainType)));
+        edits.add(
+            UpdateEdit.identity(domainName, property.name(), domainType, nullScan(domainType)));
         continue;
       }
 
@@ -4068,7 +4077,9 @@ public class MappingProcessor extends AbstractProcessor {
     for (UpdateEdit edit : edits) {
       call.add(",\n");
       CodeBlock setter = setterExpr(componentsClass, written, edit.domainName());
-      CodeBlock read = wireRead(wire, edit.wireName());
+      // A present value is written as a copy, so the patched domain shares nothing with the wire.
+      CodeBlock read =
+          ContainerCopy.through(edit.copy(), wireRead(wire, edit.wireName()), SCAN_SCOPE);
       if (edit.parsed()) {
         CodeBlock parser =
             switch (edit.kind()) {
@@ -4106,7 +4117,10 @@ public class MappingProcessor extends AbstractProcessor {
             // A sparse spec never flattens a group (checkNoFlattened).
             .addAnnotations(
                 pairSuppression(
-                    domainDeclared, wire, List.of(), edits.stream().map(UpdateEdit::scan)))
+                    domainDeclared,
+                    wire,
+                    List.of(),
+                    edits.stream().flatMap(edit -> inferred(edit.scan(), edit.copy()))))
             .addModifiers(Modifier.PUBLIC)
             .returns(accumulatedReturn)
             .addParameter(wireName, "wire")
@@ -4132,6 +4146,8 @@ public class MappingProcessor extends AbstractProcessor {
     addMarkerStubs(implBuilder, spec);
     implBuilder.addMethods(
         NullScan.helpers(edits.stream().map(UpdateEdit::scan).filter(Objects::nonNull)));
+    implBuilder.addMethods(
+        ContainerCopy.helpers(edits.stream().map(UpdateEdit::copy).filter(Objects::nonNull)));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -4254,7 +4270,8 @@ public class MappingProcessor extends AbstractProcessor {
   // otherwise give it a leaf's build and parse.
   enum Kind {
     // Same-typed components, copied by identity. One whose type names containers carries a
-    // NullScan, so the located-null doctrine holds inside identity containers too, at every depth.
+    // NullScan, so the located-null doctrine holds inside identity containers too, at every depth,
+    // and is read and written through its ContainerCopy, so the two sides never share one.
     IDENTITY,
     LEAF,
     // An element-lifted List or Set. Both emit the same text: ValidatedPrism's parseAll and
@@ -4267,7 +4284,7 @@ public class MappingProcessor extends AbstractProcessor {
     // A domain Optional<T> bridged to a nullable wire member T: empty <-> null/absent.
     OPTIONAL_BRIDGE,
     MAP,
-    // A Map whose KEYS lift, values copied by identity (and null-scanned, like an identity
+    // A Map whose KEYS lift, values copied by identity (null-scanned and copied, like an identity
     // component's); and one where both sides lift. The receiver of both bulk forms is the key
     // prism, with the value prism riding as an argument.
     MAP_KEYS,
@@ -4298,7 +4315,9 @@ public class MappingProcessor extends AbstractProcessor {
    * present} is the correspondence an {@code OPTIONAL_BRIDGE}'s present value takes, resolved as
    * the same pair unbridged would be; null for every other kind. {@code scan} is the {@link
    * NullScan} the leg's identity-copied part carries: the whole value for {@code IDENTITY}, the
-   * values for {@code MAP_KEYS}; null where that part holds no container.
+   * values for {@code MAP_KEYS}; null where that part holds no container. {@code copy} is the
+   * {@link ContainerCopy} the leg reads and writes its value through: the whole value's for {@code
+   * IDENTITY}, and for {@code MAP_KEYS} the map's, when its values copy; null where there is none.
    */
   private record Correspondence(
       String name,
@@ -4309,16 +4328,17 @@ public class MappingProcessor extends AbstractProcessor {
       TypeName domainElement,
       CodeBlock valuePrism,
       Correspondence present,
-      NullScan scan) {
+      NullScan scan,
+      ContainerCopy copy) {
 
     Correspondence(String name, String wireName, Kind kind, CodeBlock prism) {
-      this(name, wireName, kind, prism, null, null, null, null, null);
+      this(name, wireName, kind, prism, null, null, null, null, null, null);
     }
 
     /** The same correspondence as a member of {@code group}. */
     Correspondence in(Group group) {
       return new Correspondence(
-          name, wireName, kind, prism, group, domainElement, valuePrism, present, scan);
+          name, wireName, kind, prism, group, domainElement, valuePrism, present, scan, copy);
     }
 
     /**
@@ -4332,7 +4352,7 @@ public class MappingProcessor extends AbstractProcessor {
      */
     Correspondence withDomainElement(TypeName element) {
       return new Correspondence(
-          name, wireName, kind, prism, group, element, valuePrism, present, scan);
+          name, wireName, kind, prism, group, element, valuePrism, present, scan, copy);
     }
 
     /**
@@ -4341,13 +4361,25 @@ public class MappingProcessor extends AbstractProcessor {
      */
     Correspondence withValuePrism(CodeBlock values) {
       return new Correspondence(
-          name, wireName, kind, prism, group, domainElement, values, present, scan);
+          name, wireName, kind, prism, group, domainElement, values, present, scan, copy);
     }
 
-    /** The same correspondence carrying the null scan its identity-copied part takes. */
-    Correspondence withScan(NullScan nullScan) {
+    /**
+     * The same correspondence carrying the null scan its identity-copied part takes, and the copy
+     * its value is read and written through.
+     */
+    Correspondence withIdentity(NullScan nullScan, ContainerCopy containerCopy) {
       return new Correspondence(
-          name, wireName, kind, prism, group, domainElement, valuePrism, present, nullScan);
+          name,
+          wireName,
+          kind,
+          prism,
+          group,
+          domainElement,
+          valuePrism,
+          present,
+          nullScan,
+          containerCopy);
     }
 
     /**
@@ -4356,6 +4388,11 @@ public class MappingProcessor extends AbstractProcessor {
      */
     NullScan valueScan() {
       return kind == Kind.OPTIONAL_BRIDGE ? present.scan() : scan;
+    }
+
+    /** The copy the leg's value is read and written through: its own, or a bridge's present one. */
+    ContainerCopy valueCopy() {
+      return kind == Kind.OPTIONAL_BRIDGE ? present.copy() : copy;
     }
 
     boolean fallible() {
@@ -6194,7 +6231,8 @@ public class MappingProcessor extends AbstractProcessor {
     }
     if (processingEnv.getTypeUtils().isSameType(domainType, wireType)) {
       return PairResolution.of(
-          new Correspondence(name, wireName, Kind.IDENTITY, null).withScan(nullScan(domainType)));
+          new Correspondence(name, wireName, Kind.IDENTITY, null)
+              .withIdentity(nullScan(domainType), ContainerCopy.of(domainType)));
     }
     TypeMirror[] elements = elementPair(wireType, domainType);
     if (elements != null) {
@@ -7075,9 +7113,12 @@ public class MappingProcessor extends AbstractProcessor {
     }
     // The values copy, so they carry the null scan an identity component of their type would,
     // and a scan passes through parseEntries, which infers the value type unless it is named.
+    // The map is read and written through a copy of its own when its values have one, so no value
+    // is shared either: the rebuild around the keys would otherwise carry each one across as it is.
     NullScan values = nullScan(domainValue);
+    ContainerCopy map = ContainerCopy.of(domainType);
     return new Correspondence(name, wireName, Kind.MAP_KEYS, keys)
-        .withScan(values)
+        .withIdentity(values, map.nested() ? map : null)
         .withDomainElement(values == null ? null : wildcardWitness(domainValue, implPackage(spec)));
   }
 
@@ -7644,16 +7685,21 @@ public class MappingProcessor extends AbstractProcessor {
     // cannot miss; there is deliberately no fallback to cover.
     Correspondence c =
         comps.stream().filter(x -> x.wireName().equals(wc.name())).findFirst().orElseThrow();
-    return switch (c.kind()) {
-      case LEAF, ELEMENTS, ARRAY, MAP, MAP_KEYS, MAP_ENTRIES ->
-          buildCall(c, wc, targetPackage).on(domainRead(c));
-      case OPTIONAL ->
-          CodeBlock.of("$L.map($L)", domainRead(c), buildCall(c, wc, targetPackage).asFunction());
-      // The domain Optional is carried as-is, or its present value built as the unbridged pair's.
-      case OPTIONAL_BRIDGE -> bridgeBuildValue(wc, c, targetPackage);
-      case IDENTITY -> domainRead(c);
-      case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
-    };
+    CodeBlock value =
+        switch (c.kind()) {
+          case LEAF, ELEMENTS, ARRAY, MAP, MAP_KEYS, MAP_ENTRIES ->
+              buildCall(c, wc, targetPackage).on(domainRead(c));
+          case OPTIONAL ->
+              CodeBlock.of(
+                  "$L.map($L)", domainRead(c), buildCall(c, wc, targetPackage).asFunction());
+          // The domain Optional is carried as-is, or its present value built as the unbridged
+          // pair's.
+          case OPTIONAL_BRIDGE -> bridgeBuildValue(wc, c, targetPackage);
+          case IDENTITY -> domainRead(c);
+          case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
+        };
+    // What the domain holds reaches the wire as a copy, never as the domain's own container.
+    return ContainerCopy.through(c.valueCopy(), value, SCAN_SCOPE);
   }
 
   /**
@@ -7873,14 +7919,23 @@ public class MappingProcessor extends AbstractProcessor {
         .map(
             run ->
                 run.getFirst().group() == null
-                    ? wireRead(wire, run.getFirst().wireName())
+                    ? copiedRead(wire, run.getFirst())
                     : CodeBlock.of(
                         "new $T($L)",
                         run.getFirst().group().type(),
                         run.stream()
-                            .map(member -> wireRead(wire, member.wireName()))
+                            .map(member -> copiedRead(wire, member))
                             .collect(CodeBlock.joining(", "))))
         .collect(CodeBlock.joining(", "));
+  }
+
+  /**
+   * A correspondence's wire read as a total optic hands it to the domain, through its copy: the
+   * optic's {@code set} or {@code reverseGet} shares no container with the wire, as {@code parse}
+   * does not.
+   */
+  private static CodeBlock copiedRead(WireShape wire, Correspondence c) {
+    return ContainerCopy.through(c.valueCopy(), wireRead(wire, c.wireName()), SCAN_SCOPE);
   }
 
   /**
@@ -8043,6 +8098,8 @@ public class MappingProcessor extends AbstractProcessor {
       ClassName iso = ClassName.get("org.higherkindedj.optics", "Iso");
       implBuilder.addMethod(
           MethodSpec.methodBuilder("asIso")
+              // Its reverse direction reads through the copies, whose lambdas infer element types.
+              .addAnnotations(suppression)
               .addModifiers(Modifier.PUBLIC)
               .returns(ParameterizedTypeName.get(iso, domainName, wireName))
               .addJavadoc(
@@ -8136,6 +8193,7 @@ public class MappingProcessor extends AbstractProcessor {
                     wireBuildBody(wire, wireName, comps, implPackage(spec))))
             .addMethod(asValidatedBuildMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
+    implBuilder.addMethods(copyHelpers(comps));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -8198,7 +8256,7 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * Adds the guard and null-scan helpers the legs call, each only where some leg calls it, in the
    * one order every reading tier emits them, then the {@code hkj$construct} helper every reading
-   * tier's constructor call goes through.
+   * tier's constructor call goes through, then the copy helpers, which every tier ends on.
    */
   private void addReadHelpers(
       TypeSpec.Builder implBuilder, List<Correspondence> comps, WireShape wire) {
@@ -8208,6 +8266,13 @@ public class MappingProcessor extends AbstractProcessor {
     implBuilder.addMethods(
         NullScan.helpers(comps.stream().map(Correspondence::valueScan).filter(Objects::nonNull)));
     implBuilder.addMethod(GuardedConstruction.helper());
+    implBuilder.addMethods(copyHelpers(comps));
+  }
+
+  /** The copy helpers the legs read or write their values through, each once, in one order. */
+  private static List<MethodSpec> copyHelpers(List<Correspondence> comps) {
+    return ContainerCopy.helpers(
+        comps.stream().map(Correspondence::valueCopy).filter(Objects::nonNull));
   }
 
   /**
@@ -8233,8 +8298,11 @@ public class MappingProcessor extends AbstractProcessor {
    * (whose parse rejects null). {@code guard} only varies the identity leg, whose primitive reads
    * can never be null.
    */
-  private CodeBlock parseLeg(WireShape wire, Correspondence c, CodeBlock read, boolean guard) {
+  private CodeBlock parseLeg(WireShape wire, Correspondence c, CodeBlock wireRead, boolean guard) {
     ClassName optional = ClassName.get("java.util", "Optional");
+    // The domain takes a copy of what the wire holds, never the wire's own container; the scan and
+    // the guard then run over the copy, which carries exactly what the wire did.
+    CodeBlock read = ContainerCopy.through(c.valueCopy(), wireRead, SCAN_SCOPE);
     return switch (c.kind()) {
       case LEAF, ELEMENTS, ARRAY, MAP, MAP_KEYS, MAP_ENTRIES ->
           CodeBlock.of(
@@ -8245,7 +8313,7 @@ public class MappingProcessor extends AbstractProcessor {
               c.name(),
               read,
               elementOfOptionalParser(c.prism()));
-      // An identity container copies by reference, but a null anywhere inside it is a located
+      // An identity container is read as a copy, and a null anywhere inside it is a located
       // invalid at its full path - the doctrine the lifted legs enforce via parseAll/parseValues.
       // Its scan guards the container itself too; a primitive read, never guarded, has no scan.
       case IDENTITY ->
@@ -8508,6 +8576,8 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     CodeBlock buildBody = wireBuildBody(wire, wireName, comps, implPackage(spec));
+    // The lens's set reads through the copies, whose lambdas infer element types, as build does.
+    List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
 
     CodeBlock.Builder setArgs = CodeBlock.builder();
     boolean first = true;
@@ -8521,7 +8591,7 @@ public class MappingProcessor extends AbstractProcessor {
       if (c == null) {
         setArgs.add("domain.$L()", name);
       } else {
-        setArgs.add(wireRead(wire, c.wireName()));
+        setArgs.add(copiedRead(wire, c));
       }
     }
 
@@ -8535,11 +8605,10 @@ public class MappingProcessor extends AbstractProcessor {
                     + " {@code asLens()} write-back. No {@code parse} is emitted — the dropped"
                     + " components cannot be reconstructed (truthful types).\n",
                 leafFields(spec))
-            .addMethod(
-                buildMethod(
-                    domainName, wireName, pairSuppression(domainDeclared, wire, comps), buildBody))
+            .addMethod(buildMethod(domainName, wireName, suppression, buildBody))
             .addMethod(
                 MethodSpec.methodBuilder("asLens")
+                    .addAnnotations(suppression)
                     .addModifiers(Modifier.PUBLIC)
                     .returns(ParameterizedTypeName.get(lens, domainName, wireName))
                     .addJavadoc(
@@ -8554,6 +8623,7 @@ public class MappingProcessor extends AbstractProcessor {
                         setArgs.build())
                     .build());
     addMarkerStubs(implBuilder, spec);
+    implBuilder.addMethods(copyHelpers(comps));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 
@@ -8988,20 +9058,33 @@ public class MappingProcessor extends AbstractProcessor {
   private List<AnnotationSpec> pairSuppression(
       DeclaredType domainDeclared, WireShape wire, List<Correspondence> comps) {
     return pairSuppression(
-        domainDeclared, wire, comps, comps.stream().map(Correspondence::valueScan));
+        domainDeclared,
+        wire,
+        comps,
+        comps.stream().flatMap(c -> inferred(c.valueScan(), c.valueCopy())));
+  }
+
+  /**
+   * The element types the lambdas of a leg's identity-copied part infer: its null scan's and its
+   * copy's.
+   */
+  private static Stream<TypeMirror> inferred(NullScan scan, ContainerCopy copy) {
+    return Stream.concat(
+        Stream.ofNullable(scan).flatMap(NullScan::inferred),
+        Stream.ofNullable(copy).flatMap(ContainerCopy::inferred));
   }
 
   /**
    * The suppression a pair's members take, over the types they write out or infer: every domain and
-   * wire component, a flattened group's members, and the element types the null scans' lambdas
-   * infer, which a container's own declaration can name without the component's type showing them
-   * ({@code class Grid extends ArrayList<List<List>>}).
+   * wire component, a flattened group's members, and the element types the lambdas of the null
+   * scans and copies infer, which a container's own declaration can name without the component's
+   * type showing them ({@code class Grid extends ArrayList<List<List>>}).
    */
   private List<AnnotationSpec> pairSuppression(
       DeclaredType domainDeclared,
       WireShape wire,
       List<Correspondence> comps,
-      Stream<NullScan> scans) {
+      Stream<TypeMirror> inferred) {
     TypeElement domain = (TypeElement) domainDeclared.asElement();
     Set<String> groups =
         comps.stream()
@@ -9014,7 +9097,7 @@ public class MappingProcessor extends AbstractProcessor {
                 domain.getRecordComponents().stream()
                     .flatMap(component -> withGroupMembers(domainDeclared, component, groups)),
                 wire.components().stream().map(WireShape.WireComponent::type),
-                scans.filter(Objects::nonNull).flatMap(NullScan::inferred))
+                inferred)
             .flatMap(Function.identity())
             .toList());
   }

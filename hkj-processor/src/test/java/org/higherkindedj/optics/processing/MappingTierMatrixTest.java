@@ -750,18 +750,30 @@ class MappingTierMatrixTest {
 
   @Test
   @DisplayName(
-      "an identity container is scanned, never rebuilt: a valid one, raw or declared through a"
-          + " subtype, is the very reference the wire held")
-  void aScannedContainerIsCopiedByReference() throws ReflectiveOperationException {
+      "a valid identity container is handed over as a copy where its declared type has one, raw"
+          + " included, and as the very reference the wire held where it does not")
+  void aScannedContainerIsCopiedWhereItsTypeAllows() throws ReflectiveOperationException {
     for (Case c : List.of(caseNamed("raw identity List"), caseNamed("identity ArrayList"))) {
       Object held = new ArrayList<>(List.of("a"));
       Validated<NonEmptyList<FieldError>, Object> parsed =
           parse(impl(c, "RecordFullMapping"), recordWire(c, "RecordFull", 7, held));
       assertThatValidated(parsed).as("%s", c).isValid().hasValue(domain(c, held));
-      Assertions.assertThat(component(parsed.get(), "x"))
-          .as("%s: identity legs copy, they do not rebuild", c)
-          .isSameAs(held);
     }
+    List<String> list = new ArrayList<>(List.of("a"));
+    Assertions.assertThat(parsedX(caseNamed("raw identity List"), list))
+        .as("a List has a copy of its own type, so the domain holds an equal one of its own")
+        .isEqualTo(list)
+        .isNotSameAs(list);
+    ArrayList<String> held = new ArrayList<>(List.of("a"));
+    Assertions.assertThat(parsedX(caseNamed("identity ArrayList"), held))
+        .as("an ArrayList has no copy of its own type, so it is shared")
+        .isSameAs(held);
+  }
+
+  /** The {@code x} a record-wire parse hands the domain for a wire holding {@code held}. */
+  private static Object parsedX(Case c, Object held) throws ReflectiveOperationException {
+    return component(
+        parse(impl(c, "RecordFullMapping"), recordWire(c, "RecordFull", 7, held)).get(), "x");
   }
 
   /**
@@ -922,8 +934,16 @@ class MappingTierMatrixTest {
         .isEqualTo(!total);
   }
 
+  /**
+   * The rows whose domain compares by {@code equals}: all but the one holding an array, which a
+   * record compares by reference while every identity leg hands over a clone of it.
+   */
+  static Stream<Case> casesComparedByEquals() {
+    return cases().filter(c -> !c.domainType().endsWith("[]"));
+  }
+
   @ParameterizedTest(name = "{0}")
-  @MethodSource("cases")
+  @MethodSource("casesComparedByEquals")
   @DisplayName("every emitted write-back round-trips a domain value, and writes idempotently")
   void writeBacksRoundTrip(Case c) throws ReflectiveOperationException {
     Object domain = domain(c, c.value().apply(tagFactory(c), "a"));
@@ -961,6 +981,44 @@ class MappingTierMatrixTest {
         MappingLaws.assertPatchIdempotent(patch, domain, other);
       }
     }
+  }
+
+  @Test
+  @DisplayName(
+      "an array round-trips elementwise on every write-back: each leg hands over a clone, which"
+          + " the record's own equals, comparing an array by reference, does not see as equal")
+  void anArrayRoundTripsElementwise() throws ReflectiveOperationException {
+    Case c = caseNamed("identity array of arrays");
+    Object domain = domain(c, c.value().apply(tagFactory(c), "a"));
+    for (String spec : List.of("RecordFullMapping", "BeanFullMapping")) {
+      Object impl = impl(c, spec);
+      Validated<NonEmptyList<FieldError>, Object> parsed =
+          parse(impl, invoke(impl, "build", domain));
+      assertThatValidated(parsed).as("%s: parse(build(d))", spec).isValid();
+      Assertions.assertThat(parsed.get())
+          .as("%s: parse(build(d))", spec)
+          .isNotEqualTo(domain)
+          .usingRecursiveComparison()
+          .isEqualTo(domain);
+    }
+    Iso<Object, Object> iso = optic(invoke(impl(c, "RecordFullMapping"), "asIso"));
+    Assertions.assertThat(iso.reverseGet(iso.get(domain)))
+        .as("reverseGet(get(d))")
+        .usingRecursiveComparison()
+        .isEqualTo(domain);
+    Lens<Object, Object> lens = optic(invoke(impl(c, "RecordProjectionMapping"), "asLens"));
+    Assertions.assertThat(lens.set(lens.get(domain), domain))
+        .as("set(get(d), d)")
+        .usingRecursiveComparison()
+        .isEqualTo(domain);
+    Object bean = impl(c, "BeanProjectionMapping");
+    Validated<NonEmptyList<FieldError>, Object> patched =
+        validated(invoke(bean, "patch", domain, invoke(bean, "build", domain)));
+    assertThatValidated(patched).as("patch(d, build(d))").isValid();
+    Assertions.assertThat(patched.get())
+        .as("patch(d, build(d))")
+        .usingRecursiveComparison()
+        .isEqualTo(domain);
   }
 
   static Stream<Case> bridgedCases() {

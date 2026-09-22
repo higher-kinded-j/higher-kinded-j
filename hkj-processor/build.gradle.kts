@@ -106,6 +106,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.MappingIndexes*",
                 "org.higherkindedj.optics.processing.MergeProcessor*",
                 "org.higherkindedj.optics.processing.NullScan*",
+                "org.higherkindedj.optics.processing.ContainerCopy*",
                 "org.higherkindedj.optics.processing.BeanPropertyAnalyser*",
                 "org.higherkindedj.optics.processing.WireShape*",
                 "org.higherkindedj.optics.processing.WaitingSpecs*",

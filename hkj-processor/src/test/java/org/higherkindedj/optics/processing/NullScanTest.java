@@ -399,13 +399,14 @@ class NullScanTest {
                                 grid()));
                       }
 
-                      public static boolean keyedValuesPassByReference() {
+                      public static boolean keyedValuesAreCopied() {
                         List<String> value = List.of("a");
                         Keyed parsed =
                             FixturesKeyedMappingImpl.INSTANCE
                                 .parse(new KeyedDto(Map.of("k", value), Map.of(), Map.of(), null, null))
                                 .get();
-                        return parsed.byKey().get(new Key("k")) == value;
+                        List<String> copied = parsed.byKey().get(new Key("k"));
+                        return copied != value && copied.equals(value);
                       }
 
                       public static Validated<
@@ -518,7 +519,7 @@ class NullScanTest {
   @Test
   @DisplayName(
       "a @MapKey map's copied values carry the scan, located under the source key, a wildcard"
-          + " value type and a bridged map included, and a valid value still passes by reference")
+          + " value type and a bridged map included, and a valid value is handed over as a copy")
   void keyedMapValuesAreScanned() throws ReflectiveOperationException {
     assertThatValidated(probe("keyed"))
         .hasFieldErrors(
@@ -527,7 +528,7 @@ class NullScanTest {
             "arrays.r.1: must not be null",
             "bridged.m.1: must not be null",
             "grids.0.0.1: must not be null");
-    Assertions.assertThat(compiled.invokeStatic(PKG + ".Probes", "keyedValuesPassByReference"))
+    Assertions.assertThat(compiled.invokeStatic(PKG + ".Probes", "keyedValuesAreCopied"))
         .isEqualTo(true);
     // The wildcard value type is named: parseEntries would otherwise infer a captured one.
     Assertions.assertThat(generated("FixturesKeyedMappingImpl"))
@@ -562,7 +563,8 @@ class NullScanTest {
             "byKey.k.1: must not be null",
             "table.0.0.1: must not be null");
     Assertions.assertThat(generated("FixturesMergedAssemblyImpl"))
-        .contains(".field(\"grid\", hkj$allPresent(e.grid(), e__ -> hkj$allPresent(e__)))");
+        .contains(
+            ".field(\"grid\", hkj$allPresent(hkj$copyOf(e.grid(), e__ -> hkj$copyOf(e__)), e__ -> hkj$allPresent(e__)))");
   }
 
   @Test
@@ -581,8 +583,10 @@ class NullScanTest {
     Assertions.assertThat(compiled.invokeStatic(PKG + ".Probes", "sparseEmptyOptional"))
         .isEqualTo(Optional.empty());
     Assertions.assertThat(generated("FixturesProfilePatchMappingImpl"))
-        .contains("wire.getGrid(), e -> hkj$allPresent(e, e2 -> hkj$allPresent(e2))")
-        .contains("wire.getNicknames(), e -> hkj$presentWithin(e, e2 -> hkj$allPresent(e2))");
+        .contains(
+            "hkj$copyOf(wire.getGrid(), e -> hkj$copyOf(e)), e -> hkj$allPresent(e, e2 -> hkj$allPresent(e2))")
+        .contains(
+            "hkj$copyOf(wire.getNicknames(), e -> hkj$copyOf(e)), e -> hkj$presentWithin(e, e2 -> hkj$allPresent(e2))");
   }
 
   @Test

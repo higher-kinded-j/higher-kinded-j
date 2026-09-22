@@ -92,6 +92,14 @@ import java.lang.annotation.Target;
  *       null just the same. A bean's guarded reads make {@code asIso()} truthful only for an
  *       all-primitive bean; a lossless record mapping keeps {@code asIso()}, its guards covering
  *       hostile bindings only.
+ *   <li>A component with the same container type on both sides and no leaf of its own crosses as a
+ *       copy in both directions, not as the container that was read: an unmodifiable copy in the
+ *       source's order, a set as a set and a null element carried, with every level inside copied
+ *       too. Only a level declared exactly {@code List}, {@code Set}, {@code Collection}, {@code
+ *       Map} or {@code Optional}, or as an array (by {@code clone()}), has a copy of its own type;
+ *       a subtype such as {@code ArrayList}, any other interface, a same-typed record, a type
+ *       variable, an element declared through a wildcard, the collections inside an array and any
+ *       element of a set that holds a {@code Collection} are handed over as they are.
  *   <li>Once every component has parsed, the domain's canonical constructor runs, and a {@code
  *       RuntimeException} it throws (the record's own invariant) becomes a {@code FieldError} at
  *       the record's path carrying its message, in {@code parse}, the validated {@code patch} and a
