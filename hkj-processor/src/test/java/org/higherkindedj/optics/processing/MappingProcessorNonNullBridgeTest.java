@@ -7,6 +7,7 @@ import static com.google.testing.compile.Compiler.javac;
 import static java.util.stream.Collectors.joining;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectory;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.withoutFileObjectLookup;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
@@ -835,6 +836,27 @@ class MappingProcessorNonNullBridgeTest {
             "Declare 'age' on 'AgeDto' as java.lang.Integer, and mark 'AgeDto.age' @Nullable.")
         .inFile(primitiveSpec);
     Assertions.assertThat(compilation.errors()).hasSize(3);
+  }
+
+  @Test
+  @DisplayName(
+      "where the compiler cannot say which file a bean came from, the @Nullable fix says where the"
+          + " bean is declared")
+  void unconfirmedWriteSiteSaysWhereToMarkIt() {
+    JavaFileObject spec = spec("com.marked", "ProfileMapping", "Profile", "ProfileBean");
+    Compilation compilation =
+        javac()
+            .withProcessors(withoutFileObjectLookup(new MappingProcessor()))
+            .withOptions("-Xlint:unchecked,rawtypes", "-Werror")
+            .compile(MARKED_PACKAGE, PROFILE, bean("com.marked", "ProfileBean", "String"), spec);
+
+    assertThat(compilation).failed();
+    assertThat(compilation)
+        .hadErrorContaining(
+            "Mark the parameter of setNickname(String) @Nullable where 'ProfileBean' is declared,"
+                + " if you build it, since it carries absence")
+        .inFile(spec);
+    Assertions.assertThat(compilation.errors()).hasSize(1);
   }
 
   @Test

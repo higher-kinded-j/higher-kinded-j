@@ -26,6 +26,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * The mapping and merge specs that wait for a later annotation-processing round.
@@ -45,7 +46,13 @@ import javax.lang.model.util.Elements;
  * repairs. A class file still names the types a spec nests through, though, so its record
  * components and permitted subtypes count towards the specs a waiting mapping holds back. A spec
  * still waiting when processing ends generates nothing and reports nothing: everything it waits for
- * is a source reference, which javac reports as {@code cannot find symbol}.
+ * is a source reference, which javac reports as {@code cannot find symbol}. Which file a type was
+ * read from is the compiler's to say (see {@link ProcessorUtils#compiledFromSource}); a type it
+ * cannot place is read as a class file. A spec's own declaration is read whatever the compiler
+ * says, since the processor met the spec in source, so the spec still waits for a type it names
+ * itself, and for a waiting spec it nests through a record component or a permitted subtype. A
+ * generated type named only inside a record, bean or mix-in the spec reads no longer holds it back
+ * there, and the spec is classified against the placeholder.
  *
  * <p>The mapping specs a compilation has met are kept here for both processors ({@link
  * #meetMappings}): {@link MergeProcessor} is first invoked only in a round carrying a {@code
@@ -353,7 +360,7 @@ final class WaitingSpecs {
     }
 
     private boolean fromSource(TypeElement type) {
-      return MappingIndexes.compiledHere(elements, type);
+      return ProcessorUtils.compiledFromSource(elements, type);
     }
   }
 }

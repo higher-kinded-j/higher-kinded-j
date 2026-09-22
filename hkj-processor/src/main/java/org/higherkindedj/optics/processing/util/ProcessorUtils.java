@@ -1648,11 +1648,13 @@ public final class ProcessorUtils {
    * whose package more than one of them declares just as it refuses a name already taken, so a
    * write handler asks this before reporting a refused file as a collision. A module declares the
    * package in source through its {@code package-info.java} as surely as through a type, so either
-   * counts.
+   * counts. Where the compiler cannot say which file an element was read from, no module counts
+   * (see {@link #compiledFromSource}), and the refused file is reported as a collision.
    *
    * @param elements the compilation's element utilities
    * @param packageName the generated file's package
    * @return the declaring modules' names (non-null; at most one outside a multi-module compilation)
+   * @since 0.4.11
    */
   public static List<String> compiledModulesDeclaring(Elements elements, String packageName) {
     return elements.getAllPackageElements(packageName).stream()
@@ -1667,11 +1669,29 @@ public final class ProcessorUtils {
         .toList();
   }
 
-  /** Whether an element is read from a source file: a type's own, or a package's package-info. */
-  private static boolean compiledFromSource(Elements elements, Element element) {
-    return Optional.ofNullable(elements.getFileObjectOf(element))
-        .map(JavaFileObject::getKind)
-        .filter(JavaFileObject.Kind.SOURCE::equals)
-        .isPresent();
+  /**
+   * Whether the compiler read an element from a source file of this compilation: a type's own, or a
+   * package's {@code package-info.java}. Only the compiler can say, through {@code
+   * Elements.getFileObjectOf}, a default method that throws {@link UnsupportedOperationException}
+   * unless the compiler overrides it, as javac does. So this is the one place that asks: an element
+   * the compiler cannot place is not taken for source, and each caller treats it as it treats one
+   * read from a class file, rather than the compilation aborting on the unsupported operation. A
+   * {@code false} is therefore no confirmation of a class file: it is also the answer for an
+   * element read from no file at all, such as a package without a {@code package-info.java}.
+   *
+   * @param elements the compilation's element utilities
+   * @param element a type or package
+   * @return {@code true} only when the compiler reports the element's file as a source file
+   * @since 0.4.11
+   */
+  public static boolean compiledFromSource(Elements elements, Element element) {
+    try {
+      return Optional.ofNullable(elements.getFileObjectOf(element))
+          .map(JavaFileObject::getKind)
+          .filter(JavaFileObject.Kind.SOURCE::equals)
+          .isPresent();
+    } catch (UnsupportedOperationException unsupported) {
+      return false;
+    }
   }
 }
