@@ -208,17 +208,35 @@ selfTest();
 const files = markdownFiles(bookSrc).sort();
 const idsByFile = new Map(files.map((file) => [file, headingIds(fs.readFileSync(file, "utf8"))]));
 
+/**
+ * A page the deploy copies in from the repository root (CONTRIBUTING, LICENSE,
+ * CODE_OF_CONDUCT). It is gitignored inside the book, so a fresh checkout does not have it,
+ * but the deployed book does, and SUMMARY.md links it. Read the root copy instead of calling
+ * the link broken.
+ */
+function copiedFromRoot(target) {
+  const root = path.join(repoRoot, path.basename(target));
+  if (path.dirname(target) !== bookSrc || !fs.existsSync(root)) return null;
+  if (!idsByFile.has(root)) idsByFile.set(root, headingIds(fs.readFileSync(root, "utf8")));
+  return root;
+}
+
 let failures = 0;
 let checked = 0;
 
 for (const file of files) {
   const rel = path.relative(repoRoot, file);
   for (const link of internalLinks(fs.readFileSync(file, "utf8"))) {
-    const targetFile = link.file ? path.resolve(path.dirname(file), link.file) : file;
+    let targetFile = link.file ? path.resolve(path.dirname(file), link.file) : file;
     checked++;
 
     if (!idsByFile.has(targetFile)) {
       if (fs.existsSync(targetFile)) continue; // a page outside src, left alone
+      const copied = copiedFromRoot(targetFile);
+      if (copied !== null) targetFile = copied;
+    }
+
+    if (!idsByFile.has(targetFile)) {
       failures++;
       console.log(`FAIL  ${rel}:${link.line}  no such page: ${link.target}`);
       console.log(`::error file=${rel},line=${link.line}::Link target does not exist: ${link.target}`);
