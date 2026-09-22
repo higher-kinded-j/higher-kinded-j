@@ -15,7 +15,7 @@ A typical DTO boundary converts the same handful of families every time: identif
 **The code on this page is [StandardCodecsBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java) and [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java)** - the page includes them directly, so they are compiled and run by the build.
 ~~~
 
-## Standard codecs
+## Standard codecs {#standard-codecs}
 
 The common conversion families need no hand-written leaves: `StandardCodecs` ships one factory per family, so a typical DTO boundary maps out of the box:
 
@@ -85,7 +85,7 @@ Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPr
 
 ---
 
-## Shared vocabulary: mix-in interfaces
+## Shared vocabulary: mix-in interfaces {#shared-vocabulary-mix-in-interfaces}
 
 The same rename or the same leaf tends to recur across an API's specs: every wire calls it `fullName`, every email parses the same way. Move the shared members onto a **plain interface** and extend it alongside `MappingSpec`:
 

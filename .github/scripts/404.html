@@ -101,8 +101,11 @@
                 return;
             }
 
-            // Not in a versioned path - redirect to /latest/ + current path
-            var targetPath = '/latest' + currentPath;
+            // Not in a versioned path - redirect to /latest/ + current path.
+            // The query and the fragment come along: a deep link into a section
+            // is the commonest kind of link this page catches, and dropping the
+            // hash would land the reader at the top of the right page.
+            var targetPath = '/latest' + currentPath + window.location.search + window.location.hash;
 
             // Update the target link
             var targetLink = document.getElementById('target-link');

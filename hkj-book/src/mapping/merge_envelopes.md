@@ -37,7 +37,7 @@ The fallible path carries the [same null doctrine as `parse`](basics.md#null-doc
 
 ---
 
-## Generating error envelopes: `@GenerateErrorEnvelope`
+## Generating error envelopes: `@GenerateErrorEnvelope` {#generating-error-envelopes-generateerrorenvelope}
 
 The third generator in the family targets the other end of the boundary: the typed domain error a fallible mapping produces. A sealed error hierarchy re-declares the same envelope (`code`, `message`, `timestamp`, `context`) on every variant, and `context` is usually an untyped `Map<String, Object>`. `@GenerateErrorEnvelope` supplies the envelope and types the context, so each variant declares only its domain-specific components plus one `ErrorEnvelope<C>` component:
 

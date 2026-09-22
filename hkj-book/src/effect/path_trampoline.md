@@ -137,7 +137,7 @@ regardless of recursion depth.
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Trampoline](../monads/trampoline.md) - Underlying type for TrampolinePath
+- [Trampoline](../monads/trampoline_monad.md) - Underlying type for TrampolinePath
 ~~~
 
 ---

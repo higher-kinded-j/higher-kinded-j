@@ -18,7 +18,7 @@ Real DTOs are not flat. An order carries a customer, the customer carries an add
 **The code on this page is [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java)** - the page includes it directly, so it is compiled and run by the build.
 ~~~
 
-## Nesting, containers, and recursion
+## Nesting, containers, and recursion {#nesting-containers-and-recursion}
 
 A component whose two sides are themselves mapped by **another spec** nests automatically, whether that spec is in the same compilation or in a dependency (see [Across modules](#across-modules)), and failures compose into dotted paths:
 
@@ -109,7 +109,7 @@ Where one does happen, the two containers answer differently because what is los
 
 ---
 
-## Flattening a nested component onto a flat wire
+## Flattening a nested component onto a flat wire {#flattening-a-nested-component-onto-a-flat-wire}
 
 Nesting assumes the wire nests too. Often it does not: the domain keeps an `Address` record, and the wire format, fixed by someone else, carries `street`, `city` and `postcode` as plain fields. No single wire component holds the address, so a leaf cannot map it; `@Flatten` on a marker named after the component spreads it instead:
 
@@ -136,7 +136,7 @@ Spreading is one level deep: a record inside the group nests through its own spe
 
 ---
 
-## Across modules
+## Across modules {#across-modules}
 
 The spec a component nests through may live in another module. Keep `Customer`, `CustomerDto` and `CustomerMapping` in `:orders-api`, put the invoice pair in `:billing`, and the `InvoiceMapping` from the nesting section does not change: it stays empty, and the generated Impl delegates to the dependency's exactly as it would to a sibling.
 
@@ -184,7 +184,7 @@ The index is classpath-only. A module with a `module-info` writes no entry and r
 
 ---
 
-## Sealed hierarchies
+## Sealed hierarchies {#sealed-hierarchies}
 
 A `MappingSpec` over two **sealed interfaces** dispatches over the permitted subtype pairs, one spec per pair, exhaustively in both directions:
 

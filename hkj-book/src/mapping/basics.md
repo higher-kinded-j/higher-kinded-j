@@ -46,7 +46,7 @@ Code that calls a mapping more than once binds it once and reuses it, as `person
 
 ---
 
-## Validated leaves
+## Validated leaves {#validated-leaves}
 
 Real boundaries convert: the wire sends a `String`, the domain wants an email that has already been checked. A **leaf** is the conversion at a single field: the point where the mapping stops copying and one wire value becomes one domain value. The leaf itself is a [`ValidatedPrism`](../optics/validated_prism.md), two functions: a parse that may reject, and a render that cannot:
 
@@ -72,7 +72,7 @@ An explicit leaf wins even when the two component types are identical, so a `Val
 
 ---
 
-## Renames: `@MapField`
+## Renames: `@MapField` {#renames-mapfield}
 
 When the wire calls it `fullName` and the domain calls it `name`, declare an abstract method named after the *domain* component, with `to` naming the *wire* component:
 
@@ -86,7 +86,7 @@ Error paths use **domain** component names, renames included: a wire sending `fu
 
 ---
 
-## Derived wire fields
+## Derived wire fields {#derived-wire-fields}
 
 A wire component with **no domain counterpart** can be computed from the whole domain value: a `displayName` the domain does not store because it is derivable. Declare a zero-parameter `default` method named after the *wire* component, returning `Getter<Domain, WireComponentType>`:
 
@@ -253,7 +253,7 @@ The same guard covers every surface that builds the record whole from parsed par
 
 Nothing above requires this section; come back when a corner case finds you.
 
-### The null contract, precisely
+### The null contract, precisely {#the-null-contract-precisely}
 
 The null guard covers every reference-typed `parse` read that is not [bridged](#optional-bridge), on record and bean wires alike, and reaches inside containers, identity-copied ones included, at every depth:
 
