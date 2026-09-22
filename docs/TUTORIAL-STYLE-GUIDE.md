@@ -246,6 +246,9 @@ Most readers come from a "regular Java" background. When introducing an abstract
 
 Anchors should appear in the class-level Javadoc, ideally between the Pain → Promise block and the Key Concepts list.
 
+The book keeps the same rule for its pages (see "Java Idiom Anchors" in `docs/STYLE-GUIDE.md`); when an
+abstraction is anchored in both places, keep the two idioms consistent.
+
 ### The answerRequired() Helper
 
 Every tutorial must include this helper method immediately after the class declaration:
