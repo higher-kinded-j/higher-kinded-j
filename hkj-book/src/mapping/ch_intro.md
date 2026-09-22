@@ -13,21 +13,22 @@ Here is the version most codebases carry, in one form or another:
 
 <!-- verify -->
 ```java
-public static User toDomain(UserDto dto) {
-    Objects.requireNonNull(dto.email(), "email required");   // throws on the FIRST problem
-    if (!dto.email().contains("@")) {
-        throw new IllegalArgumentException("bad email");     // no field name, no path
+static Order toDomainByHand(OrderDto dto) {
+    Objects.requireNonNull(dto.customer(), "customer required"); // first null wins
+    if (!dto.customer().email().contains("@")) {
+        throw new IllegalArgumentException("bad email");         // no field name, no path
     }
-    return new User(
-        UUID.fromString(dto.id()),                           // throws its own exception
-        dto.email(),
-        LocalDate.parse(dto.joined()));                      // and so does this one
+    return new Order(
+        UUID.fromString(dto.id()),                               // throws its own exception
+        new Customer(dto.customer().fullName(),
+                     new EmailAddress(dto.customer().email())),
+        Instant.parse(dto.placedAt()));                          // and so does this one
 }
 ```
 
 It works, until it doesn't, and it fails three ways at once:
 
-1. **It drifts.** Add a component to `User` and nothing tells you the mapper no longer covers it. The compiler is not watching this file.
+1. **It drifts.** Add a component to `Order` and nothing tells you the mapper no longer covers it. The compiler is not watching this file.
 2. **It stops at the first error.** The client fixes the email, resubmits, and only then learns the date was bad too. One round trip per defect.
 3. **Its errors have no address.** `IllegalArgumentException: bad email` says nothing a client can map onto a form field, so a handler somewhere turns it into a vague 400.
 
@@ -57,10 +58,10 @@ The shape of the machinery is a railway with two directions:
 
 ```mermaid
 flowchart LR
-    DTO["UserDto<br/>(strings and nulls)"] -->|"parse"| CHECK{"every field<br/>checks out?"}
-    CHECK -->|yes| DOM["User<br/>(typed and trusted)"]
+    DTO["OrderDto<br/>(strings and nulls)"] -->|"parse"| CHECK{"every field<br/>checks out?"}
+    CHECK -->|yes| DOM["Order<br/>(typed and trusted)"]
     CHECK -->|no| ERR["NonEmptyList&lt;FieldError&gt;<br/>every bad field, located"]
-    DOM -->|"build (total: cannot fail)"| OUT["UserDto"]
+    DOM -->|"build (total: cannot fail)"| OUT["OrderDto"]
     ERR -->|"hkj-spring"| RESP["one 422 response<br/>carrying the JSON above"]
 
     classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
@@ -103,13 +104,13 @@ The mapper is not a separate tool that happens to ship in the same jar; it is Hi
 - **Typed errors over exceptions.** The refusal is a value (`Validated`, `NonEmptyList`, `FieldError`), so it accumulates, composes, and travels the same [railway](../effect/effect_path_overview.md) as every other error in the library.
 - **Truthful types.** The generated surface only ever offers operations whose laws the record pair can honour; what cannot be lawful is simply not generated.
 - **Laws, verified.** Each generated surface obeys stated laws, checked in the library's own build and repeatable in yours with [one test call](tiers.md#law-checked-in-the-repo-and-in-your-tests).
-- **Built from parts you already know.** A leaf is a [`ValidatedPrism`](../optics/validated_prism.md), accumulation is [`Validated.fields()`](../monads/validated_assembly.md), a sparse PATCH folds into [`Edits.Accumulated`](../optics/multi_edit.md). Learn the mapper and you have learned more of the library; learn the library and the mapper holds no surprises.
+- **Built from parts you already know.** A leaf is a [`ValidatedPrism`](../optics/validated_prism.md), accumulation is [`Validated.fields()`](../monads/validated_assembly.md), a sparse PATCH folds into [`Edits.Accumulated`](../optics/multi_edit.md). Learn the mapper and you have learned more of the library; learn the library and the mapper works the way you would expect.
 
 ---
 
 ## What the mapper will (and will not) generate
 
-The generated surface follows the shape of the pair, and that decision is the map of this chapter:
+The generated surface follows the shape of the pair:
 
 ```mermaid
 flowchart TD
@@ -122,7 +123,8 @@ flowchart TD
     C --> CQ{"Any converting or<br/>validating field?"}
     CQ -->|no| CT(["a write-back that keeps<br/>the fields the wire dropped"])
     CQ -->|yes| DT(["a write-back that<br/>can fail, located"])
-    P["A PATCH request bean, where<br/>null means leave unchanged"] --> PT(["a sparse update:<br/>absent means keep"])
+    Q --> P["A PATCH request bean, where<br/>null means leave unchanged"]
+    P --> PT(["a sparse update:<br/>absent means keep"])
 
     classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
@@ -132,21 +134,21 @@ flowchart TD
     class Q,CQ decision
 ```
 
-That decision tree is the map of this chapter: [The Emission Tiers](tiers.md) names each of these surfaces and the laws it obeys.
+[The Emission Tiers](tiers.md) names each of these surfaces and the laws it obeys.
 
 ~~~admonish note title="If you know MapStruct"
 This is not a MapStruct competitor on breadth, and does not try to be: MapStruct keeps its ground for mutable JPA entities, deep path flattening (`address.geo.lat` onto a wholly flat wire, where this generator spreads one level), and Bean-Validation-centric shops. What this generator does differently is **boundary correctness for record domains**: the inbound direction is a validating parser with located, accumulated errors (where MapStruct throws on the first bad conversion, or silently maps an invalid value), the outbound direction is provably total, and no operation is generated whose laws the pair cannot satisfy. Adopt it where the boundary is the product; keep MapStruct where its breadth pays. One MapStruct habit does not carry over: declaring the mapper's instance on its own interface. Here that constant can read `null`, so [bind the generated Impl in the caller](basics.md#bind-in-the-caller) instead.
 ~~~
 
 ~~~admonish note title="If you know Bean Validation"
-The usual pipeline is: bind with Jackson, annotate the DTO with `@Valid` constraints, translate with a mapper, and catch what leaks in a `@ControllerAdvice`. To be fair to that stack, `@Valid` *does* accumulate errors, and they *do* carry field names. What it cannot do is produce `User`. The annotations guard the DTO; the domain constructor still runs on data that was checked somewhere else; the format rule lives in a third place neither record enforces; and the mapper in the middle can still throw. Here, parsing and validating are one step, and the type system knows it happened.
+The usual pipeline is: bind with Jackson, annotate the DTO with `@Valid` constraints, translate with a mapper, and catch what leaks in a `@ControllerAdvice`. To be fair to that stack, `@Valid` *does* accumulate errors, and they *do* carry field names. What it cannot do is produce `Order`. The annotations guard the DTO; the domain constructor still runs on data that was checked somewhere else; the format rule lives in a third place neither record enforces; and the mapper in the middle can still throw. Here, parsing and validating are one step, and the type system knows it happened.
 ~~~
 
 ---
 
 ## How to read this chapter
 
-Two pages are enough to ship. [Record Mapping Basics](basics.md) declares a mapping and reads its errors; [Standard Codecs](codecs.md) covers the stock conversions (UUIDs, dates, enums, money) so most boundaries need no hand-written conversion at all. Everything after that is on demand:
+Two pages teach the whole model. [Record Mapping Basics](basics.md) declares a mapping and reads its errors; [Standard Codecs](codecs.md) covers the stock conversions (UUIDs, dates, enums, money) so most boundaries need no hand-written conversion at all. To put one behind an endpoint you also need the build line and the controller call, which [the Spring integration](../spring/spring_boot_integration.md#the-422-leg) has. Everything after that is on demand:
 
 - DTOs that nest, hold lists, or dispatch over sealed types: [Nesting, Containers, and Sealed Hierarchies](structure.md)
 - What exactly got generated for your spec, and why: [The Emission Tiers](tiers.md)
@@ -176,15 +178,15 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 
 ## Chapter Contents
 
-1. [Record Mapping Basics](basics.md) - Your first mapping, leaves, renames, derived fields, optional fields
-2. [Standard Codecs and Shared Vocabulary](codecs.md) - Stock lawful codecs and mix-in sharing
-3. [Nesting, Containers, and Sealed Hierarchies](structure.md) - Composition and dotted error paths
-4. [The Emission Tiers](tiers.md) - Truthful types, projections, the validated patch, laws
-5. [Beans and Sparse PATCH](beans_patch.md) - Bean wires and the UpdateSpec tier
-6. [Generic Specs](generics.md) - Concrete, threaded, and element-mapped generics
-7. [Merge and Error Envelopes](merge_envelopes.md) - Multi-source assembly and typed error context
-8. [Injecting, Testing, and Diagnostics](testing.md) - Beans, fakes, and limits
-9. [Capstone: One 422, Every Bad Field](capstone.md) - The whole chapter on one boundary, proven
+1. [Record Mapping Basics](basics.md): Your first mapping, leaves, renames, derived fields, optional fields
+2. [Standard Codecs and Shared Vocabulary](codecs.md): Stock lawful codecs and mix-in sharing
+3. [Nesting, Containers, and Sealed Hierarchies](structure.md): Composition and dotted error paths
+4. [The Emission Tiers](tiers.md): Truthful types, projections, the validated patch, laws
+5. [Beans and Sparse PATCH](beans_patch.md): Bean wires and the UpdateSpec tier
+6. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
+7. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
+8. [Injecting, Testing, and Diagnostics](testing.md): Beans, fakes, and limits
+9. [Capstone: One 422, Every Bad Field](capstone.md): The whole chapter on one boundary, proven
 
 ---
 

@@ -166,10 +166,10 @@ Third, the PATCH sibling obeys the sparse laws: an all-absent form is the identi
 ~~~
 
 ~~~admonish tip title="See Also"
-- [The 422 leg](../spring/spring_boot_integration.md#the-422-leg) - This result as an HTTP response, unmodified
-- [Sparse PATCH at the Spring boundary](../spring/spring_boot_integration.md#sparse-patch) - The PATCH encore behind a controller
-- [Record Mapping Basics](basics.md) - Back to the start of the chapter
-- [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) - The effect-side sibling capstone
+- [The 422 leg](../spring/spring_boot_integration.md#the-422-leg): This result as an HTTP response, unmodified
+- [Sparse PATCH at the Spring boundary](../spring/spring_boot_integration.md#sparse-patch): The PATCH encore behind a controller
+- [Record Mapping Basics](basics.md): Back to the start of the chapter
+- [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md): The effect-side sibling capstone
 ~~~
 
 ---

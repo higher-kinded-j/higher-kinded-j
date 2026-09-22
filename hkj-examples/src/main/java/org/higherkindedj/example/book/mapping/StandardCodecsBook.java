@@ -26,7 +26,7 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 enum OrderStatus {
   NEW,
   PAID,
-  CANCELLED
+  SHIPPED
 }
 
 record Order(UUID id, LocalDate placedOn, OrderStatus status, BigDecimal total) {}

@@ -35,14 +35,14 @@ class StandardCodecsBookTest {
   void everyBadFieldReportsAtOnceWithTheCodecMessage() {
     // ANCHOR: codecs_errors
     Validated<NonEmptyList<FieldError>, Order> parsed =
-        OrderMappingImpl.INSTANCE.parse(new OrderDto("NOPE", "28/07/2026", "SHIPPED", "1E+3"));
+        OrderMappingImpl.INSTANCE.parse(new OrderDto("NOPE", "28/07/2026", "DISPATCHED", "1E+3"));
 
     assertThatValidated(parsed)
         .isInvalid()
         .hasFieldErrors(
             "id: not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)",
             "placedOn: not an ISO-8601 date (expected e.g. 2026-07-28)",
-            "status: unknown OrderStatus (expected one of NEW, PAID, CANCELLED)",
+            "status: unknown OrderStatus (expected one of NEW, PAID, SHIPPED)",
             "total: not a number in plain notation (expected e.g. 123.45)");
     // ANCHOR_END: codecs_errors
   }

@@ -80,7 +80,7 @@ Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPr
 
 ~~~admonish note title="Two mechanical notes"
 - The number and boolean codecs focus the **box types**: a `ValidatedPrism<String, int>` cannot exist, so an `int` component cannot take a leaf; declare it `Integer` (the mapper rejects the mismatch at compile time either way).
-- Under the star import, a leaf whose component shares a factory's name (`currency`, `locale`, `uuid`) must qualify the call (`return StandardCodecs.currency();`) because the leaf method itself is the nearer `currency()` and an unqualified call recurses.
+- A leaf whose component shares a factory's name (`currency`, `locale`, `uuid`) must qualify the call (`return StandardCodecs.currency();`). The leaf method itself is the nearer `currency()`, so an unqualified call recurses, whether the factory arrived by a single static import or a star import.
 ~~~
 
 ---
@@ -134,9 +134,9 @@ A vocabulary also crosses a **module boundary**. It is a plain interface rather 
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Validated Prisms](../optics/validated_prism.md#laws) - The section law the codecs are built to honour
-- [Record Mapping Basics](basics.md#validated-leaves) - How leaves attach to a spec
-- [Beans and Sparse PATCH](beans_patch.md) - The PATCH sibling that lifts the same element leaves
+- [Validated Prisms](../optics/validated_prism.md#laws): The section law the codecs are built to honour
+- [Record Mapping Basics](basics.md#validated-leaves): How leaves attach to a spec
+- [Beans and Sparse PATCH](beans_patch.md): The PATCH sibling that lifts the same element leaves
 ~~~
 
 ---

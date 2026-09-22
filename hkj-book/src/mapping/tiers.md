@@ -75,10 +75,10 @@ And as the reference table:
 "Lawfully offer" is verified, not promised: every emission tier above (lossless iso, projection lens, fallible leaf, nested spec, container lifting, sealed dispatch, derived fields, one-directional beans) is compiled and law-checked in the Higher-Kinded-J build itself, against the published [`hkj-test` law harness](../tooling/test_assertions.md#optic-laws).
 
 ~~~admonish tip title="Why this matters"
-Every mapping tool promises correctness; this one states laws and runs them. The tier table is not documentation of intent: each row names properties that hold as passing tests (round trip, projection identity, idempotence, coherence between surfaces). They run in this repository on every build, and the one call below runs them in yours. When a record refactor changes what the pair can lawfully support, the generated surface changes with it and the law test tells you at build time, not in production. We know of no other Java mapping generator that law-checks its own output; it is the difference between a mapper you trust and a mapper you audit.
+Every mapping tool promises correctness; this one states laws and runs them. The tier table is not documentation of intent: each row names properties that hold as passing tests (round trip, projection identity, idempotence, coherence between surfaces). They run in this repository on every build, and the one call below runs them in yours. When a record refactor changes what the pair can lawfully support, the generated surface changes with it and the law test tells you at build time, not in production. It is the difference between a mapper you trust and a mapper you audit.
 ~~~
 
-Your own specs get the same guarantee with one call from a test (`hkj-test` is a test-scope dependency):
+Your own specs get the same guarantee with one call from a test (`hkj-test` is a test-scope dependency). The laws are checked at the sample values you pass, so give them the values your boundary actually meets, and drive more of them with a `@ParameterizedTest` where a field's spellings matter:
 
 ``` java
 import org.higherkindedj.optics.laws.MappingLaws;
@@ -141,9 +141,9 @@ The patch laws are projection identity (`patch(d, build(d)) == Valid(d)`), idemp
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Testing With hkj-test](../tooling/test_assertions.md#optic-laws) - The law harness `MappingLaws` belongs to
-- [Beans and Sparse PATCH](beans_patch.md) - The sparse `updateFrom` tier
-- [Injecting, Testing, and Diagnostics](testing.md) - Registering a tier's surface as a bean
+- [Testing With hkj-test](../tooling/test_assertions.md#optic-laws): The law harness `MappingLaws` belongs to
+- [Beans and Sparse PATCH](beans_patch.md): The sparse `updateFrom` tier
+- [Injecting, Testing, and Diagnostics](testing.md): Registering a tier's surface as a bean
 ~~~
 
 ---

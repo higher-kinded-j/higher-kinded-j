@@ -287,7 +287,8 @@ public final class RecordMappingBook {
 
     Edits.Accumulated<Customer> update = ContactPatchMappingImpl.INSTANCE.updateFrom(patch);
     Validated<NonEmptyList<FieldError>, Customer> patched = update.apply(current);
-    // Valid(Customer[name=Ada Lovelace, email=ada@corp.example]) - only the name changed
+    // Valid(Customer[name=Ada Lovelace, email=EmailAddress[value=ada@corp.example]])
+    //   <- only the name changed
     // ANCHOR_END: update_usage
     System.out.println(patched);
 

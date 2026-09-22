@@ -142,10 +142,14 @@ val bookVerify = tasks.register<Test>("bookVerify") {
     // The anchored example sources are inputs too. Without this, renaming an `// ANCHOR:` would not
     // re-run the gate: the rename is a comment, so the compiled classes are byte-identical and the
     // task stays UP-TO-DATE while the book silently loses that code block.
+    val exampleSources = layout.projectDirectory.dir("src/main/java/org/higherkindedj/example/book")
     inputs
-        .files(layout.projectDirectory.dir("src/main/java/org/higherkindedj/example/book").asFileTree)
+        .files(exampleSources.asFileTree)
         .withPropertyName("bookExampleSources")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+    // The output-comment gate reads these sources: a comment is not compiled, so the only way to
+    // hold `// Valid(...)` to what the example prints is to run it and compare.
+    systemProperty("hkj.examples.dir", exampleSources.asFile.absolutePath)
     inputs
         .files(layout.projectDirectory.dir("src/test/java/org/higherkindedj/example/book").asFileTree)
         .withPropertyName("bookExampleTestSources")

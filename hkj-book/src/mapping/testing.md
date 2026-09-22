@@ -93,9 +93,9 @@ Every rejection follows the processor's what/why/fix standard: the message state
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Testing With hkj-test](../tooling/test_assertions.md#optic-laws) - `MappingLaws` and `assertThatFieldError`
-- [Spring Boot Integration](../spring/spring_boot_integration.md) - The example app the injection seam comes from
-- [Accumulating Assembly](../monads/validated_assembly.md) - The `fields()` builder behind the generated `parse`
+- [Testing With hkj-test](../tooling/test_assertions.md#optic-laws): `MappingLaws` and `assertThatFieldError`
+- [Spring Boot Integration](../spring/spring_boot_integration.md): The example app the injection seam comes from
+- [Accumulating Assembly](../monads/validated_assembly.md): The `fields()` builder behind the generated `parse`
 ~~~
 
 ---

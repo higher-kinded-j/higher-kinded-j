@@ -87,8 +87,8 @@ public final class MultiEditBook {
                 parseIfPresent(EMAIL, req.email(), Email::parse),
                 modifyIfPresent(QUANTITY, req.qtyDelta(), (delta, qty) -> qty + delta))
             .apply(order);
-    // Invalid(NEL[ "email: not an address" ]), or Valid(order') with only the present fields
-    // changed
+    // Invalid(NonEmptyList[email: not an address])
+    //   <- or Valid(order) with only the present fields changed
     // ANCHOR_END: accumulate
     System.out.println(patched);
 

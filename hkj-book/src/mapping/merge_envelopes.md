@@ -88,9 +88,9 @@ Two verbs keep the two operations distinct: `ErrorEnvelope.withContext(D)` is th
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Accumulating Assembly](../monads/validated_assembly.md) - The `fields()` ladders behind fallible merges
-- [Testing With hkj-test](../tooling/test_assertions.md) - `assertThatErrorEnvelope` for envelope assertions
-- [Record Mapping Basics](basics.md) - The `parse` whose errors these envelopes type
+- [Accumulating Assembly](../monads/validated_assembly.md): The `fields()` ladders behind fallible merges
+- [Testing With hkj-test](../tooling/test_assertions.md): `assertThatErrorEnvelope` for envelope assertions
+- [Record Mapping Basics](basics.md): The `parse` whose errors these envelopes type
 ~~~
 
 ---
