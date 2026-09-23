@@ -237,7 +237,8 @@ If none of the above fits, you are in one of these situations:
   [Extending](hkts/extending-simulation.md) for the witness arity contract.
 - **You are stuck on a compiler error and the type doesn't make sense.**
   See [Common Compiler Errors](effect/compiler_errors.md) for effects,
-  [Optics Compiler Errors](optics/compiler_errors.md) for optics, or
+  [Optics Compiler Errors](optics/compiler_errors.md) for optics,
+  [Mapping Compiler Messages](mapping/compiler_errors.md) for mappings, or
   [Transformer Errors](transformers/common_errors.md) for transformers.
 
 ---

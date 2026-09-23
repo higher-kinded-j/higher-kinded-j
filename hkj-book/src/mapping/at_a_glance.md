@@ -69,8 +69,8 @@ mapping nests inside another.
 | The generated Impl is bound in the caller, never as a constant on the spec | Class initialisation can leave that constant `null`, intermittently | `XImpl.INSTANCE` at the call site, or an injected surface: [why](basics.md#bind-in-the-caller) |
 
 Everything the processor refuses says so at compile time, with what is wrong, why it matters and
-the code to write. The complete set is in [Rules and Limits](rules.md), and every message is in
-[Compiler Messages](compiler_errors.md).
+the code to write. The complete set is in [Rules and Limits](rules.md), and the messages you are most likely to meet
+are in [Compiler Messages](compiler_errors.md).
 
 ---
 

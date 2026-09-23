@@ -209,7 +209,7 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 11. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
 12. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
 13. [Rules and Limits](rules.md): Every enforced rule and limit, in one place
-14. [Compiler Messages](compiler_errors.md): Every refusal, what it means, and the fix
+14. [Compiler Messages](compiler_errors.md): The common refusals, what each means, and the fix
 
 ---
 

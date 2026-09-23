@@ -55,7 +55,7 @@ There is no component ceiling. `parse` (and the validated `patch`, and `@Generat
 
 The only width bound left is the JVM's constructor parameter-slot limit on the record itself (254 components in practice, fewer with `long`/`double`), which javac enforces at the record declaration. The hand-written `fields()` ladder keeps its 16-field arity; wider hand-written assemblies nest sub-records.
 
-Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. The limits themselves are indexed in [Find your limit](rules.md#find-your-limit), each linked to its rule.
+Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. [Compiler Messages](compiler_errors.md) collects the common ones. The limits themselves are indexed in [Find your limit](rules.md#find-your-limit), each linked to its rule.
 
 ---
 
