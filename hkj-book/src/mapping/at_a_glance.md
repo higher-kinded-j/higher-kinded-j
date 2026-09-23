@@ -21,9 +21,9 @@ plugins {
 ```
 
 The plugin wires `hkj-core`, the annotation processor, `-parameters` and the preview flags. The
-build runs on **Java 25**, with preview features enabled: `javac` accepts `--enable-preview` only
-for the release it is running on, so moving to a later JDK is a decision to make deliberately
-rather than a version bump. Hand-rolled Gradle and Maven builds are in
+build runs on **Java 25** today, with preview features enabled: `javac` accepts `--enable-preview`
+only for the release it is running on, so a later JDK waits on the library moving to it rather than
+on a version bump. Hand-rolled Gradle and Maven builds are in
 [Manual setup](../tooling/manual_setup.md), which also covers **Lombok** (list it before
 `hkj-processor`) and [types another processor generates](../tooling/manual_setup.md). For HTTP
 responses, add `hkj-spring-boot-starter`.

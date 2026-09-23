@@ -91,8 +91,8 @@ Where a field needs converting or checking, the spec (that interface) declares a
 Outbound, `build` is a *total* function: it cannot fail. Inbound, `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`: either your typed domain value, or every defect at once. Nothing drifts, because the processor re-derives the mapping from the records on every compile and rejects what it cannot honour.
 
 ~~~admonish warning title="Before you start"
-Higher-Kinded-J is built on **Java 25 with preview features enabled**: a build without
-`--enable-preview` will not compile, and preview ties that build to one JDK release. The [Quickstart](quickstart.md) has the one build line that
+Higher-Kinded-J is built on **Java 25** today, with preview features enabled, and preview ties
+that build to one JDK release. The [Quickstart](quickstart.md) has the one build line that
 sets that up, and ends at a working endpoint. Evaluating rather than building? [Mapper at a
 Glance](at_a_glance.md) has the generated code, the costs and the decisions to know.
 ~~~
