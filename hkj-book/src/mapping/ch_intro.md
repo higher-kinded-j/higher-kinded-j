@@ -173,6 +173,7 @@ Those pages teach the model and put it behind an endpoint. Everything after them
 - A `Page<T>` at the boundary: [Generic Specs](generics.md)
 - Combining several sources, or typing your error context: [Merge and Error Envelopes](merge_envelopes.md)
 - A rule, a limit, or a runtime surprise to look up: [Rules and Limits](rules.md)
+- A compiler message to decode: [Compiler Messages](compiler_errors.md)
 - Spring beans, test fakes, and how wide a record may be: [Injecting, Testing, and Diagnostics](testing.md)
 
 ~~~admonish info title="In This Chapter"
@@ -208,6 +209,7 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 11. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
 12. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
 13. [Rules and Limits](rules.md): Every enforced rule and limit, in one place
+14. [Compiler Messages](compiler_errors.md): Every refusal, what it means, and the fix
 
 ---
 

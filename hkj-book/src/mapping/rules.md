@@ -2,7 +2,7 @@
 
 _The precise contracts behind the mapping chapter, and every limit the processor enforces._
 
-Each rule the processor enforces is stated on this page once, bar a few short enough to stay on the page that teaches them, and Find your limit indexes both. A rule the processor cannot check stays on its teaching page as a warning, where your attention is the only safeguard: [Find your symptom](#find-your-symptom) indexes those.
+Each rule the processor enforces is stated on this page once, bar a few short enough to stay on the page that teaches them, and Find your limit indexes both. A rule the processor cannot check stays on its teaching page as a warning, where your attention is the only safeguard: [Find your symptom](#find-your-symptom) indexes those. Holding a compiler message instead? [Compiler Messages](compiler_errors.md) finds it.
 
 ## Find your limit {#find-your-limit}
 
@@ -182,16 +182,9 @@ Diagnostics about an inherited member name its declaring interface, `abstract me
 
 ### A generic mix-in reached raw {#a-generic-mix-in-reached-raw}
 
-A generic mix-in's members are read under the spec's instantiation, as [Generic mix-ins](generics.md#generic-mix-ins) shows with `Renames<T>`. The one shape this cannot answer for is a **raw** supertype anywhere on the route. Raw erases every member of the type below it, whatever that member declares, so `extends Renames` would contribute `Object name()` rather than the `String` it was written with. A raw ancestor that contributes nothing is left alone, since nothing of its is read; one that contributes a rename, a leaf or a derived field is refused at the declaration:
+A generic mix-in's members are read under the spec's instantiation, as [Generic mix-ins](generics.md#generic-mix-ins) shows with `Renames<T>`. The one shape this cannot answer for is a **raw** supertype anywhere on the route. Raw erases every member of the type below it, whatever that member declares, so `extends Renames` would contribute `Object name()` rather than the `String` it was written with. A raw ancestor that contributes nothing is left alone, since nothing of its is read; one that contributes a rename, a leaf or a derived field is refused at the declaration, with [`mix-in 'Renames' is extended raw by the spec`](compiler_errors.md#extended-raw).
 
-```
-@GenerateMapping: mix-in 'Renames' is written raw. Its members are read under the spec's
-instantiation, and a raw supertype erases every one of them whatever they declare: a
-'ValidatedPrism<String, Email>' arrives bare, and a 'T' arrives as Object. Name the type
-arguments where 'Renames' is extended, as 'extends Renames<...>'.
-```
-
-Erasure travels downwards, so the raw clause is not always the interface whose members went missing: with `TextRenames extends Renames<String>` and a spec saying `extends TextRenames` raw, it is `TextRenames` that has to be given its argument. The message names the raw clause in both cases, because that is the line to edit.
+Erasure travels downwards, so the raw clause is not always the interface whose members went missing: with `Middle<T> extends Renames<T>` and a spec saying `extends Middle` raw, it is `Middle` that has to be given its argument, and the message says so: [`mix-in 'Renames' is reached through 'Middle', which the spec extends raw`](compiler_errors.md#reached-through-raw). The message names the raw clause in both cases, because that is the line to edit.
 
 ### Inheriting one member twice {#inheriting-one-member-twice}
 
@@ -379,3 +372,4 @@ For [`@GenerateErrorEnvelope`](merge_envelopes.md#generating-error-envelopes-gen
 ---
 
 **Previous:** [Coming from MapStruct and Bean Validation](from_mapstruct.md)
+**Next:** [Compiler Messages](compiler_errors.md)

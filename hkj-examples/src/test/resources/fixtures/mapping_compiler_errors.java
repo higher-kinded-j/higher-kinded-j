@@ -1,0 +1,64 @@
+// Fixture for hkj-book/src/mapping/compiler_errors.md
+//
+// Every entry on that page carries a minimal declaration that provokes the message its heading
+// quotes, under `<!-- verify:rejects -->` or `<!-- verify:reports -->`. The reproducers elide
+// their imports, and the few that convert an email or a map of labels share the leaves below.
+//
+// NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
+// src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
+// (see build.gradle.kts).
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import org.higherkindedj.hkt.error.ErrorEnvelope;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.Getter;
+import org.higherkindedj.optics.annotations.Flatten;
+import org.higherkindedj.optics.annotations.GenerateErrorEnvelope;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.GenerateMerge;
+import org.higherkindedj.optics.annotations.MapField;
+import org.higherkindedj.optics.annotations.MapKey;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.annotations.OptionalBridge;
+import org.higherkindedj.optics.annotations.Unmapped;
+import org.higherkindedj.optics.annotations.UpdateSpec;
+import org.higherkindedj.optics.validated.StandardCodecs;
+import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.NonNull;
+
+record EmailAddress(String value) {}
+
+final class EmailCodecs {
+  static final ValidatedPrism<String, EmailAddress> EMAIL =
+      ValidatedPrism.of(
+          raw ->
+              raw.contains("@")
+                  ? Validated.validNel(new EmailAddress(raw))
+                  : Validated.invalidNel(FieldError.of("not an email address")),
+          EmailAddress::value);
+
+  static final ValidatedPrism<String, Optional<EmailAddress>> OPTIONAL_EMAIL =
+      ValidatedPrism.of(
+          raw ->
+              raw.isEmpty()
+                  ? Validated.validNel(Optional.empty())
+                  : EMAIL.parse(raw).map(Optional::of),
+          email -> email.map(EmailAddress::value).orElse(""));
+
+  private EmailCodecs() {}
+}
+
+final class LabelCodecs {
+  static final ValidatedPrism<Map<String, String>, Map<Locale, String>> LABELS =
+      ValidatedPrism.of(
+          raw -> Validated.validNel(Map.of()),
+          labels -> Map.of());
+
+  private LabelCodecs() {}
+}
