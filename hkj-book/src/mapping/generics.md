@@ -51,7 +51,7 @@ A threaded spec nests too: a use site's type arguments unify against the spec's 
 
 ---
 
-## One rule, three access shapes
+## One rule, three access shapes {#one-rule-three-access-shapes}
 
 The three access shapes are one rule, not three conventions: *how much state does the Impl carry?*
 
@@ -63,7 +63,7 @@ The three access shapes are one rule, not three conventions: *how much state doe
 
 ---
 
-## Generic mix-ins
+## Generic mix-ins {#generic-mix-ins}
 
 A mix-in may declare type parameters of its own. Its members are read under the spec's instantiation, so a shared vocabulary interface parameterised by the type it speaks about contributes at the type the spec gives it:
 
@@ -86,7 +86,7 @@ Erasure travels downwards, so the raw clause is not always the interface whose m
 
 ---
 
-## Element-mapped specs
+## Element-mapped specs {#element-mapped-specs}
 
 The third form is **element-mapped**: thread the two sides under *different* variables (`Page<T> ↔ PageDto<TDto>`) and declare the element mapping as an **abstract leaf**. Nothing on the spec can parse a `TDto` into a `T`, so the generated Impl defers it: each abstract leaf becomes a constructor-supplied field behind a public `of(...)` factory, one `ValidatedPrism` per leaf in declaration order:
 

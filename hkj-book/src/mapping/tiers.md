@@ -70,7 +70,7 @@ And as the reference table:
 
 ---
 
-## Law-checked, in the repo and in your tests
+## Law-checked, in the repo and in your tests {#law-checked-in-the-repo-and-in-your-tests}
 
 "Lawfully offer" is verified, not promised: every emission tier above (lossless iso, projection lens, fallible leaf, nested spec, container lifting, sealed dispatch, derived fields, one-directional beans) is compiled and law-checked in the Higher-Kinded-J build itself, against the published [`hkj-test` law harness](../tooling/test_assertions.md#optic-laws).
 
@@ -105,7 +105,7 @@ The annotation sits on *your* spec interface, never on the mapped types, so thir
 
 ---
 
-## Leaf-carrying projections: the validated `patch`
+## Leaf-carrying projections: the validated `patch` {#leaf-carrying-projections-the-validated-patch}
 
 A projection that also *validates or normalises* a field (a leaf on a projected component) has no lawful total lens: the write-back can fail. Instead of refusing to generate, the mapping emits the **validated `patch` tier**: the total `build` stays, and the write-back returns `Validated`. A bean projection with a reference property lands here even without a leaf, because that property can be left unset ([Bean projections](beans_patch.md#bean-projections)):
 

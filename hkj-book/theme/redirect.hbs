@@ -1,0 +1,29 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Redirecting...</title>
+        <!--
+            mdbook's own redirect page is a meta refresh, and a meta refresh
+            drops the fragment: a reader following a deep link into a page that
+            has moved arrives at the top of the new page, with no way back to
+            the section they were promised. Carrying the hash across costs one
+            line of script, and the meta refresh below still serves a reader
+            with no JavaScript, exactly as before.
+        -->
+        <script>
+            (function () {
+                var hash = window.location.hash;
+                var target = "{{url}}";
+                if (hash && target.indexOf("#") === -1) {
+                    window.location.replace(target + hash);
+                }
+            })();
+        </script>
+        <meta http-equiv="refresh" content="0; URL={{url}}">
+        <link rel="canonical" href="{{url}}">
+    </head>
+    <body>
+        <p>Redirecting to... <a href="{{url}}">{{url}}</a>.</p>
+    </body>
+</html>

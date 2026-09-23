@@ -15,7 +15,7 @@ A generated Impl is a pure function, so most code should just call it. This page
 **The width proof on this page is [WideMappingLawsTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/WideMappingLawsTest.java)**, and the injection and fake snippets are included straight from the hkj-spring example app's [`MappingConfiguration`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/example/src/main/java/org/higherkindedj/spring/example/config/MappingConfiguration.java) and [`UserParseFakeCodecSliceTest`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-spring/example/src/test/java/org/higherkindedj/spring/example/controller/UserParseFakeCodecSliceTest.java) - everything on this page is compiled and run by the build.
 ~~~
 
-## Injecting and testing generated mappings
+## Injecting and testing generated mappings {#injecting-and-testing-generated-mappings}
 
 A concrete or threaded Impl is a stateless pure function reached through statics (`INSTANCE`, `instance()`); an element-mapped Impl is an immutable value built by `of(...)`, carrying its element prisms. The spec interface deliberately declares nothing either way (`@Autowired UserMapping` injects nothing useful, by design). When you do want a Spring bean or a test double, register the **surface you consume**, per tier:
 
@@ -46,7 +46,7 @@ The [hkj-spring example app](../spring/spring_boot_integration.md) demonstrates 
 
 ---
 
-## Diagnostics and limits
+## Diagnostics and limits {#diagnostics-and-limits}
 
 There is no component ceiling. `parse` (and the validated `patch`, and `@GenerateMerge`'s fallible merge) is assembled with [`Validated.fields()`](../monads/validated_assembly.md) ladders, chunked and combined applicatively past 16 fields, so a flat 20-or-30-field wire whose shape you do not control maps without grouping components into nested records, and behaves exactly like a narrow one (same located labels, same declaration-order accumulation, across chunk boundaries):
 
