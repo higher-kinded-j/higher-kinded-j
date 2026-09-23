@@ -519,13 +519,7 @@ final class SnippetExtractor {
         }
         if (subject < lines.size() && DECLARATION.matcher(lines.get(subject)).find()) {
           int end = endOfDeclaration(lines, subject);
-          String declaration = String.join("\n", lines.subList(i, end + 1));
-          declarations.add(
-              declaration.replaceAll(
-                  "\\b(public|private|protected)\\s+"
-                      + "(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
-                      + "(class|record|interface|enum)\\b)",
-                  ""));
+          declarations.add(topLevel(lines, i, subject, end));
           i = end + 1;
         } else if (subject < lines.size() && endOfSignature(lines, subject) >= 0) {
           int end = endOfDeclaration(lines, endOfSignature(lines, subject));
@@ -543,16 +537,7 @@ final class SnippetExtractor {
         }
       } else if (DECLARATION.matcher(line).find()) {
         int end = endOfDeclaration(lines, i);
-        String declaration = String.join("\n", lines.subList(i, end + 1));
-        // Several top-level types share one file, so none of them may be public - and none may be
-        // private or protected either, which a page writes for a nested helper record. The modifier
-        // is not always at the start of a line: `@GenerateMapping public interface X {}`.
-        declarations.add(
-            declaration.replaceAll(
-                "\\b(public|private|protected)\\s+"
-                    + "(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
-                    + "(class|record|interface|enum)\\b)",
-                ""));
+        declarations.add(topLevel(lines, i, i, end));
         i = end + 1;
       } else if (endOfSignature(lines, i) >= 0) {
         // The page is showing a whole method. It becomes a member: a method cannot nest in a
@@ -579,6 +564,32 @@ final class SnippetExtractor {
         i++;
       }
     }
+  }
+
+  /** An access modifier on a type declaration, wherever it falls on the line. */
+  private static final Pattern TYPE_ACCESS =
+      Pattern.compile(
+          "\\b(public|private|protected)\\s+"
+              + "(?=(final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+|static\\s+)*"
+              + "(class|record|interface|enum)\\b)");
+
+  /**
+   * A top-level declaration spanning {@code from} to {@code end}, whose own header is at {@code
+   * header} (after any annotations from {@code from}).
+   *
+   * <p>Several top-level types share one file, so none of them may be public - and none may be
+   * private or protected either, which a page writes for a nested helper record. The modifier is
+   * not always at the start of a line: {@code @GenerateMapping public interface X {}}. Only the
+   * lines up to the header lose it: a type nested inside keeps its access, since a nested {@code
+   * private record} is legal and can be the very thing a page shows the processor refusing.
+   */
+  private static String topLevel(List<String> lines, int from, int header, int end) {
+    List<String> out = new ArrayList<>();
+    for (int k = from; k <= end; k++) {
+      String line = lines.get(k);
+      out.add(k <= header ? TYPE_ACCESS.matcher(line).replaceAll("") : line);
+    }
+    return String.join("\n", out);
   }
 
   /** How many type-argument brackets a line leaves open, ignoring literals and comments. */
