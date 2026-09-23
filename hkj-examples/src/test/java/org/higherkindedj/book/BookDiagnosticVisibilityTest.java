@@ -29,9 +29,9 @@ import org.junit.jupiter.api.Test;
  * is ignored, because a long message is wrapped to fit the page.
  *
  * <p>The book has pages that predate the rule, mostly the optics error catalogue, where the entry
- * headings shorten the message rather than quote it. Those are counted rather than excused: the
- * count may fall, never rise, so a new marker has to quote its message and the backlog can be paid
- * down a page at a time.
+ * headings shorten the message rather than quote it. Those are listed rather than excused, page by
+ * page and exactly: a new marker that hides its message fails, and so does a page rework that
+ * quotes one without lowering the list, which is what keeps the backlog honest as it is paid down.
  */
 @DisplayName("a verified diagnostic is visible on its page")
 class BookDiagnosticVisibilityTest {
@@ -39,10 +39,24 @@ class BookDiagnosticVisibilityTest {
   private static final Path BOOK = Path.of(required("hkj.book.dir"));
 
   /**
-   * How many markers may still hide their message. Lower it as pages are reworked; never raise it.
-   * A new marker that does not quote its message visibly pushes this over the line and fails.
+   * The backlog, page by page: pages whose markers predate the rule, and how many each still hides.
+   * Lower a count, or drop a page, as the pages are reworked; never add to it. An exact comparison
+   * is what makes this a ratchet. A total alone would let a reworked page pay for a new hidden
+   * marker elsewhere, and leave the count unchanged.
    */
-  private static final int MAXIMUM_UNQUOTED = 26;
+  private static final List<String> KNOWN_BACKLOG =
+      List.of(
+          "monads/free_monad.md: 1",
+          "optics/compiler_errors.md: 19",
+          "optics/focus_containers.md: 1",
+          "optics/optics_spec_interfaces.md: 3",
+          "transformers/common_errors.md: 2");
+
+  /**
+   * Markers the book must not fall below, so deleting the gated snippets cannot pass for
+   * compliance.
+   */
+  private static final int MINIMUM_MARKERS = 63;
 
   private static final Pattern MARKER =
       Pattern.compile("<!--\\s*verify:(?:rejects|reports)\\s+\"([^\"]+)\"\\s*-->");
@@ -79,14 +93,28 @@ class BookDiagnosticVisibilityTest {
 
     assertThat(markers)
         .as("diagnostic markers found under " + BOOK)
-        .isGreaterThanOrEqualTo(MAXIMUM_UNQUOTED);
-    assertThat(hidden)
+        .isGreaterThanOrEqualTo(MINIMUM_MARKERS);
+
+    List<String> backlog =
+        hidden.stream()
+            .collect(
+                java.util.stream.Collectors.groupingBy(
+                    u -> u.page().toString().replace('\\', '/'),
+                    java.util.TreeMap::new,
+                    java.util.stream.Collectors.counting()))
+            .entrySet()
+            .stream()
+            .map(e -> e.getKey() + ": " + e.getValue())
+            .toList();
+
+    assertThat(backlog)
         .as(
             """
             A verified diagnostic must also appear as visible text on its page: the marker is an \
             HTML comment, so the reader cannot see or search what it proves. Quote the message \
-            beside the block, or lower MAXIMUM_UNQUOTED if you have reduced the backlog.""")
-        .hasSizeLessThanOrEqualTo(MAXIMUM_UNQUOTED);
+            beside the block. If you have reworked a page, lower its count in KNOWN_BACKLOG, or \
+            drop the page from the list.""")
+        .isEqualTo(KNOWN_BACKLOG);
   }
 
   /** A message is wrapped to fit the page, so whitespace plays no part in the comparison. */

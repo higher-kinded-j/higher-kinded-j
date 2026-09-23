@@ -143,8 +143,8 @@ Annotation-driven boilerplate elimination:
 
 ## Boundary Mapping
 
-One spec interface and one annotation replace the hand-written DTO mapper. The processor derives both directions at compile time, with no reflection:
-- `@GenerateMapping` on a `MappingSpec<Domain, Wire>` - a total `build` out, and a `parse` back that reports every bad field at once, each located by a dotted path
+One spec interface and one annotation replace the hand-written DTO mapper. The processor derives, at compile time and with no reflection, whichever directions the wire shape can support:
+- `@GenerateMapping` on a `MappingSpec<Domain, Wire>` - a total `build` out, and a `parse` back that reports every bad field at once, each located by a dotted path. A bean that can only be read gets `parse` alone, and one that can only be written gets `build` alone
 - `StandardCodecs` - stock `ValidatedPrism` leaves for identifiers, dates, enums, numbers and money, each accepting exactly the spelling it renders
 - `@MapField`, `@OptionalBridge`, `@MapKey`, `@Flatten`, `@Unmapped` - renames, absent fields, map keys, flattened records, and accessors left out on purpose
 - `UpdateSpec` - sparse PATCH, where an absent property leaves the domain value alone

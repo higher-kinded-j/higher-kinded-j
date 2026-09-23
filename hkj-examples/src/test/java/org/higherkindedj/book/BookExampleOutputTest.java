@@ -59,8 +59,12 @@ class BookExampleOutputTest {
   private static final Pattern OPENS_A_VALUE =
       Pattern.compile("^(Valid\\(|Invalid\\(|[A-Z][A-Za-z0-9_]*\\[).*");
 
-  /** One example that can be run, and the values its comments promise. */
-  record Example(String className, List<Claim> claims) {
+  /**
+   * One example that can be run, the values its comments promise, and any comment that opened a
+   * value and never closed it. The unclosed one is carried rather than thrown here, so it fails
+   * against the example it belongs to instead of breaking test discovery for all of them.
+   */
+  record Example(String className, List<Claim> claims, Claim unclosed) {
     @Override
     public String toString() {
       return className.substring(className.lastIndexOf('.') + 1)
@@ -100,7 +104,10 @@ class BookExampleOutputTest {
   private static Example exampleOf(Path source) {
     String text = read(source);
     if (!text.contains("public static void main(")) return null;
-    return new Example(classNameOf(source), claimsIn(text));
+    String className = classNameOf(source);
+    List<Claim> claims = new ArrayList<>();
+    Claim unclosed = claimsIn(text, claims);
+    return new Example(className, claims, unclosed);
   }
 
   /** The fully qualified name, taken from the file's own package declaration. */
@@ -113,9 +120,15 @@ class BookExampleOutputTest {
     return pkg + "." + simple;
   }
 
-  /** Every value an anchor's comments promise, in source order. */
-  private static List<Claim> claimsIn(String text) {
-    List<Claim> claims = new ArrayList<>();
+  /**
+   * Every value an anchor's comments promise, in source order.
+   *
+   * <p>A value that opens and never closes is a failure, not something to pass over: a missing
+   * bracket, or a stray one in a message, would otherwise drop the claim silently and leave the
+   * page quoting an output nothing checks.
+   */
+  private static Claim claimsIn(String text, List<Claim> claims) {
+    Claim unclosed = null;
     boolean insideAnchor = false;
     int startedAt = 0;
     StringBuilder pending = null;
@@ -123,19 +136,15 @@ class BookExampleOutputTest {
     String[] lines = text.split("\n", -1);
     for (int i = 0; i < lines.length; i++) {
       String line = lines[i];
-      if (line.contains("ANCHOR:")) {
-        insideAnchor = true;
+      boolean anchorEnds = line.contains("ANCHOR_END:");
+      boolean anchorStarts = !anchorEnds && line.contains("ANCHOR:");
+      String comment = insideAnchor && !anchorStarts && !anchorEnds ? commentBody(line) : null;
+
+      if (anchorStarts || anchorEnds || comment == null) {
+        if (pending != null && unclosed == null)
+          unclosed = new Claim(startedAt, pending.toString());
         pending = null;
-        continue;
-      }
-      if (line.contains("ANCHOR_END:")) {
-        insideAnchor = false;
-        pending = null;
-        continue;
-      }
-      String comment = insideAnchor ? commentBody(line) : null;
-      if (comment == null) {
-        pending = null;
+        insideAnchor = anchorStarts;
         continue;
       }
       if (pending != null) {
@@ -152,7 +161,8 @@ class BookExampleOutputTest {
         pending = null;
       }
     }
-    return claims;
+    if (pending != null && unclosed == null) unclosed = new Claim(startedAt, pending.toString());
+    return unclosed;
   }
 
   /** The text of a {@code //} comment, with any inline {@code <- note} dropped. */
@@ -192,6 +202,17 @@ class BookExampleOutputTest {
   @MethodSource("examples")
   @DisplayName("prints every value its output comments promise")
   void printsWhatItsCommentsClaim(Example example) {
+    if (example.unclosed() != null) {
+      fail(
+          """
+          %s:%d opens an output value that never closes, so nothing checks it.
+
+            the comment reads: %s
+          Close the brackets, or write the line as prose rather than as an output."""
+              .formatted(
+                  example.className(), example.unclosed().line(), example.unclosed().value()));
+    }
+
     List<String> printed = run(example.className());
     List<String> segments = new ArrayList<>();
     for (String line : printed) {
