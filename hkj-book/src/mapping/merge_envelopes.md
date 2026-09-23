@@ -25,7 +25,7 @@ A merge is declared entirely by a spec method's signature: **several** sources i
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:merge_usage}}
 ```
 
-Each target component fills from the one source with a same-named component: identity when the types match (a same-typed container fills with a [copy](basics.md#same-typed-containers-cross-as-copies)), through a `ValidatedPrism` leaf when they differ, or through a sibling `@GenerateMapping` spec (the `customer` below parses through `CustomerMappingImpl`, and failures locate as dotted paths):
+Each target component fills from the one source with a same-named component: identity when the types match (a same-typed container fills with a [copy](rules.md#same-typed-containers-cross-as-copies)), through a `ValidatedPrism` leaf when they differ, or through a sibling `@GenerateMapping` spec (the `customer` below parses through `CustomerMappingImpl`, and failures locate as dotted paths):
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:nested_merge_spec}}
@@ -33,7 +33,7 @@ Each target component fills from the one source with a same-named component: ide
 
 Ambiguity (two sources carrying the component) and unfilled components are compile errors, and the return type must tell the truth: fallible fills demand the `Validated` return; an identity-only merge must declare the plain target.
 
-The fallible path carries the [same null doctrine as `parse`](basics.md#null-doctrine): a null source-component read is a located, accumulated `FieldError`, never an exception, while a null source *argument* stays the caller's `NullPointerException`. It carries parse's [constructor guard](basics.md#constructor-invariants) too: an exception the target's constructor throws becomes an unlabelled `FieldError` with its message. A plain-return merge is total *by its declaration*: nulls flow through to the target constructor exactly as `build` copies them, and whatever that constructor throws propagates. (The return type follows the fills, so the guards cannot be bought by declaration alone: an identity-only merge that wants them should add a normalising `ValidatedPrism<X, X>` leaf, which makes the merge fallible and brings the `Validated` return with it.)
+The fallible path carries the [same null doctrine as `parse`](basics.md#null-doctrine) and its constructor guard; a plain-return merge carries neither. [Nulls and guards in a merge](rules.md#nulls-and-guards-in-a-merge) has the details, including how an identity-only merge buys the guards.
 
 ---
 
@@ -61,11 +61,7 @@ Add a one-line `default` so the wither reads as an instance method, and construc
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/OrderErrorBook.java:edit_context}}
 ```
 
-The context type is discovered **structurally** from the `ErrorEnvelope` component's type argument, never a class literal, and every variant must agree on it. Three rules apply, each a what/why/fix diagnostic:
-
-- the hierarchy, its variants, and the context record must be non-generic;
-- permitted variants must be records; a nested sealed sub-hierarchy is rejected with a flatten-it fix, not recursed into;
-- the context record's components must be nullable reference types. The all-absent context holds `null`, so primitives are rejected at compile time; and because a null-rejecting compact constructor cannot be detected by the processor, keep the context a plain nullable data carrier.
+The context type is discovered **structurally** from the `ErrorEnvelope` component's type argument, never a class literal, and every variant must agree on it. [Error envelope rules](rules.md#error-envelope-rules) lists the three shapes the processor refuses. One thing it cannot check: a compact constructor on the context record that rejects `null` breaks the all-absent context, so keep the context a plain nullable data carrier.
 
 ~~~admonish note title="Fine-grained or coarse variants?"
 The design choice is about the *hierarchy*, not the annotation.

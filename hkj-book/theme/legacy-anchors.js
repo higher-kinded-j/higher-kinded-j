@@ -16,7 +16,11 @@
   "use strict";
 
   var MOVED = {
-    // "mapping/basics.html#optional-bridge": "mapping/absence.html#optional-bridge",
+    "mapping/basics.html#the-null-contract-precisely": "mapping/rules.html#the-null-contract-precisely",
+    "mapping/basics.html#same-typed-containers-cross-as-copies": "mapping/rules.html#same-typed-containers-cross-as-copies",
+    "mapping/basics.html#how-the-two-default-families-are-told-apart": "mapping/rules.html#how-the-two-default-families-are-told-apart",
+    "mapping/basics.html#derived-fields-and-the-emission-tiers": "mapping/rules.html#derived-fields-and-the-emission-tiers",
+    "mapping/structure.html#how-a-dependencys-specs-are-found": "mapping/rules.html#how-a-dependencys-specs-are-found",
   };
 
   function target() {

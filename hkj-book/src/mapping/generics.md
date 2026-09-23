@@ -73,16 +73,7 @@ A mix-in may declare type parameters of its own. Its members are read under the 
 
 `name()` says `T` where it is declared and `String` where the spec has it, and that is what the generated Impl carries. It holds however many interfaces separate the two, and a spec's own parameters survive as themselves, because the Impl declares them.
 
-The one shape this cannot answer for is a **raw** supertype anywhere on the route. Raw erases every member of the type below it, whatever that member declares, so `extends Renames` would contribute `Object name()` rather than the `String` it was written with. A raw ancestor that contributes nothing is left alone, since nothing of its is read; one that contributes a rename, a leaf or a derived field is refused at the declaration:
-
-```
-@GenerateMapping: mix-in 'Renames' is written raw. Its members are read under the spec's
-instantiation, and a raw supertype erases every one of them whatever they declare: a
-'ValidatedPrism<String, Email>' arrives bare, and a 'T' arrives as Object. Name the type
-arguments where 'Renames' is extended, as 'extends Renames<...>'.
-```
-
-Erasure travels downwards, so the raw clause is not always the interface whose members went missing: with `TextRenames extends Renames<String>` and a spec saying `extends TextRenames` raw, it is `TextRenames` that has to be given its argument. The message names the raw clause in both cases, because that is the line to edit.
+The one shape this cannot answer for is a **raw** supertype anywhere on the route. The processor refuses one that contributes a member, and [a generic mix-in reached raw](rules.md#a-generic-mix-in-reached-raw) says which clause to edit.
 
 ---
 
@@ -98,7 +89,7 @@ The third form is **element-mapped**: thread the two sides under *different* var
 
 The Impl carries the prisms as state, so there is no singleton in either spelling: every `of(...)` call is a fresh, immutable instance. Build one where it is used and reuse it, rather than calling `of(...)` for every parse.
 
-A leaf can also come from a [generic mix-in](#generic-mix-ins). Declaration order then puts the spec's own leaves first, in the order it declares them, then each mix-in's, in the order the `extends` clause names them. A mix-in is read the same way, its own leaves before those of the interfaces it extends, and an interface reached twice counts where it is first reached. The generated `of(...)` documents each parameter, naming the interface that declares an inherited leaf, so the order can be read off the Impl.
+A leaf can also come from a [generic mix-in](#generic-mix-ins), and [leaf order in `of(...)`](rules.md#leaf-order-in-of) says where its parameter falls.
 
 Element-mapped mappings nest as **compositions**. A use site whose pair unifies against one resolves each element pair in turn:
 
@@ -107,9 +98,7 @@ Element-mapped mappings nest as **compositions**. A use site whose pair unifies 
 
 and emits `CodecPageMappingImpl.of(entries()).asValidatedPrism()` in place. Failures locate through the whole composed path (`entries.items.1: not an email address`); an unresolvable element pair is a compile error naming the pair and the ways to supply it. For a single-leaf spec that is a leaf on the using spec or another registered mapping. For a spec with several leaves it is another registered mapping, or a leaf over the whole pair that builds the composition itself with `of(...)`.
 
-~~~admonish note title="Boundaries"
-Generic mappings are **record-to-record only** (bean-shaped wires and `UpdateSpec` mappings stay concrete); raw uses (including raw *nested* arguments) and wildcards are diagnosed, while array arguments (`Page<String[]>`) are concrete, map fine, and unify structurally at nested use sites. An abstract leaf belongs to a generic spec: on a concrete or sealed one it is diagnosed, since nothing defers its parser. A leaf or rename declaring type parameters of its own (`<R> ValidatedPrism<R, R> items()`) is diagnosed as well: the Impl carries a leaf as a constructor-supplied field and a rename as a stub, and neither has anywhere to declare `<R>`. A leaf's element types go on the spec's own type parameters; a rename simply declares a concrete return type, since the stub only names it.
-~~~
+Generic mappings are **record-to-record only**: [the boundaries of a generic spec](rules.md#generic-boundaries) lists what else the processor diagnoses.
 
 ---
 
