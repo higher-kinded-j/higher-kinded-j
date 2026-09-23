@@ -23,6 +23,7 @@ import org.higherkindedj.spring.example.domain.User;
  * an absent field becomes a located {@code FieldError} ({@code "must not be null"}) and a {@code
  * null} never reaches a leaf.
  */
+// ANCHOR: quickstart_spec
 @GenerateMapping
 public interface UserMapping extends MappingSpec<User, UserDto> {
 
@@ -51,4 +52,5 @@ public interface UserMapping extends MappingSpec<User, UserDto> {
                 : Validated.invalidNel(FieldError.of("must not be blank")),
         firstName -> firstName);
   }
+  // ANCHOR_END: quickstart_spec
 }

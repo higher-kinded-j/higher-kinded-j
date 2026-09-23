@@ -57,6 +57,7 @@ class UserParseWebMvcSliceTest {
         .andExpect(jsonPath("$.lastName").value("Hopper"));
   }
 
+  // ANCHOR: quickstart_proof
   @Test
   @DisplayName("two bad fields come back as ONE 422 listing both by path")
   void twoBadFieldsAccumulateInOne422() throws Exception {
@@ -77,6 +78,8 @@ class UserParseWebMvcSliceTest {
         .andExpect(jsonPath("$.errors[?(@.path=='email')].segments[0]").value("email"))
         .andExpect(jsonPath("$.errors[?(@.path=='firstName')].message").value("must not be blank"));
   }
+
+  // ANCHOR_END: quickstart_proof
 
   @Test
   @DisplayName("absent fields become located 'must not be null' errors in the same 422, not a 500")

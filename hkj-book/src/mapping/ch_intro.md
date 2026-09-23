@@ -90,6 +90,13 @@ Where a field needs converting or checking, the spec (that interface) declares a
 
 Outbound, `build` is a *total* function: it cannot fail. Inbound, `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`: either your typed domain value, or every defect at once. Nothing drifts, because the processor re-derives the mapping from the records on every compile and rejects what it cannot honour.
 
+~~~admonish warning title="Before you start"
+Higher-Kinded-J is built on **Java 25** today, with preview features enabled, and preview ties
+that build to one JDK release. The [Quickstart](quickstart.md) has the one build line that
+sets that up, and ends at a working endpoint. Evaluating rather than building? [Mapper at a
+Glance](at_a_glance.md) has the generated code, the costs and the decisions to know.
+~~~
+
 ~~~admonish tip title="At the Spring boundary"
 If you arrived here because you want that 422, the wiring is two steps: this chapter's `parse`, and the `hkj-spring-boot-starter`, which renders an `Invalid` parse result as one **422 Unprocessable Content** response with no code in between. Return the result from the controller as-is. [The 422 leg](../spring/spring_boot_integration.md#the-422-leg) is the full story, and [Sparse PATCH at the Spring boundary](../spring/spring_boot_integration.md#sparse-patch) covers PATCH endpoints. (A *leg* is the route a returned value travels to become an HTTP response, in the railway sense.)
 ~~~
@@ -148,7 +155,17 @@ The usual pipeline is: bind with Jackson, annotate the DTO with `@Valid` constra
 
 ## How to read this chapter
 
-Two pages teach the whole model. [Record Mapping Basics](basics.md) declares a mapping and reads its errors; [Standard Codecs](codecs.md) covers the stock conversions (UUIDs, dates, enums, money) so most boundaries need no hand-written conversion at all. To put one behind an endpoint you also need the build line and the controller call, which [the Spring integration](../spring/spring_boot_integration.md#the-422-leg) has. Everything after that is on demand:
+Start from what you came for.
+
+| You want | Start at |
+|---|---|
+| A working endpoint that answers with a located 422 | [Quickstart](quickstart.md), five steps |
+| To understand the model before writing any of it | [Record Mapping Basics](basics.md), then [Standard Codecs](codecs.md) |
+| To judge whether it fits your services | [Mapper at a Glance](at_a_glance.md) |
+| To bring a MapStruct or Bean Validation habit across | [Coming from MapStruct and Bean Validation](from_mapstruct.md) |
+| To see the whole thing on one boundary | [the Capstone](capstone.md) |
+
+Those pages teach the model and put it behind an endpoint. Everything after them is on demand:
 
 - DTOs that nest, hold lists, or dispatch over sealed types: [Nesting, Containers, and Sealed Hierarchies](structure.md)
 - What exactly got generated for your spec, and why: [The Emission Tiers](tiers.md)
@@ -156,18 +173,17 @@ Two pages teach the whole model. [Record Mapping Basics](basics.md) declares a m
 - A `Page<T>` at the boundary: [Generic Specs](generics.md)
 - Combining several sources, or typing your error context: [Merge and Error Envelopes](merge_envelopes.md)
 - Spring beans, test fakes, and the feature's limits: [Injecting, Testing, and Diagnostics](testing.md)
-- The whole lane on one worked boundary: [the Capstone](capstone.md)
 
 ~~~admonish info title="In This Chapter"
-- **Record Mapping Basics** – Declare a mapping as one empty interface and get both directions: a `build` that cannot fail and a `parse` that reports every bad field at once. Then add conversions, renames, computed fields, the one field whose `null` means *absent*, and a record's own invariants.
-- **Standard Codecs and Shared Vocabulary** – The stock conversions (UUIDs, dates, enums, money) as one factory call each, and the mix-in pattern that shares your conversions across every spec in an API.
-- **Nesting, Containers, and Sealed Hierarchies** – Specs nest automatically and failures compose into dotted paths; `List`, `Set`, arrays, `Optional` and `Map` map their elements (and, with `@MapKey`, a map's keys); sealed pairs dispatch exhaustively in both directions.
-- **The Emission Tiers** – Which spec shapes earn `asIso()`, `asLens()`, the validated `patch`, `asValidatedPrism()` or one of its halves, and the one-call law check that proves each in your own tests.
-- **Beans and Sparse PATCH** – Getter/setter and builder wires with the full feature set, and the `UpdateSpec` opt-in that gives a PATCH bean null-as-absent semantics without weakening validation of what was sent.
-- **Generic Specs** – Mapping `Page<T>` and friends: concrete instantiations, threaded type parameters, and element-mapped specs whose codecs arrive at construction time.
-- **Merge and Error Envelopes** – `@GenerateMerge` assembles one target from several sources; `@GenerateErrorEnvelope` retires the copy-pasted `code`/`message`/`timestamp` and types the error context.
-- **Injecting, Testing, and Diagnostics** – Register the surface you consume, fake codecs as two-line values, and lean on what/why/fix diagnostics; there is no component ceiling.
-- **Capstone: One 422, Every Bad Field** – The whole chapter on one order-intake boundary: a five-defect request answered by the single response shown above, with PATCH, merge, and envelope encores, all proven by a green test.
+- **Record Mapping Basics**: Declare a mapping as one empty interface and get both directions: a `build` that cannot fail and a `parse` that reports every bad field at once. Then add conversions, renames, computed fields, the one field whose `null` means *absent*, and a record's own invariants.
+- **Standard Codecs and Shared Vocabulary**: The stock conversions (UUIDs, dates, enums, money) as one factory call each, and the mix-in pattern that shares your conversions across every spec in an API.
+- **Nesting, Containers, and Sealed Hierarchies**: Specs nest automatically and failures compose into dotted paths; `List`, `Set`, arrays, `Optional` and `Map` map their elements (and, with `@MapKey`, a map's keys); sealed pairs dispatch exhaustively in both directions.
+- **The Emission Tiers**: Which spec shapes earn `asIso()`, `asLens()`, the validated `patch`, `asValidatedPrism()` or one of its halves, and the one-call law check that proves each in your own tests.
+- **Beans and Sparse PATCH**: Getter/setter and builder wires with the full feature set, and the `UpdateSpec` opt-in that gives a PATCH bean null-as-absent semantics without weakening validation of what was sent.
+- **Generic Specs**: Mapping `Page<T>` and friends: concrete instantiations, threaded type parameters, and element-mapped specs whose codecs arrive at construction time.
+- **Merge and Error Envelopes**: `@GenerateMerge` assembles one target from several sources; `@GenerateErrorEnvelope` retires the copy-pasted `code`/`message`/`timestamp` and types the error context.
+- **Injecting, Testing, and Diagnostics**: Register the surface you consume, fake codecs as two-line values, and lean on what/why/fix diagnostics; there is no component ceiling.
+- **Capstone: One 422, Every Bad Field**: The whole chapter on one order-intake boundary: a five-defect request answered by the single response shown above, with PATCH, merge, and envelope encores, all proven by a green test.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
@@ -178,16 +194,19 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 
 ## Chapter Contents
 
-1. [Record Mapping Basics](basics.md): Your first mapping, leaves, renames, derived fields, optional fields
-2. [Standard Codecs and Shared Vocabulary](codecs.md): Stock lawful codecs and mix-in sharing
-3. [Nesting, Containers, and Sealed Hierarchies](structure.md): Composition and dotted error paths
-4. [The Emission Tiers](tiers.md): Truthful types, projections, the validated patch, laws
-5. [Beans and Sparse PATCH](beans_patch.md): Bean wires and the UpdateSpec tier
-6. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
-7. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
-8. [Injecting, Testing, and Diagnostics](testing.md): Beans, fakes, and limits
-9. [Capstone: One 422, Every Bad Field](capstone.md): The whole chapter on one boundary, proven
+1. [Quickstart: Your First 422](quickstart.md): Five steps from a blank build to a located 422
+2. [Record Mapping Basics](basics.md): Your first mapping, leaves, renames, derived fields, optional fields
+3. [Standard Codecs and Shared Vocabulary](codecs.md): Stock lawful codecs and mix-in sharing
+4. [Nesting, Containers, and Sealed Hierarchies](structure.md): Composition and dotted error paths
+5. [The Emission Tiers](tiers.md): Truthful types, projections, the validated patch, laws
+6. [Beans and Sparse PATCH](beans_patch.md): Bean wires and the UpdateSpec tier
+7. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
+8. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
+9. [Injecting, Testing, and Diagnostics](testing.md): Beans, fakes, and limits
+10. [Capstone: One 422, Every Bad Field](capstone.md): The whole chapter on one boundary, proven
+11. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
+12. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
 
 ---
 
-**Next:** [Record Mapping Basics](basics.md)
+**Next:** [Quickstart: Your First 422](quickstart.md)
