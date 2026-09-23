@@ -30,7 +30,7 @@ Java's `ScopedValue` API makes those currents visible. Where `ThreadLocal` let c
 - **Bounded lifetime**: Values exist only within their declared scope
 - **Performance**: Optimised for virtual thread access patterns
 
-Ensure your project targets Java 25, the release the library is built on ([Prerequisites](../quickstart.md#prerequisites)).
+Ensure your project targets Java 25, the release the library is built on today ([Prerequisites](../quickstart.md#prerequisites)).
 ~~~
 
 ~~~admonish example title="Example Code"

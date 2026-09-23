@@ -137,7 +137,7 @@ If we are struggling with an exercise:
 - **Basic functional concepts**: helpful but not required; we introduce them as needed
 
 ### Technical Setup
-- **Java 25**: the library is built on it, and preview features tie it to that release ([Prerequisites](../quickstart.md#prerequisites))
+- **Java 25**: the release the library is built on today, which preview features tie it to ([Prerequisites](../quickstart.md#prerequisites))
 - **Build tool**: Gradle or Maven with the Higher-Kinded-J dependencies configured
 - **IDE**: IntelliJ IDEA, Eclipse, or VS Code with Java extensions
 

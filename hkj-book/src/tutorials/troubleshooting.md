@@ -329,7 +329,7 @@ Even though code compiles, IDE shows red underlines.
 ### Tests Pass Locally But Fail in CI
 
 **Common causes**:
-1. **Java Version Mismatch**: Ensure CI uses Java 25, the release the library is built on
+1. **Java Version Mismatch**: Ensure CI uses Java 25, the release the library is built on today
 2. **Annotation Processor Not Running**: CI build must run `clean build`, not just `test`
 3. **Encoding Issues**: Ensure UTF-8 encoding in build configuration
 
