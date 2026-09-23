@@ -12,6 +12,7 @@
     '/where_to_start.html',
     '/effect/ch_intro.html',
     '/optics/ch_intro.html',
+    '/mapping/ch_intro.html',
     '/transformers/ch_intro.html',
     '/hkts/foundations_intro.html',
     '/examples/ch_intro.html',

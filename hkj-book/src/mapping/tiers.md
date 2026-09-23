@@ -70,15 +70,37 @@ And as the reference table:
 
 ---
 
+~~~admonish question title="Checkpoint: which surface does each spec get?" id="check-tiers-which"
+Name the round-trip or write-back surface each of these carries: `asIso()`, `asLens()`, the validated `patch`, or none of the three.
+
+1. `PersonMapping`: `Person(String name, int age)` against `PersonDto(String name, int age)`
+2. `CustomerMapping`: the same shape, but `email` converts through a leaf
+3. `EmployeeCardMapping`: `EmployeeCardDto` carries two of `Employee`'s three components, all copied
+4. `SubscriberDetailsMapping`: a smaller wire again, but one projected component converts through a leaf
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-tiers-which-answer"
+**`asIso()`, none, `asLens()`, `patch`.**
+
+1. Every component copies both ways and nothing can fail, so the round trip is lossless and the pair earns `asIso()`.
+2. A leaf can refuse a value, so there is no total inverse to offer. The mapping keeps `build` and an accumulating `parse`, and nests through `asValidatedPrism()`.
+3. The wire is a smaller view, so there is nothing to parse back, but `set` can write the view onto an employee you already hold: that is `asLens()`, and `age` survives because it is read from the domain argument.
+4. The same write-back, except that writing can now fail, and a lens's `set` cannot. So it becomes `patch(domain, wire)`, returning `Validated` with every bad field located.
+
+The rule underneath all four: the processor emits an operation only where the pair can keep its promise. Both write-backs are worked below.
+
+Where this lives: the table at the top of this page, and [the validated `patch`](#leaf-carrying-projections-the-validated-patch).
+~~~
+
 ## Law-checked, in the repo and in your tests {#law-checked-in-the-repo-and-in-your-tests}
 
 "Lawfully offer" is verified, not promised: every emission tier above (lossless iso, projection lens, fallible leaf, nested spec, container lifting, sealed dispatch, derived fields, one-directional beans) is compiled and law-checked in the Higher-Kinded-J build itself, against the published [`hkj-test` law harness](../tooling/test_assertions.md#optic-laws).
 
 ~~~admonish tip title="Why this matters"
-Every mapping tool promises correctness; this one states laws and runs them. The tier table is not documentation of intent: each row names properties that hold as passing tests (round trip, projection identity, idempotence, coherence between surfaces). They run in this repository on every build, and the one call below runs them in yours. When a record refactor changes what the pair can lawfully support, the generated surface changes with it and the law test tells you at build time, not in production. We know of no other Java mapping generator that law-checks its own output; it is the difference between a mapper you trust and a mapper you audit.
+Every mapping tool promises correctness; this one states laws and runs them. The tier table is not documentation of intent: each row names properties that hold as passing tests (round trip, projection identity, idempotence, coherence between surfaces). They run in this repository on every build, and the one call below runs them in yours. When a record refactor changes what the pair can lawfully support, the generated surface changes with it and the law test tells you at build time, not in production. It is the difference between a mapper you trust and a mapper you audit.
 ~~~
 
-Your own specs get the same guarantee with one call from a test (`hkj-test` is a test-scope dependency):
+Your own specs get the same guarantee with one call from a test (`hkj-test` is a test-scope dependency). The laws are checked at the sample values you pass, so give them the values your boundary actually meets, and drive more of them with a `@ParameterizedTest` where a field's spellings matter:
 
 ``` java
 import org.higherkindedj.optics.laws.MappingLaws;
@@ -141,9 +163,9 @@ The patch laws are projection identity (`patch(d, build(d)) == Valid(d)`), idemp
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Testing With hkj-test](../tooling/test_assertions.md#optic-laws) - The law harness `MappingLaws` belongs to
-- [Beans and Sparse PATCH](beans_patch.md) - The sparse `updateFrom` tier
-- [Injecting, Testing, and Diagnostics](testing.md) - Registering a tier's surface as a bean
+- [Testing With hkj-test](../tooling/test_assertions.md#optic-laws): The law harness `MappingLaws` belongs to
+- [Beans and Sparse PATCH](beans_patch.md): The sparse `updateFrom` tier
+- [Injecting, Testing, and Diagnostics](testing.md): Registering a tier's surface as a bean
 ~~~
 
 ---

@@ -68,6 +68,28 @@ The formatter overload makes the canonical form *theirs*:
 
 Two properties of a formatter canon are worth knowing. The canon is the *pattern's*, not the producer's output set: any spelling the pattern round-trips is accepted, so `JS_WIRE` admits a `+01:00` offset a real `toISOString()` would never emit, lawfully. And the pattern fixes the canon's *precision*: extra fractional digits on the wire are rejected (they do not fit the pattern), while a domain value carrying finer precision than the pattern renders truncated on `build`, which is a [non-injective render](../optics/validated_prism.md#laws), the obligation the laws page leaves with you. Pick a pattern whose precision matches what the domain actually stores, and check a custom canon with the laws.
 
+~~~admonish question title="Checkpoint: which spellings does `instant()` accept?" id="check-codecs-instant"
+Five producers send the same moment to a component mapped with `StandardCodecs.instant()`. Which of them parse?
+
+1. `2026-07-28T12:34:56Z`
+2. `2026-07-28T12:34:56.000Z`, from a browser's `toISOString()`
+3. `2026-07-28T12:34:56.500Z`
+4. `2026-07-28T12:34:56.5Z`
+5. `2026-07-28T12:34:56+00:00`, from Python's `isoformat()`
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-codecs-instant-answer"
+**1 and 3.** A codec accepts exactly the spelling it renders, and `instant()` renders as `Instant.toString()` does: `Z` for a zero offset, fractions in three-digit groups, and no fraction at all when it is zero. So `.000Z`, `.5Z` and `+00:00` are each a located rejection rather than a silent normalisation:
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:check_instant_canon}}
+```
+
+The second and fifth spellings are the two common producers in the table above. To take them, declare their canon with the formatter overload rather than loosening the leaf.
+
+Where this lives: [Canonical forms only](#canonical-forms-only).
+~~~
+
 ### Your own canon: `ValidatedPrism.canonical`
 
 The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law; only accepting *both* cases through one leaf is. [`ValidatedPrism.canonical`](../optics/validated_prism.md#laws) supplies the guard such a leaf needs: the lenient, throwing `UUID.fromString` is fine, because the render defines the canon and the per-value guard rejects every spelling it cannot reproduce:
@@ -80,7 +102,7 @@ Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPr
 
 ~~~admonish note title="Two mechanical notes"
 - The number and boolean codecs focus the **box types**: a `ValidatedPrism<String, int>` cannot exist, so an `int` component cannot take a leaf; declare it `Integer` (the mapper rejects the mismatch at compile time either way).
-- Under the star import, a leaf whose component shares a factory's name (`currency`, `locale`, `uuid`) must qualify the call (`return StandardCodecs.currency();`) because the leaf method itself is the nearer `currency()` and an unqualified call recurses.
+- A leaf whose component shares a factory's name (`currency`, `locale`, `uuid`) must qualify the call (`return StandardCodecs.currency();`). The leaf method itself is the nearer `currency()`, so an unqualified call recurses, whether the factory arrived by a single static import or a star import.
 ~~~
 
 ---
@@ -134,9 +156,9 @@ A vocabulary also crosses a **module boundary**. It is a plain interface rather 
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Validated Prisms](../optics/validated_prism.md#laws) - The section law the codecs are built to honour
-- [Record Mapping Basics](basics.md#validated-leaves) - How leaves attach to a spec
-- [Beans and Sparse PATCH](beans_patch.md) - The PATCH sibling that lifts the same element leaves
+- [Validated Prisms](../optics/validated_prism.md#laws): The section law the codecs are built to honour
+- [Record Mapping Basics](basics.md#validated-leaves): How leaves attach to a spec
+- [Beans and Sparse PATCH](beans_patch.md): The PATCH sibling that lifts the same element leaves
 ~~~
 
 ---

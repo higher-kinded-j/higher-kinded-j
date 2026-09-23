@@ -121,9 +121,9 @@ Generic mappings are **record-to-record only** (bean-shaped wires and `UpdateSpe
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Nesting, Containers, and Sealed Hierarchies](structure.md) - How generic mappings register and nest
-- [Record Mapping Basics](basics.md#null-doctrine) - The null-element scan same-variable elements copy under
-- [Injecting, Testing, and Diagnostics](testing.md) - Registering an element-mapped Impl as a bean
+- [Nesting, Containers, and Sealed Hierarchies](structure.md): How generic mappings register and nest
+- [Record Mapping Basics](basics.md#null-doctrine): The null-element scan same-variable elements copy under
+- [Injecting, Testing, and Diagnostics](testing.md): Registering an element-mapped Impl as a bean
 ~~~
 
 ---

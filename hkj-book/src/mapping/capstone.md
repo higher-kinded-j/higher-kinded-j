@@ -72,6 +72,18 @@ That is the entire declaration: no mapper class, no Bean Validation annotations,
 
 Now the five-defect request. A bad id, a bad email inside the nested customer, a bad price on the *second* line item, a non-canonical timestamp, and an unknown status:
 
+~~~admonish question title="Checkpoint: count the errors first" id="check-capstone-count"
+The request below has a bad id, a bad email inside the nested customer, a bad price on the second line item, a timestamp in a format the codec does not speak, an unknown status, and `null` for `displayTotal`.
+
+Before you read the result: how many located errors does `parse` report, and is the `null` one of them?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-capstone-count-answer"
+**Five, and the `null` is not among them.** `displayTotal` is a derived field: `build` computes it from the whole domain value and `parse` never reads it, so the null guard, which covers every value `parse` does read, has nothing to guard here. The test below asserts the five, in order.
+
+Where this lives: [Derived wire fields](basics.md#derived-wire-fields), and The Proof at the foot of this page.
+~~~
+
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_payoff}}
 ```
@@ -166,10 +178,10 @@ Third, the PATCH sibling obeys the sparse laws: an all-absent form is the identi
 ~~~
 
 ~~~admonish tip title="See Also"
-- [The 422 leg](../spring/spring_boot_integration.md#the-422-leg) - This result as an HTTP response, unmodified
-- [Sparse PATCH at the Spring boundary](../spring/spring_boot_integration.md#sparse-patch) - The PATCH encore behind a controller
-- [Record Mapping Basics](basics.md) - Back to the start of the chapter
-- [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) - The effect-side sibling capstone
+- [The 422 leg](../spring/spring_boot_integration.md#the-422-leg): This result as an HTTP response, unmodified
+- [Sparse PATCH at the Spring boundary](../spring/spring_boot_integration.md#sparse-patch): The PATCH encore behind a controller
+- [Record Mapping Basics](basics.md): Back to the start of the chapter
+- [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md): The effect-side sibling capstone
 ~~~
 
 ---

@@ -175,7 +175,7 @@ The bridged wire component is nullable by construction: `build` writes `null` in
 Any annotation named `Nullable` or `CheckForNull` counts here, whichever library it comes from, and so does JSR-305's `@Nonnull(when = MAYBE)`: this rule refuses a build, so it reads more widely than the fixed list of names that decides which Focus paths are null-safe. A component typed by a type variable follows the variable's bounds: a plain `<T>` declared in a `@NullMarked` scope is non-null, as its bound `Object` is, and `<T extends @Nullable Object>` leaves the nullness to the type argument, so it bridges.
 ~~~
 
-~~~admonish example title="The same pair without the annotation, refused" collapsible=true
+~~~admonish example title="The same pair without the annotation, refused"
 <!-- verify:rejects "Add '@OptionalBridge java.util.Optional<java.lang.String> nickname();' to the spec" -->
 ```java
 import java.util.Optional;
@@ -190,10 +190,21 @@ record ReaderDto(String name, String nickname) {}
 interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}
 ```
 
+The processor says:
+
+```
+@GenerateMapping: target field 'ReaderDto.nickname' has no usable source. The types differ
+(java.lang.String vs java.util.Optional<java.lang.String>) and no matching leaf method was
+found. Found on Reader: [name, nickname]. Add '@OptionalBridge
+java.util.Optional<java.lang.String> nickname();' to the spec, so an absent value reads as a
+null wire component and back. Add 'default ValidatedPrism<java.lang.String,
+java.util.Optional<java.lang.String>> nickname()' to the spec.
+```
+
 The refusal names the bridge first, and offers the whole-`Optional` leaf second. The two are not alternatives for the same job: a leaf maps the pair, but leaves `null` a located error, so only the bridge gives the field an absent state. Declaring the annotation *on* such a leaf is refused rather than silently ignored.
 ~~~
 
-~~~admonish example title="The annotation on a bean wire, reported as redundant" collapsible=true
+~~~admonish example title="The annotation on a bean wire, reported as redundant"
 <!-- verify:reports "@OptionalBridge on 'nickname' is redundant on a bean wire" -->
 ```java
 import java.util.Optional;
@@ -218,6 +229,16 @@ interface GuestMapping extends MappingSpec<Guest, GuestBean> {
   @OptionalBridge
   Optional<String> nickname();
 }
+```
+
+The processor says:
+
+```
+@GenerateMapping: @OptionalBridge on 'nickname' is redundant on a bean wire. A bean wire
+bridges a domain Optional to its nullable property automatically, because bean conventions
+leave Optional off property types; the annotation opts a RECORD wire into the same
+correspondence. Remove the annotation, or keep it if the vocabulary is shared with a
+record-wire spec.
 ```
 
 A note, not an error: the mapping is generated exactly as it would be without the annotation.
@@ -257,8 +278,8 @@ Nothing above requires this section; come back when a corner case finds you.
 
 The null guard covers every reference-typed `parse` read that is not [bridged](#optional-bridge), on record and bean wires alike, and reaches inside containers, identity-copied ones included, at every depth:
 
-- A `null` element or map value locates the way its container locates anything ([lifting grammar](structure.md#nesting-containers-and-recursion)) - by index in a `List` or array (`emails.1: must not be null`), by key in a `Map` - whether the container lifts through a leaf ([the bulk forms](../optics/validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity. The index is a plain positional segment, matching the map-key grammar.
-- A `null` element of a `Set` has no rendering to locate by, and a set holds at most one, so it reports unlocated under the component: `emails: must not contain a null element` - distinct from `must not be null`, which says the set itself is absent.
+- A `null` element or map value locates the way its container locates anything ([lifting grammar](structure.md#nesting-containers-and-recursion)): by index in a `List` or array (`emails.1: must not be null`), by key in a `Map`, whether the container lifts through a leaf ([the bulk forms](../optics/validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity. The index is a plain positional segment, matching the map-key grammar.
+- A `null` element of a `Set` has no rendering to locate by, and a set holds at most one, so it reports unlocated under the component: `emails: must not contain a null element`, which is distinct from `must not be null`, the message that says the set itself is absent.
 - An array of primitives (`int[]`) carries no element scan: a primitive element cannot be null. The component is still a reference, so a `null` *array* is guarded like any other read.
 - An identity container is scanned at every level its type names, so a `null` deep inside carries its full path: `grid.0.1` in a `List<List<String>>`, `byKey.k.1` in a `Map<String, List<String>>`, `matrix.0.1` in a `String[][]`. An `Optional` cannot hold a `null`, but one holding a container is scanned through, and locates at the component itself, since it holds only the one value (`nicknames.1`).
 - How the container is declared does not matter. Any `Collection` counts, and any `Map`: a subtype (`ArrayList`, `LinkedHashMap`, `EnumMap`), a supertype (`Collection`), a raw type, one with a wildcard argument, or a type variable bounded by one. A collection that is a `Set` when it is parsed follows the set rule above; any other locates by position, in iteration order.
@@ -317,9 +338,9 @@ MapStruct's idiom declares a mapper's instance on the mapper's own interface. Th
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Validated Prisms](../optics/validated_prism.md) - The leaf optic every fallible correspondence is built from
-- [Standard Codecs and Shared Vocabulary](codecs.md) - The stock leaf vocabulary and how to share it
-- [The 422 leg](../spring/spring_boot_integration.md#the-422-leg) - The parse result as one HTTP response
+- [Validated Prisms](../optics/validated_prism.md): The leaf optic every fallible correspondence is built from
+- [Standard Codecs and Shared Vocabulary](codecs.md): The stock leaf vocabulary and how to share it
+- [The 422 leg](../spring/spring_boot_integration.md#the-422-leg): The parse result as one HTTP response
 ~~~
 
 ---

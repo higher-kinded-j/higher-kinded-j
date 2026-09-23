@@ -87,8 +87,8 @@ public final class MultiEditBook {
                 parseIfPresent(EMAIL, req.email(), Email::parse),
                 modifyIfPresent(QUANTITY, req.qtyDelta(), (delta, qty) -> qty + delta))
             .apply(order);
-    // Invalid(NEL[ "email: not an address" ]), or Valid(order') with only the present fields
-    // changed
+    // Invalid(NonEmptyList[email: not an address])
+    //   <- or Valid(order) with only the present fields changed
     // ANCHOR_END: accumulate
     System.out.println(patched);
 
@@ -104,8 +104,9 @@ public final class MultiEditBook {
                 setIfPresent(EndsFocus.lo(), move.lo()),
                 setIfPresent(EndsFocus.hi(), move.hi()))
             .apply(new Range(1, 3));
-    // lo 5, hi 10: Valid(Range[lo=5, hi=10]), though lo 5 alone would make Range(5, 3)
-    // lo 5 alone:  Invalid(NEL[ "lo > hi" ])
+    // Valid(Range[lo=5, hi=10])
+    //   <- both ends move together. Moving lo alone would make Range(5, 3), which the
+    //      record's own constructor refuses, and the refusal arrives as a located error.
     // ANCHOR_END: focus
     System.out.println(moved);
   }

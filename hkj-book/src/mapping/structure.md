@@ -32,11 +32,11 @@ Containers lift the same way, and each one locates a failure by whatever identif
 
 | Component | Lifts through the element's leaf or spec | A failure locates by |
 | --- | --- | --- |
-| `List<E>` | ✅ | its **index** - `emails.1`, or `customers.1.email` through a nested spec |
+| `List<E>` | ✅ | its **index**: `emails.1`, or `customers.1.email` through a nested spec |
 | `E[]` | ✅ | its **index**, exactly as a list |
-| `Set<E>` | ✅ | the **element's own rendering** - `emails.nope`; a set has no index |
-| `Optional<E>` | ✅ | the component itself - there is only one element |
-| `Map<K, V>` | ✅ values, and keys with [`@MapKey`](#converting-map-keys) | the **source key** - `attributes.en.email` |
+| `Set<E>` | ✅ | the **element's own rendering** (`emails.nope`), since a set has no index |
+| `Optional<E>` | ✅ | the component itself, since there is only one element |
+| `Map<K, V>` | ✅ values, and keys with [`@MapKey`](#converting-map-keys) | the **source key**: `attributes.en.email` |
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_spec}}
@@ -44,7 +44,7 @@ Containers lift the same way, and each one locates a failure by whatever identif
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_usage}}
 ```
 
-Lifting needs the *same* container on both sides. A `List` against a `Set`, or an array against a `List`, is not a pair: it reports as a plain type mismatch rather than silently changing what the collection promises. The container must also be named exactly, one level deep: an `ArrayList`, a `SortedSet` or a `Collection` does not lift, nor does a wildcard element such as `List<? extends Customer>`, and a leaf over the elements of a nested container (the `String` inside `Optional<List<String>>`) is not lifted twice. The refusal says so, and where the component would lift once both sides declare the same exact container, say `List<Customer>` against `List<CustomerDto>`, it offers that declaration. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead, and it [nests through the element's spec](#optional-nested-objects) all the same. An array of primitives (`int[]`) is copied whole - a `ValidatedPrism` cannot focus a primitive, and a primitive element cannot be null. An array element type must also be able to name its own constructor, since lifting builds a new array: a type variable or a parameterised element (`T[]`, `List<Tag>[]`) is refused, because the generated `T[]::new` is generic array creation.
+Lifting needs the *same* container on both sides. A `List` against a `Set`, or an array against a `List`, is not a pair: it reports as a plain type mismatch rather than silently changing what the collection promises. The container must also be named exactly, one level deep: an `ArrayList`, a `SortedSet` or a `Collection` does not lift, nor does a wildcard element such as `List<? extends Customer>`, and a leaf over the elements of a nested container (the `String` inside `Optional<List<String>>`) is not lifted twice. The refusal says so, and where the component would lift once both sides declare the same exact container, say `List<Customer>` against `List<CustomerDto>`, it offers that declaration. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead, and it [nests through the element's spec](#optional-nested-objects) all the same. An array of primitives (`int[]`) is copied whole, because a `ValidatedPrism` cannot focus a primitive, and a primitive element cannot be null. An array element type must also be able to name its own constructor, since lifting builds a new array: a type variable or a parameterised element (`T[]`, `List<Tag>[]`) is refused, because the generated `T[]::new` is generic array creation.
 
 Locating a set element by its own rendering is the only honest answer available: a set has no index, and its iteration order is not part of its contract, so numbering the elements would name a *different* one on the next run. The value is what identifies the element, so that is what the path says.
 
@@ -57,16 +57,34 @@ flowchart TD
     I --> R["the client reads:<br/>customer.email: not an email address"]
 
     classDef error fill:#e78284,stroke:#d20f39,color:#232634
-    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
     class L error
-    class C,I tier
+    class C,I wire
     class R error
 ```
 
 Because nesting is *delegation* (a full mapping's `Impl` exposes [`asValidatedPrism()`](tiers.md), and a [one-directional bean mapping](beans_patch.md#one-directional-beans) the half it has, so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
 
 ~~~admonish note title="Keys and set elements are located by `toString()`"
-The rendered path uses each key's - or set element's - `toString()`, so one containing a dot looks the same as deeper nesting, and two distinct ones whose renderings collide share a location. The structured `FieldError` path list stays exact regardless, holding the whole rendering as one segment, and every error is still reported.
+The rendered path uses the `toString()` of each key, or of each set element, so one containing a dot looks the same as deeper nesting, and two distinct ones whose renderings collide share a location. The structured `FieldError` path list stays exact regardless, holding the whole rendering as one segment, and every error is still reported.
+~~~
+
+~~~admonish question title="Checkpoint: where does each failure locate?" id="check-structure-paths"
+A client sends `CrewMapping` a set holding `"nope"`, an array holding `["ada@example.org", "also-nope"]`, and a map with the single entry `"bad-key": "a note"`. Every bad value fails the same email leaf.
+
+Write the three paths the client reads back, then say which one could mislead them.
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-structure-paths-answer"
+**`members.nope`, `reserves.1` and `notes.bad-key`.** A set has no index, so it locates by the element's own rendering; an array locates by position, like a list; a map locates by the key as the client sent it.
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:check_container_paths}}
+```
+
+The misleading one is the set. `members.nope` names a value, not a position, so a client reading paths as positions will look for a field called `nope`. A key containing a dot misleads the same way, which is why the structured segments stay exact while the rendered path does not.
+
+Where this lives: [Nesting, containers, and recursion](#nesting-containers-and-recursion).
 ~~~
 
 ### Optional nested objects {#optional-nested-objects}
@@ -93,7 +111,7 @@ A present list lifts element by element, exactly as a `List<Customer>` component
 
 ### Converting Map keys {#converting-map-keys}
 
-A `Map` component's value leaf is named after the component, like every other leaf. Its keys need a second leaf, and Java forbids two zero-parameter methods sharing that name - so a key leaf carries `@MapKey`, and the annotation names the component it belongs to. Either side may convert alone: a key leaf without a value leaf converts the keys and copies the values.
+A `Map` component's value leaf is named after the component, like every other leaf. Its keys need a second leaf, and Java forbids two zero-parameter methods sharing that name, so a key leaf carries `@MapKey`, and the annotation names the component it belongs to. Either side may convert alone: a key leaf without a value leaf converts the keys and copies the values.
 
 A leaf over the whole `Map` is tried before either, so it would leave a key leaf for the same component with nothing to convert. A key leaf the spec declares itself is refused beside one, wherever the whole-map leaf is declared, and the fix offers the value leaf in its place where that works, or removing the key leaf. A key leaf inherited from a mix-in stays inert beside a whole-map leaf, so one vocabulary can serve specs that map the component by its parts and specs that map it whole.
 
@@ -102,9 +120,9 @@ Without a key leaf, keys can only pass through, so their types must match exactl
 A failing key locates by the **source** key, so the path names what the caller sent rather than what it parsed to. An entry that is wrong on both sides therefore reports both reasons at that one place.
 
 ~~~admonish warning title="Cardinality can collapse"
-A collapse needs a **non-injective** leaf - two wire values parsing to one domain value - and such a leaf already breaks the `ValidatedPrism` section law (`parse(s) == Valid(a)` implies `build(a) == s`). [`ValidatedPrismLaws`](../tooling/test_assertions.md#optic-laws) catches it, and [`ValidatedPrism.canonical`](../optics/validated_prism.md) rules it out by construction. So neither case below arises from a lawful leaf, and neither can reach the lossless [`asIso()`](tiers.md) tier, which a leaf already excludes.
+A collapse needs a **non-injective** leaf, two wire values parsing to one domain value, and such a leaf already breaks the `ValidatedPrism` section law (`parse(s) == Valid(a)` implies `build(a) == s`). [`ValidatedPrismLaws`](../tooling/test_assertions.md#optic-laws) catches it, and [`ValidatedPrism.canonical`](../optics/validated_prism.md) rules it out by construction. So neither case below arises from a lawful leaf, and neither can reach the lossless [`asIso()`](tiers.md) tier, which a leaf already excludes.
 
-Where one does happen, the two containers answer differently because what is lost differs. A `Set` drops the duplicate **silently**: the element that remains is equal to the one dropped, so the set still holds every distinct value it was given - though the two *source* spellings that collapsed (`"1"` and `"01"`, say) can no longer be told apart, which is precisely what the section law forbids. Two `Map` keys parsing to one domain key discard a whole entry, and the discarded value need not equal the surviving one, so that is a **located failure** (`attributes.ab: duplicates an earlier key`).
+Where one does happen, the two containers answer differently because what is lost differs. A `Set` drops the duplicate **silently**: the element that remains is equal to the one dropped, so the set still holds every distinct value it was given, though the two *source* spellings that collapsed (`"1"` and `"01"`, say) can no longer be told apart, which is precisely what the section law forbids. Two `Map` keys parsing to one domain key discard a whole entry, and the discarded value need not equal the surviving one, so that is a **located failure** (`attributes.ab: duplicates an earlier key`).
 ~~~
 
 ---
@@ -212,10 +230,10 @@ A domain subtype without a spec, or a wire subtype nothing produces, is a compil
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Record Mapping Basics](basics.md#null-doctrine) - The null doctrine that also reaches inside containers
-- [The Emission Tiers](tiers.md) - What the composed mapping lawfully offers
-- [Generic Specs](generics.md) - Nesting for generic records
-- [Multi-module builds](../tooling/manual_setup.md#multi-module-builds) - What the build needs when specs span modules
+- [Record Mapping Basics](basics.md#null-doctrine): The null doctrine that also reaches inside containers
+- [The Emission Tiers](tiers.md): What the composed mapping lawfully offers
+- [Generic Specs](generics.md): Nesting for generic records
+- [Multi-module builds](../tooling/manual_setup.md#multi-module-builds): What the build needs when specs span modules
 ~~~
 
 ---

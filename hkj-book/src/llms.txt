@@ -141,6 +141,19 @@ Annotation-driven boilerplate elimination:
 - **ForPath step classes** - Steps 2-12 auto-generated for all 10 Path types
 - **TraversableGenerator SPI** - 31 generator plugins across 7 library families (JDK, Apache Commons Collections4, Eclipse Collections, Google Guava, Vavr, PCollections, HKJ native) with cardinality-based path widening, priority system, and wildcard type resolution
 
+## Boundary Mapping
+
+One spec interface and one annotation replace the hand-written DTO mapper. The processor derives, at compile time and with no reflection, whichever directions the wire shape can support:
+- `@GenerateMapping` on a `MappingSpec<Domain, Wire>` - a total `build` out, and a `parse` back that reports every bad field at once, each located by a dotted path. A bean that can only be read gets `parse` alone, and one that can only be written gets `build` alone
+- `StandardCodecs` - stock `ValidatedPrism` leaves for identifiers, dates, enums, numbers and money, each accepting exactly the spelling it renders
+- `@MapField`, `@OptionalBridge`, `@MapKey`, `@Flatten`, `@Unmapped` - renames, absent fields, map keys, flattened records, and accessors left out on purpose
+- `UpdateSpec` - sparse PATCH, where an absent property leaves the domain value alone
+- `@GenerateMerge` - one target assembled from several sources
+- `@GenerateErrorEnvelope` - a typed context in place of `Map<String, Object>` on a sealed error hierarchy
+- `MappingLaws` - one call per tier law-checks a generated mapping in your own build
+
+Wire shapes: records, getter/setter and builder beans, one-directional beans (read-only or write-only), sealed hierarchies, and generic records.
+
 ## Compile-Time Safety
 
 - **hkj-checker** - Compiler plugin that detects Path type mismatches at compile time (e.g. using `EitherPath` where `MaybePath` expected)
@@ -188,7 +201,8 @@ dependencies {
 - Focus DSL: https://higher-kinded-j.github.io/latest/optics/focus_dsl.html
 - Focus Containers: https://higher-kinded-j.github.io/latest/optics/focus_containers.html
 - Focus Navigation: https://higher-kinded-j.github.io/latest/optics/focus_navigation.html
-- Resilience: https://higher-kinded-j.github.io/latest/resilience/resilience_intro.html
+- Mapping at the Boundary: https://higher-kinded-j.github.io/latest/mapping/ch_intro.html
+- Resilience: https://higher-kinded-j.github.io/latest/resilience/ch_intro.html
 - Tutorials: https://higher-kinded-j.github.io/latest/tutorials/tutorials_intro.html
 - Spring Boot: https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html
 - Testing (hkj-test): https://higher-kinded-j.github.io/latest/tooling/test_assertions.html
