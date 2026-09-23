@@ -43,8 +43,6 @@ public interface UserMapping extends MappingSpec<User, UserDto> {
         email -> email);
   }
 
-  // ANCHOR_END: quickstart_spec
-
   /** Validates a present first name as non-blank; the null test is defence in depth as above. */
   default ValidatedPrism<String, String> firstName() {
     return ValidatedPrism.of(
@@ -54,4 +52,5 @@ public interface UserMapping extends MappingSpec<User, UserDto> {
                 : Validated.invalidNel(FieldError.of("must not be blank")),
         firstName -> firstName);
   }
+  // ANCHOR_END: quickstart_spec
 }

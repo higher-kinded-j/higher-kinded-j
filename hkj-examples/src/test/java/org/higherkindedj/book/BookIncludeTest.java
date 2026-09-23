@@ -41,8 +41,11 @@ class BookIncludeTest {
    * The number of includes must never fall below this. Deleting an include line, or replacing it
    * with a stale hand-copied fence, would otherwise be invisible: the remaining includes would
    * still all resolve, and the snippet gate no longer covers those pages.
+   *
+   * <p>It counts the anchored includes and the whole-file golden ones together, so dropping either
+   * kind fails.
    */
-  private static final int MINIMUM_INCLUDES = 144;
+  private static final int MINIMUM_INCLUDES = 145;
 
   /** Any include, in any form, so an unanchored one cannot slip past unchecked. */
   private static final Pattern ANY_INCLUDE = Pattern.compile("\\{\\{#include\\s+([^}]+)}}");
@@ -172,6 +175,24 @@ class BookIncludeTest {
     }
   }
 
+  /** How many whole-file golden includes the book carries, which the floor counts as well. */
+  private static long goldenIncludes() throws IOException {
+    try (Stream<Path> pages = Files.walk(BOOK)) {
+      return pages
+          .filter(p -> p.toString().endsWith(".md"))
+          .mapToLong(
+              page -> {
+                Matcher m = ANY_INCLUDE.matcher(read(page));
+                long found = 0;
+                while (m.find()) {
+                  if (m.group(1).trim().endsWith(".golden")) found++;
+                }
+                return found;
+              })
+          .sum();
+    }
+  }
+
   /** A whole-file include of a golden file that exists, which is the one allowed exception. */
   private static boolean isWholeGoldenFile(Path page, String target) {
     if (!target.endsWith(".golden")) return false;
@@ -187,7 +208,7 @@ class BookIncludeTest {
   void theIncludeCoverageDoesNotShrink() throws IOException {
     // A guard on the guard. Every include resolving is worthless if the includes were deleted: the
     // remaining ones still pass, and the pages quietly revert to unverified hand-copied code.
-    assertThat(includes().count())
+    assertThat(includes().count() + goldenIncludes())
         .as(
             """
             The number of {{#include}} directives dropped below the floor.

@@ -25,9 +25,13 @@ The spec, the endpoint and the test are included from the hkj-spring example app
 ## Before you start
 
 ~~~admonish warning title="Java 25, with preview features enabled"
-Higher-Kinded-J needs **Java 25 or later**, and it uses preview language features, so a build
-without `--enable-preview` will not compile. Decide this first: on a team still on Java 21, that
-is a platform conversation, not a dependency bump. The [Quickstart](../quickstart.md) has the
+Higher-Kinded-J is built on **Java 25** with preview language features, so a build without
+`--enable-preview` will not compile. Preview is tied to one release: `javac` accepts
+`--enable-preview` only for the JDK it is running on, so a later JDK is not a free upgrade, and
+some of the library's own class files can be loaded only by the release that compiled them.
+
+Decide this first. On a team still on Java 21, or one whose platform is already moving past 25,
+that is a conversation rather than a dependency bump. The [Quickstart](../quickstart.md) has the
 details, and the Gradle plugin below sets the flags for you.
 ~~~
 
