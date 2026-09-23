@@ -260,6 +260,8 @@ Where the chapter has a limits or rules reference page, the same absence also ta
 
 Outside that one sentence, rule prose carries no "for now", "yet", "today", "still" or "has always": they date the page and narrate delivery order, which the [no issue or PR references](#no-issue-or-pr-references) rule already rules out.
 
+**One carve-out: a supported version.** A statement about the JDK, or about a dependency the library tracks, is a fact that legitimately dates, and writing it open-endedly ("Java 25 or later") claims a future nobody has tested. State the release the library is built on and mark it as current ("built on Java 25 today"), so the sentence is true when written and visibly needs revisiting when the library moves.
+
 ### No Issue or PR References
 
 Book pages, skills, javadoc, code comments, diagnostics and test names describe behaviour and the reason for it, not where it came from. Do not link or cite GitHub issues or pull requests (no "([#654](...))", "the #653 doctrine" or "since #660"), and do not narrate delivery order ("the first slice", "a follow-up", "until the next release"). Name the concept instead: "the collision sweep", not "the #654 sweep".

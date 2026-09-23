@@ -23,14 +23,14 @@ Java's `ScopedValue` API makes those currents visible. Where `ThreadLocal` let c
 - MDC-style logging with ScopedValues
 ~~~
 
-~~~admonish warning title="Java 25+ Feature"
+~~~admonish warning title="A Java 25 Feature"
 `Context<R, A>` uses Java's `ScopedValue` API (JEP 506), finalised in Java 25. This API provides:
 - **Immutability**: Values cannot be changed once bound to a scope
 - **Inheritance**: Child virtual threads automatically inherit parent bindings
 - **Bounded lifetime**: Values exist only within their declared scope
 - **Performance**: Optimised for virtual thread access patterns
 
-Ensure your project targets Java 25 or later to use these features.
+Ensure your project targets Java 25, the release the library is built on today ([Prerequisites](../quickstart.md#prerequisites)).
 ~~~
 
 ~~~admonish example title="Example Code"
@@ -540,7 +540,7 @@ String host = ScopedValue
 | Typical use | App configuration | Request-scoped data |
 | Visibility | Explicit in signatures | Implicit (can be hidden) |
 | Testing | Pass mock config to `run()` | Bind mock in `ScopedValue.where()` |
-| Java version | Any | Java 25+ |
+| Java version | Any | Java 25 |
 
 ---
 

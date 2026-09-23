@@ -11,7 +11,7 @@
 
 **Duration**: ~45 minutes | **Tutorials**: 3 (VTask, VTaskPath, ForPath with VTaskPath) | **Exercises**: 18 (16 graded + 2 diagnostic)
 
-**Requirements**: Java 25+ (virtual threads and structured concurrency)
+**Requirements**: Java 25 (virtual threads and structured concurrency)
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 `VTask` is the deferred-effect type for virtual-thread-based concurrency; it is what we reach for when the `repo.find(id)` token in [One Line, Six Layers](../../hkts/one_line_six_layers.md) is async, which it almost always is in production. `VTaskPath` lifts `VTask` into the [Effect Path API](../effect/effect_journey.md), so the same fluent shape works for sync and async code.

@@ -232,7 +232,7 @@ If **no** → Use `ConfigContext` (or plain parameter passing)
 | Aspect | ConfigContext | Context                                   |
 |--------|---------------|-------------------------------------------|
 | **Underlying mechanism** | `ReaderT` monad transformer | `ScopedValue` API                         |
-| **Java version required** | Any | Java 25+ (preview)      |
+| **Java version required** | Any | Java 25 (preview)       |
 | **Thread inheritance** | No (must pass explicitly) | Yes (automatic)                           |
 | **Scope definition** | `runWithSync(value)` call | `ScopedValue.where().run()` block         |
 | **Multiple values** | Single `R` type (use record for multiple) | Multiple `ScopedValue`s, each independent |

@@ -8,6 +8,8 @@
 
 Most projects should use the [HKJ build plugin](gradle_plugin.md): a single line replaces all the boilerplate below. This page documents the full manual configuration for the projects that cannot use the plugin (constrained environments, in-house build frameworks, or plugins that conflict with the HKJ plugin). If the plugin is an option for you, start there instead.
 
+Both configurations below pin the release to **25** and enable preview features, which go together: `javac` accepts `--enable-preview` only for the release it is running on, so the toolchain has to be Java 25 as well. [Prerequisites](../quickstart.md#prerequisites) explains what the flag is for, and where it is genuinely needed.
+
 ---
 
 ## Gradle Manual Setup
