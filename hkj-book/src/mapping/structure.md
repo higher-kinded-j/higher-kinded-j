@@ -65,6 +65,10 @@ flowchart TD
 
 Because nesting is *delegation* (a full mapping's `Impl` exposes [`asValidatedPrism()`](tiers.md), and a [one-directional bean mapping](beans_patch.md#one-directional-beans) the half it has, so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
 
+~~~admonish warning title="A same-typed container crosses as a copy"
+A same-typed component declared as a `List`, `Set`, `Collection`, `Map` or `Optional` crosses as an unmodifiable copy, not as the instance the wire or the domain holds. Code that adds to a built wire's list afterwards throws `UnsupportedOperationException`: set a new list, or copy it first. An array crosses as a clone and compares by reference, so a record with an array component and no `equals` of its own is not equal to its own round trip. [Same-typed containers cross as copies](rules.md#same-typed-containers-cross-as-copies) has the precise rule.
+~~~
+
 ~~~admonish note title="Keys and set elements are located by `toString()`"
 The rendered path uses the `toString()` of each key, or of each set element, so one containing a dot looks the same as deeper nesting, and two distinct ones whose renderings collide share a location. The structured `FieldError` path list stays exact regardless, holding the whole rendering as one segment, and every error is still reported.
 ~~~
@@ -113,7 +117,7 @@ A present list lifts element by element, exactly as a `List<Customer>` component
 
 A `Map` component's value leaf is named after the component, like every other leaf. Its keys need a second leaf, and Java forbids two zero-parameter methods sharing that name, so a key leaf carries `@MapKey`, and the annotation names the component it belongs to. Either side may convert alone: a key leaf without a value leaf converts the keys and copies the values.
 
-A key leaf beside a leaf over the whole `Map` has nothing to convert: [a key leaf beside a whole-map leaf](rules.md#key-leaf-beside-a-whole-map-leaf) says when that is refused.
+A leaf over the whole `Map` wins over both, so a key leaf beside it has nothing to convert: [a key leaf beside a whole-map leaf](rules.md#key-leaf-beside-a-whole-map-leaf) says when that is refused.
 
 Without a key leaf, keys can only pass through, so their types must match exactly; a mismatch is a compile error that offers the annotation as the fix.
 
@@ -174,7 +178,7 @@ A [shared vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) travels too
 The delegation is an ordinary static reference in generated code, resolved at compile time from the dependency's class files: no runtime registry, no reflection, no service file to keep in step. Rename or remove a spec upstream and the downstream build fails at the use site, with the pair named, rather than a request failing later.
 ~~~
 
-How the processor finds a dependency's specs, and the four rules that keep the resolution predictable, are in [Rules and Limits](rules.md#how-a-dependencys-specs-are-found). Resolving a dependency's specs on the module path is not supported yet: across a `module-info` boundary, delegate with a leaf calling the other `Impl`'s `asValidatedPrism()`.
+The processor finds a dependency's specs through a classpath index, and your own spec always wins over a dependency's for the same pair, so adding a dependency never changes a mapping that already worked. [How a dependency's specs are found](rules.md#how-a-dependencys-specs-are-found) has the index and the other three rules. Resolving a dependency's specs on the module path is not supported yet: keep spec-carrying jars on the classpath, or delegate with a leaf calling the other `Impl`'s `asValidatedPrism()`.
 
 ---
 

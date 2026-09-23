@@ -164,7 +164,6 @@ Start from what you came for.
 | To judge whether it fits your services | [Mapper at a Glance](at_a_glance.md) |
 | To bring a MapStruct or Bean Validation habit across | [Coming from MapStruct and Bean Validation](from_mapstruct.md) |
 | To see the whole thing on one boundary | [the Capstone](capstone.md) |
-| To look up a rule, or a limit the processor enforces | [Rules and Limits](rules.md) |
 
 Those pages teach the model and put it behind an endpoint. Everything after them is on demand:
 
@@ -173,6 +172,7 @@ Those pages teach the model and put it behind an endpoint. Everything after them
 - A PATCH endpoint, or a getter/setter DTO: [Beans and Sparse PATCH](beans_patch.md)
 - A `Page<T>` at the boundary: [Generic Specs](generics.md)
 - Combining several sources, or typing your error context: [Merge and Error Envelopes](merge_envelopes.md)
+- A rule, a limit, or a runtime surprise to look up: [Rules and Limits](rules.md)
 - Spring beans, test fakes, and how wide a record may be: [Injecting, Testing, and Diagnostics](testing.md)
 
 ~~~admonish info title="In This Chapter"

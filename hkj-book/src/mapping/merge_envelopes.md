@@ -15,7 +15,7 @@ Two more generators complete the family. `@GenerateMerge` covers the assembly a 
 **The code on this page is [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java) and [OrderErrorBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/OrderErrorBook.java)** - the page includes them directly, so they are compiled and run by the build.
 ~~~
 
-## Merging several sources: `@GenerateMerge`
+## Merging several sources: `@GenerateMerge` {#merging-several-sources-generatemerge}
 
 A merge is declared entirely by a spec method's signature: **several** sources in, one target out. No class literals are needed, and no inverse is generated (a merge is not invertible, so offering one would be a lie the tiers never tell):
 

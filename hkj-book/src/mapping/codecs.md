@@ -43,7 +43,7 @@ Every parse failure is a located `FieldError` with a copy-worthy message, so the
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:codecs_errors}}
 ```
 
-### Canonical forms only
+### Canonical forms only {#canonical-forms-only}
 
 Each codec accepts exactly the form it renders, honouring the [`ValidatedPrism` section law](../optics/validated_prism.md#laws). A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so whatever `parse` accepts, `build` reproduces byte-for-byte (`build(parse(s).get()) == s` whenever `s` parses).
 

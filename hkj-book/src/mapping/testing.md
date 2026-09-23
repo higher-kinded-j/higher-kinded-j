@@ -2,13 +2,12 @@
 
 _Register the surface you consume, fake it with values, and read the processor's what/why/fix rejections._
 
-A generated Impl is a pure function, so most code should just call it. This page covers the seams around that: what to register when you *do* want a Spring bean or a test double, how fakes work without mocks, and the diagnostics and limits that bound the feature.
+A generated Impl is a pure function, so most code should just call it. This page covers the seams around that: what to register when you *do* want a Spring bean or a test double, how fakes work without mocks, the what/why/fix diagnostics, and how wide a mapped record may be.
 
 ~~~admonish info title="What You'll Learn"
 - Why the spec interface deliberately injects nothing, and which surface to register per tier
 - Test doubles as two-line `ValidatedPrism.of(...)` values, no mocking framework involved
 - The width story: no component ceiling, chunked `fields()` ladders past 16 fields
-- Where the limits are indexed, each with a what/why/fix diagnostic
 ~~~
 
 ~~~admonish example title="See Example Code"

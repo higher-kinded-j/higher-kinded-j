@@ -89,7 +89,7 @@ The third form is **element-mapped**: thread the two sides under *different* var
 
 The Impl carries the prisms as state, so there is no singleton in either spelling: every `of(...)` call is a fresh, immutable instance. Build one where it is used and reuse it, rather than calling `of(...)` for every parse.
 
-A leaf can also come from a [generic mix-in](#generic-mix-ins), and [leaf order in `of(...)`](rules.md#leaf-order-in-of) says where its parameter falls.
+Pass the prisms to `of(...)` in declaration order: two abstract leaves of the same type swap without a compile error. A leaf can also come from a [generic mix-in](#generic-mix-ins), and [leaf order in `of(...)`](rules.md#leaf-order-in-of) says where its parameter falls.
 
 Element-mapped mappings nest as **compositions**. A use site whose pair unifies against one resolves each element pair in turn:
 

@@ -2,7 +2,7 @@
 
 _Declare one interface; get a `build` that cannot fail and a `parse` that reports every bad field at once._
 
-Most mappings are boring, and the mapper treats them that way: same-named, same-typed components match automatically, and one empty interface is the whole declaration. This page walks the happy path first (declare, build, parse, read the errors), then adds the declarations you will actually reach for: a conversion, a rename, a computed field, and an optional one. The precise rules live in [Rules and Limits](rules.md), where they belong.
+Most mappings are boring, and the mapper treats them that way: same-named, same-typed components match automatically, and one empty interface is the whole declaration. This page walks the happy path first (declare, build, parse, read the errors), then adds the declarations you will actually reach for: a conversion, a rename, a computed field, and an optional one. The precise rules live on a page of their own, [Rules and Limits](rules.md).
 
 ~~~admonish info title="What You'll Learn"
 - Declaring a mapping as a `MappingSpec<Domain, Wire>` interface and calling the generated Impl
@@ -112,7 +112,7 @@ The two directions are asymmetric: `build` computes the derived component, `pars
                           └── displayName dropped, never read
 ```
 
-The optic is a `Getter` because a derived field is single-valued: exactly one focus computed from the whole domain value. How the processor distinguishes leaf methods from derived-field methods, and how a derived field interacts with the [emission tiers](tiers.md), is in [Rules and Limits](rules.md#spec-members).
+The optic is a `Getter` because a derived field is single-valued: exactly one focus computed from the whole domain value. How the processor distinguishes leaf methods from derived-field methods, and how a derived field interacts with the [emission tiers](tiers.md), are in [Rules and Limits](rules.md#spec-members).
 
 ---
 
@@ -170,7 +170,7 @@ A [bean wire](beans_patch.md) needs no annotation: bean conventions leave `Optio
 ~~~
 
 ~~~admonish note title="Under `@NullMarked`"
-The bridged wire component is nullable by construction: `build` writes `null` into it for an absent value, so it must be declared to take one. [A bridged component must take `null`](rules.md#bridged-component-nullable) says which declarations the processor refuses, and where the annotation goes on an array.
+The bridged wire component is nullable by construction: `build` writes `null` into it for an absent value, so it must be declared to take one. Declare it `@Nullable String nickname`; [A bridged component must take `null`](rules.md#bridged-component-nullable) says which declarations the processor refuses, and where the annotation goes on an array.
 ~~~
 
 ~~~admonish example title="The same pair without the annotation, refused"
@@ -264,13 +264,13 @@ The second stay fails at `stays.1`, and the missing guest is still reported besi
 - **Any `RuntimeException` counts, bugs included.** The null guard keeps a `null` out of the constructor, but a constructor that divides by zero or dereferences something of its own fails the same way: its message goes to the client and its stack trace is dropped. Keep the constructor to checks on its arguments, with messages written for a client.
 - **A rule about one field alone belongs in a [leaf](#validated-leaves)**: it locates at the field and accumulates with the record's other errors.
 
-The same guard covers every surface that builds the record whole from parsed parts, and three total surfaces let the exception propagate instead: [which surfaces a refusal reaches](rules.md#constructor-refusal-surfaces).
+The same guard covers every surface that builds the record whole from parsed parts. Only `asIso().reverseGet`, a projection's `asLens().set` and a sparse update's `toValidated()` let the exception propagate instead: [which surfaces a refusal reaches](rules.md#constructor-refusal-surfaces).
 
 ---
 
-## The fine print {#the-fine-print}
+## A rule nothing checks for you {#the-fine-print}
 
-The precise contracts behind this page, from the null scan inside containers to how a `default` method is classified, are in [Rules and Limits](rules.md). One rule stays here, because the processor cannot check it for you.
+This one stays on the page it is about, because the processor cannot see it.
 
 ### Bind in the caller, not on the spec {#bind-in-the-caller}
 
