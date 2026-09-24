@@ -490,7 +490,7 @@ Staying on the Either leg is deliberate: [the 422 leg](#the-422-leg) is selected
 
 A PATCH boundary *without* a not-found case (the current value is already in hand) can instead return `patch.applyPath(current)`: the `ValidationPath` flavour of the same fold, whose all-`FieldError` invalid takes the 422 leg like any other, under `hkj.web.validation-field-error-status`.
 
-The example app demonstrates the whole shape end to end: `PATCH /api/users/{id}` (`UserController`, `UserPatchMapping`, `UserPatchRequest`), with `UserPatchWebMvcSliceTest` asserting all three outcomes. The sparse tier's rules (wrapper-typed properties, `Optional` bridging, container element leaves, wholesale replacement) are on the [Record Mapping page](../mapping/beans_patch.md#sparse-patch-write-back-updatespec).
+The example app demonstrates the whole shape end to end: `PATCH /api/users/{id}` (`UserController`, `UserPatchMapping`, `UserPatchRequest`), with `UserPatchWebMvcSliceTest` asserting all three outcomes. The sparse tier's rules (wrapper-typed properties, `Optional` bridging, container element leaves, wholesale replacement) are in [the rules in brief](../mapping/beans_patch.md#patch-rules-in-brief) on the Sparse PATCH page.
 
 ---
 

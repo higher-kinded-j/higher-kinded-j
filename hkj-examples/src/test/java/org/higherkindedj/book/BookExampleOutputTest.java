@@ -139,7 +139,7 @@ class BookExampleOutputTest {
           Map.entry("JsonApiBook", 4),
           Map.entry("MultiEditBook", 2),
           Map.entry("NonEmptyListBook", 3),
-          Map.entry("SparsePatchBook", 4),
+          Map.entry("SparsePatchBook", 5),
           Map.entry("StructureBook", 8),
           Map.entry("TiersBook", 2),
           Map.entry("ValidatedAssemblyBook", 3));

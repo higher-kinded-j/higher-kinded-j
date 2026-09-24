@@ -327,7 +327,7 @@ Two more rules follow from which direction is missing:
 
 ### No sealed hierarchy {#no-sealed-patch}
 
-**A sealed hierarchy is rejected**, on either side: dispatch has no sparse meaning (an absent property cannot choose a subtype to patch).
+**A sealed hierarchy is rejected**, on either side: dispatch has no sparse meaning (an absent property cannot choose a subtype to patch). Declare one `UpdateSpec` per concrete record pair, and choose between them by the stored value's type.
 
 ### Inherited vocabulary on a PATCH spec {#inherited-vocabulary-on-a-patch}
 
@@ -341,20 +341,24 @@ Two more rules follow from which direction is missing:
 - A same-typed `Optional` cannot hold a null, so one holding a plain value is written unconditionally: a present empty sets empty, absent leaves unchanged. One holding a container is scanned through, as above.
 - A nested record whose wire differs is patched wholesale through its own full mapping spec. Deep merge is out of scope.
 
+### Every wire property names a component {#patch-wire-property-names-a-component}
+
+**A wire property that names no domain component is rejected.** The client could send it and nothing would read it. Add a `@MapField` rename to the domain component it stands for, or remove the property. Coverage is one-sided: a domain component with no wire property is simply never changed, since a PATCH DTO covers a subset on purpose.
+
 ### No `JsonNullable` property {#no-jsonnullable-patch-property}
 
-**A `JsonNullable` property is not supported yet.** A generated client that wraps its PATCH fields that way needs an `Optional`-typed property instead, which keeps the *clear* state, or a plain nullable one where *clear* has no meaning.
+**A `JsonNullable` property is not supported yet.** Declare an `Optional`-typed property instead, which keeps the *clear* state, or a plain nullable one where *clear* has no meaning.
 
 ### A sparse update constructs the record once {#sparse-construct-once}
 
-**The domain's constructor runs once, over the values the PATCH ends on.** The present values are written onto a private record holding just the components the PATCH can set, and every other component is read from the current value. The constructor runs only once every sent field has validated, so its refusal never joins their errors. A PATCH that sends nothing hands back the current value itself, without running the constructor. How a refusal reports, and where it throws instead, is in [Which surfaces a constructor's refusal reaches](#constructor-refusal-surfaces). The generated update is [`Edits.accumulate(focus, ...)`](../optics/multi_edit.md#fields-a-constructor-checks-together), which a hand-written PATCH can use too.
+**The domain's constructor runs once, over the values the PATCH ends on.** `updateFrom` writes the present values onto a private record holding just the components the PATCH can set, and reads every other component from the current value. The constructor runs only once every sent field has validated, so its refusal never joins their errors. A PATCH that sends nothing hands back the current value itself, without running the constructor. How a refusal reports, and where it throws instead, is in [Which surfaces a constructor's refusal reaches](#constructor-refusal-surfaces). The generated update is [`Edits.accumulate(focus, ...)`](../optics/multi_edit.md#fields-a-constructor-checks-together), which a hand-written PATCH can use too.
 
 ### Containers patch through the element leaf {#patch-containers}
 
-**A present container parses through the element leaf named after its component.** The property must be a `List`, `Set`, array, `Optional` or `Map`, declared as exactly that type on both sides. Replacement stays wholesale, and each failing element locates the way its container locates anything: by index (`phones.1`), by key, or, in a `Set`, by the element's own rendering.
+**A present container parses through the element leaf named after its component.** It lifts only when both sides declare the same container: `List`, `Set`, a reference-element array, `Optional` or `Map`. Replacement stays wholesale, and each failing element locates the way its container locates anything: by index (`phones.1`), by key, or, in a `Set`, by the element's own rendering.
 
 - **A whole-container leaf wins.** `ValidatedPrism<List<S>, List<A>>` is the more specific declaration, so it replaces the element interpretation.
-- **A nested spec does not lift through a sparse container.** When the elements need a whole mapping, give the component an element leaf that delegates to the nested Impl's `asValidatedPrism()`.
+- **Lifting a nested spec through a sparse container is not supported yet.** When the elements need a whole mapping, give the component an element leaf that delegates to the nested Impl's `asValidatedPrism()`.
 
 ---
 

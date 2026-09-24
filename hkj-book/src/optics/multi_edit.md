@@ -202,7 +202,7 @@ The edits validate exactly as they do in `accumulate`, and their errors are repo
 
 The edits' errors are located relative to the focus. Where the focus is a nested component rather than the source's own fields, add the component's name to each edit with `.at("range")`, so their errors and the source agree on where they are.
 
-`@GenerateMapping` on an [`UpdateSpec`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) generates exactly this: its `updateFrom` writes onto the components a PATCH can set and constructs the domain record once.
+`@GenerateMapping` on an [`UpdateSpec`](../mapping/beans_patch.md#fields-a-constructor-checks-together) generates exactly this: its `updateFrom` writes onto the components a PATCH can set and constructs the domain record once.
 
 ---
 
@@ -223,7 +223,7 @@ Practice the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https:/
 - [Semigroup and Monoid](../functional/semigroup_and_monoid.md): the `Update` monoid that powers `combine`
 - [Accumulating Assembly](../monads/validated_assembly.md): the same all-errors-at-once model for *constructing* values
 - [Coupled Fields](coupled_fields.md): atomic updates of interdependent fields
-- [Record Mapping, sparse PATCH (`UpdateSpec`)](../mapping/beans_patch.md#sparse-patch-write-back-updatespec): generate this `Edits.accumulate` fold when the DTO maps one-to-one
+- [Sparse PATCH (`UpdateSpec`)](../mapping/beans_patch.md#sparse-patch-write-back-updatespec): generate this `Edits.accumulate` fold when the DTO maps one-to-one
 ~~~
 
 ---

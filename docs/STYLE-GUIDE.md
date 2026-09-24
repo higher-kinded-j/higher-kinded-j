@@ -215,7 +215,7 @@ Order every content page so that the 80% use case is served before the 20% is ev
 
 A reader should never meet a corner case before the feature it is a corner of. Precision is not lost by this ordering; it is *findable* instead of ambient.
 
-**Mark where the lane ends.** Close the practical lane with a `tip` titled "You can ship now": what the reader can now build and where to take it next, in one or two sentences, then that the rest of the page is for when they need it. The page's checkpoints come straight after it, so passing one certifies that stopping there is safe.
+**Mark where the lane ends.** Close the practical lane with a `tip` titled "You can ship now". In one or two sentences, say what the reader can now build. End with one sentence saying the rest of the page is for when they need it. A framework integration keeps its own "At the Spring boundary" tip in the lane, and the page's checkpoints come straight after the ship tip.
 
 **A practical lane must be reproducible.** For a feature that needs a build (generated code, a framework integration), the lane includes the build line and the integration call, so a reader can follow it from a blank project. The chapter introduction states hard prerequisites (JDK version, preview flags, processor path) in its first screen, because readers arrive from a search engine and never pass the home page.
 
@@ -338,7 +338,7 @@ Rules:
 - **Both carry an explicit `id=`**, so the anchor survives a checkpoint being added above it
 - **An answer adds no fact.** It applies a rule the page already teaches visibly, and ends with a "Where this lives" link. Its only unique content is the proof
 - **The answer is proved by the build**: a test assertion, or a `verify:rejects` snippet whose diagnostic is the answer. Never by an output comment nothing runs
-- **At most two per page**, placed where the practical lane ends, so passing one certifies that stopping there is safe
+- **At most two per page**, placed straight after the "You can ship now" tip, so passing one certifies that stopping there is safe
 - **A chapter's self-check page is the exception**: it is all checkpoints, numbered in their titles ("Checkpoint 3: ...") so an answer can name another, and ordered from recall to writing code
 - **Its questions interleave the pages** rather than follow them, and a question may withhold a noun that would name its answer
 - **It closes the chapter's Ship group**, carries no "What You'll Learn", and ends with a routing key that turns a score into a next step
@@ -512,7 +512,7 @@ Use the following admonition types consistently:
 | Type | Usage |
 |------|-------|
 | `info` | "What You'll Learn", "Key Takeaways", "Hands-On Learning", "In This Chapter" |
-| `tip` | "Further Reading", "See Also", "Why this matters", "At the Spring boundary" |
+| `tip` | "Further Reading", "See Also", "Why this matters", "At the Spring boundary", "You can ship now" |
 | `example` | Links to example code |
 | `note` | Important clarifications, "Related Types", additional context |
 | `warning` | Potential pitfalls or common mistakes |
@@ -674,6 +674,7 @@ When creating a new documentation page, ensure:
 - [ ] Example code links are included (if applicable)
 - [ ] Sections are separated with horizontal rules
 - [ ] "Key Takeaways" uses info admonition (if applicable)
+- [ ] The practical lane ends at a "You can ship now" tip (content pages)
 - [ ] "See Also" section for internal links (if applicable)
 - [ ] "Further Reading" section with validated external links
 - [ ] Previous/Next navigation links at the end
