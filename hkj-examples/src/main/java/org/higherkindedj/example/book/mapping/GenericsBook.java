@@ -42,7 +42,7 @@ public final class GenericsBook {
     System.out.println(page);
 
     // ANCHOR: threaded_usage
-    // One generic Impl serves every instantiation; identity elements copy through.
+    // One generic Impl serves every instantiation, and the elements copy as they are.
     Page<String> tags = new Page<>(List.of("fp", "hkt"), 2);
     PageDto<String> tagsDto = PageMappingImpl.<String>instance().build(tags);
     // PageDto[items=[fp, hkt], total=2]
@@ -53,9 +53,10 @@ public final class GenericsBook {
     System.out.println(tagsDto + " / " + counts);
 
     // ANCHOR: threaded_inferred
-    PageMapping<String> inferredWitness = PageMappingImpl.instance(); // witness inferred
+    PageMappingImpl<String> tagPages = PageMappingImpl.instance(); // T inferred from the variable
+    PageDto<String> again = tagPages.build(tags);
     // ANCHOR_END: threaded_inferred
-    System.out.println(inferredWitness);
+    System.out.println(again);
 
     // ANCHOR: element_usage
     // One spec, any element codec: each abstract leaf arrives as a prism through of(...).
@@ -126,16 +127,15 @@ interface TagPageMapping extends MappingSpec<Page<String>, PageDto<String>> {}
 // ANCHOR_END: tag_page_spec
 
 // ANCHOR: window_spec
-// A booking window whose two dates may arrive in different formats, so each takes its own codec.
 record Window<T>(T opens, T closes) {}
 
 record WindowDto<TDto>(TDto opens, TDto closes) {}
 
 @GenerateMapping
 interface WindowMapping<T, TDto> extends MappingSpec<Window<T>, WindowDto<TDto>> {
-  ValidatedPrism<TDto, T> opens(); // of(...) takes this first
+  ValidatedPrism<TDto, T> opens();
 
-  ValidatedPrism<TDto, T> closes(); // and this second
+  ValidatedPrism<TDto, T> closes();
 }
 
 // ANCHOR_END: window_spec

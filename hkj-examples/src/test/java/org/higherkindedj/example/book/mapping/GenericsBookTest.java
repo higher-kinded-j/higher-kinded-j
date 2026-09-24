@@ -25,32 +25,30 @@ class GenericsBookTest {
 
   @Test
   @DisplayName("a spec that names its type arguments is concrete, generic records or not")
-  void aSpecNamingItsTypeArgumentsIsConcrete() throws Exception {
+  void aSpecNamingItsTypeArgumentsIsConcrete() {
     // ANCHOR: check_access
     PageDto<String> wire = TagPageMappingImpl.INSTANCE.build(new Page<>(List.of("fp"), 1));
     assertThat(wire).isEqualTo(new PageDto<>(List.of("fp"), 1));
 
-    assertThat(TagPageMappingImpl.class.getField("INSTANCE")).isNotNull(); // a plain constant
     assertThatThrownBy(() -> TagPageMappingImpl.class.getMethod("instance"))
         .isInstanceOf(NoSuchMethodException.class); // no generic accessor
     // ANCHOR_END: check_access
   }
 
   @Test
-  @DisplayName("two same-typed abstract leaves swap without a compile error")
+  @DisplayName("two same-typed abstract leaves swap without a compile error, to the wrong values")
   void sameTypedAbstractLeavesSwapSilently() {
     // ANCHOR: check_swap
-    ValidatedPrism<String, LocalDate> iso = StandardCodecs.localDate(); // 2026-07-28
-    ValidatedPrism<String, LocalDate> uk = // 31/07/2026
+    ValidatedPrism<String, LocalDate> uk = // 03/04/2026 is 3 April
         StandardCodecs.localDate(DateTimeFormatter.ofPattern("dd/MM/uuuu"));
-    WindowDto<String> request = new WindowDto<>("2026-07-28", "31/07/2026");
+    ValidatedPrism<String, LocalDate> us = // 05/04/2026 is 4 May
+        StandardCodecs.localDate(DateTimeFormatter.ofPattern("MM/dd/uuuu"));
+    WindowDto<String> request = new WindowDto<>("03/04/2026", "05/04/2026");
 
-    assertThatValidated(WindowMappingImpl.of(iso, uk).parse(request)) // opens, then closes
-        .hasValue(new Window<>(LocalDate.of(2026, 7, 28), LocalDate.of(2026, 7, 31)));
-    assertThatValidated(WindowMappingImpl.of(uk, iso).parse(request)) // swapped: it compiles
-        .hasFieldErrors(
-            "opens: not a date (expected e.g. 28/07/2026)",
-            "closes: not an ISO-8601 date (expected e.g. 2026-07-28)");
+    assertThatValidated(WindowMappingImpl.of(uk, us).parse(request)) // opens, then closes
+        .hasValue(new Window<>(LocalDate.of(2026, 4, 3), LocalDate.of(2026, 5, 4)));
+    assertThatValidated(WindowMappingImpl.of(us, uk).parse(request)) // swapped: it compiles
+        .hasValue(new Window<>(LocalDate.of(2026, 3, 4), LocalDate.of(2026, 4, 5))); // no error
     // ANCHOR_END: check_swap
   }
 }
