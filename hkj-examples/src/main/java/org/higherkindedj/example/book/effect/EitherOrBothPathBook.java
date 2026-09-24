@@ -6,6 +6,7 @@ import org.higherkindedj.hkt.Semigroups;
 import org.higherkindedj.hkt.effect.EitherOrBothPath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.eitherorboth.EitherOrBoth;
+import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 
 /**
@@ -38,11 +39,14 @@ public final class EitherOrBothPathBook {
         Path.<String, Integer>bothNel("uses deprecated key", 8)
             .via(value -> value < 10 ? Path.bothNel("value is low", value) : Path.rightNel(value));
 
-    result.run(); // Both([uses deprecated key, value is low], 8)
-    result.warnings(); // Just([uses deprecated key, value is low])
-    result.getOrElse(0); // 8
+    EitherOrBoth<NonEmptyList<String>, Integer> outcome = result.run();
+    // Both(NonEmptyList[uses deprecated key, value is low], 8)
+    Maybe<NonEmptyList<String>> warnings = result.warnings();
+    // Just(NonEmptyList[uses deprecated key, value is low])
+    int value = result.getOrElse(0);
+    // 8
     // ANCHOR_END: via
-    System.out.println(result.run() + " / " + result.warnings() + " / " + result.getOrElse(0));
+    System.out.println(outcome + " / " + warnings + " / " + value);
 
     // ANCHOR: zip_accum
     EitherOrBothPath<NonEmptyList<String>, String> name = Path.bothNel("name was trimmed", "Ada");
@@ -50,9 +54,10 @@ public final class EitherOrBothPathBook {
 
     EitherOrBothPath<NonEmptyList<String>, String> reg =
         name.zipWithAccum(age, (n, a) -> n + " (" + a + ")");
-    // Both([name was trimmed, age defaulted], "Ada (30)")
+    EitherOrBoth<NonEmptyList<String>, String> registration = reg.run();
+    // Both(NonEmptyList[name was trimmed, age defaulted], Ada (30))
     // ANCHOR_END: zip_accum
-    System.out.println(reg.run());
+    System.out.println(registration);
 
     // ANCHOR: accumulate
     EitherOrBoth<NonEmptyList<String>, Config> cfg =
@@ -64,15 +69,14 @@ public final class EitherOrBothPathBook {
     System.out.println(cfg);
 
     // ANCHOR: recover
-    Path.<String, Integer>leftNel("config missing").recover(errors -> 0).run(); // Right(0)
-    Path.<String, Integer>bothNel("deprecated", 42)
-        .recover(errors -> 0)
-        .run(); // Both([deprecated], 42)
+    EitherOrBoth<NonEmptyList<String>, Integer> recovered =
+        Path.<String, Integer>leftNel("config missing").recover(errors -> 0).run();
+    // Right(0)
+    EitherOrBoth<NonEmptyList<String>, Integer> kept =
+        Path.<String, Integer>bothNel("deprecated", 42).recover(errors -> 0).run();
+    // Both(NonEmptyList[deprecated], 42)
     // ANCHOR_END: recover
-    System.out.println(
-        Path.<String, Integer>leftNel("config missing").recover(errors -> 0).run()
-            + " / "
-            + Path.<String, Integer>bothNel("deprecated", 42).recover(errors -> 0).run());
+    System.out.println(recovered + " / " + kept);
   }
 
   static EitherOrBoth<NonEmptyList<String>, Integer> parsePortLenient(String raw) {

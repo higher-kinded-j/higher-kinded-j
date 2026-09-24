@@ -54,10 +54,12 @@ public final class NonEmptyListBook {
     System.out.println(a + " " + b + " " + c);
 
     // ANCHOR: from_list
-    Maybe<NonEmptyList<Integer>> maybe = NonEmptyList.fromList(List.of(1, 2, 3)); // Just([1, 2, 3])
-    Maybe<NonEmptyList<Integer>> none = NonEmptyList.fromList(List.of()); // Nothing
+    Maybe<NonEmptyList<Integer>> maybe = NonEmptyList.fromList(List.of(1, 2, 3));
+    // Just(NonEmptyList[1, 2, 3])
+    Maybe<NonEmptyList<Integer>> none = NonEmptyList.fromList(List.of());
+    // Nothing
     // ANCHOR_END: from_list
-    System.out.println(maybe + " " + none);
+    System.out.println(maybe + " / " + none);
 
     totalOps();
     accumulation();
@@ -86,9 +88,10 @@ public final class NonEmptyListBook {
 
     // Accumulation just concatenates the two NonEmptyLists, non-empty by construction.
     ValidationPath<NonEmptyList<String>, String> both = name.andAlso(email);
-    both.run().getError().toJavaList(); // ["name is blank", "email is invalid"]  (left-to-right)
+    List<String> errors = both.run().getError().toJavaList();
+    // [name is blank, email is invalid], left to right
     // ANCHOR_END: accumulate
-    System.out.println(both.run().getError().toJavaList());
+    System.out.println(errors);
   }
 
   static void validatedAndInstances() {

@@ -82,7 +82,8 @@ public class EitherOrBothExample {
         parseConfig().flatMap(WARNINGS, EitherOrBothExample::validateConfig);
 
     System.out.println("result = " + result);
-    // Both([uses deprecated key, value is low], 8): warnings from both stages accumulate.
+    // Both(NonEmptyList[uses deprecated key, value is low], 8): warnings from both stages
+    // accumulate.
     var warnings = result.getLeft();
     if (warnings.isJust()) {
       System.out.println("warnings = " + warnings.get().toJavaList());

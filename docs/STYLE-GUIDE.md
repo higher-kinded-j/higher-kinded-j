@@ -527,7 +527,10 @@ code that does not build. Prefer, in this order:
 1. **Include it from a compiled example.** Anchor the code in
    `hkj-examples/src/main/java/org/higherkindedj/example/book/**` and `{{#include}}` it. The page then
    renders code the build compiles *and runs*, so it cannot drift, and a runnable example also proves
-   the output comments the page asserts.
+   the output comments the page asserts. Put each output comment on a line of its own, after the
+   statement whose value it shows, and print that same value: bind it to a variable in the region and
+   print the variable after it. A comment at the end of a code line is not checked, and nor is a value
+   the example computes again outside the region.
 2. **Mark the fence `<!-- verify -->`.** The gate compiles a copy of it against the real library and
    the real annotation processor. Use this only when the snippet cannot be runnable code (a shape
    written against abstract type variables, for instance).

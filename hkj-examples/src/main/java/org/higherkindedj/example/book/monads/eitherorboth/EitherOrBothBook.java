@@ -59,7 +59,7 @@ public final class EitherOrBothBook {
     // ANCHOR: accumulate
     EitherOrBoth<NonEmptyList<String>, Config> cfg =
         EitherOrBoth.accumulate()
-            .and(parsePortLenient(raw.port())) // Both("port defaulted", 8080)
+            .and(parsePortLenient(raw.port())) // Both(NonEmptyList[port defaulted], 8080)
             .and(parseTimeoutLenient(raw.timeout())) // Right(30)
             .apply(Config::new);
     // Both(NonEmptyList[port defaulted], Config[port=8080, timeout=30])
