@@ -39,44 +39,43 @@ public final class StructureBook {
 
   public static void main(String[] args) {
     // ANCHOR: nesting_usage
-    InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob", "nope")));
+    Validated<NonEmptyList<FieldError>, Invoice> invoice =
+        InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob", "nope")));
     // Invalid(NonEmptyList[customer.email: not an email address])
     // ANCHOR_END: nesting_usage
-    System.out.println(
-        InvoiceMappingImpl.INSTANCE.parse(new InvoiceDto("INV-2", new CustomerDto("Bob", "nope"))));
+    System.out.println(invoice);
 
     // ANCHOR: bridge_nesting_usage
     var referralMapping = ReferralMappingImpl.INSTANCE;
 
-    referralMapping.parse(new ReferralDto("R-7", null));
+    Validated<NonEmptyList<FieldError>, Referral> noReferrer =
+        referralMapping.parse(new ReferralDto("R-7", null));
     // Valid(Referral[code=R-7, referrer=Optional.empty])
 
-    referralMapping.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope")));
+    Validated<NonEmptyList<FieldError>, Referral> badReferrer =
+        referralMapping.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope")));
     // Invalid(NonEmptyList[referrer.email: not an email address])
     // ANCHOR_END: bridge_nesting_usage
-    System.out.println(referralMapping.parse(new ReferralDto("R-7", null)));
-    System.out.println(
-        referralMapping.parse(new ReferralDto("R-7", new CustomerDto("Bob", "nope"))));
+    System.out.println(noReferrer);
+    System.out.println(badReferrer);
 
     // ANCHOR: bridge_container_usage
     var guestlistMapping = GuestlistMappingImpl.INSTANCE;
 
-    guestlistMapping.parse(new GuestlistDto("Launch", null));
+    Validated<NonEmptyList<FieldError>, Guestlist> absentGuests =
+        guestlistMapping.parse(new GuestlistDto("Launch", null));
     // Valid(Guestlist[event=Launch, guests=Optional.empty])
 
-    guestlistMapping.parse(
-        new GuestlistDto(
-            "Launch",
-            List.of(new CustomerDto("Ada", "ada@example.org"), new CustomerDto("Bob", "nope"))));
-    // Invalid(NonEmptyList[guests.1.email: not an email address])
-    // ANCHOR_END: bridge_container_usage
-    System.out.println(guestlistMapping.parse(new GuestlistDto("Launch", null)));
-    System.out.println(
+    Validated<NonEmptyList<FieldError>, Guestlist> badGuest =
         guestlistMapping.parse(
             new GuestlistDto(
                 "Launch",
                 List.of(
-                    new CustomerDto("Ada", "ada@example.org"), new CustomerDto("Bob", "nope")))));
+                    new CustomerDto("Ada", "ada@example.org"), new CustomerDto("Bob", "nope"))));
+    // Invalid(NonEmptyList[guests.1.email: not an email address])
+    // ANCHOR_END: bridge_container_usage
+    System.out.println(absentGuests);
+    System.out.println(badGuest);
 
     // ANCHOR: flatten_usage
     var vendorMapping = VendorMappingImpl.INSTANCE;
@@ -84,11 +83,11 @@ public final class StructureBook {
     VendorDto flat =
         vendorMapping.build(new Vendor("Acme", new Address("1 High St", "Leeds", "LS1 4AP")));
     // VendorDto[name=Acme, street=1 High St, city=Leeds, postcode=LS1 4AP]
-    vendorMapping.parse(new VendorDto("Acme", null, "Leeds", null));
+    Validated<NonEmptyList<FieldError>, Vendor> missing =
+        vendorMapping.parse(new VendorDto("Acme", null, "Leeds", null));
     // Invalid(NonEmptyList[address.street: must not be null, address.postcode: must not be null])
     // ANCHOR_END: flatten_usage
-    System.out.println(
-        flat + " / " + vendorMapping.parse(new VendorDto("Acme", null, "Leeds", null)));
+    System.out.println(flat + " / " + missing);
 
     // ANCHOR: widened_usage
     Validated<NonEmptyList<FieldError>, Crew> crew =
