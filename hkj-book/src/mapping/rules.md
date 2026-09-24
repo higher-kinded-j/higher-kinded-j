@@ -470,6 +470,15 @@ A one-directional mapping follows these rules:
 
 ## Generic specs {#generic-specs}
 
+### How an element-mapped spec nests {#element-mapped-nesting}
+
+**An element-mapped mapping nests as a composition.** A use site whose pair unifies against it resolves each element pair in turn, and emits `CodecPageMappingImpl.of(entries()).asValidatedPrism()` in place:
+
+- **A single-leaf spec takes a leaf on the using spec** named after the component, or another registered mapping for the element pair.
+- **A spec with several abstract leaves resolves each pair** against the other registered specs, whether declared here or in a dependency.
+- **Failures locate through the whole composed path**, `entries.items.1: not an email address`.
+- **An unresolvable element pair is a compile error** naming the pair and the ways to supply it. For a single-leaf spec that is a leaf on the using spec or another registered mapping. For a spec with several leaves it is another registered mapping, or a leaf over the whole pair that builds the composition itself with `of(...)`.
+
 ### Leaf order in `of(...)` {#leaf-order-in-of}
 
 An element-mapped spec's `of(...)` takes one `ValidatedPrism` per abstract leaf, in declaration order, and a leaf can also come from a [generic mix-in](generics.md#generic-mix-ins). Declaration order then puts the spec's own leaves first, in the order it declares them, then each mix-in's, in the order the `extends` clause names them. A mix-in is read the same way, its own leaves before those of the interfaces it extends, and an interface reached twice counts where it is first reached. The generated `of(...)` documents each parameter, naming the interface that declares an inherited leaf, so the order can be read off the Impl.

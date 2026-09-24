@@ -45,8 +45,10 @@ public final class GenericsBook {
     // One generic Impl serves every instantiation; identity elements copy through.
     Page<String> tags = new Page<>(List.of("fp", "hkt"), 2);
     PageDto<String> tagsDto = PageMappingImpl.<String>instance().build(tags);
+    // PageDto[items=[fp, hkt], total=2]
     Validated<NonEmptyList<FieldError>, Page<Integer>> counts =
         PageMappingImpl.<Integer>instance().parse(new PageDto<>(List.of(1, 2, 3), 3));
+    // Valid(Page[items=[1, 2, 3], total=3])
     // ANCHOR_END: threaded_usage
     System.out.println(tagsDto + " / " + counts);
 
@@ -116,3 +118,24 @@ interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> 
 }
 
 // ANCHOR_END: element_spec
+
+// ANCHOR: tag_page_spec
+@GenerateMapping
+interface TagPageMapping extends MappingSpec<Page<String>, PageDto<String>> {}
+
+// ANCHOR_END: tag_page_spec
+
+// ANCHOR: window_spec
+// A booking window whose two dates may arrive in different formats, so each takes its own codec.
+record Window<T>(T opens, T closes) {}
+
+record WindowDto<TDto>(TDto opens, TDto closes) {}
+
+@GenerateMapping
+interface WindowMapping<T, TDto> extends MappingSpec<Window<T>, WindowDto<TDto>> {
+  ValidatedPrism<TDto, T> opens(); // of(...) takes this first
+
+  ValidatedPrism<TDto, T> closes(); // and this second
+}
+
+// ANCHOR_END: window_spec
