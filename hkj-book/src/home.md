@@ -457,8 +457,9 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 5. **[Absent Fields and Record Invariants](mapping/absence.md):** A field whose `null` means absent, and a record's own checks
 6. **[Nesting, Containers, and Sealed Hierarchies](mapping/structure.md):** Nested specs, lifted containers, and dotted error paths
 7. **[Capstone](mapping/capstone.md):** One 422, every bad field, compiled and law-checked
-8. **[Bean-Shaped Wires](mapping/beans.md):** Getter/setter and builder wires, with the full feature set
-9. **[Sparse PATCH](mapping/beans_patch.md):** The `UpdateSpec` write-back
+8. **[Check Your Understanding](mapping/self_check.md):** Ten questions on the Quickstart through the Capstone, with answers the build proves
+9. **[Bean-Shaped Wires](mapping/beans.md):** Getter/setter and builder wires, with the full feature set
+10. **[Sparse PATCH](mapping/beans_patch.md):** The `UpdateSpec` write-back
 ~~~
 
 ~~~admonish note title="Monad Transformers" collapsible=true

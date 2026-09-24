@@ -187,4 +187,4 @@ Third, the PATCH sibling obeys the sparse laws: an all-absent form is the identi
 ---
 
 **Previous:** [Nesting, Containers, and Sealed Hierarchies](structure.md)
-**Next:** [What Your Spec Generates](tiers.md)
+**Next:** [Check Your Understanding](self_check.md)

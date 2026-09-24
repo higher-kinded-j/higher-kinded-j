@@ -126,6 +126,7 @@
   - [Absent Fields and Record Invariants](mapping/absence.md)
   - [Nesting, Containers, and Sealed Hierarchies](mapping/structure.md)
   - [Capstone: One 422, Every Bad Field](mapping/capstone.md)
+  - [Check Your Understanding](mapping/self_check.md)
   - [What Your Spec Generates](mapping/tiers.md)
   - [Bean-Shaped Wires](mapping/beans.md)
   - [Sparse PATCH](mapping/beans_patch.md)
