@@ -88,10 +88,10 @@ public final class NonEmptyListBook {
 
     // Accumulation just concatenates the two NonEmptyLists, non-empty by construction.
     ValidationPath<NonEmptyList<String>, String> both = name.andAlso(email);
-    both.run().getError().toJavaList();
+    List<String> errors = both.run().getError().toJavaList();
     // [name is blank, email is invalid], left to right
     // ANCHOR_END: accumulate
-    System.out.println(both.run().getError().toJavaList());
+    System.out.println(errors);
   }
 
   static void validatedAndInstances() {

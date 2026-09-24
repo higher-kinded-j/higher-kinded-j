@@ -40,10 +40,11 @@ import org.junit.jupiter.params.provider.MethodSource;
  *
  * <p>So each example with a {@code main} is run, its output captured, and every output comment on a
  * line of its own inside an {@code ANCHOR} block matched against it, in source order: each claim
- * must be printed at or after the line the claim before it matched, so a value printed twice cannot
- * stand in for one the example never prints. A comment at the end of a code line is not read, so a
- * value a page claims goes on its own line, after the code that produces it. The shapes the
- * examples use are all honoured:
+ * consumes one printed value, and the next resumes after it, so a value printed once cannot answer
+ * two claims. A comment at the end of a code line is not read. A claim shows the value of the
+ * statement above it, so the example should print that same value, not compute it again: bind it to
+ * a variable in the region, and print the variable after it. The shapes the examples use are all
+ * honoured:
  *
  * <ul>
  *   <li>a value on one line, <code>// Valid(Person[name=Ada, age=36])</code>, or any other type's
@@ -172,6 +173,29 @@ class BookExampleOutputTest {
             tuple(4, "Invalid(NonEmptyList[email: not an email address])"),
             tuple(8, "1.0"),
             tuple(11, "[a, b]"));
+  }
+
+  @Test
+  @DisplayName("matches claims in order, each consuming one printed value")
+  void eachClaimConsumesOnePrintedValue() {
+    List<String> printed = List.of("Right(0) / Both(NonEmptyList[deprecated], 42)", "page : 1.0");
+
+    assertThat(
+            firstUnprinted(
+                claims("Right(0)", "Both(NonEmptyList[deprecated], 42)", "1.0"), printed))
+        .isNull();
+    assertThat(firstUnprinted(claims("Right(0) / Both(NonEmptyList[deprecated], 42)"), printed))
+        .isNull();
+    assertThat(firstUnprinted(claims("Both(NonEmptyList[deprecated], 42)", "Right(0)"), printed))
+        .extracting(Claim::line)
+        .isEqualTo(2);
+    assertThat(firstUnprinted(claims("1.0", "1.0"), printed)).extracting(Claim::line).isEqualTo(2);
+  }
+
+  private static List<Claim> claims(String... values) {
+    List<Claim> claims = new ArrayList<>();
+    for (int i = 0; i < values.length; i++) claims.add(new Claim(i + 1, values[i]));
+    return claims;
   }
 
   /**
@@ -311,51 +335,68 @@ class BookExampleOutputTest {
         .hasSizeGreaterThanOrEqualTo(MINIMUM_CLAIMS.getOrDefault(name, 0));
 
     List<String> printed = run(example.className());
-    List<List<String>> segments = printed.stream().map(BookExampleOutputTest::segmentsOf).toList();
+    Claim unprinted = firstUnprinted(example.claims(), printed);
+    if (unprinted != null) {
+      fail(
+          """
+          %s:%d claims an output the example does not print, after the values the claims before \
+          it matched.
 
-    int from = 0;
-    for (Claim claim : example.claims()) {
-      int at = -1;
-      for (int line = from; line < segments.size() && at < 0; line++) {
-        if (matches(claim.value(), segments.get(line))) at = line;
-      }
-      if (at < 0) {
-        fail(
-            """
-            %s:%d claims an output the example does not print, at or after the line the claim \
-            before it matched.
-
-              the comment says: %s
-              the example printed:
-            %s
-            Update the comment to what the program prints, or fix the example. If the line is \
-            prose rather than an output, reword it so it does not open with a value."""
-                .formatted(
-                    example.className(),
-                    claim.line(),
-                    claim.value(),
-                    printed.stream()
-                        .map(line -> "    " + line)
-                        .collect(java.util.stream.Collectors.joining("\n"))));
-      }
-      from = at;
+            the comment says: %s
+            the example printed:
+          %s
+          Update the comment to what the program prints, or fix the example. If the line is \
+          prose rather than an output, reword it so it does not open with a value."""
+              .formatted(
+                  example.className(),
+                  unprinted.line(),
+                  unprinted.value(),
+                  printed.stream()
+                      .map(line -> "    " + line)
+                      .collect(java.util.stream.Collectors.joining("\n"))));
     }
   }
 
+  /** Where the next claim may resume: a printed line, and the {@code " / "} part within it. */
+  private record Position(int line, int part) {}
+
   /**
-   * What one printed line offers a claim to match: the whole line, each value it joins with {@code
-   * " / "}, and, where a line or a part labels its value, {@code emails : [...]}, the value alone.
+   * The first claim the printed lines do not bear out, or null when every one is printed. Claims
+   * match in source order, and each consumes one printed value, a whole line or one of the values
+   * it joins with {@code " / "}, so the next resumes after it: a value printed once cannot answer
+   * two claims, and two values on one line cannot be claimed in the reverse order.
    */
-  private static List<String> segmentsOf(String line) {
-    List<String> parts = new ArrayList<>(List.of(line));
-    parts.addAll(List.of(line.split(" / ")));
-    List<String> segments = new ArrayList<>();
-    for (String part : parts) {
-      segments.add(normalise(part));
-      Matcher labelled = LABELLED.matcher(part.strip());
-      if (labelled.matches()) segments.add(normalise(labelled.group(1)));
+  static Claim firstUnprinted(List<Claim> claims, List<String> printed) {
+    Position from = new Position(0, 0);
+    for (Claim claim : claims) {
+      from = consume(claim.value(), printed, from);
+      if (from == null) return claim;
     }
-    return segments;
+    return null;
+  }
+
+  private static Position consume(String value, List<String> printed, Position from) {
+    for (int line = from.line(); line < printed.size(); line++) {
+      String text = printed.get(line);
+      int start = line == from.line() ? from.part() : 0;
+      if (start == 0 && matches(value, candidates(text))) return new Position(line + 1, 0);
+      String[] parts = text.split(" / ");
+      for (int part = start; part < parts.length; part++) {
+        if (matches(value, candidates(parts[part]))) return new Position(line, part + 1);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * What one printed value offers a claim: the value itself and, where it labels what follows,
+   * {@code emails : [...]}, the labelled value alone.
+   */
+  private static List<String> candidates(String text) {
+    Matcher labelled = LABELLED.matcher(text.strip());
+    return labelled.matches()
+        ? List.of(normalise(text), normalise(labelled.group(1)))
+        : List.of(normalise(text));
   }
 
   private static String simpleName(String className) {

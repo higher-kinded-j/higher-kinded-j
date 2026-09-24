@@ -10,8 +10,9 @@ The book's code is kept honest in three ways. **Prefer the first.**
 
 Use (1) whenever the snippet can be real, runnable code. It is strictly stronger, and a runnable
 example can also prove the *output* comments a page asserts, which the compile gate cannot, provided
-each sits on a line of its own after the code that prints it (`BookExampleOutputTest` does not read a
-comment at the end of a code line). Fall back
+each sits on a line of its own after the statement whose value it shows, and the example prints that
+same value, bound to a variable in the region (`BookExampleOutputTest` does not read a comment at
+the end of a code line, and cannot see a value computed again outside the region). Fall back
 to (2) when a page needs a shape that cannot be a runnable example (an abstract signature, a
 `VResultPath<E, A>` written against type variables).
 
