@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import java.util.Optional;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,6 +50,22 @@ class BeansBookTest {
         CustomerRequestMappingImpl.INSTANCE.asValidatedBuild(),
         new Customer("Ada", new EmailAddress("ada@example.org"))); // renders without failing
     // ANCHOR_END: one_way_laws
+  }
+
+  @Test
+  @DisplayName("a getter that defaults null reads an empty Optional back as present")
+  void aGetterDefaultReadsAbsenceBackAsPresent() {
+    // ANCHOR: default_trap_proof
+    Listing lamp = new Listing("Lamp", Optional.empty());
+    ListingBean built = ListingMappingImpl.INSTANCE.build(lamp); // setSubtitle(null)
+
+    assertThatValidated(ListingMappingImpl.INSTANCE.parse(built))
+        .hasValue(new Listing("Lamp", Optional.of(""))); // getSubtitle() answered ""
+    assertThatThrownBy( // a domain sample with an empty Optional catches it
+            () ->
+                MappingLaws.assertMappingLaws(ListingMappingImpl.INSTANCE.asValidatedPrism(), lamp))
+        .isInstanceOf(AssertionError.class);
+    // ANCHOR_END: default_trap_proof
   }
 
   private static TransferBean transfer(String department) {

@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.util.Optional;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -10,6 +11,7 @@ import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The code shown on the book's <a
@@ -35,7 +37,7 @@ public final class BeansBook {
     Employee researcher = new Employee("Ada", "Research", 36);
     TransferBean transfer = new TransferBean();
     transfer.setDepartment("Platform");
-    var transferMapping = TransferMappingImpl.INSTANCE;
+    TransferMappingImpl transferMapping = TransferMappingImpl.INSTANCE;
 
     // The bean's property can be unset, so the projection validates: patch, never a lens.
     Validated<NonEmptyList<FieldError>, Employee> transferred =
@@ -53,13 +55,19 @@ public final class BeansBook {
 
     // ANCHOR: bean_usage
     Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
-    var contactMapping = ContactMappingImpl.INSTANCE;
+    ContactMappingImpl contactMapping = ContactMappingImpl.INSTANCE;
 
     ContactBean bean = contactMapping.build(ada); // new ContactBean(); setName; setEmail
     Validated<NonEmptyList<FieldError>, Customer> fromBean = contactMapping.parse(bean);
-    // A null bean property parses to a located FieldError, e.g. [email: must not be null].
+    // Valid(Customer[name=Ada, email=EmailAddress[value=ada@corp.example]])
+
+    ContactBean noEmail = new ContactBean(); // a bean can exist with a property never set
+    noEmail.setName("Bob");
+    Validated<NonEmptyList<FieldError>, Customer> fromUnset = contactMapping.parse(noEmail);
+    // Invalid(NonEmptyList[email: must not be null])
     // ANCHOR_END: bean_usage
-    System.out.println(bean.getName() + " / " + fromBean);
+    System.out.println(fromBean);
+    System.out.println(fromUnset);
 
     // ANCHOR: one_way_usage
     // Parse-only: the Impl has parse and asValidatedParse(), and no build.
@@ -231,3 +239,33 @@ interface TenantPatchMapping extends UpdateSpec<Tenant, TenantPatchBean> {
 }
 
 // ANCHOR_END: unmapped_spec
+
+// ANCHOR: default_trap
+// A product listing whose subtitle is optional, and a generated bean for it.
+record Listing(String title, Optional<String> subtitle) {}
+
+class ListingBean {
+  private String title;
+  private @Nullable String subtitle;
+
+  public String getTitle() {
+    return title;
+  }
+
+  public void setTitle(String title) {
+    this.title = title;
+  }
+
+  public String getSubtitle() {
+    return subtitle == null ? "" : subtitle; // the generator's convenience
+  }
+
+  public void setSubtitle(@Nullable String subtitle) { // the bridge writes null for empty
+    this.subtitle = subtitle;
+  }
+}
+
+@GenerateMapping
+interface ListingMapping extends MappingSpec<Listing, ListingBean> {} // subtitle bridges itself
+
+// ANCHOR_END: default_trap

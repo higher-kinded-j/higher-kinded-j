@@ -342,6 +342,31 @@ The [tier decision flow](tiers.md) ends by asking whether any correspondence is 
 
 ## Bean wires {#bean-wires}
 
+### How a bean is read and written {#how-a-bean-is-read-and-written}
+
+**The processor reads a bean through getters, and writes it by one of two strategies, tried in order.** First, a public no-args constructor with `setX` setters, and for a getter-only `List` the JAXB convention `getItems().addAll(...)`. Then, a static `builder()` or `newBuilder()` whose setters fill it and whose `build()` yields the wire. A bean with getters that fits neither is only ever read, so it maps [parse-only](beans.md#one-directional-beans), and a bean with nothing to read or write gets a what/why/fix diagnostic.
+
+- **A property is a getter and a writer that share a name.** Getters are `getX()`, and `isX()` returning `boolean` or `Boolean`, the shape JAXB declares for an optional boolean. Where a bean declares both for one name, `getX()` reads it.
+- **An unpaired accessor is left out of the mapping.** That suits a computed getter such as `getSummary()`, or a builder's singular adder. One named after a domain component is refused instead: [When an unpaired accessor is refused](#unpaired-accessors).
+- **The domain stays a record.** `parse` assembles the domain through its canonical constructor, so only the wire may be bean-shaped, and a bean domain gets a diagnostic.
+- **Nesting is unaffected.** A bean mapping that builds and parses exposes `asValidatedPrism()` like any other, so record specs nest it and containers lift it.
+
+### The automatic `Optional` bridge on a bean {#bean-optional-bridge}
+
+**On a full mapping, a domain `Optional<T>` maps to a nullable bean property `T` with no declaration.** `build` writes `null` for an empty value, replacing whatever the bean or its builder started with, and `parse` reads `Optional.ofNullable(...)`. A present value still validates through its leaf, or [nests through its own spec](structure.md#optional-nested-objects). A record wire opts into the same correspondence per component with [`@OptionalBridge`](absence.md#optional-bridge), which on a bean spec [draws a note](#optional-bridge-on-a-bean-wire). A [getter-only `List`](#getter-only-list-refuses-the-bridge) refuses the bridge. The [sparse tier](beans_patch.md#what-each-json-state-does) is the exception the other way: there `null` already means *leave unchanged*, so a PATCH bean encodes *set to empty* with an `Optional`-typed property.
+
+- **The writer must take `null`.** `build` never skips a write, so an empty `Optional` reaches the setter or builder setter as `null`, and a setter that copies defensively needs a guard (`v == null ? null : List.copyOf(v)`).
+- **The processor refuses a writer declared non-null**, by a non-null annotation or by a `@NullMarked` scope with no `@Nullable` on it, as it refuses a bridged record component. Mark it `@Nullable`, and on a Lombok bean mark the field, which Lombok copies to the setter.
+- **A generated builder that refuses `null` cannot be changed** (protobuf, Immutables). Declare the component without the `Optional`, or give it a leaf over the whole `Optional` that encodes absence the builder's way (`ValidatedPrism<String, Optional<String>>` mapping empty to `""`), which wins over the bridge.
+- **A default the bean applies to a `null` it is given reads back as present**, in the setter, a builder's `build()` or the getter. No compiler sees it: [a bean's default can undo absence](beans.md#bean-shaped-wire-targets).
+
+### What `@Unmapped` withholds {#what-unmapped-withholds}
+
+**The [`@Unmapped`](beans.md#accessors-meant-to-stay-out) marker withholds a refusal and nothing else.** The accessor it names was never a property, so the component stays unmapped, a wire narrower than the domain is still a projection, and nothing else about the generated Impl changes. It answers both refusals it is named for, [an accessor named after a domain component](#unpaired-accessors) and [a `setX` setter a PATCH bean cannot read](#every-patch-setter-has-a-getter), on a full mapping and a sparse `UpdateSpec` alike. The return type is not read, so it may restate the accessor's own type, and the Impl stubs the marker out like a rename.
+
+- **A marker the spec declares itself must name an accessor the bean leaves unpaired.** One naming a property the mapping carries, or naming nothing at all, is refused as the misspelling it usually is.
+- **One inherited from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) binds where it can** and is otherwise inert, like every other inherited member, so one mix-in serves specs whose wires differ.
+
 ### When an unpaired accessor is refused {#unpaired-accessors}
 
 When an unpaired accessor is named after a domain component the bean carries under no name, the one the component maps under (its own, or the one a `@MapField` rename gives it), leaving it out would drop that component without a word, so it is refused. The diagnostic names the accessor that would pair it. When a nearby accessor of the other kind has the same type, it is offered as the likely misspelling, so `setEmail(String)` beside `getEmial()` is told to rename the getter to `getEmail()`; otherwise it offers the [`@Unmapped` marker](beans.md#accessors-meant-to-stay-out), for an accessor that is meant to stay out.
@@ -358,7 +383,13 @@ One property shape refuses the bridge: a getter-only `List` filled by the JAXB c
 
 The two-way reading wins whenever any property allows it, so a bean is one-directional only when nothing at all crosses the other way. A getter-only `List` counts as written, through the JAXB `getX().addAll(...)` convention, only on a bean that also has a setter or whose every getter is such a list: a `List` getter among read-only getters belongs to a read model, which maps parse-only. A bean that reads some names and writes others fits neither and is refused with both lists of names. A bean whose names pair only in part maps both ways over those that do, and an unpaired accessor named after a domain component is [refused rather than dropped](#unpaired-accessors), since a misspelt accessor is what that shape usually is.
 
-Two more rules follow from which direction is missing:
+More rules follow from which direction is missing:
+
+- **A parse-only mapping needs a getter for every domain component**, since a parse produces the domain, and it ignores a getter no component names.
+- **A build-only mapping needs a source for every writer**, a domain component or a [derived field](basics.md#derived-wire-fields), and does not write a domain component the bean lacks. Neither is a projection, since nothing is written back.
+- **Nesting follows the direction.** A one-directional mapping nests wherever only its direction is used, lifted through containers like any other. A parse-only spec nests in a parse-only mapping, a [sparse `UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) or a [`@GenerateMerge`](merge_envelopes.md) source, and a build-only spec in a build-only mapping.
+- **A full mapping nests in all of them.** Where the missing direction is needed, the failed lookup names the one-directional spec and what it lacks, and sealed dispatch needs both directions of every subtype pair.
+- **A bean meant to be built can read parse-only.** When the generated Impl cannot reach its no-args constructor, the note says the constructor is out of reach.
 
 - **Derived fields are build-side.** A build-only mapping takes them as a full one does. Declared on a parse-only spec, one has nothing to fill and is refused; one inherited from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) stays inert, so one vocabulary serves both directions.
 - **A build-only builder counts its one-argument methods as writers.** A method taking the bean or the builder itself (`from(Bean)`, `mergeFrom(Builder)`) is left out, but a singular adder beside its collection setter (a `@Singular` builder) needs a source like any other writer; getters on the built type make such a bean two-way, where only the properties it reads count, and an unpaired builder method named after a domain component is [refused](#unpaired-accessors).
