@@ -451,11 +451,14 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 
 ~~~admonish note title="Mapping at the Boundary" collapsible=true
 1. **[Introduction](mapping/ch_intro.md):** The mapper every service carries, and the one response that replaces it
-2. **[Basics](mapping/basics.md):** One spec interface, both directions, every bad field located
-3. **[Standard Codecs and Shared Vocabulary](mapping/codecs.md):** The stock `ValidatedPrism` leaves, custom codecs, and mix-in interfaces
-4. **[Capstone](mapping/capstone.md):** One 422, every bad field, compiled and law-checked
-5. **[Bean-Shaped Wires](mapping/beans.md):** Getter/setter and builder wires, with the full feature set
-6. **[Sparse PATCH](mapping/beans_patch.md):** The `UpdateSpec` write-back
+2. **[Quickstart](mapping/quickstart.md):** Five steps from a blank build to a located 422
+3. **[Basics](mapping/basics.md):** One spec interface, both directions, every bad field located
+4. **[Standard Codecs and Shared Vocabulary](mapping/codecs.md):** The stock `ValidatedPrism` leaves, custom codecs, and mix-in interfaces
+5. **[Absent Fields and Record Invariants](mapping/absence.md):** A field whose `null` means absent, and a record's own checks
+6. **[Nesting, Containers, and Sealed Hierarchies](mapping/structure.md):** Nested specs, lifted containers, and dotted error paths
+7. **[Capstone](mapping/capstone.md):** One 422, every bad field, compiled and law-checked
+8. **[Bean-Shaped Wires](mapping/beans.md):** Getter/setter and builder wires, with the full feature set
+9. **[Sparse PATCH](mapping/beans_patch.md):** The `UpdateSpec` write-back
 ~~~
 
 ~~~admonish note title="Monad Transformers" collapsible=true

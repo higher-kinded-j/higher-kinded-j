@@ -126,7 +126,7 @@ Compare the alternatives you have debugged before: an NPE with a stack trace poi
 Returned as-is from a controller, this result becomes the single 422 response the introduction showed: [the 422 leg](../spring/spring_boot_integration.md#the-422-leg).
 ~~~
 
-The exact contract (what happens inside containers, and which nulls remain the caller's bug) is in [The null contract, precisely](rules.md#the-null-contract-precisely). The one deliberate exception, a field whose `null` *means* something, has [a page of its own](absence.md#optional-bridge).
+The exact contract (what happens inside containers, and which nulls remain the caller's bug) is in [The null contract, precisely](rules.md#the-null-contract-precisely). A field whose `null` *means* something can be opted out of this rule, one field at a time, as [Absent Fields and Record Invariants](absence.md#optional-bridge) shows.
 
 ---
 
@@ -150,7 +150,7 @@ MapStruct's idiom declares a mapper's instance on the mapper's own interface. Th
 ~~~admonish tip title="See Also"
 - [Validated Prisms](../optics/validated_prism.md): The leaf optic every fallible correspondence is built from
 - [Standard Codecs and Shared Vocabulary](codecs.md): The stock leaf vocabulary and how to share it
-- [Absent Fields and Record Invariants](absence.md): The field whose `null` means absent, and the record that refuses a value
+- [Absent Fields and Record Invariants](absence.md): A field whose `null` means *absent*, and a constructor's refusal reported as an error
 - [The 422 leg](../spring/spring_boot_integration.md#the-422-leg): The parse result as one HTTP response
 ~~~
 

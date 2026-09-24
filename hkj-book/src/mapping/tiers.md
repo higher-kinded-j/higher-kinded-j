@@ -15,7 +15,7 @@ Most mapping tools generate the same surface for every pair and let the unlawful
 **The code on this page is [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java)** - the page includes it directly, so it is compiled and run by the build.
 ~~~
 
-The field correspondences select what the Impl can lawfully offer. As a decision flow:
+The field correspondences select what the Impl can lawfully offer: its *emission tier*, or *tier* for short. As a decision flow:
 
 ```mermaid
 flowchart TD

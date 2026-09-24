@@ -160,37 +160,23 @@ Start from what you came for.
 | You want | Start at |
 |---|---|
 | A working endpoint that answers with a located 422 | [Quickstart](quickstart.md), five steps |
-| To understand the model before writing any of it | [Record Mapping Basics](basics.md), then [Standard Codecs](codecs.md) |
+| To understand the model before writing any of it | [Record Mapping Basics](basics.md), then on in order to [the Capstone](capstone.md) |
 | To judge whether it fits your services | [Mapper at a Glance](at_a_glance.md) |
 | To bring a MapStruct or Bean Validation habit across | [Coming from MapStruct and Bean Validation](from_mapstruct.md) |
-| To see the whole thing on one boundary | [the Capstone](capstone.md) |
+| To see it working on one boundary | [the Capstone](capstone.md) |
 
 Those pages teach the model and put it behind an endpoint. For a particular task, go straight to its page:
 
-- A field that may be absent, or a record whose constructor refuses bad values: [Absent Fields and Record Invariants](absence.md)
+- A field the client may leave out, read as an empty `Optional`, or a record whose constructor refuses bad values: [Absent Fields and Record Invariants](absence.md)
 - DTOs that nest, hold lists, or dispatch over sealed types: [Nesting, Containers, and Sealed Hierarchies](structure.md)
 - What exactly got generated for your spec, and why: [What Your Spec Generates](tiers.md)
 - A getter/setter or builder DTO: [Bean-Shaped Wires](beans.md)
-- A PATCH endpoint, where an absent field means *leave unchanged*: [Sparse PATCH](beans_patch.md)
+- A PATCH endpoint, where an omitted field keeps its current value: [Sparse PATCH](beans_patch.md)
 - A `Page<T>` at the boundary: [Generic Specs](generics.md)
 - Combining several sources, or typing your error context: [Merge and Error Envelopes](merge_envelopes.md)
 - A rule, a limit, or a runtime surprise to look up: [Rules and Limits](rules.md)
 - A compiler message to decode: [Compiler Messages](compiler_errors.md)
 - Spring beans, test fakes, and how wide a record may be: [Injecting, Testing, and Diagnostics](testing.md)
-
-~~~admonish info title="In This Chapter"
-- **Record Mapping Basics**: Declare a mapping as one empty interface and get both directions: a `build` that cannot fail and a `parse` that reports every bad field at once. Then add conversions, renames and computed fields.
-- **Standard Codecs and Shared Vocabulary**: The stock conversions (UUIDs, dates, enums, money) as one factory call each, and the mix-in pattern that shares your conversions across every spec in an API.
-- **Absent Fields and Record Invariants**: The one field whose `null` means *absent*, declared per component, and a record's own invariants, reported as located errors.
-- **Nesting, Containers, and Sealed Hierarchies**: Specs nest automatically and failures compose into dotted paths; `List`, `Set`, arrays, `Optional` and `Map` map their elements (and, with `@MapKey`, a map's keys); sealed pairs dispatch exhaustively in both directions.
-- **Capstone: One 422, Every Bad Field**: Everything so far on one order-intake boundary, proven by a green test: a five-defect request answered by the response shown above, then previews of PATCH, merge and envelopes.
-- **What Your Spec Generates**: Which spec shapes earn `asIso()`, `asLens()`, the validated `patch`, `asValidatedPrism()` or one of its halves, and the one-call law check that proves each in your own tests.
-- **Bean-Shaped Wires**: Getter/setter and builder wires with the full feature set, including a bean read or written only one way.
-- **Sparse PATCH**: The `UpdateSpec` opt-in that gives a PATCH bean null-as-absent semantics without weakening validation of what was sent.
-- **Generic Specs**: Mapping `Page<T>` and friends: concrete instantiations, threaded type parameters, and element-mapped specs whose codecs arrive at construction time.
-- **Merge and Error Envelopes**: `@GenerateMerge` assembles one target from several sources; `@GenerateErrorEnvelope` retires the copy-pasted `code`/`message`/`timestamp` and types the error context.
-- **Injecting, Testing, and Diagnostics**: Register the surface you consume, fake codecs as two-line values, and lean on what/why/fix diagnostics; there is no component ceiling.
-~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/boundary_mapping_journey.md) (3 tutorials, 13 exercises, ~35 minutes): hand-written multi-edits, the `ValidatedPrism` leaf, and the generated boundary of Tutorial 26.
@@ -200,23 +186,23 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 
 ## Chapter Contents
 
-**Ship a boundary**, read in order:
+**Ship**, read in order:
 
 1. [Quickstart: Your First 422](quickstart.md): Five steps from a blank build to a located 422
 2. [Record Mapping Basics](basics.md): Your first mapping, leaves, renames, derived fields
 3. [Standard Codecs and Shared Vocabulary](codecs.md): Stock lawful codecs and mix-in sharing
 4. [Absent Fields and Record Invariants](absence.md): Optional fields and a record's own checks
 5. [Nesting, Containers, and Sealed Hierarchies](structure.md): Composition and dotted error paths
-6. [Capstone: One 422, Every Bad Field](capstone.md): The route so far on one boundary, proven
+6. [Capstone: One 422, Every Bad Field](capstone.md): One boundary built end to end, proven
 
 **On demand**, when a task calls for it:
 
 7. [What Your Spec Generates](tiers.md): Truthful types, projections, the validated patch, laws
-8. [Bean-Shaped Wires](beans.md): Setter, builder and one-directional bean wires
-9. [Sparse PATCH](beans_patch.md): The UpdateSpec tier
+8. [Bean-Shaped Wires](beans.md): Setter, builder, and one-directional bean wires
+9. [Sparse PATCH](beans_patch.md): `UpdateSpec`: an omitted field keeps its value
 10. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
 11. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
-12. [Injecting, Testing, and Diagnostics](testing.md): Beans, fakes, and width
+12. [Injecting, Testing, and Diagnostics](testing.md): Spring beans, test fakes, and record width
 
 **Look it up**, when you hold a question:
 

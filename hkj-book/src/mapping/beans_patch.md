@@ -1,8 +1,8 @@
 # Sparse PATCH
 
-_The opt-in tier where `null` means "leave unchanged" instead of "broken"._
+_Map a PATCH request so an omitted field keeps its current value and a bad one still fails._
 
-One very common bean, the REST PATCH request, changes what `null` *means*: not broken data but *not provided*. This page covers the explicit `UpdateSpec` opt-in that gives a PATCH bean its sparse semantics. It builds on [Bean-Shaped Wires](beans.md), which covers how a bean is read and written.
+A PATCH request carries only the fields the client wants to change, so a `null` in it means *not sent*, not *broken*. This page maps such a request onto your domain record with `UpdateSpec`: sent fields are validated and applied, and omitted ones keep their current value. The request class has getters and setters, so [Bean-Shaped Wires](beans.md) covers how it is read.
 
 ~~~admonish info title="What You'll Learn"
 - What PATCH and *sparse* PATCH actually mean, and why `null` is ambiguous in a PATCH body
@@ -38,7 +38,7 @@ flowchart TD
     class DQ decision
 ```
 
-Which reading applies is a fact about the endpoint's contract, not about the data, and not something a mapper can infer from the types. That is why sparse semantics are an **explicit opt-in**.
+Which reading applies is a fact about the endpoint's contract, not about the data, and not something a mapper can infer from the types. That is why sparse semantics are an **explicit opt-in**. The diagram's dense `patch` is a [projection's validated write-back](tiers.md#leaf-carrying-projections-the-validated-patch), not a PATCH endpoint.
 
 ---
 
@@ -50,7 +50,7 @@ To opt in, the spec extends `UpdateSpec<Domain, Wire>` instead of `MappingSpec`:
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_spec}}
 ```
 
-The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>`. There is no `build`, `parse`, or `as*` tier (a sparse mapping is not a projection of information, and an all-absent wire is *valid*, not a total parse). `updateFrom` folds the present properties into an [`Update<Domain>`](../optics/multi_edit.md), leaving the absent ones alone:
+The Impl exposes a *single* method, `updateFrom(Wire) : Edits.Accumulated<Domain>`. There is no `build`, `parse`, or [`as*` tier](tiers.md) (a sparse mapping is not a projection of information, and an all-absent wire is *valid*, not a total parse). `updateFrom` folds the present properties into an [`Update<Domain>`](../optics/multi_edit.md), leaving the absent ones alone:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:update_usage}}
@@ -78,12 +78,12 @@ The rules that keep the contract honest:
 
 - [**A spec extending both `MappingSpec` and `UpdateSpec` is rejected.**](rules.md#one-tier-per-spec) Declare a spec per tier, and share a mix-in.
 - [**A primitive wire property is rejected.**](rules.md#no-primitive-patch-property) A primitive is never absent: use the wrapper type (`Integer`, `Boolean`).
-- [**A domain `Optional<T>` component bridged from a non-Optional property is rejected**](rules.md#no-optional-bridge-on-a-patch), and so is an `@OptionalBridge` the sparse spec declares itself: here `null` already means *leave unchanged*, so a plain property cannot also say *set to empty*. An `Optional`-typed wire property, though, *can* express *set to empty*, patching by identity or through an element leaf: a present empty Optional sets empty; an absent (`null`) one leaves unchanged. Two binder caveats come with that power: Jackson binds an explicit JSON `null` on an `Optional`-typed property to `Optional.empty()`, so on this one property shape a sent `null` means *clear*, not *leave unchanged*; and, as for every PATCH field, the bean field must start out `null`, not the idiomatic `Optional.empty()`, or every request that omits the field clears the domain value.
+- [**A domain `Optional<T>` component bridged from a non-Optional property is rejected**](rules.md#no-optional-bridge-on-a-patch), and so is an [`@OptionalBridge`](absence.md#optional-bridge) the sparse spec declares itself: here `null` already means *leave unchanged*, so a plain property cannot also say *set to empty*. An `Optional`-typed wire property, though, *can* express *set to empty*, patching by identity or through an element leaf: a present empty Optional sets empty; an absent (`null`) one leaves unchanged. Two binder caveats come with that power: Jackson binds an explicit JSON `null` on an `Optional`-typed property to `Optional.empty()`, so on this one property shape a sent `null` means *clear*, not *leave unchanged*; and, as for every PATCH field, the bean field must start out `null`, not the idiomatic `Optional.empty()`, or every request that omits the field clears the domain value.
 - [**A getter-only `List` property is rejected.**](rules.md#no-getter-only-list-on-a-patch) Give it a setter, and a getter that answers `null` until it is set.
 - [**A record wire is rejected.**](rules.md#no-record-patch-wire) A record component is always present, so a PATCH wire is a bean.
 - **A `JsonNullable` property is not supported yet.** A generated client that wraps its PATCH fields that way needs an `Optional`-typed property instead, as above, or a plain nullable one where *clear* has no meaning.
 - [**A bean read one way only is rejected.**](rules.md#patch-bean-read-and-written) A PATCH bean is both read and written.
-- [**A setter with no getter is rejected.**](rules.md#every-patch-setter-has-a-getter) Pair it with a getter, or mark it `@Unmapped`.
+- [**A setter with no getter is rejected.**](rules.md#every-patch-setter-has-a-getter) Pair it with a getter, or mark it [`@Unmapped`](beans.md#accessors-meant-to-stay-out).
 - [**A sealed hierarchy is rejected**](rules.md#no-sealed-patch), on either side.
 - **A present container parses through the element vocabulary.** A `List`, `Set`, array, `Optional` or `Map`-valued property (a pair declared as exactly those container types) routes through the element leaf named after the component: the same leaf the dense tiers lift, so one [mix-in vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) serves a full spec and its PATCH sibling. Replacement stays wholesale; each failing element is located the way its container locates anything: by index (`phones.1`), by key, or, in a `Set`, by the element's own rendering. A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) is the more specific declaration and wins over the element interpretation. A nested *spec* still does not lift through a sparse container; give the component an element leaf delegating to the nested Impl's `asValidatedPrism()` if its elements need a whole mapping.
 - [**An inherited derived field or `@OptionalBridge` marker stays inert.**](rules.md#inherited-vocabulary-on-a-patch) One mix-in serves a full spec and its PATCH sibling.
@@ -139,7 +139,7 @@ The hkj-spring example app serves `PATCH /api/users/{id}` through exactly this t
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Bean-Shaped Wires](beans.md): How the PATCH bean is read, and what makes a bean
+- [Bean-Shaped Wires](beans.md): What counts as a bean, and how its getters and setters are read and written
 - [Multi-Edit and Sparse Updates](../optics/multi_edit.md): The hand-written `Edits.accumulate` this tier generates
 - [Sparse PATCH at the Spring boundary](../spring/spring_boot_integration.md#sparse-patch): The controller story
 - [What Your Spec Generates](tiers.md): Where `updateFrom` sits among the surfaces

@@ -1,12 +1,12 @@
 # Absent Fields and Record Invariants
 
-_Declare the one field whose `null` means absent, and let a record's own constructor refuse a value._
+_Let a field's `null` mean absent, and get a record constructor's refusal back as an error, not an exception._
 
-[Record Mapping Basics](basics.md#null-doctrine) makes every wire `null` a located error. Two cases need more than that rule. A component whose `null` means *absent* is declared with `@OptionalBridge`. A domain record whose own constructor refuses a value still gets a located error, at the record's path.
+`parse` turns every `null` it reads from the wire into an error that names the field ([Null has an address, not a stack trace](basics.md#null-doctrine)). This page covers two things that rule leaves open. Declare a component whose `null` means *absent* with `@OptionalBridge`, and the domain receives an empty `Optional`. And when a record's own constructor refuses a value, `parse` returns the constructor's message at the record's path instead of throwing. For a PATCH endpoint, where an omitted field keeps its current value, see [Sparse PATCH](beans_patch.md).
 
 ~~~admonish info title="What You'll Learn"
-- Declaring the one field where a `null` means *absent* instead, with `@OptionalBridge`
-- How an invariant the domain's own constructor enforces reports, located at the record
+- Declare a field whose `null` means *absent*, with `@OptionalBridge`
+- Predict where a constructor's refusal is reported, and write its message for the client
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -155,8 +155,9 @@ The same guard covers every surface that builds the record whole from parsed par
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Null has an address, not a stack trace](basics.md#null-doctrine): The rule a bridge overrides, one component at a time
+- [Sparse PATCH](beans_patch.md): When an omitted field should keep its current value, not become empty
 - [Optional nested objects](structure.md#optional-nested-objects): A bridged component whose element has a spec of its own
+- [The 422 leg](../spring/spring_boot_integration.md#the-422-leg): How these errors reach the client as one HTTP response
 - [The null contract, precisely](rules.md#the-null-contract-precisely): What the null guard reaches, and which nulls stay the caller's bug
 ~~~
 

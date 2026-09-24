@@ -1,13 +1,14 @@
 # Bean-Shaped Wires
 
-_The same mapper for getter/setter and builder wires, including a bean read or written only one way._
+_Map getter/setter and builder classes with the same features as records, including ones only read or written._
 
-Not every wire type is a record. Generated clients, JAXB payloads and legacy DTOs are beans. This page maps them with the full feature set, including a bean that is only ever read or only ever written. A bean used as a PATCH request, where `null` means *not provided*, has [a page of its own](beans_patch.md).
+Generated client models, JAXB payloads and many legacy DTOs are beans: classes with getters and setters, or a builder, rather than records. They map with the same leaves, renames and derived fields that [Record Mapping Basics](basics.md) teaches for records. This page covers what changes, including a bean that is only ever read or only ever written. A bean used as a PATCH request, where `null` means *not sent*, has a page of its own, [Sparse PATCH](beans_patch.md).
 
 ~~~admonish info title="What You'll Learn"
 - Mapping bean-shaped wire types (setters, builders, JAXB lists) with the same features as records
 - Why a bean mapping withholds `asIso()`, and how `Optional` bridges through `null` here without a declaration
 - Why a bean projection with a reference property takes the validated `patch` rather than `asLens()`
+- Keeping an accessor out of the mapping on purpose, with `@Unmapped`
 - Mapping a bean that can only be read, or only be written: `parse` alone or `build` alone, and where each nests
 ~~~
 
@@ -67,7 +68,7 @@ Some beans leave an accessor unpaired on purpose. A response DTO reused as the P
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:unmapped_usage}}
 ```
 
-The marker only withholds the refusal: the accessor was never a property, so the component it names stays unmapped, a wire narrower than the domain is still a projection, and nothing else about the generated Impl changes. It reaches both tiers and both refusals it answers: [an accessor named after a domain component](rules.md#unpaired-accessors), and [a `setX` setter a PATCH bean cannot read](rules.md#every-patch-setter-has-a-getter). The return type is not read, so it may restate the accessor's own type, and the marker is stubbed out by the Impl like a rename.
+The marker only withholds the refusal: the accessor was never a property, so the component it names stays unmapped, a wire narrower than the domain is still a projection, and nothing else about the generated Impl changes. It reaches a full mapping and a [sparse `UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) alike, and both refusals it answers: [an accessor named after a domain component](rules.md#unpaired-accessors), and [a `setX` setter a PATCH bean cannot read](rules.md#every-patch-setter-has-a-getter). The return type is not read, so it may restate the accessor's own type, and the marker is stubbed out by the Impl like a rename.
 
 A marker the spec declares itself must name an accessor the bean leaves unpaired: one naming a property the mapping carries, or naming nothing at all, is refused as the misspelling it usually is. One inherited from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) binds where it can and is otherwise inert, like every other inherited vocabulary member, so one mix-in serves specs whose wires differ.
 
@@ -110,7 +111,7 @@ The rules follow from which direction is missing:
 ~~~admonish tip title="See Also"
 - [Sparse PATCH](beans_patch.md): A bean as a PATCH request, where `null` means *leave unchanged*
 - [Bean wires](rules.md#bean-wires): The precise rules, from an unpaired accessor to a getter-only `List`
-- [What Your Spec Generates](tiers.md): Where each bean surface sits among the others
+- [What Your Spec Generates](tiers.md): Which methods each spec shape gets, and why a bean mapping withholds `asIso()`
 ~~~
 
 ---
