@@ -6,7 +6,7 @@
 ~~~admonish info title="What You'll Learn"
 - One order-intake boundary built end to end: codecs, a custom leaf, a rename, nesting, a list, and a derived field
 - The payoff: a five-defect request answered by a single response naming every bad field by path
-- The encores: a sparse PATCH, a multi-source merge, and a typed error envelope on the same boundary
+- The encores, previews of later pages: a sparse PATCH, a multi-source merge, and a typed error envelope on the same boundary
 - The laws test that proves all of it, copied from a green build
 ~~~
 
@@ -116,15 +116,15 @@ The client fixes all five and resubmits once, where the hand-written mapper woul
 | `placedAt: not an ISO-8601 instant (...)` | `instant()`, rejecting a format it does not speak |
 | `status: unknown OrderStatus (...)` | `enumByName`, naming the permitted constants |
 
-Every piece of the chapter fired at once, and none of it was written by hand.
+Each error came from a page before this one, and none of it was written by hand.
 
 ---
 
 ## The Encores
 
-The same boundary, two more tiers in a handful of lines, and a third generator by pointer.
+The same boundary, two more tiers in a handful of lines, and a third generator by pointer. Each previews a page still ahead, and links to it.
 
-**A sparse PATCH.** The email leaf is already in the vocabulary, so the PATCH sibling is one bean and one empty spec. Absent means keep; a present bad value still fails, located:
+**[A sparse PATCH](beans_patch.md).** The email leaf is already in the vocabulary, so the PATCH sibling is one bean and one empty spec. Absent means keep; a present bad value still fails, located:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_patch}}
@@ -134,7 +134,7 @@ The same boundary, two more tiers in a handful of lines, and a third generator b
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_patch_usage}}
 ```
 
-**A receipt, merged.** One target from two sources, filled by component name, no class literals:
+**[A receipt, merged](merge_envelopes.md#merging-several-sources-generatemerge).** One target from two sources, filled by component name, no class literals:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_merge_spec}}
@@ -186,5 +186,5 @@ Third, the PATCH sibling obeys the sparse laws: an all-absent form is the identi
 
 ---
 
-**Previous:** [Injecting, Testing, and Diagnostics](testing.md)
-**Next:** [Mapper at a Glance](at_a_glance.md)
+**Previous:** [Nesting, Containers, and Sealed Hierarchies](structure.md)
+**Next:** [What Your Spec Generates](tiers.md)

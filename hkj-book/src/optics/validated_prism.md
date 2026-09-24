@@ -109,7 +109,7 @@ Each direction is also a type of its own. A `ValidatedPrism<S, A>` is both a **`
 | `ValidatedParse<S, A>` | `parse`, `parsePath`, `parseAll`, `parseValues`, `parseKeys`, `parseEntries` | `ValidatedParse.of(parse)` |
 | `ValidatedBuild<S, A>` | `build`, `buildAll`, `buildValues`, `buildKeys`, `buildEntries` | `ValidatedBuild.of(build)` |
 
-A half has no round trip, so neither law below applies to it, and `andThen`, `toPrism` and `toAffine`, which need both directions, stay on the prism. All three types are sealed, so a test double is a value built with `of`, never a mock. `parseEntries` takes a `ValidatedParse` for the values and `buildEntries` a `ValidatedBuild`, so either side of a map may be one-directional. A [one-directional bean mapping](../mapping/beans_patch.md#one-directional-beans) exposes its surface as the half it has.
+A half has no round trip, so neither law below applies to it, and `andThen`, `toPrism` and `toAffine`, which need both directions, stay on the prism. All three types are sealed, so a test double is a value built with `of`, never a mock. `parseEntries` takes a `ValidatedParse` for the values and `buildEntries` a `ValidatedBuild`, so either side of a map may be one-directional. A [one-directional bean mapping](../mapping/beans.md#one-directional-beans) exposes its surface as the half it has.
 
 ---
 

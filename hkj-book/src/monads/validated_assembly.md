@@ -58,7 +58,7 @@ A record often guards itself: a compact constructor that throws when its fields 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java:construct}}
 ```
 
-The rules are the generated mappings' own ([a record's own invariants](../mapping/basics.md#constructor-invariants)):
+The rules are the generated mappings' own ([a record's own invariants](../mapping/absence.md#constructor-invariants)):
 
 - **The function runs last.** It needs every field, so it runs only once all of them are valid, and a record reports either its fields' errors or its refusal, never both.
 - **The refusal is unlabelled**, so the `field(label, ...)` that nests the assembly locates it: `window: closes must be after opens`.
@@ -125,7 +125,7 @@ For records you own, the annotation processor generates a per-record companion t
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/assembly/ValidatedAssemblyBook.java:generated_usage}}
 ```
 
-A component whose type is itself annotated accepts its sub-companion's result directly, and the outer component name prefixes the inner paths (`address.zip`). The companion lives in the record's package, named `<Record>Assembly`; for a nested record the enclosing simple names are joined (`Outer.Inner` gives `OuterInnerAssembly`). Under the hood the companion merges through the same `Validated.ap` / `NonEmptyList.semigroup()` primitives as the builder, so the two agree on every input the record's constructor accepts. Where the constructor throws, they part: the builder's `apply` runs whatever function you hand it, so the exception propagates, while `assemble()` reports it as an unlabelled `FieldError` carrying the exception's message, the same [invariant guard](../mapping/basics.md#constructor-invariants) the generated mappings use. End the builder with [`construct`](#construct) instead of `apply` and the two agree again. Generic records are not supported; use the hand-written `fields()` builder for records you cannot annotate.
+A component whose type is itself annotated accepts its sub-companion's result directly, and the outer component name prefixes the inner paths (`address.zip`). The companion lives in the record's package, named `<Record>Assembly`; for a nested record the enclosing simple names are joined (`Outer.Inner` gives `OuterInnerAssembly`). Under the hood the companion merges through the same `Validated.ap` / `NonEmptyList.semigroup()` primitives as the builder, so the two agree on every input the record's constructor accepts. Where the constructor throws, they part: the builder's `apply` runs whatever function you hand it, so the exception propagates, while `assemble()` reports it as an unlabelled `FieldError` carrying the exception's message, the same [invariant guard](../mapping/absence.md#constructor-invariants) the generated mappings use. End the builder with [`construct`](#construct) instead of `apply` and the two agree again. Generic records are not supported; use the hand-written `fields()` builder for records you cannot annotate.
 
 ---
 

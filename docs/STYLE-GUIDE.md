@@ -326,7 +326,7 @@ Which errors does `parse` report for this request, and in what order?
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-basics-invariant-answer"
-**Both, in declaration order.** ... Where this lives: [A record's own invariants](basics.md#constructor-invariants).
+**Both, in declaration order.** ... Where this lives: [A record's own invariants](absence.md#constructor-invariants).
 ~~~
 ````
 

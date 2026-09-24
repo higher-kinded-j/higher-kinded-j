@@ -25,7 +25,7 @@ The shapes are close enough that a first spec usually reads like the mapper it r
 | `@SubclassMapping` | [sealed dispatch](structure.md#sealed-hierarchies) | exhaustive both ways, or it does not compile |
 | `@MappingTarget` plus `NullValuePropertyMappingStrategy.IGNORE` | [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) and `updateFrom(wire).apply(current)` | returns `Validated`; nested objects replace wholesale |
 | `@MappingTarget` for a dense write-back | a projection's [`patch(domain, wire)`](tiers.md#leaf-carrying-projections-the-validated-patch) or `asLens()` | every projected field written, and validated |
-| `ignore = true` on a target | [`@Unmapped`](beans_patch.md#accessors-meant-to-stay-out) on a bean accessor; a narrower wire is simply a projection | |
+| `ignore = true` on a target | [`@Unmapped`](beans.md#accessors-meant-to-stay-out) on a bean accessor; a narrower wire is simply a projection | |
 | `unmappedTargetPolicy = ERROR` | always on | an unmapped wire component is a compile error |
 | `@InheritInverseConfiguration` | not needed | the inverse is the same declaration |
 | `componentModel = "spring"` | a `@Bean` of `ValidatedPrism<Wire, Domain>` from `asValidatedPrism()` | [Injecting and testing](testing.md#injecting-and-testing-generated-mappings) |
@@ -67,7 +67,7 @@ checked in one step.
 | `@Valid` on a nested object | automatic: a nested spec parses it, and failures gain its component's path |
 | `@Valid` on a collection's elements | automatic: containers lift their element's leaf or spec, and locate by index or key |
 | `@Email`, `@Pattern`, `@Size`, `@Min` | a [leaf](basics.md#validated-leaves) on that component, or a stock codec |
-| A cross-field `@AssertTrue` | the domain record's own compact constructor: [its refusal is located too](basics.md#constructor-invariants) |
+| A cross-field `@AssertTrue` | the domain record's own compact constructor: [its refusal is located too](absence.md#constructor-invariants) |
 | `Set<ConstraintViolation<T>>` | `Validated<NonEmptyList<FieldError>, Domain>`, which carries the built value on success |
 | `violation.getPropertyPath()` | `FieldError.path()`, or its structured `segments` |
 | `@ControllerAdvice` translating violations | nothing: return the parse result and the starter renders it |

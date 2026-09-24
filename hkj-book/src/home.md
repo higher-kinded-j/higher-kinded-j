@@ -453,8 +453,9 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 1. **[Introduction](mapping/ch_intro.md):** The mapper every service carries, and the one response that replaces it
 2. **[Basics](mapping/basics.md):** One spec interface, both directions, every bad field located
 3. **[Standard Codecs and Shared Vocabulary](mapping/codecs.md):** The stock `ValidatedPrism` leaves, custom codecs, and mix-in interfaces
-4. **[Beans and Sparse PATCH](mapping/beans_patch.md):** Bean-shaped wires and the `UpdateSpec` write-back
-5. **[Capstone](mapping/capstone.md):** One 422, every bad field, compiled and law-checked
+4. **[Capstone](mapping/capstone.md):** One 422, every bad field, compiled and law-checked
+5. **[Bean-Shaped Wires](mapping/beans.md):** Getter/setter and builder wires, with the full feature set
+6. **[Sparse PATCH](mapping/beans_patch.md):** The `UpdateSpec` write-back
 ~~~
 
 ~~~admonish note title="Monad Transformers" collapsible=true

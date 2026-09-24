@@ -44,7 +44,7 @@ Containers lift the same way, and each one locates a failure by whatever identif
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_usage}}
 ```
 
-Lifting needs the *same* container on both sides. [What lifts, and what does not](rules.md#what-lifts) has the exact rule, and the refusal offers the declaration that would lift. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](basics.md#optional-bridge) shape instead, and it [nests through the element's spec](#optional-nested-objects) all the same.
+Lifting needs the *same* container on both sides. [What lifts, and what does not](rules.md#what-lifts) has the exact rule, and the refusal offers the declaration that would lift. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](absence.md#optional-bridge) shape instead, and it [nests through the element's spec](#optional-nested-objects) all the same.
 
 Locating a set element by its own rendering is the only honest answer available: a set has no index, and its iteration order is not part of its contract, so numbering the elements would name a *different* one on the next run. The value is what identifies the element, so that is what the path says.
 
@@ -63,7 +63,7 @@ flowchart TD
     class R error
 ```
 
-Because nesting is *delegation* (a full mapping's `Impl` exposes [`asValidatedPrism()`](tiers.md), and a [one-directional bean mapping](beans_patch.md#one-directional-beans) the half it has, so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
+Because nesting is *delegation* (a full mapping's `Impl` exposes [`asValidatedPrism()`](tiers.md), and a [one-directional bean mapping](beans.md#one-directional-beans) the half it has, so a whole mapping plugs in wherever a leaf does), recursion terminates by construction: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec and round-trips any finite tree.
 
 ~~~admonish warning title="A same-typed container crosses as a copy"
 A same-typed component declared as a `List`, `Set`, `Collection`, `Map` or `Optional` crosses as an unmodifiable copy, not as the instance the wire or the domain holds. Code that adds to a built wire's list afterwards throws `UnsupportedOperationException`: set a new list, or copy it first. An array crosses as a clone and compares by reference, so a record with an array component and no `equals` of its own is not equal to its own round trip. [Same-typed containers cross as copies](rules.md#same-typed-containers-cross-as-copies) has the precise rule.
@@ -93,7 +93,7 @@ Where this lives: [Nesting, containers, and recursion](#nesting-containers-and-r
 
 ### Optional nested objects {#optional-nested-objects}
 
-When a JSON client leaves an object out, or sends `null` for it, the binder leaves a plain nullable `CustomerDto` where the domain holds an `Optional<Customer>`. That pair is the [`@OptionalBridge`](basics.md#optional-bridge) shape, and it nests like every other: when a spec maps the element pair, the marker is all the component needs.
+When a JSON client leaves an object out, or sends `null` for it, the binder leaves a plain nullable `CustomerDto` where the domain holds an `Optional<Customer>`. That pair is the [`@OptionalBridge`](absence.md#optional-bridge) shape, and it nests like every other: when a spec maps the element pair, the marker is all the component needs.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_nesting_spec}}
@@ -101,7 +101,7 @@ When a JSON client leaves an object out, or sends `null` for it, the binder leav
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_nesting_usage}}
 ```
 
-`build` writes the nested build of a present value and `null` for an empty one. `parse` reads `null` as empty and hands a present value to the nested spec, so its failures locate under the component, exactly as through a `List`. The usual order holds: a bridged [element leaf](basics.md#optional-bridge) on the component wins over the spec, and two specs for the pair are ambiguous until such a leaf delegates to the one you mean. A bean wire bridges automatically, so there the same pair nests with no marker at all.
+`build` writes the nested build of a present value and `null` for an empty one. `parse` reads `null` as empty and hands a present value to the nested spec, so its failures locate under the component, exactly as through a `List`. The usual order holds: a bridged [element leaf](absence.md#optional-bridge) on the component wins over the spec, and two specs for the pair are ambiguous until such a leaf delegates to the one you mean. A bean wire bridges automatically, so there the same pair nests with no marker at all.
 
 A bridged container lifts the same way. An optional JSON array arrives as a nullable `List<CustomerDto>`, and where an absent list and an empty one mean different things, the domain holds an `Optional<List<Customer>>`. The marker is again all it needs:
 
@@ -147,7 +147,7 @@ The group is spread by name, and the whole vocabulary applies inside it by name 
 
 - a `@MapField(to = "addressLine1") String street();` rename points a group member at a differently named wire field,
 - a `default ValidatedPrism<String, Postcode> postcode()` leaf converts one, and makes the mapping fallible exactly as a top-level leaf would,
-- an `@OptionalBridge` named after a member that is `Optional` [bridges it](basics.md#optional-bridge) to a nullable wire field,
+- an `@OptionalBridge` named after a member that is `Optional` [bridges it](absence.md#optional-bridge) to a nullable wire field,
 - a member that is itself a record nests through its own spec, and containers lift.
 
 An all-identity group keeps the mapping lossless: `asIso()` survives and reassembles the record on the way back. A mapping carrying a group is nested by other specs like any other, in the same compilation or from a dependency.
@@ -211,12 +211,12 @@ A domain subtype without a spec, or a wire subtype nothing produces, is a compil
 
 ~~~admonish tip title="See Also"
 - [Record Mapping Basics](basics.md#null-doctrine): The null doctrine that also reaches inside containers
-- [The Emission Tiers](tiers.md): What the composed mapping lawfully offers
+- [What Your Spec Generates](tiers.md): What the composed mapping lawfully offers
 - [Generic Specs](generics.md): Nesting for generic records
 - [Multi-module builds](../tooling/manual_setup.md#multi-module-builds): What the build needs when specs span modules
 ~~~
 
 ---
 
-**Previous:** [Standard Codecs and Shared Vocabulary](codecs.md)
-**Next:** [The Emission Tiers](tiers.md)
+**Previous:** [Absent Fields and Record Invariants](absence.md)
+**Next:** [Capstone: One 422, Every Bad Field](capstone.md)

@@ -139,10 +139,10 @@ A vocabulary also crosses a **module boundary**. It is a plain interface rather 
 ~~~admonish tip title="See Also"
 - [Validated Prisms](../optics/validated_prism.md#laws): The section law the codecs are built to honour
 - [Record Mapping Basics](basics.md#validated-leaves): How leaves attach to a spec
-- [Beans and Sparse PATCH](beans_patch.md): The PATCH sibling that lifts the same element leaves
+- [Sparse PATCH](beans_patch.md): The PATCH sibling that lifts the same element leaves
 ~~~
 
 ---
 
 **Previous:** [Record Mapping Basics](basics.md)
-**Next:** [Nesting, Containers, and Sealed Hierarchies](structure.md)
+**Next:** [Absent Fields and Record Invariants](absence.md)

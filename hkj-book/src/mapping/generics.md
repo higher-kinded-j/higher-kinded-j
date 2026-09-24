@@ -117,5 +117,5 @@ Generic mappings are **record-to-record only**: [the boundaries of a generic spe
 
 ---
 
-**Previous:** [Beans and Sparse PATCH](beans_patch.md)
+**Previous:** [Sparse PATCH](beans_patch.md)
 **Next:** [Merge and Error Envelopes](merge_envelopes.md)
