@@ -170,5 +170,5 @@ The patch laws are projection identity (`patch(d, build(d)) == Valid(d)`), idemp
 
 ---
 
-**Previous:** [Capstone: One 422, Every Bad Field](capstone.md)
+**Previous:** [Check Your Understanding](self_check.md)
 **Next:** [Bean-Shaped Wires](beans.md)

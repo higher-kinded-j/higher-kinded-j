@@ -194,22 +194,23 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 4. [Absent Fields and Record Invariants](absence.md): Optional fields and a record's own checks
 5. [Nesting, Containers, and Sealed Hierarchies](structure.md): Composition and dotted error paths
 6. [Capstone: One 422, Every Bad Field](capstone.md): One boundary built end to end, proven
+7. [Check Your Understanding](self_check.md): Ten questions, answers proved by the build
 
 **On demand**, when a task calls for it:
 
-7. [What Your Spec Generates](tiers.md): Truthful types, projections, the validated patch, laws
-8. [Bean-Shaped Wires](beans.md): Setter, builder, and one-directional bean wires
-9. [Sparse PATCH](beans_patch.md): `UpdateSpec`: an omitted field keeps its value
-10. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
-11. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
-12. [Injecting, Testing, and Diagnostics](testing.md): Spring beans, test fakes, and record width
+8. [What Your Spec Generates](tiers.md): Truthful types, projections, the validated patch, laws
+9. [Bean-Shaped Wires](beans.md): Setter, builder, and one-directional bean wires
+10. [Sparse PATCH](beans_patch.md): `UpdateSpec`: an omitted field keeps its value
+11. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
+12. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
+13. [Injecting, Testing, and Diagnostics](testing.md): Spring beans, test fakes, and record width
 
 **Look it up**, when you hold a question:
 
-13. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
-14. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
-15. [Rules and Limits](rules.md): Every enforced rule and limit, in one place
-16. [Compiler Messages](compiler_errors.md): The common refusals, what each means, and the fix
+14. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
+15. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
+16. [Rules and Limits](rules.md): Every enforced rule and limit, in one place
+17. [Compiler Messages](compiler_errors.md): The common refusals, what each means, and the fix
 
 ---
 

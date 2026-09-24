@@ -337,6 +337,7 @@ Rules:
 - **An answer adds no fact.** It applies a rule the page already teaches visibly, and ends with a "Where this lives" link. Its only unique content is the proof
 - **The answer is proved by the build**: a test assertion, or a `verify:rejects` snippet whose diagnostic is the answer. Never by an output comment nothing runs
 - **At most two per page**, placed where the practical lane ends, so passing one certifies that stopping there is safe
+- **A chapter's self-check page is the exception**: it is all checkpoints, ordered from recall to writing a spec, with the pages mixed. It carries no "What You'll Learn", and it ends with a routing key that turns a score into a next step
 
 ### Collapsing
 
