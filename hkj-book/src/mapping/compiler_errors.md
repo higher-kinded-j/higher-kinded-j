@@ -2013,7 +2013,7 @@ location: class Probe
 The rule: [Your first mapping](basics.md#your-first-mapping).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "cannot find symbol" -->
+<!-- verify:rejects "class CustomerMappingImpl" -->
 ```java
 record Customer(String name) {}
 
@@ -2040,7 +2040,7 @@ location: variable INSTANCE of type CustomerMappingImpl
 The rule: [The Emission Tiers](tiers.md#the-emission-tiers-truthful-types).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "cannot find symbol" -->
+<!-- verify:rejects "method asIso()" -->
 ```java
 record Customer(EmailAddress email) {}
 

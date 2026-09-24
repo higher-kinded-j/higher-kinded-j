@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -580,16 +581,26 @@ final class SnippetExtractor {
    * <p>Several top-level types share one file, so none of them may be public - and none may be
    * private or protected either, which a page writes for a nested helper record. The modifier is
    * not always at the start of a line: {@code @GenerateMapping public interface X {}}. Only the
-   * lines up to the header lose it: a type nested inside keeps its access, since a nested {@code
+   * declaration's own modifier goes: a type nested inside keeps its access, since a nested {@code
    * private record} is legal and can be the very thing a page shows the processor refusing.
    */
   private static String topLevel(List<String> lines, int from, int header, int end) {
-    List<String> out = new ArrayList<>();
-    for (int k = from; k <= end; k++) {
-      String line = lines.get(k);
-      out.add(k <= header ? TYPE_ACCESS.matcher(line).replaceAll("") : line);
-    }
+    List<String> out = new ArrayList<>(lines.subList(from, end + 1));
+    out.set(header - from, withoutOwnAccess(lines.get(header)));
     return String.join("\n", out);
+  }
+
+  /**
+   * The header line without the access modifier of the declaration it opens. A nested type can open
+   * on the same line, {@code class Shop { private record Sku(String value) {} }}, so only a
+   * modifier on the line's first type keyword is the declaration's own.
+   */
+  private static String withoutOwnAccess(String header) {
+    Matcher own = INLINE_DECLARATION.matcher(header);
+    Matcher access = TYPE_ACCESS.matcher(header);
+    return own.find() && access.find() && access.start(3) == own.start(1)
+        ? header.substring(0, access.start()) + header.substring(access.end())
+        : header;
   }
 
   /** How many type-argument brackets a line leaves open, ignoring literals and comments. */
