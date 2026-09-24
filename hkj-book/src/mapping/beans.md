@@ -79,7 +79,7 @@ Some beans are only ever crossed one way. A generated client's response type, an
 | The bean offers | It maps | The Impl carries |
 |---|---|---|
 | properties it can both read and write | both ways, as above | `build`, `parse`, `asValidatedPrism()` and the rest of its tier |
-| getters, and no setters or builder that fill it | parse-only | `parse` and `asValidatedParse()` |
+| getters, and no setters or builder that fill it | parse-only, unless every getter is a getter-only `List` | `parse` and `asValidatedParse()` |
 | setters or a builder, and no getters | build-only | `build` and `asValidatedBuild()` |
 
 ``` java
@@ -88,7 +88,7 @@ Some beans are only ever crossed one way. A generated client's response type, an
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:one_way_usage}}
 ```
 
-The bean's shape decides, and a note says which way it was read and why, so an unintended reading does not go unnoticed: a bean meant to be built whose no-args constructor the generated Impl cannot reach reads parse-only, and the note says the constructor is out of reach. The two-way reading wins whenever any property allows it, so a bean is one-directional only when nothing at all crosses the other way. [How a bean's direction is read](rules.md#how-a-beans-direction-is-read) covers the mixed cases, such as a bean that reads some names and writes others.
+The bean's shape decides, and a note says which way it was read and why, so an unintended reading does not go unnoticed: a bean meant to be built whose no-args constructor the generated Impl cannot reach reads parse-only, and the note says the constructor is out of reach. The two-way reading wins whenever any property allows it, so a bean is one-directional only when nothing at all crosses the other way. [How a bean's direction is read](rules.md#how-a-beans-direction-is-read) covers the mixed cases, such as a bean that reads some names and writes others. One of them maps both ways: a bean whose every getter is a getter-only `List`, which `build` fills the JAXB way, through `getX().addAll(...)`.
 
 The rules follow from which direction is missing:
 
