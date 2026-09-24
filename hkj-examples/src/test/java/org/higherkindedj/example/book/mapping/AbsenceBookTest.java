@@ -41,4 +41,30 @@ class AbsenceBookTest {
         .isInvalid()
         .hasFieldErrors("guest: must not be null", "stays.1: checkOut must be after checkIn");
   }
+
+  @Test
+  @DisplayName("a bridged null reads as absent, and a present bridged value still validates")
+  void bridgedNullReadsAbsentAndAPresentValueValidates() {
+    // ANCHOR: bridge_null_and_bad
+    assertThatValidated(
+            MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", null, "not-an-email")))
+        .hasFieldErrors("altEmail: not an email address"); // the null nickname is simply absent
+    // ANCHOR_END: bridge_null_and_bad
+  }
+
+  @Test
+  @DisplayName("a constructor's refusal locates where its record does")
+  void aRefusalLocatesWhereItsRecordDoes() {
+    // ANCHOR: invariant_address
+    StayDto reversed = new StayDto("2026-03-09", "2026-03-07");
+
+    assertThatValidated(StayMappingImpl.INSTANCE.parse(reversed)) // a Stay on its own
+        .hasFieldErrors("checkOut must be after checkIn");
+    assertThatValidated(
+            ReservationMappingImpl.INSTANCE.parse(
+                new ReservationDto(
+                    "Ada", List.of(new StayDto("2026-03-01", "2026-03-04"), reversed))))
+        .hasFieldErrors("stays.1: checkOut must be after checkIn");
+    // ANCHOR_END: invariant_address
+  }
 }

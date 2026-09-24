@@ -149,9 +149,62 @@ The same holds for every site `build` writes an empty `Optional` into: a record 
 
 Any annotation named `Nullable` or `CheckForNull` counts here, whichever library it comes from, and so does JSR-305's `@Nonnull(when = MAYBE)`: this rule refuses a build, so it reads more widely than the fixed list of names that decides which Focus paths are null-safe. A component typed by a type variable follows the variable's bounds: a plain `<T>` declared in a `@NullMarked` scope is non-null, as its bound `Object` is, and `<T extends @Nullable Object>` leaves the nullness to the type argument, so it bridges.
 
+### `@OptionalBridge` on a bean wire is redundant {#optional-bridge-on-a-bean-wire}
+
+**Declaring `@OptionalBridge` on a bean spec draws a note, not an error.** A bean wire bridges a domain `Optional` to its nullable property automatically, because bean conventions leave `Optional` off property types. The annotation opts a *record* wire into the same correspondence, so on a bean it changes nothing, and the mapping is generated exactly as it would be without it. It stays a note because a [shared mix-in vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) may legitimately serve both wire shapes.
+
+<!-- verify:reports "@OptionalBridge on 'nickname' is redundant on a bean wire" -->
+```java
+import java.util.Optional;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.annotations.OptionalBridge;
+
+record Guest(String name, Optional<String> nickname) {}
+
+class GuestBean {
+  private String name;
+  private String nickname;
+
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+  public String getNickname() { return nickname; }
+  public void setNickname(String nickname) { this.nickname = nickname; }
+}
+
+@GenerateMapping
+interface GuestMapping extends MappingSpec<Guest, GuestBean> {
+  @OptionalBridge
+  Optional<String> nickname();
+}
+```
+
+The processor says:
+
+```
+@GenerateMapping: @OptionalBridge on 'nickname' is redundant on a bean wire. A bean wire
+bridges a domain Optional to its nullable property automatically, because bean conventions
+leave Optional off property types; the annotation opts a RECORD wire into the same
+correspondence. Remove the annotation, or keep it if the vocabulary is shared with a
+record-wire spec.
+```
+
 ### Which surfaces a constructor's refusal reaches {#constructor-refusal-surfaces}
 
-The [constructor guard](absence.md#constructor-invariants) covers every surface that builds the record whole from parsed parts: the [projection's `patch`](tiers.md#leaf-carrying-projections-the-validated-patch), a [flattened](structure.md#flattening-a-nested-component-onto-a-flat-wire) group, the fallible [`@GenerateMerge`](merge_envelopes.md), and [`@GenerateAssembly`](../monads/validated_assembly.md#generating-the-companion-generateassembly)'s `assemble()`. The [sparse `UpdateSpec` tier](#sparse-construct-once) constructs the record once, from the values the PATCH ends on, and its `apply` reports a refusal the same way, unlabelled; a nested record the PATCH replaces whole parses through its own spec, guard included. Three surfaces cannot return an error, so there the exception propagates: `asIso().reverseGet` and a projection's `asLens().set`, total optics meant for values already known to be lawful, and the `Update` a sparse update's `toValidated()` hands back.
+**A constructor's refusal becomes an error wherever the surface can return one.** The [constructor guard](absence.md#constructor-invariants) covers every surface that builds the record whole from parsed parts; the few that cannot return an error let the exception through:
+
+| Surface | A refusal becomes |
+|---|---|
+| `parse`, a [projection's `patch`](tiers.md#leaf-carrying-projections-the-validated-patch), a [flattened](structure.md#flattening-a-nested-component-onto-a-flat-wire) group, the fallible [`@GenerateMerge`](merge_envelopes.md), [`@GenerateAssembly`](../monads/validated_assembly.md#generating-the-companion-generateassembly)'s `assemble()` | a `FieldError` at the record's path |
+| `apply` on the [sparse `UpdateSpec` tier](#sparse-construct-once), which constructs the record once, from the values the PATCH ends on | an unlabelled `FieldError` |
+| `asIso().reverseGet`, a projection's `asLens().set` | the exception, propagated: these total optics are meant for values already known to be lawful |
+| the `Update` a sparse update's `toValidated()` hands back | the exception, propagated: an `Update` has no error channel |
+
+A nested record the PATCH replaces whole parses through its own spec, guard included.
+
+### A constant on the spec can read `null` {#spec-constant-reads-null}
+
+**A constant on the spec that holds the Impl can read `null`.** The Impl implements the spec. Initialising a class initialises every interface it implements that declares an instance method with a body. Every leaf and derived field is such a method, and so is a `private` helper. So when a program uses `CustomerMappingImpl.INSTANCE` before it first reads `CustomerMapping.MAPPER`, the spec's constant is evaluated while the Impl's own `INSTANCE` is still unassigned, and it keeps that `null` for good. Two threads making those first uses at the same moment can deadlock instead. A constant on a mix-in that declares a leaf fails the same way. A local, a field in the calling class or an injected `ValidatedPrism` sits outside the cycle. No signature shows the order, so the processor cannot refuse the constant. [Bind in the caller, not on the spec](basics.md#bind-in-the-caller) teaches the rule, and [Check Your Understanding](self_check.md) proves both orders in a test.
 
 ---
 
