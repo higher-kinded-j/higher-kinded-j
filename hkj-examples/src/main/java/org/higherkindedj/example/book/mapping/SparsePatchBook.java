@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -204,3 +205,35 @@ interface RosterPatchMapping extends PhoneVocabulary, UpdateSpec<Roster, RosterP
 // failures located phones.1 - one vocabulary, both tiers.
 
 // ANCHOR_END: update_container
+
+// The checkpoint's PATCH bean. Its list starts out empty, the way a generator often renders a
+// container; the page asks what that does, so the answer stays outside the region, in
+// SparsePatchBookTest.aPatchBeanDefaultIsWrittenOverTheDomain.
+// ANCHOR: defaults_trap
+record Article(String title, List<String> tags) {}
+
+class ArticlePatchBean {
+  private String title;
+  private List<String> tags = new ArrayList<>();
+
+  public String getTitle() {
+    return title;
+  }
+
+  public void setTitle(String title) {
+    this.title = title;
+  }
+
+  public List<String> getTags() {
+    return tags;
+  }
+
+  public void setTags(List<String> tags) {
+    this.tags = tags;
+  }
+}
+
+@GenerateMapping
+interface ArticlePatchMapping extends UpdateSpec<Article, ArticlePatchBean> {}
+
+// ANCHOR_END: defaults_trap

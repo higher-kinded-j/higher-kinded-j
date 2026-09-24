@@ -215,6 +215,8 @@ Order every content page so that the 80% use case is served before the 20% is ev
 
 A reader should never meet a corner case before the feature it is a corner of. Precision is not lost by this ordering; it is *findable* instead of ambient.
 
+**Mark where the lane ends.** Close the practical lane with a `tip` titled "You can ship now": what the reader can now build and where to take it next, in one or two sentences, then that the rest of the page is for when they need it. The page's checkpoints come straight after it, so passing one certifies that stopping there is safe.
+
 **A practical lane must be reproducible.** For a feature that needs a build (generated code, a framework integration), the lane includes the build line and the integration call, so a reader can follow it from a blank project. The chapter introduction states hard prerequisites (JDK version, preview flags, processor path) in its first screen, because readers arrive from a search engine and never pass the home page.
 
 **Where a rule goes, in one test.** What the compiler or processor *enforces* belongs in the fine print, or in the chapter's rules reference page where it has one: the diagnostic will find the reader anyway. What it *cannot* check is taught in the lane, as a warning with an example, because the reader's attention is the only safeguard. When a chapter has a rules reference page, that page is a rule's single home, and the teaching page keeps at most one sentence and a link.

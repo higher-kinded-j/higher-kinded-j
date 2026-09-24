@@ -3,6 +3,7 @@
 package org.higherkindedj.example.book.mapping;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.List;
@@ -90,5 +91,24 @@ class SparsePatchBookTest {
     bean.setTeam(team);
     bean.setPhones(phones);
     return bean;
+  }
+
+  @Test
+  @DisplayName("a PATCH bean's default is written over the domain, and the identity law catches it")
+  void aPatchBeanDefaultIsWrittenOverTheDomain() {
+    // ANCHOR: defaults_trap_proof
+    Article current = new Article("Draft", List.of("java", "patch"));
+    ArticlePatchBean rename = new ArticlePatchBean();
+    rename.setTitle("Sparse PATCH");
+
+    assertThatValidated(ArticlePatchMappingImpl.INSTANCE.updateFrom(rename).apply(current))
+        .hasValue(new Article("Sparse PATCH", List.of())); // the tags are gone
+
+    assertThatThrownBy(
+            () ->
+                MappingLaws.assertSparseIdentity(
+                    ArticlePatchMappingImpl.INSTANCE::updateFrom, current, new ArticlePatchBean()))
+        .hasMessageContaining("Sparse identity law");
+    // ANCHOR_END: defaults_trap_proof
   }
 }
