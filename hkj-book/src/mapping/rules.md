@@ -20,6 +20,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a bridged component be declared non-null, or primitive?](#bridged-component-nullable) | No: `build` writes `null` for empty, so declare it `@Nullable`. | by design |
 | [Can a sparse or sealed spec declare `@OptionalBridge`?](#bridged-component-nullable) | No; one inherited from a mix-in stays inert. | by design |
 | [Can a bean spec declare `@OptionalBridge`?](#optional-bridge-on-a-bean-wire) | Yes, but it changes nothing: the processor answers with a note. | by design |
+| [Can a bridged value go through a leaf or a spec?](#what-converts-a-bridged-value) | Yes: whichever would convert it unbridged, over the types inside. | by design |
 | **Shared vocabulary** | | |
 | [Does a mix-in need the annotation processor?](structure.md#across-modules) | No: a mix-in is a plain interface, not a spec. | by design |
 | [Can a mix-in extend `MappingSpec`?](#refused-mix-in-shapes) | No: a mix-in shares vocabulary; a spec generates an Impl. | by design |
@@ -88,7 +89,7 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | [A record with an array is not equal to its own round trip](structure.md#nesting-containers-and-recursion) | The array crosses as a clone and compares by reference: give the record an `equals` that uses `Arrays.equals`. |
 | [Two swapped prisms passed to `of(...)` compiled](generics.md#element-mapped-specs) | Two abstract leaves of one type swap silently: pass them in declaration order. |
 | [A `Set` lost an element, or a `Map` entry was refused as a duplicate](structure.md#converting-map-keys) | A leaf maps two wire values to one: `ValidatedPrismLaws` catches it. |
-| [An error path reads as deeper nesting than it is](structure.md#nesting-containers-and-recursion) | A key or set element contains a dot: `FieldError.path()` keeps it as one segment. |
+| [An error path reads as deeper nesting than it is](structure.md#other-containers) | A key or set element contains a dot: `FieldError.path()` keeps it as one segment. |
 | [`asIso().reverseGet` threw on a request body](tiers.md) | `reverseGet` is unguarded: a freshly bound wire goes through `parse`. |
 | [A constructor bug reached the client as a message](absence.md#constructor-invariants) | Any `RuntimeException` counts: keep the constructor to checks on its arguments. |
 | [A timestamp came back with fewer fractional digits](codecs.md#canonical-forms-only) | The formatter pattern fixes the precision, so `build` truncates finer values. |
@@ -102,7 +103,7 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 
 The null guard covers every reference-typed `parse` read that is not [bridged](absence.md#optional-bridge), on record and bean wires alike, and reaches inside containers, identity-copied ones included, at every depth:
 
-- A `null` element or map value locates the way its container locates anything ([lifting grammar](structure.md#nesting-containers-and-recursion)): by index in a `List` or array (`emails.1: must not be null`), by key in a `Map`, whether the container lifts through a leaf ([the bulk forms](../optics/validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity. The index is a plain positional segment, matching the map-key grammar.
+- A `null` element or map value locates the way its container locates anything ([lifting grammar](structure.md#other-containers)): by index in a `List` or array (`emails.1: must not be null`), by key in a `Map`, whether the container lifts through a leaf ([the bulk forms](../optics/validated_prism.md#the-bulk-forms-parseall-and-parsevalues)) or copies by identity. The index is a plain positional segment, matching the map-key grammar.
 - A `null` element of a `Set` has no rendering to locate by, and a set holds at most one, so it reports unlocated under the component: `emails: must not contain a null element`, which is distinct from `must not be null`, the message that says the set itself is absent.
 - An array of primitives (`int[]`) carries no element scan: a primitive element cannot be null. The component is still a reference, so a `null` *array* is guarded like any other read.
 - An identity container is scanned at every level its type names, so a `null` deep inside carries its full path: `grid.0.1` in a `List<List<String>>`, `byKey.k.1` in a `Map<String, List<String>>`, `matrix.0.1` in a `String[][]`. An `Optional` cannot hold a `null`, but one holding a container is scanned through, and locates at the component itself, since it holds only the one value (`nicknames.1`).
@@ -151,6 +152,10 @@ The bridged wire component is nullable by construction: `build` writes `null` in
 The same holds for every site `build` writes an empty `Optional` into: a record component, setter or builder setter declared non-null, by a non-null annotation or inside a JSpecify `@NullMarked` scope without `@Nullable`, is refused; one that refuses `null` without declaring it is not checked, and throws from `build`. A primitive wire component can never hold the `null`, so `@OptionalBridge` onto one is refused too.
 
 Any annotation named `Nullable` or `CheckForNull` counts here, whichever library it comes from, and so does JSR-305's `@Nonnull(when = MAYBE)`: this rule refuses a build, so it reads more widely than the fixed list of names that decides which Focus paths are null-safe. A component typed by a type variable follows the variable's bounds: a plain `<T>` declared in a `@NullMarked` scope is non-null, as its bound `Object` is, and `<T extends @Nullable Object>` leaves the nullness to the type argument, so it bridges.
+
+### What converts a bridged value {#what-converts-a-bridged-value}
+
+**The value inside a bridged `Optional`, or each element of a bridged container, converts exactly as an unbridged one would.** It is copied when the types match, nested through a spec for a record pair, or converted by a leaf over the inner types, and such an element leaf wins over the spec. A bridged `List`, `Set`, array or `Map` lifts element by element, a `null` element is still a located `must not be null`, and a [`@MapKey`](structure.md#converting-map-keys) leaf converts a bridged `Map`'s keys. When nothing converts the inner pair, the processor refuses the component naming that pair. So the fix it offers is a leaf over the inner types, or a spec, never a leaf over the whole `Optional` or container.
 
 ### `@OptionalBridge` on a bean wire is redundant {#optional-bridge-on-a-bean-wire}
 

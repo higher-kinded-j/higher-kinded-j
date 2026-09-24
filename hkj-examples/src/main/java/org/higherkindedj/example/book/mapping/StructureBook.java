@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,6 +15,7 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapKey;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.OptionalBridge;
+import org.higherkindedj.optics.validated.StandardCodecs;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.jspecify.annotations.Nullable;
 
@@ -45,8 +47,30 @@ public final class StructureBook {
     // ANCHOR_END: nesting_usage
     System.out.println(invoice);
 
+    // ANCHOR: list_usage
+    Validated<NonEmptyList<FieldError>, Cart> cart =
+        CartMappingImpl.INSTANCE.parse(
+            new CartDto(
+                "C-1",
+                List.of(new LineItemDto("SKU-1", "9.99"), new LineItemDto("SKU-2", "12,50"))));
+    // Invalid(NonEmptyList[lines.1.price: not a number in plain notation (expected e.g. 123.45)])
+    // ANCHOR_END: list_usage
+    System.out.println(cart);
+
+    // ANCHOR: sealed_usage
+    PaymentMappingImpl paymentMapping = PaymentMappingImpl.INSTANCE;
+
+    PaymentDto bankWire = paymentMapping.build(new Bank("GB33BUKB20201555555555"));
+    // BankDto[iban=GB33BUKB20201555555555]
+    Validated<NonEmptyList<FieldError>, Payment> noCardNumber =
+        paymentMapping.parse(new CardDto(null));
+    // Invalid(NonEmptyList[pan: must not be null])
+    // ANCHOR_END: sealed_usage
+    System.out.println(bankWire);
+    System.out.println(noCardNumber);
+
     // ANCHOR: bridge_nesting_usage
-    var referralMapping = ReferralMappingImpl.INSTANCE;
+    ReferralMappingImpl referralMapping = ReferralMappingImpl.INSTANCE;
 
     Validated<NonEmptyList<FieldError>, Referral> noReferrer =
         referralMapping.parse(new ReferralDto("R-7", null));
@@ -60,7 +84,7 @@ public final class StructureBook {
     System.out.println(badReferrer);
 
     // ANCHOR: bridge_container_usage
-    var guestlistMapping = GuestlistMappingImpl.INSTANCE;
+    GuestlistMappingImpl guestlistMapping = GuestlistMappingImpl.INSTANCE;
 
     Validated<NonEmptyList<FieldError>, Guestlist> absentGuests =
         guestlistMapping.parse(new GuestlistDto("Launch", null));
@@ -78,7 +102,7 @@ public final class StructureBook {
     System.out.println(badGuest);
 
     // ANCHOR: flatten_usage
-    var vendorMapping = VendorMappingImpl.INSTANCE;
+    VendorMappingImpl vendorMapping = VendorMappingImpl.INSTANCE;
 
     VendorDto flat =
         vendorMapping.build(new Vendor("Acme", new Address("1 High St", "Leeds", "LS1 4AP")));
@@ -114,6 +138,27 @@ record InvoiceDto(String id, CustomerDto customer) {}
 interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
 
 // ANCHOR_END: nesting_spec
+
+// ANCHOR: list_spec
+record LineItem(String sku, BigDecimal price) {}
+
+record LineItemDto(String sku, String price) {}
+
+record Cart(String id, List<LineItem> lines) {}
+
+record CartDto(String id, List<LineItemDto> lines) {}
+
+@GenerateMapping
+interface LineItemMapping extends MappingSpec<LineItem, LineItemDto> {
+  default ValidatedPrism<String, BigDecimal> price() {
+    return StandardCodecs.bigDecimal();
+  }
+}
+
+@GenerateMapping
+interface CartMapping extends MappingSpec<Cart, CartDto> {} // lines: LineItemMapping, per element
+
+// ANCHOR_END: list_spec
 
 // ANCHOR: bridge_nesting_spec
 record Referral(String code, Optional<Customer> referrer) {}
@@ -212,3 +257,23 @@ interface BankMapping extends MappingSpec<Bank, BankDto> {}
 interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}
 
 // ANCHOR_END: sealed_spec
+
+// ANCHOR: checkout_spec
+record Checkout(String id, List<Payment> payments) {}
+
+record CheckoutDto(String id, List<PaymentDto> payments) {}
+
+@GenerateMapping
+interface CheckoutMapping extends MappingSpec<Checkout, CheckoutDto> {}
+
+// ANCHOR_END: checkout_spec
+
+// ANCHOR: memo_spec
+record Memo(String text, List<String> tags) {}
+
+record MemoDto(String text, List<String> tags) {}
+
+@GenerateMapping
+interface MemoMapping extends MappingSpec<Memo, MemoDto> {}
+
+// ANCHOR_END: memo_spec

@@ -140,7 +140,7 @@ class BookExampleOutputTest {
           Map.entry("MultiEditBook", 2),
           Map.entry("NonEmptyListBook", 3),
           Map.entry("SparsePatchBook", 5),
-          Map.entry("StructureBook", 8),
+          Map.entry("StructureBook", 11),
           Map.entry("TiersBook", 2),
           Map.entry("ValidatedAssemblyBook", 3));
 
