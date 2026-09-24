@@ -117,7 +117,7 @@ The overloads follow the tiers:
 - **Parse-only bean:** pass `asValidatedParse()` with a parsing and a non-parsing wire value: the first parses, and the second fails with every error located.
 - **Build-only bean:** pass `asValidatedBuild()` with a domain value: `build` renders it without failing.
 - **Derived-field (total-parse) mapping:** `build` recomputes what `parse` ignores, so only the non-derived components round-trip. The domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger.
-- **Sparse-update (`UpdateSpec`) mapping:** pass the `updateFrom` method reference, a domain value, and an all-absent, a valid and an invalid wire to check the identity, idempotence and validation laws ([Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec)).
+- **Sparse-update (`UpdateSpec`) mapping:** pass the `updateFrom` method reference, a domain value, and an all-absent, a valid and an invalid wire to check the identity, idempotence and validation laws ([Check a PATCH bean in your build](beans_patch.md#check-a-patch-in-your-build)).
 
 A spec with a derived field *and* a fallible leaf is better served by the fallible overload, given a parseable wire value whose derived components match what `build` would produce (this keeps the overload's rejection check on the non-parsing wire). Reserve the domain-sample overload for total-parse mappings, where no well-formed wire value can fail. For the patch and parse-only overloads, whose rejection law expects every error to be located, give an invalid wire that fails on a component: a value only the domain's own [constructor refuses](absence.md#constructor-invariants) fails at the record's path, which at the top level is unlabelled.
 

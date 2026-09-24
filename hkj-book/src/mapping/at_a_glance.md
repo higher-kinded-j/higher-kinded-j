@@ -121,7 +121,7 @@ blocker. Each ❌ means keep what you have for that case.
 | Lombok `@Data`, `@Value` or `@Builder` wires | ✅ (order Lombok before the processor) |
 | Lombok `@Accessors(fluent = true)` wires | ⚠ the accessors are not `getX`/`isX`, so they do not pair |
 | PATCH endpoints where an omitted field means *leave unchanged* | ✅ `UpdateSpec` |
-| PATCH DTOs from openapi-generator with `default:` values in the schema | ⚠ the defaults read as sent: see [the PATCH rules](beans_patch.md#sparse-patch-write-back-updatespec) |
+| PATCH DTOs from openapi-generator with `default:` values in the schema | ⚠ the defaults read as sent: see [A PATCH getter must answer `null` until set](beans_patch.md#patch-getters-answer-null) |
 | PATCH bodies that must distinguish *clear* from *absent* | ⚠ an `Optional`-typed property; `JsonNullable` is not supported yet |
 | Nested objects patched field by field | ❌ replacement is wholesale |
 | Clients that need error paths in **wire** names | ⚠ paths are domain-named |

@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -42,8 +44,15 @@ public final class SparsePatchBook {
     Validated<NonEmptyList<FieldError>, Customer> patched = update.apply(current);
     // Valid(Customer[name=Ada Lovelace, email=EmailAddress[value=ada@corp.example]])
     //   <- only the name changed
+
+    ContactPatchBean badEmail = new ContactPatchBean();
+    badEmail.setEmail("not-an-email"); // sent, so it is parsed, and it fails located
+    Validated<NonEmptyList<FieldError>, Customer> failed =
+        ContactPatchMappingImpl.INSTANCE.updateFrom(badEmail).apply(current);
+    // Invalid(NonEmptyList[email: not an email address])
     // ANCHOR_END: update_usage
     System.out.println(patched);
+    System.out.println(failed);
 
     // ANCHOR: update_invariant_usage
     PriceBand band = new PriceBand(10, 20);
@@ -204,3 +213,81 @@ interface RosterPatchMapping extends PhoneVocabulary, UpdateSpec<Roster, RosterP
 // failures located phones.1 - one vocabulary, both tiers.
 
 // ANCHOR_END: update_container
+
+// The checkpoint's PATCH bean. Its list starts out empty, the way a generator often renders a
+// container; the page asks what that does, so the answer stays outside the region, in
+// SparsePatchBookTest.aPatchBeanDefaultIsWrittenOverTheDomain.
+// ANCHOR: defaults_trap
+record Article(String title, List<String> tags) {}
+
+class ArticlePatchBean {
+  private String title;
+  private List<String> tags = new ArrayList<>();
+
+  public String getTitle() {
+    return title;
+  }
+
+  public void setTitle(String title) {
+    this.title = title;
+  }
+
+  public List<String> getTags() {
+    return tags;
+  }
+
+  public void setTags(List<String> tags) {
+    this.tags = tags;
+  }
+}
+
+@GenerateMapping
+interface ArticlePatchMapping extends UpdateSpec<Article, ArticlePatchBean> {}
+
+// ANCHOR_END: defaults_trap
+
+// The story's bean, fixed: with default: false dropped from the PATCH schema, the generator renders
+// the field unset, so an omitted field reads null and the update leaves the customer's choice
+// alone.
+// ANCHOR: defaults_fix
+class PreferencesPatchBean {
+  private Boolean marketingOptIn; // no initialiser: an omitted field must read as null
+
+  public Boolean getMarketingOptIn() {
+    return marketingOptIn;
+  }
+
+  public void setMarketingOptIn(Boolean marketingOptIn) {
+    this.marketingOptIn = marketingOptIn;
+  }
+}
+
+// ANCHOR_END: defaults_fix
+
+// The JSON-states checkpoint's pair: an Optional-typed PATCH property, the one shape where an
+// explicit null differs from an omitted field. SparsePatchBookTest binds real JSON into it.
+record Author(String name, Optional<String> nickname) {}
+
+class AuthorPatchBean {
+  private String name;
+  private Optional<String> nickname;
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public Optional<String> getNickname() {
+    return nickname;
+  }
+
+  public void setNickname(Optional<String> nickname) {
+    this.nickname = nickname;
+  }
+}
+
+@GenerateMapping
+interface AuthorPatchMapping extends UpdateSpec<Author, AuthorPatchBean> {}
