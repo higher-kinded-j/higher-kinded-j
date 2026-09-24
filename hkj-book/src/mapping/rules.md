@@ -20,9 +20,9 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a bridged component be declared non-null, or primitive?](#bridged-component-nullable) | No: `build` writes `null` for empty, so declare it `@Nullable`. | by design |
 | [Can a sparse or sealed spec declare `@OptionalBridge`?](#bridged-component-nullable) | No; one inherited from a mix-in stays inert. | by design |
 | [Can a bean spec declare `@OptionalBridge`?](#optional-bridge-on-a-bean-wire) | Yes, but it changes nothing: the processor answers with a note. | by design |
-| [Can a bridged value go through a leaf or a spec?](#what-converts-a-bridged-value) | Yes: whichever would convert it unbridged, over the types inside. | by design |
+| [Can a bridged value go through a leaf or a spec?](#what-converts-a-bridged-value) | Yes: whatever converts it unbridged, over the inner types. | by design |
 | **Shared vocabulary** | | |
-| [Does a mix-in need the annotation processor?](structure.md#across-modules) | No: a mix-in is a plain interface, not a spec. | by design |
+| [Does a mix-in need the annotation processor?](codecs.md#shared-vocabulary-mix-in-interfaces) | No: a mix-in is a plain interface, not a spec. | by design |
 | [Can a mix-in extend `MappingSpec`?](#refused-mix-in-shapes) | No: a mix-in shares vocabulary; a spec generates an Impl. | by design |
 | [Can a generic mix-in be extended raw?](#a-generic-mix-in-reached-raw) | Not if it contributes a member: raw erases what it declares. | by design |
 | [Can two mix-ins declare the same rename?](#inheriting-one-member-twice) | Yes, when the targets agree; conflicting targets are refused. | by design |
@@ -86,7 +86,7 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | [An explicit JSON `null` cleared an `Optional` PATCH property](beans_patch.md#what-each-json-state-does) | Jackson binds it to `Optional.empty()`, which means *clear* there: omit the field to leave it unchanged. |
 | [`build` throws on an empty `Optional`](beans.md#bean-shaped-wire-targets) | A setter, builder or record constructor rejects `null` without declaring it: drop the `Optional`, or encode absence in a leaf. |
 | [Adding to a built wire's list throws `UnsupportedOperationException`](structure.md#nesting-containers-and-recursion) | A same-typed container crosses as an unmodifiable copy: set a new list, or copy it first. |
-| [A record with an array is not equal to its own round trip](structure.md#nesting-containers-and-recursion) | The array crosses as a clone and compares by reference: give the record an `equals` that uses `Arrays.equals`. |
+| [A record with an array is not equal to its own round trip](structure.md#other-containers) | The array crosses as a clone and compares by reference: give the record an `equals` that uses `Arrays.equals`. |
 | [Two swapped prisms passed to `of(...)` compiled](generics.md#element-mapped-specs) | Two abstract leaves of one type swap silently: pass them in declaration order. |
 | [A `Set` lost an element, or a `Map` entry was refused as a duplicate](structure.md#converting-map-keys) | A leaf maps two wire values to one: `ValidatedPrismLaws` catches it. |
 | [An error path reads as deeper nesting than it is](structure.md#other-containers) | A key or set element contains a dot: `FieldError.path()` keeps it as one segment. |
@@ -155,7 +155,7 @@ Any annotation named `Nullable` or `CheckForNull` counts here, whichever library
 
 ### What converts a bridged value {#what-converts-a-bridged-value}
 
-**The value inside a bridged `Optional`, or each element of a bridged container, converts exactly as an unbridged one would.** It is copied when the types match, nested through a spec for a record pair, or converted by a leaf over the inner types, and such an element leaf wins over the spec. A bridged `List`, `Set`, array or `Map` lifts element by element, a `null` element is still a located `must not be null`, and a [`@MapKey`](structure.md#converting-map-keys) leaf converts a bridged `Map`'s keys. When nothing converts the inner pair, the processor refuses the component naming that pair. So the fix it offers is a leaf over the inner types, or a spec, never a leaf over the whole `Optional` or container.
+**The value inside a bridged `Optional`, or each element of a bridged container, converts exactly as an unbridged one would.** It is copied when the types match, nested through a spec for the pair, or converted by a leaf over the inner types, and such an element leaf wins over the spec. A bridged `List`, `Set`, array or `Map` lifts element by element, a `null` element inside a present one reports as it would [unbridged](#the-null-contract-precisely), and a [`@MapKey`](structure.md#converting-map-keys) leaf converts a bridged `Map`'s keys. When nothing converts the inner pair, the processor refuses the component naming that pair, and offers a leaf over the inner types, or for a record pair a spec. It never offers a leaf over the whole `Optional` or container, though one declared anyway still works, as an override.
 
 ### `@OptionalBridge` on a bean wire is redundant {#optional-bridge-on-a-bean-wire}
 

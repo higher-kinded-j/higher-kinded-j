@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -62,12 +64,12 @@ public final class StructureBook {
 
     PaymentDto bankWire = paymentMapping.build(new Bank("GB33BUKB20201555555555"));
     // BankDto[iban=GB33BUKB20201555555555]
-    Validated<NonEmptyList<FieldError>, Payment> noCardNumber =
-        paymentMapping.parse(new CardDto(null));
-    // Invalid(NonEmptyList[pan: must not be null])
+    Validated<NonEmptyList<FieldError>, Payment> card =
+        paymentMapping.parse(new CardDto("4111111111111111"));
+    // Valid(Card[pan=4111111111111111])
     // ANCHOR_END: sealed_usage
     System.out.println(bankWire);
-    System.out.println(noCardNumber);
+    System.out.println(card);
 
     // ANCHOR: bridge_nesting_usage
     ReferralMappingImpl referralMapping = ReferralMappingImpl.INSTANCE;
@@ -241,6 +243,9 @@ record Card(String pan) implements Payment {}
 
 record Bank(String iban) implements Payment {}
 
+// Jackson binds the wire before parse runs, so the wire says how to tell its subtypes apart.
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION) // by their fields: pan or iban
+@JsonSubTypes({@JsonSubTypes.Type(CardDto.class), @JsonSubTypes.Type(BankDto.class)})
 sealed interface PaymentDto permits CardDto, BankDto {}
 
 record CardDto(String pan) implements PaymentDto {}

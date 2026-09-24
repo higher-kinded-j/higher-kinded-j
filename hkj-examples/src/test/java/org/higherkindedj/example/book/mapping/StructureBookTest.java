@@ -15,18 +15,16 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.exc.InvalidDefinitionException;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
- * The law checks behind the book's <a
+ * The answers behind the book's <a
  * href="https://higher-kinded-j.github.io/latest/mapping/structure.html">Nesting, Containers, and
- * Sealed Hierarchies</a> page. The page {@code {{#include}}}s the anchored regions below, so the
- * snippet it displays is this test, and it is green.
- *
- * <p>{@code hkj-test} is test-scope, which is why the laws live in a test rather than beside the
- * spec.
+ * Sealed Hierarchies</a> page. The page {@code {{#include}}}s the anchored regions below, so each
+ * answer it shows is this test, and it is green.
  */
-@DisplayName(
-    "the Nesting, Containers, and Sealed Hierarchies page's mappings obey the mapping laws")
+@DisplayName("the Nesting, Containers, and Sealed Hierarchies page's answers hold")
 class StructureBookTest {
 
   @Test
@@ -48,28 +46,56 @@ class StructureBookTest {
   }
 
   @Test
-  @DisplayName("a sealed dispatch adds no path segment: a list index, then the subtype's component")
-  void aSealedDispatchAddsNoSegment() {
+  @DisplayName(
+      "every bad payment is reported, by its zero-based index, with no segment for the subtype")
+  void everyBadPaymentIsReportedByIndex() {
     // ANCHOR: check_payment_path
     assertThatValidated(
             CheckoutMappingImpl.INSTANCE.parse(
                 new CheckoutDto(
-                    "C-1", List.of(new BankDto("GB33BUKB20201555555555"), new CardDto(null)))))
-        .hasFieldErrors("payments.1.pan: must not be null");
+                    "C-1",
+                    List.of(
+                        new CardDto(null),
+                        new BankDto("GB33BUKB20201555555555"),
+                        new BankDto(null)))))
+        .hasFieldErrors("payments.0.pan: must not be null", "payments.2.iban: must not be null");
     // ANCHOR_END: check_payment_path
   }
 
   @Test
-  @DisplayName(
-      "a same-typed list crosses as an unmodifiable copy, so the domain's list is untouched")
-  void aSameTypedListCrossesAsAnUnmodifiableCopy() {
+  @DisplayName("a same-typed list parses to an unmodifiable copy the request can no longer change")
+  void aSameTypedListParsesToAnUnmodifiableCopy() {
     // ANCHOR: check_copy
-    List<String> tags = new ArrayList<>(List.of("vip")); // the domain's own, mutable list
-    MemoDto dto = MemoMappingImpl.INSTANCE.build(new Memo("Call back", tags));
+    List<String> requestTags = new ArrayList<>(List.of("vip")); // what Jackson bound
+    Memo memo = MemoMappingImpl.INSTANCE.parse(new MemoDto("Call back", requestTags)).get();
+    requestTags.clear(); // a later filter clears the request's list
 
-    assertThatThrownBy(() -> dto.tags().add("urgent"))
-        .isInstanceOf(UnsupportedOperationException.class);
-    assertThat(tags).containsExactly("vip"); // and the domain never shared it
+    assertThat(memo.tags()).containsExactly("vip"); // a copy: still there
+    assertThatThrownBy(() -> memo.tags().add("urgent"))
+        .isInstanceOf(UnsupportedOperationException.class); // and unmodifiable
     // ANCHOR_END: check_copy
   }
+
+  @Test
+  @DisplayName("Jackson binds the sealed wire through its type information, and not without it")
+  void jacksonBindsTheSealedWireThroughItsTypeInformation() {
+    JsonMapper json = JsonMapper.builder().build();
+
+    CheckoutDto bound =
+        json.readValue(
+            """
+            {"id": "C-1", "payments": [{"iban": "GB33BUKB20201555555555"}, {"pan": "4111"}]}""",
+            CheckoutDto.class);
+    assertThat(bound.payments())
+        .containsExactly(new BankDto("GB33BUKB20201555555555"), new CardDto("4111"));
+    assertThat(json.writeValueAsString(new CardDto("4111"))).isEqualTo("{\"pan\":\"4111\"}");
+
+    assertThatThrownBy(() -> json.readValue("{\"pan\": \"4111\"}", BarePaymentDto.class))
+        .isInstanceOf(InvalidDefinitionException.class);
+  }
+
+  /** A sealed wire with no type information, which Jackson cannot construct. */
+  sealed interface BarePaymentDto permits BareCardDto {}
+
+  record BareCardDto(String pan) implements BarePaymentDto {}
 }
