@@ -13,9 +13,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.UUID;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MappingSpec;
@@ -37,12 +41,17 @@ public final class StandardCodecsBook {
 
   public static void main(String[] args) {
     // ANCHOR: mixin_usage
-    // One vocabulary, two mappings - the inherited rename and leaf apply to both:
-    ClientMappingImpl.INSTANCE.parse(new ClientDto("Ada Lovelace", "ada@example.org"));
-    SupplierMappingImpl.INSTANCE.parse(new SupplierDto("Acme Ltd", "sales@acme.example", "01"));
+    // One vocabulary, two mappings: the inherited rename and leaves apply to both.
+    Validated<NonEmptyList<FieldError>, Client> client =
+        ClientMappingImpl.INSTANCE.parse(new ClientDto("Ada Lovelace", "not-an-email"));
+    // Invalid(NonEmptyList[email: not an email address])
+    Validated<NonEmptyList<FieldError>, Supplier> supplier =
+        SupplierMappingImpl.INSTANCE.parse(
+            new SupplierDto("Acme Ltd", "sales@acme.example", "call us"));
+    // Invalid(NonEmptyList[phone: not a phone number])
     // ANCHOR_END: mixin_usage
-    System.out.println(
-        ClientMappingImpl.INSTANCE.parse(new ClientDto("Ada Lovelace", "not-an-email")));
+    System.out.println(client);
+    System.out.println(supplier);
   }
 }
 
@@ -80,16 +89,32 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {
 
 // ANCHOR: codecs_formatters
 final class WireFormats {
-  // Serves a JavaScript toISOString() producer: fixed three-digit millis, Z for UTC.
-  // The canon is the formatter's, not that producer's output set: any spelling the
-  // pattern round-trips (a +01:00 offset, say) is accepted as lawfully canonical.
-  static final ValidatedPrism<String, OffsetDateTime> JS_WIRE =
+  // A browser's toISOString(): always three fraction digits, and Z.
+  private static final DateTimeFormatter BROWSER =
+      DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSX").withZone(ZoneOffset.UTC);
+
+  // For an Instant component. instant() rejects .000Z, which Instant.toString() never writes.
+  static final ValidatedPrism<String, Instant> BROWSER_INSTANT =
+      ValidatedPrism.canonical(
+          "not a browser timestamp (expected e.g. 2026-07-28T12:34:56.000Z)",
+          raw -> Instant.from(BROWSER.parse(raw)),
+          BROWSER::format);
+
+  // For an OffsetDateTime component, the formatter overload declares the same canon.
+  static final ValidatedPrism<String, OffsetDateTime> BROWSER_OFFSET =
       offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"));
 
-  // Serves a +00:00-spelling producer (Python isoformat()): xxx renders the zero
-  // offset as +00:00
-  static final ValidatedPrism<String, OffsetDateTime> PYTHON_WIRE =
-      offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx"));
+  // Python's isoformat(): +00:00 for UTC, and six fraction digits, or none when they are zero.
+  private static final DateTimeFormatter WHOLE_SECONDS =
+      DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ssxxx");
+  private static final DateTimeFormatter MICROSECONDS =
+      DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSSSSxxx");
+
+  static final ValidatedPrism<String, OffsetDateTime> PYTHON_OFFSET =
+      ValidatedPrism.canonical(
+          "not a Python isoformat() timestamp (expected e.g. 2026-07-28T12:34:56.123456+00:00)",
+          OffsetDateTime::parse,
+          time -> time.format(time.getNano() == 0 ? WHOLE_SECONDS : MICROSECONDS));
 
   private WireFormats() {}
 }
@@ -144,6 +169,16 @@ interface ContactVocabulary {
 
   default ValidatedPrism<String, EmailAddress> email() {
     return EmailCodecs.EMAIL;
+  }
+
+  // Client has no phone, so this leaf stays inert there; only Supplier binds it.
+  default ValidatedPrism<String, String> phone() {
+    return ValidatedPrism.of(
+        raw ->
+            raw.matches("\\+?[0-9 ]+")
+                ? Validated.validNel(raw)
+                : Validated.invalidNel(FieldError.of("not a phone number")),
+        phone -> phone);
   }
 }
 
