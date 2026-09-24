@@ -38,9 +38,12 @@ public final class EitherOrBothPathBook {
         Path.<String, Integer>bothNel("uses deprecated key", 8)
             .via(value -> value < 10 ? Path.bothNel("value is low", value) : Path.rightNel(value));
 
-    result.run(); // Both([uses deprecated key, value is low], 8)
-    result.warnings(); // Just([uses deprecated key, value is low])
-    result.getOrElse(0); // 8
+    result.run();
+    // Both(NonEmptyList[uses deprecated key, value is low], 8)
+    result.warnings();
+    // Just(NonEmptyList[uses deprecated key, value is low])
+    result.getOrElse(0);
+    // 8
     // ANCHOR_END: via
     System.out.println(result.run() + " / " + result.warnings() + " / " + result.getOrElse(0));
 
@@ -50,7 +53,7 @@ public final class EitherOrBothPathBook {
 
     EitherOrBothPath<NonEmptyList<String>, String> reg =
         name.zipWithAccum(age, (n, a) -> n + " (" + a + ")");
-    // Both([name was trimmed, age defaulted], "Ada (30)")
+    // Both(NonEmptyList[name was trimmed, age defaulted], Ada (30))
     // ANCHOR_END: zip_accum
     System.out.println(reg.run());
 
@@ -64,10 +67,10 @@ public final class EitherOrBothPathBook {
     System.out.println(cfg);
 
     // ANCHOR: recover
-    Path.<String, Integer>leftNel("config missing").recover(errors -> 0).run(); // Right(0)
-    Path.<String, Integer>bothNel("deprecated", 42)
-        .recover(errors -> 0)
-        .run(); // Both([deprecated], 42)
+    Path.<String, Integer>leftNel("config missing").recover(errors -> 0).run();
+    // Right(0)
+    Path.<String, Integer>bothNel("deprecated", 42).recover(errors -> 0).run();
+    // Both(NonEmptyList[deprecated], 42)
     // ANCHOR_END: recover
     System.out.println(
         Path.<String, Integer>leftNel("config missing").recover(errors -> 0).run()

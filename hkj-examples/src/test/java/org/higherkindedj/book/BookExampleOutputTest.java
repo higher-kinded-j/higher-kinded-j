@@ -4,6 +4,7 @@ package org.higherkindedj.book;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -15,10 +16,15 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -32,12 +38,17 @@ import org.junit.jupiter.params.provider.MethodSource;
  * test was written, an {@code EmailAddress} record printing as {@code EmailAddress[value=...]}
  * where the page still showed the bare address.
  *
- * <p>So each example with a {@code main} is run, its output captured, and every output comment
- * inside an {@code ANCHOR} block matched against it. The three shapes the examples use are all
- * honoured:
+ * <p>So each example with a {@code main} is run, its output captured, and every output comment on a
+ * line of its own inside an {@code ANCHOR} block matched against it, in source order: each claim
+ * must be printed at or after the line the claim before it matched, so a value printed twice cannot
+ * stand in for one the example never prints. A comment at the end of a code line is not read, so a
+ * value a page claims goes on its own line, after the code that produces it. The shapes the
+ * examples use are all honoured:
  *
  * <ul>
- *   <li>a value on one line, <code>// Valid(Person[name=Ada, age=36])</code>;
+ *   <li>a value on one line, <code>// Valid(Person[name=Ada, age=36])</code>, or any other type's
+ *       own rendering, <code>// Both(...)</code>, or a bare list, <code>// [45.0]</code>;
+ *   <li>a number, a boolean or <code>Nothing</code> on a line of its own;
  *   <li>a value wrapped over several comment lines, joined here before matching;
  *   <li>an abbreviated value, where <code>...</code> stands for elided detail and matches anything.
  * </ul>
@@ -53,11 +64,22 @@ class BookExampleOutputTest {
   private static final Path EXAMPLES = Path.of(required("hkj.examples.dir"));
 
   /**
-   * A comment line that opens a printed value: {@code Valid(...)}, {@code Invalid(...)}, or a
-   * record's own {@code Name[...]}. Everything else in an anchor is explanation.
+   * A comment line that opens a printed value: a type's own rendering, {@code Valid(...)}, {@code
+   * Both(...)} or a record's {@code Name[...]}, or a bare list, {@code [45.0]}. A comment that is
+   * neither this nor a {@link #SCALAR} is explanation.
    */
-  private static final Pattern OPENS_A_VALUE =
-      Pattern.compile("^(Valid\\(|Invalid\\(|[A-Z][A-Za-z0-9_]*\\[).*");
+  private static final Pattern OPENS_A_VALUE = Pattern.compile("^(\\[|[A-Z][A-Za-z0-9_]*[(\\[]).*");
+
+  /**
+   * A printed value with no brackets to close, claimed on its own line: a number, a boolean, or a
+   * {@code Maybe}'s {@code Nothing}.
+   */
+  private static final Pattern SCALAR = Pattern.compile("^(-?\\d+(\\.\\d+)?|true|false|Nothing)$");
+
+  /** The line that opens a region the book includes, and the one that closes it, with its name. */
+  private static final Pattern ANCHOR_START = Pattern.compile("ANCHOR:\\s*(\\S+)");
+
+  private static final Pattern ANCHOR_END = Pattern.compile("ANCHOR_END:\\s*(\\S+)");
 
   /**
    * One example that can be run, the values its comments promise, and any comment that opened a
@@ -96,6 +118,63 @@ class BookExampleOutputTest {
   }
 
   /**
+   * How many output comments the gate must read from each example. A parser that reads fewer passes
+   * every value it skips, and a single total would let one example's comments cover for another's,
+   * so each example has a floor of its own, and an example that gains claims gains a floor.
+   */
+  private static final Map<String, Integer> MINIMUM_CLAIMS =
+      Map.ofEntries(
+          Map.entry("BoundaryCapstoneBook", 4),
+          Map.entry("EitherOrBothBook", 1),
+          Map.entry("EitherOrBothPathBook", 6),
+          Map.entry("JsonApiBook", 4),
+          Map.entry("MultiEditBook", 2),
+          Map.entry("NonEmptyListBook", 3),
+          Map.entry("RecordMappingBook", 26),
+          Map.entry("ValidatedAssemblyBook", 3));
+
+  @Test
+  @DisplayName("every claims floor names an example that exists")
+  void everyFloorNamesAnExample() {
+    assertThat(examples().map(example -> simpleName(example.className())).toList())
+        .as("a floor whose example was renamed or removed holds nothing; move or drop it")
+        .containsAll(MINIMUM_CLAIMS.keySet());
+  }
+
+  @Test
+  @DisplayName("reads each claim on a line of its own, after its code, in every open anchor")
+  void readsTheClaimsInAnAnchor() {
+    List<Claim> claims = new ArrayList<>();
+    Claim unclosed =
+        claimsIn(
+            """
+            // ANCHOR: outer
+            mapping.parse(dto);
+
+            // Invalid(NonEmptyList[email: not an email address])
+            // A comment that explains is not a claim.
+            // ANCHOR: inner
+            total.get(); // 2.0 at the end of a code line is not read
+            // 1.0
+            // ANCHOR_END: inner
+            list.get();
+            // [a,
+            //  b]
+            // ANCHOR_END: outer
+            // Valid(outside any anchor, so not a claim)
+            """,
+            claims);
+
+    assertThat(unclosed).isNull();
+    assertThat(claims)
+        .extracting(Claim::line, Claim::value)
+        .containsExactly(
+            tuple(4, "Invalid(NonEmptyList[email: not an email address])"),
+            tuple(8, "1.0"),
+            tuple(11, "[a, b]"));
+  }
+
+  /**
    * The number of runnable examples must never fall below this. Deleting a {@code main}, or moving
    * an example out of the book package, would otherwise quietly shrink what this gate covers.
    */
@@ -126,29 +205,39 @@ class BookExampleOutputTest {
    * <p>A value that opens and never closes is a failure, not something to pass over: a missing
    * bracket, or a stray one in a message, would otherwise drop the claim silently and leave the
    * page quoting an output nothing checks.
+   *
+   * <p>A claim can sit anywhere an anchor is open, nested anchors included, and only an anchor line
+   * opens or closes one. A code line inside ends a value that was wrapping, and nothing more: an
+   * output comment follows the code that prints it.
    */
-  private static Claim claimsIn(String text, List<Claim> claims) {
+  static Claim claimsIn(String text, List<Claim> claims) {
     Claim unclosed = null;
-    boolean insideAnchor = false;
+    Set<String> open = new HashSet<>();
     int startedAt = 0;
     StringBuilder pending = null;
 
     String[] lines = text.split("\n", -1);
     for (int i = 0; i < lines.length; i++) {
       String line = lines[i];
-      boolean anchorEnds = line.contains("ANCHOR_END:");
-      boolean anchorStarts = !anchorEnds && line.contains("ANCHOR:");
-      String comment = insideAnchor && !anchorStarts && !anchorEnds ? commentBody(line) : null;
+      Matcher ends = ANCHOR_END.matcher(line);
+      Matcher starts = ANCHOR_START.matcher(line);
+      boolean anchorEnds = ends.find();
+      boolean anchorStarts = !anchorEnds && starts.find();
+      String comment = !open.isEmpty() && !anchorStarts && !anchorEnds ? commentBody(line) : null;
 
       if (anchorStarts || anchorEnds || comment == null) {
         if (pending != null && unclosed == null)
           unclosed = new Claim(startedAt, pending.toString());
         pending = null;
-        insideAnchor = anchorStarts;
+        if (anchorStarts) open.add(starts.group(1));
+        if (anchorEnds) open.remove(ends.group(1));
         continue;
       }
       if (pending != null) {
         pending.append(' ').append(comment);
+      } else if (SCALAR.matcher(comment).matches()) {
+        claims.add(new Claim(i + 1, comment));
+        continue;
       } else if (OPENS_A_VALUE.matcher(comment).matches()) {
         pending = new StringBuilder(comment);
         startedAt = i + 1;
@@ -213,24 +302,34 @@ class BookExampleOutputTest {
                   example.className(), example.unclosed().line(), example.unclosed().value()));
     }
 
-    List<String> printed = run(example.className());
-    List<String> segments = new ArrayList<>();
-    for (String line : printed) {
-      segments.add(normalise(line));
-      // A line may print two values joined by " / ", as the examples often do.
-      for (String part : line.split(" / ")) segments.add(normalise(part));
-    }
+    String name = simpleName(example.className());
+    assertThat(example.claims().isEmpty() || MINIMUM_CLAIMS.containsKey(name))
+        .as("%s has output comments and no floor in MINIMUM_CLAIMS: add one", name)
+        .isTrue();
+    assertThat(example.claims())
+        .as("the output comments read from %s fell below its floor", name)
+        .hasSizeGreaterThanOrEqualTo(MINIMUM_CLAIMS.getOrDefault(name, 0));
 
+    List<String> printed = run(example.className());
+    List<List<String>> segments = printed.stream().map(BookExampleOutputTest::segmentsOf).toList();
+
+    int from = 0;
     for (Claim claim : example.claims()) {
-      if (!matches(claim.value(), segments)) {
+      int at = -1;
+      for (int line = from; line < segments.size() && at < 0; line++) {
+        if (matches(claim.value(), segments.get(line))) at = line;
+      }
+      if (at < 0) {
         fail(
             """
-            %s:%d claims an output the example does not print.
+            %s:%d claims an output the example does not print, at or after the line the claim \
+            before it matched.
 
               the comment says: %s
               the example printed:
             %s
-            Update the comment to what the program prints, or fix the example."""
+            Update the comment to what the program prints, or fix the example. If the line is \
+            prose rather than an output, reword it so it does not open with a value."""
                 .formatted(
                     example.className(),
                     claim.line(),
@@ -239,8 +338,35 @@ class BookExampleOutputTest {
                         .map(line -> "    " + line)
                         .collect(java.util.stream.Collectors.joining("\n"))));
       }
+      from = at;
     }
   }
+
+  /**
+   * What one printed line offers a claim to match: the whole line, each value it joins with {@code
+   * " / "}, and, where a line or a part labels its value, {@code emails : [...]}, the value alone.
+   */
+  private static List<String> segmentsOf(String line) {
+    List<String> parts = new ArrayList<>(List.of(line));
+    parts.addAll(List.of(line.split(" / ")));
+    List<String> segments = new ArrayList<>();
+    for (String part : parts) {
+      segments.add(normalise(part));
+      Matcher labelled = LABELLED.matcher(part.strip());
+      if (labelled.matches()) segments.add(normalise(labelled.group(1)));
+    }
+    return segments;
+  }
+
+  private static String simpleName(String className) {
+    return className.substring(className.lastIndexOf('.') + 1);
+  }
+
+  /**
+   * A printed line that names its value first, {@code emails : [...]}. The label is plain words, so
+   * a value that merely contains a colon, {@code Invalid(NonEmptyList[email: ...])}, is not one.
+   */
+  private static final Pattern LABELLED = Pattern.compile("^[A-Za-z][\\w .-]*?\\s*:\\s+(.+)$");
 
   /** Whitespace never carries the claim, so it plays no part in the comparison. */
   private static String normalise(String text) {

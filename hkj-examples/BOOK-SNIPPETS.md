@@ -9,7 +9,9 @@ The book's code is kept honest in three ways. **Prefer the first.**
 | **3. Diagnostic marker** | The page marks a fence `<!-- verify:rejects "…" -->` or `<!-- verify:reports "…" -->`; the gate compiles it and holds the compiler to what the page quotes | Drift is **caught** for code the page shows in order to say it is *refused*, which neither of the others can express |
 
 Use (1) whenever the snippet can be real, runnable code. It is strictly stronger, and a runnable
-example can also prove the *output* comments a page asserts, which the compile gate cannot. Fall back
+example can also prove the *output* comments a page asserts, which the compile gate cannot, provided
+each sits on a line of its own after the code that prints it (`BookExampleOutputTest` does not read a
+comment at the end of a code line). Fall back
 to (2) when a page needs a shape that cannot be a runnable example (an abstract signature, a
 `VResultPath<E, A>` written against type variables).
 

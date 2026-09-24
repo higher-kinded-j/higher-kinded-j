@@ -99,7 +99,7 @@ public final class ValidatedAssemblyBook {
     // ANCHOR: eob_accumulate
     EitherOrBoth<NonEmptyList<String>, Config> cfg =
         EitherOrBoth.accumulate()
-            .and(parsePortLenient(rawConfig.port())) // Both("port defaulted", 8080)
+            .and(parsePortLenient(rawConfig.port())) // Both(NonEmptyList[port defaulted], 8080)
             .and(parseTimeoutLenient(rawConfig.timeout())) // Right(30)
             .apply(Config::new);
     // Both(NonEmptyList[port defaulted], Config[port=8080, timeout=30])

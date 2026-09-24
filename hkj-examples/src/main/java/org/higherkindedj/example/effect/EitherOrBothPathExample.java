@@ -41,7 +41,7 @@ public class EitherOrBothPathExample {
 
     System.out.println("result   = " + result.run());
     System.out.println(
-        "warnings = " + result.warnings()); // Just([uses deprecated key, value is low])
+        "warnings = " + result.warnings()); // Just(NonEmptyList[uses deprecated key, value is low])
     System.out.println("value    = " + result.getOrElse(-1)); // 8
     System.out.println();
   }
@@ -61,7 +61,7 @@ public class EitherOrBothPathExample {
         name.zipWithAccum(age, (n, a) -> n + " (" + a + ")");
 
     System.out.println("result   = " + registration.run());
-    // Both([name was trimmed, age defaulted], Ada (30))
+    // Both(NonEmptyList[name was trimmed, age defaulted], Ada (30))
     System.out.println();
   }
 
@@ -105,7 +105,7 @@ public class EitherOrBothPathExample {
 
     EitherOrBothPath<NonEmptyList<String>, Integer> warned = Path.bothNel("deprecated", 42);
     System.out.println(
-        "both kept = " + warned.recover(errors -> 0).run()); // Both([deprecated], 42)
+        "both kept = " + warned.recover(errors -> 0).run()); // Both(NonEmptyList[deprecated], 42)
     System.out.println();
   }
 }

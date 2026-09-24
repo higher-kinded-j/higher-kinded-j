@@ -65,7 +65,7 @@ public final class JsonApiBook {
     List<Double> overForty = Traversals.getAll(USER_AGES.filtered(age -> age > 40), response);
     // [45.0]
 
-    double page = PAGE.getOrElse(1.0, response);
+    double page = PAGE.getOrElse(0.0, response);
     // 1.0
     // ANCHOR_END: read
 
