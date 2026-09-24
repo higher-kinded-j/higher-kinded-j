@@ -160,7 +160,7 @@ Start from what you came for.
 | You want | Start at |
 |---|---|
 | A working endpoint that answers with a located 422 | [Quickstart](quickstart.md), five steps |
-| To understand the model before writing any of it | [Record Mapping Basics](basics.md), then on in order to [the Capstone](capstone.md) |
+| To understand the model before writing any of it | [Record Mapping Basics](basics.md), then each page through to [the Capstone](capstone.md) and [Check Your Understanding](self_check.md) |
 | To judge whether it fits your services | [Mapper at a Glance](at_a_glance.md) |
 | To bring a MapStruct or Bean Validation habit across | [Coming from MapStruct and Bean Validation](from_mapstruct.md) |
 | To see it working on one boundary | [the Capstone](capstone.md) |
