@@ -37,7 +37,7 @@ public final class AbsenceBook {
 
   public static void main(String[] args) {
     // ANCHOR: bridge_usage
-    var memberMapping = MemberMappingImpl.INSTANCE;
+    MemberMappingImpl memberMapping = MemberMappingImpl.INSTANCE;
 
     // Absence travels as null in both directions; a present value still validates.
     MemberDto wire = memberMapping.build(new Member("Ada", Optional.empty(), Optional.empty()));
@@ -81,7 +81,7 @@ interface MemberMapping extends MappingSpec<Member, MemberDto> {
   @OptionalBridge
   Optional<String> nickname();
 
-  // A conversion: the same annotation on the component's leaf, declared over the ELEMENT types.
+  // A conversion: the same annotation on the component's leaf, over the types inside the Optional.
   @OptionalBridge
   default ValidatedPrism<String, EmailAddress> altEmail() {
     return EmailCodecs.EMAIL;
@@ -121,3 +121,45 @@ interface StayMapping extends MappingSpec<Stay, StayDto> {
 interface ReservationMapping extends MappingSpec<Reservation, ReservationDto> {}
 
 // ANCHOR_END: invariant_spec
+
+// ANCHOR: patron_pair
+record Patron(String name, Optional<LocalDate> birthday) {}
+
+record PatronDto(String name, @Nullable String birthday) {}
+
+// ANCHOR_END: patron_pair
+
+// ANCHOR: patron_spec
+@GenerateMapping
+interface PatronMapping extends MappingSpec<Patron, PatronDto> {
+  @OptionalBridge
+  default ValidatedPrism<String, LocalDate> birthday() {
+    return StandardCodecs.localDate();
+  }
+}
+
+// ANCHOR_END: patron_spec
+
+// ANCHOR: discount_spec
+// A basket's discount, spread over its items: at most 500p off each.
+record BulkDiscount(int totalPence, int items) {
+  BulkDiscount {
+    if (totalPence / items > 500) {
+      throw new IllegalArgumentException("at most 500p off per item");
+    }
+  }
+}
+
+record BulkDiscountDto(int totalPence, int items) {}
+
+record Basket(String id, BulkDiscount discount) {}
+
+record BasketDto(String id, BulkDiscountDto discount) {}
+
+@GenerateMapping
+interface BulkDiscountMapping extends MappingSpec<BulkDiscount, BulkDiscountDto> {}
+
+@GenerateMapping
+interface BasketMapping extends MappingSpec<Basket, BasketDto> {}
+
+// ANCHOR_END: discount_spec

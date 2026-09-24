@@ -19,6 +19,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | **Optional fields** | | |
 | [Can a bridged component be declared non-null, or primitive?](#bridged-component-nullable) | No: `build` writes `null` for empty, so declare it `@Nullable`. | by design |
 | [Can a sparse or sealed spec declare `@OptionalBridge`?](#bridged-component-nullable) | No; one inherited from a mix-in stays inert. | by design |
+| [Can a bean spec declare `@OptionalBridge`?](#optional-bridge-on-a-bean-wire) | Yes, but it changes nothing: the processor answers with a note. | by design |
 | **Shared vocabulary** | | |
 | [Does a mix-in need the annotation processor?](structure.md#across-modules) | No: a mix-in is a plain interface, not a spec. | by design |
 | [Can a mix-in extend `MappingSpec`?](#refused-mix-in-shapes) | No: a mix-in shares vocabulary; a spec generates an Impl. | by design |
@@ -44,7 +45,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [What if two dependencies map the same pair?](#how-a-dependencys-specs-are-found) | Ambiguous: your own spec, or a leaf, picks one. | by design |
 | [Can a spec-carrying module sit on the module path?](#how-a-dependencys-specs-are-found) | Not with the index: keep those jars on the classpath, or delegate with a leaf. | not supported yet |
 | **Emission tiers** | | |
-| [Why does a bean mapping lose `asIso()`?](#where-a-bean-or-bridged-component-lands) | A reference property can be unset; an all-primitive bean keeps it. | by design |
+| [Why does a bean mapping, or an `@OptionalBridge` component, lose `asIso()`?](#where-a-bean-or-bridged-component-lands) | A reference property can be unset, and a bridged value can be absent. An all-primitive bean keeps it. | by design |
 | [Why does a validating projection get no `asLens()`?](tiers.md#leaf-carrying-projections-the-validated-patch) | A lens cannot fail, so it takes the validated `patch`. | by design |
 | [How wide can a record be?](testing.md#diagnostics-and-limits) | No ceiling but the JVM's: about 254 components. | by design |
 | **Bean wires** | | |
@@ -78,6 +79,8 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | What you see | Why, and the fix |
 |---|---|
 | [`MAPPER.parse` throws a `NullPointerException`, sometimes](basics.md#bind-in-the-caller) | A constant on the spec can read `null`: bind the Impl in the caller. |
+| [A bad date or enum got Jackson's 400, with no field path](basics.md#validated-leaves) | Jackson rejected a typed wire field before `parse` ran: keep a converted wire field a `String`. |
+| [A field the client left out reports `must not be null`](absence.md#optional-bridge) | Only `@OptionalBridge` lets a field be left out; a whole-`Optional` leaf still rejects `null`. |
 | [A PATCH that omits a field overwrote the stored value](beans_patch.md#patch-getters-answer-null) | A default the bean gives itself reads as sent: leave PATCH bean fields uninitialised. |
 | [An explicit JSON `null` cleared an `Optional` PATCH property](beans_patch.md#what-each-json-state-does) | Jackson binds it to `Optional.empty()`, which means *clear* there: omit the field to leave it unchanged. |
 | [`build` throws on an empty `Optional`](beans.md#bean-shaped-wire-targets) | A setter, builder or record constructor rejects `null` without declaring it: drop the `Optional`, or encode absence in a leaf. |
@@ -151,7 +154,7 @@ Any annotation named `Nullable` or `CheckForNull` counts here, whichever library
 
 ### `@OptionalBridge` on a bean wire is redundant {#optional-bridge-on-a-bean-wire}
 
-**Declaring `@OptionalBridge` on a bean spec draws a note, not an error.** A bean wire bridges a domain `Optional` to its nullable property automatically, because bean conventions leave `Optional` off property types. The annotation opts a *record* wire into the same correspondence, so on a bean it changes nothing, and the mapping is generated exactly as it would be without it. It stays a note because a [shared mix-in vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) may legitimately serve both wire shapes.
+**Declaring `@OptionalBridge` on a bean spec changes nothing, and the processor answers with a note, not an error.** A bean wire already bridges a domain `Optional` to its nullable property, so the mapping is generated exactly as it would be without the annotation. Remove it, or keep it on a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) that a record-wire spec shares. A marker inherited from such a mix-in draws nothing. One declared on the bean spec itself draws this note:
 
 <!-- verify:reports "@OptionalBridge on 'nickname' is redundant on a bean wire" -->
 ```java
@@ -191,20 +194,17 @@ record-wire spec.
 
 ### Which surfaces a constructor's refusal reaches {#constructor-refusal-surfaces}
 
-**A constructor's refusal becomes an error wherever the surface can return one.** The [constructor guard](absence.md#constructor-invariants) covers every surface that builds the record whole from parsed parts; the few that cannot return an error let the exception through:
+**A constructor's refusal becomes an error wherever the surface can return one.** The [constructor guard](absence.md#constructor-invariants) covers every surface that builds the record whole from parsed parts:
 
-| Surface | A refusal becomes |
-|---|---|
-| `parse`, a [projection's `patch`](tiers.md#leaf-carrying-projections-the-validated-patch), a [flattened](structure.md#flattening-a-nested-component-onto-a-flat-wire) group, the fallible [`@GenerateMerge`](merge_envelopes.md), [`@GenerateAssembly`](../monads/validated_assembly.md#generating-the-companion-generateassembly)'s `assemble()` | a `FieldError` at the record's path |
-| `apply` on the [sparse `UpdateSpec` tier](#sparse-construct-once), which constructs the record once, from the values the PATCH ends on | an unlabelled `FieldError` |
-| `asIso().reverseGet`, a projection's `asLens().set` | the exception, propagated: these total optics are meant for values already known to be lawful |
-| the `Update` a sparse update's `toValidated()` hands back | the exception, propagated: an `Update` has no error channel |
+| Surface | A refusal becomes | Why |
+|---|---|---|
+| `parse`, a [projection's `patch`](tiers.md#leaf-carrying-projections-the-validated-patch), a [flattened](structure.md#flattening-a-nested-component-onto-a-flat-wire) group, the fallible [`@GenerateMerge`](merge_envelopes.md), [`@GenerateAssembly`](../monads/validated_assembly.md#generating-the-companion-generateassembly)'s `assemble()` | a `FieldError`, unlabelled at the top level, or under the component holding a nested or flattened record | each returns `Validated` |
+| `apply` and `applyPath` on the `Edits.Accumulated` a [sparse `updateFrom`](#sparse-construct-once) returns | an unlabelled `FieldError` | the record is constructed once, from the values the PATCH ends on |
+| `asIso().reverseGet`, a projection's `asLens().set` | the exception, propagated | these total optics are meant for values already known to be lawful |
+| a plain-return [`@GenerateMerge`](#nulls-and-guards-in-a-merge) | the exception, propagated | its return type has no error channel |
+| the `Update` a sparse update's `toValidated()` hands back | the exception, propagated | an `Update` has no error channel |
 
 A nested record the PATCH replaces whole parses through its own spec, guard included.
-
-### A constant on the spec can read `null` {#spec-constant-reads-null}
-
-**A constant on the spec that holds the Impl can read `null`.** The Impl implements the spec. Initialising a class initialises every interface it implements that declares an instance method with a body. Every leaf and derived field is such a method, and so is a `private` helper. So when a program uses `CustomerMappingImpl.INSTANCE` before it first reads `CustomerMapping.MAPPER`, the spec's constant is evaluated while the Impl's own `INSTANCE` is still unassigned, and it keeps that `null` for good. Two threads making those first uses at the same moment can deadlock instead. A constant on a mix-in that declares a leaf fails the same way. A local, a field in the calling class or an injected `ValidatedPrism` sits outside the cycle. No signature shows the order, so the processor cannot refuse the constant. [Bind in the caller, not on the spec](basics.md#bind-in-the-caller) teaches the rule, and [Check Your Understanding](self_check.md) proves both orders in a test.
 
 ---
 

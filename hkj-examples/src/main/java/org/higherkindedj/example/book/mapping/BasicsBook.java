@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.util.List;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -46,6 +47,23 @@ public final class BasicsBook {
     // Invalid(NonEmptyList[email: not an email address])
     // ANCHOR_END: leaf_usage
     System.out.println(parsed);
+
+    // ANCHOR: fold_usage
+    // One function for every error, one for the value:
+    List<String> report =
+        parsed.fold(
+            errors -> errors.map(e -> e.pathString() + " -> " + e.message()).toJavaList(),
+            customer -> List.of());
+    // [email -> not an email address]
+    // ANCHOR_END: fold_usage
+    System.out.println(report);
+
+    // ANCHOR: null_usage
+    Validated<NonEmptyList<FieldError>, Customer> missing =
+        CustomerMappingImpl.INSTANCE.parse(new CustomerDto(null, "not-an-email"));
+    // Invalid(NonEmptyList[name: must not be null, email: not an email address])
+    // ANCHOR_END: null_usage
+    System.out.println(missing);
 
     // ANCHOR: derived_usage
     ProfileDto built = ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace"));
@@ -120,3 +138,29 @@ interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
 }
 
 // ANCHOR_END: derived_spec
+
+// ANCHOR: mapper_constants
+// The MapStruct idiom, on two specs: never do this.
+record Ticket(String holder, int seat) {}
+
+record TicketDto(String holder, int seat) {}
+
+@GenerateMapping
+interface TicketMapping extends MappingSpec<Ticket, TicketDto> {
+  TicketMappingImpl MAPPER = TicketMappingImpl.INSTANCE;
+}
+
+record Pass(String holder, EmailAddress email) {}
+
+record PassDto(String holder, String email) {}
+
+@GenerateMapping
+interface PassMapping extends MappingSpec<Pass, PassDto> {
+  PassMappingImpl MAPPER = PassMappingImpl.INSTANCE;
+
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: mapper_constants

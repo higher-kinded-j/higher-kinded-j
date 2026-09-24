@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.example.book.mapping.FreshPackage.mapperAfterFirstUsing;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import org.junit.jupiter.api.DisplayName;
@@ -17,11 +19,21 @@ import org.junit.jupiter.api.Test;
 class BasicsBookTest {
 
   @Test
-  @DisplayName("a null and a bad email are both reported, in declaration order")
-  void nullAndBadLeafAccumulate() {
-    // ANCHOR: null_and_leaf
-    assertThatValidated(CustomerMappingImpl.INSTANCE.parse(new CustomerDto(null, "not-an-email")))
-        .hasFieldErrors("name: must not be null", "email: not an email address");
-    // ANCHOR_END: null_and_leaf
+  @DisplayName("a constant on the spec reads null once the spec declares a leaf")
+  void aConstantOnTheSpecReadsNullOnceTheSpecDeclaresALeaf() throws Exception {
+    // ANCHOR: constant_proof
+    // Two programs, each loading this package afresh and using the Impl before MAPPER:
+    assertThat(mapperAfterFirstUsing("TicketMappingImpl", "TicketMapping")).isNotNull(); // no leaf
+    assertThat(mapperAfterFirstUsing("PassMappingImpl", "PassMapping")).isNull(); // a leaf
+    // ANCHOR_END: constant_proof
+  }
+
+  @Test
+  @DisplayName("a null never reaches the leaf: both nulls are located, in declaration order")
+  void aNullNeverReachesTheLeaf() {
+    // ANCHOR: null_before_leaf
+    assertThatValidated(CustomerMappingImpl.INSTANCE.parse(new CustomerDto(null, null)))
+        .hasFieldErrors("name: must not be null", "email: must not be null");
+    // ANCHOR_END: null_before_leaf
   }
 }

@@ -55,7 +55,7 @@ The shapes are close enough that a first spec usually reads like the mapper it r
 
 ---
 
-## From Bean Validation
+## From Bean Validation {#from-bean-validation}
 
 `@Valid` already accumulates errors, and they already carry field names. The difference is what you
 hold afterwards: a set of violations about a DTO, against a domain value that has been built and

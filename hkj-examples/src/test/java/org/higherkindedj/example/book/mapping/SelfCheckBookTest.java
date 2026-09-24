@@ -5,9 +5,6 @@ package org.higherkindedj.example.book.mapping;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -101,41 +98,8 @@ class SelfCheckBookTest {
         new ShipmentDto("not-a-uuid", List.of(new ParcelDto(null, 90)), null));
   }
 
-  /**
-   * Runs one program's first use of {@code first}, in a class loader that defines this package
-   * afresh, and reads the spec's constant afterwards. A fresh loader gives each order its own class
-   * initialisation, which in the shared test JVM happens once, to whichever test gets there first.
-   */
+  /** The trap spec's constant, after a fresh program's first use of {@code first}. */
   private static @Nullable Object mapperAfterFirstUsing(String first) throws Exception {
-    String pkg = VisitorMapping.class.getPackageName() + ".";
-    ClassLoader parent = SelfCheckBookTest.class.getClassLoader();
-    ClassLoader fresh =
-        new ClassLoader(parent) {
-          @Override
-          protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-            if (!name.startsWith(pkg)) {
-              return super.loadClass(name, resolve);
-            }
-            synchronized (getClassLoadingLock(name)) {
-              Class<?> loaded = findLoadedClass(name);
-              if (loaded != null) {
-                return loaded;
-              }
-              try (InputStream in = parent.getResourceAsStream(name.replace('.', '/') + ".class")) {
-                if (in == null) {
-                  throw new ClassNotFoundException(name);
-                }
-                byte[] bytes = in.readAllBytes();
-                return defineClass(name, bytes, 0, bytes.length);
-              } catch (IOException e) {
-                throw new ClassNotFoundException(name, e);
-              }
-            }
-          }
-        };
-    Class.forName(pkg + first, true, fresh);
-    Field mapper = Class.forName(pkg + "VisitorMapping", false, fresh).getField("MAPPER");
-    mapper.setAccessible(true);
-    return mapper.get(null);
+    return FreshPackage.mapperAfterFirstUsing(first, "VisitorMapping");
   }
 }
