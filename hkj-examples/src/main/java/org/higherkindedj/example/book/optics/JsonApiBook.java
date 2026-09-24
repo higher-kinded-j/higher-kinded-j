@@ -74,6 +74,7 @@ public final class JsonApiBook {
     // every data.users[].email is masked; response itself is unchanged
 
     JsonNode aged = Traversals.modify(USER_AGES, age -> age + 1, response);
+    List<Double> ages = Traversals.getAll(USER_AGES, aged);
     // [33.0, 29.0, 46.0]
     // ANCHOR_END: write
 
@@ -81,7 +82,7 @@ public final class JsonApiBook {
     System.out.println("over forty  : " + overForty);
     System.out.println("page        : " + page);
     System.out.println("anonymised  : " + Traversals.getAll(USER_EMAILS, anonymised));
-    System.out.println("aged        : " + Traversals.getAll(USER_AGES, aged));
+    System.out.println("aged        : " + ages);
     System.out.println("original    : " + Traversals.getAll(USER_EMAILS, response));
   }
 

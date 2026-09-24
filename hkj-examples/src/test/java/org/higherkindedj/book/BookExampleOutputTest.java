@@ -83,11 +83,12 @@ class BookExampleOutputTest {
   private static final Pattern ANCHOR_END = Pattern.compile("ANCHOR_END:\\s*(\\S+)");
 
   /**
-   * One example that can be run, the values its comments promise, and any comment that opened a
-   * value and never closed it. The unclosed one is carried rather than thrown here, so it fails
-   * against the example it belongs to instead of breaking test discovery for all of them.
+   * One example that can be run, the values its comments promise, any comment that opened a value
+   * and never closed it, and the claims whose value the example is not shown printing. The unclosed
+   * and unbound ones are carried rather than thrown here, so they fail against the example they
+   * belong to instead of breaking test discovery for all of them.
    */
-  record Example(String className, List<Claim> claims, Claim unclosed) {
+  record Example(String className, List<Claim> claims, Claim unclosed, List<Unbound> unbound) {
     @Override
     public String toString() {
       return className.substring(className.lastIndexOf('.') + 1)
@@ -99,6 +100,9 @@ class BookExampleOutputTest {
 
   /** One output comment: where it is, and the value it claims the example prints. */
   record Claim(int line, String value) {}
+
+  /** A claim whose value the example is not shown printing, and why. */
+  record Unbound(Claim claim, String reason) {}
 
   static Stream<Example> examples() {
     try (Stream<Path> sources = Files.walk(EXAMPLES)) {
@@ -198,6 +202,40 @@ class BookExampleOutputTest {
     assertThat(firstUnprinted(claims("1.0", "1.0"), printed)).extracting(Claim::line).isEqualTo(2);
   }
 
+  @Test
+  @DisplayName("requires each claim to follow a statement that binds a value the example prints")
+  void requiresEachClaimToFollowAPrintedBinding() {
+    String text =
+        """
+        // ANCHOR: demo
+        Validated<NonEmptyList<FieldError>, Customer> parsed =
+            mapping.parse(dto);
+        // Invalid(NonEmptyList[email: not an email address])
+        int other = 1;
+        mapping.parse(other);
+        // Valid(Customer[name=Ada])
+        String base = "https://api.example.org"; // a note
+        client.get(base);
+        // Valid(Response[ok])
+        @SuppressWarnings("unused")
+        int value = result.getOrElse(0); // bound, with a note
+
+        // the default, when nothing is set
+        // 8
+        // Valid(Second[claim])
+        var ghost = mapping.parse(dto);
+        // Invalid(NonEmptyList[ghost: never printed])
+        // ANCHOR_END: demo
+        System.out.println(parsed + " / " + value + " / " + other + " / " + base);
+        """;
+    List<Claim> claims = new ArrayList<>();
+    claimsIn(text, claims);
+
+    assertThat(unboundClaims(text, claims))
+        .extracting(unbound -> unbound.claim().line())
+        .containsExactly(7, 10, 16, 18);
+  }
+
   private static List<Claim> claims(String... values) {
     List<Claim> claims = new ArrayList<>();
     for (int i = 0; i < values.length; i++) claims.add(new Claim(i + 1, values[i]));
@@ -216,7 +254,7 @@ class BookExampleOutputTest {
     String className = classNameOf(source);
     List<Claim> claims = new ArrayList<>();
     Claim unclosed = claimsIn(text, claims);
-    return new Example(className, claims, unclosed);
+    return new Example(className, claims, unclosed, unboundClaims(text, claims));
   }
 
   /** The fully qualified name, taken from the file's own package declaration. */
@@ -284,6 +322,85 @@ class BookExampleOutputTest {
     return unclosed;
   }
 
+  /**
+   * The first line of a statement that binds its value to a variable, {@code Validated<...> parsed
+   * =}, {@code int value =}, {@code final var x =}, with any annotations before it. The variable's
+   * name is captured.
+   */
+  private static final Pattern DECLARATION =
+      Pattern.compile(
+          "^\\s*(?:@\\w+(?:\\([^)]*\\))?\\s+)*(?:final\\s+)?[A-Za-z_][\\w.]*(?:<.*>)?(?:\\[])*"
+              + "\\s+([a-z_]\\w*)\\s*=");
+
+  /** A line of nothing but annotations, which belongs to the declaration below it. */
+  private static final Pattern ANNOTATIONS =
+      Pattern.compile("^\\s*(?:@\\w+(?:\\([^)]*\\))?\\s*)+$");
+
+  /**
+   * A line that ends a statement: a {@code ;}, {@code {} or {@code }}, then at most a comment. A
+   * {@code //} inside a string literal does not end the code before it.
+   */
+  private static final Pattern ENDS_A_STATEMENT =
+      Pattern.compile("[;{}]\\s*(?://[^\"]*|/\\*.*\\*/)?\\s*$");
+
+  /**
+   * The claims the example is not shown printing. A claim shows the value of the statement above
+   * it, and the gate checks only what the example prints, so the statement must bind its value to a
+   * variable, and a print after the region must show that variable. A bare expression, computed
+   * again for a print, is a second computation the page does not show; and one statement supports
+   * one claim, since each claim consumes one printed value.
+   */
+  static List<Unbound> unboundClaims(String text, List<Claim> claims) {
+    String[] lines = text.split("\n", -1);
+    Set<Integer> starts = new HashSet<>();
+    for (Claim claim : claims) starts.add(claim.line() - 1);
+    List<Unbound> unbound = new ArrayList<>();
+    for (Claim claim : claims) {
+      String reason = unboundReason(lines, claim.line() - 1, starts);
+      if (reason != null) unbound.add(new Unbound(claim, reason));
+    }
+    return unbound;
+  }
+
+  private static String unboundReason(String[] lines, int claimIndex, Set<Integer> claimStarts) {
+    int end = claimIndex - 1;
+    while (end >= 0 && isCommentOrBlank(lines[end])) {
+      if (claimStarts.contains(end)) {
+        return "the claim at line %d already shows this statement's value".formatted(end + 1);
+      }
+      end--;
+    }
+    if (end < 0) return "no statement comes before it";
+    int start = end;
+    while (start > 0
+        && !isCommentOrBlank(lines[start - 1])
+        && !ENDS_A_STATEMENT.matcher(lines[start - 1]).find()) {
+      start--;
+    }
+    while (start < end && ANNOTATIONS.matcher(lines[start]).matches()) start++;
+    Matcher declaration = DECLARATION.matcher(lines[start]);
+    if (!declaration.find()) {
+      return "the statement at line %d binds no variable: %s"
+          .formatted(start + 1, lines[start].strip());
+    }
+    String variable = declaration.group(1);
+    String after = String.join("\n", List.of(lines).subList(claimIndex, lines.length));
+    Pattern printed =
+        Pattern.compile(
+            "System\\.out\\.print\\w*\\([^;]*\\b" + Pattern.quote(variable) + "\\b",
+            Pattern.DOTALL);
+    if (!printed.matcher(after).find()) {
+      return "line %d binds %s, but no print after it shows %s"
+          .formatted(start + 1, variable, variable);
+    }
+    return null;
+  }
+
+  private static boolean isCommentOrBlank(String line) {
+    String trimmed = line.strip();
+    return trimmed.isEmpty() || trimmed.startsWith("//");
+  }
+
   /** The text of a {@code //} comment, with any inline {@code <- note} dropped. */
   private static String commentBody(String line) {
     String trimmed = line.strip();
@@ -321,6 +438,19 @@ class BookExampleOutputTest {
   @MethodSource("examples")
   @DisplayName("prints every value its output comments promise")
   void printsWhatItsCommentsClaim(Example example) {
+    if (!example.unbound().isEmpty()) {
+      fail(
+          """
+          %s claims values it is not shown printing:
+          %s
+          A claim shows the value of the statement above it. Bind that value in the region, \
+          `Type name = ...;`, one claim per statement, and print `name` after the region."""
+              .formatted(
+                  example.className(),
+                  example.unbound().stream()
+                      .map(u -> "  line %d: %s".formatted(u.claim().line(), u.reason()))
+                      .collect(java.util.stream.Collectors.joining("\n"))));
+    }
     if (example.unclosed() != null) {
       fail(
           """

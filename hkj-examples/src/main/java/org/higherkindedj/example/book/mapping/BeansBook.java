@@ -44,11 +44,12 @@ public final class BeansBook {
 
     // Dense, as on a record wire: an unset property is a located error, never "keep the current
     // value".
-    transferMapping.patch(researcher, new TransferBean());
+    Validated<NonEmptyList<FieldError>, Employee> unset =
+        transferMapping.patch(researcher, new TransferBean());
     // Invalid(NonEmptyList[department: must not be null])
     // ANCHOR_END: bean_projection_usage
     System.out.println(transferred);
-    System.out.println(transferMapping.patch(researcher, new TransferBean()));
+    System.out.println(unset);
 
     // ANCHOR: bean_usage
     Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));

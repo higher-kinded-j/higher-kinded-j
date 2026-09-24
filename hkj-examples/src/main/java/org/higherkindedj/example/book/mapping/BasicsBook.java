@@ -41,16 +41,17 @@ public final class BasicsBook {
     System.out.println(dto + " / " + back);
 
     // ANCHOR: leaf_usage
-    CustomerMappingImpl.INSTANCE.parse(new CustomerDto("Bob", "not-an-email"));
+    Validated<NonEmptyList<FieldError>, Customer> parsed =
+        CustomerMappingImpl.INSTANCE.parse(new CustomerDto("Bob", "not-an-email"));
     // Invalid(NonEmptyList[email: not an email address])
     // ANCHOR_END: leaf_usage
-    System.out.println(CustomerMappingImpl.INSTANCE.parse(new CustomerDto("Bob", "not-an-email")));
+    System.out.println(parsed);
 
     // ANCHOR: derived_usage
-    ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace"));
+    ProfileDto built = ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace"));
     // ProfileDto[first=Ada, last=Lovelace, displayName=Ada Lovelace]
     // ANCHOR_END: derived_usage
-    System.out.println(ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace")));
+    System.out.println(built);
   }
 }
 

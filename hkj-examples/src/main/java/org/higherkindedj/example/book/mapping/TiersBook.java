@@ -49,12 +49,12 @@ public final class TiersBook {
     // Valid(Subscriber[id=7, email=EmailAddress[value=grace@corp.example], age=37])
 
     // Dense semantics: every projected field applies - a null is a located error, never absence.
-    subscriberDetailsMapping.patch(subscriber, new SubscriberDetailsDto(null, 37));
+    Validated<NonEmptyList<FieldError>, Subscriber> nullEmail =
+        subscriberDetailsMapping.patch(subscriber, new SubscriberDetailsDto(null, 37));
     // Invalid(NonEmptyList[email: must not be null])
     // ANCHOR_END: leaf_projection_usage
     System.out.println(renewed);
-    System.out.println(
-        subscriberDetailsMapping.patch(subscriber, new SubscriberDetailsDto(null, 37)));
+    System.out.println(nullEmail);
   }
 }
 

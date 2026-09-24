@@ -5,6 +5,9 @@ package org.higherkindedj.example.book.mapping;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.OptionalBridge;
@@ -37,34 +40,32 @@ public final class AbsenceBook {
     var memberMapping = MemberMappingImpl.INSTANCE;
 
     // Absence travels as null in both directions; a present value still validates.
-    memberMapping.build(new Member("Ada", Optional.empty(), Optional.empty()));
+    MemberDto wire = memberMapping.build(new Member("Ada", Optional.empty(), Optional.empty()));
     // MemberDto[name=Ada, nickname=null, altEmail=null]
 
-    memberMapping.parse(new MemberDto("Ada", null, null));
+    Validated<NonEmptyList<FieldError>, Member> absent =
+        memberMapping.parse(new MemberDto("Ada", null, null));
     // Valid(Member[name=Ada, nickname=Optional.empty, altEmail=Optional.empty])
 
-    memberMapping.parse(new MemberDto("Ada", "countess", "not-an-email"));
+    Validated<NonEmptyList<FieldError>, Member> badAltEmail =
+        memberMapping.parse(new MemberDto("Ada", "countess", "not-an-email"));
     // Invalid(NonEmptyList[altEmail: not an email address])
     // ANCHOR_END: bridge_usage
-    System.out.println(memberMapping.build(new Member("Ada", Optional.empty(), Optional.empty())));
-    System.out.println(memberMapping.parse(new MemberDto("Ada", null, null)));
-    System.out.println(memberMapping.parse(new MemberDto("Ada", "countess", "not-an-email")));
+    System.out.println(wire);
+    System.out.println(absent);
+    System.out.println(badAltEmail);
 
     // ANCHOR: invariant_usage
-    ReservationMappingImpl.INSTANCE.parse(
-        new ReservationDto(
-            null,
-            List.of(
-                new StayDto("2026-03-01", "2026-03-04"), new StayDto("2026-03-09", "2026-03-07"))));
-    // Invalid(NonEmptyList[guest: must not be null, stays.1: checkOut must be after checkIn])
-    // ANCHOR_END: invariant_usage
-    System.out.println(
+    Validated<NonEmptyList<FieldError>, Reservation> reservation =
         ReservationMappingImpl.INSTANCE.parse(
             new ReservationDto(
                 null,
                 List.of(
                     new StayDto("2026-03-01", "2026-03-04"),
-                    new StayDto("2026-03-09", "2026-03-07")))));
+                    new StayDto("2026-03-09", "2026-03-07"))));
+    // Invalid(NonEmptyList[guest: must not be null, stays.1: checkOut must be after checkIn])
+    // ANCHOR_END: invariant_usage
+    System.out.println(reservation);
   }
 }
 

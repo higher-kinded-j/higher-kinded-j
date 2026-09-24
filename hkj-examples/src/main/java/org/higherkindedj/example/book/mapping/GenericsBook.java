@@ -32,17 +32,14 @@ public final class GenericsBook {
 
   public static void main(String[] args) {
     // ANCHOR: generic_usage
-    CustomerPageMappingImpl.INSTANCE.parse(
-        new PageDto<>(
-            List.of(new CustomerDto("Ada", "ada@corp.example"), new CustomerDto("Bob", "nope")),
-            2));
-    // Invalid(NonEmptyList[items.1.email: not an email address])
-    // ANCHOR_END: generic_usage
-    System.out.println(
+    Validated<NonEmptyList<FieldError>, Page<Customer>> page =
         CustomerPageMappingImpl.INSTANCE.parse(
             new PageDto<>(
                 List.of(new CustomerDto("Ada", "ada@corp.example"), new CustomerDto("Bob", "nope")),
-                2)));
+                2));
+    // Invalid(NonEmptyList[items.1.email: not an email address])
+    // ANCHOR_END: generic_usage
+    System.out.println(page);
 
     // ANCHOR: threaded_usage
     // One generic Impl serves every instantiation; identity elements copy through.
