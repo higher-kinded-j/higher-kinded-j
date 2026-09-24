@@ -86,7 +86,7 @@ are in [Compiler Messages](compiler_errors.md).
 | JAXB getter-only `List` | ✅ (through `addAll`) | ✅ | ✅ | ❌ (it can never read `null`) |
 | Sealed hierarchy against sealed hierarchy | ✅ | ✅ | ❌ | ❌ |
 | Generic record (`Page<T>`) | ✅ | ✅ | ✅ | ❌ (record-to-record only) |
-| `JsonNullable` property | ❌ | ❌ | ❌ | ❌, not supported yet |
+| `JsonNullable` property | through a leaf | through a leaf | through a leaf | ❌, not supported yet |
 
 A lossless pair also earns `asIso()`; a bean pair does not, because an unset property is an
 ordinary state. [What Your Spec Generates](tiers.md) explains which surface each spec gets, and why.

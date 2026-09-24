@@ -1412,7 +1412,7 @@ the wire may be bean-shaped. Use a record or sealed interface for the domain, ma
 as the wire instead.
 ```
 
-The rule: [Bean-shaped wire targets](beans.md#bean-shaped-wire-targets).
+The rule: [How a bean is read and written](rules.md#how-a-bean-is-read-and-written).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "does not support on the domain side" -->

@@ -53,15 +53,22 @@ class BeansBookTest {
   }
 
   @Test
-  @DisplayName("a getter that defaults null reads an empty Optional back as present")
+  @DisplayName("build replaces a field initialiser, but a getter default reads back as present")
   void aGetterDefaultReadsAbsenceBackAsPresent() {
     // ANCHOR: default_trap_proof
     Listing lamp = new Listing("Lamp", Optional.empty());
-    ListingBean built = ListingMappingImpl.INSTANCE.build(lamp); // setSubtitle(null)
 
-    assertThatValidated(ListingMappingImpl.INSTANCE.parse(built))
-        .hasValue(new Listing("Lamp", Optional.of(""))); // getSubtitle() answered ""
-    assertThatThrownBy( // a domain sample with an empty Optional catches it
+    // build writes setSubtitle(null) into both beans, replacing the field's "".
+    DraftListingBean draft = DraftListingMappingImpl.INSTANCE.build(lamp);
+    assertThatValidated(DraftListingMappingImpl.INSTANCE.parse(draft)).hasValue(lamp);
+
+    // parse reads through the getter, which answers "" for that null.
+    ListingBean listing = ListingMappingImpl.INSTANCE.build(lamp);
+    assertThatValidated(ListingMappingImpl.INSTANCE.parse(listing))
+        .hasValue(new Listing("Lamp", Optional.of("")));
+
+    // A law check from a domain sample with an empty Optional fails on it:
+    assertThatThrownBy(
             () ->
                 MappingLaws.assertMappingLaws(ListingMappingImpl.INSTANCE.asValidatedPrism(), lamp))
         .isInstanceOf(AssertionError.class);

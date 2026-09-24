@@ -97,7 +97,7 @@ public final class BeansBook {
 }
 
 // ANCHOR: bean_spec
-// A generated, mutable getter/setter DTO - not a record, so not annotatable. The spec still sits
+// A generated, mutable getter/setter DTO - generated, so not yours to annotate. The spec still sits
 // on your interface, never on the bean, so a third-party bean maps without being touched.
 class ContactBean {
   private String name;
@@ -241,8 +241,29 @@ interface TenantPatchMapping extends UpdateSpec<Tenant, TenantPatchBean> {
 // ANCHOR_END: unmapped_spec
 
 // ANCHOR: default_trap
-// A product listing whose subtitle is optional, and a generated bean for it.
+// A product listing whose subtitle is optional, and two generated beans for it.
 record Listing(String title, Optional<String> subtitle) {}
+
+class DraftListingBean {
+  private String title;
+  private @Nullable String subtitle = ""; // starts as "" in the field
+
+  public String getTitle() {
+    return title;
+  }
+
+  public void setTitle(String title) {
+    this.title = title;
+  }
+
+  public @Nullable String getSubtitle() {
+    return subtitle;
+  }
+
+  public void setSubtitle(@Nullable String subtitle) {
+    this.subtitle = subtitle;
+  }
+}
 
 class ListingBean {
   private String title;
@@ -257,13 +278,16 @@ class ListingBean {
   }
 
   public String getSubtitle() {
-    return subtitle == null ? "" : subtitle; // the generator's convenience
+    return subtitle == null ? "" : subtitle; // answers "" in the getter
   }
 
   public void setSubtitle(@Nullable String subtitle) { // the bridge writes null for empty
     this.subtitle = subtitle;
   }
 }
+
+@GenerateMapping
+interface DraftListingMapping extends MappingSpec<Listing, DraftListingBean> {}
 
 @GenerateMapping
 interface ListingMapping extends MappingSpec<Listing, ListingBean> {} // subtitle bridges itself
