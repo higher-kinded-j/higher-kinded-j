@@ -24,6 +24,12 @@
     "mapping/structure.html#how-a-dependencys-specs-are-found": "mapping/rules.html#how-a-dependencys-specs-are-found",
     "mapping/codecs.html#admonition-the-inheritance-edge-cases-precisely": "mapping/rules.html#inheriting-one-member-twice",
     "mapping/generics.html#admonition-boundaries": "mapping/rules.html#generic-boundaries",
+    "mapping/basics.html#optional-bridge": "mapping/absence.html#optional-bridge",
+    "mapping/basics.html#constructor-invariants": "mapping/absence.html#constructor-invariants",
+    "mapping/beans_patch.html#bean-shaped-wire-targets": "mapping/beans.html#bean-shaped-wire-targets",
+    "mapping/beans_patch.html#bean-projections": "mapping/beans.html#bean-projections",
+    "mapping/beans_patch.html#accessors-meant-to-stay-out": "mapping/beans.html#accessors-meant-to-stay-out",
+    "mapping/beans_patch.html#one-directional-beans": "mapping/beans.html#one-directional-beans",
   };
 
   function target() {

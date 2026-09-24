@@ -61,7 +61,7 @@ mapping nests inside another.
 |---|---|---|
 | A conversion is declared per component, never inferred from the types | An implicit `String` to `UUID` conversion is a guess about a boundary the library cannot see | Declare a leaf, and share the common ones through one [mix-in vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) |
 | Error paths use **domain** component names | Paths stay stable when the wire is renamed | Where a client needs wire names, map them back through the rename, or read the structured `segments` |
-| A wire `null` is a located error unless you say otherwise | On most wires a `null` really is a defect | [`@OptionalBridge`](basics.md#optional-bridge) per component; automatic on bean wires |
+| A wire `null` is a located error unless you say otherwise | On most wires a `null` really is a defect | [`@OptionalBridge`](absence.md#optional-bridge) per component; automatic on bean wires |
 | The domain must be a record | `parse` builds through the canonical constructor | Keep entities at the far side of the boundary, and map to them from the record |
 | Sparse PATCH is opt-in, bean-only and wrapper-typed | A primitive can never be absent, and a record component is always present | [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) with `Integer`, `Boolean` and friends |
 | A PATCH replaces a nested object wholesale | Deep merge is out of scope | Patch the nested record through its own spec |
@@ -89,7 +89,7 @@ are in [Compiler Messages](compiler_errors.md).
 | `JsonNullable` property | ❌ | ❌ | ❌ | ❌, not supported yet |
 
 A lossless pair also earns `asIso()`; a bean pair does not, because an unset property is an
-ordinary state. [The Emission Tiers](tiers.md) explains which surface each spec gets, and why.
+ordinary state. [What Your Spec Generates](tiers.md) explains which surface each spec gets, and why.
 
 ---
 
@@ -133,11 +133,11 @@ blocker. Each ❌ means keep what you have for that case.
 ~~~admonish info title="Where next"
 - Five steps to a working endpoint: [Quickstart](quickstart.md)
 - Coming from another mapper: [Coming from MapStruct and Bean Validation](from_mapstruct.md)
-- What each spec shape generates: [The Emission Tiers](tiers.md)
+- What each spec shape generates: [What Your Spec Generates](tiers.md)
 - The complete set of limits: [Rules and Limits](rules.md)
 ~~~
 
 ---
 
-**Previous:** [Capstone: One 422, Every Bad Field](capstone.md)
+**Previous:** [Injecting, Testing, and Diagnostics](testing.md)
 **Next:** [Coming from MapStruct and Bean Validation](from_mapstruct.md)

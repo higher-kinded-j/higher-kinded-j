@@ -141,7 +141,7 @@ flowchart TD
     class Q,CQ decision
 ```
 
-[The Emission Tiers](tiers.md) names each of these surfaces and the laws it obeys.
+[What Your Spec Generates](tiers.md) names each of these surfaces and the laws it obeys.
 
 ~~~admonish note title="If you know MapStruct"
 This is not a MapStruct competitor on breadth, and does not try to be: MapStruct keeps its ground for mutable JPA entities, deep path flattening (`address.geo.lat` onto a wholly flat wire, where this generator spreads one level), and Bean-Validation-centric shops. What this generator does differently is **boundary correctness for record domains**: the inbound direction is a validating parser with located, accumulated errors (where MapStruct throws on the first bad conversion, or silently maps an invalid value), the outbound direction is provably total, and no operation is generated whose laws the pair cannot satisfy. Adopt it where the boundary is the product; keep MapStruct where its breadth pays. One MapStruct habit does not carry over: declaring the mapper's instance on its own interface. Here that constant can read `null`, so [bind the generated Impl in the caller](basics.md#bind-in-the-caller) instead.
@@ -160,33 +160,23 @@ Start from what you came for.
 | You want | Start at |
 |---|---|
 | A working endpoint that answers with a located 422 | [Quickstart](quickstart.md), five steps |
-| To understand the model before writing any of it | [Record Mapping Basics](basics.md), then [Standard Codecs](codecs.md) |
+| To understand the model before writing any of it | [Record Mapping Basics](basics.md), then on in order to [the Capstone](capstone.md) |
 | To judge whether it fits your services | [Mapper at a Glance](at_a_glance.md) |
 | To bring a MapStruct or Bean Validation habit across | [Coming from MapStruct and Bean Validation](from_mapstruct.md) |
-| To see the whole thing on one boundary | [the Capstone](capstone.md) |
+| To see it working on one boundary | [the Capstone](capstone.md) |
 
-Those pages teach the model and put it behind an endpoint. Everything after them is on demand:
+Those pages teach the model and put it behind an endpoint. For a particular task, go straight to its page:
 
+- A field the client may leave out, read as an empty `Optional`, or a record whose constructor refuses bad values: [Absent Fields and Record Invariants](absence.md)
 - DTOs that nest, hold lists, or dispatch over sealed types: [Nesting, Containers, and Sealed Hierarchies](structure.md)
-- What exactly got generated for your spec, and why: [The Emission Tiers](tiers.md)
-- A PATCH endpoint, or a getter/setter DTO: [Beans and Sparse PATCH](beans_patch.md)
+- What exactly got generated for your spec, and why: [What Your Spec Generates](tiers.md)
+- A getter/setter or builder DTO: [Bean-Shaped Wires](beans.md)
+- A PATCH endpoint, where an omitted field keeps its current value: [Sparse PATCH](beans_patch.md)
 - A `Page<T>` at the boundary: [Generic Specs](generics.md)
 - Combining several sources, or typing your error context: [Merge and Error Envelopes](merge_envelopes.md)
 - A rule, a limit, or a runtime surprise to look up: [Rules and Limits](rules.md)
 - A compiler message to decode: [Compiler Messages](compiler_errors.md)
 - Spring beans, test fakes, and how wide a record may be: [Injecting, Testing, and Diagnostics](testing.md)
-
-~~~admonish info title="In This Chapter"
-- **Record Mapping Basics**: Declare a mapping as one empty interface and get both directions: a `build` that cannot fail and a `parse` that reports every bad field at once. Then add conversions, renames, computed fields, the one field whose `null` means *absent*, and a record's own invariants.
-- **Standard Codecs and Shared Vocabulary**: The stock conversions (UUIDs, dates, enums, money) as one factory call each, and the mix-in pattern that shares your conversions across every spec in an API.
-- **Nesting, Containers, and Sealed Hierarchies**: Specs nest automatically and failures compose into dotted paths; `List`, `Set`, arrays, `Optional` and `Map` map their elements (and, with `@MapKey`, a map's keys); sealed pairs dispatch exhaustively in both directions.
-- **The Emission Tiers**: Which spec shapes earn `asIso()`, `asLens()`, the validated `patch`, `asValidatedPrism()` or one of its halves, and the one-call law check that proves each in your own tests.
-- **Beans and Sparse PATCH**: Getter/setter and builder wires with the full feature set, and the `UpdateSpec` opt-in that gives a PATCH bean null-as-absent semantics without weakening validation of what was sent.
-- **Generic Specs**: Mapping `Page<T>` and friends: concrete instantiations, threaded type parameters, and element-mapped specs whose codecs arrive at construction time.
-- **Merge and Error Envelopes**: `@GenerateMerge` assembles one target from several sources; `@GenerateErrorEnvelope` retires the copy-pasted `code`/`message`/`timestamp` and types the error context.
-- **Injecting, Testing, and Diagnostics**: Register the surface you consume, fake codecs as two-line values, and lean on what/why/fix diagnostics; there is no component ceiling.
-- **Capstone: One 422, Every Bad Field**: The whole chapter on one order-intake boundary: a five-defect request answered by the single response shown above, with PATCH, merge, and envelope encores, all proven by a green test.
-~~~
 
 ~~~admonish info title="Hands-On Learning"
 Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/boundary_mapping_journey.md) (3 tutorials, 13 exercises, ~35 minutes): hand-written multi-edits, the `ValidatedPrism` leaf, and the generated boundary of Tutorial 26.
@@ -196,20 +186,30 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 
 ## Chapter Contents
 
+**Ship**, read in order:
+
 1. [Quickstart: Your First 422](quickstart.md): Five steps from a blank build to a located 422
-2. [Record Mapping Basics](basics.md): Your first mapping, leaves, renames, derived fields, optional fields
+2. [Record Mapping Basics](basics.md): Your first mapping, leaves, renames, derived fields
 3. [Standard Codecs and Shared Vocabulary](codecs.md): Stock lawful codecs and mix-in sharing
-4. [Nesting, Containers, and Sealed Hierarchies](structure.md): Composition and dotted error paths
-5. [The Emission Tiers](tiers.md): Truthful types, projections, the validated patch, laws
-6. [Beans and Sparse PATCH](beans_patch.md): Bean wires and the UpdateSpec tier
-7. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
-8. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
-9. [Injecting, Testing, and Diagnostics](testing.md): Beans, fakes, and width
-10. [Capstone: One 422, Every Bad Field](capstone.md): The whole chapter on one boundary, proven
-11. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
-12. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
-13. [Rules and Limits](rules.md): Every enforced rule and limit, in one place
-14. [Compiler Messages](compiler_errors.md): The common refusals, what each means, and the fix
+4. [Absent Fields and Record Invariants](absence.md): Optional fields and a record's own checks
+5. [Nesting, Containers, and Sealed Hierarchies](structure.md): Composition and dotted error paths
+6. [Capstone: One 422, Every Bad Field](capstone.md): One boundary built end to end, proven
+
+**On demand**, when a task calls for it:
+
+7. [What Your Spec Generates](tiers.md): Truthful types, projections, the validated patch, laws
+8. [Bean-Shaped Wires](beans.md): Setter, builder, and one-directional bean wires
+9. [Sparse PATCH](beans_patch.md): `UpdateSpec`: an omitted field keeps its value
+10. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
+11. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
+12. [Injecting, Testing, and Diagnostics](testing.md): Spring beans, test fakes, and record width
+
+**Look it up**, when you hold a question:
+
+13. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
+14. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
+15. [Rules and Limits](rules.md): Every enforced rule and limit, in one place
+16. [Compiler Messages](compiler_errors.md): The common refusals, what each means, and the fix
 
 ---
 

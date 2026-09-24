@@ -675,7 +675,7 @@ null wire component and back. Add 'default ValidatedPrism<java.lang.String,
 java.util.Optional<java.lang.String>> nickname()' to the spec.
 ```
 
-The rule: [Optional fields: `@OptionalBridge`](basics.md#optional-bridge).
+The rule: [Optional fields: `@OptionalBridge`](absence.md#optional-bridge).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "Add '@OptionalBridge" -->
@@ -768,7 +768,7 @@ Declare the leaf as 'ValidatedPrism<java.lang.String, com.example.EmailAddress>'
 annotation to keep the whole-Optional leaf.
 ```
 
-The rule: [Optional fields: `@OptionalBridge`](basics.md#optional-bridge).
+The rule: [Optional fields: `@OptionalBridge`](absence.md#optional-bridge).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "is declared over the whole Optional" -->
@@ -800,7 +800,7 @@ Optional off property types; the annotation opts a RECORD wire into the same cor
 Remove the annotation, or keep it if the vocabulary is shared with a record-wire spec.
 ```
 
-The rule: [Optional fields: `@OptionalBridge`](basics.md#optional-bridge).
+The rule: [Optional fields: `@OptionalBridge`](absence.md#optional-bridge).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:reports "is redundant on a bean wire" -->
@@ -1330,7 +1330,7 @@ the wire may be bean-shaped. Use a record or sealed interface for the domain, ma
 as the wire instead.
 ```
 
-The rule: [Bean-shaped wire targets](beans_patch.md#bean-shaped-wire-targets).
+The rule: [Bean-shaped wire targets](beans.md#bean-shaped-wire-targets).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "does not support on the domain side" -->
@@ -1397,7 +1397,7 @@ marker reads an accessor with no partner as deliberate. Left unpaired on 'Custom
 Name the marker after the accessor's property, or remove it.
 ```
 
-The rule: [Accessors meant to stay out](beans_patch.md#accessors-meant-to-stay-out).
+The rule: [Accessors meant to stay out](beans.md#accessors-meant-to-stay-out).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "names no accessor" -->
@@ -1434,7 +1434,7 @@ it like any other property. Remove the marker; to leave the property out of the 
 one of its accessors from 'CustomerBean'.
 ```
 
-The rule: [Accessors meant to stay out](beans_patch.md#accessors-meant-to-stay-out).
+The rule: [Accessors meant to stay out](beans.md#accessors-meant-to-stay-out).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "names a property" -->
@@ -2037,7 +2037,7 @@ symbol:   method asIso()
 location: variable INSTANCE of type CustomerMappingImpl
 ```
 
-The rule: [The Emission Tiers](tiers.md#the-emission-tiers-truthful-types).
+The rule: [What Your Spec Generates](tiers.md#the-emission-tiers-truthful-types).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "method asIso()" -->

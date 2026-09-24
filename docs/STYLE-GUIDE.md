@@ -321,12 +321,12 @@ The book's CI counts, per page, what these limits and the page-size and em-dash 
 A content page may carry checkpoints: a question the reader answers before reading on. They make a long page recoverable, and let an expert test out of a section instead of reading it.
 
 ````markdown
-~~~admonish question title="Checkpoint: predict the errors" id="check-basics-invariant"
+~~~admonish question title="Checkpoint: predict the errors" id="check-absence-invariant"
 Which errors does `parse` report for this request, and in what order?
 ~~~
 
-~~~admonish success title="Answer and why" collapsible=true id="check-basics-invariant-answer"
-**Both, in declaration order.** ... Where this lives: [A record's own invariants](basics.md#constructor-invariants).
+~~~admonish success title="Answer and why" collapsible=true id="check-absence-invariant-answer"
+**Both, in declaration order.** ... Where this lives: [A record's own invariants](absence.md#constructor-invariants).
 ~~~
 ````
 

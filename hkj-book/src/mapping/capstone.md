@@ -6,7 +6,7 @@
 ~~~admonish info title="What You'll Learn"
 - One order-intake boundary built end to end: codecs, a custom leaf, a rename, nesting, a list, and a derived field
 - The payoff: a five-defect request answered by a single response naming every bad field by path
-- The encores: a sparse PATCH, a multi-source merge, and a typed error envelope on the same boundary
+- A preview of three later pages on the same boundary: a sparse PATCH, a multi-source merge, and a typed error envelope
 - The laws test that proves all of it, copied from a green build
 ~~~
 
@@ -116,15 +116,15 @@ The client fixes all five and resubmits once, where the hand-written mapper woul
 | `placedAt: not an ISO-8601 instant (...)` | `instant()`, rejecting a format it does not speak |
 | `status: unknown OrderStatus (...)` | `enumByName`, naming the permitted constants |
 
-Every piece of the chapter fired at once, and none of it was written by hand.
+Each error came from a page before this one, and no error-handling code was written to produce any of them.
 
 ---
 
 ## The Encores
 
-The same boundary, two more tiers in a handful of lines, and a third generator by pointer.
+The same boundary, two more mappings in a handful of lines, and a third generator described in a paragraph. Each previews a later page and links to it.
 
-**A sparse PATCH.** The email leaf is already in the vocabulary, so the PATCH sibling is one bean and one empty spec. Absent means keep; a present bad value still fails, located:
+**A sparse PATCH.** The email leaf is already in the vocabulary, so the PATCH sibling is one bean and one empty spec ([Sparse PATCH](beans_patch.md) covers it in full). Absent means keep; a present bad value still fails, located:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_patch}}
@@ -134,7 +134,7 @@ The same boundary, two more tiers in a handful of lines, and a third generator b
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_patch_usage}}
 ```
 
-**A receipt, merged.** One target from two sources, filled by component name, no class literals:
+**A receipt, merged.** One target from two sources, filled by component name, no class literals, by [`@GenerateMerge`](merge_envelopes.md#merging-several-sources-generatemerge):
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBook.java:capstone_merge_spec}}
@@ -156,7 +156,7 @@ The same boundary, two more tiers in a handful of lines, and a third generator b
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBookLawsTest.java:capstone_errors}}
 ```
 
-Second, the full mapping obeys the fallible tier's laws (round trip on a parsing wire, guaranteed rejection on a non-parsing one, coherence with `build`), through the same `MappingLaws` harness the library's own build runs:
+Second, the full mapping obeys the [fallible tier's laws](tiers.md#law-checked-in-the-repo-and-in-your-tests) (round trip on a parsing wire, guaranteed rejection on a non-parsing one, coherence with `build`), through the same `MappingLaws` harness the library's own build runs:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/capstone/BoundaryCapstoneBookLawsTest.java:capstone_laws}}
@@ -180,11 +180,11 @@ Third, the PATCH sibling obeys the sparse laws: an all-absent form is the identi
 ~~~admonish tip title="See Also"
 - [The 422 leg](../spring/spring_boot_integration.md#the-422-leg): This result as an HTTP response, unmodified
 - [Sparse PATCH at the Spring boundary](../spring/spring_boot_integration.md#sparse-patch): The PATCH encore behind a controller
-- [Record Mapping Basics](basics.md): Back to the start of the chapter
+- [What Your Spec Generates](tiers.md): Which methods each spec shape gets, and the laws The Proof checks
 - [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md): The effect-side sibling capstone
 ~~~
 
 ---
 
-**Previous:** [Injecting, Testing, and Diagnostics](testing.md)
-**Next:** [Mapper at a Glance](at_a_glance.md)
+**Previous:** [Nesting, Containers, and Sealed Hierarchies](structure.md)
+**Next:** [What Your Spec Generates](tiers.md)

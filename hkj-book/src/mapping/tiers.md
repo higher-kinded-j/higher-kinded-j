@@ -1,4 +1,4 @@
-# The Emission Tiers: Truthful Types {#the-emission-tiers-truthful-types}
+# What Your Spec Generates {#the-emission-tiers-truthful-types}
 
 _The generated surface only ever offers what the field correspondences can lawfully support; nothing is fabricated._
 
@@ -15,7 +15,7 @@ Most mapping tools generate the same surface for every pair and let the unlawful
 **The code on this page is [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java)** - the page includes it directly, so it is compiled and run by the build.
 ~~~
 
-The field correspondences select what the Impl can lawfully offer. As a decision flow:
+The field correspondences select what the Impl can lawfully offer: its *emission tier*, or *tier* for short. As a decision flow:
 
 ```mermaid
 flowchart TD
@@ -53,9 +53,9 @@ And as the reference table:
 | Wire with *fewer* components, all identity (lossy projection; on a bean, all primitive) | `build` + **`asLens()`** whose `set` writes the projected components back, **no `parse`** (the dropped components cannot be reconstructed) |
 | Wire with fewer components **and** any fallible correspondence (on a bean, any reference property) | `build` + a validated **`patch(domain, wire)`** write-back, no `asLens` and no `parse`, [below](#leaf-carrying-projections-the-validated-patch) |
 | Every full mapping (it builds and parses) | **`asValidatedPrism()`**: the mapping as a leaf, so it nests and lifts |
-| A bean wire with getters and nothing that writes it (parse-only) | `parse` + **`asValidatedParse()`**, no `build`: [One-directional beans](beans_patch.md#one-directional-beans) |
-| A bean wire that is written and declares no getter (build-only) | `build` + **`asValidatedBuild()`**, no `parse`: [One-directional beans](beans_patch.md#one-directional-beans) |
-| A spec extending **`UpdateSpec`** (opt-in, bean wire; not alongside `MappingSpec`) | only **`updateFrom(Wire)`**: a sparse PATCH fold, [Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
+| A bean wire with getters and nothing that writes it (parse-only) | `parse` + **`asValidatedParse()`**, no `build`: [One-directional beans](beans.md#one-directional-beans) |
+| A bean wire that is written and declares no getter (build-only) | `build` + **`asValidatedBuild()`**, no `parse`: [One-directional beans](beans.md#one-directional-beans) |
+| A spec extending **`UpdateSpec`** (opt-in, bean wire; not alongside `MappingSpec`) | only **`updateFrom(Wire)`**: a sparse PATCH fold, [Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:projection_spec}}
@@ -65,7 +65,7 @@ And as the reference table:
 ```
 
 ~~~admonish note title="Two honesty notes on the lossless row"
-"Guarded" because even a lossless record `parse` can fail: on a hostile binding (a null reference component, or a null element inside an identity container, is a located invalid), and on a value the domain's own constructor refuses ([its invariant](basics.md#constructor-invariants) becomes an error at the record's path). The parse-iso coherence law is therefore stated only for wires whose reference components are non-null and whose values the domain accepts. And `asIso().reverseGet` is a second, *unguarded* wire-to-domain direction: it exists for lawful in-memory round trips, so never feed a freshly bound wire to `reverseGet`; locating its nulls and refusing what the constructor rejects are `parse`'s job, while `reverseGet` lets the constructor's exception propagate. A projection's `asLens().set` rebuilds the domain through the same constructor, so it lets the exception propagate too.
+"Guarded" because even a lossless record `parse` can fail: on a hostile binding (a null reference component, or a null element inside an identity container, is a located invalid), and on a value the domain's own constructor refuses ([its invariant](absence.md#constructor-invariants) becomes an error at the record's path). The parse-iso coherence law is therefore stated only for wires whose reference components are non-null and whose values the domain accepts. And `asIso().reverseGet` is a second, *unguarded* wire-to-domain direction: it exists for lawful in-memory round trips, so never feed a freshly bound wire to `reverseGet`; locating its nulls and refusing what the constructor rejects are `parse`'s job, while `reverseGet` lets the constructor's exception propagate. A projection's `asLens().set` rebuilds the domain through the same constructor, so it lets the exception propagate too.
 ~~~
 
 ---
@@ -117,19 +117,19 @@ The overloads follow the tiers:
 - **Parse-only bean:** pass `asValidatedParse()` with a parsing and a non-parsing wire value: the first parses, and the second fails with every error located.
 - **Build-only bean:** pass `asValidatedBuild()` with a domain value: `build` renders it without failing.
 - **Derived-field (total-parse) mapping:** `build` recomputes what `parse` ignores, so only the non-derived components round-trip. The domain-sample overload `assertMappingLaws(prism, domainValue)` asserts exactly that and nothing stronger.
-- **Sparse-update (`UpdateSpec`) mapping:** pass the `updateFrom` method reference, a domain value, and an all-absent, a valid and an invalid wire to check the identity, idempotence and validation laws ([Beans and Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec)).
+- **Sparse-update (`UpdateSpec`) mapping:** pass the `updateFrom` method reference, a domain value, and an all-absent, a valid and an invalid wire to check the identity, idempotence and validation laws ([Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec)).
 
-A spec with a derived field *and* a fallible leaf is better served by the fallible overload, given a parseable wire value whose derived components match what `build` would produce (this keeps the overload's rejection check on the non-parsing wire). Reserve the domain-sample overload for total-parse mappings, where no well-formed wire value can fail. For the patch and parse-only overloads, whose rejection law expects every error to be located, give an invalid wire that fails on a component: a value only the domain's own [constructor refuses](basics.md#constructor-invariants) fails at the record's path, which at the top level is unlabelled.
+A spec with a derived field *and* a fallible leaf is better served by the fallible overload, given a parseable wire value whose derived components match what `build` would produce (this keeps the overload's rejection check on the non-parsing wire). Reserve the domain-sample overload for total-parse mappings, where no well-formed wire value can fail. For the patch and parse-only overloads, whose rejection law expects every error to be located, give an invalid wire that fails on a component: a value only the domain's own [constructor refuses](absence.md#constructor-invariants) fails at the record's path, which at the top level is unlabelled.
 
 ~~~admonish tip title="Mapping types you don't own"
-The annotation sits on *your* spec interface, never on the mapped types, so third-party records, sealed hierarchies, and bean-shaped DTOs from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped wire types (getter/setter DTOs) are covered too; see [Beans and Sparse PATCH](beans_patch.md#bean-shaped-wire-targets).
+The annotation sits on *your* spec interface, never on the mapped types, so third-party records, sealed hierarchies, and bean-shaped DTOs from compiled libraries map without being annotatable: `interface VendorOrderMapping extends MappingSpec<com.vendor.OrderRecord, OrderDto> {}` works today. Bean-shaped wire types (getter/setter DTOs) are covered too; see [Bean-Shaped Wires](beans.md#bean-shaped-wire-targets).
 ~~~
 
 ---
 
 ## Leaf-carrying projections: the validated `patch` {#leaf-carrying-projections-the-validated-patch}
 
-A projection that also *validates or normalises* a field (a leaf on a projected component) has no lawful total lens: the write-back can fail. Instead of refusing to generate, the mapping emits the **validated `patch` tier**: the total `build` stays, and the write-back returns `Validated`. A bean projection with a reference property lands here even without a leaf, because that property can be left unset ([Bean projections](beans_patch.md#bean-projections)):
+A projection that also *validates or normalises* a field (a leaf on a projected component) has no lawful total lens: the write-back can fail. Instead of refusing to generate, the mapping emits the **validated `patch` tier**: the total `build` stays, and the write-back returns `Validated`. A bean projection with a reference property lands here even without a leaf, because that property can be left unset ([Bean projections](beans.md#bean-projections)):
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:leaf_projection_spec}}
@@ -142,7 +142,7 @@ A projection that also *validates or normalises* a field (a leaf on a projected 
 ```
 
 ~~~admonish warning title="Dense, not sparse: patch is the opposite of updateFrom"
-`patch` applies **every** projected component, never "leave unchanged": a `null` reference read becomes a located `FieldError` (`must not be null`), and a [bridged](basics.md#optional-bridge) `Optional` component, automatic on a bean wire, reads `null` as empty and writes that. The REST-PATCH contract (null means absent, keep the current value) is the [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec) on a bean wire; this tier is its dense complement, on a record or a bean wire, for writing a validated sub-view onto a bigger record.
+`patch` applies **every** projected component, never "leave unchanged": a `null` reference read becomes a located `FieldError` (`must not be null`), and a [bridged](absence.md#optional-bridge) `Optional` component, automatic on a bean wire, reads `null` as empty and writes that. The REST-PATCH contract (null means absent, keep the current value) is the [sparse `UpdateSpec` tier](beans_patch.md#sparse-patch-write-back-updatespec) on a bean wire; this tier is its dense complement, on a record or a bean wire, for writing a validated sub-view onto a bigger record.
 ~~~
 
 Everything the full tier resolves is available on the projected components: explicit leaves (beating identity, so a `ValidatedPrism<X, X>` can normalise), nested specs (failures compose into dotted paths), and container lifting. Nulls locate through the nesting too: a nested wire value delegates to the nested spec's `parse`, whose reference legs carry the same guard, so `patch(customer, new CustomerPatchDto(new AddressDto(null)))` reports `address.zip: must not be null` instead of throwing. Only derived fields stay rejected. At the Spring boundary the result is already [the 422 leg](../spring/spring_boot_integration.md#the-422-leg)'s shape: return it as-is. Like every tier, this one is law-checked:
@@ -164,11 +164,11 @@ The patch laws are projection identity (`patch(d, build(d)) == Valid(d)`), idemp
 
 ~~~admonish tip title="See Also"
 - [Testing With hkj-test](../tooling/test_assertions.md#optic-laws): The law harness `MappingLaws` belongs to
-- [Beans and Sparse PATCH](beans_patch.md): The sparse `updateFrom` tier
+- [Sparse PATCH](beans_patch.md): The sparse `updateFrom` tier
 - [Injecting, Testing, and Diagnostics](testing.md): Registering a tier's surface as a bean
 ~~~
 
 ---
 
-**Previous:** [Nesting, Containers, and Sealed Hierarchies](structure.md)
-**Next:** [Beans and Sparse PATCH](beans_patch.md)
+**Previous:** [Capstone: One 422, Every Bad Field](capstone.md)
+**Next:** [Bean-Shaped Wires](beans.md)

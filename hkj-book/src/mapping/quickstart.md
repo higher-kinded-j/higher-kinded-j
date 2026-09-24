@@ -65,8 +65,8 @@ per component and never inferred from the types. And the inbound direction retur
 rather than throwing on the first.
 ~~~
 
-The wire here is a getter/setter bean, because that is what a generated API client hands you. A
-record wire works exactly the same way, and is what [Record Mapping Basics](basics.md) teaches. The
+The wire here is a getter/setter bean, because that is what a generated API client hands you;
+[Bean-Shaped Wires](beans.md) covers that shape in full. A record wire works exactly the same way, and is what [Record Mapping Basics](basics.md) teaches. The
 stock conversions, for UUIDs, dates, enums and money, are in [Standard Codecs](codecs.md), so most
 boundaries need no hand-written leaf at all.
 
