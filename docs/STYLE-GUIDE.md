@@ -314,6 +314,8 @@ The guide's readability rules, stated so a review can check them:
 - **No "above" or "below".** Name the destination and link it.
 - **Fine print is still prose for people**: one-sentence reason, the fix as code or an imperative, and the diagnostic quoted rather than paraphrased.
 
+The book's CI counts, per page, what these limits and the page-size and em-dash rules ask a reviewer to check: sentences over 35 and over 50 words, bullets over 60, prose runs over 400 words, dashes, and "above" or "below". It compares the counts with a committed baseline and reports any rise on the pull request; it does not fail the build. The counts are a ratchet, not a verdict: they cover every page, reference pages and fine print included, so a rise asks for a look rather than a rewrite. `node .github/scripts/book-readability-check.cjs --page <path under hkj-book/src>` lists what a page's counts are made of. `--update` lowers the baseline after a change improves a page, and never raises it; a count that has to rise takes `--accept <page>`, with the reason in the commit message.
+
 ### Checkpoints
 
 A content page may carry checkpoints: a question the reader answers before reading on. They make a long page recoverable, and let an expert test out of a section instead of reading it.

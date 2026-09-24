@@ -2,9 +2,10 @@
  * How the book's checks read a page: which files are pages, and which lines
  * are prose a reader meets rather than code they copy.
  *
- * Shared by book-anchor-check.cjs, which resolves the links in that prose, and
- * book-heading-html-check.cjs, which checks its headings. One reading, so the
- * checks can never disagree about where a fence ends.
+ * Shared by book-anchor-check.cjs, which resolves the links in that prose,
+ * book-heading-html-check.cjs, which checks its headings, and
+ * book-readability-check.cjs, which measures it. One reading, so the checks
+ * can never disagree about where a fence ends.
  */
 "use strict";
 
@@ -29,8 +30,12 @@ function markdownFiles(dir) {
  * headings inside one are real headings with real ids, and the links inside
  * one are real links. The book has no tilde-fenced code block, so a bare `~~~`
  * closes the admonition it follows.
+ *
+ * With `{ markers: true }`, the line that opens a fence is kept as `{ line,
+ * text, marker: "code" }`, and both lines of an admonition as `marker:
+ * "admonition"`, for a reader that needs to know where prose was interrupted.
  */
-function linesAsProse(text) {
+function linesAsProse(text, { markers = false } = {}) {
   const out = [];
   let code = null;
   let admonitions = 0;
@@ -44,13 +49,16 @@ function linesAsProse(text) {
       }
       if (char === "~" && info.startsWith("admonish")) {
         admonitions++;
+        if (markers) out.push({ line: i + 1, text: line, marker: "admonition" });
         return;
       }
       if (char === "~" && !info && admonitions > 0) {
         admonitions--;
+        if (markers) out.push({ line: i + 1, text: line, marker: "admonition" });
         return;
       }
       code = { char, len };
+      if (markers) out.push({ line: i + 1, text: line, marker: "code" });
       return;
     }
     if (!code) out.push({ line: i + 1, text: line });
