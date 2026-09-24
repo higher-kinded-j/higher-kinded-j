@@ -12,7 +12,7 @@ A typical DTO boundary converts the same handful of families every time: identif
 ~~~
 
 ~~~admonish example title="See Example Code"
-**The code on this page is [StandardCodecsBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java) and [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java)** - the page includes them directly, so they are compiled and run by the build.
+**The code on this page is [StandardCodecsBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java)** - the page includes it directly, so it is compiled and run by the build.
 ~~~
 
 ## Standard codecs {#standard-codecs}
@@ -112,9 +112,9 @@ Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPr
 The same rename or the same leaf tends to recur across an API's specs: every wire calls it `fullName`, every email parses the same way. Move the shared members onto a **plain interface** and extend it alongside `MappingSpec`:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:mixin_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:mixin_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:mixin_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:mixin_usage}}
 ```
 
 An inherited member counts exactly as if it were declared on the spec: renames, leaves, derived fields, [`@OptionalBridge`](absence.md#optional-bridge) markers, [`@MapKey`](structure.md#converting-map-keys) key leaves *and* [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) markers, collected across the whole hierarchy (a mix-in may extend further mix-ins, and a diamond counts once). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides. An inherited member that binds to nothing here stays inert, so one vocabulary can serve specs whose domains and wires differ; the same declaration made locally is an error, which is what catches a typo. [What an inherited member binds against](rules.md#what-an-inherited-member-binds-against) decides what "nothing" means for each kind of member.

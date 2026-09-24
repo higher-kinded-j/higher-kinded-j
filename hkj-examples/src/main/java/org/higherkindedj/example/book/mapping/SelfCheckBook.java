@@ -15,9 +15,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The specs behind the book's <a
- * href="https://higher-kinded-j.github.io/mapping/self_check.html">Check Your Understanding</a>
- * page. Its answers include these regions, and {@code SelfCheckBookTest} asserts what each answer
- * claims, so an answer cannot drift from what the processor generates.
+ * href="https://higher-kinded-j.github.io/latest/mapping/self_check.html">Check Your
+ * Understanding</a> page. Its answers include these regions, and {@code SelfCheckBookTest} asserts
+ * what each answer claims, so an answer cannot drift from what the processor generates.
  */
 public final class SelfCheckBook {
 

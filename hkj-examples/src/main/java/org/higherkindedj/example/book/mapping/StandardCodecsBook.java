@@ -17,13 +17,35 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.UUID;
 import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
- * The book's Standard codecs section: a typical DTO boundary (identifier, date, enum, money) mapped
- * entirely from the stock vocabulary, with no hand-written leaf.
+ * The code shown on the book's <a
+ * href="https://higher-kinded-j.github.io/latest/mapping/codecs.html">Standard Codecs and Shared
+ * Vocabulary</a> page: a typical DTO boundary (identifier, date, enum, money) mapped entirely from
+ * the stock vocabulary, with no hand-written leaf, and the mix-in that shares a vocabulary across
+ * specs.
+ *
+ * <p>The book {@code {{#include}}}s the anchored regions below, and {@code BookExampleOutputTest}
+ * runs {@code main}.
  */
+public final class StandardCodecsBook {
+
+  private StandardCodecsBook() {}
+
+  public static void main(String[] args) {
+    // ANCHOR: mixin_usage
+    // One vocabulary, two mappings - the inherited rename and leaf apply to both:
+    ClientMappingImpl.INSTANCE.parse(new ClientDto("Ada Lovelace", "ada@example.org"));
+    SupplierMappingImpl.INSTANCE.parse(new SupplierDto("Acme Ltd", "sales@acme.example", "01"));
+    // ANCHOR_END: mixin_usage
+    System.out.println(
+        ClientMappingImpl.INSTANCE.parse(new ClientDto("Ada Lovelace", "not-an-email")));
+  }
+}
+
 // ANCHOR: codecs_spec
 enum OrderStatus {
   NEW,
@@ -110,4 +132,33 @@ interface ReadingMapping extends MappingSpec<Reading, ReadingDto> {
     return instant();
   }
 }
+
 // ANCHOR_END: instant_spec
+
+// ANCHOR: mixin_spec
+// Plain vocabulary - not a spec itself. Any spec whose records share these
+// shapes extends it alongside MappingSpec.
+interface ContactVocabulary {
+  @MapField(to = "fullName")
+  String name();
+
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+record Client(String name, EmailAddress email) {}
+
+record ClientDto(String fullName, String email) {}
+
+@GenerateMapping
+interface ClientMapping extends ContactVocabulary, MappingSpec<Client, ClientDto> {}
+
+record Supplier(String name, EmailAddress email, String phone) {}
+
+record SupplierDto(String fullName, String email, String phone) {}
+
+@GenerateMapping
+interface SupplierMapping extends ContactVocabulary, MappingSpec<Supplier, SupplierDto> {}
+
+// ANCHOR_END: mixin_spec

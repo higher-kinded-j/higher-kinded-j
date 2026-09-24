@@ -139,7 +139,7 @@ The example application asserts exactly that response, in a slice test:
 For the mapping itself, one call checks its laws, without a web layer:
 
 ``` java
-{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:laws}}
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TiersBookTest.java:laws}}
 ```
 
 ---

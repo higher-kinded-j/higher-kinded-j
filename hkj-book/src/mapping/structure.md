@@ -15,7 +15,7 @@ Real DTOs are not flat. An order carries a customer, the customer carries an add
 ~~~
 
 ~~~admonish example title="See Example Code"
-**The code on this page is [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java)** - the page includes it directly, so it is compiled and run by the build.
+**The code on this page is [StructureBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java) and its [StructureBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StructureBookTest.java)** - the page includes them directly, so they are compiled and run by the build.
 ~~~
 
 ## Nesting, containers, and recursion {#nesting-containers-and-recursion}
@@ -23,9 +23,9 @@ Real DTOs are not flat. An order carries a customer, the customer carries an add
 A component whose two sides are themselves mapped by **another spec** nests automatically, whether that spec is in the same compilation or in a dependency (see [Across modules](#across-modules)), and failures compose into dotted paths:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:nesting_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:nesting_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:nesting_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:nesting_usage}}
 ```
 
 Containers lift the same way, and each one locates a failure by whatever identifies an element *in that container*:
@@ -39,9 +39,9 @@ Containers lift the same way, and each one locates a failure by whatever identif
 | `Map<K, V>` | ✅ values, and keys with [`@MapKey`](#converting-map-keys) | the **source key**: `attributes.en.email` |
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:widened_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:widened_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:widened_usage}}
 ```
 
 Lifting needs the *same* container on both sides. [What lifts, and what does not](rules.md#what-lifts) has the exact rule, and the refusal offers the declaration that would lift. A domain `Optional<T>` against a plain nullable wire component `T` is the [`@OptionalBridge`](absence.md#optional-bridge) shape instead, and it [nests through the element's spec](#optional-nested-objects) all the same.
@@ -83,7 +83,7 @@ Write the three paths the client reads back, then say which one could mislead th
 **`members.nope`, `reserves.1` and `notes.bad-key`.** A set has no index, so it locates by the element's own rendering; an array locates by position, like a list; a map locates by the key as the client sent it.
 
 ``` java
-{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/RecordMappingBookLawsTest.java:check_container_paths}}
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StructureBookTest.java:check_container_paths}}
 ```
 
 The misleading one is the set. `members.nope` names a value, not a position, so a client reading paths as positions will look for a field called `nope`. A key containing a dot misleads the same way, which is why the structured segments stay exact while the rendered path does not.
@@ -96,9 +96,9 @@ Where this lives: [Nesting, containers, and recursion](#nesting-containers-and-r
 When a JSON client leaves an object out, or sends `null` for it, the binder leaves a plain nullable `CustomerDto` where the domain holds an `Optional<Customer>`. That pair is the [`@OptionalBridge`](absence.md#optional-bridge) shape, and it nests like every other: when a spec maps the element pair, the marker is all the component needs.
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_nesting_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:bridge_nesting_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_nesting_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:bridge_nesting_usage}}
 ```
 
 `build` writes the nested build of a present value and `null` for an empty one. `parse` reads `null` as empty and hands a present value to the nested spec, so its failures locate under the component, exactly as through a `List`. The usual order holds: a bridged [element leaf](absence.md#optional-bridge) on the component wins over the spec, and two specs for the pair are ambiguous until such a leaf delegates to the one you mean. A bean wire bridges automatically, so there the same pair nests with no marker at all.
@@ -106,9 +106,9 @@ When a JSON client leaves an object out, or sends `null` for it, the binder leav
 A bridged container lifts the same way. An optional JSON array arrives as a nullable `List<CustomerDto>`, and where an absent list and an empty one mean different things, the domain holds an `Optional<List<Customer>>`. The marker is again all it needs:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_container_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:bridge_container_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_container_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:bridge_container_usage}}
 ```
 
 A present list lifts element by element, exactly as a `List<Customer>` component does, so a failure locates at its index, a `null` element is still a located `must not be null`, and an empty list parses to a present, empty `Optional`. `Set`, arrays and `Map` values lift alike, an element leaf over the element types wins over the spec, and a [`@MapKey`](#converting-map-keys) leaf converts the keys of a bridged `Map`. A bridged container whose elements nothing converts is refused naming the element pair, so the fix it offers is an element leaf or a spec rather than a leaf over the whole container. Where an empty list already says there are none, a plain `List<Customer>` component is simpler, and needs no marker.
@@ -136,9 +136,9 @@ Where one does happen, the two containers answer differently because what is los
 Nesting assumes the wire nests too. Often it does not: the domain keeps an `Address` record, and the wire format, fixed by someone else, carries `street`, `city` and `postcode` as plain fields. No single wire component holds the address, so a leaf cannot map it; `@Flatten` on a marker named after the component spreads it instead:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:flatten_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:flatten_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:flatten_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:flatten_usage}}
 ```
 
 The record's components, spread this way, are the **group**: `street`, `city` and `postcode` here. `build` fills each flat wire component from the group member of the same name. `parse` assembles the record through its own [`Validated.fields()` ladder](../monads/validated_assembly.md) inside the outer one, so every failure accumulates with the rest and locates under the **domain** path: `address.street`, a name the flat wire never sent. That is the [domain-named-paths contract](basics.md#renames-mapfield) reaching a nesting the wire does not have, and it is deliberate: the client learns which part of the address was wrong, not which position in a flat list.
@@ -187,7 +187,7 @@ The processor finds a dependency's specs through a classpath index, and your own
 A `MappingSpec` over two **sealed interfaces** dispatches over the permitted subtype pairs, one spec per pair, exhaustively in both directions:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:sealed_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:sealed_spec}}
 
 // generated PaymentMappingImpl.build:
 //   return switch (domain) {

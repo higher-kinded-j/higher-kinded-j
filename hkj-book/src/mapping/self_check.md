@@ -12,7 +12,7 @@ These questions cover the pages from the [Quickstart](quickstart.md) to [the Cap
 **`parse`.** It returns a `Validated<NonEmptyList<FieldError>, Person>`: the domain value, or every bad field at once, each located by its path. `build` is total, so it returns the wire directly. The types say so:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:basics_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:basics_usage}}
 ```
 
 Where this lives: [Your first mapping](basics.md#your-first-mapping).
