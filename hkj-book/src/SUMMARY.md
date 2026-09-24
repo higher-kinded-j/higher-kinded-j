@@ -133,6 +133,7 @@
   - [Mapper at a Glance](mapping/at_a_glance.md)
     - [Coming from MapStruct and Bean Validation](mapping/from_mapstruct.md)
     - [Rules and Limits](mapping/rules.md)
+    - [Compiler Messages](mapping/compiler_errors.md)
 
 - [Monad Transformers & MTL](transformers/ch_intro.md)
   - [Path or Transformer?](transformers/when_to_drop_to_transformers.md)

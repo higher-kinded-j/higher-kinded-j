@@ -20,7 +20,7 @@ Most mappings are boring, and the mapper treats them that way: same-named, same-
 [GenerateMappingExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/GenerateMappingExample.java)
 ~~~
 
-## Your first mapping
+## Your first mapping {#your-first-mapping}
 
 The whole declaration is an empty interface naming the pair:
 
