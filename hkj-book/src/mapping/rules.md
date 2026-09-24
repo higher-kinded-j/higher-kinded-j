@@ -80,8 +80,8 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | What you see | Why, and the fix |
 |---|---|
 | [`MAPPER.parse` throws a `NullPointerException`, sometimes](basics.md#bind-in-the-caller) | A constant on the spec can read `null`: bind the Impl in the caller. |
-| [The first `parse` throws a `StackOverflowError`](codecs.md#standard-codecs) | A leaf named like its factory calls itself: write `StandardCodecs.currency()`, qualified. |
-| [A browser's or Python's timestamps are rejected, some of the time](codecs.md#canonical-forms-only) | The stock date-time codecs accept only their own render: declare the producer's canon. |
+| [The first `parse` or `build` throws a `StackOverflowError`](codecs.md#standard-codecs) | A leaf named like its factory calls itself: write `StandardCodecs.currency()`, qualified. |
+| [A browser's timestamps are rejected some of the time, or Python's every time](codecs.md#canonical-forms-only) | The stock date-time codecs accept only their own render: declare the producer's canon. |
 | [A bad date or enum got Jackson's 400, with no field path](basics.md#validated-leaves) | Jackson rejected a typed wire field before `parse` ran: keep a converted wire field a `String`. |
 | [A field the client left out reports `must not be null`](absence.md#optional-bridge) | Only `@OptionalBridge` lets a field be left out; a whole-`Optional` leaf still rejects `null`. |
 | [A PATCH that omits a field overwrote the stored value](beans_patch.md#patch-getters-answer-null) | A default the bean gives itself reads as sent: leave PATCH bean fields uninitialised. |
@@ -94,7 +94,7 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | [An error path reads as deeper nesting than it is](structure.md#other-containers) | A key or set element contains a dot: `FieldError.path()` keeps it as one segment. |
 | [`asIso().reverseGet` threw on a request body](tiers.md) | `reverseGet` is unguarded: a freshly bound wire goes through `parse`. |
 | [A constructor bug reached the client as a message](absence.md#constructor-invariants) | Any `RuntimeException` counts: keep the constructor to checks on its arguments. |
-| [A timestamp came back with fewer fractional digits](codecs.md#your-own-canon) | The formatter pattern fixes the precision, so `build` truncates finer values. |
+| [A timestamp came back with fewer fractional digits](codecs.md#canonical-forms-only) | The formatter pattern fixes the precision, so `build` truncates finer values. |
 | [The first call into a generated error companion throws `ExceptionInInitializerError`](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) | Its all-absent context is built at class initialisation, and the context record's constructor rejects `null`: keep it a plain nullable carrier. |
 
 ---
@@ -219,12 +219,12 @@ A nested record the PATCH replaces whole parses through its own spec, guard incl
 
 ### How a spec collects its vocabulary {#how-a-spec-collects-its-vocabulary}
 
-**An inherited member counts exactly as if it were declared on the spec.** That holds for renames, leaves, derived fields, [`@OptionalBridge`](absence.md#optional-bridge) markers, [`@MapKey`](structure.md#converting-map-keys) key leaves and [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) markers, collected across the whole hierarchy: a mix-in may extend further mix-ins, and a diamond counts once. Precedence is Java's own, so a member re-declared on the spec, or on a nearer mix-in, hides the one it overrides.
+**An inherited member binds exactly as if it were declared on the spec, and one that binds to nothing is inert instead of an error.** That holds for renames, leaves, derived fields, [`@OptionalBridge`](absence.md#optional-bridge) markers, [`@MapKey`](structure.md#converting-map-keys) key leaves, [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) markers and [`@Unmapped`](beans.md#accessors-meant-to-stay-out) markers, collected across the whole hierarchy: a mix-in may extend further mix-ins, and a diamond counts once. Precedence is Java's own, so a member re-declared on the spec, or on a nearer mix-in, overrides the one it replaces.
 
-- A mix-in may be generic: its members are read under the spec's instantiation, so `Emails<T>` extended as `Emails<EmailAddress>` contributes `ValidatedPrism<String, EmailAddress>` ([Generic mix-ins](generics.md#generic-mix-ins)).
-- [Threaded generic specs](generics.md) extend mix-ins, generic ones included, at their own type parameters.
-- [`UpdateSpec`](beans_patch.md#patch-containers) mappings inherit vocabulary the same way, element leaves included, so the leaf a full spec lifts over a `List` serves its PATCH sibling unchanged.
-- [`@GenerateMerge`](merge_envelopes.md) specs declare everything directly.
+- **A mix-in may be generic.** Its members are read under the spec's instantiation, so `Emails<T>` extended as `Emails<EmailAddress>` contributes `ValidatedPrism<String, EmailAddress>` ([Generic mix-ins](generics.md#generic-mix-ins)).
+- **A threaded generic spec extends mix-ins** at its own type parameters, generic mix-ins included ([Generic Specs](generics.md)).
+- **An `UpdateSpec` inherits vocabulary too**, element leaves included, so the leaf a full spec lifts over a `List` serves its PATCH sibling unchanged. Some members stay inert there even where they would bind: [Inherited vocabulary on a PATCH spec](#inherited-vocabulary-on-a-patch).
+- **A [`@GenerateMerge`](merge_envelopes.md) spec declares everything directly**, since it extends no mix-in.
 
 ### What an inherited member binds against {#what-an-inherited-member-binds-against}
 
@@ -236,6 +236,7 @@ An inherited member that binds to nothing stays inert, so one vocabulary can ser
 | `@MapKey` key leaf | the **domain**, by the name in the annotation | inert |
 | derived field | the **wire**, by the method's name | inert |
 | `@MapField` rename | **both**: its method names a domain component, its `to` a wire one | inert when either end is missing |
+| `@Unmapped` marker | the **wire**, by the accessor it names | inert |
 | `@Flatten` marker | the **domain**, by the method's name | inert; the one member also judged against the **wire**, so a sealed pair or an [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) can refuse it even where it binds |
 
 So a projection or a PATCH bean that deliberately carries a subset extends the same vocabulary as the full spec, and simply maps fewer of its members; a sealed dispatch, which has no components at all, inherits the same vocabulary and binds none of it. Nothing is silently mismapped by an inert member, because every wire component still has to name a source: a wire that does carry a rename's target and has no other source for it is reported against that component. The cost is that a `to` typed wrongly *in the mix-in* is now caught only where some spec's wire happens to carry the intended name, which is the same trade the other inherited kinds already make.

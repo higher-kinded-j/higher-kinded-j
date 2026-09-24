@@ -233,10 +233,11 @@ public final class StandardCodecs {
   /**
    * ISO-8601 instants in UTC ({@code 2026-07-28T12:34:56Z}), fractional seconds in the three-digit
    * groups {@code Instant.toString} renders ({@code .500Z} parses; {@code .5Z} and {@code .000Z}
-   * are rejections). A non-zero offset form belongs to {@link #offsetDateTime()}; a producer
-   * spelling UTC as {@code +00:00} needs {@link #offsetDateTime(DateTimeFormatter)} with an {@code
-   * xxx} offset pattern, because {@code Instant.parse} would normalise the offset away and the
-   * canonical guard rejects what does not render back.
+   * are rejections). A non-zero offset form belongs to {@link #offsetDateTime()}. A producer with
+   * another canon needs a {@link ValidatedPrism#canonical} leaf that renders it: a browser's {@code
+   * toISOString()} writes {@code .000Z} for whole seconds, which this codec rejects, and Python's
+   * {@code isoformat()} writes {@code +00:00} with six fraction digits, or none when the
+   * microseconds are zero, so no single pattern describes it.
    *
    * @return the cached codec (non-null)
    */
@@ -249,10 +250,12 @@ public final class StandardCodecs {
    * zero offset spelled {@code Z} ({@code +00:00} is a rejection — it parses to UTC, which renders
    * back as {@code Z}), and fractional seconds only when present, without trailing zeros ({@code
    * .5Z} parses; {@code .000Z} and {@code .50Z} are rejections). A producer emitting fixed
-   * three-digit milliseconds (JavaScript's {@code toISOString}) or {@code +00:00} offsets needs the
-   * {@link #offsetDateTime(DateTimeFormatter)} overload: {@code
-   * DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX")} accepts the former, an {@code xxx}
-   * offset pattern the latter.
+   * three-digit milliseconds (JavaScript's {@code toISOString}) needs the {@link
+   * #offsetDateTime(DateTimeFormatter)} overload with {@code
+   * DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX")}. An {@code xxx} offset pattern
+   * serves a {@code +00:00} producer only if it never writes a fraction: Python's {@code
+   * isoformat()} writes six digits unless the microseconds are zero, so it needs a {@link
+   * ValidatedPrism#canonical} leaf that picks the pattern by value.
    *
    * @return the cached codec (non-null)
    */

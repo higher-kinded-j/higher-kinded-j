@@ -6,18 +6,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.optics.validated.StandardCodecs.currency;
+import static org.higherkindedj.optics.validated.StandardCodecs.offsetDateTime;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.laws.MappingLaws;
+import org.higherkindedj.optics.laws.ValidatedPrismLaws;
 import org.higherkindedj.optics.validated.StandardCodecs;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.junit.jupiter.api.DisplayName;
@@ -70,14 +75,14 @@ class StandardCodecsBookTest {
   }
 
   @Test
-  void formatterOverloadsMakeTheProducersCanonTheCanon() {
+  void theProducerLeavesAcceptTheirProducersSpelling() {
     assertThatValidated(WireFormats.BROWSER_OFFSET.parse("2026-07-28T12:34:56.500Z")).isValid();
     assertThatValidated(WireFormats.BROWSER_OFFSET.parse("2026-07-28T12:34:56.5Z")).isInvalid();
     assertThatValidated(WireFormats.PYTHON_OFFSET.parse("2026-07-28T12:34:56+00:00")).isValid();
   }
 
   @Test
-  void aFormatterCanonIsThePatternsNotTheProducersOutputSet() {
+  void aPatternCanonIsThePatternsNotTheProducersOutputSet() {
     // toISOString() only ever emits Z, but the pattern round-trips any offset: lawful.
     assertThatValidated(WireFormats.BROWSER_OFFSET.parse("2026-07-28T12:34:56.500+01:00"))
         .isValid();
@@ -137,7 +142,8 @@ class StandardCodecsBookTest {
             new Cell("2026-07-28T12:34:56.5Z", false, true),
             new Cell("2026-07-28T12:34:56.123Z", true, true),
             new Cell("2026-07-28T12:34:56.000Z", false, false),
-            new Cell("2026-07-28T12:34:56+00:00", false, false));
+            new Cell("2026-07-28T12:34:56+00:00", false, false),
+            new Cell("2026-07-28T12:34:56+01:00", false, true));
     for (Cell cell : grid) {
       assertThat(StandardCodecs.instant().parse(cell.spelling()).isValid())
           .as("instant() on %s", cell.spelling())
@@ -149,8 +155,7 @@ class StandardCodecsBookTest {
   }
 
   @Test
-  @DisplayName(
-      "a browser's timestamps: instant() drops the whole seconds, BROWSER_INSTANT takes all")
+  @DisplayName("a browser's timestamps: instant() rejects .000Z, the browser leaves take all")
   void theBrowserLeavesTakeEveryToIsoStringSpelling() {
     for (String millis : List.of("000", "100", "120", "123")) {
       String spelling = "2026-07-28T12:34:56." + millis + "Z";
@@ -179,6 +184,48 @@ class StandardCodecsBookTest {
     assertThatValidated(WireFormats.PYTHON_OFFSET.parse("2026-07-28T12:34:56Z")).isInvalid();
     assertThat(StandardCodecs.offsetDateTime().parse("2026-07-28T12:34:56+00:00").isValid())
         .isFalse();
+
+    assertThatValidated(WireFormats.PYTHON_INSTANT.parse("2026-07-28T12:34:56+00:00")).isValid();
+    assertThatValidated(WireFormats.PYTHON_INSTANT.parse("2026-07-28T12:34:56.123456+00:00"))
+        .isValid();
+    assertThatValidated(WireFormats.PYTHON_INSTANT.parse("2026-07-28T12:34:56.123456+01:00"))
+        .isInvalid(); // an Instant component takes UTC only
+  }
+
+  @Test
+  @DisplayName("every producer leaf accepts whatever it builds, down to the nanosecond")
+  void everyProducerLeafAcceptsWhatItBuilds() {
+    List<Instant> moments =
+        List.of(
+            Instant.parse("2026-07-28T12:34:56Z"),
+            Instant.parse("2026-07-28T12:34:56.000000500Z"),
+            Instant.parse("2026-07-28T12:34:56.123456789Z"));
+    for (Instant moment : moments) {
+      OffsetDateTime time = moment.atOffset(ZoneOffset.ofHours(1));
+      assertThatValidated(
+              WireFormats.BROWSER_INSTANT.parse(WireFormats.BROWSER_INSTANT.build(moment)))
+          .isValid();
+      assertThatValidated(WireFormats.BROWSER_OFFSET.parse(WireFormats.BROWSER_OFFSET.build(time)))
+          .isValid();
+      assertThatValidated(WireFormats.PYTHON_OFFSET.parse(WireFormats.PYTHON_OFFSET.build(time)))
+          .isValid();
+      assertThatValidated(
+              WireFormats.PYTHON_INSTANT.parse(WireFormats.PYTHON_INSTANT.build(moment)))
+          .isValid();
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "a millisecond pattern truncates a finer Instant on build, and the law check says so")
+  void aMillisecondPatternTruncatesAFinerInstant() {
+    Instant fine = Instant.parse("2026-07-28T12:34:56.123456Z");
+
+    assertThat(WireFormats.BROWSER_INSTANT.build(fine)).isEqualTo("2026-07-28T12:34:56.123Z");
+    assertThatThrownBy(() -> ValidatedPrismLaws.assertParseBuild(WireFormats.BROWSER_INSTANT, fine))
+        .isInstanceOf(AssertionError.class);
+    ValidatedPrismLaws.assertParseBuild(
+        WireFormats.BROWSER_INSTANT, fine.truncatedTo(ChronoUnit.MILLIS));
   }
 
   @Test
@@ -195,15 +242,17 @@ class StandardCodecsBookTest {
   }
 
   @Test
-  @DisplayName("plain offsetDateTime() rejects a browser millisecond value that ends in zero")
-  void offsetDateTimeRejectsTrailingZeroMillis() {
+  @DisplayName("plain offsetDateTime() rejects one browser timestamp in ten")
+  void offsetDateTimeRejectsOneBrowserTimestampInTen() {
     // ANCHOR: check_browser_offset
-    ValidatedPrism<String, OffsetDateTime> placedAt = StandardCodecs.offsetDateTime();
+    List<String> sent = // every millisecond value, as toISOString() writes it
+        IntStream.range(0, 1000).mapToObj("2026-07-28T12:34:56.%03dZ"::formatted).toList();
 
-    assertThatValidated(placedAt.parse("2026-07-28T12:34:56.123Z")).isValid();
-    for (String millis : List.of("120", "100", "000")) { // it renders .12Z, .1Z and no fraction
-      assertThatValidated(placedAt.parse("2026-07-28T12:34:56." + millis + "Z")).isInvalid();
-    }
+    List<String> rejected =
+        sent.stream().filter(spelling -> offsetDateTime().parse(spelling).isInvalid()).toList();
+    assertThat(rejected).hasSize(100).allMatch(spelling -> spelling.endsWith("0Z"));
+
+    assertThat(sent).allMatch(spelling -> WireFormats.BROWSER_OFFSET.parse(spelling).isValid());
     // ANCHOR_END: check_browser_offset
   }
 

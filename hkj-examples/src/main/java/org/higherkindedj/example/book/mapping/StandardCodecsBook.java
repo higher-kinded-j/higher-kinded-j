@@ -2,12 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+// ANCHOR: codecs_imports
 import static org.higherkindedj.optics.validated.StandardCodecs.bigDecimal;
 import static org.higherkindedj.optics.validated.StandardCodecs.enumByName;
 import static org.higherkindedj.optics.validated.StandardCodecs.instant;
 import static org.higherkindedj.optics.validated.StandardCodecs.localDate;
 import static org.higherkindedj.optics.validated.StandardCodecs.offsetDateTime;
 import static org.higherkindedj.optics.validated.StandardCodecs.uuid;
+// ANCHOR_END: codecs_imports
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -41,7 +43,7 @@ public final class StandardCodecsBook {
 
   public static void main(String[] args) {
     // ANCHOR: mixin_usage
-    // One vocabulary, two mappings: the inherited rename and leaves apply to both.
+    // One vocabulary, two mappings: the rename and email leaf apply to both, phone to Supplier.
     Validated<NonEmptyList<FieldError>, Client> client =
         ClientMappingImpl.INSTANCE.parse(new ClientDto("Ada Lovelace", "not-an-email"));
     // Invalid(NonEmptyList[email: not an email address])
@@ -89,7 +91,8 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {
 
 // ANCHOR: codecs_formatters
 final class WireFormats {
-  // A browser's toISOString(): always three fraction digits, and Z.
+  // A browser's toISOString(): always three fraction digits, and Z. withZone lets it write an
+  // Instant.
   private static final DateTimeFormatter BROWSER =
       DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSX").withZone(ZoneOffset.UTC);
 
@@ -100,7 +103,8 @@ final class WireFormats {
           raw -> Instant.from(BROWSER.parse(raw)),
           BROWSER::format);
 
-  // For an OffsetDateTime component, the formatter overload declares the same canon.
+  // For an OffsetDateTime component, the formatter overload takes the browser's spelling, at any
+  // offset.
   static final ValidatedPrism<String, OffsetDateTime> BROWSER_OFFSET =
       offsetDateTime(DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"));
 
@@ -114,7 +118,14 @@ final class WireFormats {
       ValidatedPrism.canonical(
           "not a Python isoformat() timestamp (expected e.g. 2026-07-28T12:34:56.123456+00:00)",
           OffsetDateTime::parse,
-          time -> time.format(time.getNano() == 0 ? WHOLE_SECONDS : MICROSECONDS));
+          time -> time.format(time.getNano() / 1_000 == 0 ? WHOLE_SECONDS : MICROSECONDS));
+
+  // For an Instant component: the same two shapes, with the offset fixed at +00:00.
+  static final ValidatedPrism<String, Instant> PYTHON_INSTANT =
+      ValidatedPrism.canonical(
+          "not a Python isoformat() UTC timestamp (expected e.g. 2026-07-28T12:34:56.123456+00:00)",
+          raw -> OffsetDateTime.parse(raw).toInstant(),
+          instant -> PYTHON_OFFSET.build(instant.atOffset(ZoneOffset.UTC)));
 
   private WireFormats() {}
 }
