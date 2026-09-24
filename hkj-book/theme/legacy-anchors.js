@@ -9,14 +9,21 @@
 //
 // An entry maps an old "page.html#fragment" to its new "page.html#fragment",
 // relative to the book root. Matching is on the path suffix, so the same entry
-// works under /latest/ and under a versioned copy; a frozen older version
-// keeps its own anchors and is unaffected, because it ships its own copy of
-// this file.
+// works under /latest/ and under a versioned copy. A re-deployed version is
+// built with the current theme, so it runs this map too: an older copy of a
+// page that still carries the fragment keeps the reader, because a fragment
+// that resolves on the page is never redirected.
 (function () {
   "use strict";
 
   var MOVED = {
-    // "mapping/basics.html#optional-bridge": "mapping/absence.html#optional-bridge",
+    "mapping/basics.html#the-null-contract-precisely": "mapping/rules.html#the-null-contract-precisely",
+    "mapping/basics.html#same-typed-containers-cross-as-copies": "mapping/rules.html#same-typed-containers-cross-as-copies",
+    "mapping/basics.html#how-the-two-default-families-are-told-apart": "mapping/rules.html#how-the-two-default-families-are-told-apart",
+    "mapping/basics.html#derived-fields-and-the-emission-tiers": "mapping/rules.html#derived-fields-and-the-emission-tiers",
+    "mapping/structure.html#how-a-dependencys-specs-are-found": "mapping/rules.html#how-a-dependencys-specs-are-found",
+    "mapping/codecs.html#admonition-the-inheritance-edge-cases-precisely": "mapping/rules.html#inheriting-one-member-twice",
+    "mapping/generics.html#admonition-boundaries": "mapping/rules.html#generic-boundaries",
   };
 
   function target() {

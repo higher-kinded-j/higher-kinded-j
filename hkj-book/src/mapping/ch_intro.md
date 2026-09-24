@@ -172,7 +172,8 @@ Those pages teach the model and put it behind an endpoint. Everything after them
 - A PATCH endpoint, or a getter/setter DTO: [Beans and Sparse PATCH](beans_patch.md)
 - A `Page<T>` at the boundary: [Generic Specs](generics.md)
 - Combining several sources, or typing your error context: [Merge and Error Envelopes](merge_envelopes.md)
-- Spring beans, test fakes, and the feature's limits: [Injecting, Testing, and Diagnostics](testing.md)
+- A rule, a limit, or a runtime surprise to look up: [Rules and Limits](rules.md)
+- Spring beans, test fakes, and how wide a record may be: [Injecting, Testing, and Diagnostics](testing.md)
 
 ~~~admonish info title="In This Chapter"
 - **Record Mapping Basics**: Declare a mapping as one empty interface and get both directions: a `build` that cannot fail and a `parse` that reports every bad field at once. Then add conversions, renames, computed fields, the one field whose `null` means *absent*, and a record's own invariants.
@@ -202,10 +203,11 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 6. [Beans and Sparse PATCH](beans_patch.md): Bean wires and the UpdateSpec tier
 7. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
 8. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
-9. [Injecting, Testing, and Diagnostics](testing.md): Beans, fakes, and limits
+9. [Injecting, Testing, and Diagnostics](testing.md): Beans, fakes, and width
 10. [Capstone: One 422, Every Bad Field](capstone.md): The whole chapter on one boundary, proven
 11. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
 12. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
+13. [Rules and Limits](rules.md): Every enforced rule and limit, in one place
 
 ---
 

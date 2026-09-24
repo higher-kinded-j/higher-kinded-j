@@ -69,7 +69,7 @@ mapping nests inside another.
 | The generated Impl is bound in the caller, never as a constant on the spec | Class initialisation can leave that constant `null`, intermittently | `XImpl.INSTANCE` at the call site, or an injected surface: [why](basics.md#bind-in-the-caller) |
 
 Everything the processor refuses says so at compile time, with what is wrong, why it matters and
-the code to write. The complete set is in [Diagnostics and limits](testing.md#diagnostics-and-limits).
+the code to write. The complete set is in [Rules and Limits](rules.md).
 
 ---
 
@@ -133,7 +133,7 @@ blocker. Each ❌ means keep what you have for that case.
 - Five steps to a working endpoint: [Quickstart](quickstart.md)
 - Coming from another mapper: [Coming from MapStruct and Bean Validation](from_mapstruct.md)
 - What each spec shape generates: [The Emission Tiers](tiers.md)
-- The complete set of limits: [Diagnostics and limits](testing.md#diagnostics-and-limits)
+- The complete set of limits: [Rules and Limits](rules.md)
 ~~~
 
 ---

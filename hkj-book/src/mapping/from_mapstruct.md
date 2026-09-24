@@ -95,3 +95,4 @@ that check belongs after the boundary, on the [effect railway](../effect/ch_intr
 ---
 
 **Previous:** [Mapper at a Glance](at_a_glance.md)
+**Next:** [Rules and Limits](rules.md)
