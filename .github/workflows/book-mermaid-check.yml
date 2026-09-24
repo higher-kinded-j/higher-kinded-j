@@ -1,4 +1,4 @@
-name: Book Mermaid Parse Check
+name: Book Checks
 
 # Three things the published book cannot tell you are broken until a reader
 # sees them, so they fail the PR instead:
@@ -9,6 +9,9 @@ name: Book Mermaid Parse Check
 #     the <s> element and silently strikes through the rest of the page;
 #   - every cross-reference is resolved, because a link into a heading that has
 #     been reworded lands the reader at the top of the page and says nothing.
+# One more reports without failing: the prose of the book's pages is measured
+# against the style guide's readability limits and compared with a committed
+# baseline, so a pull request that adds a long sentence says so in its checks.
 # No branches filter on pull_request: stacked PRs are checked too.
 on:
   pull_request:
@@ -18,6 +21,9 @@ on:
       - '.github/scripts/mermaid-check/**'
       - '.github/scripts/book-heading-html-check.cjs'
       - '.github/scripts/book-anchor-check.cjs'
+      - '.github/scripts/book-prose.cjs'
+      - '.github/scripts/book-readability-check.cjs'
+      - '.github/scripts/book-readability-baseline.json'
       - '.github/workflows/book-mermaid-check.yml'
   push:
     branches: [ "main" ]
@@ -27,6 +33,9 @@ on:
       - '.github/scripts/mermaid-check/**'
       - '.github/scripts/book-heading-html-check.cjs'
       - '.github/scripts/book-anchor-check.cjs'
+      - '.github/scripts/book-prose.cjs'
+      - '.github/scripts/book-readability-check.cjs'
+      - '.github/scripts/book-readability-baseline.json'
       - '.github/workflows/book-mermaid-check.yml'
 
 permissions:
@@ -61,3 +70,8 @@ jobs:
 
       - name: Parse-check mermaid diagrams
         run: node .github/scripts/mermaid-check/check.cjs
+
+      # Last, and even when a check before it failed: a report, not a gate.
+      - name: Report readability against the baseline
+        if: ${{ !cancelled() }}
+        run: node .github/scripts/book-readability-check.cjs
