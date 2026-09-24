@@ -113,7 +113,7 @@ A half has no round trip, so neither law below applies to it, and `andThen`, `to
 
 ---
 
-## Laws
+## Laws {#laws}
 
 A lawful validated boundary satisfies both round trips, verified with [`ValidatedPrismLaws`](../tooling/test_assertions.md) from `hkj-test`:
 

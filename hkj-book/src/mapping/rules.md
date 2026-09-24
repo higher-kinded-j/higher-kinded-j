@@ -19,6 +19,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | **Optional fields** | | |
 | [Can a bridged component be declared non-null, or primitive?](#bridged-component-nullable) | No: `build` writes `null` for empty, so declare it `@Nullable`. | by design |
 | [Can a sparse or sealed spec declare `@OptionalBridge`?](#bridged-component-nullable) | No; one inherited from a mix-in stays inert. | by design |
+| [Can a bean spec declare `@OptionalBridge`?](#optional-bridge-on-a-bean-wire) | Yes, but it changes nothing: the processor answers with a note. | by design |
 | **Shared vocabulary** | | |
 | [Does a mix-in need the annotation processor?](structure.md#across-modules) | No: a mix-in is a plain interface, not a spec. | by design |
 | [Can a mix-in extend `MappingSpec`?](#refused-mix-in-shapes) | No: a mix-in shares vocabulary; a spec generates an Impl. | by design |
@@ -44,7 +45,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [What if two dependencies map the same pair?](#how-a-dependencys-specs-are-found) | Ambiguous: your own spec, or a leaf, picks one. | by design |
 | [Can a spec-carrying module sit on the module path?](#how-a-dependencys-specs-are-found) | Not with the index: keep those jars on the classpath, or delegate with a leaf. | not supported yet |
 | **Emission tiers** | | |
-| [Why does a bean mapping lose `asIso()`?](#where-a-bean-or-bridged-component-lands) | A reference property can be unset; an all-primitive bean keeps it. | by design |
+| [Why does a bean mapping, or an `@OptionalBridge` component, lose `asIso()`?](#where-a-bean-or-bridged-component-lands) | A reference property can be unset, and a bridged value can be absent. An all-primitive bean keeps it. | by design |
 | [Why does a validating projection get no `asLens()`?](tiers.md#leaf-carrying-projections-the-validated-patch) | A lens cannot fail, so it takes the validated `patch`. | by design |
 | [How wide can a record be?](testing.md#diagnostics-and-limits) | No ceiling but the JVM's: about 254 components. | by design |
 | **Bean wires** | | |
@@ -78,6 +79,8 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | What you see | Why, and the fix |
 |---|---|
 | [`MAPPER.parse` throws a `NullPointerException`, sometimes](basics.md#bind-in-the-caller) | A constant on the spec can read `null`: bind the Impl in the caller. |
+| [A bad date or enum got Jackson's 400, with no field path](basics.md#validated-leaves) | Jackson rejected a typed wire field before `parse` ran: keep a converted wire field a `String`. |
+| [A field the client left out reports `must not be null`](absence.md#optional-bridge) | Only `@OptionalBridge` lets a field be left out; a whole-`Optional` leaf still rejects `null`. |
 | [A PATCH that omits a field overwrote the stored value](beans_patch.md#patch-getters-answer-null) | A default the bean gives itself reads as sent: leave PATCH bean fields uninitialised. |
 | [An explicit JSON `null` cleared an `Optional` PATCH property](beans_patch.md#what-each-json-state-does) | Jackson binds it to `Optional.empty()`, which means *clear* there: omit the field to leave it unchanged. |
 | [`build` throws on an empty `Optional`](beans.md#bean-shaped-wire-targets) | A setter, builder or record constructor rejects `null` without declaring it: drop the `Optional`, or encode absence in a leaf. |
@@ -149,9 +152,59 @@ The same holds for every site `build` writes an empty `Optional` into: a record 
 
 Any annotation named `Nullable` or `CheckForNull` counts here, whichever library it comes from, and so does JSR-305's `@Nonnull(when = MAYBE)`: this rule refuses a build, so it reads more widely than the fixed list of names that decides which Focus paths are null-safe. A component typed by a type variable follows the variable's bounds: a plain `<T>` declared in a `@NullMarked` scope is non-null, as its bound `Object` is, and `<T extends @Nullable Object>` leaves the nullness to the type argument, so it bridges.
 
+### `@OptionalBridge` on a bean wire is redundant {#optional-bridge-on-a-bean-wire}
+
+**Declaring `@OptionalBridge` on a bean spec changes nothing, and the processor answers with a note, not an error.** A bean wire already bridges a domain `Optional` to its nullable property, so the mapping is generated exactly as it would be without the annotation. Remove it, or keep it on a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) that a record-wire spec shares. A marker inherited from such a mix-in draws nothing. One declared on the bean spec itself draws this note:
+
+<!-- verify:reports "@OptionalBridge on 'nickname' is redundant on a bean wire" -->
+```java
+import java.util.Optional;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.annotations.OptionalBridge;
+
+record Guest(String name, Optional<String> nickname) {}
+
+class GuestBean {
+  private String name;
+  private String nickname;
+
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+  public String getNickname() { return nickname; }
+  public void setNickname(String nickname) { this.nickname = nickname; }
+}
+
+@GenerateMapping
+interface GuestMapping extends MappingSpec<Guest, GuestBean> {
+  @OptionalBridge
+  Optional<String> nickname();
+}
+```
+
+The processor says:
+
+```
+@GenerateMapping: @OptionalBridge on 'nickname' is redundant on a bean wire. A bean wire
+bridges a domain Optional to its nullable property automatically, because bean conventions
+leave Optional off property types; the annotation opts a RECORD wire into the same
+correspondence. Remove the annotation, or keep it if the vocabulary is shared with a
+record-wire spec.
+```
+
 ### Which surfaces a constructor's refusal reaches {#constructor-refusal-surfaces}
 
-The [constructor guard](absence.md#constructor-invariants) covers every surface that builds the record whole from parsed parts: the [projection's `patch`](tiers.md#leaf-carrying-projections-the-validated-patch), a [flattened](structure.md#flattening-a-nested-component-onto-a-flat-wire) group, the fallible [`@GenerateMerge`](merge_envelopes.md), and [`@GenerateAssembly`](../monads/validated_assembly.md#generating-the-companion-generateassembly)'s `assemble()`. The [sparse `UpdateSpec` tier](#sparse-construct-once) constructs the record once, from the values the PATCH ends on, and its `apply` reports a refusal the same way, unlabelled; a nested record the PATCH replaces whole parses through its own spec, guard included. Three surfaces cannot return an error, so there the exception propagates: `asIso().reverseGet` and a projection's `asLens().set`, total optics meant for values already known to be lawful, and the `Update` a sparse update's `toValidated()` hands back.
+**A constructor's refusal becomes an error wherever the surface can return one.** The [constructor guard](absence.md#constructor-invariants) covers every surface that builds the record whole from parsed parts:
+
+| Surface | A refusal becomes | Why |
+|---|---|---|
+| `parse`, a [projection's `patch`](tiers.md#leaf-carrying-projections-the-validated-patch), a [flattened](structure.md#flattening-a-nested-component-onto-a-flat-wire) group, the fallible [`@GenerateMerge`](merge_envelopes.md), [`@GenerateAssembly`](../monads/validated_assembly.md#generating-the-companion-generateassembly)'s `assemble()` | a `FieldError`, unlabelled at the top level, or under the component holding a nested or flattened record | each returns `Validated` |
+| `apply` and `applyPath` on the `Edits.Accumulated` a [sparse `updateFrom`](#sparse-construct-once) returns | an unlabelled `FieldError` | the record is constructed once, from the values the PATCH ends on |
+| `asIso().reverseGet`, a projection's `asLens().set` | the exception, propagated | these total optics are meant for values already known to be lawful |
+| a plain-return [`@GenerateMerge`](#nulls-and-guards-in-a-merge) | the exception, propagated | its return type has no error channel |
+| the `Update` a sparse update's `toValidated()` hands back | the exception, propagated | an `Update` has no error channel |
+
+A nested record the PATCH replaces whole parses through its own spec, guard included.
 
 ---
 
