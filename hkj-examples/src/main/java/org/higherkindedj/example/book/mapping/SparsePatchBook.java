@@ -79,8 +79,9 @@ public final class SparsePatchBook {
 }
 
 // ANCHOR: update_spec
-// A PATCH request bean. Here null means "not provided, leave unchanged" - the opposite of the bean
-// parse above, where null is broken data. That contract is opted into by extending UpdateSpec.
+// A PATCH request bean. Here null means "not provided, leave unchanged" - the opposite of a full
+// bean parse (Bean-Shaped Wires), where null is broken data. That contract is opted into by
+// extending UpdateSpec.
 class ContactPatchBean {
   private String name;
   private String email;
