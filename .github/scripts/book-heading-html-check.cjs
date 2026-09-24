@@ -23,38 +23,17 @@
 
 const fs = require("fs");
 const path = require("path");
+const { markdownFiles, linesAsProse } = require("./book-prose.cjs");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const bookSrc = path.join(repoRoot, "hkj-book", "src");
 
-/** Every .md under hkj-book/src, depth first. */
-function markdownFiles(dir) {
-  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) return markdownFiles(full);
-    return entry.isFile() && entry.name.endsWith(".md") ? [full] : [];
-  });
-}
-
 /**
- * A fence closes only on its own marker, so the ``` blocks nested inside a
- * ~~~admonish block do not end it. Tracking the open marker rather than a
- * boolean is what keeps the two kinds from cancelling each other out.
+ * Headings the reader meets: those outside code fences, including the ones in
+ * an admonition's body, which mdbook-admonish renders as real headings.
  */
 function headingsOutsideFences(text) {
-  const headings = [];
-  let fence = null;
-  text.split("\n").forEach((line, i) => {
-    const marker = line.match(/^\s*(`{3,}|~{3,})/);
-    if (marker) {
-      const [char, len] = [marker[1][0], marker[1].length];
-      if (!fence) fence = { char, len };
-      else if (char === fence.char && len >= fence.len) fence = null;
-      return;
-    }
-    if (!fence && line.startsWith("#")) headings.push({ line: i + 1, text: line });
-  });
-  return headings;
+  return linesAsProse(text).filter(({ text: line }) => line.startsWith("#"));
 }
 
 let failures = 0;
