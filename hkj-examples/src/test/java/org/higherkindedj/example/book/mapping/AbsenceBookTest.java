@@ -67,6 +67,17 @@ class AbsenceBookTest {
   }
 
   @Test
+  @DisplayName("the per-item limit rounds up, so a remainder cannot slip past it")
+  void thePerItemLimitRoundsUp() {
+    assertThatValidated(
+            BasketMappingImpl.INSTANCE.parse(new BasketDto("B-8", new BulkDiscountDto(1001, 2))))
+        .hasFieldErrors("discount: at most 500p off per item");
+    assertThatValidated(
+            BasketMappingImpl.INSTANCE.parse(new BasketDto("B-9", new BulkDiscountDto(1000, 2))))
+        .isValid();
+  }
+
+  @Test
   @DisplayName("a constructor's refusal locates where its record does")
   void aRefusalLocatesWhereItsRecordDoes() {
     StayDto reversed = new StayDto("2026-03-09", "2026-03-07");

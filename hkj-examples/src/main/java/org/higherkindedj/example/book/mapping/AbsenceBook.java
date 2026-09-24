@@ -144,7 +144,7 @@ interface PatronMapping extends MappingSpec<Patron, PatronDto> {
 // A basket's discount, spread over its items: at most 500p off each.
 record BulkDiscount(int totalPence, int items) {
   BulkDiscount {
-    if (totalPence / items > 500) {
+    if (Math.ceilDiv(totalPence, items) > 500) { // rounds up, so 1001p over 2 items is 501p
       throw new IllegalArgumentException("at most 500p off per item");
     }
   }
