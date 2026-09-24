@@ -41,7 +41,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> { ... }
 ```
 
     ``` java
-    {{#include ../../../hkj-examples/src/main/java/.../RecordMappingBook.java:leaf_spec}}
+    {{#include ../../../hkj-examples/src/main/java/.../BasicsBook.java:leaf_spec}}
     ```
 
 Two things matter:

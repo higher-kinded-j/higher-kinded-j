@@ -12,7 +12,7 @@ Two more generators complete the family. `@GenerateMerge` covers the assembly a 
 ~~~
 
 ~~~admonish example title="See Example Code"
-**The code on this page is [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java) and [OrderErrorBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/OrderErrorBook.java)** - the page includes them directly, so they are compiled and run by the build.
+**The code on this page is [MergeBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/MergeBook.java) and [OrderErrorBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/OrderErrorBook.java)** - the page includes them directly, so they are compiled and run by the build.
 ~~~
 
 ## Merging several sources: `@GenerateMerge` {#merging-several-sources-generatemerge}
@@ -20,15 +20,15 @@ Two more generators complete the family. `@GenerateMerge` covers the assembly a 
 A merge is declared entirely by a spec method's signature: **several** sources in, one target out. No class literals are needed, and no inverse is generated (a merge is not invertible, so offering one would be a lie the tiers never tell):
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:merge_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/MergeBook.java:merge_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:merge_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/MergeBook.java:merge_usage}}
 ```
 
 Each target component fills from the one source with a same-named component: identity when the types match (a same-typed container fills with a [copy](rules.md#same-typed-containers-cross-as-copies)), through a `ValidatedPrism` leaf when they differ, or through a sibling `@GenerateMapping` spec (the `customer` below parses through `CustomerMappingImpl`, and failures locate as dotted paths):
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:nested_merge_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/MergeBook.java:nested_merge_spec}}
 ```
 
 Ambiguity (two sources carrying the component) and unfilled components are compile errors, and the return type must tell the truth: fallible fills demand the `Validated` return; an identity-only merge must declare the plain target.

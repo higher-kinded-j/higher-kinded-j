@@ -29,7 +29,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>The {@code accumulate} region here is the hand-written REST PATCH; when the DTO maps
  * one-to-one to a domain record, {@code @GenerateMapping} on an {@code UpdateSpec} generates the
- * same fold — see {@code RecordMappingBook}'s {@code update_spec}/{@code update_usage} regions.
+ * same fold — see {@code SparsePatchBook}'s {@code update_spec}/{@code update_usage} regions.
  */
 public final class MultiEditBook {
 

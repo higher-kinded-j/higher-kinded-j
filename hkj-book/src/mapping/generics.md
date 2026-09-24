@@ -12,7 +12,7 @@ A generic record (`Page<T>`, `Result<E, A>`) raises a question a non-generic pai
 ~~~
 
 ~~~admonish example title="See Example Code"
-**The code on this page is [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java)** - the page includes it directly, so it is compiled and run by the build.
+**The code on this page is [GenericsBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java)** - the page includes it directly, so it is compiled and run by the build.
 ~~~
 
 ## Concrete instantiations
@@ -20,9 +20,9 @@ A generic record (`Page<T>`, `Result<E, A>`) raises a question a non-generic pai
 As a **concrete instantiation**, name the type arguments in the spec and every component classifies under that substitution, so the whole toolkit (leaves, nesting, containers, the null doctrine, index location) applies unchanged:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:generic_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:generic_usage}}
 ```
 
 An instantiated mapping registers like any other, so `Report(Page<Customer> results)` nests it automatically.
@@ -34,9 +34,9 @@ An instantiated mapping registers like any other, so `Report(Page<Customer> resu
 As a **threaded spec**, declare the spec generic in its own type parameters and one mapping serves every instantiation. Same-variable elements copy by identity under the null-element scan (a `null` element is `items.1: must not be null`, never a smuggled null), and the whole surface (`build`, `parse`, `asIso` on a lossless pair) is generic:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:threaded_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:threaded_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:threaded_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:threaded_usage}}
 ```
 
 A generic Impl cannot carry a typed static `INSTANCE`, so it follows the library's generic-singleton convention (`EitherMonad.instance()`): one stateless cached instance behind `PageMappingImpl.instance()`. Multi-parameter and bounded specs thread too (`ResultMapping<E, A>`, `RankedMapping<T extends Number>`), and a same-typed `default` leaf (`ValidatedPrism<T, T>`) still routes elements.
@@ -44,7 +44,7 @@ A generic Impl cannot carry a typed static `INSTANCE`, so it follows the library
 In assignment context the witness is inferred, so plain `instance()` reads naturally; the explicit `PageMappingImpl.<String>instance()` form is only needed where Java cannot infer:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:threaded_inferred}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:threaded_inferred}}
 ```
 
 A threaded spec nests too: a use site's type arguments unify against the spec's declared pair, so `Report(Page<String> results)` resolves `PageMapping<T>` as `PageMappingImpl.<String>instance()`, and a generic outer spec may thread its own variable straight through.
@@ -68,7 +68,7 @@ The three access shapes are one rule, not three conventions: *how much state doe
 A mix-in may declare type parameters of its own. Its members are read under the spec's instantiation, so a shared vocabulary interface parameterised by the type it speaks about contributes at the type the spec gives it:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:generic_mixin_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:generic_mixin_spec}}
 ```
 
 `name()` says `T` where it is declared and `String` where the spec has it, and that is what the generated Impl carries. It holds however many interfaces separate the two, and a spec's own parameters survive as themselves, because the Impl declares them.
@@ -82,9 +82,9 @@ The one shape this cannot answer for is a **raw** supertype anywhere on the rout
 The third form is **element-mapped**: thread the two sides under *different* variables (`Page<T> ↔ PageDto<TDto>`) and declare the element mapping as an **abstract leaf**. Nothing on the spec can parse a `TDto` into a `T`, so the generated Impl defers it: each abstract leaf becomes a constructor-supplied field behind a public `of(...)` factory, one `ValidatedPrism` per leaf in declaration order:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:element_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:element_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:element_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:element_usage}}
 ```
 
 The Impl carries the prisms as state, so there is no singleton in either spelling: every `of(...)` call is a fresh, immutable instance. Build one where it is used and reuse it, rather than calling `of(...)` for every parse.

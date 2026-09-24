@@ -10,7 +10,7 @@ _Let a field's `null` mean absent, and get a record constructor's refusal back a
 ~~~
 
 ~~~admonish example title="See Example Code"
-**The code on this page is [RecordMappingBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java)** - the page includes it directly, so it is compiled and run by the build.
+**The code on this page is [AbsenceBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java)** - the page includes it directly, so it is compiled and run by the build.
 ~~~
 
 ## Optional fields: `@OptionalBridge` {#optional-bridge}
@@ -20,7 +20,7 @@ Sometimes a wire `null` is not a defect: it is how the client says *this field i
 Say so per component with `@OptionalBridge`, and the pair maps in both directions:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:bridge_spec}}
 ```
 
 ```
@@ -30,7 +30,7 @@ Say so per component with `@OptionalBridge`, and the pair maps in both direction
 ```
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:bridge_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:bridge_usage}}
 ```
 
 The annotation has **two placements**, and which one a component takes is decided by one question: does the present value need a leaf?
@@ -132,9 +132,9 @@ A bridged component is a non-identity correspondence, so the mapping does not ga
 A domain record often guards itself: a compact constructor that throws when its components disagree. `parse` keeps that guard and still returns a value. Once every component of the record has parsed, the generated code calls its canonical constructor, and a `RuntimeException` the constructor throws becomes a `FieldError` at the record's own path, carrying the exception's message:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:invariant_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:invariant_spec}}
 
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/RecordMappingBook.java:invariant_usage}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:invariant_usage}}
 ```
 
 The second stay fails at `stays.1`, and the missing guest is still reported beside it. The rules:
