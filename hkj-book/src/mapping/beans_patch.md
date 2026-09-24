@@ -60,10 +60,10 @@ The processor writes `ContactPatchMappingImpl`, with one method, `updateFrom(wir
 Each property lands one of three ways:
 
 - **Sent and valid**: the value is written, parsed through its leaf if it has one.
-- **Sent and invalid**: a located `FieldError`, accumulated with the rest. Sparseness never weakens validation of what *was* sent.
+- **Sent and invalid**: a located `FieldError`, accumulated with the rest. Sparseness never weakens validation of what *was* sent. The one error with no path is a refusal from the record's own [constructor](#fields-a-constructor-checks-together).
 - **Omitted**: skipped, so the domain's current value survives.
 
-`updateFrom` returns an `Edits.Accumulated<Domain>`. Its `apply(current)` returns a `Validated`: the patched record, or every located `FieldError`, with nothing half written. `applyPath(current)` returns the same result as a [`ValidationPath`](../effect/path_validation.md).
+`updateFrom` returns an `Edits.Accumulated<Domain>`. Its `apply(current)` returns a `Validated`: the patched record, or every `FieldError`, with nothing half written. `applyPath(current)` returns the same result as a [`ValidationPath`](../effect/path_validation.md).
 
 ~~~admonish tip title="At the Spring boundary"
 The hkj-spring example app serves `PATCH /api/users/{id}` through this tier. [Sparse PATCH at the Spring boundary](../spring/spring_boot_integration.md#sparse-patch) walks the controller, whose one error channel answers an unknown id with 404 and a bad field with 400, and its slice test. A boundary with the current value in hand can return `applyPath(current)` and take [the 422 leg](../spring/spring_boot_integration.md#the-422-leg) instead.
@@ -236,7 +236,7 @@ The processor refuses a PATCH spec it cannot honour, and names the fix. The last
 
 ~~~admonish info title="Key Takeaways"
 * **Sparse semantics are an explicit opt-in**: `UpdateSpec` gives a PATCH bean null-as-absent, and nothing is inferred from the shape alone
-* **Sparseness never weakens validation**: present fields still parse through their leaves, and every bad one is a located, accumulated `FieldError`
+* **Sparseness never weakens validation**: present fields still parse through their leaves, and every bad one is a located, accumulated `FieldError`, while a constructor's refusal comes back with no path
 * **A PATCH bean carries no defaults**: each getter answers `null` until set, and the sparse identity law, given a freshly constructed bean, catches one that does not
 * **Only an `Optional` property can be cleared**: an explicit `null` clears it, and on any other property a `null` keeps the value
 ~~~
