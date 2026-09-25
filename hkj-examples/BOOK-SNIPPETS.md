@@ -58,8 +58,8 @@ Compiles the code in the repo's documentation against the real library, so a pag
 from the API without failing the build. Two roots are covered:
 
 - **`hkj-book/src`**, the book.
-- **`.claude/skills`**, the Claude Code skills, which the build plugins install into consumer
-  projects. These were the last documentation nothing compiled, and it showed: a code review found
+- **`.claude/skills`**, the Claude Code skills. The build plugins install the `hkj-*` ones into
+  consumer projects. These were the last documentation nothing compiled, and it showed: a code review found
   four undefined identifiers in them in a single pass (`emailPrism()`, `unlabelled`, `outOfStock`,
   `notFound`). A skill is read by an assistant that generates code from it, so a wrong snippet there
   becomes code that does not build in someone's project.

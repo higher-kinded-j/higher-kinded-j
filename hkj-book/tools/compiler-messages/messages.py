@@ -60,10 +60,7 @@ final class LabelCodecs {
 }
 """
 
-# (group title, group id, [entries]); an entry is a dict:
-#   id, fragment (heading and marker), heading (the message as the heading quotes it),
-#   meaning, fix, rule (markdown link text + target), code, and optionally kind="note"
-#   (verify:reports) or statements (a call-site snippet).
+# (group title, group id, [entries]). README.md beside this file describes each entry's fields.
 GROUPS = [
     ("Spec members", "spec-members", [
         dict(id="no-wire-counterpart",

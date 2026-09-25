@@ -55,6 +55,7 @@ jobs:
         with:
           node-version: '22'
 
+      # hkj-book/check.sh runs these same steps locally, in this order; keep the two in step.
       - name: Check headings for raw HTML
         run: node .github/scripts/book-heading-html-check.cjs
 

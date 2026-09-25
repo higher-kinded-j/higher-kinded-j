@@ -29,11 +29,24 @@ def classpath(name):
     path = CLASSPATHS / name
     if not path.exists():
         sys.exit(f"{path} is missing: run `./gradlew :hkj-examples:bookMessagesClasspath` first.")
-    return path.read_text().strip()
+    return path.read_text(encoding="utf-8").strip()
 
 
 CP = classpath("classpath.txt")
 PP = classpath("processorpath.txt")
+JAVAC = classpath("javac.txt")
+
+
+def release():
+    """The feature release of the toolchain's javac: --enable-preview accepts only that release."""
+    out = subprocess.run([JAVAC, "-version"], capture_output=True, encoding="utf-8")
+    found = re.search(r"javac (\d+)", out.stdout + out.stderr)
+    if not found:
+        sys.exit(f"cannot read the release from `{JAVAC} -version`: {out.stdout}{out.stderr}")
+    return found.group(1)
+
+
+RELEASE = release()
 
 SHORT = {
     "no-wire-counterpart": "A domain component has no same-named wire component",
@@ -124,24 +137,28 @@ def probe(entry):
         tmp = pathlib.Path(tmp)
         (tmp / "com/example").mkdir(parents=True)
         src = tmp / "com/example/Probe.java"
-        src.write_text(source)
+        src.write_text(source, encoding="utf-8")
         out = tmp / "out"
         out.mkdir()
         result = subprocess.run(
-            ["javac", "--release", "25", "--enable-preview", "-parameters",
+            # English diagnostics whatever the locale, since the page quotes them and the gate
+            # reads them in English too.
+            [JAVAC, "-J-Duser.language=en", "-J-Duser.country=US",
+             "--release", RELEASE, "--enable-preview", "-parameters",
              "-Xlint:unchecked,rawtypes", "-Xlint:-preview", "-classpath", CP,
              "-processorpath", PP, "-d", str(out), "-s", str(out), str(src)],
-            capture_output=True, text=True)
+            capture_output=True, encoding="utf-8")
     return result.returncode, result.stderr
 
 
 def message_of(entry, stderr):
+    """The first diagnostic carrying the entry's marker, as (kind, text), or (None, None)."""
     lines = stderr.split("\n")
     for i, line in enumerate(lines):
-        m = re.search(r"(?:error|warning|Note): (.*)$", line)
+        m = re.search(r"(error|warning|Note): (.*)$", line)
         if not m:
             continue
-        text = m.group(1)
+        kind, text = m.group(1), m.group(2)
         where = re.match(r"^\S*/(\w+Impl\.java):\d+:", line)
         if where:
             text = where.group(1) + ": " + text
@@ -149,8 +166,8 @@ def message_of(entry, stderr):
             extra = [l.strip() for l in lines[i + 1:i + 6] if l.strip().startswith(("symbol:", "location:"))]
             text = "\n".join([text] + extra)
         if entry.get("marker", entry["fragment"]) in text:
-            return text
-    return None
+            return kind, text
+    return None, None
 
 
 def wrap(text, width=96):
@@ -202,9 +219,14 @@ def main():
             assert e["fragment"] in e["heading"], (e["id"], "fragment not in heading")
             assert '"' not in e.get("marker", e["fragment"]), e["id"]
             code, stderr = probe(e)
-            msg = message_of(e, stderr)
-            expect_fail = e.get("kind") != "note"
-            if msg is None or (expect_fail and code == 0):
+            kind, msg = message_of(e, stderr)
+            # The gate's own test: a refusal is an error the compile fails on; a note leaves the
+            # compile clean.
+            if e.get("kind") == "note":
+                held = msg is not None and code == 0
+            else:
+                held = msg is not None and kind == "error" and code != 0
+            if not held:
                 failures.append((e["id"], code, stderr[-1500:]))
                 continue
             rows.append(f"| [`{e.get('display', e['fragment'])}`](#{e['id']}) | {SHORT[e['id']]} |")
@@ -224,9 +246,10 @@ def main():
         seen.append(f"| [`{e.get('display', e['fragment'])}`](#{eid}) | {SHORT[eid]} |")
     page = PAGE.format(triage="\n\n".join(["\n".join(seen)] + triage),
                        sections="\n---\n\n".join(sections))
-    (REPO / "hkj-book/src/mapping/compiler_errors.md").write_text(page)
+    (REPO / "hkj-book/src/mapping/compiler_errors.md").write_text(page, encoding="utf-8")
     fixture = FIXTURE_HEADER + FIXTURE_IMPORTS + "\n" + FIXTURE_TYPES
-    (REPO / "hkj-examples/src/test/resources/fixtures/mapping_compiler_errors.java").write_text(fixture)
+    (REPO / "hkj-examples/src/test/resources/fixtures/mapping_compiler_errors.java").write_text(
+        fixture, encoding="utf-8")
     print(count, "entries rendered")
 
 

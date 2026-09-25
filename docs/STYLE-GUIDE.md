@@ -333,7 +333,7 @@ The guide's readability rules, stated so a review can check them:
 - **No "above" or "below".** Name the destination and link it.
 - **Fine print is still prose for people**: one-sentence reason, the fix as code or an imperative, and the diagnostic quoted rather than paraphrased.
 
-The book's CI counts, per page, what these limits and the page-size and em-dash rules ask a reviewer to check: sentences over 35 and over 50 words, bullets over 60, prose runs over 400 words, dashes, and "above" or "below". It compares the counts with a committed baseline and reports any rise on the pull request; it does not fail the build. The counts are a ratchet, not a verdict: they cover every page, reference pages and fine print included, so a rise asks for a look rather than a rewrite. `node .github/scripts/book-readability-check.cjs --page <path under hkj-book/src>` lists what a page's counts are made of. `--update` lowers the baseline after a change improves a page, and never raises it; a count that has to rise takes `--accept <page>`, with the reason in the commit message.
+The book's CI counts, per page, what these limits and the page-size and em-dash rules ask a reviewer to check: sentences over 35 and over 50 words, bullets over 60, prose runs over 400 words, dashes, and "above" or "below". It compares the counts with a committed baseline and reports any rise on the pull request; it does not fail the build. The counts are a ratchet, not a verdict: they cover every page, reference pages and fine print included, so a rise asks for a look rather than a rewrite. `node .github/scripts/book-readability-check.cjs --page <path under hkj-book/src>` lists what a page's counts are made of. `--update` lowers the baseline after a change improves a page, and never raises it; a count that has to rise takes `--accept <page>`, with the reason in the commit message. The pull request quotes the counts it lowered. `hkj-book/check.sh` runs this report with the book's other checks, as CI does.
 
 ### Checkpoints
 
@@ -354,6 +354,7 @@ Rules:
 - **The answer is a sibling** `success` admonition with `collapsible=true`. Admonitions do not nest, so the answer cannot live inside the question
 - **Both carry an explicit `id=`**, so the anchor survives a checkpoint being added above it
 - **An answer adds no fact.** It applies a rule the page already teaches visibly, and ends with a "Where this lives" link. Its only unique content is the proof
+- **The question asks about a fresh instance** that probes a misconception. A question that recombines the example just shown only tests memory
 - **The answer is proved by the build**: a test assertion, or a `verify:rejects` snippet whose diagnostic is the answer. Never by an output comment nothing runs
 - **At most two per page**, placed straight after the "You can ship now" tip, so passing one certifies that stopping there is safe
 - **A chapter's self-check page is the exception**: it is all checkpoints, numbered in their titles ("Checkpoint 3: ...") so an answer can name another, and ordered from recall to writing code
@@ -368,10 +369,10 @@ The one exception is a [checkpoint](#checkpoints) answer, which is safe to colla
 
 ### Anchors
 
-The book has no link checker, so a broken fragment fails silently. Three rules keep them working:
+`.github/scripts/book-anchor-check.cjs` fails the build on a link or fragment that lands on no heading. It accepts heading ids only, so link the heading around an admonition rather than its `id=`. Three rules keep links working:
 
 - **A heading linked from outside its page carries an explicit `{#id}`**, so its wording can change without breaking the link
-- **A heading that moves to another page keeps its id**, and gains an entry in the legacy-anchor map so old links still land on it
+- **A heading that moves to another page keeps its id**, and gains an entry in the legacy-anchor map, `hkj-book/theme/legacy-anchors.js`, so old links still land on it
 - **A redirect target is document-relative** (`beans.html`), never an absolute versioned URL, or a reader of an older version is sent to the current one
 
 A page redirect cannot rescue a *section* that moves: the redirect is a meta refresh, which drops the fragment. Prefer keeping the page and moving content within it; where a section must move, pin the id and add the legacy-anchor entry in the same change.
@@ -567,7 +568,11 @@ Ctrl-F. Show the same message as visible text beside the block, and never collap
 purpose is to show a diagnostic. A page that says "the processor refuses this" is making a claim
 the reader will one day paste into a search box; give them the words.
 
-See `hkj-examples/BOOK-SNIPPETS.md`, and run `gradle :hkj-examples:bookVerify`.
+**A claim about another library is proved with that library.** What Jackson binds, rejects or
+truncates, for example, is asserted in the page's test through the real library, never stated from
+memory.
+
+See `hkj-examples/BOOK-SNIPPETS.md`, and run `./gradlew :hkj-examples:test :hkj-examples:bookVerify`.
 
 ### Code Blocks
 
@@ -606,12 +611,17 @@ Within a chapter, pages should follow this order:
 
 ### Chapter Guides
 
-A chapter can add rules of its own, in a guide beside this one: which page a change goes on, where
-each kind of rule lives, how its claims are proved. A change to such a chapter follows both guides.
+A chapter can add rules of its own in a guide beside this one: which page a change goes on, where
+each kind of rule lives, how its examples are laid out. A change to such a chapter follows both
+guides, and the chapter guide links here rather than repeating this guide.
 
-| Chapter | Guide |
-|---|---|
-| Mapping at the Boundary | [Mapping Chapter Guide](MAPPING-CHAPTER-GUIDE.md) |
+| Chapter | Directory | Guide |
+|---|---|---|
+| Mapping at the Boundary | `hkj-book/src/mapping/` | [Mapping Chapter Guide](MAPPING-CHAPTER-GUIDE.md) |
+
+To give a chapter a guide, write `docs/<CHAPTER>-CHAPTER-GUIDE.md` and add its row here. Procedure
+and traps for Claude Code sessions go in the `book-authoring` skill, as a
+`reference/<chapter>.md` file beside its `SKILL.md`, with a matching line in that skill.
 
 ### One Cast per Chapter
 

@@ -175,19 +175,23 @@ tasks.named("check") { dependsOn(bookVerify) }
 // hkj-book/tools/compiler-messages, which compiles every entry's reproducer with the same classpath
 // and processor path the book gate uses. This writes the two paths where that script reads them.
 tasks.register("bookMessagesClasspath") {
-    description = "Writes the classpaths hkj-book/tools/compiler-messages compiles its reproducers with."
+    description = "Writes the classpaths and javac hkj-book/tools/compiler-messages compiles its reproducers with."
     group = "documentation"
     val runtimeClasspath: FileCollection = sourceSets["test"].runtimeClasspath
     val processorPath: FileCollection = bookProcessor
-    inputs.files(runtimeClasspath).withPropertyName("runtimeClasspath").withNormalizer(ClasspathNormalizer::class)
-    inputs.files(processorPath).withPropertyName("processorPath").withNormalizer(ClasspathNormalizer::class)
+    // The toolchain's javac, so the script compiles with the release the build uses, not whatever
+    // javac is first on the PATH. Absolute paths are tracked, since the files record them.
+    val javac = javaToolchains.compilerFor(java.toolchain).map { it.executablePath.asFile.absolutePath }
+    inputs.files(runtimeClasspath).withPropertyName("runtimeClasspath")
+    inputs.files(processorPath).withPropertyName("processorPath")
+    inputs.property("javac", javac)
     val outputDir = layout.buildDirectory.dir("book-messages")
     outputs.dir(outputDir)
     doLast {
         val dir = outputDir.get().asFile
-        dir.mkdirs()
         dir.resolve("classpath.txt").writeText(runtimeClasspath.asPath)
         dir.resolve("processorpath.txt").writeText(processorPath.asPath)
+        dir.resolve("javac.txt").writeText(javac.get())
     }
 }
 

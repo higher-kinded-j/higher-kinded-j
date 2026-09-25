@@ -32,7 +32,7 @@ Unsure where to begin contributing? You can start by looking through `good first
 3.  **Create a new branch** for your changes: `git checkout -b name-of-your-feature-or-fix`
 4.  **Make your changes.** Ensure you adhere to standard Java coding conventions.
 5.  **Add tests** for your changes. This is important!
-6.  **Run the tests:** Make sure the full test suite passes using `./gradlew test`.
+6.  **Run the tests:** Make sure the full test suite passes using `./gradlew test`. If you changed the book, or a rule the book documents, see [Documentation](#documentation) too.
 7.  **Build the project:** Ensure the project builds without errors using `./gradlew build`.
 8.  **Commit your changes:** Use clear and descriptive commit messages. `git commit -am 'Add some feature'`
 9.  **Push to your fork:** `git push origin name-of-your-feature-or-fix`
@@ -42,7 +42,7 @@ Unsure where to begin contributing? You can start by looking through `good first
 
 ## Development Setup
 
-* You need a Java Development Kit (JDK), version **24** or later.
+* You need a Java Development Kit (JDK), version **25**. The build uses preview features, which tie it to that release.
 * This project uses Gradle. You can use the included Gradle Wrapper (`gradlew`) to build and test.
     * Build the project: `./gradlew build`
     * Run tests: `./gradlew test`
@@ -71,6 +71,8 @@ Please follow the [**Google Java Style Guide**](https://google.github.io/stylegu
 
 ## Documentation
 
-Changes to the book in `hkj-book/src` follow the [Style Guide](docs/STYLE-GUIDE.md). Some chapters add rules of their own, listed there under Chapter Guides. The [Mapping Chapter Guide](docs/MAPPING-CHAPTER-GUIDE.md) is one: a feature that adds a mapping rule or a refusal updates that chapter's Rules and Limits and Compiler Messages pages in the same pull request. Java on a book page is compiled by the build; [BOOK-SNIPPETS.md](hkj-examples/BOOK-SNIPPETS.md) explains how. Run `./gradlew :hkj-examples:bookVerify` before opening the pull request.
+Changes to the book in `hkj-book/src` follow the [Style Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/STYLE-GUIDE.md). Some chapters add rules of their own, listed in its Chapter Guides table. The [Mapping Chapter Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/MAPPING-CHAPTER-GUIDE.md) is one: it says where a new mapping rule or refusal belongs, so a feature that adds one updates those pages in the same pull request. [BOOK-SNIPPETS.md](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/BOOK-SNIPPETS.md) explains how the build compiles the book's Java.
+
+Before opening the pull request, run `./gradlew :hkj-examples:test :hkj-examples:bookVerify` and `hkj-book/check.sh`. The checks need Node.js; the Mapping chapter's Compiler Messages generator also needs Python 3.
 
 Thank you for contributing!

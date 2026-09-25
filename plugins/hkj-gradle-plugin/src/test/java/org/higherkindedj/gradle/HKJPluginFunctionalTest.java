@@ -471,6 +471,8 @@ class HKJPluginFunctionalTest {
     assertThat(skillsDir.resolve("hkj-bridge/SKILL.md")).isRegularFile();
     assertThat(skillsDir.resolve("hkj-spring/SKILL.md")).isRegularFile();
     assertThat(skillsDir.resolve("hkj-arch/SKILL.md")).isRegularFile();
+    // Only hkj-* skills ship: the repository's contributor skill stays out of consumer projects
+    assertThat(skillsDir.resolve("book-authoring")).doesNotExist();
   }
 
   @Test

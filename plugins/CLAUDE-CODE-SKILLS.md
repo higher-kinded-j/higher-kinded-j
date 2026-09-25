@@ -49,7 +49,7 @@ Or in the POM configuration:
 
 Skill files are bundled as classpath resources inside each plugin JAR under `META-INF/hkj-skills/`. A `manifest.txt` lists all bundled files. The install task reads the manifest, then copies each file to `<project>/.claude/skills/`.
 
-The bundling happens at build time via the `bundleSkills` Gradle task, which copies from the repository root's `.claude/skills/hkj-*` directories into the generated resources directory.
+The bundling happens at build time via the `bundleSkills` Gradle task, which copies from the repository root's `.claude/skills/hkj-*` directories into the generated resources directory. Every `hkj-*` skill ships to users, so a skill for contributors to this repository, such as `book-authoring`, must use a name without that prefix.
 
 ## Manual Installation
 
