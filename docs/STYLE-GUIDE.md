@@ -604,6 +604,15 @@ Within a chapter, pages should follow this order:
 2. Core concepts in logical order
 3. More advanced topics towards the end
 
+### Chapter Guides
+
+A chapter can add rules of its own, in a guide beside this one: which page a change goes on, where
+each kind of rule lives, how its claims are proved. A change to such a chapter follows both guides.
+
+| Chapter | Guide |
+|---|---|
+| Mapping at the Boundary | [Mapping Chapter Guide](MAPPING-CHAPTER-GUIDE.md) |
+
 ### One Cast per Chapter
 
 A chapter keeps **one running cast** of example types, so a reader's attention goes to the feature rather than to a new pair of records in every section. Introducing a new pair needs a reason: the feature needs a shape the cast does not have. A chapter whose examples accumulate one-off types (a new domain record per section) reads as a series of unrelated notes, and nothing accumulates towards its capstone.

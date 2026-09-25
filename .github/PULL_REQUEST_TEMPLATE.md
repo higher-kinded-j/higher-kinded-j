@@ -24,6 +24,13 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] Relevant examples in `MonadSimulation.java` or `OrderWorkflowRunner.java` updated/tested (if applicable)
 
 
+## Book changes (delete if the book is untouched)
+
+- [ ] `./gradlew :hkj-examples:bookVerify` passes
+- [ ] The prose follows the [Style Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/STYLE-GUIDE.md), and the chapter's own guide where it has one
+- [ ] Readability counts checked with `node .github/scripts/book-readability-check.cjs`, lowered with `--update` after an improvement, and the falls quoted here
+- [ ] Mapping chapter, including a feature that adds a mapping rule or refusal: an enforced rule is on Rules and Limits, a common refusal is on Compiler Messages (regenerated with `hkj-book/tools/compiler-messages`), and a teaching page keeps one sentence and a link ([Mapping Chapter Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/MAPPING-CHAPTER-GUIDE.md))
+
 ## Checklist:
 
 - [ ] My code follows the style guidelines of this project (Standard Google Java Conventions)[**See Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html)

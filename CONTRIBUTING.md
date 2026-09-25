@@ -69,4 +69,8 @@ The project is organised into several modules:
 
 Please follow the [**Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html). Keep code simple, readable, and well-tested. Consistent formatting is encouraged.
 
+## Documentation
+
+Changes to the book in `hkj-book/src` follow the [Style Guide](docs/STYLE-GUIDE.md). Some chapters add rules of their own, listed there under Chapter Guides. The [Mapping Chapter Guide](docs/MAPPING-CHAPTER-GUIDE.md) is one: a feature that adds a mapping rule or a refusal updates that chapter's Rules and Limits and Compiler Messages pages in the same pull request. Java on a book page is compiled by the build; [BOOK-SNIPPETS.md](hkj-examples/BOOK-SNIPPETS.md) explains how. Run `./gradlew :hkj-examples:bookVerify` before opening the pull request.
+
 Thank you for contributing!
