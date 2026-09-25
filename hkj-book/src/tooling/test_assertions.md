@@ -367,6 +367,8 @@ void personMappingIsLawful() {
 }
 ```
 
+Two samples need care. A mapping with a derived field *and* a fallible leaf takes the fallible overload, with a parseable wire whose derived components match what `build` produces, so the rejection check still runs. For the patch and parse-only overloads, the non-parsing wire must fail on a field, since a refusal by the domain's constructor alone is unlabelled at the top level.
+
 For asserting on the located failures themselves, `assertThatValidated(...).hasFieldErrors(...)` takes the whole accumulation as rendered lines; `assertThatFieldError` takes one error apart, matching its path (`hasPath("address.zip")`) and message (`hasMessage`, `hasMessageContaining`).
 
 ~~~admonish tip title="See Also"

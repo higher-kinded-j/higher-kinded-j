@@ -244,6 +244,23 @@ property that makes round trips provable, and it is law-checked in every build.
 
 Guidelines: contrast with what the reader has debugged elsewhere (NPE stack traces, silently normalising mappers); state the guarantee and where it is verified; keep the tone confident and concrete, never marketing-brochure. One per page is usually right; they lose force in crowds.
 
+### War Stories and Dialogues
+
+Two narrative modes can make a hard rule stick: a war story and a Socratic dialogue. Use each only where it clearly works better than plain prose. Repeated, either reads as a formula and loses its force, so there is no quota: decide site by site, and say in the pull request why a mode was or was not used.
+
+**A war story** opens the section on a rule no compiler or processor checks:
+
+- **Where.** At the head of that section, at most one per page. Never in fine print, on a reference page or on a rules page.
+- **Shape.** One paragraph of about 130 to 150 words, framed as a kind of ticket, in the present tense. No named people, companies, products or dates, and only example-safe data.
+- **Content.** It shows the silent failure and why the tests missed it, and ends on the offending line. The fix follows as compiled code, then the visible warning.
+- **It adds no fact**, so a reader who skips it loses nothing. The page refers back to it at least once.
+
+**A Socratic dialogue** carries reasoning a reader must follow step by step, such as why a spec gets the methods it does:
+
+- **Where.** At most one per chapter, opening the page whose reasons are its content.
+- **Shape.** A blockquote of short turns between **You:** and whatever is being questioned, under about 200 words, handing over to a picture or a table where it ends.
+- **It adds no fact** either: the page states each of its claims again, plainly.
+
 ### Signposting Integrations: the "At the Spring boundary" Admonition
 
 Pages whose feature has a Spring (or other framework) integration signpost it in a `tip` admonition whose title begins **"At the Spring boundary"**. The consistent title makes the integration story scannable across the book: a reader wiring a controller can skim for the phrase.
