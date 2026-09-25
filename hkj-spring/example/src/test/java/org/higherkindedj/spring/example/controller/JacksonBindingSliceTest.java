@@ -28,10 +28,12 @@ import tools.jackson.databind.exc.InvalidDefinitionException;
 
 /**
  * What a client receives when Jackson cannot bind a request body, before any mapping runs. The
- * mapping chapter cites both cases: a malformed value in a typed field is Jackson's own 400, while
- * a sealed wire interface with no type information fails in a way Spring does not map to any client
- * error, so it escapes the controller and the server answers 500.
+ * mapping chapter describes both cases: a malformed value in a typed field is Jackson's own 400,
+ * while a sealed wire interface with no type information fails in a way Spring does not map to any
+ * client error, so it escapes the controller and the server answers 500.
  */
+// The slice names the controller, so no other controller joins it, and imports it, because a class
+// nested in a test class is excluded from component scanning.
 @WebMvcTest(JacksonBindingSliceTest.BindingController.class)
 @ImportAutoConfiguration({
   HkjAutoConfiguration.class,
@@ -83,8 +85,9 @@ class JacksonBindingSliceTest {
   @Test
   @DisplayName("a sealed wire without type information escapes as a server error, not a 400")
   void sealedWireWithoutTypeInformationIsAServerError() {
-    // No resolver maps the failure to a status, so it leaves the controller unhandled, which a
-    // servlet container answers with 500. Spring maps only HttpMessageNotReadableException to 400.
+    // Of the converter's failures, Spring maps only HttpMessageNotReadableException to 400. A
+    // type-definition error arrives as a plain HttpMessageConversionException, which no resolver
+    // handles, so it escapes and the servlet container answers 500.
     assertThatThrownBy(
             () ->
                 mockMvc.perform(
@@ -95,6 +98,7 @@ class JacksonBindingSliceTest {
         .cause()
         .isInstanceOf(HttpMessageConversionException.class)
         .isNotInstanceOf(HttpMessageNotReadableException.class)
+        .hasMessageContaining("BarePaymentDto")
         .rootCause()
         .isInstanceOf(InvalidDefinitionException.class);
   }
