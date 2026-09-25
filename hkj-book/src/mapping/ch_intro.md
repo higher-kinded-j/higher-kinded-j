@@ -52,19 +52,19 @@ This chapter replaces that mapper with one interface you own and one annotation.
 }
 ```
 
-The bad email is *inside a nested record*; the bad price is on the *second element of a list*. Nobody wrote a line of error-handling code to produce this: it falls out of the declarations. The [Capstone](capstone.md) builds it end to end, proven by a test the build runs. The full response also carries each error's path as structured segments, abridged here. The client fixes all five and resubmits once.
+The bad email is *inside a nested record*; the bad price is on the *second element of a list*. The client fixes all five and resubmits once. Nobody wrote a line of error-handling code to produce this: it falls out of the declarations. The [Capstone](capstone.md) builds it end to end, and a test the build runs proves its five errors. This copy leaves out the `segments` array the full response carries beside each `path`.
 
 The shape of the machinery is a railway with two directions:
 
 ```mermaid
 flowchart LR
     accTitle: The mapping railway, in both directions
-    accDescr: parse takes an OrderDto of strings and nulls and checks every field. If every field checks out, it yields a typed, trusted Order. If not, it yields a NonEmptyList of FieldError naming every bad field, which hkj-spring renders as one 422 response carrying the JSON above. build takes the Order back to an OrderDto and cannot fail.
+    accDescr: The parse method takes an OrderDto of strings and nulls and checks every field. If every field checks out, it yields a typed, trusted Order. If not, it yields a NonEmptyList of FieldError naming every bad field, which hkj-spring renders as one 422 response listing every error. The build method takes the Order back to an OrderDto and cannot fail.
     DTO["OrderDto<br/>(strings and nulls)"] -->|"parse"| CHECK{"every field<br/>checks out?"}
     CHECK -->|yes| DOM["Order<br/>(typed and trusted)"]
     CHECK -->|no| ERR["NonEmptyList&lt;FieldError&gt;<br/>every bad field, located"]
     DOM -->|"build (total: cannot fail)"| OUT["OrderDto"]
-    ERR -->|"hkj-spring"| RESP["one 422 response<br/>carrying the JSON above"]
+    ERR -->|"hkj-spring"| RESP["one 422 response<br/>listing every error"]
 
     classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
@@ -90,7 +90,7 @@ Where a field needs converting or checking, the spec (that interface) declares a
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:leaf_usage}}
 ```
 
-Outbound, `build` is a *total* function: it cannot fail. Inbound, `parse` returns `Validated<NonEmptyList<FieldError>, Domain>`: either your typed domain value, or every defect at once. Nothing drifts, because the processor re-derives the mapping from the records on every compile and rejects what it cannot honour.
+Outbound, `build` is a *total* function: it cannot fail. Inbound, `parse` returns a [`Validated`](../monads/validated_monad.md), typed `Validated<NonEmptyList<FieldError>, Domain>`. It is either `Valid`, holding your typed domain value, or `Invalid`, holding every defect at once in a [`NonEmptyList`](../monads/nonemptylist_monad.md) of [`FieldError`](../glossary/optics.md#fielderror) values. Nothing drifts, because the processor re-derives the mapping from the records on every compile and rejects what it cannot honour.
 
 ~~~admonish warning title="Before you start"
 Higher-Kinded-J is built on **Java 25** today, with preview features enabled, and preview ties
@@ -109,8 +109,8 @@ If you arrived here because you want that 422, the wiring is two steps: this cha
 
 The mapper is not a separate tool that happens to ship in the same jar; it is Higher-Kinded-J's own parts, composed and generated. That is why it fits the rest of the book:
 
-- **Parse, don't validate.** Alexis King's phrase names the discipline: *"a parser is just a function that consumes less-structured input and produces more-structured output."* `parse` is exactly that function. There is no half-state where a DTO is "validated" but no domain value exists: the boundary produces a trusted value or a typed refusal.
-- **Typed errors over exceptions.** The refusal is a value ([`Validated`](../monads/validated_monad.md), [`NonEmptyList`](../monads/nonemptylist_monad.md), `FieldError`), so it accumulates, composes, and travels the same [railway](../effect/effect_path_overview.md) as every other error in the library.
+- **Parse, don't validate.** In Alexis King's words, *"a parser is just a function that consumes less-structured input and produces more-structured output."* `parse` is that function, returning a trusted value or a typed refusal, and the type system knows which.
+- **Typed errors over exceptions.** The refusal is a value (`Validated`, `NonEmptyList`, `FieldError`), so it accumulates, composes, and travels the same [railway](../effect/effect_path_overview.md) as every other error in the library.
 - **Truthful types.** The generated surface only ever offers operations whose laws the record pair can honour; what cannot be lawful is simply not generated.
 - **Laws, verified.** Each generated surface obeys stated laws, checked in the library's own build and repeatable in yours with [one test call](tiers.md#law-checked-in-the-repo-and-in-your-tests).
 - **Built from parts you already know.** A leaf is a [`ValidatedPrism`](../optics/validated_prism.md), accumulation is [`Validated.fields()`](../monads/validated_assembly.md), a sparse PATCH folds into [`Edits.Accumulated`](../optics/multi_edit.md). Learn the mapper and you have learned more of the library; learn the library and the mapper works the way you would expect.
@@ -123,8 +123,8 @@ The generated surface follows the shape of the pair:
 
 ```mermaid
 flowchart TD
-    accTitle: What the mapper generates, by how the two records correspond
-    accDescr: When every component matches by name and type, the mapping round-trips both ways, lawfully. When some fields differ in type, through leaves, codecs or nested specs, parse reports every bad field, located. When the wire has fewer components than the domain, the write-back keeps the fields the wire dropped, and if any field converts or validates, that write-back can fail, located. A PATCH request bean, where null means leave unchanged, gets a sparse update in which absent means keep.
+    accTitle: What the mapper generates for each pairing
+    accDescr: When every component matches by name and type, the mapping round-trips both ways, lawfully. When some fields differ in type and a leaf, codec or nested spec converts them, parse reports every bad field, located. When the wire has fewer components than the domain, the write-back keeps the fields the wire dropped, and if any field converts or validates, that write-back can fail, located. A PATCH request bean, where null means leave unchanged, gets a sparse update in which absent means keep.
     Q{"How do the two records<br/>correspond?"}
     Q --> A["Every component matches<br/>by name and type"]
     Q --> B["Some fields differ in type:<br/>leaves, codecs, nested specs"]
@@ -145,10 +145,10 @@ flowchart TD
     class Q,CQ decision
 ```
 
-[What Your Spec Generates](tiers.md) names each of these surfaces and the laws it obeys. Two of them are optics the book teaches elsewhere: an [`Iso`](../glossary/optics.md#iso-isomorphism) when every component matches, and a [`Lens`](../glossary/optics.md#lens) for a projection with no converting field.
+[What Your Spec Generates](tiers.md) names each of these surfaces and the laws it obeys. Some of them are optics the book teaches elsewhere. When every component is a plain copy, the spec also gets an [`Iso`](../glossary/optics.md#iso-isomorphism), a lossless two-way conversion. When the wire has fewer components and each is a plain copy, it gets a [`Lens`](../glossary/optics.md#lens), which writes the wire onto a domain value you already hold. [Which methods your spec gets](tiers.md#which-methods-your-spec-gets) says what counts as a plain copy.
 
 ~~~admonish note title="If you know MapStruct"
-This is not a MapStruct competitor on breadth, and does not try to be. MapStruct keeps its ground for mutable JPA entities, for deep path flattening (`address.geo.lat` onto a wholly flat wire, where this generator spreads one level), and for Bean-Validation-centric shops. What this generator does differently is **boundary correctness for record domains**. The inbound direction is a validating parser with located, accumulated errors, where MapStruct throws on the first bad conversion or silently maps an invalid value. The outbound direction is provably total, and no operation is generated whose laws the pair cannot satisfy. Adopt it where the boundary is the product; keep MapStruct where its breadth pays. One MapStruct habit does not carry over: declaring the mapper's instance on its own interface. Here that constant can read `null`, so [bind the generated Impl in the caller](basics.md#bind-in-the-caller) instead.
+This is not a MapStruct competitor on breadth, and does not try to be. MapStruct keeps its ground for mutable JPA entities, for deep path flattening (`address.geo.lat` onto a wholly flat wire, where this generator spreads one level), and for Bean-Validation-centric shops. What this generator does differently is **boundary correctness for record domains**. The inbound direction is a validating parser with located, accumulated errors, where MapStruct throws on the first bad conversion or silently maps an invalid value. The outbound direction is provably total, and the processor generates no operation whose laws the pair cannot satisfy. Adopt it where the boundary is the product; keep MapStruct where its breadth pays. One MapStruct habit does not carry over: declaring the mapper's instance on its own interface. Here that constant can read `null`, so [bind the generated Impl in the caller](basics.md#bind-in-the-caller) instead.
 ~~~
 
 ~~~admonish note title="If you know Bean Validation"

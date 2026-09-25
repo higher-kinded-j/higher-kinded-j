@@ -99,6 +99,23 @@ class BoundaryCapstoneBookLawsTest {
   }
 
   @Test
+  void aBadQuantityReachesParseAndIsLocated() {
+    OrderDto wire =
+        new OrderDto(
+            "123e4567-e89b-12d3-a456-426614174000",
+            new CustomerDto("Ada Lovelace", "ada@corp.example"),
+            List.of(new LineItemDto("SKU-1", "2.5", "9.99")), // a number-typed wire truncates this
+            "2026-07-28T12:34:56Z",
+            "GBP",
+            "PAID",
+            null);
+
+    assertThatValidated(OrderMappingImpl.INSTANCE.parse(wire))
+        .isInvalid()
+        .hasFieldErrors("lines.0.quantity: not a 32-bit integer (expected e.g. 42)");
+  }
+
+  @Test
   void theBuildDirectionComputesTheDerivedTotal() {
     assertThat(OrderMappingImpl.INSTANCE.build(ORDER).displayTotal()).isEqualTo("GBP 19.98");
   }

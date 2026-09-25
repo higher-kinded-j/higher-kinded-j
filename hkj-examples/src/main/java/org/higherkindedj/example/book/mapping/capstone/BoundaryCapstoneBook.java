@@ -131,7 +131,7 @@ record EmailAddress(String value) {}
 
 record Customer(String name, EmailAddress email) {}
 
-// Integer, not int: a leaf converts the quantity, and a leaf cannot focus a primitive
+// Integer, not int: a leaf converts the quantity, and a leaf cannot name a primitive.
 record LineItem(String sku, Integer quantity, BigDecimal price) {}
 
 record Order(
@@ -147,7 +147,6 @@ record Order(
 // ANCHOR: capstone_wire
 record CustomerDto(String fullName, String email) {}
 
-// a String, so a bad quantity reaches parse instead of failing inside Jackson
 record LineItemDto(String sku, String quantity, String price) {}
 
 record OrderDto(

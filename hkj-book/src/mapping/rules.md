@@ -318,7 +318,7 @@ Nothing in a jar says which of its interfaces are mapping specs, and the compile
 ```mermaid
 flowchart LR
     accTitle: How a spec in a dependency is found through the index
-    accDescr: The orders-api module compiles CustomerMapping, its CustomerMappingImpl and an index entry into its jar. The billing module has that jar on its classpath, and its InvoiceMapping nests the Customer and CustomerDto pair. Its compilation lists the index package and reads CustomerMapping, so the generated InvoiceMappingImpl delegates to CustomerMappingImpl.INSTANCE.asValidatedPrism().
+    accDescr: The orders-api module compiles CustomerMapping, its CustomerMappingImpl and an index entry into its jar. The billing module has that jar on its classpath, and its InvoiceMapping nests the Customer and CustomerDto pair. The billing compilation lists the index package and reads CustomerMapping, so the generated InvoiceMappingImpl delegates to CustomerMappingImpl.INSTANCE.asValidatedPrism().
     A[":orders-api<br/>CustomerMapping<br/>CustomerMappingImpl<br/>index entry"] -->|"jar on the classpath"| B[":billing<br/>InvoiceMapping nests<br/>(Customer, CustomerDto)"]
     B -->|"lists the index package,<br/>reads CustomerMapping"| C["InvoiceMappingImpl delegates to<br/>CustomerMappingImpl.INSTANCE.asValidatedPrism()"]
 
