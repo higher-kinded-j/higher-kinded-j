@@ -131,7 +131,7 @@ class BookExampleOutputTest {
       Map.ofEntries(
           Map.entry("AbsenceBook", 4),
           Map.entry("BasicsBook", 4),
-          Map.entry("BeansBook", 4),
+          Map.entry("BeansBook", 6),
           Map.entry("BoundaryCapstoneBook", 4),
           Map.entry("EitherOrBothBook", 1),
           Map.entry("EitherOrBothPathBook", 6),

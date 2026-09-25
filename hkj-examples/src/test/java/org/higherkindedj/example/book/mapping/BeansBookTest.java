@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import java.util.Optional;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -48,6 +50,29 @@ class BeansBookTest {
         CustomerRequestMappingImpl.INSTANCE.asValidatedBuild(),
         new Customer("Ada", new EmailAddress("ada@example.org"))); // renders without failing
     // ANCHOR_END: one_way_laws
+  }
+
+  @Test
+  @DisplayName("build replaces a field initialiser, but a getter default reads back as present")
+  void aGetterDefaultReadsAbsenceBackAsPresent() {
+    // ANCHOR: default_trap_proof
+    Listing lamp = new Listing("Lamp", Optional.empty());
+
+    // build writes setSubtitle(null) into both beans, replacing the field's "".
+    DraftListingBean draft = DraftListingMappingImpl.INSTANCE.build(lamp);
+    assertThatValidated(DraftListingMappingImpl.INSTANCE.parse(draft)).hasValue(lamp);
+
+    // parse reads through the getter, which answers "" for that null.
+    ListingBean listing = ListingMappingImpl.INSTANCE.build(lamp);
+    assertThatValidated(ListingMappingImpl.INSTANCE.parse(listing))
+        .hasValue(new Listing("Lamp", Optional.of("")));
+
+    // A law check from a domain sample with an empty Optional fails on it:
+    assertThatThrownBy(
+            () ->
+                MappingLaws.assertMappingLaws(ListingMappingImpl.INSTANCE.asValidatedPrism(), lamp))
+        .isInstanceOf(AssertionError.class);
+    // ANCHOR_END: default_trap_proof
   }
 
   private static TransferBean transfer(String department) {

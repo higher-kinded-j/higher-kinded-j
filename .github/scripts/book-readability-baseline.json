@@ -47,7 +47,6 @@
     "hkts/usage-guide.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "home.md": { "long35": 10, "long50": 2, "bullets": 0, "runs": 1, "dashes": 0, "aboveBelow": 2 },
     "mapping/at_a_glance.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
-    "mapping/beans.md": { "long35": 11, "long50": 1, "bullets": 7, "runs": 1, "dashes": 0, "aboveBelow": 1 },
     "mapping/capstone.md": { "long35": 4, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 4 },
     "mapping/ch_intro.md": { "long35": 6, "long50": 1, "bullets": 1, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "mapping/compiler_errors.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },

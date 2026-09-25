@@ -157,7 +157,7 @@ A [shared vocabulary](../mapping/codecs.md#shared-vocabulary-mix-in-interfaces) 
 
 Navigators across modules use no index either. A [navigator](../optics/focus_navigation.md#which-fields-get-a-navigator) into a record declared in a dependency composes the `Focus` class that dependency generated, so **a module whose `@GenerateFocus` records are navigated from elsewhere needs the processor too**; without it, a consumer keeps the plain path for those fields and says so in a note. A consumer composes only what the dependency published, so the two need not share a processor version or generator plugins to compile. What a consumer does need is to see the types a field names: a field whose type comes from one of the dependency's own dependencies is left out of the consumer's navigator, with a note, unless that type is on the consumer's compile classpath. Either the consumer declares that module itself, or the dependency exposes it with `api` rather than `implementation`, which needs the `java-library` plugin applied alongside HKJ's, since HKJ's applies plain `java`. As with specs, a dependency newly given the processor may need a clean downstream build before its records become navigable: no downstream source references the new `Focus` classes, so Gradle has nothing to recompile.
 
-## Lombok
+## Lombok {#lombok}
 
 Lombok and the HKJ processors run in the same javac invocation, and the pairing is covered by a test in the HKJ build: a `@Data` class works as a bean-shaped `@GenerateMapping` wire, with the generated getters and setters visible to the bean analyser. **Order matters: list Lombok before `hkj-processor`** (within a javac round, processors run in listed order, and the bean analyser needs the accessors already materialised; the reverse order fails with a clear diagnostic). No binding artefact is needed beyond that:
 
@@ -169,7 +169,7 @@ dependencies {
 }
 ```
 
-## Mapping over types other processors generate
+## Mapping over types other processors generate {#mapping-over-types-other-processors-generate}
 
 A mapping may name a type another annotation processor writes in the same compilation: a wire class generated from a schema, say, or a value type another library generates. Such a type does not exist until the processing round after the one that writes it, so the mapping processors wait for it. A `@GenerateMapping` or `@GenerateMerge` spec whose domain or wire type, or anything read from them (a record component, a bean property, a builder, a mix-in method), names a type not written yet is generated once that type exists, and so is any spec that nests it. It maps exactly as it would were the type written by hand, and nothing needs configuring.
 

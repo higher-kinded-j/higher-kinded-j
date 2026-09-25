@@ -26,7 +26,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a mix-in extend `MappingSpec`?](#refused-mix-in-shapes) | No: a mix-in shares vocabulary; a spec generates an Impl. | by design |
 | [Can a generic mix-in be extended raw?](#a-generic-mix-in-reached-raw) | Not if it contributes a member: raw erases what it declares. | by design |
 | [Can two mix-ins declare the same rename?](#inheriting-one-member-twice) | Yes, when the targets agree; conflicting targets are refused. | by design |
-| [Can an `@Unmapped` marker name an accessor that pairs?](beans.md#accessors-meant-to-stay-out) | Not one the spec declares; an inherited one stays inert. | by design |
+| [Can an `@Unmapped` marker name an accessor that pairs?](#what-unmapped-withholds) | Not one the spec declares; an inherited one stays inert. | by design |
 | **Containers** | | |
 | [Is a same-typed container shared with the wire?](#same-typed-containers-cross-as-copies) | Not when declared exactly `List`, `Set`, `Collection`, `Map`, `Optional` or array. | by design |
 | [Does a `List` lift against a `Set`, or an `ArrayList`?](#what-lifts) | No: the same exact container on both sides, one level deep. | by design |
@@ -50,11 +50,14 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Why does a validating projection get no `asLens()`?](tiers.md#leaf-carrying-projections-the-validated-patch) | A lens cannot fail, so it takes the validated `patch`. | by design |
 | [How wide can a record be?](testing.md#diagnostics-and-limits) | No ceiling but the JVM's: about 254 components. | by design |
 | **Bean wires** | | |
-| [Can the domain be a bean?](beans.md#bean-shaped-wire-targets) | No: `parse` builds the domain through a record constructor. | by design |
+| [Can the domain be a bean?](#how-a-bean-is-read-and-written) | No: `parse` builds the domain through a record constructor. | by design |
 | [What happens to an accessor with no partner?](#unpaired-accessors) | Left out; refused when named after a component the bean carries under no name. | by design |
 | [Can a getter-only `List` be raw, or a wildcard?](#getter-only-list-element-type) | Not where `build` is emitted: `addAll` needs its element type. | not supported yet |
 | [Can a getter-only `List` carry an absent `Optional`?](#getter-only-list-refuses-the-bridge) | No: its getter creates the list, so absence reads as empty. | not supported yet |
-| [Where does a one-directional bean nest?](beans.md#one-directional-beans) | Only where nothing needs its missing direction. | by design |
+| [Can a two-way bean map a property that has only a getter?](beans.md#generated-client-checklist) | No: `@Unmapped` accepts it, but the component then stays out. | not supported yet |
+| [Can a Lombok builder use `@Singular` on a collection?](beans.md#generated-client-checklist) | No: the processor refuses it on two-way and build-only builders alike. | not supported yet |
+| [Does a protobuf-java message map?](beans.md#generated-client-checklist) | No: its companion accessors pair as extra properties. | not supported yet |
+| [Where does a one-directional bean nest?](#how-a-beans-direction-is-read) | Only where nothing needs its missing direction. | by design |
 | **Sparse PATCH** | | |
 | [Can one spec extend `MappingSpec` and `UpdateSpec`?](#one-tier-per-spec) | No: declare a spec per tier and share a mix-in. | by design |
 | [Can a PATCH property be primitive?](#no-primitive-patch-property) | No: a primitive is never absent, so use the wrapper. | by design |
@@ -342,6 +345,30 @@ The [tier decision flow](tiers.md) ends by asking whether any correspondence is 
 
 ## Bean wires {#bean-wires}
 
+### How a bean is read and written {#how-a-bean-is-read-and-written}
+
+**The processor reads a bean through getters, and writes it by one of two strategies, tried in order.** First, a no-args constructor the Impl can call, public or package-private beside the spec, with `setX` setters, and for a getter-only `List` the JAXB convention `getItems().addAll(...)`. Then, a static `builder()` or `newBuilder()` whose setters fill it and whose `build()` yields the wire. A bean with getters that fits neither is only ever read, so it maps [parse-only](beans.md#one-directional-beans), and a bean with nothing to read or write gets a what/why/fix diagnostic.
+
+- **A property is a getter and a writer that share a name.** Getters are `getX()`, and `isX()` returning `boolean` or `Boolean`, the shape JAXB declares for an optional boolean. Where a bean declares both for one name, `getX()` reads it.
+- **An unpaired accessor is left out of the mapping.** That suits a computed getter such as `getSummary()`, or a builder's singular adder. The processor refuses one named after a domain component instead: [When an unpaired accessor is refused](#unpaired-accessors).
+- **The domain stays a record.** `parse` assembles the domain through its canonical constructor, so only the wire may be bean-shaped, and a bean domain gets a diagnostic.
+- **Nesting is unaffected.** A bean mapping that builds and parses exposes `asValidatedPrism()` like any other, so record specs nest it and containers lift it, and a one-directional one nests [where its direction is used](#how-a-beans-direction-is-read).
+
+### The automatic `Optional` bridge on a bean {#bean-optional-bridge}
+
+**Whichever way a bean maps, a domain `Optional<T>` maps to a nullable bean property `T` with no declaration.** Bean conventions leave `Optional` off property types, so there is nothing else for it to map to. `build` writes `null` for an empty value, replacing whatever the bean or its builder started with, and `parse` reads `Optional.ofNullable(...)`. A present value still validates through its leaf, or [nests through its own spec](structure.md#optional-nested-objects). A record wire opts into the same correspondence per component with [`@OptionalBridge`](absence.md#optional-bridge), and declaring that on a bean spec draws [a note](#optional-bridge-on-a-bean-wire). A [getter-only `List`](#getter-only-list-refuses-the-bridge) refuses the bridge. The [sparse tier](beans_patch.md#what-each-json-state-does) is the exception the other way: there `null` already means *leave unchanged*, so a PATCH bean encodes *set to empty* with an `Optional`-typed property.
+
+- **The processor refuses a writer declared non-null**, by a non-null annotation or by a `@NullMarked` scope with no `@Nullable` on it, as it refuses a bridged record component. Mark it `@Nullable`, and on a Lombok bean mark the field, which Lombok copies to the setter.
+- **What the bean does with the `null` is not checked.** A default reads back as present, and a writer that rejects it throws from `build`, as [Bean-shaped wire targets](beans.md#bean-shaped-wire-targets) warns.
+- **A leaf over the whole `Optional` wins over the bridge.** It suits a generated builder that refuses `null`: encode absence the builder's way, a `ValidatedPrism<String, Optional<String>>` mapping empty to `""`, say.
+
+### What `@Unmapped` withholds {#what-unmapped-withholds}
+
+**The [`@Unmapped`](beans.md#accessors-meant-to-stay-out) marker withholds a refusal and nothing else.** The accessor it names was never a property, so the component stays unmapped, a wire narrower than the domain is still a projection, and nothing else about the generated Impl changes. It answers both refusals it is named for, [an accessor named after a domain component](#unpaired-accessors) and [a `setX` setter a PATCH bean cannot read](#every-patch-setter-has-a-getter), on a `MappingSpec` and a sparse `UpdateSpec` alike. On a `MappingSpec` the component then stays out, so a bean left narrower than the domain is a projection, with no `parse`. The return type is not read, so it may restate the accessor's own type, and the Impl stubs the marker out like a rename.
+
+- **A marker the spec declares must name an unpaired accessor.** The processor refuses one naming a property the mapping carries, or naming nothing at all, as the misspelling it usually is.
+- **An inherited marker binds where it can, and is otherwise inert**, like every other member inherited from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces), so one mix-in serves specs whose wires differ.
+
 ### When an unpaired accessor is refused {#unpaired-accessors}
 
 When an unpaired accessor is named after a domain component the bean carries under no name, the one the component maps under (its own, or the one a `@MapField` rename gives it), leaving it out would drop that component without a word, so it is refused. The diagnostic names the accessor that would pair it. When a nearby accessor of the other kind has the same type, it is offered as the likely misspelling, so `setEmail(String)` beside `getEmial()` is told to rename the getter to `getEmail()`; otherwise it offers the [`@Unmapped` marker](beans.md#accessors-meant-to-stay-out), for an accessor that is meant to stay out.
@@ -358,10 +385,19 @@ One property shape refuses the bridge: a getter-only `List` filled by the JAXB c
 
 The two-way reading wins whenever any property allows it, so a bean is one-directional only when nothing at all crosses the other way. A getter-only `List` counts as written, through the JAXB `getX().addAll(...)` convention, only on a bean that also has a setter or whose every getter is such a list: a `List` getter among read-only getters belongs to a read model, which maps parse-only. A bean that reads some names and writes others fits neither and is refused with both lists of names. A bean whose names pair only in part maps both ways over those that do, and an unpaired accessor named after a domain component is [refused rather than dropped](#unpaired-accessors), since a misspelt accessor is what that shape usually is.
 
-Two more rules follow from which direction is missing:
+A one-directional mapping follows these rules:
 
+- **A parse-only mapping needs a getter for every domain component**, since a parse produces the domain, and it ignores a getter no component names.
+- **A build-only mapping needs a source for every writer**, a domain component or a [derived field](basics.md#derived-wire-fields), and does not write a domain component the bean lacks.
+- **A one-directional mapping is never a projection**, since nothing is written back.
+- **The vocabulary works in whichever direction exists.** Renames, leaves, container lifting and the automatic `Optional` bridge apply to a parse-only or build-only bean as to a two-way one.
+- **Nesting follows the direction.** A one-directional mapping nests wherever only its direction is used, lifted through containers like any other. A parse-only spec nests in a parse-only mapping, a [sparse `UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) or a [`@GenerateMerge`](merge_envelopes.md) source, and a build-only spec in a build-only mapping.
+- **A two-way mapping nests in all of them.** Where the missing direction is needed, the failed lookup names the one-directional spec and what it lacks.
+- **Sealed dispatch needs both directions** of every subtype pair.
+- **A bean whose no-args constructor the Impl cannot reach maps parse-only.** The note says the constructor is out of reach.
 - **Derived fields are build-side.** A build-only mapping takes them as a full one does. Declared on a parse-only spec, one has nothing to fill and is refused; one inherited from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) stays inert, so one vocabulary serves both directions.
 - **A build-only builder counts its one-argument methods as writers.** A method taking the bean or the builder itself (`from(Bean)`, `mergeFrom(Builder)`) is left out, but a singular adder beside its collection setter (a `@Singular` builder) needs a source like any other writer; getters on the built type make such a bean two-way, where only the properties it reads count, and an unpaired builder method named after a domain component is [refused](#unpaired-accessors).
+- **A two-way builder's collection setter must take its getter's exact type.** Lombok's `@Singular` on a `@Value @Builder`, whose setter takes a `Collection<? extends T>`, is refused as read and written at different types, which is not supported yet.
 
 ---
 
