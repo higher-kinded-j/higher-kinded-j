@@ -3,6 +3,7 @@
 package org.higherkindedj.example.book.mapping;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.UnaryOperator;
 import org.higherkindedj.hkt.error.ErrorEnvelope;
 import org.higherkindedj.optics.annotations.GenerateErrorEnvelope;
@@ -65,4 +66,23 @@ sealed interface OrderError {
   record PaymentDeclined(CardRef card, ErrorEnvelope<OrderErrorContext> envelope)
       implements OrderError {}
 }
+
 // ANCHOR_END: error_envelope
+
+// ANCHOR: strict_context
+// A context whose constructor insists on a trace id, which the all-absent context cannot supply.
+record RefundErrorContext(@Nullable TraceId traceId) {
+  RefundErrorContext {
+    Objects.requireNonNull(traceId, "traceId");
+  }
+}
+
+@GenerateErrorEnvelope
+sealed interface RefundError {
+  ErrorEnvelope<RefundErrorContext> envelope();
+
+  record RefundWindowClosed(String orderId, ErrorEnvelope<RefundErrorContext> envelope)
+      implements RefundError {}
+}
+
+// ANCHOR_END: strict_context
