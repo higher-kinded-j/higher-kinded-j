@@ -37,7 +37,7 @@ The common conversion families need no conversion code of your own. `StandardCod
 | `currency()` | `String` ↔ `Currency` (ISO 4217) |
 | `locale()` | `String` ↔ `Locale` (BCP 47 tag) |
 
-Every parse failure is a located `FieldError`, so the codecs feed [the 422 leg](../spring/spring_boot_integration.md#the-422-leg) unchanged. Each message ends with a sample of the spelling the codec wants, and the enum message names the permitted constants:
+A codec's own failure is a `FieldError` with a message and no path. Under a spec, the generated `parse` locates it at the component, so the codecs feed [the 422 leg](../spring/spring_boot_integration.md#the-422-leg) unchanged. Each message ends with a sample of the spelling the codec wants, and the enum message names the permitted constants:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:codecs_errors}}
@@ -53,7 +53,7 @@ A leaf for a component called `currency`, `locale`, `uri` or `uuid` shares its f
 
 ## Canonical forms only {#canonical-forms-only}
 
-A codec's **canon** is the spelling its `build` writes. `parse` accepts that spelling and rejects every other spelling of the same value with a located error, honouring the [section law](../optics/validated_prism.md#laws): an accepted wire value must rebuild to exactly itself. So `parse` rejects an uppercase UUID, `042`, `1E+3` or the language tag `en-gb`, and never quietly normalises it. The rejection reads like a malformed value, so its `expected e.g.` sample is what shows the client the spelling the codec wants.
+A codec's **canon** is the spelling its `build` writes. `parse` accepts that spelling and rejects every other spelling of the same value with an error, honouring the [section law](../optics/validated_prism.md#laws): an accepted wire value must rebuild to exactly itself. So `parse` rejects an uppercase UUID, `042`, `1E+3` or the language tag `en-gb`, and never quietly normalises it. The rejection reads like a malformed value, so its `expected e.g.` sample is what shows the client the spelling the codec wants.
 
 ~~~admonish tip title="Why this matters"
 Silent normalisation is data mutation nobody asked for. A mapper that quietly lowercases a UUID or reformats a timestamp makes an echo endpoint return different bytes than it received. It breaks cache keys and payload signatures, and bakes a client's spelling bug into the contract without anyone deciding to. Strictness is what guarantees a round trip: every stock codec is tested to accept exactly what it writes. When a producer speaks a different canon, you do not weaken the rule; you declare that canon, and keep the same guarantee on their spelling.
@@ -169,7 +169,7 @@ A vocabulary also crosses a **module boundary**. The API module that publishes i
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **The standard families are one factory call each**: `StandardCodecs` covers identifiers, dates, enums, numbers and money with lawful, located codecs
+* **The standard families are one factory call each**: `StandardCodecs` covers identifiers, dates, enums, numbers and money with lawful codecs, whose failures a spec locates at the component
 * **Canonical forms only**: each codec accepts exactly the spelling it renders, so a producer with its own canon gets a leaf that declares it
 * **Browser and Python timestamps need their own leaves**: the stock date-time codecs reject some or all of what they send, and a pattern cuts what it builds to its precision
 * **Mix-ins share the vocabulary**: one plain interface serves every spec, and a member a spec cannot use stays inert

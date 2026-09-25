@@ -39,9 +39,9 @@ import org.higherkindedj.hkt.validated.FieldError;
  * <p><b>Canonical forms only.</b> Every codec honours the {@code ValidatedPrism} build-parse
  * section law ({@code parse(s) == Valid(a)} implies {@code build(a) == s}) by accepting only the
  * form it renders: an accepted wire value always rebuilds to exactly itself. Case-folded UUIDs,
- * leading zeros, scientific notation and lowercase language tags are located rejections, never
- * silent normalisations. The outbound {@code build} direction is total formatting, matching the
- * leaf contract.
+ * leading zeros, scientific notation and lowercase language tags are rejections, never silent
+ * normalisations. The outbound {@code build} direction is total formatting, matching the leaf
+ * contract.
  *
  * <p><b>Located, copy-worthy errors.</b> Every parse failure is a single {@link FieldError} whose
  * message is terse and actionable ({@code not an ISO-8601 date (expected e.g. 2026-07-28)}); under
