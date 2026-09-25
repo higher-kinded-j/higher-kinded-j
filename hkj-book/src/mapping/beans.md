@@ -37,7 +37,7 @@ As on a record, every property the bean both reads and writes needs a domain com
 
 Because a property can be unset, three things differ from a record wire:
 
-1. **The Impl withholds `asIso()`.** A record pair whose components all copy unchanged also gets [`asIso()`](tiers.md), a two-way conversion that cannot fail. A bean's reads can meet an unset property, so a bean pair keeps `build`, `parse` and `asValidatedPrism()`, and not that.
+1. **A reference property costs the pair `asIso()`.** A record pair whose components all copy unchanged also gets [`asIso()`](tiers.md), a two-way conversion that cannot fail. A bean's read of a reference property can meet an unset value, so a bean pair with one keeps `build`, `parse` and `asValidatedPrism()`, and not that. A bean whose properties are all primitive keeps `asIso()`.
 2. **An `Optional` bridges with no annotation.** A domain `Optional<T>` maps to a nullable property `T`, where a record wire needs [`@OptionalBridge`](absence.md#optional-bridge). `build` writes `null` for empty, and `parse` reads a `null` as empty: [The automatic `Optional` bridge on a bean](rules.md#bean-optional-bridge).
 3. **A bean with fewer properties than your domain has no `parse`.** With a reference property, the Impl offers a validated `patch` instead, which copies the bean onto a domain value you already hold: [Bean projections](#bean-projections).
 
@@ -210,7 +210,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 | openapi-generator's default `openApiNullable=true` | a `getX_JsonNullable()` and `setX_JsonNullable(...)` pair beside each nullable property counts as a property your domain lacks | generate with `openApiNullable=false`; a `JsonNullable` type needs a leaf, and on a PATCH bean is [not supported yet](rules.md#no-jsonnullable-patch-property) |
 | a PATCH request bean with `default:` values or container defaults | the generator renders them as initialisers, which read as sent | give the PATCH request its own schema: [A PATCH getter must answer `null` until set](beans_patch.md#patch-getters-answer-null) |
 | a Lombok class | the processor sees its accessors only once Lombok has run | list Lombok's `annotationProcessor` before `hkj-processor`; the HKJ Gradle plugin adds its own after your `dependencies` block ([Lombok](../tooling/manual_setup.md#lombok)) |
-| Lombok's `@Singular` on a collection | not supported yet: its setter takes a `Collection<? extends T>`, not the getter's `List<T>` | drop `@Singular`, so the setter takes the `List` |
+| Lombok's `@Singular` on a collection | not supported yet. On a two-way builder, its setter takes a `Collection<? extends T>`, not the getter's `List<T>`. On a build-only builder, its singular adder is one more writer, with no domain component to fill it | drop `@Singular`, so the builder takes the `List` whole |
 | a protobuf-java message | not supported yet: `getUnknownFields()`, and a `getXBytes()` beside each string field, pair up as properties your domain lacks | convert it to a record by hand, and map the record |
 | a bean another annotation processor generates | the mapping waits for the type to exist, with nothing to configure | nothing: [Mapping over types other processors generate](../tooling/manual_setup.md#mapping-over-types-other-processors-generate) |
 
@@ -218,7 +218,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 
 ~~~admonish info title="Key Takeaways"
 * **A bean maps like a record**: leaves, renames, nesting and located errors are unchanged, and every property it reads and writes needs a source
-* **Three things follow from an unset property**: the Impl withholds `asIso()`, an `Optional` bridges with no annotation, and a smaller bean has `patch` instead of `parse`
+* **Three things follow from an unset property**: a reference property costs `asIso()`, an `Optional` bridges with no annotation, and a smaller bean has no `parse`
 * **What the bean does with a `null` is not checked for you**: a default reads back as present, and a writer that rejects it throws, so law-check from a domain sample with an empty `Optional`
 * **A bean's shape decides its direction**: a read model gets `parse` alone, a write model `build` alone, and a generated model with getters and setters maps both ways
 ~~~
@@ -226,7 +226,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 ~~~admonish tip title="See Also"
 - [Sparse PATCH](beans_patch.md): A bean as a PATCH request, where `null` means *leave unchanged*
 - [Bean wires](rules.md#bean-wires): The precise rules, from how a bean is written to a getter-only `List`
-- [What Your Spec Generates](tiers.md): Which methods each spec shape gets, and why a bean mapping withholds `asIso()`
+- [What Your Spec Generates](tiers.md): Which methods each spec shape gets, and why a reference property withholds `asIso()`
 ~~~
 
 ---

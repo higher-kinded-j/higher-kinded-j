@@ -88,8 +88,8 @@ are in [Compiler Messages](compiler_errors.md).
 | Generic record (`Page<T>`) | ✅ | ✅ | ✅ | ❌ (record-to-record only) |
 | `JsonNullable` property | through a leaf | through a leaf | through a leaf | ❌, not supported yet |
 
-A lossless pair also earns `asIso()`; a bean pair does not, because an unset property is an
-ordinary state. [What Your Spec Generates](tiers.md) explains which surface each spec gets, and why.
+A lossless pair also earns `asIso()`; a bean pair with a reference property does not, because an
+unset property is an ordinary state. [What Your Spec Generates](tiers.md) explains which surface each spec gets, and why.
 
 ---
 

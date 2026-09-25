@@ -55,7 +55,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a getter-only `List` be raw, or a wildcard?](#getter-only-list-element-type) | Not where `build` is emitted: `addAll` needs its element type. | not supported yet |
 | [Can a getter-only `List` carry an absent `Optional`?](#getter-only-list-refuses-the-bridge) | No: its getter creates the list, so absence reads as empty. | not supported yet |
 | [Can a two-way bean map a property that has only a getter?](beans.md#generated-client-checklist) | No: `@Unmapped` accepts it, but the component then stays out. | not supported yet |
-| [Can a builder's collection setter take a wider type than its getter?](beans.md#generated-client-checklist) | No: Lombok `@Singular`'s `Collection<? extends T>` is refused. | not supported yet |
+| [Can a Lombok builder use `@Singular` on a collection?](beans.md#generated-client-checklist) | No: the processor refuses it on two-way and build-only builders alike. | not supported yet |
 | [Does a protobuf-java message map?](beans.md#generated-client-checklist) | No: its companion accessors pair as extra properties. | not supported yet |
 | [Where does a one-directional bean nest?](#how-a-beans-direction-is-read) | Only where nothing needs its missing direction. | by design |
 | **Sparse PATCH** | | |
