@@ -219,7 +219,7 @@ A reader should never meet a corner case before the feature it is a corner of. P
 
 **A practical lane must be reproducible.** For a feature that needs a build (generated code, a framework integration), the lane includes the build line and the integration call, so a reader can follow it from a blank project. The chapter introduction states hard prerequisites (JDK version, preview flags, processor path) in its first screen, because readers arrive from a search engine and never pass the home page.
 
-**Where a rule goes, in one test.** What the compiler or processor *enforces* belongs in the fine print, or in the chapter's rules reference page where it has one: the diagnostic will find the reader anyway. What it *cannot* check is taught in the lane, as a warning with an example, because the reader's attention is the only safeguard. When a chapter has a rules reference page, that page is a rule's single home, and the teaching page keeps at most one sentence and a link.
+**Where a rule goes, in one test.** What the compiler or processor *enforces* belongs in the fine print, or in the chapter's rules reference page where it has one: the diagnostic will find the reader anyway. What it *cannot* check is taught in the lane, as a warning with an example, because the reader's attention is the only safeguard. When a chapter has a rules reference page, that page is a rule's single home, and the teaching page keeps at most one sentence and a link. A rule short enough to state in that one sentence may stay on the teaching page instead, while the rules page's index links to it.
 
 **Page size.** A content page aims for 900 to 1,800 words of prose. Over 2,000, split it or demote its fine print. Keep any unbroken run of prose under about 400 words: headings do not break a run, but code, a table or a diagram does. Reference pages are exempt from all three.
 
@@ -352,7 +352,7 @@ Which errors does `parse` report for this request, and in what order?
 Rules:
 - **The question is visible**, never collapsed, and carries the searchable nouns (annotation names, method names, message fragments)
 - **The answer is a sibling** `success` admonition with `collapsible=true`. Admonitions do not nest, so the answer cannot live inside the question
-- **Both carry an explicit `id=`**, so the anchor survives a checkpoint being added above it
+- **Both carry an explicit `id=`**, so a link from outside the book survives a checkpoint being added above it
 - **An answer adds no fact.** It applies a rule the page already teaches visibly, and ends with a "Where this lives" link. Its only unique content is the proof
 - **The question asks about a fresh instance** that probes a misconception. A question that recombines the example just shown only tests memory
 - **The answer is proved by the build**: a test assertion, or a `verify:rejects` snippet whose diagnostic is the answer. Never by an output comment nothing runs
@@ -369,7 +369,7 @@ The one exception is a [checkpoint](#checkpoints) answer, which is safe to colla
 
 ### Anchors
 
-`.github/scripts/book-anchor-check.cjs` fails the build on a link or fragment that lands on no heading. It accepts heading ids only, so link the heading around an admonition rather than its `id=`. Three rules keep links working:
+`.github/scripts/book-anchor-check.cjs` fails a pull request's Book Checks on a link or fragment that lands on no heading, and `hkj-book/check.sh` runs it locally. It accepts heading ids only, so link the heading around an admonition rather than its `id=`. Three rules keep links working:
 
 - **A heading linked from outside its page carries an explicit `{#id}`**, so its wording can change without breaking the link
 - **A heading that moves to another page keeps its id**, and gains an entry in the legacy-anchor map, `hkj-book/theme/legacy-anchors.js`, so old links still land on it
@@ -550,7 +550,9 @@ code that does not build. Prefer, in this order:
    the output comments the page asserts. Put each output comment on a line of its own, after the
    statement whose value it shows, and print that same value: bind it to a variable in the region and
    print the variable after it. A comment at the end of a code line is not checked, and nor is a value
-   the example computes again outside the region.
+   the example computes again outside the region. Only a comment in a recognised shape is a claim: a
+   number, a boolean or `Nothing`, or a printed value opening with `[`, `Name(` or `Name[`. The gate
+   reads any other comment as explanation and checks nothing, so shape a printed value to be claimed.
 2. **Mark the fence `<!-- verify -->`.** The gate compiles a copy of it against the real library and
    the real annotation processor. Use this only when the snippet cannot be runnable code (a shape
    written against abstract type variables, for instance).

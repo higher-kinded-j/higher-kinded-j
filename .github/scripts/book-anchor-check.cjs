@@ -2,7 +2,7 @@
 /*
  * Fail a cross-reference that lands nowhere.
  *
- * The book has no link checker, so a link into a heading that has been
+ * mdbook checks no links, so a link into a heading that has been
  * reworded, or onto a page that has been renamed, breaks silently: the reader
  * arrives at the top of the page, or at a 404, and nothing in the build says
  * so. Deep links are load-bearing here, since the glossary, the cheat sheet,

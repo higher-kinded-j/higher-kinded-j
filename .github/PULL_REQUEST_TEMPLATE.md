@@ -31,7 +31,7 @@ Delete this section if the pull request changes neither the book nor a rule, ref
 - [ ] `./gradlew :hkj-examples:test :hkj-examples:bookVerify` and `hkj-book/check.sh` pass
 - [ ] The prose follows the [Style Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/STYLE-GUIDE.md), and the chapter's own guide where its Chapter Guides table lists one
 - [ ] Each new rule or refusal is where the chapter's guide says it lives; a generated page, such as Compiler Messages, is regenerated rather than edited
-- [ ] The readability counts this lowered are quoted here, and so is whether a war story or dialogue was used, and why
+- [ ] The readability counts this lowered are quoted here, and so is whether a war story or dialogue was used and why, or why a candidate site went without
 
 ## Checklist:
 

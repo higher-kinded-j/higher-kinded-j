@@ -23,7 +23,7 @@ capstone and Check Your Understanding. The Look it up pages are reference pages.
 - **No page changes its URL.** Readers and other chapters link to these pages. Headings keep their
   ids as the Style Guide's [Anchors](STYLE-GUIDE.md#anchors) rules say.
 - **A new page needs a reader no existing page serves.** It joins its lane in the chapter intro's
-  contents, and its place in `SUMMARY.md`.
+  contents, and takes its place in `SUMMARY.md`.
 
 ## Where a Rule Lives
 
@@ -34,7 +34,7 @@ elsewhere.
 |---|---|
 | Enforced by the processor | One heading on [Rules and Limits](../hkj-book/src/mapping/rules.md), and a row in its "Find your limit" table. A rule short enough to state in one sentence may stay on its teaching page instead; its "Find your limit" row still links to it. |
 | Something the processor cannot check | The teaching page, as a warning titled "Not checked for you: …" with an example the build proves, and a row in Rules and Limits' "Find your symptom" table linking to it. |
-| A capability that does not exist | One sentence on the teaching page, and a "Find your limit" row whose status is *not supported yet*, as [Documenting What Does Not Exist](STYLE-GUIDE.md#documenting-what-does-not-exist) says. Where the processor refuses the shape, reuse its diagnostic's words. |
+| A capability that does not exist, and that the processor does not diagnose | One sentence on the teaching page, and a "Find your limit" row whose status is *not supported yet*, as [Documenting What Does Not Exist](STYLE-GUIDE.md#documenting-what-does-not-exist) says. A shape the processor refuses as not supported yet is an enforced rule: it takes the first row, with that status. |
 
 **A refusal a reader is likely to meet** also gets an entry on [Compiler
 Messages](../hkj-book/src/mapping/compiler_errors.md), added through the [Compiler Messages
@@ -54,8 +54,8 @@ MapStruct, and the `hkj-mapping` skill in `.claude/skills/`, which ships to user
   where the practical lane ends.
 - **Checkpoints** follow the Style Guide's [Checkpoints](STYLE-GUIDE.md#checkpoints) rules. Each
   teaching page carries two. The capstone carries one, Check Your Understanding ten, and the intro
-  and Quickstart none. Mapper at a Glance's twelve-question fit test is a self-assessment with no
-  answer.
+  and Quickstart none. Mapper at a Glance's twelve-question fit test is a self-assessment, not a
+  checkpoint.
 - **Writing modes** follow [War Stories and Dialogues](STYLE-GUIDE.md#war-stories-and-dialogues).
   The chapter's one dialogue opens What Your Spec Generates, and a war story opens Sparse PATCH's
   section on why a PATCH getter must answer `null`. A second dialogue would break the Style Guide's
@@ -64,13 +64,15 @@ MapStruct, and the `hkj-mapping` skill in `.claude/skills/`, which ships to user
 ## Examples
 
 - **The chapter's examples share one package**, `org.higherkindedj.example.book.mapping` in
-  `hkj-examples`, rather than one package per page. Each page's "See Example Code" box names its
-  files, and a test beside each proves what the page claims. The capstone has a package of its own.
-  The Quickstart and the testing page include from the Spring example app, `hkj-spring/example`. A
-  new page gets its own `<Topic>Book.java` and `<Topic>BookTest.java`.
-- **Every block a page shows is an include** from those files, verified as the Style Guide's [Java
-  code in hkj-book must be verified](STYLE-GUIDE.md#java-code-in-hkj-book-must-be-verified) rule
-  describes.
+  `hkj-examples`, rather than one package per page, because they share one cast. A new top-level
+  type must therefore not reuse a name already in the package. The capstone has a package of its
+  own. A page's "See Example Code" box names its own example files, and a test beside each proves
+  what the page claims. Basics, the Quickstart and the testing page also include from the Spring
+  example app, `hkj-spring/example`. A new page gets its own `<Topic>Book.java` and
+  `<Topic>BookTest.java`.
+- **On a teaching page, every runnable block is an include** from those files. A refused shape is a `verify:rejects`
+  fence, and a shape that cannot run is a `verify` fence, as the Style Guide's [Java code in
+  hkj-book must be verified](STYLE-GUIDE.md#java-code-in-hkj-book-must-be-verified) rule says.
 - **The chapter's running cast is the order service**: `Customer`, `Address`, `Order`, `LineItem`, a
   sealed `Payment` and an `OrderStatus` enum. A new example joins it wherever the feature fits, as
   [One Cast per Chapter](STYLE-GUIDE.md#one-cast-per-chapter) asks.
@@ -85,8 +87,12 @@ hkj-book/check.sh                                       # headings, links, diagr
 hkj-book/serve.sh                                       # render with the pinned mdbook
 ```
 
-CI runs the same Gradle tasks and the same book checks. The readability counts are a ratchet, used
-as the Style Guide's [Prose Limits](STYLE-GUIDE.md#prose-limits) section describes.
+`serve.sh` serves until you stop it, and its first run installs the pinned mdbook with `cargo`.
+
+On a pull request into `main`, CI runs the same Gradle tasks. The book checks run on any pull
+request that touches the book, so a pull request stacked on another gets only those: run the Gradle
+tasks yourself. The readability counts are a ratchet, used as the Style Guide's [Prose
+Limits](STYLE-GUIDE.md#prose-limits) section describes.
 
 Claude Code sessions in this repository can load the `book-authoring` skill
 (`.claude/skills/book-authoring/`), which carries the procedure and the traps. This guide stays the

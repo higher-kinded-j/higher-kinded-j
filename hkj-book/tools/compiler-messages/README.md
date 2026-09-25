@@ -6,7 +6,7 @@ here and rerun the script. Do not edit the page itself: the next run would overw
 
 ## Run it
 
-From any directory in the repository:
+From the repository root (the script itself also runs from any directory):
 
 ```bash
 ./gradlew :hkj-examples:bookMessagesClasspath   # writes hkj-examples/build/book-messages/*.txt
@@ -38,7 +38,7 @@ Each entry is a `dict` in a group of `GROUPS` in `messages.py`:
 | `display` | Optional. The triage table's text, when `fragment` alone reads badly. |
 | `meaning`, `fix` | Usually one sentence each. The fix is code or an imperative. |
 | `rule` | `(link text, target)`: the rule's home, usually on `rules.md`. Write that heading first, so the link resolves. |
-| `code` | The smallest declaration that provokes the message, compiled in package `com.example` with the shared imports and types at the top of `messages.py`. Call-site statements go at its end, and the script wraps them in a method. |
+| `code` | The smallest declaration that provokes the message, compiled in package `com.example` with the shared imports and types at the top of `messages.py`. A top-level declaration starts with an annotation, `record`, `class`, `interface`, `sealed`, `final`, `abstract` or `enum`; any other top-level line is a call-site statement, which goes at the end and which the script wraps in a method. |
 | `kind` | `"note"` for a note rather than an error. The entry is then held by `verify:reports`. |
 
 The marker, or the fragment when there is no marker, must be at least 10 characters long and

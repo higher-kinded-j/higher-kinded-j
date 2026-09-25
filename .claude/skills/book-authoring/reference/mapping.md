@@ -21,8 +21,8 @@ Work in this order, on the feature's own branch:
 
 ## Traps the chapter has met
 
-Each of these is a fact the book already proves on the page named after it. Check that page before
-repeating the claim, since the processor or a library can change under it.
+Where a trap names a page, the book states and proves it there. Check that page before repeating
+the claim, since the processor or a library can change under it.
 
 - **The tier question is "is it a plain copy", not "can it fail".** A rename or a flattened group is
   a plain copy. A leaf is not, even one that never fails, and neither is a nested spec, an
@@ -33,7 +33,8 @@ repeating the claim, since the processor or a library can change under it.
 - **Jackson's defaults coerce numbers.** A number-typed wire field truncates `2.5` to `2`, takes
   `"042"` as `42`, and rejects only an unreadable value, with its own 400. A `String` wire field
   binds a JSON number as its digits, so a leaf sees every bad value. `StandardCodecsBookTest`
-  asserts each case. (`codecs.md#standard-codecs`)
+  asserts what Jackson binds and throws; the 400 is Spring's mapping of that exception.
+  (`codecs.md#standard-codecs`)
 - **Jackson cannot bind a sealed wire interface without type information.** A sealed request DTO
   needs `@JsonTypeInfo`; the example uses `DEDUCTION` with `@JsonSubTypes`.
   (`structure.md#sealed-hierarchies`)
@@ -51,16 +52,17 @@ repeating the claim, since the processor or a library can change under it.
   `ExceptionInInitializerError`, and every later one `NoClassDefFoundError`. A test that proves it
   must be the only code touching that companion.
   (`merge_envelopes.md#generating-error-envelopes-generateerrorenvelope`)
-- **The wire-sample overloads of `MappingLaws` check `build` after `parse`.** A lossless or fallible
-  mapping's parsing sample for a normalising leaf must already be in its normal form. The validated
-  `patch` tier deliberately leaves that law out.
+- **Two `MappingLaws` overloads check `build` after `parse`**: the `asIso()` one and the fallible
+  `asValidatedPrism()` one. So a fallible mapping's parsing sample through a normalising leaf must
+  already be in its normal form. The other overloads do not check it.
   (`tiers.md#law-checked-in-the-repo-and-in-your-tests`)
 - **Mockito mocks final classes, but refuses a sealed interface.** Say that. Do not say that no
   mocking framework can mock a generated Impl.
   (`testing.md#injecting-and-testing-generated-mappings`)
 - **Preview features pin the build to one JDK release.** The book says Higher-Kinded-J is "built on
-  Java 25 today". A consumer that uses `Either` or a plain `VStream` compiles and runs with no
-  preview flag. (`quickstart.md`, "Before you start")
+  Java 25 today". A consumer that uses `Either` or a plain `VStream` compiles and runs on Java 25
+  with no preview flag. (`../quickstart.md#prerequisites`, the note "Where the flag is actually
+  needed")
 - **The mermaid check only parses.** It cannot see a missing `classDef` or a diagram wider than the
   page. A sequence diagram with four participants needs an `actorMargin` init directive and short
   labels to fit.

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Runs the book checks that CI's "Book Checks" workflow runs, in the same order, from anywhere in
-# the repository. Like CI, every check runs even after one fails, and the readability report always
-# runs. The Gradle gate (./gradlew :hkj-examples:test :hkj-examples:bookVerify) is separate.
+# Runs the book checks of CI's "Book Checks" workflow, in the same order, from anywhere. Unlike CI,
+# which stops at the first failing check, every check runs here; as in CI, the readability report
+# always runs. The Gradle gate (./gradlew :hkj-examples:test :hkj-examples:bookVerify) is separate.
 set -uo pipefail
-cd "$(git rev-parse --show-toplevel)"
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
 status=0
 node .github/scripts/book-heading-html-check.cjs || status=1
@@ -15,7 +15,11 @@ if .github/scripts/fetch_mermaid.sh; then
   if [ ! -f "$installed" ] || [ "$mermaid_check/package-lock.json" -nt "$installed" ]; then
     (cd "$mermaid_check" && npm ci --no-audit --no-fund) || status=1
   fi
-  node "$mermaid_check/check.cjs" || status=1
+  if [ -f "$installed" ]; then
+    node "$mermaid_check/check.cjs" || status=1
+  else
+    status=1
+  fi
 else
   status=1
 fi

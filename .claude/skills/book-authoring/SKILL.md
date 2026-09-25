@@ -39,7 +39,7 @@ guide's "Chapter Guides" section says.
 3. **Write the code first**, in the page's example files under `hkj-examples`, and include their
    anchored regions. The style guide's "Java code in hkj-book must be verified" section says how an
    output comment and a claim about another library are proved, and its Checkpoints section how a
-   checkpoint's answer is.
+   checkpoint's answer is proved.
 4. **Write the prose to the style guide.** A refused shape carries a `verify:rejects` marker, and
    the quoted fragment also appears as visible text, because a gate checks that the reader can see
    it.
@@ -76,9 +76,9 @@ guide's "Chapter Guides" section says.
   "Implicitly compiled files were not subject to annotation processing". It happens in `hkj-core`
   after a javadoc-only edit, and in `hkj-processor` after a single-file edit. Clean the module and
   rebuild.
-- **Never run two Gradle builds at once.** If you installed Spotless's pre-push hook (`./gradlew
-  spotlessInstallGitPrePushHook`), a push also runs a Gradle build, so do not push while another
-  build runs.
+- **Never run two Gradle builds at once.** If you installed Spotless's pre-push hook, with
+  `./gradlew spotlessInstallGitPrePushHook`, a push also runs a Gradle build, so do not push while
+  another build runs.
 - **Render with `hkj-book/serve.sh`.** It uses the pinned mdbook, and a global install is the wrong
   version.
 - **A contributor skill must not be named `hkj-*`.** The build plugins ship every `hkj-*` skill to
