@@ -99,7 +99,7 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | [Two swapped prisms passed to `of(...)` compiled](generics.md#element-mapped-specs) | Two abstract leaves of one type swap silently: pass them in declaration order. |
 | [A `Set` lost an element, or a `Map` entry was refused as a duplicate](structure.md#converting-map-keys) | A leaf maps two wire values to one: `ValidatedPrismLaws` catches it. |
 | [An error path reads as deeper nesting than it is](structure.md#other-containers) | A key or set element contains a dot: `FieldError.path()` keeps it as one segment. |
-| [`asIso().reverseGet` let a `null` into the domain, or threw, on a request body](tiers.md#which-methods-your-spec-gets) | `reverseGet` has no guard: a freshly bound wire goes through `parse`. |
+| [`asIso().reverseGet` or `asLens().set` let a `null` into the domain, or threw, on a request body](tiers.md#a-bound-request-goes-to-parse) | Neither has a guard: a freshly bound wire goes through `parse`. |
 | [A constructor bug reached the client as a message](absence.md#constructor-invariants) | Any `RuntimeException` counts: keep the constructor to checks on its arguments. |
 | [A timestamp came back with fewer fractional digits](codecs.md#canonical-forms-only) | The formatter pattern fixes the precision, so `build` truncates finer values. |
 | [A generated error companion throws `ExceptionInInitializerError`, then `NoClassDefFoundError`](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) | Its all-absent context is built on first use, and the context record's constructor rejects `null`: let every component accept `null`. |

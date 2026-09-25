@@ -253,7 +253,8 @@ public final class MappingLaws {
    * </ul>
    *
    * <p>{@code build(patched) == validWire} is deliberately NOT asserted: a normalising leaf (trim,
-   * lowercase) rewrites the wire form by design, the same weakening as the fallible full tier.
+   * lowercase) rewrites the wire form by design. The fallible full tier does assert build after
+   * parse, so its parsing wire must already be in the form {@code build} writes back.
    *
    * <p>Guards against vacuous fixtures: {@code validWire} must parse and must actually change
    * {@code domainSample} (otherwise idempotence is trivially true), and {@code invalidWire} must

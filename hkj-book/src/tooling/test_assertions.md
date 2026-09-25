@@ -346,7 +346,7 @@ void statusPrismIsLawful() {
 - **Lossless:** pass `asIso()` plus `asValidatedPrism()`; delegates to `IsoLaws` and adds the coherence checks between the two surfaces.
 - **Projection:** pass `asLens()`; delegates to `LensLaws`.
 - **Fallible:** pass `asValidatedPrism()` with a parsing and a non-parsing wire value; delegates to `ValidatedPrismLaws`.
-- **Total-parse** (a mapping with derived wire fields, whose parse cannot fail on a well-formed wire the domain accepts): pass a domain sample; only the non-derived components round-trip, and the overload asserts exactly that.
+- **Total-parse** (a mapping whose parse cannot fail on a well-formed wire the domain accepts): pass a domain sample. Derived wire fields and leaves that never fail qualify. Only the non-derived components round-trip, and the overload asserts exactly that.
 - **Validated patch** (a projection that validates, on a record or a bean wire): pass the `patch` and `build` method references, a domain sample, and a parsing and a non-parsing wire; checks projection identity, idempotence and located validation.
 - **Sparse update** (an `UpdateSpec`): pass the `updateFrom` method reference, a domain sample, and an all-absent, a valid and an invalid wire; checks identity, idempotence and located validation. Make the all-absent wire a freshly constructed bean, as a binder makes of an empty body, and the domain sample unlike any default, so a default the bean gives itself, which would defeat absence, fails the identity law. The invalid wire must fail on a field: a domain constructor's refusal is unlabelled, so a domain with no leaf checks `assertSparseIdentity` and `assertSparseIdempotent` on their own.
 - **Parse-only** (a bean that is only read): pass `asValidatedParse()` with a parsing and a non-parsing wire; checks that the first parses and the second fails with every error located.
@@ -367,7 +367,7 @@ void personMappingIsLawful() {
 }
 ```
 
-Two samples need care. A mapping with a derived field *and* a fallible leaf takes the fallible overload, with a parseable wire whose derived components match what `build` produces, so the rejection check still runs. For the patch and parse-only overloads, the non-parsing wire must fail on a field, since a refusal by the domain's constructor alone is unlabelled at the top level.
+Three samples need care. The lossless overload's coherence check needs a wire whose reference components are non-null, and whose values the domain accepts. A mapping with a derived field *and* a fallible leaf takes the fallible overload, which keeps the rejection check: give it a parseable wire whose derived components match what `build` produces. For the patch and parse-only overloads, the non-parsing wire must fail on a field, since a refusal by the domain's constructor alone is unlabelled at the top level.
 
 For asserting on the located failures themselves, `assertThatValidated(...).hasFieldErrors(...)` takes the whole accumulation as rendered lines; `assertThatFieldError` takes one error apart, matching its path (`hasPath("address.zip")`) and message (`hasMessage`, `hasMessageContaining`).
 

@@ -71,19 +71,35 @@ class TiersBookTest {
         .extracting(Method::getName)
         .contains("build", "parse", "asValidatedPrism")
         .doesNotContain("asIso", "asLens");
+
+    var coupons = CouponMappingImpl.INSTANCE;
+    assertThatValidated(coupons.parse(new CouponDto(" save10 ", 10)).map(coupons::build))
+        .hasValue(new CouponDto("SAVE10", 10)); // the round trip changed the wire
     // ANCHOR_END: check_leaf_no_iso
   }
 
   @Test
   @DisplayName("reverseGet lets a bound null into the domain, where parse locates it")
   void reverseGetLetsABoundNullIn() {
-    // ANCHOR: check_reverse_get
+    // ANCHOR: reverse_get_null
     PersonDto bound = new PersonDto(null, 36); // the request body left out "name"
 
     assertThat(PersonMappingImpl.INSTANCE.asIso().reverseGet(bound))
         .isEqualTo(new Person(null, 36)); // no error, and no exception
     assertThatValidated(PersonMappingImpl.INSTANCE.parse(bound))
         .hasFieldErrors("name: must not be null"); // parse locates it
-    // ANCHOR_END: check_reverse_get
+    // ANCHOR_END: reverse_get_null
+  }
+
+  @Test
+  @DisplayName("a projection's set writes a null card field onto the domain")
+  void aProjectionSetWritesANullIn() {
+    // ANCHOR: check_lens_set
+    Employee ada = new Employee("Ada", "Research", 36);
+    EmployeeCardDto card = new EmployeeCardDto(null, "Platform"); // the client sent no name
+
+    assertThat(EmployeeCardMappingImpl.INSTANCE.asLens().set(card, ada))
+        .isEqualTo(new Employee(null, "Platform", 36)); // no error, and no exception
+    // ANCHOR_END: check_lens_set
   }
 }
