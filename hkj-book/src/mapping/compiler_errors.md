@@ -2173,7 +2173,7 @@ CustomerMappingImpl mapper = CustomerMappingImpl.INSTANCE;
 
 The Impl has no such method, because your spec's shape does not support it: a leaf withholds `asIso()`, a projection has no `parse`, a one-directional bean has only `build` or only `parse`, and an `UpdateSpec` has only `updateFrom`.
 
-**Fix.** Call a method your spec's shape gets; [the tier table](tiers.md#the-emission-tiers-truthful-types) lists them.
+**Fix.** Call a method your spec's shape gets; [the method table](tiers.md#which-methods-your-spec-gets) says when each appears.
 
 ```
 cannot find symbol
@@ -2181,7 +2181,7 @@ symbol:   method asIso()
 location: variable INSTANCE of type CustomerMappingImpl
 ```
 
-The rule: [What Your Spec Generates](tiers.md#the-emission-tiers-truthful-types).
+The rule: [Which methods your spec gets](tiers.md#which-methods-your-spec-gets).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "method asIso()" -->

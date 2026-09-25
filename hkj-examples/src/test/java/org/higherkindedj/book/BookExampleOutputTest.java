@@ -144,7 +144,7 @@ class BookExampleOutputTest {
           Map.entry("SparsePatchBook", 5),
           Map.entry("StandardCodecsBook", 2),
           Map.entry("StructureBook", 11),
-          Map.entry("TiersBook", 2),
+          Map.entry("TiersBook", 3),
           Map.entry("ValidatedAssemblyBook", 3));
 
   @Test

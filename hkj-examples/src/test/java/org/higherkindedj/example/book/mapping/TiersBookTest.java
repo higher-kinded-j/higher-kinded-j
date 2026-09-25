@@ -2,15 +2,21 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+
+import java.lang.reflect.Method;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /**
  * The law checks behind the book's <a
  * href="https://higher-kinded-j.github.io/latest/mapping/tiers.html">What Your Spec Generates</a>
- * page. The page {@code {{#include}}}s the anchored regions below, so the snippet it displays is
- * this test, and it is green.
+ * page, and the proofs of its checkpoint answers. The page {@code {{#include}}}s the anchored
+ * regions below, so the snippet it displays is this test, and it is green.
  *
  * <p>{@code hkj-test} is test-scope, which is why the laws live in a test rather than beside the
  * spec.
@@ -28,6 +34,22 @@ class TiersBookTest {
     // ANCHOR_END: laws
   }
 
+  // ANCHOR: laws_each_spelling
+  @ParameterizedTest
+  @CsvSource({
+    "ada@example.org,        not-an-email",
+    "grace@corp.example,     grace.corp.example",
+    "ada+orders@example.org, ''"
+  })
+  void customerMappingObeysTheLawsAtEachSpelling(String parses, String fails) {
+    MappingLaws.assertMappingLaws(
+        CustomerMappingImpl.INSTANCE.asValidatedPrism(),
+        new CustomerDto("Ada", parses),
+        new CustomerDto("Ada", fails));
+  }
+
+  // ANCHOR_END: laws_each_spelling
+
   @Test
   void subscriberPatchMappingObeysThePatchLaws() {
     // ANCHOR: patch_laws
@@ -39,5 +61,45 @@ class TiersBookTest {
         new SubscriberDetailsDto("grace@example.org", 41), // parses and changes the domain
         new SubscriberDetailsDto("not-an-email", 36)); // located failure
     // ANCHOR_END: patch_laws
+  }
+
+  @Test
+  @DisplayName("a leaf that never fails still costs the pair its asIso()")
+  void aLeafThatNeverFailsCostsTheIso() {
+    // ANCHOR: check_leaf_no_iso
+    assertThat(CouponMappingImpl.class.getMethods())
+        .extracting(Method::getName)
+        .contains("build", "parse", "asValidatedPrism")
+        .doesNotContain("asIso", "asLens");
+
+    var coupons = CouponMappingImpl.INSTANCE;
+    assertThatValidated(coupons.parse(new CouponDto(" save10 ", 10)).map(coupons::build))
+        .hasValue(new CouponDto("SAVE10", 10)); // the round trip changed the wire
+    // ANCHOR_END: check_leaf_no_iso
+  }
+
+  @Test
+  @DisplayName("reverseGet lets a bound null into the domain, where parse locates it")
+  void reverseGetLetsABoundNullIn() {
+    // ANCHOR: reverse_get_null
+    PersonDto bound = new PersonDto(null, 36); // the request body left out "name"
+
+    assertThat(PersonMappingImpl.INSTANCE.asIso().reverseGet(bound))
+        .isEqualTo(new Person(null, 36)); // no error, and no exception
+    assertThatValidated(PersonMappingImpl.INSTANCE.parse(bound))
+        .hasFieldErrors("name: must not be null"); // parse locates it
+    // ANCHOR_END: reverse_get_null
+  }
+
+  @Test
+  @DisplayName("a projection's set writes a null card field onto the domain")
+  void aProjectionSetWritesANullIn() {
+    // ANCHOR: check_lens_set
+    Employee ada = new Employee("Ada", "Research", 36);
+    EmployeeCardDto card = new EmployeeCardDto(null, "Platform"); // the client sent no name
+
+    assertThat(EmployeeCardMappingImpl.INSTANCE.asLens().set(card, ada))
+        .isEqualTo(new Employee(null, "Platform", 36)); // no error, and no exception
+    // ANCHOR_END: check_lens_set
   }
 }

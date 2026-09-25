@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.util.Locale;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -35,6 +36,7 @@ public final class TiersBook {
     Employee employee = new Employee("Ada", "Research", 36);
     Lens<Employee, EmployeeCardDto> badge = EmployeeCardMappingImpl.INSTANCE.asLens();
     Employee moved = badge.set(new EmployeeCardDto("Ada", "Platform"), employee);
+    // Employee[name=Ada, department=Platform, age=36]
     // ANCHOR_END: projection_usage
     System.out.println(moved);
 
@@ -86,3 +88,18 @@ interface SubscriberDetailsMapping extends MappingSpec<Subscriber, SubscriberDet
 }
 
 // ANCHOR_END: leaf_projection_spec
+
+// ANCHOR: coupon_spec
+record Coupon(String code, int percent) {}
+
+record CouponDto(String code, int percent) {}
+
+@GenerateMapping
+interface CouponMapping extends MappingSpec<Coupon, CouponDto> {
+  default ValidatedPrism<String, String> code() { // never fails: it only tidies the spelling
+    return ValidatedPrism.of(
+        raw -> Validated.validNel(raw.strip().toUpperCase(Locale.ROOT)), code -> code);
+  }
+}
+
+// ANCHOR_END: coupon_spec

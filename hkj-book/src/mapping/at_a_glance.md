@@ -63,6 +63,7 @@ mapping nests inside another.
 | Error paths use **domain** component names | Paths stay stable when the wire is renamed | Where a client needs wire names, map them back through the rename, or read the structured `segments` |
 | A wire `null` is a located error unless you say otherwise | On most wires a `null` really is a defect | [`@OptionalBridge`](absence.md#optional-bridge) per component; automatic on bean wires |
 | The domain must be a record | `parse` builds through the canonical constructor | Keep entities at the far side of the boundary, and map to them from the record |
+| The annotation goes on your spec interface, never on the mapped types | Records, sealed hierarchies and beans from a compiled library cannot be edited | Declare the spec in your own code: `@GenerateMapping interface VendorOrderMapping extends MappingSpec<VendorOrder, OrderDto> {}` |
 | Sparse PATCH is opt-in, bean-only and wrapper-typed | A primitive can never be absent, and a record component is always present | [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) with `Integer`, `Boolean` and friends |
 | A PATCH replaces a nested object wholesale | Deep merge is out of scope | Patch the nested record through its own spec |
 | A spec-carrying module on the **module path** neither writes nor reads the cross-module index | The index is one package, and a package belongs to one module | Delegate with a leaf calling the other Impl, or pass `-Ahkj.mapping.index=false` |
