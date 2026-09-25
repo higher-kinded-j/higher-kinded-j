@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.function.UnaryOperator;
 import org.higherkindedj.hkt.error.ErrorEnvelope;
+import org.higherkindedj.hkt.time.TimeSource;
 import org.higherkindedj.optics.annotations.GenerateErrorEnvelope;
 import org.jspecify.annotations.Nullable;
 
@@ -29,10 +31,12 @@ public final class OrderErrorBook {
     List<ProductId> products = List.of(new ProductId("PROD-1"));
 
     // ANCHOR: edit_context
+    TimeSource clock = TimeSource.fixed(Instant.parse("2026-07-28T12:00:00Z"));
     OrderError error =
-        OrderErrors.outOfStock(products) // typed factory
-            .editContext(
-                ctx -> ctx.orderId(orderId).traceId(traceId)); // typed context, not map.put
+        OrderErrors.outOfStock(clock, products) // typed factory
+            .editContext(ctx -> ctx.orderId(orderId).traceId(traceId)); // typed, not map.put
+    // ErrorEnvelope[code=OUT_OF_STOCK, message=Out of stock, timestamp=2026-07-28T12:00:00Z,
+    //   context=OrderErrorContext[orderId=OrderId[value=ORD-1], traceId=TraceId[value=trace-1]]]
     // ANCHOR_END: edit_context
     System.out.println(error.envelope());
   }
@@ -54,7 +58,7 @@ record OrderErrorContext(@Nullable OrderId orderId, @Nullable TraceId traceId) {
 sealed interface OrderError {
   ErrorEnvelope<OrderErrorContext> envelope(); // declared once
 
-  // A one-line default so the generated wither reads as an instance method.
+  // A one-line default so the generated editContext reads as an instance method.
   default OrderError editContext(UnaryOperator<OrderErrors.ContextBuilder> edit) {
     return OrderErrors.editContext(this, edit);
   }
@@ -65,4 +69,5 @@ sealed interface OrderError {
   record PaymentDeclined(CardRef card, ErrorEnvelope<OrderErrorContext> envelope)
       implements OrderError {}
 }
+
 // ANCHOR_END: error_envelope

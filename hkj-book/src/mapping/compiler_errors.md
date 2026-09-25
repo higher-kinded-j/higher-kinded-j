@@ -122,6 +122,8 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 |---|---|
 | [`both carry it`](#merge-component-ambiguous) | Two merge sources carry one component |
 | [`uses fallible fills but declares a plain`](#merge-plain-return) | A fallible merge declares a plain return |
+| [`declares a Validated return but every fill is an identity copy`](#merge-validated-identity) | A merge of copies declares a Validated return |
+| [`is not filled by any source`](#merge-unfilled) | No merge source names a target component |
 | [`is a primitive`](#envelope-primitive-context) | An envelope context component is a primitive |
 | [`is a class, not a record`](#envelope-variant-not-a-record) | An envelope variant is a class |
 | [`which this companion does not support`](#envelope-generic) | An envelope hierarchy is generic |
@@ -1913,7 +1915,7 @@ Rename the component on all but one source (a typed disambiguation mechanism is 
 follow-on).
 ```
 
-The rule: [Merging several sources](merge_envelopes.md#merging-several-sources-generatemerge).
+The rule: [How a merge fills](rules.md#how-a-merge-fills).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "both carry it" -->
@@ -1943,7 +1945,7 @@ types: a merge that can fail must say so in its signature. Declare
 'Validated<NonEmptyList<FieldError>, Summary> merge(...)'.
 ```
 
-The rule: [Merging several sources](merge_envelopes.md#merging-several-sources-generatemerge).
+The rule: [How a merge fills](rules.md#how-a-merge-fills).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "uses fallible fills but declares a plain" -->
@@ -1961,6 +1963,66 @@ interface SummaryMerge {
   default ValidatedPrism<String, EmailAddress> email() {
     return EmailCodecs.EMAIL;
   }
+}
+```
+~~~
+
+### `@GenerateMerge: 'x' declares a Validated return but every fill is an identity copy` {#merge-validated-identity}
+
+Every fill copies its source, so the merge cannot fail, but its signature says it can.
+
+**Fix.** Declare the plain target return, or give a component a leaf that can fail, which makes the `Validated` return true.
+
+```
+@GenerateMerge: 'assemble' declares a Validated return but every fill is an identity copy.
+Truthful types: a merge that cannot fail must not claim it can. Declare the plain 'Header'
+return type.
+```
+
+The rule: [How a merge fills](rules.md#how-a-merge-fills).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "declares a Validated return but every fill is an identity copy" -->
+```java
+record User(String name, String email) {}
+
+record Settings(boolean darkMode) {}
+
+record Header(String name, boolean darkMode) {}
+
+@GenerateMerge
+interface HeaderAssembly {
+  Validated<NonEmptyList<FieldError>, Header> assemble(User user, Settings settings);
+}
+```
+~~~
+
+### `@GenerateMerge: target component 'x' is not filled by any source` {#merge-unfilled}
+
+No source has a component of that name, and a merge matches by name only: it has no rename.
+
+**Fix.** Rename a source component to match, or add a source that carries it.
+
+```
+@GenerateMerge: target component 'OrderView.customerName' is not filled by any source. Every
+target component needs exactly one same-named source component. Add 'customerName' to one of the
+sources, or drop it from the target.
+```
+
+The rule: [How a merge fills](rules.md#how-a-merge-fills).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "is not filled by any source" -->
+```java
+record Order(String orderId) {}
+
+record Customer(String name) {}
+
+record OrderView(String orderId, String customerName) {}
+
+@GenerateMerge
+interface OrderViewAssembly {
+  OrderView assemble(Order order, Customer customer);
 }
 ```
 ~~~

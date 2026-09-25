@@ -76,6 +76,8 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a generic sealed hierarchy be mapped?](#generic-boundaries) | No, not even at a concrete instantiation: model it as a record. | not supported yet |
 | [What supplies an element-mapped spec's prisms where it nests?](#element-mapped-nesting) | A leaf on the using spec, or another registered mapping. | by design |
 | **Merge and error envelopes** | | |
+| [Can a merge rename a component?](#how-a-merge-fills) | No: a target name must match exactly one source component. | not supported yet |
+| [Can a merge fill a component through a spec's `build`?](#how-a-merge-fills) | No: a merge runs a spec's `parse` only. | not supported yet |
 | [Can an error envelope hierarchy be generic?](#error-envelope-rules) | No: the hierarchy, its variants and the context are non-generic. | by design |
 
 ## Find your symptom {#find-your-symptom}
@@ -100,7 +102,7 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | [`asIso().reverseGet` threw on a request body](tiers.md) | `reverseGet` is unguarded: a freshly bound wire goes through `parse`. |
 | [A constructor bug reached the client as a message](absence.md#constructor-invariants) | Any `RuntimeException` counts: keep the constructor to checks on its arguments. |
 | [A timestamp came back with fewer fractional digits](codecs.md#canonical-forms-only) | The formatter pattern fixes the precision, so `build` truncates finer values. |
-| [The first call into a generated error companion throws `ExceptionInInitializerError`](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) | Its all-absent context is built at class initialisation, and the context record's constructor rejects `null`: keep it a plain nullable carrier. |
+| [A generated error companion throws `ExceptionInInitializerError`, then `NoClassDefFoundError`](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) | Its all-absent context is built on first use, and the context record's constructor rejects `null`: let every component accept `null`. |
 
 ---
 
@@ -513,17 +515,35 @@ A leaf's element types go on the spec's own type parameters, and a rename declar
 
 ## Merge and error envelopes {#merge-and-error-envelopes}
 
+### How a merge fills {#how-a-merge-fills}
+
+**A merge is one abstract method on an `@GenerateMerge` interface: two or more record sources in, one record target out.** The processor refuses fewer than two sources, a second abstract method, and a generic merge.
+
+- **Each target component fills from the one source with a component of the same name.** A merge matches by name only and has no rename, so the processor refuses a target component no source names ([`is not filled by any source`](compiler_errors.md#merge-unfilled)), and one two sources carry ([`both carry it`](compiler_errors.md#merge-component-ambiguous)). A source component the target lacks fills nothing.
+- **A fill copies when the types match**, a same-typed container as a [copy](#same-typed-containers-cross-as-copies).
+- **A leaf converts a fill.** It is a zero-parameter `default` method on the merge interface, named after the target component, returning `ValidatedPrism<SourceComponent, TargetComponent>`, source first. An explicit leaf wins even when the types match.
+- **A `@GenerateMapping` spec fills a component as `parse`.** The source component must be the spec's wire and the target component its domain, in this module or a dependency. A merge never runs a spec's `build`, so an outbound view cannot fill through one yet.
+- **The return type follows the fills.** A fill that can fail demands `Validated<NonEmptyList<FieldError>, Target>`, and a merge whose every fill is a copy must declare the plain target ([`every fill is an identity copy`](compiler_errors.md#merge-validated-identity)).
+
 ### Nulls and guards in a merge {#nulls-and-guards-in-a-merge}
 
 A fallible merge, one returning `Validated`, carries the [same null doctrine as `parse`](basics.md#null-doctrine): a null source-component read is a located, accumulated `FieldError`, never an exception, while a null source *argument* stays the caller's `NullPointerException`. It carries parse's [constructor guard](absence.md#constructor-invariants) too: an exception the target's constructor throws becomes an unlabelled `FieldError` with its message. A plain-return merge is total *by its declaration*: nulls flow through to the target constructor exactly as `build` copies them, and whatever that constructor throws propagates. (The return type follows the fills, so the guards cannot be bought by declaration alone: an identity-only merge that wants them should add a normalising `ValidatedPrism<X, X>` leaf, which makes the merge fallible and brings the `Validated` return with it.)
 
 ### Error envelope rules {#error-envelope-rules}
 
-For [`@GenerateErrorEnvelope`](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope), three rules apply, each a what/why/fix diagnostic:
+For [`@GenerateErrorEnvelope`](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope), the processor refuses each of these shapes with a what/why/fix diagnostic:
 
-- the hierarchy, its variants, and the context record must be non-generic;
-- permitted variants must be records; a nested sealed sub-hierarchy is rejected with a flatten-it fix, not recursed into;
-- the context record's components must be nullable reference types. The all-absent context holds `null`, so primitives are rejected at compile time; and because a null-rejecting compact constructor cannot be detected by the processor, keep the context a plain nullable data carrier.
+| Shape | Why |
+|---|---|
+| an annotated type that is not a sealed interface | the companion is generated from the closed set of permitted variants |
+| a generic hierarchy, variant or context record | the builder and the all-absent context are derived from concrete types |
+| a permitted variant that is not a record, or a nested sealed sub-hierarchy | each factory and `editContext` arm is derived from a record variant; flatten a sub-hierarchy into its leaf records |
+| a variant with no `ErrorEnvelope` component, or more than one | exactly one carries the envelope |
+| variants that disagree on the context type | one companion builds one context type |
+| a context type that is not a record | the `ContextBuilder` is derived from the record's components |
+| a primitive context component | the all-absent context holds `null` in every component |
+
+A compact constructor that rejects `null` is the one shape the processor cannot see: it compiles, and fails the companion's first use. [Generating error envelopes](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) warns of it.
 
 ---
 

@@ -34,12 +34,17 @@ public final class MergeBook {
             new User("Ada", "ada@corp.example"),
             new Account("GB29-XXXX", 4200),
             new Settings(true));
+    // Dashboard[name=Ada, iban=GB29-XXXX, darkMode=true]
     // ANCHOR_END: merge_usage
     System.out.println(dashboard);
 
-    System.out.println(
+    // ANCHOR: nested_merge_usage
+    Validated<NonEmptyList<FieldError>, ProfileCard> card =
         ProfileCardAssemblyImpl.INSTANCE.assemble(
-            new User("Ada", "ada@corp.example"), new Wrapper(new CustomerDto("Bob", "nope"))));
+            new User("Ada", "ada@corp.example"), new ProfileForm(new CustomerDto("Bob", "nope")));
+    // Invalid(NonEmptyList[customer.email: not an email address])
+    // ANCHOR_END: nested_merge_usage
+    System.out.println(card);
   }
 }
 
@@ -60,14 +65,13 @@ interface DashboardAssembly {
 // ANCHOR_END: merge_spec
 
 // ANCHOR: nested_merge_spec
-record Wrapper(CustomerDto customer) {} // the wire side
+record ProfileForm(CustomerDto customer) {} // the wire side
 
 record ProfileCard(String name, Customer customer) {} // the domain side
 
 @GenerateMerge
 interface ProfileCardAssembly {
-  // ProfileCard.customer fills from Wrapper.customer through CustomerMapping,
-  // so a bad email is: Invalid(NonEmptyList[customer.email: not an email address])
-  Validated<NonEmptyList<FieldError>, ProfileCard> assemble(User user, Wrapper wrapper);
+  // ProfileCard.customer fills from ProfileForm.customer through CustomerMapping, which can fail.
+  Validated<NonEmptyList<FieldError>, ProfileCard> assemble(User user, ProfileForm form);
 }
 // ANCHOR_END: nested_merge_spec

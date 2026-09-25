@@ -305,7 +305,7 @@ List<Integer> built = snoc.build(Pair.of(List.of(1, 2, 3), 4));
 
 ---
 
-## TimeSource
+## TimeSource {#timesource}
 
 **Definition:** `java.time.Clock` lifted into the effect world, so reading the time is a lazy, composable effect rather than a scattered `Instant.now()` that makes every timestamp untestable. `TimeSource.now()` returns an `IO<Instant>` (with `nowAsync()` for the deferred variant); nothing is read until the effect runs, and each run reads afresh. It is deliberately named `TimeSource`, not `Clock`, so it never clashes with `java.time.Clock`.
 

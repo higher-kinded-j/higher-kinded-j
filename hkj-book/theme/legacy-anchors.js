@@ -28,6 +28,7 @@
     "mapping/basics.html#constructor-invariants": "mapping/absence.html#constructor-invariants",
     "mapping/basics.html#the-fine-print": "mapping/basics.html#bind-in-the-caller",
     "mapping/codecs.html#your-own-canon-validatedprismcanonical": "mapping/codecs.html#your-own-canon",
+    "mapping/merge_envelopes.html#admonition-fine-grained-or-coarse-variants": "mapping/merge_envelopes.html#fine-grained-or-coarse-variants",
     "mapping/beans_patch.html#bean-shaped-wire-targets": "mapping/beans.html#bean-shaped-wire-targets",
     "mapping/beans_patch.html#bean-projections": "mapping/beans.html#bean-projections",
     "mapping/beans_patch.html#accessors-meant-to-stay-out": "mapping/beans.html#accessors-meant-to-stay-out",
