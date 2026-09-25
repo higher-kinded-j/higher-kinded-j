@@ -140,6 +140,7 @@ class BookExampleOutputTest {
           Map.entry("MergeBook", 2),
           Map.entry("MultiEditBook", 2),
           Map.entry("NonEmptyListBook", 3),
+          Map.entry("OrderErrorBook", 1),
           Map.entry("SparsePatchBook", 5),
           Map.entry("StandardCodecsBook", 2),
           Map.entry("StructureBook", 11),

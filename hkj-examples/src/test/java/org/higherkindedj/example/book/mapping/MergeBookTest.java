@@ -20,22 +20,28 @@ class MergeBookTest {
   @Test
   @DisplayName("a plain-return merge passes a null source component straight through")
   void aPlainReturnMergePassesNullThrough() {
+    // ANCHOR: check_plain_null
     Dashboard dashboard =
         DashboardAssemblyImpl.INSTANCE.assemble(
             new User(null, "ada@corp.example"), new Account("GB29-XXXX", 4200), new Settings(true));
 
     assertThat(dashboard).isEqualTo(new Dashboard(null, "GB29-XXXX", true)); // no check, no error
+    // ANCHOR_END: check_plain_null
   }
 
   @Test
-  @DisplayName("a context that rejects null fails the companion on its first use, not at compile")
-  void aNullRejectingContextFailsTheCompanionOnFirstUse() {
-    // ANCHOR: check_strict_context
-    assertThatThrownBy(() -> RefundErrors.refundWindowClosed("ORD-1"))
-        .isInstanceOf(ExceptionInInitializerError.class) // the all-absent context threw
+  @DisplayName("only a context that rejects null fails its companion: at first use, and after")
+  void onlyAContextThatRejectsNullFailsItsCompanion() {
+    // ANCHOR: check_contexts
+    assertThat(ChargebackErrors.chargebackOpened("ORD-1").envelope().context())
+        .isEqualTo(new ChargebackErrorContext(null)); // accepts the all-absent context
+
+    assertThatThrownBy(() -> RefundErrors.refundWindowClosed("ORD-1")) // the first use
+        .isInstanceOf(ExceptionInInitializerError.class)
         .cause()
-        .isInstanceOf(NullPointerException.class)
         .hasMessage("traceId");
-    // ANCHOR_END: check_strict_context
+    assertThatThrownBy(() -> RefundErrors.refundWindowClosed("ORD-2")) // and every use after
+        .isInstanceOf(NoClassDefFoundError.class);
+    // ANCHOR_END: check_contexts
   }
 }
