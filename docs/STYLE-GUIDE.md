@@ -333,7 +333,7 @@ The guide's readability rules, stated so a review can check them:
 - **No "above" or "below".** Name the destination and link it.
 - **Fine print is still prose for people**: one-sentence reason, the fix as code or an imperative, and the diagnostic quoted rather than paraphrased.
 
-The book's CI counts, per page, what these limits and the page-size and em-dash rules ask a reviewer to check: sentences over 35 and over 50 words, bullets over 60, prose runs over 400 words, dashes, and "above" or "below". It compares the counts with a committed baseline and reports any rise on the pull request; it does not fail the build. The counts are a ratchet, not a verdict: they cover every page, reference pages and fine print included, so a rise asks for a look rather than a rewrite. `node .github/scripts/book-readability-check.cjs --page <path under hkj-book/src>` lists what a page's counts are made of. `--update` lowers the baseline after a change improves a page, and never raises it; a count that has to rise takes `--accept <page>`, with the reason in the commit message. The pull request quotes the counts it lowered. `hkj-book/check.sh` runs this report with the book's other checks, as CI does.
+The book's CI counts, per page, what these limits and the page-size and em-dash rules ask a reviewer to check: sentences over 35 and over 50 words, bullets over 60, prose runs over 400 words, dashes, and "above" or "below". It compares the counts with a committed baseline, and a count that rises fails the pull request's Book Checks. The counts cover every page, reference pages and fine print included. `node .github/scripts/book-readability-check.cjs --page <path under hkj-book/src>` lists what a page's counts are made of. A rise asks for the sentence, bullet or run to be rewritten. When a rise is deliberate, such as a reference page gaining a long row, raise that page's ceiling with `--accept <page>` and give the reason in the commit message. `--update` lowers the baseline after a change improves a page, and never raises it. The pull request quotes the counts it lowered. `hkj-book/check.sh` runs the same check with the book's other checks.
 
 ### Checkpoints
 
@@ -356,7 +356,8 @@ Rules:
 - **An answer adds no fact.** It applies a rule the page already teaches visibly, and ends with a "Where this lives" link. Its only unique content is the proof
 - **The question asks about a fresh instance** that probes a misconception. A question that recombines the example just shown only tests memory
 - **The answer is proved by the build**: a test assertion, or a `verify:rejects` snippet whose diagnostic is the answer. Never by an output comment nothing runs
-- **At most two per page**, placed straight after the "You can ship now" tip, so passing one certifies that stopping there is safe
+- **Two per teaching page, as the target and the limit**, placed straight after the "You can ship now" tip, so passing one certifies that stopping there is safe
+- **Checkpoints are optional in a chapter**, and a chapter adopts them all at once, in a reworking pass of its own, rather than a page at a time
 - **A chapter's self-check page is the exception**: it is all checkpoints, numbered in their titles ("Checkpoint 3: ...") so an answer can name another, and ordered from recall to writing code
 - **Its questions interleave the pages** rather than follow them, and a question may withhold a noun that would name its answer
 - **It closes the chapter's Ship group**, carries no "What You'll Learn", and ends with a routing key that turns a score into a next step

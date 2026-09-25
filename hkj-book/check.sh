@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the book checks of CI's "Book Checks" workflow, in the same order, from anywhere. Unlike CI,
-# which stops at the first failing check, every check runs here; as in CI, the readability report
-# always runs. The Gradle gate (./gradlew :hkj-examples:test :hkj-examples:bookVerify) is separate.
+# which stops at the first failing check, every check runs here; as in CI, the readability check
+# always runs, and a count that rises above the baseline fails it. The Gradle gate (./gradlew :hkj-examples:test :hkj-examples:bookVerify) is separate.
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
@@ -24,5 +24,5 @@ else
   status=1
 fi
 
-node .github/scripts/book-readability-check.cjs || status=1
+node .github/scripts/book-readability-check.cjs --strict || status=1
 exit "$status"

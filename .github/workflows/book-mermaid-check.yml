@@ -72,7 +72,7 @@ jobs:
       - name: Parse-check mermaid diagrams
         run: node .github/scripts/mermaid-check/check.cjs
 
-      # Last, and even when a check before it failed: a report, not a gate.
-      - name: Report readability against the baseline
+      # Last, and even when a check before it failed, so a pull request sees every rise at once.
+      - name: Check readability against the baseline
         if: ${{ !cancelled() }}
-        run: node .github/scripts/book-readability-check.cjs
+        run: node .github/scripts/book-readability-check.cjs --strict
