@@ -2,24 +2,24 @@
 
 _The stock conversions for the standard families, and the mix-in pattern that shares them across an API._
 
-A typical DTO boundary converts the same handful of families every time: identifiers, dates, enums, money. Writing a `ValidatedPrism` by hand for each would be busywork, and writing it *lawfully* (accepting exactly the spelling it renders) is subtle. `StandardCodecs` ships that vocabulary ready-made, and a plain mix-in interface shares it, together with your own leaves and renames, across every spec in an API.
+A typical DTO boundary converts the same handful of families every time: identifiers, dates, enums, money. Writing a `ValidatedPrism` by hand for each would be busywork, and writing it *lawfully*, accepting exactly the spelling it renders, is subtle. `StandardCodecs` ships that vocabulary ready-made. This page first walks the stock codecs and the one rule they all keep. Your own canon and a vocabulary shared across specs follow, for when you need them.
 
 ~~~admonish info title="What You'll Learn"
-- Mapping the standard conversion families (identifiers, dates, enums, money) with one factory call each
-- Why the codecs accept canonical forms only, and how the formatter overloads serve differently-canonical wires
-- Wrapping a lenient, throwing JDK parser lawfully with `ValidatedPrism.canonical`
-- Sharing leaves and renames across specs with plain mix-in interfaces
+- Map identifiers, dates, enums, numbers and money with one factory call each, and predict which spellings each accepts
+- Predict which of a browser's or Python's timestamps a stock codec rejects, and declare the producer's canon instead
 ~~~
 
 ~~~admonish example title="See Example Code"
-**The code on this page is [StandardCodecsBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java)** - the page includes it directly, so it is compiled and run by the build.
+**The code on this page is [StandardCodecsBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java) and its [StandardCodecsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java)** - the page includes them directly, so they are compiled and run by the build.
 ~~~
 
 ## Standard codecs {#standard-codecs}
 
-The common conversion families need no hand-written leaves: `StandardCodecs` ships one factory per family, so a typical DTO boundary maps out of the box:
+The common conversion families need no conversion code of your own. `StandardCodecs`, in `org.higherkindedj.optics.validated`, ships one factory per family. The processor never applies one on its own, so each converting component declares a one-line [leaf](basics.md#validated-leaves) that returns it:
 
 ``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:codecs_imports}}
+
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:codecs_spec}}
 ```
 
@@ -37,79 +37,124 @@ The common conversion families need no hand-written leaves: `StandardCodecs` shi
 | `currency()` | `String` ↔ `Currency` (ISO 4217) |
 | `locale()` | `String` ↔ `Locale` (BCP 47 tag) |
 
-Every parse failure is a located `FieldError` with a copy-worthy message, so the codecs feed [the 422 leg](../spring/spring_boot_integration.md#the-422-leg) unchanged, and the enum message names the permitted constants:
+A codec's own failure is a `FieldError` with a message and no path. Under a spec, the generated `parse` locates it at the component, so the codecs feed [the 422 leg](../spring/spring_boot_integration.md#the-422-leg) unchanged. Each message ends with a sample of the spelling the codec wants, and the enum message names the permitted constants:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:codecs_errors}}
 ```
 
-### Canonical forms only {#canonical-forms-only}
+The number and boolean codecs are for values that arrive as strings: a query parameter, a CSV cell, a quoted JSON value. They produce boxed types, so the domain component is `Integer` or `Boolean`, not `int`: a `ValidatedPrism` cannot name a primitive, and the processor [refuses the mismatch](compiler_errors.md#no-usable-source). A quantity JSON sends as a number needs no codec: declare it `Integer` on both sides, and a missing one is still a located `must not be null`.
 
-Each codec accepts exactly the form it renders, honouring the [`ValidatedPrism` section law](../optics/validated_prism.md#laws). A case-folded UUID, a leading zero, scientific notation or a lowercase language tag is a located rejection, never a silent normalisation, so whatever `parse` accepts, `build` reproduces byte-for-byte (`build(parse(s).get()) == s` whenever `s` parses).
-
-~~~admonish tip title="Why this matters"
-Silent normalisation is data mutation nobody asked for. A mapper that quietly lowercases a UUID or reformats a timestamp makes an echo endpoint return different bytes than it received, breaks cache keys and payload signatures, and bakes a client's spelling bug into the contract without anyone deciding to. The strictness here is not pedantry: it is the property that makes round trips *provable*, and every codec is law-checked to accept exactly what it renders. When a producer legitimately speaks a different canon, you do not weaken the law; you declare that canon (below) and keep the same guarantee on their spelling.
+~~~admonish warning title="Not checked for you: qualify a factory named like its component"
+A leaf for a component called `currency`, `locale`, `uri` or `uuid` shares its factory's name. Inside `default ValidatedPrism<String, Currency> currency()`, an unqualified `currency()` calls the leaf itself, not the statically imported factory, so the first `parse` or `build` throws a `StackOverflowError`. It compiles without a warning. Write `return StandardCodecs.currency();`.
 ~~~
 
-The date-time canons collide with two very common producers, and the fix is the same for both:
+---
 
-| Producer | Sends | Default canon says | Fix |
-|---|---|---|---|
-| Python `isoformat()`, PostgreSQL JSON | `2026-07-28T12:34:56+00:00` | rejected: a zero offset must be spelled `Z` | formatter overload |
-| JavaScript `toISOString()` | `2026-07-28T12:34:56.000Z` | rejected: a zero fraction renders as no fraction at all, so `.000Z` never round-trips | formatter overload |
+## Canonical forms only {#canonical-forms-only}
 
-Non-zero fractions expose that the two date-time codecs have *different* canons, each honestly its own render: `instant()` follows `Instant.toString()`'s three-digit groups (`.500Z` parses, `.5Z` is rejected), while `offsetDateTime()` renders without trailing zeros (`.5Z` parses, `.500Z` is rejected). The rule never changes, only the render: each codec accepts exactly the spelling it produces.
+A codec's **canon** is the spelling its `build` writes. `parse` accepts that spelling and rejects every other spelling of the same value with an error, honouring the [section law](../optics/validated_prism.md#laws): an accepted wire value must rebuild to exactly itself. So `parse` rejects an uppercase UUID, `042`, `1E+3` or the language tag `en-gb`, and never quietly normalises it. The rejection reads like a malformed value, so its `expected e.g.` sample is what shows the client the spelling the codec wants.
 
-The formatter overload makes the canonical form *theirs*:
+~~~admonish tip title="Why this matters"
+Silent normalisation is data mutation nobody asked for. A mapper that quietly lowercases a UUID or reformats a timestamp makes an echo endpoint return different bytes than it received. It breaks cache keys and payload signatures, and bakes a client's spelling bug into the contract without anyone deciding to. Strictness is what guarantees a round trip: every stock codec is tested to accept exactly what it writes. When a producer speaks a different canon, you do not weaken the rule; you declare that canon, and keep the same guarantee on their spelling.
+~~~
+
+The two date-time codecs render differently, so they accept different spellings of the same moment. Both write UTC as `Z`, and leave out a fraction that is zero. `instant()` writes as `Instant.toString()` does: always UTC, and any other fraction in groups of three digits. `offsetDateTime()` keeps the offset it was given, and drops the fraction's trailing zeros:
+
+| Spelling on the wire | Accepted by `instant()` | Accepted by `offsetDateTime()` |
+|---|---|---|
+| `2026-07-28T12:34:56Z` | ✅ | ✅ |
+| `2026-07-28T12:34:56.500Z` | ✅ | ❌ |
+| `2026-07-28T12:34:56.5Z` | ❌ | ✅ |
+| `2026-07-28T12:34:56.123Z` | ✅ | ✅ |
+| `2026-07-28T12:34:56.000Z` | ❌ | ❌ |
+| `2026-07-28T12:34:56+00:00` | ❌ | ❌ |
+| `2026-07-28T12:34:56+01:00` | ❌ | ✅ |
+
+~~~admonish warning title="Not checked for you: browser and Python timestamps are rejected"
+A browser's `toISOString()` always writes three fraction digits and `Z`. `instant()` accepts that except when the milliseconds are zero, since `Instant.toString()` never writes `.000Z`. For a timestamp read from the clock, that is about one request in a thousand. For a time the user picked in a date or time input, it is every request, because those are whole seconds. An aware Python `datetime`'s `isoformat()` writes `+00:00` for UTC, which both codecs reject every time. Nothing fails at compile time, and a test whose fixture has non-zero milliseconds passes every time. Declare the producer's canon instead, and check what your producer really sends: some Python frameworks rewrite `+00:00` as `Z`.
+~~~
+
+For a `LocalDate` or `OffsetDateTime` component, the formatter overload is enough: pass the producer's pattern, and the codec accepts exactly what that pattern writes. `instant()` has no formatter overload, and no single pattern describes Python's output. For those, [`ValidatedPrism.canonical`](../optics/validated_prism.md#laws) wraps a parser and a render, and rejects every spelling the render would not write back identically:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:codecs_formatters}}
 ```
 
-Two properties of a formatter canon are worth knowing. The canon is the *pattern's*, not the producer's output set: any spelling the pattern round-trips is accepted, so `JS_WIRE` admits a `+01:00` offset a real `toISOString()` would never emit, lawfully. And the pattern fixes the canon's *precision*: extra fractional digits on the wire are rejected (they do not fit the pattern), while a domain value carrying finer precision than the pattern renders truncated on `build`, which is a [non-injective render](../optics/validated_prism.md#laws), the obligation the laws page leaves with you. Pick a pattern whose precision matches what the domain actually stores, and check a custom canon with the laws.
+Pick the leaf by producer and component type, and name it after the component, as usual:
 
-~~~admonish question title="Checkpoint: which spellings does `instant()` accept?" id="check-codecs-instant"
-Five producers send the same moment to a component mapped with `StandardCodecs.instant()`. Which of them parse?
+| Producer | `Instant` component | `OffsetDateTime` component |
+|---|---|---|
+| a browser's `toISOString()` | `BROWSER_INSTANT` | `BROWSER_OFFSET` |
+| Python's `isoformat()`, on an aware `datetime` | `PYTHON_INSTANT` | `PYTHON_OFFSET` |
 
-1. `2026-07-28T12:34:56Z`
-2. `2026-07-28T12:34:56.000Z`, from a browser's `toISOString()`
-3. `2026-07-28T12:34:56.500Z`
-4. `2026-07-28T12:34:56.5Z`
-5. `2026-07-28T12:34:56+00:00`, from Python's `isoformat()`
+`default ValidatedPrism<String, Instant> placedAt() { return WireFormats.BROWSER_INSTANT; }` accepts every spelling a browser sends, and renders a parsed value back the same way. One leaf has one canon, since `build` writes one spelling. When a browser and a Python job send the same record, declare a spec per producer over the same pair, each with its own timestamp leaf, and share the rest through a [vocabulary](#shared-vocabulary-mix-in-interfaces).
+
+~~~admonish warning title="Not checked for you: a pattern cuts what it builds to its precision"
+`BROWSER_INSTANT` writes milliseconds, and `PYTHON_INSTANT` microseconds. An `Instant.now()` carries finer digits on current JDKs, so `build` cuts them off, and a client that echoes the value back sends a different `Instant`. Truncate at creation where a value must round-trip: `Instant.now().truncatedTo(ChronoUnit.MILLIS)`. A law check from a wire sample never sees the finer value, but `ValidatedPrismLaws.assertParseBuild(WireFormats.BROWSER_INSTANT, Instant.now())` does, and fails.
 ~~~
 
-~~~admonish success title="Answer and why" collapsible=true id="check-codecs-instant-answer"
-**1 and 3.** A codec accepts exactly the spelling it renders, and `instant()` renders as `Instant.toString()` does: `Z` for a zero offset, fractions in three-digit groups, and no fraction at all when it is zero. So `.000Z`, `.5Z` and `+00:00` are each a located rejection rather than a silent normalisation:
+~~~admonish tip title="You can ship now"
+You can now map the standard families with one factory call each, predict which spellings a codec accepts, and take a browser's or Python's timestamps without loosening anything. The rest of this page, [your own canon](#your-own-canon) and [a vocabulary shared across specs](#shared-vocabulary-mix-in-interfaces), is for when you need them.
+~~~
+
+~~~admonish question title="Checkpoint: which quantities parse?" id="check-codecs-int"
+A `quantity` component is mapped with `StandardCodecs.intFromString()`. Clients send `"42"`, `"042"`, `"+42"`, `" 42"` and `"42.0"`. Which of them parse?
+
+1. All five: each names the number 42
+2. `"42"`, `"042"` and `"+42"`, the ones `Integer.parseInt` accepts
+3. `"42"` only
+4. `"42"` and `"42.0"`
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-codecs-int-answer"
+**3.** A codec accepts exactly the spelling it renders, and `Integer.toString` writes `42` and nothing else. `Integer.parseInt` would take `"042"` and `"+42"`, but `build` could never reproduce either, so `parse` rejects both with a located error:
 
 ``` java
-{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:check_instant_canon}}
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:check_int_canon}}
 ```
-
-The second and fifth spellings are the two common producers in the table above. To take them, declare their canon with the formatter overload rather than loosening the leaf.
 
 Where this lives: [Canonical forms only](#canonical-forms-only).
 ~~~
 
-### Your own canon: `ValidatedPrism.canonical`
+~~~admonish question title="Checkpoint: how often does `offsetDateTime()` reject a browser?" id="check-codecs-instant"
+A browser stamps each request with `new Date().toISOString()`, and an `OffsetDateTime` component maps it with the plain `StandardCodecs.offsetDateTime()`. Roughly how often does `parse` reject a request?
 
-The same move covers any differently-canonical wire. An uppercase-UUID producer (SQL Server) is not forbidden by the law; only accepting *both* cases through one leaf is. [`ValidatedPrism.canonical`](../optics/validated_prism.md#laws) supplies the guard such a leaf needs: the lenient, throwing `UUID.fromString` is fine, because the render defines the canon and the per-value guard rejects every spelling it cannot reproduce:
+1. Never: both write UTC as `Z`
+2. About one request in a thousand, as for `instant()`
+3. About one request in ten
+4. Every time: `offsetDateTime()` expects an offset such as `+01:00`
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-codecs-instant-answer"
+**3.** `offsetDateTime()` drops the fraction's trailing zeros when it renders, so it writes `.12Z` where a browser sends `.120Z`. It rejects every millisecond value that ends in a zero, a hundred of the thousand, while `BROWSER_OFFSET` takes them all:
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:check_browser_offset}}
+```
+
+Where this lives: [Canonical forms only](#canonical-forms-only).
+~~~
+
+---
+
+## Your own canon {#your-own-canon}
+
+Declaring the producer's canon, as the browser and Python leaves do, covers any wire with a canon of its own. An uppercase-UUID producer (SQL Server) is not forbidden by the law; only accepting *both* cases through one leaf is. The lenient, throwing `UUID.fromString` is fine inside `ValidatedPrism.canonical`, because the render defines the canon:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:canonical_leaf}}
 ```
 
-Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPrism.canonical(...)` where a throwing parser and a render exist, `ValidatedPrism.of(...)` for full control. The processor never applies a codec implicitly; a conversion exists only where a spec declares it.
+A pattern's canon is everything the pattern writes, not just what one producer sends. So `BROWSER_OFFSET` also accepts a `+01:00` offset a browser never sends, lawfully, and rejects extra fraction digits, which the pattern has no room for.
 
-~~~admonish note title="Two mechanical notes"
-- The number and boolean codecs focus the **box types**: a `ValidatedPrism<String, int>` cannot exist, so an `int` component cannot take a leaf; declare it `Integer` (the mapper rejects the mismatch at compile time either way).
-- A leaf whose component shares a factory's name (`currency`, `locale`, `uuid`) must qualify the call (`return StandardCodecs.currency();`). The leaf method itself is the nearer `currency()`, so an unqualified call recurses, whether the factory arrived by a single static import or a star import.
-~~~
+Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPrism.canonical(...)` where a throwing parser and a render exist, `ValidatedPrism.of(...)` for full control.
 
 ---
 
 ## Shared vocabulary: mix-in interfaces {#shared-vocabulary-mix-in-interfaces}
 
-The same rename or the same leaf tends to recur across an API's specs: every wire calls it `fullName`, every email parses the same way. Move the shared members onto a **plain interface** and extend it alongside `MappingSpec`:
+The same rename or leaf tends to recur across an API's specs: every wire calls it `fullName`, and every email parses the same way. Move the shared members onto a **plain interface**, and extend it alongside `MappingSpec`. Like a Jackson mix-in, it holds mapping declarations apart from the types they describe. Unlike one, a spec extends it, so Java's inheritance decides which declaration wins:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:mixin_spec}}
@@ -117,23 +162,17 @@ The same rename or the same leaf tends to recur across an API's specs: every wir
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:mixin_usage}}
 ```
 
-An inherited member counts exactly as if it were declared on the spec: renames, leaves, derived fields, [`@OptionalBridge`](absence.md#optional-bridge) markers, [`@MapKey`](structure.md#converting-map-keys) key leaves *and* [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) markers, collected across the whole hierarchy (a mix-in may extend further mix-ins, and a diamond counts once). Precedence is **Java's own**: a member re-declared on the spec (or on a nearer mix-in) hides the one it overrides. An inherited member that binds to nothing here stays inert, so one vocabulary can serve specs whose domains and wires differ; the same declaration made locally is an error, which is what catches a typo. [What an inherited member binds against](rules.md#what-an-inherited-member-binds-against) decides what "nothing" means for each kind of member.
+An inherited member binds exactly as if it were declared on the spec. One that binds to nothing, like `phone()` on `ClientMapping`, stays **inert**, so one vocabulary serves specs whose records differ. The processor refuses the same member declared on the spec itself, which is what catches a typo there. The flip side: a misspelt leaf in the mix-in stays inert everywhere, so test each spec's rejections once. [What an inherited member binds against](rules.md#what-an-inherited-member-binds-against) says what "nothing" means for each kind of member. [How a spec collects its vocabulary](rules.md#how-a-spec-collects-its-vocabulary) covers precedence, generic specs and PATCH specs, and [Mix-in shapes the processor refuses](rules.md#refused-mix-in-shapes) names the two it will not take.
 
-A mix-in **may be generic**: its members are read under the spec's instantiation, so `Emails<T>` extended as `Emails<EmailAddress>` contributes `ValidatedPrism<String, EmailAddress>`. See [Generic mix-ins](generics.md#generic-mix-ins).
-
-The processor refuses a mix-in that is itself a mapping spec, and a generic one reached raw: see [mix-in shapes the processor refuses](rules.md#refused-mix-in-shapes).
-
-Mix-ins compose with the rest of the feature: [threaded generic specs](generics.md) can extend mix-ins, generic ones included, at their own type parameters, and [`UpdateSpec`](beans_patch.md#patch-containers) mappings inherit vocabulary the same way, element leaves included, so the leaf a full spec lifts over a `List` serves its PATCH sibling unchanged. [Inherited members on a sparse spec](rules.md#inherited-members-on-a-sparse-spec) says which of them stay inert there. [`@GenerateMerge`](merge_envelopes.md) specs still declare everything directly.
-
-A vocabulary also crosses a **module boundary**. It is a plain interface rather than a spec, so the module publishing it needs no annotation processor, only the library its own members name, and a downstream spec extends it from the jar exactly as from a sibling source file: the annotations that give its members meaning are kept in the class file. One API module can therefore own the house vocabulary that every service module's specs extend. See [Across modules](structure.md#across-modules).
+A vocabulary also crosses a **module boundary**. The API module that publishes it needs the HKJ libraries its members use, not the annotation processor, and a service module's spec extends it from the jar as if it were local. One API module can therefore own the house vocabulary every service's specs extend, as long as it is on each consumer's compile classpath ([Multi-module builds](../tooling/manual_setup.md#multi-module-builds)).
 
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **The standard families are one factory call each**: `StandardCodecs` covers identifiers, dates, enums, numbers, and money with lawful, located codecs
-* **Canonical forms only**: each codec accepts exactly the spelling it renders; a differently-canonical wire takes the formatter overload or a `ValidatedPrism.canonical` leaf
-* **`canonical` makes lenient parsers lawful**: the render defines the canon and the per-value guard rejects every spelling it cannot reproduce
-* **Mix-ins share the vocabulary**: one plain interface serves every spec, PATCH siblings included; nothing is ever applied implicitly
+* **The standard families are one factory call each**: `StandardCodecs` covers identifiers, dates, enums, numbers and money with lawful codecs, whose failures a spec locates at the component
+* **Canonical forms only**: each codec accepts exactly the spelling it renders, so a producer with its own canon gets a leaf that declares it
+* **Browser and Python timestamps need their own leaves**: the stock date-time codecs reject some or all of what they send, and a pattern cuts what it builds to its precision
+* **Mix-ins share the vocabulary**: one plain interface serves every spec, and a member a spec cannot use stays inert
 ~~~
 
 ~~~admonish tip title="See Also"

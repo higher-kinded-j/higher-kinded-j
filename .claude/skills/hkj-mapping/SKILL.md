@@ -124,10 +124,13 @@ public interface OrderMapping extends MappingSpec<Order, OrderDto> {
 
 Every codec accepts only the canonical form it renders (the `ValidatedPrism` section law): a
 case-folded UUID or scientific-notation number is a located rejection, never a normalisation.
-For date-times that bites two common producers: a zero offset must be `Z` (`+00:00` is rejected)
-and fractions render without trailing zeros (JS `toISOString()`'s `.000Z`/`.500Z` are rejected) —
-serve both with the formatter overload (`offsetDateTime(ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"))`
-for JS, an `xxx` offset pattern for `+00:00`). The number/boolean codecs need **box-typed** domain
+For date-times that bites two common producers. A browser's `toISOString()` writes three fraction
+digits and `Z`: `instant()` rejects its `.000Z` (every whole-second value), and `offsetDateTime()`
+rejects every millisecond value ending in 0. Python's `isoformat()` writes `+00:00`, which both
+reject, with six fraction digits or none. Serve an `OffsetDateTime` browser component with
+`offsetDateTime(ofPattern("uuuu-MM-dd'T'HH:mm:ss.SSSXXX"))`; an `Instant` one, and any Python one,
+with a `ValidatedPrism.canonical` leaf whose render writes the producer's spelling (the book's
+`WireFormats` has all four). A pattern also cuts what `build` writes to its precision. The number/boolean codecs need **box-typed** domain
 components (`Integer`, not `int` — a `ValidatedPrism<String, int>` cannot exist). Under the star
 import, a leaf whose component shares a factory name (`currency`, `locale`, `uuid`) must qualify:
 `return StandardCodecs.currency();` — the unqualified call recurses into the leaf itself.

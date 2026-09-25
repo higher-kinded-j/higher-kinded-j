@@ -546,7 +546,7 @@ Employee normalised = employeeCompanyName.modify(String::toLowerCase, employee);
 
 ## StandardCodecs
 
-**Definition:** The stock [ValidatedPrism](#validatedprism) vocabulary for the common wire-to-domain conversion families: one static factory per family (`uuid()`, `uri()`, `localDate()`, `instant()`, `offsetDateTime()`, `enumByName(Class)`, `bigDecimal()`, `intFromString()`, `booleanStrict()`, `currency()`, `locale()`, and friends). Each codec is lawful by construction (built on `ValidatedPrism.canonical`, accepting exactly the canonical form it renders) and every failure is a located [FieldError](#fielderror) with a copy-worthy message. Codecs are ordinary leaves: a spec declares them as `default` methods, and nothing is ever applied implicitly.
+**Definition:** The stock [ValidatedPrism](#validatedprism) vocabulary for the common wire-to-domain conversion families: one static factory per family (`uuid()`, `uri()`, `localDate()`, `instant()`, `offsetDateTime()`, `enumByName(Class)`, `bigDecimal()`, `intFromString()`, `booleanStrict()`, `currency()`, `locale()`, and friends). Each codec is lawful by construction (built on `ValidatedPrism.canonical`, accepting exactly the canonical form it renders). Every failure is a [FieldError](#fielderror) whose message names the spelling expected. A codec's own failure carries no path: the generated `parse` locates it at the component the codec converts. Codecs are ordinary leaves: a spec declares them as `default` methods, and nothing is ever applied implicitly.
 
 **Example:**
 <!-- verify -->
