@@ -3,16 +3,16 @@
 package org.higherkindedj.example.book.mapping;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.function.Function;
-import org.higherkindedj.hkt.validated.FieldError;
-import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.validated.ValidatedBuild;
 import org.higherkindedj.optics.validated.ValidatedParse;
+import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,50 +26,53 @@ import org.springframework.context.annotation.Configuration;
 @DisplayName("the Injecting, Testing, and Diagnostics page's checkpoint answers hold")
 class TestingBookTest {
 
-  // ANCHOR: render_configuration
+  // ANCHOR: two_customer_surfaces
   @Configuration
-  static class RenderingConfiguration {
+  static class CustomerSurfaces {
     @Bean
-    Function<Customer, CustomerDto> renderCustomer() {
-      return CustomerMappingImpl.INSTANCE::build; // the one method the renderer calls
+    ValidatedPrism<CustomerDto, Customer> customerCodec() {
+      return CustomerMappingImpl.INSTANCE.asValidatedPrism();
+    }
+
+    @Bean
+    ValidatedParse<CustomerView, Customer> customerViewParser() {
+      return CustomerViewMappingImpl.INSTANCE.asValidatedParse();
     }
   }
 
-  record ResponseRenderer(Function<Customer, CustomerDto> render) {}
+  record SignupHandler(ValidatedParse<CustomerDto, Customer> parser) {}
 
-  // ANCHOR_END: render_configuration
+  // ANCHOR_END: two_customer_surfaces
 
   @Test
-  @DisplayName("a renderer is wired with build alone, and the spec is never a bean")
-  void aRendererIsWiredWithBuildAlone() {
-    // ANCHOR: check_register_build
+  @DisplayName("Spring injects the one surface whose full generic type fits")
+  void springInjectsBySurfaceAndGenericType() {
+    // ANCHOR: check_generic_injection
     try (var context =
-        new AnnotationConfigApplicationContext(
-            RenderingConfiguration.class, ResponseRenderer.class)) {
-      ResponseRenderer renderer = context.getBean(ResponseRenderer.class);
-      assertThat(renderer.render().apply(new Customer("Ada", new EmailAddress("ada@example.org"))))
-          .isEqualTo(new CustomerDto("Ada", "ada@example.org"));
+        new AnnotationConfigApplicationContext(CustomerSurfaces.class, SignupHandler.class)) {
+      SignupHandler handler = context.getBean(SignupHandler.class);
 
-      assertThat(context.getBeanNamesForType(CustomerMapping.class)).isEmpty(); // no bean
+      assertThat(handler.parser()).isSameAs(context.getBean("customerCodec"));
+      assertThatValidated(handler.parser().parse(new CustomerDto("Ada", "ada@example.org")))
+          .hasValue(new Customer("Ada", new EmailAddress("ada@example.org")));
     }
-    assertThat(CustomerMappingImpl.class.getMethods())
-        .extracting(Method::getName)
-        .doesNotContain("asIso"); // its leaf withholds the iso
-    // ANCHOR_END: check_register_build
+    // ANCHOR_END: check_generic_injection
   }
 
   @Test
-  @DisplayName("a parse-only surface is faked with ValidatedParse.of, and nothing else will do")
-  void aParseOnlySurfaceIsFakedWithOf() {
-    // ANCHOR: check_fake_parse
-    ValidatedParse<CustomerView, Customer> rejecting =
-        ValidatedParse.of(view -> Validated.invalidNel(FieldError.of("rejected").at("email")));
+  @DisplayName("a build-only surface is faked with ValidatedBuild.of, and nothing else will do")
+  void aBuildOnlySurfaceIsFakedWithOf() {
+    // ANCHOR: check_fake_build
+    CustomerRequest fixed = new CustomerRequest();
+    ValidatedBuild<CustomerRequest, Customer> requests = ValidatedBuild.of(customer -> fixed);
+    assertThat(requests.build(new Customer("Ada", new EmailAddress("ada@example.org"))))
+        .isSameAs(fixed);
 
-    assertThatValidated(rejecting.parse(new CustomerView("Ada", "ada@corp.example")))
-        .hasFieldErrors("email: rejected");
-    assertThat(ValidatedParse.class.isSealed()).isTrue(); // no mock, no anonymous class
-    assertThat(Modifier.isFinal(CustomerViewMappingImpl.class.getModifiers()))
-        .isTrue(); // no subclass
-    // ANCHOR_END: check_fake_parse
+    assertThatThrownBy(() -> Mockito.mock(ValidatedBuild.class)) // what @MockitoBean calls
+        .hasMessageContaining("Sealed interfaces");
+    assertThat(ValidatedBuild.class.isAssignableFrom(ValidatedParse.class)).isFalse();
+    assertThat(ValidatedBuild.class.isAssignableFrom(CustomerRequestMappingImpl.class)).isFalse();
+    assertThat(Modifier.isFinal(CustomerRequestMappingImpl.class.getModifiers())).isTrue();
+    // ANCHOR_END: check_fake_build
   }
 }

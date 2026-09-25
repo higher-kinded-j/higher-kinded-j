@@ -5,7 +5,7 @@ _Register the surface you consume, fake it with values, and read the processor's
 A generated Impl is a pure function, so most code just calls it: `CustomerMappingImpl.INSTANCE.parse(dto)`. This page covers the seams around that call. It says what to register when you do want a Spring bean or a test double, and how wide a mapped record may be.
 
 ~~~admonish info title="What You'll Learn"
-- Choose the surface to register for a consumer, from the methods it calls
+- Register a mapping's surface, and inject exactly the part a consumer calls
 - Replace a mapping in a test with a value, not a mock
 ~~~
 
@@ -15,89 +15,96 @@ A generated Impl is a pure function, so most code just calls it: `CustomerMappin
 
 ## Injecting and testing generated mappings {#injecting-and-testing-generated-mappings}
 
-A concrete or threaded Impl is a stateless pure function, reached through `INSTANCE` or `instance()`. An element-mapped Impl is an immutable value built by `of(...)`, carrying its element prisms. Registering one is like registering a Spring `Converter<S, T>` bean: the bean is a typed function, not a mapper class. Unlike a MapStruct mapper, though, the spec interface is never a bean, so `@Autowired CustomerMapping` finds nothing. Register the **surface** the consumer calls instead:
+Registering a mapping is like registering a Spring `Converter<S, T>` bean: the bean is a typed function, not a mapper class. Unlike a `Converter`, Spring never calls it for you. The controller calls `parse`, and bad input comes back as located errors rather than an exception.
 
-```mermaid
-flowchart LR
-    accTitle: The seam a surface makes
-    accDescr: In production the generated Impl's asValidatedPrism() fills the ValidatedPrism bean. In a slice test a ValidatedPrism.of value fills the same bean. The controller depends only on the bean's type.
-    I["UserMappingImpl<br/>.asValidatedPrism()"] --> P["a ValidatedPrism&lt;UserDto, User&gt;<br/>bean"]
-    F["ValidatedPrism.of(...)<br/>in a slice test"] -.-> P
-    P --> C["UserController"]
+Unlike a MapStruct mapper, the spec interface is never the bean. Nothing registers the spec or its Impl, and the spec declares no `parse` or `build`, so even a registered one would give you nothing to call. Register the **surface** instead: the typed value an Impl hands out. An Impl is reached through `INSTANCE`, or through `instance()` or `of(...)` for a [generic spec](generics.md#one-rule-three-access-shapes).
 
-    classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
-    classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
-    class I,F,C wire
-    class P domain
-```
-
-In words: the controller depends on the surface's type alone, so production and a test fill it with different values.
-
-| Tier surface | Injectable shape | From |
+| The consumer calls | Inject | From |
 |---|---|---|
-| a mapping that builds and parses | `ValidatedPrism<UserDto, User>` | `UserMappingImpl.INSTANCE.asValidatedPrism()` |
-| just `build`, from any tier that has one | `Function<User, UserDto>` | `UserMappingImpl.INSTANCE::build` |
-| a projection's write-back | `Lens<Employee, EmployeeCardDto>` | `EmployeeCardMappingImpl.INSTANCE.asLens()` |
-| parse-only bean mapping | `ValidatedParse<CustomerView, Customer>` | `CustomerViewMappingImpl.INSTANCE.asValidatedParse()` |
-| build-only bean mapping | `ValidatedBuild<CustomerRequest, Customer>` | `CustomerRequestMappingImpl.INSTANCE.asValidatedBuild()` |
-| validated `patch` | `BiFunction<User, UserCardDto, Validated<NonEmptyList<FieldError>, User>>` | `UserCardMappingImpl.INSTANCE::patch` |
-| sparse `updateFrom` | `Function<UserPatchDto, Edits.Accumulated<User>>` | `UserPatchMappingImpl.INSTANCE::updateFrom` |
+| `parse` and `build` | `ValidatedPrism<UserDto, User>` | `UserMappingImpl.INSTANCE.asValidatedPrism()` |
+| `parse` alone | `ValidatedParse<UserDto, User>` | the same `ValidatedPrism` bean, or `asValidatedParse()` on a parse-only bean mapping |
+| `build` alone | `Function<User, UserDto>` | `UserMappingImpl.INSTANCE::build`, from any tier that has one |
+| a build-only bean mapping's `build` | `ValidatedBuild<CustomerRequest, Customer>` | `CustomerRequestMappingImpl.INSTANCE.asValidatedBuild()` |
+| a projection's `set`, over plain copies | `Lens<Employee, EmployeeCardDto>` | `EmployeeCardMappingImpl.INSTANCE.asLens()` |
+| a validated `patch` | `BiFunction<Subscriber, SubscriberDetailsDto, Validated<NonEmptyList<FieldError>, Subscriber>>` | `SubscriberDetailsMappingImpl.INSTANCE::patch` |
+| a sparse `updateFrom` | `Function<UserPatchDto, Edits.Accumulated<User>>` | `UserPatchMappingImpl.INSTANCE::updateFrom` |
 
-For a boundary, register `asValidatedPrism()` rather than `asIso()`, since [`reverseGet` has no guard](tiers.md#a-bound-request-goes-to-parse). This is the hkj-spring example app's real configuration, included from source:
+A `ValidatedPrism` is both a `ValidatedParse` and a `ValidatedBuild`, so one registered prism serves a consumer that asks for either. For a boundary, register `asValidatedPrism()` rather than `asIso()`, which a spec with a leaf does not have anyway. [`reverseGet` has no guard](tiers.md#a-bound-request-goes-to-parse), and neither does a lens's `set`. This is the hkj-spring example app's real configuration, included from source:
 
 ```java
 {{#include ../../../hkj-spring/example/src/main/java/org/higherkindedj/spring/example/config/MappingConfiguration.java:mapping_configuration}}
 ```
 
-Spring resolves the full generic type, so codecs for different pairs coexist without ceremony. Only two codecs for the *same* pair need a `@Qualifier`. An element-mapped Impl carries its prisms as state, so construct it once, in the `@Bean` method.
+Spring resolves the full generic type, so surfaces for different pairs coexist without ceremony. Only two surfaces for the *same* pair need a `@Qualifier`. An element-mapped Impl carries its prisms as state, so construct it once, in the `@Bean` method.
 
-**Fakes are values, not mocks.** The surfaces are sealed interfaces and every Impl is `final`, so neither a mocking framework nor a subclass can stand in for one. That is the design, not a limitation. A test double is two lines of `ValidatedPrism.of(...)`, or of `ValidatedParse.of(...)` or `ValidatedBuild.of(...)` for a one-directional surface. A `Function` or `BiFunction` surface takes a lambda. Here is the example app's real `@WebMvcTest` substitution:
+**Fakes are values, not mocks.** Mockito refuses a sealed interface, and the three validated surfaces are sealed, so `@MockitoBean` refuses them too. The Impl is `final`, and it implements only the spec, never a surface, so a subclass cannot stand in either. None is needed: each sealed surface has an `of` factory that takes the functions it declares. The example app's controller only parses, so it asks for a `ValidatedParse`, and its `@WebMvcTest` fake is one function:
 
 ```java
 {{#include ../../../hkj-spring/example/src/test/java/org/higherkindedj/spring/example/controller/UserParseFakeCodecSliceTest.java:fake_codec}}
 ```
 
-The [hkj-spring example app](../spring/spring_boot_integration.md) runs the seam end to end. `MappingConfiguration` registers the codec, `UserController`'s parse endpoint injects it, and `UserParseFakeCodecSliceTest` swaps in the fake and asserts the located 422 it produces. The same controller's PATCH endpoint calls `UserPatchMappingImpl.INSTANCE` directly, and loses nothing by it: injection buys substitution, not lifecycle.
+A `Lens` fake is `Lens.of(get, set)`, and a `Function` or `BiFunction` fake is a lambda. The controller depends on the surface's type alone, so production and a test fill it with different values:
+
+```mermaid
+flowchart TD
+    accTitle: The seam a surface makes
+    accDescr: In production the generated Impl's asValidatedPrism() bean fills the controller's ValidatedParse injection point. In a slice test a ValidatedParse.of value fills the same point.
+    I["UserMappingImpl.INSTANCE<br/>.asValidatedPrism()"] --> C["UserController asks for<br/>ValidatedParse&lt;UserDto, User&gt;"]
+    F["ValidatedParse.of(...)<br/>in a slice test"] -.-> C
+
+    classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
+    class I,F,C wire
+```
+
+In words: the controller asks for a `ValidatedParse`, which the production prism satisfies and a test's one-function fake replaces.
+
+The [hkj-spring example app](../spring/spring_boot_integration.md) runs the seam end to end. `MappingConfiguration` registers the prism, and `UserController`'s parse endpoint injects it. `UserParseFakeCodecSliceTest` swaps in the fake, and asserts the located 422 it produces. The same controller's PATCH endpoint calls `UserPatchMappingImpl.INSTANCE` directly, and a team that calls the Impl this way (`INSTANCE`, `instance()`, or one shared `of(...)` instance) loses nothing. Injection buys a seam for tests, and nothing else.
+
+~~~admonish tip title="At the Spring boundary"
+A `@WebMvcTest` slice loads none of Higher-Kinded-J's auto-configuration, so import the three it needs, as `UserParseFakeCodecSliceTest` does: [Slice Testing with `@WebMvcTest`](../spring/spring_boot_integration.md#slice-testing-with-webmvctest).
+~~~
+
+To check the mapping itself rather than fake it, one `MappingLaws` call does it: [Law-checked, in the repo and in your tests](tiers.md#law-checked-in-the-repo-and-in-your-tests).
 
 ~~~admonish tip title="You can ship now"
-You can now register the surface a consumer calls, and replace it in a test with a two-line value. The rest of this page, [how wide a record can be](#diagnostics-and-limits), is for when a wire is wide.
+You can now register a mapping's surface, inject the part a consumer calls, and replace it in a test with a value. The rest of this page, [how wide a record can be](#diagnostics-and-limits), is for when a wire is wide.
 ~~~
 
-~~~admonish question title="Checkpoint: what does a renderer get?" id="check-testing-surface"
-A response renderer only ever turns a `Customer` into a `CustomerDto`. `CustomerMapping`, from [Record Mapping Basics](basics.md#validated-leaves), converts `email` through a leaf. Which bean gives the renderer exactly what it calls?
+~~~admonish question title="Checkpoint: which surface does Spring inject?" id="check-testing-injection"
+An app registers two beans: `CustomerMappingImpl.INSTANCE.asValidatedPrism()`, a `ValidatedPrism<CustomerDto, Customer>`, and `CustomerViewMappingImpl.INSTANCE.asValidatedParse()`, a `ValidatedParse<CustomerView, Customer>`. A signup handler's constructor asks for a `ValidatedParse<CustomerDto, Customer>`. What does Spring do?
 
-1. `CustomerMapping` itself, autowired as a MapStruct mapper would be
-2. An `Iso<Customer, CustomerDto>`, from `CustomerMappingImpl.INSTANCE.asIso()`
-3. A `ValidatedPrism<CustomerDto, Customer>`, from `asValidatedPrism()`
-4. A `Function<Customer, CustomerDto>`, from `CustomerMappingImpl.INSTANCE::build`
+1. Fails at startup: two `ValidatedParse` beans for `Customer` need a `@Qualifier`
+2. Fails at startup: no bean is declared as a `ValidatedParse<CustomerDto, Customer>`
+3. Injects the `CustomerMapping` prism
+4. Injects whichever of the two beans was declared first
 ~~~
 
-~~~admonish success title="Answer and why" collapsible=true id="check-testing-surface-answer"
-**4.** The renderer calls `build` and nothing else, so `::build` is the surface to register. The spec interface is never a bean, and the leaf withholds `asIso()`. `asValidatedPrism()` works, but it hands the renderer a `parse` it never calls:
+~~~admonish success title="Answer and why" collapsible=true id="check-testing-injection-answer"
+**3.** Spring matches the full generic type. The prism is a `ValidatedParse<CustomerDto, Customer>`, and the other bean parses a different wire, so exactly one bean fits:
 
 ``` java
-{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TestingBookTest.java:render_configuration}}
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TestingBookTest.java:two_customer_surfaces}}
 
-{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TestingBookTest.java:check_register_build}}
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TestingBookTest.java:check_generic_injection}}
 ```
 
 Where this lives: [Injecting and testing generated mappings](#injecting-and-testing-generated-mappings).
 ~~~
 
-~~~admonish question title="Checkpoint: how do you fake a parse-only surface?" id="check-testing-fake"
-A controller injects the `ValidatedParse<CustomerView, Customer>` a parse-only bean mapping provides. A slice test needs it to fail every request with `email: rejected`. What do you write?
+~~~admonish question title="Checkpoint: how do you fake a build-only surface?" id="check-testing-fake"
+A service fills outbound requests through the `ValidatedBuild<CustomerRequest, Customer>` a build-only bean mapping provides. A unit test wants it to return a fixed `CustomerRequest`, without running the real mapping. What do you write?
 
-1. `Mockito.mock(ValidatedParse.class)`, with `parse` stubbed to return the error
-2. An anonymous class implementing `ValidatedParse`
-3. A subclass of `CustomerViewMappingImpl` that overrides `parse`
-4. `ValidatedParse.of(view -> Validated.invalidNel(FieldError.of("rejected").at("email")))`
+1. `@MockitoBean ValidatedBuild<CustomerRequest, Customer> requests;`, with `build` stubbed
+2. `ValidatedBuild.of(customer -> fixed)`
+3. A subclass of `CustomerRequestMappingImpl` that overrides `build`
+4. `ValidatedParse.of(...)`, as the example app's fake does
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-testing-fake-answer"
-**4.** `ValidatedParse` is sealed, so neither a mock nor an anonymous class can implement it, and the generated Impl is `final`. Its `of` factory takes the one function a fake needs:
+**2.** Each sealed surface has an `of` taking the functions it declares, and a `ValidatedBuild` declares `build`. Mockito refuses the sealed interface, a `ValidatedParse` is not a `ValidatedBuild`, and the Impl is `final` and implements no surface:
 
 ``` java
-{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TestingBookTest.java:check_fake_parse}}
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TestingBookTest.java:check_fake_build}}
 ```
 
 Where this lives: [Injecting and testing generated mappings](#injecting-and-testing-generated-mappings).
@@ -107,22 +114,23 @@ Where this lives: [Injecting and testing generated mappings](#injecting-and-test
 
 ## Diagnostics and limits {#diagnostics-and-limits}
 
-There is no component ceiling. `parse`, the validated `patch` and a fallible `@GenerateMerge` are assembled with [`Validated.fields()`](../monads/validated_assembly.md) ladders, chunked and combined past 16 fields. So a flat wire of 20 or 30 fields maps without grouping its components into nested records. It behaves exactly like a narrow one, with the same located labels and the same declaration-order accumulation across chunk boundaries:
+A mapping has no component ceiling. `parse`, the validated `patch` and a fallible `@GenerateMerge` are assembled with [`Validated.fields()`](../monads/validated_assembly.md) ladders, chunked and combined past 16 fields. So a flat wire of 20 or 30 fields maps without grouping its components into nested records. It behaves exactly like a narrow one, with the same located labels and the same declaration-order accumulation across chunk boundaries:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/WideMappingLawsTest.java:wide_laws}}
 ```
 
-The only width bound left is the JVM's limit on the record's constructor parameter slots, which javac enforces at the record declaration. That is 254 components in practice, fewer with `long` or `double`. The hand-written `fields()` ladder keeps its 16-field arity, so a wider hand-written assembly nests sub-records.
+A `@Flatten` group is the one exception: it is a single ladder, so a group wider than 16 is [not supported yet](rules.md#where-flattening-applies). The one width bound on a record is the JVM's limit on its constructor parameter slots, which javac enforces at the record declaration. That is 254 components in practice, fewer with `long` or `double`. A hand-written `fields()` ladder stops at 16 fields, so a wider hand-written assembly nests sub-records, or uses [`@GenerateAssembly`](../monads/validated_assembly.md#generating-the-companion-generateassembly).
 
 Every rejection follows the processor's what/why/fix standard: the message states what is wrong, why the mapper needs it, and the code to write. [Compiler Messages](compiler_errors.md) collects the common ones. The limits themselves are indexed in [Find your limit](rules.md#find-your-limit), each linked to its rule.
 
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **Register the surface, not the spec**: `asValidatedPrism()`, `asLens()`, `asValidatedParse()`, `asValidatedBuild()`, `::build`, `::patch` or `::updateFrom`, whichever the consumer calls
-* **Fakes are two-line values**: the surfaces are sealed and the Impls final, so `ValidatedPrism.of(...)` replaces the mocking framework, by design
-* **No component ceiling**: chunked `fields()` ladders carry flat wires of 20 or 30 fields; only the JVM's 254-slot record limit remains
+* **Register the surface, not the spec**: inject the part a consumer calls, and let one `ValidatedPrism` bean serve a `ValidatedParse` or a `ValidatedBuild` consumer
+* **Fakes are values**: each sealed surface has an `of` factory, so a test double is a function or two, never a mock
+* **A mapping has no component ceiling**: chunked `fields()` ladders carry flat wires of 20 or 30 fields, up to the JVM's 254-slot record limit
+* **Rejections are what/why/fix**: every limit states what is wrong, why the mapper needs it, and the code to write
 ~~~
 
 ~~~admonish tip title="See Also"

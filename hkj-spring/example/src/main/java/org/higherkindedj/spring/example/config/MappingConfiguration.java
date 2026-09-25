@@ -10,14 +10,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registers the generated user mapping as an injectable bean: the surface a consumer depends on is
- * the {@link ValidatedPrism} the Impl exposes, not the spec interface (which declares nothing) and
- * not the Impl class (which would pin the dependency to generated code).
+ * Registers the generated user mapping as an injectable bean: the surface is the {@link
+ * ValidatedPrism} the Impl exposes, not the spec interface (which declares nothing to call) and not
+ * the Impl class (which would pin the dependency to generated code). A consumer asks for the part
+ * it calls: {@code UserController} only parses, so it injects a {@code ValidatedParse<UserDto,
+ * User>}, which this bean satisfies.
  *
  * <p>Spring resolves the full generic type, so {@code ValidatedPrism<UserDto, User>} coexists with
  * codecs for other pairs; only two codecs for the <em>same</em> pair would need a qualifier. A test
- * slice can substitute a fake built with {@code ValidatedPrism.of(...)} - the interface is sealed,
- * so a fake is constructed as a value, never mocked.
+ * slice can substitute a fake built with {@code ValidatedParse.of(...)}: the surfaces are sealed,
+ * so Mockito refuses them, and a fake is constructed as a value instead.
  *
  * <p>Injection is optional, not idiomatically required: a generated mapping is a stateless pure
  * function, and calling {@code UserMappingImpl.INSTANCE} directly (as this app's PATCH endpoint
