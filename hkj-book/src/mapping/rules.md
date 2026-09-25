@@ -73,6 +73,8 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | **Generic specs** | | |
 | [Can a generic spec map a bean, or a PATCH?](#generic-boundaries) | No: generic mappings are record-to-record. | not supported yet |
 | [Can a leaf, rename or marker declare its own type parameters?](#generic-boundaries) | No: the element types go on the spec's parameters. | by design |
+| [Can a generic sealed hierarchy be mapped?](#generic-boundaries) | No, not even at a concrete instantiation: model it as a record. | not supported yet |
+| [What supplies an element-mapped spec's prisms where it nests?](#element-mapped-nesting) | A leaf on the using spec, or another registered mapping. | by design |
 | **Merge and error envelopes** | | |
 | [Can an error envelope hierarchy be generic?](#error-envelope-rules) | No: the hierarchy, its variants and the context are non-generic. | by design |
 
@@ -470,13 +472,42 @@ A one-directional mapping follows these rules:
 
 ## Generic specs {#generic-specs}
 
+### How an element-mapped spec nests {#element-mapped-nesting}
+
+**An [element-mapped](generics.md#element-mapped-specs) mapping nests as a composition.** Where a record's component matches the spec's pair, the processor resolves each element pair in turn and composes the Impl in place, `CodecPageMappingImpl.of(entries()).asValidatedPrism()` for a single leaf:
+
+| The element-mapped spec has | Each prism comes from |
+|---|---|
+| one abstract leaf | a leaf on the using spec, named after the component and typed at the **element** pair (for `record Inbox(Page<EmailAddress> entries)`, `default ValidatedPrism<String, EmailAddress> entries()`), and otherwise another registered mapping for the element pair |
+| several abstract leaves | another registered mapping for each element pair, in this module or a dependency: one leaf on the using spec cannot say which of them it replaces |
+
+The registered mapping may itself be a composition, resolved the same way. A failure locates through the whole path, `entries.items.1: not an email address`. When nothing supplies an element pair, the processor refuses the use site:
+
+```
+@GenerateMapping: field 'x' nests the element-mapped 'Y', but the element pair (A, B) for its leaf
+'z' has no mapping.
+```
+
+The message goes on to offer the ways to supply it. For several leaves those are another registered mapping, or a leaf over the whole pair that builds the composition itself with `of(...)`.
+
 ### Leaf order in `of(...)` {#leaf-order-in-of}
 
 An element-mapped spec's `of(...)` takes one `ValidatedPrism` per abstract leaf, in declaration order, and a leaf can also come from a [generic mix-in](generics.md#generic-mix-ins). Declaration order then puts the spec's own leaves first, in the order it declares them, then each mix-in's, in the order the `extends` clause names them. A mix-in is read the same way, its own leaves before those of the interfaces it extends, and an interface reached twice counts where it is first reached. The generated `of(...)` documents each parameter, naming the interface that declares an inherited leaf, so the order can be read off the Impl.
 
 ### The boundaries of a generic spec {#generic-boundaries}
 
-Generic mappings are **record-to-record only** (bean-shaped wires and `UpdateSpec` mappings stay concrete); raw uses (including raw *nested* arguments) and wildcards are diagnosed, while array arguments (`Page<String[]>`) are concrete, map fine, and unify structurally at nested use sites. An abstract leaf belongs to a generic spec: on a concrete or sealed one it is diagnosed, since nothing defers its parser. A leaf, rename or bridge marker declaring type parameters of its own (`<R> ValidatedPrism<R, R> items()`) is diagnosed as well: the Impl carries a leaf as a constructor-supplied field and a rename as a stub, and neither has anywhere to declare `<R>`. A leaf's element types go on the spec's own type parameters; a rename simply declares a concrete return type, since the stub only names it.
+**Generic mappings are record-to-record only**, and the processor diagnoses the shapes a generic spec cannot generate:
+
+| Shape | Verdict |
+|---|---|
+| a bean-shaped wire or an `UpdateSpec` mapping | stays concrete |
+| a generic sealed hierarchy (`sealed interface Result<E, A>`) | refused even at a concrete instantiation, not supported yet |
+| a raw use, a raw *nested* argument, or a wildcard | diagnosed |
+| an array argument (`Page<String[]>`) | concrete: it maps, and unifies structurally at nested use sites |
+| an abstract leaf on a concrete or sealed spec | diagnosed, since nothing defers its parser |
+| a leaf, rename or bridge marker declaring its own type parameters (`<R> ValidatedPrism<R, R> items()`) | diagnosed: the Impl carries a leaf as a constructor-supplied field and a rename as a stub, and neither has anywhere to declare `<R>` |
+
+A leaf's element types go on the spec's own type parameters, and a rename declares a concrete return type, since the stub only names it.
 
 ---
 

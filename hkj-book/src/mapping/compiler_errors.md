@@ -1837,9 +1837,9 @@ interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}
 
 ### `'X' is generic, which this mapper does not support` {#generic-bean-or-patch}
 
-The spec, its domain or its bean or PATCH wire declares type parameters, and only a record-to-record mapping can be generic.
+The spec, its domain or its wire declares type parameters where a generic mapping cannot go: a bean or PATCH wire, or a sealed hierarchy, which is refused even at a concrete instantiation.
 
-**Fix.** Give a bean or PATCH mapping non-generic domain and wire types, or map a record wire instead.
+**Fix.** Give a bean, PATCH or sealed mapping non-generic domain and wire types, or model the generic type as a record.
 
 ```
 @GenerateMapping: 'PageMapping' is generic, which this mapper does not support. The generated
