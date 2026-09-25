@@ -41,7 +41,7 @@ class BoundaryCapstoneBookLawsTest {
         new OrderDto(
             "NOPE",
             new CustomerDto("Ada Lovelace", "not-an-email"),
-            List.of(new LineItemDto("SKU-1", 2, "9.99"), new LineItemDto("SKU-2", 1, "1E+3")),
+            List.of(new LineItemDto("SKU-1", "2", "9.99"), new LineItemDto("SKU-2", "1", "1E+3")),
             "28/07/2026",
             "GBP",
             "DISPATCHED",
@@ -70,7 +70,7 @@ class BoundaryCapstoneBookLawsTest {
         new OrderDto(
             "123e4567-e89b-12d3-a456-426614174000",
             new CustomerDto("Ada Lovelace", "ada@corp.example"),
-            List.of(new LineItemDto("SKU-1", 2, "9.99")),
+            List.of(new LineItemDto("SKU-1", "2", "9.99")),
             "2026-07-28T12:34:56Z",
             "GBP",
             "PAID",

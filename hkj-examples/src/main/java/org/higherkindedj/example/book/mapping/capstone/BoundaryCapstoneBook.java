@@ -5,6 +5,7 @@ package org.higherkindedj.example.book.mapping.capstone;
 import static org.higherkindedj.optics.validated.StandardCodecs.bigDecimal;
 import static org.higherkindedj.optics.validated.StandardCodecs.enumByName;
 import static org.higherkindedj.optics.validated.StandardCodecs.instant;
+import static org.higherkindedj.optics.validated.StandardCodecs.intFromString;
 import static org.higherkindedj.optics.validated.StandardCodecs.uuid;
 
 import java.math.BigDecimal;
@@ -45,7 +46,9 @@ public final class BoundaryCapstoneBook {
     }
     List<LineItem> lines = new ArrayList<>();
     for (LineItemDto line : dto.lines()) {
-      lines.add(new LineItem(line.sku(), line.quantity(), new BigDecimal(line.price())));
+      lines.add(
+          new LineItem(
+              line.sku(), Integer.parseInt(line.quantity()), new BigDecimal(line.price())));
     }
     return new Order(
         UUID.fromString(dto.id()), // throws its own exception
@@ -81,7 +84,7 @@ public final class BoundaryCapstoneBook {
         new OrderDto(
             "NOPE", // not a UUID
             new CustomerDto("Ada Lovelace", "not-an-email"), // fails the email leaf
-            List.of(new LineItemDto("SKU-1", 2, "9.99"), new LineItemDto("SKU-2", 1, "1E+3")),
+            List.of(new LineItemDto("SKU-1", "2", "9.99"), new LineItemDto("SKU-2", "1", "1E+3")),
             "28/07/2026", // not an ISO-8601 instant
             "GBP",
             "DISPATCHED", // not a permitted OrderStatus
@@ -128,7 +131,8 @@ record EmailAddress(String value) {}
 
 record Customer(String name, EmailAddress email) {}
 
-record LineItem(String sku, int quantity, BigDecimal price) {}
+// Integer, not int: a leaf converts the quantity, and a leaf cannot focus a primitive
+record LineItem(String sku, Integer quantity, BigDecimal price) {}
 
 record Order(
     UUID id,
@@ -143,7 +147,8 @@ record Order(
 // ANCHOR: capstone_wire
 record CustomerDto(String fullName, String email) {}
 
-record LineItemDto(String sku, int quantity, String price) {}
+// a String, so a bad quantity reaches parse instead of failing inside Jackson
+record LineItemDto(String sku, String quantity, String price) {}
 
 record OrderDto(
     String id,
@@ -188,6 +193,10 @@ interface CustomerMapping extends OrderVocabulary, MappingSpec<Customer, Custome
 
 @GenerateMapping
 interface LineItemMapping extends MappingSpec<LineItem, LineItemDto> {
+  default ValidatedPrism<String, Integer> quantity() {
+    return intFromString();
+  }
+
   default ValidatedPrism<String, BigDecimal> price() {
     return bigDecimal();
   }

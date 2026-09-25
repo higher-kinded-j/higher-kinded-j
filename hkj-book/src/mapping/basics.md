@@ -37,7 +37,7 @@ The two directions have different shapes, and that asymmetry runs through the wh
                                Validated<NonEmptyList<FieldError>, Domain>
 ```
 
-A `Validated` holds either the parsed value (`Valid`) or every error (`Invalid`), and a `NonEmptyList` is a list with at least one element.
+A [`Validated`](../monads/validated_monad.md) holds either the parsed value (`Valid`) or every error (`Invalid`), and a [`NonEmptyList`](../monads/nonemptylist_monad.md) is a list with at least one element.
 
 The processor generates `PersonMappingImpl` in the spec's package, and you reach it through its `INSTANCE` constant. A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`. A [generic spec](generics.md#one-rule-three-access-shapes) is reached through `instance()` or `of(...)` instead.
 
