@@ -356,7 +356,8 @@ Rules:
 - **An answer adds no fact.** It applies a rule the page already teaches visibly, and ends with a "Where this lives" link. Its only unique content is the proof
 - **The question asks about a fresh instance** that probes a misconception. A question that recombines the example just shown only tests memory
 - **The answer is proved by the build**: a test assertion, or a `verify:rejects` snippet whose diagnostic is the answer. Never by an output comment nothing runs
-- **At most two per page**, placed straight after the "You can ship now" tip, so passing one certifies that stopping there is safe
+- **Two per teaching page, as the target and the limit**, placed straight after the "You can ship now" tip, so passing one certifies that stopping there is safe
+- **Checkpoints are optional in a chapter**, and a chapter adopts them all at once, in a reworking pass of its own, rather than a page at a time
 - **A chapter's self-check page is the exception**: it is all checkpoints, numbered in their titles ("Checkpoint 3: ...") so an answer can name another, and ordered from recall to writing code
 - **Its questions interleave the pages** rather than follow them, and a question may withhold a noun that would name its answer
 - **It closes the chapter's Ship group**, carries no "What You'll Learn", and ends with a routing key that turns a score into a next step
