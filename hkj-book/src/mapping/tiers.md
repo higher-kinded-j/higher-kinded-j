@@ -6,7 +6,7 @@ So far every mapping in this chapter has offered `build` and `parse`. Not every 
 
 ~~~admonish info title="What You'll Learn"
 - Predict which methods a spec's Impl carries, from the shape of its pair
-- Send a bound request to `parse`, never to an unguarded `reverseGet` or `set`
+- Send a bound request to `parse` or `patch`, never to an unguarded `reverseGet` or `set`
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -87,7 +87,7 @@ A two-way mapping's methods turn on two independent questions: does the wire car
 | `asValidatedBuild()` | the bean wire has writers only: [One-directional beans](beans.md#one-directional-beans) |
 | `updateFrom(wire)` | the spec extends `UpdateSpec`, over a bean wire: [Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 
-### A bound request goes to `parse` {#a-bound-request-goes-to-parse}
+### A bound request goes to `parse` or `patch` {#a-bound-request-goes-to-parse}
 
 ~~~admonish warning title="Not checked for you: reverseGet has no guard"
 A lossless `parse` is guarded. A `null` becomes a located error, and a value the domain's [constructor refuses](absence.md#constructor-invariants) becomes an error carrying its message. `asIso().reverseGet` runs the same direction with neither guard: it builds the record directly, so whatever the constructor accepts goes in, and whatever it throws propagates. Here a request body left out `name`:
@@ -96,7 +96,7 @@ A lossless `parse` is guarded. A `null` becomes a located error, and a value the
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TiersBookTest.java:reverse_get_null}}
 ```
 
-`reverseGet` is for round trips of values `build` produced, so give a freshly bound request to `parse`. A projection's `asLens().set` builds the domain through the same constructor, so the same holds for it.
+`reverseGet` is for round trips of values `build` produced, so give a freshly bound request to `parse`. A projection has no `parse`, and its [validated `patch`](#leaf-carrying-projections-the-validated-patch) carries both guards. A projection whose components are all plain copies gets `asLens()` instead, and its `set` builds through the same constructor with neither guard. Check such a request yourself before `set`, or give a component that needs checking a leaf: the projection then takes `patch`.
 ~~~
 
 ## Law-checked, in the repo and in your tests {#law-checked-in-the-repo-and-in-your-tests}
@@ -178,7 +178,7 @@ A client sends the employee card with no name, so the controller holds `new Empl
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TiersBookTest.java:check_lens_set}}
 ```
 
-Where this lives: [A bound request goes to `parse`](#a-bound-request-goes-to-parse).
+Where this lives: [A bound request goes to `parse` or `patch`](#a-bound-request-goes-to-parse).
 ~~~
 
 ---
@@ -219,7 +219,7 @@ The patch laws are projection identity (`patch(d, build(d)) == Valid(d)`), idemp
 
 ~~~admonish info title="Key Takeaways"
 * **Two questions pick a two-way mapping's methods**: does the wire carry every component, and is each one a plain copy
-* **A bound request goes to `parse`**: `reverseGet` and a projection's `set` have no guard, so they are for values you already trust
+* **A bound request goes to `parse` or `patch`**: `reverseGet` and a lens's `set` have no guard, so they are for values you already trust
 * **Every tier is law-checked**: one `MappingLaws` call per tier, the same harness the library's own build runs
 ~~~
 
