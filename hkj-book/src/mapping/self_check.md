@@ -143,7 +143,7 @@ Where this lives: [Standard codecs](codecs.md#standard-codecs) and [Validated le
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/SelfCheckBookTest.java:null_and_leaf}}
 ```
 
-Where this lives: [Null has an address, not a stack trace](basics.md#null-doctrine) and [Nesting, containers, and recursion](structure.md#nesting-containers-and-recursion).
+Where this lives: [Null has an address, not a stack trace](basics.md#null-doctrine) and [Nesting a spec, and a list of them](structure.md#nesting-containers-and-recursion).
 ~~~
 
 ~~~admonish question title="Checkpoint 6: find the defect" id="check-self-leafname"
@@ -280,7 +280,7 @@ The client reads `parcels.1.sku`: error paths use the domain's names, even where
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/SelfCheckBookTest.java:shipment_proof}}
 ```
 
-Where this lives: [Nesting, containers, and recursion](structure.md#nesting-containers-and-recursion), [Renames: `@MapField`](basics.md#renames-mapfield), [Standard codecs](codecs.md#standard-codecs) and [Optional fields: `@OptionalBridge`](absence.md#optional-bridge).
+Where this lives: [Nesting a spec, and a list of them](structure.md#nesting-containers-and-recursion), [Renames: `@MapField`](basics.md#renames-mapfield), [Standard codecs](codecs.md#standard-codecs) and [Optional fields: `@OptionalBridge`](absence.md#optional-bridge).
 ~~~
 
 ~~~admonish example title="See Example Code"

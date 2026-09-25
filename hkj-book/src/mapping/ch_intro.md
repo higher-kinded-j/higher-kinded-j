@@ -34,7 +34,7 @@ It works, until it doesn't, and it fails three ways at once:
 
 ---
 
-## What you get instead
+## What you get instead {#what-you-get-instead}
 
 This chapter replaces that mapper with one interface you own and one annotation. The processor derives both directions at compile time wherever the wire supports them, and the fallible one reports **every** bad field at once, each located by a dotted path. Here is the destination, before any theory: a request with five defects, answered by one response.
 

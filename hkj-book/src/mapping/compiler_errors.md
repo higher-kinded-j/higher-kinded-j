@@ -75,6 +75,8 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`names a raw Map component`](#raw-map) | A key leaf faces a raw `Map` |
 | [`matches more than one mapping spec`](#more-than-one-spec) | Two specs map the same pair |
 | [`has no mapping spec`](#subtype-has-no-spec) | A sealed subtype has no spec |
+| [`is never produced`](#subtype-never-produced) | A sealed wire subtype has no spec producing it |
+| [`is targeted by more than one domain subtype`](#subtype-targeted-twice) | Two domain subtypes map to one wire subtype |
 | [`has no meaning on a sealed mapping`](#no-meaning-on-a-sealed-mapping) | A sealed spec declares a leaf or marker |
 
 **[Flattening](#flattening)**
@@ -1148,6 +1150,86 @@ record BankDto(String iban) implements PaymentDto {}
 
 @GenerateMapping
 interface CardMapping extends MappingSpec<Card, CardDto> {}
+
+@GenerateMapping
+interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}
+```
+~~~
+
+### `permitted subtype 'X' of 'Y' is never produced` {#subtype-never-produced}
+
+A sealed wire has a subtype that no spec maps a domain subtype to, so `parse` would have nowhere to send it.
+
+**Fix.** Add a domain subtype and a spec mapping it to the wire subtype, or remove the wire subtype from the sealed interface.
+
+```
+@GenerateMapping: permitted subtype 'com.example.CashDto' of 'PaymentDto' is never produced.
+parse must dispatch every wire subtype back to a domain subtype; this one has no mapping spec
+from any. Add a domain subtype and spec for it, or remove it from the sealed wire interface.
+```
+
+The rule: [Sealed hierarchies](structure.md#sealed-hierarchies).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "is never produced" -->
+```java
+sealed interface Payment permits Card, Bank {}
+
+record Card(String number) implements Payment {}
+
+record Bank(String iban) implements Payment {}
+
+sealed interface PaymentDto permits CardDto, BankDto, CashDto {}
+
+record CardDto(String number) implements PaymentDto {}
+
+record BankDto(String iban) implements PaymentDto {}
+
+record CashDto(String currency) implements PaymentDto {}
+
+@GenerateMapping
+interface CardMapping extends MappingSpec<Card, CardDto> {}
+
+@GenerateMapping
+interface BankMapping extends MappingSpec<Bank, BankDto> {}
+
+@GenerateMapping
+interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}
+```
+~~~
+
+### `permitted subtype 'X' of 'Y' is targeted by more than one domain subtype` {#subtype-targeted-twice}
+
+Two domain subtypes map to one wire subtype, so `parse` could not tell which to build.
+
+**Fix.** Give each domain subtype its own wire subtype.
+
+```
+@GenerateMapping: permitted subtype 'com.example.CardDto' of 'PaymentDto' is targeted by more
+than one domain subtype. parse dispatches on the wire subtype; two sources would make the
+reverse direction ambiguous. Give each domain subtype its own wire subtype.
+```
+
+The rule: [Sealed hierarchies](structure.md#sealed-hierarchies).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "is targeted by more than one domain subtype" -->
+```java
+sealed interface Payment permits Card, GiftCard {}
+
+record Card(String number) implements Payment {}
+
+record GiftCard(String number) implements Payment {}
+
+sealed interface PaymentDto permits CardDto {}
+
+record CardDto(String number) implements PaymentDto {}
+
+@GenerateMapping
+interface CardMapping extends MappingSpec<Card, CardDto> {}
+
+@GenerateMapping
+interface GiftCardMapping extends MappingSpec<GiftCard, CardDto> {}
 
 @GenerateMapping
 interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}
