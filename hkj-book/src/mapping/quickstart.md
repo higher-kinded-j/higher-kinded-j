@@ -81,8 +81,8 @@ classpath, a controller returns that result as-is:
 
 ~~~admonish warning title="Two things that catch people here"
 `FieldError` is Higher-Kinded-J's, not Spring's `org.springframework.validation.FieldError`: an IDE
-will offer the wrong import. And the spec interface is not the thing you call. Inject the surface
-(`ValidatedPrism<UserDto, User>`, registered as shown in
+will offer the wrong import. And the spec interface is not the thing you call. Inject the part
+this endpoint calls (`ValidatedParse<UserDto, User>`, satisfied by the bean registered in
 [Injecting and testing](testing.md#injecting-and-testing-generated-mappings)) or call
 `UserMappingImpl.INSTANCE` in the caller. Never declare that constant on the spec itself:
 [it can read null](basics.md#bind-in-the-caller).

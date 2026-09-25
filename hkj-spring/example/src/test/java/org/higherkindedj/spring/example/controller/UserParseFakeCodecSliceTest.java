@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
-import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.higherkindedj.optics.validated.ValidatedParse;
 import org.higherkindedj.spring.autoconfigure.HkjAutoConfiguration;
 import org.higherkindedj.spring.autoconfigure.HkjJacksonAutoConfiguration;
 import org.higherkindedj.spring.autoconfigure.HkjWebMvcAutoConfiguration;
@@ -26,10 +26,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * The substitution seam, end to end: the controller depends on {@code ValidatedPrism<UserDto,
+ * The substitution seam, end to end: the controller depends on {@code ValidatedParse<UserDto,
  * User>}, so a test slice swaps the generated codec for a fake built with {@link
- * ValidatedPrism#of}. The interface is sealed, so a fake is constructed as a value - two lines, no
- * mocking framework (and no mocking framework could: sealed types cannot be mocked).
+ * ValidatedParse#of}. The interface is sealed, so Mockito refuses to mock it, and the fake is
+ * constructed as a value instead: one function, no mocking framework.
  */
 @WebMvcTest(UserController.class)
 @ImportAutoConfiguration({
@@ -42,14 +42,13 @@ import org.springframework.test.web.servlet.MockMvc;
 class UserParseFakeCodecSliceTest {
 
   // ANCHOR: fake_codec
-  /** A stub codec: every parse fails with one located error; build renders a fixed DTO. */
+  /** A stub codec: every parse fails with one located error. */
   @TestConfiguration
   static class RejectEverythingCodec {
     @Bean
-    ValidatedPrism<UserDto, User> userCodec() {
-      return ValidatedPrism.of(
-          dto -> Validated.invalidNel(FieldError.of("rejected by the fake codec").at("email")),
-          user -> new UserDto());
+    ValidatedParse<UserDto, User> userCodec() {
+      return ValidatedParse.of(
+          dto -> Validated.invalidNel(FieldError.of("rejected by the fake codec").at("email")));
     }
   }
 
