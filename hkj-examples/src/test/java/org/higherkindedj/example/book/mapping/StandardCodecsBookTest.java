@@ -27,6 +27,8 @@ import org.higherkindedj.optics.validated.StandardCodecs;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The Standard codecs section's running example: the stock-codec mapping obeys the mapping laws,
@@ -240,6 +242,27 @@ class StandardCodecsBookTest {
     }
     // ANCHOR_END: check_int_canon
   }
+
+  @Test
+  @DisplayName("Jackson answers a number-typed quantity first, and binds a JSON number to a String")
+  void jacksonAnswersANumberTypedQuantityFirst() {
+    JsonMapper json = JsonMapper.builder().build();
+
+    assertThat(json.readValue("{\"quantity\": 2.5}", IntegerQuantity.class).quantity())
+        .isEqualTo(2); // truncated before parse runs
+    assertThatThrownBy(() -> json.readValue("{\"quantity\": \"two\"}", IntegerQuantity.class))
+        .isInstanceOf(InvalidFormatException.class); // Jackson's own 400
+    assertThat(json.readValue("{\"quantity\": 2}", StringQuantity.class).quantity())
+        .isEqualTo("2"); // a client need not quote it
+    assertThat(json.readValue("{\"quantity\": 2.5}", StringQuantity.class).quantity())
+        .isEqualTo("2.5"); // reaches parse, where intFromString() rejects it, located
+  }
+
+  /** A quantity typed as a number on the wire. */
+  record IntegerQuantity(Integer quantity) {}
+
+  /** A quantity typed as a String on the wire, for intFromString() to convert. */
+  record StringQuantity(String quantity) {}
 
   @Test
   @DisplayName("plain offsetDateTime() rejects one browser timestamp in ten")
