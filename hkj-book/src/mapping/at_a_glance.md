@@ -109,7 +109,7 @@ unset property is an ordinary state. [What Your Spec Generates](tiers.md) explai
 
 ## Is it a fit for your estate?
 
-~~~admonish question title="Checkpoint: twelve questions about your services" id="check-fit-test"
+~~~admonish note title="Twelve questions about your services" id="check-fit-test"
 Each ✅ is work the mapper already does. Each ⚠ is a decision to make before adopting, not a
 blocker. Each ❌ means keep what you have for that case.
 

@@ -250,6 +250,8 @@ class StandardCodecsBookTest {
 
     assertThat(json.readValue("{\"quantity\": 2.5}", IntegerQuantity.class).quantity())
         .isEqualTo(2); // truncated before parse runs
+    assertThat(json.readValue("{\"quantity\": \"042\"}", IntegerQuantity.class).quantity())
+        .isEqualTo(42); // a spelling intFromString() rejects, accepted
     assertThatThrownBy(() -> json.readValue("{\"quantity\": \"two\"}", IntegerQuantity.class))
         .isInstanceOf(InvalidFormatException.class); // Jackson's own 400
     assertThat(json.readValue("{\"quantity\": 2}", StringQuantity.class).quantity())

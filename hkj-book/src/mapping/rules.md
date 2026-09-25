@@ -103,6 +103,7 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | [A constructor bug reached the client as a message](absence.md#constructor-invariants) | Any `RuntimeException` counts: keep the constructor to checks on its arguments. |
 | [A timestamp came back with fewer fractional digits](codecs.md#canonical-forms-only) | The formatter pattern fixes the precision, so `build` truncates finer values. |
 | [A generated error companion throws `ExceptionInInitializerError`, then `NoClassDefFoundError`](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) | Its all-absent context is built on first use, and the context record's constructor rejects `null`: let every component accept `null`. |
+| [A merged record holds a `null`, or its constructor threw](merge_envelopes.md#merging-several-sources-generatemerge) | A merge with a plain return checks nothing: give a component a leaf that can fail, so the merge returns `Validated` and checks what it reads. |
 
 ---
 

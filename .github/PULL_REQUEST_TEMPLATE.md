@@ -24,6 +24,15 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] Relevant examples in `MonadSimulation.java` or `OrderWorkflowRunner.java` updated/tested (if applicable)
 
 
+## Book changes
+
+Delete this section if the pull request changes neither the book nor a rule, refusal or diagnostic the book documents.
+
+- [ ] `./gradlew :hkj-examples:test :hkj-examples:bookVerify` and `hkj-book/check.sh` pass
+- [ ] The prose follows the [Style Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/STYLE-GUIDE.md), and the chapter's own guide where its Chapter Guides table lists one
+- [ ] Each new rule or refusal is where the chapter's guide says it lives; a generated page, such as Compiler Messages, is regenerated rather than edited
+- [ ] The readability counts this lowered are quoted here, and so is whether a war story or dialogue was used and why, or why a candidate site went without
+
 ## Checklist:
 
 - [ ] My code follows the style guidelines of this project (Standard Google Java Conventions)[**See Google Java Style Guide**](https://google.github.io/styleguide/javaguide.html)

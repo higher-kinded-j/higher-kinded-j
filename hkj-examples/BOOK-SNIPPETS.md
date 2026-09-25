@@ -27,7 +27,9 @@ be noise in a runnable example, and a snippet the processor is supposed to refus
 
 The book-facing examples live under `org.higherkindedj.example.book.*`, **one package per page**: the
 types must be top-level (so the processor generates the names the book teaches), and two pages that
-both want a `User` would otherwise collide.
+both want a `User` would otherwise collide. The Mapping chapter is the exception: its pages share one
+running cast, so they share one package, and a new type there must not reuse a name the package
+already has (`docs/MAPPING-CHAPTER-GUIDE.md`).
 
 ## Includes
 
@@ -58,9 +60,9 @@ Compiles the code in the repo's documentation against the real library, so a pag
 from the API without failing the build. Two roots are covered:
 
 - **`hkj-book/src`**, the book.
-- **`.claude/skills`**, the Claude Code skills, which the build plugins install into consumer
-  projects. These were the last documentation nothing compiled, and it showed: a code review found
-  four undefined identifiers in them in a single pass (`emailPrism()`, `unlabelled`, `outOfStock`,
+- **`.claude/skills`**, the Claude Code skills. The build plugins install the `hkj-*` ones into
+  consumer projects. These were the last documentation nothing compiled, and it showed: a code
+  review found four undefined identifiers in them in a single pass (`emailPrism()`, `unlabelled`, `outOfStock`,
   `notFound`). A skill is read by an assistant that generates code from it, so a wrong snippet there
   becomes code that does not build in someone's project.
 
