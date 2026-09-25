@@ -90,6 +90,7 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | [The first `parse` or `build` throws a `StackOverflowError`](codecs.md#standard-codecs) | A leaf named like its factory calls itself: write `StandardCodecs.currency()`, qualified. |
 | [A browser's timestamps are rejected some of the time, or Python's every time](codecs.md#canonical-forms-only) | The stock date-time codecs accept only their own render: declare the producer's canon. |
 | [A bad date or enum got Jackson's 400, with no field path](basics.md#validated-leaves) | Jackson rejected a typed wire field before `parse` ran: keep a converted wire field a `String`. |
+| [A sealed request body got a 500, with no field path](structure.md#sealed-hierarchies) | Jackson cannot pick a subtype without type information: annotate the wire interface with `@JsonTypeInfo`. |
 | [A field the client left out reports `must not be null`](absence.md#optional-bridge) | Only `@OptionalBridge` lets a field be left out; a whole-`Optional` leaf still rejects `null`. |
 | [A PATCH that omits a field overwrote the stored value](beans_patch.md#patch-getters-answer-null) | A default the bean gives itself reads as sent: leave PATCH bean fields uninitialised. |
 | [An explicit JSON `null` cleared an `Optional` PATCH property](beans_patch.md#what-each-json-state-does) | Jackson binds it to `Optional.empty()`, which means *clear* there: omit the field to leave it unchanged. |

@@ -84,7 +84,7 @@ The dispatch hands each value to its subtype's spec and adds nothing to the path
 A leaf for `pan` goes on `CardMapping`, because a sealed spec has no components to bind one to ([`has no meaning on a sealed mapping`](compiler_errors.md#no-meaning-on-a-sealed-mapping)). The dispatch cannot be partial. The processor names a missing subtype, with [`has no mapping spec`](compiler_errors.md#subtype-has-no-spec) on the domain side and [`is never produced`](compiler_errors.md#subtype-never-produced) on the wire. A subtype must be a record or a sealed interface, or on the wire a bean as well. A generic subtype, an enum or any other class is not supported yet.
 
 ~~~admonish warning title="Not checked for you: Jackson must be told how to tell the subtypes apart"
-Jackson binds the request before `parse` runs, and cannot construct an interface. Without type information it answers with its own 400 and no field path. Annotate the wire interface as `PaymentDto` is: `@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)` with `@JsonSubTypes` naming each record, when each subtype's fields differ. Where they overlap, use `Id.NAME` with a `type` property.
+Jackson binds the request before `parse` runs, and cannot construct an interface. Without type information, Jackson fails with a type-definition error, which Spring maps to no status by default. The exception escapes unhandled, and the server answers 500 with no field path. Annotate the wire interface as `PaymentDto` is: `@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)` with `@JsonSubTypes` naming each record, when each subtype's fields differ. Where they overlap, use `Id.NAME` with a `type` property.
 ~~~
 
 ~~~admonish tip title="You can ship now"
