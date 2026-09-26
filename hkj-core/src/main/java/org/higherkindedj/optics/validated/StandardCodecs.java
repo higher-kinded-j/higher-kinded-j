@@ -174,6 +174,31 @@ public final class StandardCodecs {
           Locale::toLanguageTag);
 
   /**
+   * Each enum type's failure message, computed once. A generated mapping calls its leaf on every
+   * parse and build, so without this every call would copy the constants and join their names. An
+   * invalid type throws from here, uncached, on every attempt.
+   */
+  private static final ClassValue<String> ENUM_MESSAGES =
+      new ClassValue<>() {
+        @Override
+        protected String computeValue(Class<?> enumType) {
+          Object[] constants = enumType.getEnumConstants();
+          if (constants == null) {
+            throw new IllegalArgumentException(enumType.getName() + " is not an enum type");
+          }
+          if (constants.length == 0) {
+            throw new IllegalArgumentException(
+                enumType.getName() + " has no constants, so nothing could ever parse");
+          }
+          String permitted =
+              Arrays.stream(constants)
+                  .map(constant -> ((Enum<?>) constant).name())
+                  .collect(Collectors.joining(", "));
+          return "unknown " + enumType.getSimpleName() + " (expected one of " + permitted + ")";
+        }
+      };
+
+  /**
    * Canonical {@link UUID}s: lowercase hex, as {@code UUID.toString} renders. An uppercase or
    * mixed-case UUID is a rejection, not a normalisation.
    *
@@ -299,19 +324,7 @@ public final class StandardCodecs {
    */
   public static <E extends Enum<E>> ValidatedPrism<String, E> enumByName(Class<E> enumType) {
     Objects.requireNonNull(enumType, "enumType must not be null");
-    E[] constants = enumType.getEnumConstants();
-    if (constants == null) {
-      throw new IllegalArgumentException(enumType.getName() + " is not an enum type");
-    }
-    if (constants.length == 0) {
-      throw new IllegalArgumentException(
-          enumType.getName() + " has no constants, so nothing could ever parse");
-    }
-    String permitted = Arrays.stream(constants).map(Enum::name).collect(Collectors.joining(", "));
-    return codec(
-        "unknown " + enumType.getSimpleName() + " (expected one of " + permitted + ")",
-        source -> Enum.valueOf(enumType, source),
-        Enum::name);
+    return codec(ENUM_MESSAGES.get(enumType), source -> Enum.valueOf(enumType, source), Enum::name);
   }
 
   /**

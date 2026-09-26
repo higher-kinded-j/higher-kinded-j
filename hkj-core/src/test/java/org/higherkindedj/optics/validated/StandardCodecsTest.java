@@ -248,6 +248,18 @@ class StandardCodecsTest {
           .isThrownBy(() -> StandardCodecs.enumByName(Uninhabited.class))
           .withMessageContaining("has no constants");
     }
+
+    @Test
+    @DisplayName(
+        "enumByName: a type without constants is refused on every call, not only the first")
+    void enumRefusalIsNotCached() {
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> StandardCodecs.enumByName(Uninhabited.class))
+          .withMessageContaining("has no constants");
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> StandardCodecs.enumByName(Uninhabited.class))
+          .withMessageContaining("has no constants");
+    }
   }
 
   @Nested
