@@ -46,27 +46,27 @@ Use one placement or the other: Java cannot declare both, since they share a nam
 `build` writes `null` into the bridged wire component for an absent value, so declare it to take one: `@Nullable String nickname`. [A bridged component must take `null`](rules.md#bridged-component-nullable) lists the declarations the processor refuses.
 ~~~
 
-~~~admonish example title="The same pair without the annotation, refused"
+~~~admonish example title="A pair without the annotation, refused"
 <!-- verify:rejects "Add '@OptionalBridge java.util.Optional<java.lang.String> nickname();' to the spec" -->
 ```java
 import java.util.Optional;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
 
-record Reader(String name, Optional<String> nickname) {}
+record Shopper(String name, Optional<String> nickname) {}
 
-record ReaderDto(String name, String nickname) {}
+record ShopperDto(String name, String nickname) {}
 
 @GenerateMapping
-interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}
+interface ShopperMapping extends MappingSpec<Shopper, ShopperDto> {}
 ```
 
 The processor says:
 
 ```
-@GenerateMapping: target field 'ReaderDto.nickname' has no usable source. The types differ
+@GenerateMapping: target field 'ShopperDto.nickname' has no usable source. The types differ
 (java.lang.String vs java.util.Optional<java.lang.String>) and no matching leaf method was
-found. Found on Reader: [name, nickname]. Add '@OptionalBridge
+found. Found on Shopper: [name, nickname]. Add '@OptionalBridge
 java.util.Optional<java.lang.String> nickname();' to the spec, so an absent value reads as a
 null wire component and back. Or add 'default ValidatedPrism<java.lang.String,
 java.util.Optional<java.lang.String>> nickname()' to the spec.
@@ -93,11 +93,11 @@ A domain record often guards itself, with a compact constructor that throws when
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:invariant_usage}}
 ```
 
-`ReservationMapping` uses `StayMapping` for each stay without being told: [Nesting](structure.md#nesting-containers-and-recursion) explains how. The second stay fails at `stays.1`, and the missing guest is still reported beside it. The rules:
+`DeliveryMapping` uses `DeliveryWindowMapping` for each window without being told: [Nesting](structure.md#nesting-containers-and-recursion) explains how. The second window fails at `windows.1`, and the missing recipient is still reported beside it. The rules:
 
-- **The record is the address.** A cross-field invariant belongs to no single component, so it locates where the record does: under the component holding it (`stays.1`), or at the top level, where the 422 renders an empty `"path": ""`.
+- **The record is the address.** A cross-field invariant belongs to no single component, so it locates where the record does: under the component holding it (`windows.1`), or at the top level, where the 422 renders an empty `"path": ""`.
 - **The constructor runs last.** It runs only once every component has parsed. So a record reports its components' errors or its invariant, never both, and a client may meet the invariant on a second attempt.
-- **Write the message for the client.** The 422 sends it verbatim, unlike the exception messages Spring Boot hides by default, so keep internal detail out. An exception without a message, or with a blank one, reads `not a valid Stay`.
+- **Write the message for the client.** The 422 sends it verbatim, unlike the exception messages Spring Boot hides by default, so keep internal detail out. An exception without a message, or with a blank one, reads `not a valid DeliveryWindow`.
 - **Put a one-field rule in a [leaf](basics.md#validated-leaves).** It then locates at the field, and accumulates with the record's other errors.
 
 ~~~admonish warning title="Not checked for you: a constructor's bug reaches the client"
@@ -111,26 +111,26 @@ You can now accept requests that leave some fields out, and keep a record's own 
 ~~~
 
 ~~~admonish question title="Checkpoint: where does `@OptionalBridge` go?" id="check-absence-bridge"
-A patron may leave out a birthday, and one they send must be an ISO date that `StandardCodecs.localDate()` parses:
+A voucher may have no expiry date, and one it carries must be an ISO date that `StandardCodecs.localDate()` parses:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:patron_pair}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:voucher_pair}}
 ```
 
-Which declaration on `PatronMapping` does that?
+Which declaration on `VoucherMapping` does that?
 
-1. `@OptionalBridge Optional<LocalDate> birthday();`
-2. `@OptionalBridge default ValidatedPrism<String, LocalDate> birthday()`, returning `StandardCodecs.localDate()`
-3. `@OptionalBridge default ValidatedPrism<String, Optional<LocalDate>> birthday()`, a leaf over the whole `Optional`
+1. `@OptionalBridge Optional<LocalDate> expiry();`
+2. `@OptionalBridge default ValidatedPrism<String, LocalDate> expiry()`, returning `StandardCodecs.localDate()`
+3. `@OptionalBridge default ValidatedPrism<String, Optional<LocalDate>> expiry()`, a leaf over the whole `Optional`
 4. The same whole-`Optional` leaf, without the annotation
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-absence-bridge-answer"
-**2.** The date inside the `Optional` needs a leaf, so the annotation goes on that leaf, over the types inside the `Optional`. The marker (1) is only for a value that copies or has a spec of its own, and nothing copies a `String` into a `LocalDate`. The processor refuses the annotation on a whole-`Optional` leaf (3). Without it (4), that leaf compiles but reads a `null` as `must not be null`, so the birthday could never be left out:
+**2.** The date inside the `Optional` needs a leaf, so the annotation goes on that leaf, over the types inside the `Optional`. The marker (1) is only for a value that copies or has a spec of its own, and nothing copies a `String` into a `LocalDate`. The processor refuses the annotation on a whole-`Optional` leaf (3). Without it (4), that leaf compiles but reads a `null` as `must not be null`, so the expiry could never be left out:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:patron_spec}}
-{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/AbsenceBookTest.java:patron_proof}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:voucher_spec}}
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/AbsenceBookTest.java:voucher_proof}}
 ```
 
 Where this lives: [Optional fields: `@OptionalBridge`](#optional-bridge).

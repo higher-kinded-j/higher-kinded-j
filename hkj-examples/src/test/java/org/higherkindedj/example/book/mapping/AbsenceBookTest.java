@@ -23,37 +23,37 @@ import org.junit.jupiter.api.Test;
 class AbsenceBookTest {
 
   @Test
-  void reservationMappingLocatesAStaysInvariantAndObeysTheLaws() {
-    ReservationDto accepted =
-        new ReservationDto("Ada", List.of(new StayDto("2026-03-01", "2026-03-04")));
-    ReservationDto refused =
-        new ReservationDto("Ada", List.of(new StayDto("2026-03-09", "2026-03-07")));
+  void deliveryMappingLocatesAWindowsInvariantAndObeysTheLaws() {
+    DeliveryDto accepted =
+        new DeliveryDto("Ada", List.of(new DeliveryWindowDto("2026-03-01", "2026-03-04")));
+    DeliveryDto refused =
+        new DeliveryDto("Ada", List.of(new DeliveryWindowDto("2026-03-09", "2026-03-07")));
     MappingLaws.assertMappingLaws(
-        ReservationMappingImpl.INSTANCE.asValidatedPrism(), accepted, refused);
+        DeliveryMappingImpl.INSTANCE.asValidatedPrism(), accepted, refused);
 
     // The located errors the page shows, exactly:
     assertThatValidated(
-            ReservationMappingImpl.INSTANCE.parse(
-                new ReservationDto(
+            DeliveryMappingImpl.INSTANCE.parse(
+                new DeliveryDto(
                     null,
                     List.of(
-                        new StayDto("2026-03-01", "2026-03-04"),
-                        new StayDto("2026-03-09", "2026-03-07")))))
+                        new DeliveryWindowDto("2026-03-01", "2026-03-04"),
+                        new DeliveryWindowDto("2026-03-09", "2026-03-07")))))
         .isInvalid()
-        .hasFieldErrors("guest: must not be null", "stays.1: checkOut must be after checkIn");
+        .hasFieldErrors("recipient: must not be null", "windows.1: latest must be after earliest");
   }
 
   @Test
   @DisplayName("a bridged leaf over the date reads null as absent and still parses a present date")
   void aBridgedLeafOverTheDateReadsNullAsAbsent() {
-    // ANCHOR: patron_proof
-    PatronMappingImpl patronMapping = PatronMappingImpl.INSTANCE;
+    // ANCHOR: voucher_proof
+    VoucherMappingImpl voucherMapping = VoucherMappingImpl.INSTANCE;
 
-    assertThatValidated(patronMapping.parse(new PatronDto("Ada", null)))
-        .hasValue(new Patron("Ada", Optional.empty())); // left out: absent
-    assertThatValidated(patronMapping.parse(new PatronDto("Ada", "07/03/2026")))
-        .hasFieldErrors("birthday: not an ISO-8601 date (expected e.g. 2026-07-28)");
-    // ANCHOR_END: patron_proof
+    assertThatValidated(voucherMapping.parse(new VoucherDto("SPRING10", null)))
+        .hasValue(new Voucher("SPRING10", Optional.empty())); // left out: absent
+    assertThatValidated(voucherMapping.parse(new VoucherDto("SPRING10", "07/03/2026")))
+        .hasFieldErrors("expiry: not an ISO-8601 date (expected e.g. 2026-07-28)");
+    // ANCHOR_END: voucher_proof
   }
 
   @Test
@@ -80,14 +80,14 @@ class AbsenceBookTest {
   @Test
   @DisplayName("a constructor's refusal locates where its record does")
   void aRefusalLocatesWhereItsRecordDoes() {
-    StayDto reversed = new StayDto("2026-03-09", "2026-03-07");
+    DeliveryWindowDto reversed = new DeliveryWindowDto("2026-03-09", "2026-03-07");
 
-    assertThatValidated(StayMappingImpl.INSTANCE.parse(reversed)) // unlabelled on its own
-        .hasFieldErrors("checkOut must be after checkIn");
+    assertThatValidated(DeliveryWindowMappingImpl.INSTANCE.parse(reversed)) // unlabelled alone
+        .hasFieldErrors("latest must be after earliest");
     assertThatValidated(
-            ReservationMappingImpl.INSTANCE.parse(
-                new ReservationDto(
-                    "Ada", List.of(new StayDto("2026-03-01", "2026-03-04"), reversed))))
-        .hasFieldErrors("stays.1: checkOut must be after checkIn");
+            DeliveryMappingImpl.INSTANCE.parse(
+                new DeliveryDto(
+                    "Ada", List.of(new DeliveryWindowDto("2026-03-01", "2026-03-04"), reversed))))
+        .hasFieldErrors("windows.1: latest must be after earliest");
   }
 }
