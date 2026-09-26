@@ -48,6 +48,12 @@ Rows below and headings on the page say which, wherever it is not an error.
 
 | The message says | What it means |
 |------------------|---------------|
+| [`lists no classes to import`](#importoptics-lists-no-classes) | **Warning.** The annotation names no class, so nothing is generated |
+| [`names no class, interface, record or enum`](#importoptics-literal-names-no-type) | The class list holds a primitive, an array or `void` |
+| [`also lists classes to import`](#importoptics-spec-lists-classes) | A spec interface carries a class list it does not read |
+| [`extends OpticsSpec only through`](#importoptics-indirect-spec) | A spec reaches `OpticsSpec<S>` through another interface |
+| [`implements OpticsSpec but is not an interface`](#importoptics-spec-not-an-interface) | A class is written as a spec |
+| [`inherits the optic method`](#importoptics-inherited-optic) | A spec's optic method is declared on another interface |
 | [`carries no copy strategy annotation`](#importoptics-lens-method-x-carries-no-copy-strategy-annotation) | A spec `Lens` method names none of the four copy strategies |
 | [`is a default method`](#xopticsspecfoo-is-a-default-method) | A spec interface method has a body |
 | [`which is a type variable`](#xopticsspec-declares-opticsspecs-which-is-a-type-variable) | `OpticsSpec<S>` names a type parameter rather than a type |
@@ -420,6 +426,136 @@ record Batch(Kind<NonEmptyListKind.Witness, String> items) {}
 ---
 
 ## `@ImportOptics` and `OpticsSpec` interfaces
+
+### "@ImportOptics: '...' lists no classes to import, so nothing is generated" (a warning) {#importoptics-lists-no-classes}
+
+An `@ImportOptics` on a `package-info.java`, a class, or an interface that is not a spec names no class to import, so it generates nothing.
+
+**Fix.** List the classes to import, as `@ImportOptics({Order.class})`, or remove the annotation. On an interface you meant as a spec, extend `OpticsSpec<S>` for the type its optics are for.
+
+~~~admonish note title="Why" collapsible=true
+A warning, because a build that compiles can still be missing the classes it expected, and the first sign would otherwise be a `cannot find symbol` somewhere else. A processor warning cannot be suppressed, so under `-Werror` the remedy is the fix.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:reports "lists no classes to import" -->
+```java
+@ImportOptics
+class OrderImports {}
+```
+~~~
+
+### "@ImportOptics: '...' names no class, interface, record or enum" {#importoptics-literal-names-no-type}
+
+The class list holds a literal for a primitive, an array or `void`, such as `int.class` or `String[].class`. Optics are generated from a type's declaration, and these have none.
+
+**Fix.** Remove the literal from the list.
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "names no class, interface, record or enum" -->
+```java
+@ImportOptics({int.class})
+class CountImports {}
+```
+~~~
+
+### "@ImportOptics: spec interface '...' also lists classes to import" {#importoptics-spec-lists-classes}
+
+A spec interface also carries a class list. A spec generates the optics its own methods declare, for the type its `OpticsSpec<S>` names, and does not read a class list.
+
+**Fix.** Move the class list to a `package-info.java` or to another class or interface, or remove it.
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "also lists classes to import" -->
+```java
+final class Session {
+
+    public String user() {
+        return "";
+    }
+
+    public Session withUser(String user) {
+        return this;
+    }
+}
+
+@ImportOptics({java.time.LocalDate.class})
+interface SessionOpticsSpec extends OpticsSpec<Session> {
+
+    @Wither(value = "withUser", getter = "user")
+    Lens<Session, String> user();
+}
+```
+~~~
+
+### "@ImportOptics: '...' extends OpticsSpec only through '...'" {#importoptics-indirect-spec}
+
+A spec interface reaches `OpticsSpec<S>` through another interface rather than declaring it itself. Reading a spec that way is not supported yet.
+
+**Fix.** Declare `OpticsSpec<S>` on the spec itself, beside the interface it extends. Where the path pins the source type, the message writes the clause out for you: `interface SessionOpticsSpec extends OpticsSpec<Session>, SessionBase`.
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "extends OpticsSpec only through" -->
+```java
+final class Session {}
+
+interface SessionBase extends OpticsSpec<Session> {}
+
+@ImportOptics
+interface SessionOpticsSpec extends SessionBase {}
+```
+~~~
+
+### "@ImportOptics: '...' implements OpticsSpec but is not an interface" {#importoptics-spec-not-an-interface}
+
+A class, abstract or not, implements `OpticsSpec<S>`, directly or through an interface. A spec is read for its abstract methods, one per optic to generate, and only an interface has that shape.
+
+**Fix.** Declare the spec as an interface.
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "implements OpticsSpec but is not an interface" -->
+```java
+final class Session {}
+
+@ImportOptics
+abstract class SessionOpticsSpec implements OpticsSpec<Session> {}
+```
+~~~
+
+### "@ImportOptics: '...' inherits the optic method '...' from '...'" {#importoptics-inherited-optic}
+
+A spec interface inherits an abstract method returning an optic from another interface. A spec generates optics from the methods it declares itself, and reading them from another interface is not supported yet, so the generated class would be missing that optic.
+
+**Fix.** Declare the method on the spec itself, annotated as it is on the interface it comes from. A method the spec redeclares is its own, and the one it inherits is no longer read.
+
+~~~admonish note title="Why" collapsible=true
+Leaving the method out would be quieter and worse: code calling it would fail with `cannot find symbol`, and a `@ThroughField` traversal composing through an inherited lens would fail inside the generated file. An inherited method that returns something other than an optic, such as `int count()`, is not a declaration of an optic and leaves the spec as it is.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "inherits the optic method" -->
+```java
+final class Session {
+
+    public String user() {
+        return "";
+    }
+
+    public Session withUser(String user) {
+        return this;
+    }
+}
+
+interface UserOptics {
+
+    @Wither(value = "withUser", getter = "user")
+    Lens<Session, String> user();
+}
+
+@ImportOptics
+interface SessionOpticsSpec extends OpticsSpec<Session>, UserOptics {}
+```
+~~~
 
 ### "@ImportOptics: Lens method 'x' carries no copy strategy annotation"
 

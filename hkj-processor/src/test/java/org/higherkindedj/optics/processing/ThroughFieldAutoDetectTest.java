@@ -322,12 +322,11 @@ class ThroughFieldAutoDetectTest {
     }
 
     @Test
-    @DisplayName("should refuse a lens read raw through a clause above it, and ask for the clause")
-    void shouldRefuseWhenTheLensIsReadRawThroughAMixIn() {
-      // The lens method declares both its type arguments; a clause on the way to it drops them,
-      // and reading the member under a raw supertype erases it. The raw clause is not the spec's
-      // own, so the answer cannot come from reading its extends list: it comes from the lens
-      // declaration, which has what the read has lost.
+    @DisplayName("should refuse a lens inherited through a raw clause as inherited, not as raw")
+    void shouldRefuseALensInheritedThroughARawClause() {
+      // The lens is declared with both its type arguments on an interface the spec reaches
+      // through a raw clause. What stops it is that the spec inherits it, and the fix, declaring
+      // it on the spec, clears the raw read too.
       var container =
           JavaFileObjects.forSourceString(
               "com.external.Sack",
@@ -384,11 +383,8 @@ class ThroughFieldAutoDetectTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "composes through a lens named 'items', which the spec reads raw through a supertype"
-                  + " clause. The generated traversal calls the spec's own lens for the field and"
-                  + " composes the container traversal after it, so the lens has to say what it"
-                  + " focuses on. Give the clause that brings 'items' in its type arguments, or"
-                  + " declare 'items' on the spec itself with its copy strategy.");
+              "@ImportOptics: 'SackSpec' inherits the optic method 'items' from 'Bits'.");
+      assertThat(compilation).hadErrorCount(1);
     }
 
     @Test

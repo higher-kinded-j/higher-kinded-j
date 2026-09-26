@@ -7,7 +7,8 @@ package org.higherkindedj.optics.annotations;
  *
  * <p>Extend this interface to define custom optics for an external type {@code S}. The processor
  * will analyse abstract methods and generate implementations based on their return types and
- * annotations.
+ * annotations. A spec interface extends {@code OpticsSpec<S>} directly and declares each of its
+ * optic methods itself.
  *
  * <h2>Generated Class Naming</h2>
  *

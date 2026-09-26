@@ -93,7 +93,8 @@ public class SpecInterfaceAnalyser {
   /**
    * Analyses a spec interface to determine what optics to generate.
    *
-   * @param specInterface the interface extending {@code OpticsSpec<S>}
+   * @param specInterface the type carrying {@code @ImportOptics} that reaches {@code
+   *     OpticsSpec<S>}; one that is not an interface is refused
    * @param targetPackage the package the optics class is generated into, which decides what the
    *     generated code is allowed to name
    * @return the analysis result, or empty if the interface is invalid
@@ -111,8 +112,8 @@ public class SpecInterfaceAnalyser {
       return Optional.empty();
     }
 
-    // The processor only routes a type here when OpticsSpec is one of its direct super-interfaces,
-    // so the one way to reach this is to have named it raw.
+    // The processor routes an interface here only when OpticsSpec is one of its direct
+    // super-interfaces, so the one way to reach this is to have named it raw.
     TypeMirror sourceType = extractSourceType(specInterface);
     if (sourceType == null) {
       Diagnostics.error(
@@ -158,6 +159,19 @@ public class SpecInterfaceAnalyser {
         rejected = true;
       }
     }
+    // An optic is generated from the spec's own declaration. One the spec inherits would be missing
+    // from the generated class, and a @ThroughField traversal composing through it would call a
+    // method that is not there, so it is refused rather than dropped.
+    for (ExecutableElement member :
+        ElementFilter.methodsIn(elementUtils.getAllMembers(specInterface))) {
+      if (!member.getEnclosingElement().equals(specInterface)
+          && member.getModifiers().contains(Modifier.ABSTRACT)
+          && member.getReturnType() instanceof DeclaredType returned
+          && determineOpticKind(returned) != null) {
+        reportInheritedOptic(specInterface, member);
+        rejected = true;
+      }
+    }
     if (rejected) {
       return Optional.empty();
     }
@@ -180,6 +194,28 @@ public class SpecInterfaceAnalyser {
 
     return Optional.of(
         new SpecAnalysis(specInterface, sourceType, sourceTypeElement, opticMethods));
+  }
+
+  /**
+   * Reports an optic method a spec inherits from another interface, asking for it on the spec.
+   *
+   * @param specInterface the spec interface inheriting the method
+   * @param method the inherited optic method
+   */
+  private void reportInheritedOptic(TypeElement specInterface, ExecutableElement method) {
+    String spec = specInterface.getSimpleName().toString();
+    String name = method.getSimpleName().toString();
+    String from = method.getEnclosingElement().getSimpleName().toString();
+    Diagnostics.error(
+        messager,
+        specInterface,
+        "@ImportOptics",
+        "'" + spec + "' inherits the optic method '" + name + "' from '" + from + "'.",
+        "A spec generates optics from the methods it declares itself, and reading them from"
+            + " another interface is not supported yet, so '"
+            + name
+            + "' would be missing from the generated class.",
+        "Declare '" + name + "' on '" + spec + "' itself, annotated as it is on '" + from + "'.");
   }
 
   /**
@@ -855,25 +891,12 @@ public class SpecInterfaceAnalyser {
     // and it is the lens the traversal composes with.
     LensMember lens = declaredLens(specInterface, fieldName);
     // A raw lens is declared but has no focus, so there is nothing for the container traversal to
-    // compose onto; it is refused where a missing one is, and told apart in the message. What is
-    // raw may be the lens method or a clause on the way to it: reading a member under a raw
-    // supertype erases it, wherever on that path the raw clause sits. The declaration is what
-    // tells the two apart, so asking for the method's type arguments never sends the author to a
-    // declaration that already has them.
+    // compose onto; it is refused where a missing one is, and told apart in the message.
     boolean raw = lens != null && lens.type().getTypeArguments().size() != 2;
-    boolean rawClause = raw && ProcessorUtils.firstRawIn(lens.declared()) == null;
     if (lens == null || raw) {
       String problem;
       String fix;
-      if (rawClause) {
-        problem = "', which the spec reads raw through a supertype clause";
-        fix =
-            "Give the clause that brings '"
-                + fieldName
-                + "' in its type arguments, or declare '"
-                + fieldName
-                + "' on the spec itself with its copy strategy";
-      } else if (raw) {
+      if (raw) {
         problem = "', which the spec declares raw";
         fix =
             "Declare '"

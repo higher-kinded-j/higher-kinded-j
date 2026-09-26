@@ -5,7 +5,6 @@ package org.higherkindedj.optics.processing;
 import com.google.auto.service.AutoService;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -19,12 +18,13 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.tools.Diagnostic;
 import org.higherkindedj.optics.annotations.ImportOptics;
 import org.higherkindedj.optics.processing.external.ExternalLensGenerator;
 import org.higherkindedj.optics.processing.external.ExternalPrismGenerator;
@@ -66,6 +66,8 @@ import org.higherkindedj.optics.processing.util.Reachability.Crossing;
  *   <li>Prism hints: {@code @InstanceOf}, {@code @MatchWhen}
  *   <li>Traversal hints: {@code @TraverseWith}, {@code @ThroughField}
  * </ul>
+ *
+ * <p>A spec declares {@code OpticsSpec<S>} and each of its optic methods itself.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.ImportOptics")
@@ -87,33 +89,115 @@ public class ImportOpticsProcessor extends AbstractProcessor {
 
   private static final String OPTICS_SPEC_FQN = "org.higherkindedj.optics.annotations.OpticsSpec";
 
+  private static final String IMPORT_OPTICS_FQN =
+      "org.higherkindedj.optics.annotations.ImportOptics";
+
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     for (Element element : roundEnv.getElementsAnnotatedWith(ImportOptics.class)) {
-      if (element.getKind() == ElementKind.PACKAGE) {
-        processPackageAnnotation((PackageElement) element);
-      } else if (element.getKind() == ElementKind.INTERFACE) {
-        TypeElement typeElement = (TypeElement) element;
-        if (isSpecInterface(typeElement)) {
-          processSpecInterface(typeElement);
-        } else {
-          // Interface with class list (less common but supported)
-          processTypeAnnotation(typeElement);
-        }
-      } else if (element.getKind() == ElementKind.CLASS) {
-        processTypeAnnotation((TypeElement) element);
-      } else {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            element,
-            "@ImportOptics",
-            "cannot be applied to '" + element.getSimpleName() + "'.",
-            "Optics are imported for a package (via package-info.java) or for a listed"
-                + " class/interface.",
-            "Move the annotation to a package-info.java or a type declaration.");
+      switch (element.getKind()) {
+        case PACKAGE -> processPackageAnnotation((PackageElement) element);
+        case INTERFACE -> processInterface((TypeElement) element);
+        case CLASS -> processClass((TypeElement) element);
+        default ->
+            Diagnostics.error(
+                processingEnv.getMessager(),
+                element,
+                "@ImportOptics",
+                "cannot be applied to '" + element.getSimpleName() + "'.",
+                "It is read on a package-info.java, or on a class or interface that lists the"
+                    + " types to import or extends OpticsSpec<S>.",
+                "Move the annotation to a package-info.java, a class or an interface.");
       }
     }
     return true;
+  }
+
+  /**
+   * An interface is a spec when OpticsSpec is one of its own super-interfaces, and otherwise lists
+   * the classes to import. One that reaches OpticsSpec only through another interface is refused,
+   * rather than read for a class list it was not written to have.
+   */
+  private void processInterface(TypeElement anInterface) {
+    if (isSpecInterface(anInterface)) {
+      processSpecInterface(anInterface);
+    } else if (!refusesIndirectSpec(anInterface)) {
+      processTypeAnnotation(anInterface);
+    }
+  }
+
+  /**
+   * A class that implements OpticsSpec goes to the spec analyser, which refuses it: a spec is read
+   * for its abstract methods, and only an interface is. Any other class lists the classes to
+   * import.
+   */
+  private void processClass(TypeElement aClass) {
+    if (opticsSpecReachedFrom(aClass.asType()) != null) {
+      processSpecInterface(aClass);
+    } else {
+      processTypeAnnotation(aClass);
+    }
+  }
+
+  /**
+   * The {@code OpticsSpec} a type reaches through its supertypes, under the type arguments it is
+   * reached with, or null where it reaches none. The type itself is not asked.
+   */
+  private DeclaredType opticsSpecReachedFrom(TypeMirror type) {
+    for (TypeMirror supertype : processingEnv.getTypeUtils().directSupertypes(type)) {
+      // The supertypes of a class or interface are classes or interfaces.
+      DeclaredType declared = (DeclaredType) supertype;
+      if (((TypeElement) declared.asElement()).getQualifiedName().contentEquals(OPTICS_SPEC_FQN)) {
+        return declared;
+      }
+      DeclaredType reached = opticsSpecReachedFrom(declared);
+      if (reached != null) {
+        return reached;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Reports an interface that reaches {@code OpticsSpec} only through another interface, and
+   * returns whether it did. The fix names the source type where the path to {@code OpticsSpec} pins
+   * one.
+   */
+  private boolean refusesIndirectSpec(TypeElement anInterface) {
+    for (TypeMirror superInterface : anInterface.getInterfaces()) {
+      DeclaredType reached = opticsSpecReachedFrom(superInterface);
+      if (reached != null) {
+        String name = anInterface.getSimpleName().toString();
+        String through = ProcessorUtils.simpleTypeName(superInterface);
+        List<? extends TypeMirror> arguments = reached.getTypeArguments();
+        String fix =
+            arguments.size() == 1 && arguments.getFirst().getKind() == TypeKind.DECLARED
+                ? "Declare OpticsSpec<"
+                    + ProcessorUtils.simpleTypeName(arguments.getFirst())
+                    + "> on '"
+                    + name
+                    + "' itself: 'interface "
+                    + name
+                    + " extends OpticsSpec<"
+                    + ProcessorUtils.simpleTypeName(arguments.getFirst())
+                    + ">, "
+                    + through
+                    + "'."
+                : "Declare OpticsSpec<S> on '"
+                    + name
+                    + "' itself, naming the type its optics are for.";
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            anInterface,
+            "@ImportOptics",
+            "'" + name + "' extends OpticsSpec only through '" + through + "'.",
+            "A spec interface is read from the OpticsSpec<S> it declares itself, and reaching it"
+                + " through another interface is not supported yet, so nothing would be generated.",
+            fix);
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -141,6 +225,10 @@ public class ImportOpticsProcessor extends AbstractProcessor {
    * @param specInterface the spec interface extending OpticsSpec<S>
    */
   private void processSpecInterface(TypeElement specInterface) {
+    // A class is refused by the analyser, and is told to become an interface before anything else.
+    boolean listsClasses =
+        specInterface.getKind() == ElementKind.INTERFACE && refusesClassList(specInterface);
+
     ImportOptics annotation = specInterface.getAnnotation(ImportOptics.class);
 
     String targetPackage = annotation.targetPackage();
@@ -157,8 +245,8 @@ public class ImportOpticsProcessor extends AbstractProcessor {
 
     Optional<SpecAnalysis> analysisOpt = analyser.analyse(specInterface, targetPackage);
 
-    if (analysisOpt.isEmpty()) {
-      // Errors already reported by analyser
+    if (analysisOpt.isEmpty() || listsClasses) {
+      // Errors already reported, by the analyser or for the class list
       return;
     }
 
@@ -197,6 +285,34 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     generator.generate(analysis, targetPackage, specInterface);
   }
 
+  /**
+   * Reports a spec interface that also lists classes to import, and returns whether it did. A spec
+   * reads its source type from {@code OpticsSpec<S>}, so a class list beside it would go unread.
+   */
+  private boolean refusesClassList(TypeElement specInterface) {
+    if (listedClasses(specInterface).isEmpty()) {
+      return false;
+    }
+    AnnotationMirror importOptics = ProcessorUtils.findAnnotation(specInterface, IMPORT_OPTICS_FQN);
+    processingEnv
+        .getMessager()
+        .printMessage(
+            Diagnostic.Kind.ERROR,
+            Diagnostics.format(
+                "@ImportOptics",
+                "spec interface '"
+                    + specInterface.getSimpleName()
+                    + "' also lists classes to import.",
+                "A spec generates the optics its methods declare for the type its OpticsSpec<S>"
+                    + " names, and does not read a class list, so the classes listed would get none.",
+                "Move the class list to a package-info.java or to another class or interface, or"
+                    + " remove it."),
+            specInterface,
+            importOptics,
+            ProcessorUtils.getAnnotationValue(importOptics, "value"));
+    return true;
+  }
+
   private void processPackageAnnotation(PackageElement packageElement) {
     ImportOptics annotation = packageElement.getAnnotation(ImportOptics.class);
 
@@ -207,7 +323,7 @@ public class ImportOpticsProcessor extends AbstractProcessor {
 
     boolean allowMutable = annotation.allowMutable();
 
-    List<TypeElement> classesToProcess = getClassArrayFromAnnotation(packageElement);
+    List<TypeElement> classesToProcess = typesToImport(packageElement);
     for (TypeElement typeElement : classesToProcess) {
       processType(typeElement, targetPackage, allowMutable, packageElement);
     }
@@ -224,7 +340,7 @@ public class ImportOpticsProcessor extends AbstractProcessor {
 
     boolean allowMutable = annotation.allowMutable();
 
-    List<TypeElement> classesToProcess = getClassArrayFromAnnotation(typeElement);
+    List<TypeElement> classesToProcess = typesToImport(typeElement);
     for (TypeElement externalType : classesToProcess) {
       processType(externalType, targetPackage, allowMutable, typeElement);
     }
@@ -339,56 +455,90 @@ public class ImportOpticsProcessor extends AbstractProcessor {
   }
 
   /**
-   * Extracts the Class<?>[] value from an @ImportOptics annotation using the mirror API.
+   * The class literals the {@code @ImportOptics} on {@code element} lists, as written: none where
+   * it lists none, or where the element carries no {@code @ImportOptics} at all.
    *
-   * <p>We cannot directly access the Class objects at compile time, so we use the annotation mirror
-   * API to extract the TypeMirrors and convert them to TypeElements.
+   * <p>The literals are read through the mirror API, since a {@code Class} object for a type being
+   * compiled does not exist yet.
    */
   // Package-private for tests.
-  List<TypeElement> getClassArrayFromAnnotation(Element element) {
-    List<TypeElement> result = new ArrayList<>();
+  List<? extends AnnotationValue> listedClasses(Element element) {
+    AnnotationMirror importOptics = ProcessorUtils.findAnnotation(element, IMPORT_OPTICS_FQN);
+    AnnotationValue value =
+        importOptics == null ? null : ProcessorUtils.getAnnotationValue(importOptics, "value");
+    if (value == null) {
+      return List.of();
+    }
+    @SuppressWarnings("unchecked") // a Class<?>[] value holds its entries as a list
+    List<? extends AnnotationValue> entries = (List<? extends AnnotationValue>) value.getValue();
+    return entries;
+  }
 
-    // Find the @ImportOptics annotation mirror
-    AnnotationMirror importOpticsMirror = null;
-    for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
-      DeclaredType annotationType = mirror.getAnnotationType();
-      TypeElement annotationElement = (TypeElement) annotationType.asElement();
-      if (annotationElement
-          .getQualifiedName()
-          .contentEquals("org.higherkindedj.optics.annotations.ImportOptics")) {
-        importOpticsMirror = mirror;
-        break;
+  /**
+   * The types an importer's class list names, in the order it lists them. An entry naming no class,
+   * interface, record or enum is reported where it is written, and a list naming nothing at all is
+   * reported as importing nothing.
+   */
+  private List<TypeElement> typesToImport(Element importer) {
+    List<? extends AnnotationValue> listed = listedClasses(importer);
+    AnnotationMirror importOptics = ProcessorUtils.findAnnotation(importer, IMPORT_OPTICS_FQN);
+    if (listed.isEmpty()) {
+      reportNothingImported(importer, importOptics);
+      return List.of();
+    }
+    List<TypeElement> types = new ArrayList<>();
+    for (AnnotationValue entry : listed) {
+      TypeMirror type = (TypeMirror) entry.getValue();
+      if (processingEnv.getTypeUtils().asElement(type) instanceof TypeElement typeElement) {
+        types.add(typeElement);
+      } else {
+        String literal = ProcessorUtils.simpleTypeName(type) + ".class";
+        processingEnv
+            .getMessager()
+            .printMessage(
+                Diagnostic.Kind.ERROR,
+                Diagnostics.format(
+                    "@ImportOptics",
+                    "'" + literal + "' names no class, interface, record or enum.",
+                    "Optics are generated from a type's declaration, its components, subtypes,"
+                        + " constants or withers, and a primitive, an array or void has none.",
+                    "Remove '" + literal + "' from the list."),
+                importer,
+                importOptics,
+                entry);
       }
     }
+    return types;
+  }
 
-    if (importOpticsMirror == null) {
-      return result;
-    }
-
-    // Find the "value" element
-    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
-        importOpticsMirror.getElementValues().entrySet()) {
-      if (entry.getKey().getSimpleName().contentEquals("value")) {
-        AnnotationValue value = entry.getValue();
-
-        // The value is a List<AnnotationValue> where each item is a TypeMirror
-        @SuppressWarnings("unchecked")
-        List<? extends AnnotationValue> classValues =
-            (List<? extends AnnotationValue>) value.getValue();
-
-        for (AnnotationValue classValue : classValues) {
-          TypeMirror typeMirror = (TypeMirror) classValue.getValue();
-          TypeElement typeElement =
-              (TypeElement) processingEnv.getTypeUtils().asElement(typeMirror);
-          if (typeElement != null) {
-            result.add(typeElement);
-          }
-        }
-        break;
-      }
-    }
-
-    return result;
+  /**
+   * Warns that an importer lists no classes. Nothing is generated for it, and silence would leave
+   * the author to find that out from a missing class.
+   */
+  private void reportNothingImported(Element importer, AnnotationMirror importOptics) {
+    boolean anInterface = importer.getKind() == ElementKind.INTERFACE;
+    String name =
+        importer instanceof PackageElement pkg
+            ? "package '" + pkg.getQualifiedName() + "'"
+            : "'" + importer.getSimpleName() + "'";
+    processingEnv
+        .getMessager()
+        .printMessage(
+            Diagnostic.Kind.WARNING,
+            Diagnostics.format(
+                "@ImportOptics",
+                name + " lists no classes to import, so nothing is generated.",
+                anInterface
+                    ? "Optics are generated for each class the annotation lists, and for the"
+                        + " source type of an interface extending OpticsSpec<S>."
+                    : "Optics are generated for each class the annotation lists.",
+                anInterface
+                    ? "List the classes to import, as @ImportOptics({Order.class}), extend"
+                        + " OpticsSpec<S> to make it a spec interface, or remove the annotation."
+                    : "List the classes to import, as @ImportOptics({Order.class}), or remove the"
+                        + " annotation."),
+            importer,
+            importOptics);
   }
 
   /**
