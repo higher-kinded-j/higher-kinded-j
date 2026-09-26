@@ -563,11 +563,10 @@ class GenericMappingWireAxisTest {
     assertThat(compilation)
         .hadErrorContaining(
             "@GenerateMapping: @MapField method 'id' (inherited from 'BVocab') names 'Secret',"
-                + " which cannot be reached from 'com.example'. The generated Impl writes the"
-                + " member's type out in full, so every type named inside it has to be visible in"
-                + " the spec's package, where the Impl is declared. Make 'Secret' and the types"
-                + " enclosing it public, or declare the spec in the package they are already"
-                + " visible from.");
+                + " which cannot be reached from 'com.example'. The generated Impl is a top-level"
+                + " class in the spec's package, where it names every type the mapping crosses,"
+                + " so each has to be visible from there. Make 'Secret' public, or declare the"
+                + " spec in 'other'.");
     assertThat(compilation).hadErrorCount(1);
   }
 

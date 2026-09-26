@@ -229,8 +229,10 @@ class AssemblyProcessorTest {
               }
               """);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("is private");
-      assertThat(compilation).hadErrorContaining("at least package-private");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@GenerateAssembly: record 'Outer.Hidden' cannot be reached from 'com.example'.");
+      assertThat(compilation).hadErrorContaining("Remove 'private' from 'Hidden'.");
     }
 
     @Test
@@ -250,8 +252,13 @@ class AssemblyProcessorTest {
               }
               """);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("enclosing type");
-      assertThat(compilation).hadErrorContaining("at least package-private");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@GenerateAssembly: record 'Holder.Wrapper.Inner' cannot be reached from"
+                  + " 'com.example'.");
+      // The record is public: the fix names the enclosing class that hides it.
+      assertThat(compilation)
+          .hadErrorContaining("Remove 'private' from 'Wrapper', which encloses 'Inner'.");
     }
 
     @Test

@@ -62,6 +62,8 @@ SHORT = {
     "projection-with-derived-fields": "A smaller wire also declares a derived field",
     "own-type-parameters": "A leaf, rename or marker declares its own `<R>`",
     "cannot-be-reached": "A member names a type its package cannot see",
+    "component-cannot-be-reached": "A mapped type is hidden from the spec's package",
+    "envelope-cannot-be-reached": "An envelope's type is hidden from its companion's package",
     "redeclares-the-mapping": "The spec declares a mapping method, MapStruct-style",
     "collides-with-a-generated-member": "A spec method clashes with a generated one",
     "wire-has-more-components": "The wire has components nothing fills",
@@ -70,7 +72,6 @@ SHORT = {
     "derived-field-names-no-component": "A derived field names nothing on the wire",
     "both-map-to-one-wire-component": "A rename targets a component already filled",
     "unmapped-names-a-mapped-property": "An `@Unmapped` marker names a paired property",
-    "private-access-in-an-impl": "A mapped type is private and nested",
     "add-optional-bridge": "A domain `Optional` faces a plain wire component",
     "bridges-to-a-primitive": "The bridged wire component is a primitive",
     "declared-non-null": "The bridged wire component is declared non-null",
@@ -163,8 +164,11 @@ def message_of(entry, stderr):
         if not m:
             continue
         kind, text = m.group(1), m.group(2)
-        where = re.match(r"^.*?[\\/](\w+Impl\.java):\d+:", line)
-        if where:
+        # A message from a generated file (an Impl, or a companion such as an envelope's Errors)
+        # names that file, since the reader never wrote it; one from the reader's own declaration
+        # does not.
+        where = re.match(r"^.*?[\\/](\w+\.java):\d+:", line)
+        if where and where.group(1) != "Probe.java":
             text = where.group(1) + ": " + text
         if text.startswith("cannot find symbol"):
             extra = [l.strip() for l in lines[i + 1:i + 6] if l.strip().startswith(("symbol:", "location:"))]
@@ -331,7 +335,7 @@ flowchart TD
     class OK ok
 ```
 
-Most messages come from the first branch: the processor reads your spec, finds a shape it cannot map correctly, and says so where you declared it. A refused spec writes no Impl, so every call to it also reports `cannot find symbol`; fix the refusal and those go with it. An error inside a generated `*Impl` means the processor accepted a spec it should have refused. Please [report it](https://github.com/higher-kinded-j/higher-kinded-j/issues) with the spec; the cause is usually still in the spec, and the error names it, as [the one known case](#private-access-in-an-impl) shows.
+Most messages come from the first branch: the processor reads your spec, finds a shape it cannot map correctly, and says so where you declared it. A refused spec writes no Impl, so every call to it also reports `cannot find symbol`; fix the refusal and those go with it. An error inside a generated file, an `*Impl` or a companion such as `*Errors`, means the processor accepted a declaration it should have refused. Please [report it](https://github.com/higher-kinded-j/higher-kinded-j/issues) with the declaration, since the cause is usually still there.
 
 ---
 

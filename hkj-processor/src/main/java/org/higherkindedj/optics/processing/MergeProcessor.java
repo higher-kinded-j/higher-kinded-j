@@ -43,6 +43,8 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.GenerateMerge;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
+import org.higherkindedj.optics.processing.util.Reachability.Crossing;
 
 /**
  * Annotation processor for {@code @GenerateMerge}: forward-only assembly of one target record from
@@ -65,6 +67,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * whose method declares the plain target return is total by that declaration: nulls flow through to
  * the target constructor exactly as {@code build} copies them, and so does whatever that
  * constructor throws.
+ *
+ * <p>The Impl is a top-level class in the spec's package, so the spec, the target, the sources and
+ * every component a fill reads or writes have to be visible from there; one that is not is refused
+ * at the merge method, as {@code @GenerateMapping} refuses it.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMerge")
@@ -226,12 +232,24 @@ public class MergeProcessor extends AbstractProcessor {
     }
 
     ReturnShape shape = analyseReturn(spec, mergeMethod);
-    if (shape == null) {
+    if (shape == null
+        || !Reachability.check(
+            processingEnv,
+            TAG,
+            mergeMethod,
+            MappingProcessor.implTarget(spec),
+            declaredCrossings(spec, mergeMethod, shape.target()))) {
       return;
     }
 
     List<Fill> fills = classify(spec, registry, mergeMethod, shape.target());
-    if (fills == null) {
+    if (fills == null
+        || !Reachability.check(
+            processingEnv,
+            TAG,
+            mergeMethod,
+            MappingProcessor.implTarget(spec),
+            fillCrossings(mergeMethod, shape.target(), fills))) {
       return;
     }
 
@@ -267,6 +285,61 @@ public class MergeProcessor extends AbstractProcessor {
       return;
     }
     writeImpl(spec, mergeMethod, shape, fills);
+  }
+
+  /**
+   * The types the merge's Impl names in its signature: the spec it implements, the target and the
+   * sources.
+   */
+  private static Stream<Crossing> declaredCrossings(
+      TypeElement spec, ExecutableElement mergeMethod, TypeElement target) {
+    return Stream.concat(
+        Stream.of(
+            Crossing.over("spec '" + spec.getSimpleName() + "'", spec.asType()),
+            Crossing.over(
+                "merge target '" + ProcessorUtils.simpleTypeName(target.asType()) + "'",
+                target.asType())),
+        mergeMethod.getParameters().stream()
+            .map(
+                source ->
+                    Crossing.member(
+                        "source parameter '" + source.getSimpleName() + "'", source.asType())));
+  }
+
+  /**
+   * The types each fill crosses: the target component, the source component it reads, and, where a
+   * fallible merge guards its reads, the element types their null scans infer.
+   */
+  private Stream<Crossing> fillCrossings(
+      ExecutableElement mergeMethod, TypeElement target, List<Fill> fills) {
+    boolean scanned = fills.stream().anyMatch(Fill::fallible);
+    return fills.stream()
+        .flatMap(
+            fill -> {
+              TypeElement source =
+                  mergeMethod.getParameters().stream()
+                      .filter(p -> p.getSimpleName().contentEquals(fill.sourceParam()))
+                      .map(p -> asRecord(p.asType()))
+                      .findFirst()
+                      .orElseThrow();
+              Crossing targetSide = componentCrossing("target component", target, fill.component());
+              return Stream.concat(
+                  Stream.of(
+                      targetSide, componentCrossing("source component", source, fill.component())),
+                  scanned
+                      ? MappingProcessor.inferredCrossings(targetSide, fill.scan())
+                      : Stream.empty());
+            });
+  }
+
+  private static Crossing componentCrossing(String role, TypeElement record, String name) {
+    RecordComponentElement component =
+        record.getRecordComponents().stream()
+            .filter(c -> c.getSimpleName().contentEquals(name))
+            .findFirst()
+            .orElseThrow();
+    return Crossing.member(
+        role + " '" + record.getSimpleName() + "." + name + "'", component.asType());
   }
 
   /** The single abstract method that declares the merge; leaves stay {@code default}. */

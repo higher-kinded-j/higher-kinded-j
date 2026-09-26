@@ -41,6 +41,7 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
 import org.higherkindedj.optics.processing.util.NestedOptic;
 import org.higherkindedj.optics.processing.util.NestedTypeNames;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /**
  * Annotation processor that generates Traversal optics for record types.
@@ -127,6 +128,9 @@ public class TraversalProcessor extends AbstractProcessor {
     final GeneratorRegistry registry =
         GeneratorRegistry.of(generators, processingEnv.getMessager());
     final NestedTypeNames names = new NestedTypeNames(traversalsClassName);
+    // Only a traversed component is read into a lambda; the rest pass through their accessors,
+    // unnamed, when a traversal rebuilds the record.
+    final List<RecordComponentElement> traversed = new ArrayList<>();
     for (RecordComponentElement component : recordElement.getRecordComponents()) {
       TraversableGenerator generator = registry.generatorFor(component.asType(), component);
       if (generator == null) {
@@ -146,7 +150,16 @@ public class TraversalProcessor extends AbstractProcessor {
           createTraversal(component, recordElement, generator, names, packageName);
       if (traversal != null) {
         traversal.addTo(classBuilder);
+        traversed.add(component);
       }
+    }
+    if (!Reachability.check(
+        processingEnv,
+        TAG,
+        recordElement,
+        Reachability.companion(packageName, defaultPackage),
+        Reachability.record(recordElement, traversed))) {
+      return;
     }
 
     JavaFile.builder(packageName, classBuilder.build())

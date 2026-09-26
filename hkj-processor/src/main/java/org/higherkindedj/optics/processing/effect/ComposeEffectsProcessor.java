@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
@@ -26,6 +27,7 @@ import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.hkt.effect.annotation.Handles;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /**
  * Annotation processor for {@link ComposeEffects @ComposeEffects} and {@link Handles @Handles}.
@@ -221,6 +223,31 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
               + algebra.getQualifiedName()
               + ", which @EffectAlgebra rejects because it does not have exactly one type"
               + " parameter, so its Kind and Ops are not generated.",
+          component);
+      return false;
+    }
+    String algebraPackage = effectAlgebraPackage(algebra);
+    Optional<TypeElement> hidden =
+        Reachability.firstHidden(
+            processingEnv.getElementUtils(),
+            algebraPackage,
+            EffectAlgebraProcessor.crossings(
+                algebra,
+                algebra.getPermittedSubclasses().stream()
+                    .map(subtype -> (TypeElement) processingEnv.getTypeUtils().asElement(subtype))
+                    .toList()));
+    if (hidden.isPresent()) {
+      error(
+          "@ComposeEffects field '"
+              + component.getSimpleName()
+              + "' names "
+              + algebra.getQualifiedName()
+              + ", which @EffectAlgebra rejects because '"
+              + hidden.get().getSimpleName()
+              + "' cannot be reached from '"
+              + algebraPackage
+              + "', where its generated classes are written, so its Kind and Ops are not"
+              + " generated.",
           component);
       return false;
     }

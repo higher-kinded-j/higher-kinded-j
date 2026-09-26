@@ -24,6 +24,7 @@ import org.higherkindedj.optics.Setter;
 import org.higherkindedj.optics.annotations.GenerateSetters;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /** Annotation processor that generates Setter optics for record types. */
 @AutoService(Processor.class)
@@ -71,6 +72,14 @@ public class SetterProcessor extends AbstractProcessor {
     GenerateSetters annotation = recordElement.getAnnotation(GenerateSetters.class);
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    if (!Reachability.check(
+        processingEnv,
+        "@GenerateSetters",
+        recordElement,
+        Reachability.companion(packageName, defaultPackage),
+        Reachability.record(recordElement, recordElement.getRecordComponents()))) {
+      return;
+    }
 
     String settersClassName = recordName + "Setters";
 

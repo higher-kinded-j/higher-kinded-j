@@ -37,6 +37,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`'x' takes parameters`](#generateisos-x-takes-parameters) | The `@GenerateIsos` method takes arguments |
 | [`does not return an Iso with both type arguments`](#generateisos-x-does-not-return-an-iso-with-both-type-arguments) | The `@GenerateIsos` method returns something else |
 | [`cannot be reached from 'p'`](#generateisos-x-cannot-be-reached-from-p) | The `@GenerateIsos` method is not visible from the generated package |
+| [`The generated companion is a top-level class`](#companion-cannot-be-reached) | A type the generated companion names is `private`, or hidden in another package |
 | [`has a wildcard type argument`, `has a raw Set`](#generatefocus-record-component-xy-has-a-wildcard-type-argument-in-set-extends-t) | A widened container is raw, or has a wildcard type argument |
 | [`no traversal was generated for component`](#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note) | **Note.** `@GenerateTraversals` found no generator for a container |
 | [`Multiple TraversableGenerator SPI providers with equal priority`](#multiple-traversablegenerator-spi-providers-with-equal-priority-n-support-type-x-a-warning) | **Warning.** Two generators claim one type and neither outranks the other |
@@ -294,6 +295,34 @@ final class LengthIsos {
     static Iso<String, Integer> length() {
         return Iso.of(String::length, "x"::repeat);
     }
+}
+```
+~~~
+
+### "@GenerateLenses: record component 'x' of 'X' names 'Y', which cannot be reached from 'p'" {#companion-cannot-be-reached}
+
+A type the generated companion names is hidden from the package the companion is written into: it, or a class enclosing it, is `private`, or it comes from another package and is not `public`. `@GenerateLenses` and the other optics generators, `@ImportOptics`, `@GenerateAssembly`, `@GenerateErrorEnvelope`, `@EffectAlgebra` and `@PathSource` refuse such a type at the annotation. The message names where the companion meets the type: the annotated type itself (`record 'Shop.Item' cannot be reached from 'p'`), or a component, subtype, bound, field, optic, variant, operation, witness or error type.
+
+**Fix.** Remove `private` from the class the message names. From another package, make it `public`; under `targetPackage`, removing `targetPackage` also works for a type beside the annotated one, and the message offers it where it does.
+
+```
+@GenerateLenses: record component 'sku' of 'Item' names 'Sku', which cannot be reached from
+'com.example'. The generated companion is a top-level class in that package, where it names
+every type it reads or writes, so each has to be visible from there. Remove 'private' from 'Sku'.
+```
+
+~~~admonish note title="Why" collapsible=true
+The companion, `ItemLenses` here, is a top-level class beside `Shop`, not nested inside it, so it cannot see a type `Shop` keeps `private`. It names every type it reads or writes, some of them only in a lambda it leaves javac to infer, and javac checks those too. A traversal names only the components it traverses, so a `private` type on any other component compiles.
+~~~
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "names 'Sku', which cannot be reached from" -->
+```java
+class Shop {
+    private record Sku(String value) {}
+
+    @GenerateLenses
+    record Item(Sku sku, String name) {}
 }
 ```
 ~~~
@@ -1527,7 +1556,7 @@ interface Orders {
 
 `targetPackage` puts the bridge in package `p`, and something the bridge writes down, a parameter type, a return type, a bound or the delegate itself, is not visible there. The same message names *the bound on 'T'* when the culprit is a type parameter's bound.
 
-**Fix.** Make the type public, or drop `targetPackage` so the bridge is written beside the interface.
+**Fix.** Make public the class the message names, which may be one enclosing the type. Where the type sits beside the interface, removing `targetPackage` also works, since the bridge is then written there, and the message offers it where it does.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "cannot be reached from 'com.example.paths'" -->

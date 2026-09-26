@@ -14,8 +14,8 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [What if a leaf's name matches no component?](#how-the-two-default-families-are-told-apart) | A declared leaf is a compile error, naming the components; an inherited one stays inert. | by design |
 | [Can a getter-shaped helper live on a spec?](#how-the-two-default-families-are-told-apart) | Yes, if `private`, `static` or given a parameter; a `default` one is a derived field. | by design |
 | [Can a sealed spec declare its own leaves, renames or markers?](#how-the-two-default-families-are-told-apart) | No: a dispatch has no components to bind them to. | by design |
-| [Can a member's type be one the spec's package cannot see?](#how-the-two-default-families-are-told-apart) | No: the Impl is generated in that package and must name it. | by design |
 | [Can a projection carry a derived field?](#derived-fields-and-the-emission-tiers) | No: `build` recomputes what the write-back would set. | by design |
+| [Can a mapped type be one the spec's package cannot see?](#visible-from-the-spec-package) | No: the Impl is generated in that package and names it. | by design |
 | **Optional fields** | | |
 | [Can a bridged component be declared non-null, or primitive?](#bridged-component-nullable) | No: `build` writes `null` for empty, so declare it `@Nullable`. | by design |
 | [Can a sparse or sealed spec declare `@OptionalBridge`?](#bridged-component-nullable) | No; one inherited from a mix-in stays inert. | by design |
@@ -144,13 +144,17 @@ Leaves are named after *domain* components and return `ValidatedPrism`; derived 
 - *Inherited* [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) members that match nothing stay inert by design: a shared vocabulary may carry leaves for components only some extending specs have, and likewise derived fields and renames for wire components only some of their wires carry.
 - On a **sealed** mapping, locally declared leaves, derived fields and renames are rejected outright (a dispatch has no components), and so are an `@OptionalBridge` marker, a `@MapKey` key leaf and an `@Unmapped` marker; inherited vocabulary stays inert there too, bar a `@Flatten` marker, which is refused either way.
 
-A rename's, abstract leaf's or marker's type must be visible from the spec's package, where the Impl is generated: a package-private type a mix-in hands over from another package, or a private type nested in the spec's own enclosing class, is refused naming the type and the package. A mapped component's own type, and a `default` leaf's, are not checked: a private nested type there fails inside the generated Impl instead, as [Compiler Messages](compiler_errors.md#private-access-in-an-impl) shows.
-
 Four shapes are rejected, each with a what/why/fix diagnostic: a *locally declared* `Getter` named after a *domain* component (ambiguous with a leaf); a *locally declared* `Getter` naming nothing on the wire; a `Getter` with the wrong type arguments; and a `@MapField` rename targeting a component a derived field already fills. The first two are the typo guard, so an inherited `Getter` in either position stays inert instead; the last two catch a member that does bind, and fire wherever it was declared.
 
 ### Derived fields and the emission tiers {#derived-fields-and-the-emission-tiers}
 
 A spec with any derived field never emits `asIso()`: the wire round trip recomputes the derived component, so it is an identity only for wire values that were already consistent. A mapping whose *only* extra is a derived field is *total-parse*: no **well-formed** wire value can fail it (the null guards above still apply, a domain constructor's [invariant](absence.md#constructor-invariants) can still refuse a value, and a fallible leaf elsewhere in the spec still makes the whole parse fallible). Combining a derived field with a projection (a wire otherwise smaller than the domain) is rejected, because the projection's `asLens()` write-back could never honour a component that `build` recomputes. [What Your Spec Generates](tiers.md) is the full story.
+
+### Every type a mapping crosses is visible from the spec's package {#visible-from-the-spec-package}
+
+**The processor refuses a type the spec's package cannot see wherever the mapping crosses it.** It generates the Impl as a top-level class in the spec's package, and the Impl names every type the mapping crosses, so each one has to be visible from there. That covers the spec and the bounds of its type parameters, its domain and wire types with their type arguments, a sealed pair's subtypes, and each component the wire carries, on both sides. It covers a bean wire's builder, a rename's, leaf's or marker's type, and a merge's target, sources and the components it fills. Where the reads are null-checked, it also covers the element types a container component's own class declares, as `Sku` in `class Grid extends ArrayList<List<Sku>>`. A type fails when it, or a class enclosing it, is `private`, or when it comes from another package and it, or a class enclosing it, is not `public`. The refusal names where the mapping meets the type, `record component 'sku' of 'Item' names 'Sku', which cannot be reached from 'com.example'`, and its fix names the class to change. Every such type is reported in the one compilation.
+
+A domain component the wire does not carry needs no visibility. A projection or a PATCH carries it over from the domain untouched, and the Impl never names its type.
 
 ---
 
@@ -257,7 +261,7 @@ Two mix-in shapes are rejected, each naming the offender:
 - a mix-in that **is itself a mapping spec** (directly or transitively extends `MappingSpec`/`UpdateSpec`): a mix-in shares vocabulary, a spec generates an Impl, and inheriting one spec from another would conflate the two;
 - a generic mix-in **reached raw**, which [A generic mix-in reached raw](#a-generic-mix-in-reached-raw) covers.
 
-Diagnostics about an inherited member name its declaring interface, `abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename, a leaf, nor a bridge`, so the fix points at the right file. A member whose type only the mix-in's own package can see is refused the same way: the Impl is generated in the spec's package and writes the member's type out in full, so a package-private type a mix-in hands over from elsewhere has nowhere to be named.
+Diagnostics about an inherited member name its declaring interface, `abstract method 'bogus' (inherited from 'BrokenVocabulary') is neither a rename, a leaf, nor a bridge`, so the fix points at the right file. A package-private type a mix-in hands over from another package is refused the same way, since [every type a mapping crosses is visible from the spec's package](#visible-from-the-spec-package).
 
 ### A generic mix-in reached raw {#a-generic-mix-in-reached-raw}
 
@@ -546,8 +550,9 @@ For [`@GenerateErrorEnvelope`](merge_envelopes.md#generating-error-envelopes-gen
 | variants that disagree on the context type | one companion builds one context type |
 | a context type that is not a record | the `ContextBuilder` is derived from the record's components |
 | a primitive context component | the all-absent context holds `null` in every component |
+| a hierarchy, variant, context record or component type the hierarchy's package cannot see, such as a `private` one nested beside it | the companion is a top-level class in that package, and names each of them |
 
-A compact constructor that rejects `null` is the one shape the processor cannot see: it compiles, and fails the companion's first use. [Generating error envelopes](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) warns of it.
+A compact constructor that rejects `null` is the one shape the processor cannot detect: it compiles, and fails the companion's first use. [Generating error envelopes](merge_envelopes.md#generating-error-envelopes-generateerrorenvelope) warns of it.
 
 ---
 

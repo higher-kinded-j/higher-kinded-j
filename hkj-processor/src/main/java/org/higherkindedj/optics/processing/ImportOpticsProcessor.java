@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -34,6 +36,8 @@ import org.higherkindedj.optics.processing.external.TypeAnalysis;
 import org.higherkindedj.optics.processing.external.TypeKindAnalyser;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
+import org.higherkindedj.optics.processing.util.Reachability.Crossing;
 
 /**
  * Annotation processor for {@link ImportOptics}.
@@ -174,11 +178,40 @@ public class ImportOpticsProcessor extends AbstractProcessor {
       return;
     }
 
+    SpecAnalysis analysis = analysisOpt.get();
+    // The generated class implements the spec and writes each optic's type out in full, the source
+    // type and every focus with it.
+    if (!Reachability.check(
+        processingEnv,
+        "@ImportOptics",
+        specInterface,
+        Reachability.companion(
+            targetPackage,
+            processingEnv
+                .getElementUtils()
+                .getPackageOf(specInterface)
+                .getQualifiedName()
+                .toString()),
+        Stream.concat(
+            Stream.of(
+                Reachability.declared(specInterface),
+                Crossing.over(
+                    "source type '" + ProcessorUtils.simpleTypeName(analysis.sourceType()) + "'",
+                    analysis.sourceType())),
+            analysis.opticMethods().stream()
+                .map(
+                    optic ->
+                        Crossing.member(
+                            "optic '" + optic.methodName() + "'",
+                            optic.method().getReturnType()))))) {
+      return;
+    }
+
     note("Generating optics class...", specInterface);
     SpecInterfaceGenerator generator =
         new SpecInterfaceGenerator(processingEnv.getFiler(), processingEnv.getMessager());
 
-    generator.generate(analysisOpt.get(), targetPackage, specInterface);
+    generator.generate(analysis, targetPackage, specInterface);
     note("Generation complete", specInterface);
   }
 
@@ -215,6 +248,31 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     }
   }
 
+  /**
+   * The types the companion of one imported type names: a record and its components, a sealed
+   * interface and its permitted subtypes, an enum, or a class with a wither and the fields it
+   * reads. A type the processor refuses names nothing.
+   */
+  private Stream<Crossing> importedCrossings(TypeElement type, TypeAnalysis analysis) {
+    return switch (analysis.typeKind()) {
+      case RECORD -> Reachability.record(type, type.getRecordComponents());
+      case SEALED_INTERFACE -> Reachability.sum(processingEnv.getTypeUtils(), type);
+      case ENUM -> Stream.of(Reachability.declared(type));
+      case WITHER_CLASS ->
+          Stream.of(
+                  Stream.of(Reachability.declared(type)),
+                  Reachability.bounds(type),
+                  analysis.fields().stream()
+                      .map(
+                          field ->
+                              Crossing.member(
+                                  "field '" + field.name() + "' of '" + type.getSimpleName() + "'",
+                                  field.type())))
+              .flatMap(Function.identity());
+      case UNSUPPORTED -> Stream.empty();
+    };
+  }
+
   private void processType(
       TypeElement typeElement, String targetPackage, boolean allowMutable, Element sourceElement) {
 
@@ -231,6 +289,20 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     }
 
     TypeAnalysis analysis = typeAnalyser.analyseType(typeElement);
+    if (!Reachability.check(
+        processingEnv,
+        "@ImportOptics",
+        sourceElement,
+        Reachability.companion(
+            targetPackage,
+            processingEnv
+                .getElementUtils()
+                .getPackageOf(sourceElement)
+                .getQualifiedName()
+                .toString()),
+        importedCrossings(typeElement, analysis))) {
+      return;
+    }
 
     switch (analysis.typeKind()) {
       case RECORD -> lensGenerator.generateForRecord(analysis, targetPackage, sourceElement);

@@ -29,6 +29,7 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
 import org.higherkindedj.optics.processing.util.NestedOptic;
 import org.higherkindedj.optics.processing.util.NestedTypeNames;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /** Annotation processor that generates Fold optics for record types. */
 @AutoService(Processor.class)
@@ -81,6 +82,14 @@ public class FoldProcessor extends AbstractProcessor {
     GenerateFolds annotation = recordElement.getAnnotation(GenerateFolds.class);
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    if (!Reachability.check(
+        processingEnv,
+        "@GenerateFolds",
+        recordElement,
+        Reachability.companion(packageName, defaultPackage),
+        Reachability.record(recordElement, recordElement.getRecordComponents()))) {
+      return;
+    }
 
     String foldsClassName = recordName + "Folds";
 
@@ -161,10 +170,12 @@ public class FoldProcessor extends AbstractProcessor {
                 "f")
             .addParameter(recordTypeName, "source");
     if (isIterable) {
-      // For Iterable types, fold over each element
+      // For Iterable types, fold over each element, declared as the fold's own element type: a
+      // 'var' would infer whatever the container's class declares, which can be a type this
+      // package cannot see (a Grid extends ArrayList<Sku> with Sku private beside it).
       foldMap
           .addStatement("$T result = monoid.empty()", monoidType)
-          .beginControlFlow("for (var element : source.$L())", componentName)
+          .beginControlFlow("for ($T element : source.$L())", targetType, componentName)
           .addStatement("result = monoid.combine(result, f.apply(element))")
           .endControlFlow()
           .addStatement("return result");

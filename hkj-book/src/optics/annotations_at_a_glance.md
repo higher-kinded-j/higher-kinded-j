@@ -17,7 +17,7 @@ This page is the lookup table. Each row links to the page that explores the anno
 
 ## 1. Generate optics for your records
 
-Apply these to your own records and sealed types. The generated class is placed in the same package by default; pass `targetPackage = "..."` to override.
+Apply these to your own records and sealed types. The generated class is placed in the same package by default; pass `targetPackage = "..."` to override. Every type it names has to be visible from that package, so keep a nested type it uses package-private rather than `private` ([Compiler Messages](compiler_errors.md#companion-cannot-be-reached)).
 
 | Annotation | Apply to | Generates | When to reach for it |
 |---|---|---|---|

@@ -289,11 +289,13 @@ interface PageMapping extends MappingSpec<Page, PageDto> {
   <R> List<R> items();
 }"""),
         dict(id="cannot-be-reached",
-             heading="@MapField method 'x' names 'T', which cannot be reached from 'p'",
+             heading="@MapField method 'x' names 'Y', which cannot be reached from 'p'",
              fragment="which cannot be reached from",
-             meaning="A member names a type the spec's package cannot see, and the Impl is generated in that package.",
-             fix="Make the type, and the types enclosing it, `public`, or declare the spec in the package they are visible from.",
-             rule=("A member's type must be visible from the spec's package", "rules.md#how-the-two-default-families-are-told-apart"),
+             marker="method 'sku' names 'Sku', which cannot be reached from",
+             display="method '…' names '…', which cannot be reached from",
+             meaning="A rename, leaf or marker names a type the spec's package cannot see, and the Impl is generated in that package.",
+             fix="In the spec's package, remove `private` from the type and any class enclosing it. From another package, make the type and the classes enclosing it `public`, or, when none is `private`, declare the spec in the type's package.",
+             rule=("Every type a mapping crosses is visible from the spec's package", "rules.md#visible-from-the-spec-package"),
              code="""class Shop {
   private record Sku(String value) {}
 
@@ -306,6 +308,24 @@ interface PageMapping extends MappingSpec<Page, PageDto> {
     @MapField(to = "code")
     Sku sku();
   }
+}"""),
+        dict(id="component-cannot-be-reached",
+             heading="record component 'x' of 'X' names 'Y', which cannot be reached from 'p'",
+             fragment="cannot be reached from",
+             marker="record component 'sku' of 'Item' names 'Sku', which cannot be reached from",
+             display="record component '…' of '…' names '…', which cannot be reached from",
+             meaning="A type the mapping crosses is hidden from the spec's package, where the Impl is generated. The subject names where: a record component or bean property, a type parameter, a builder, or a merge's target or source component. Where the hidden type is the spec itself, its domain or wire, a permitted subtype or a merge target, the message reads `domain type 'Item' cannot be reached from 'p'`.",
+             fix="In the spec's package, remove `private` from the type and any class enclosing it. From another package, make the type and the classes enclosing it `public`, or, when none is `private`, declare the spec in the type's package.",
+             rule=("Every type a mapping crosses is visible from the spec's package", "rules.md#visible-from-the-spec-package"),
+             code="""class Shop {
+  private record Sku(String value) {}
+
+  record Item(Sku sku) {}
+
+  record ItemDto(Sku sku) {}
+
+  @GenerateMapping
+  interface ItemMapping extends MappingSpec<Item, ItemDto> {}
 }"""),
     ]),
     ("Optional fields", "optional-fields", [
@@ -1105,23 +1125,21 @@ final class NotFound implements OrderError {}"""),
 sealed interface OrderError<T> {
   record NotFound<T>(T id, ErrorEnvelope<OrderContext> envelope) implements OrderError<T> {}
 }"""),
-    ]),
-    ("Inside a generated Impl", "inside-a-generated-impl", [
-        dict(id="private-access-in-an-impl",
-             heading="XImpl.java: error: T has private access in Y",
-             fragment="has private access in",
-             meaning="A mapped component's type is `private` and nested in the class that holds the spec, and the Impl, generated beside that class, cannot see it. The processor lets this through, where it refuses the same type on a rename or marker.",
-             fix="Make the nested type package-private, or `public`.",
-             rule=("A member's type must be visible from the spec's package", "rules.md#how-the-two-default-families-are-told-apart"),
-             code="""class Shop {
-  private record Sku(String value) {}
+        dict(id="envelope-cannot-be-reached",
+             heading="@GenerateErrorEnvelope: context record 'X' cannot be reached from 'p'",
+             fragment="cannot be reached from",
+             marker="context record 'Orders.OrderContext' cannot be reached from",
+             display="@GenerateErrorEnvelope: … cannot be reached from",
+             meaning="A type the envelope companion names is hidden from the hierarchy's package, where the companion is generated: the context record here, or the hierarchy, a variant, or a component of either.",
+             fix="Remove `private` from the class the message names.",
+             rule=("Error envelope rules", "rules.md#error-envelope-rules"),
+             code="""class Orders {
+  private record OrderContext(String orderId) {}
 
-  record Item(Sku sku) {}
-
-  record ItemDto(Sku sku) {}
-
-  @GenerateMapping
-  interface ItemMapping extends MappingSpec<Item, ItemDto> {}
+  @GenerateErrorEnvelope
+  sealed interface OrderError {
+    record NotFound(String id, ErrorEnvelope<OrderContext> envelope) implements OrderError {}
+  }
 }"""),
     ]),
     ("At your call site", "at-your-call-site", [

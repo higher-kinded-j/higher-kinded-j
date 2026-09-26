@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.FilerException;
 import javax.annotation.processing.Processor;
@@ -34,6 +36,8 @@ import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.annotations.GenerateErrorEnvelope;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
+import org.higherkindedj.optics.processing.util.Reachability.Crossing;
 
 /**
  * Annotation processor for {@code @GenerateErrorEnvelope} (issue #610): generates the {@code
@@ -238,8 +242,50 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
         return;
       }
     }
+    if (!Reachability.check(
+        processingEnv,
+        TAG,
+        iface,
+        Reachability.companion(
+            processingEnv.getElementUtils().getPackageOf(iface).getQualifiedName().toString(),
+            processingEnv.getElementUtils().getPackageOf(iface).getQualifiedName().toString()),
+        crossings(iface, context, variants))) {
+      return;
+    }
 
     writeCompanion(iface, context, variants);
+  }
+
+  /**
+   * The types the companion names: the hierarchy, each variant and the components its factories
+   * take, and the context record with the components its builder sets.
+   */
+  private Stream<Crossing> crossings(
+      TypeElement iface, TypeElement context, List<Variant> variants) {
+    return Stream.of(
+            Stream.of(Reachability.declared(iface)),
+            variants.stream()
+                .flatMap(
+                    variant ->
+                        Stream.concat(
+                            Stream.of(
+                                Crossing.over(
+                                    "variant '"
+                                        + Reachability.name(variant.record())
+                                        + "' of '"
+                                        + iface.getSimpleName()
+                                        + "'",
+                                    variant.record().asType())),
+                            domainComponents(variant).stream()
+                                .map(
+                                    component ->
+                                        Reachability.component(variant.record(), component)))),
+            Stream.of(
+                Crossing.over(
+                    "context record '" + Reachability.name(context) + "'", context.asType())),
+            context.getRecordComponents().stream()
+                .map(component -> Reachability.component(context, component)))
+        .flatMap(Function.identity());
   }
 
   /** Non-record variants; a nested sealed sub-hierarchy gets its own flatten-it diagnostic. */

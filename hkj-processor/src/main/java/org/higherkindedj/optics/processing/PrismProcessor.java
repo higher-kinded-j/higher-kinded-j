@@ -28,6 +28,7 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 import org.higherkindedj.optics.processing.util.SubtypePrismGenerator;
 
 /**
@@ -98,6 +99,14 @@ public class PrismProcessor extends AbstractProcessor {
     GeneratePrisms annotation = sumTypeElement.getAnnotation(GeneratePrisms.class);
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    if (!Reachability.check(
+        processingEnv,
+        "@GeneratePrisms",
+        sumTypeElement,
+        Reachability.companion(packageName, defaultPackage),
+        Reachability.sum(processingEnv.getTypeUtils(), sumTypeElement))) {
+      return;
+    }
 
     String prismsClassName = sumTypeName + "Prisms";
 

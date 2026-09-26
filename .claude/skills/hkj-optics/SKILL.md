@@ -383,3 +383,4 @@ Optics compose according to the hierarchy: Lens + Lens = Lens, Lens + Prism = Af
 3. **Using `map` instead of `focus`**: On Effect Paths, use `.focus(optic)` to navigate structure; `.map()` transforms the value. See `/hkj-bridge`.
 4. **Forgetting to rebuild after adding annotations**: Generated classes appear in `build/generated/sources/annotationProcessor/`.
 5. **Using `@GeneratePrisms` on a record**: Prisms are for sealed interfaces (sum types). Use `@GenerateLenses` for records (product types).
+6. **A `private` type nested beside an annotated type**: the generated `{Record}Lenses`, `{Record}Focus` or other companion is a top-level class in the type's package, or in `targetPackage`, so the processor refuses a `private` record, component type or permitted subtype there (`cannot be reached from`). Leave the nested type package-private; under `targetPackage`, make it `public` or remove `targetPackage`.

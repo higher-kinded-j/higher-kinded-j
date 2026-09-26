@@ -31,6 +31,7 @@ import org.higherkindedj.optics.annotations.GenerateAssembly;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /**
  * Annotation processor that generates per-record validated-assembly companions (issue #586).
@@ -106,14 +107,14 @@ public class AssemblyProcessor extends AbstractProcessor {
             element);
         continue;
       }
-      if (isPrivateOrEnclosedPrivately(record)) {
-        error(
-            "@GenerateAssembly on "
-                + record.getQualifiedName()
-                + ": the record (or an enclosing type) is private, so the generated companion in"
-                + " the same package cannot see it. Fix: make the record and its enclosing types"
-                + " at least package-private.",
-            element);
+      if (!Reachability.check(
+          processingEnv,
+          "@GenerateAssembly",
+          record,
+          Reachability.companion(
+              processingEnv.getElementUtils().getPackageOf(record).getQualifiedName().toString(),
+              processingEnv.getElementUtils().getPackageOf(record).getQualifiedName().toString()),
+          Reachability.record(record, record.getRecordComponents()))) {
         continue;
       }
       writeCompanion(record);
@@ -156,17 +157,6 @@ public class AssemblyProcessor extends AbstractProcessor {
     } catch (IOException e) {
       error("Could not generate assembly companion: " + e.getMessage(), record);
     }
-  }
-
-  private static boolean isPrivateOrEnclosedPrivately(Element element) {
-    // A type's enclosing chain always terminates at its PackageElement, so the walk needs no
-    // null guard.
-    for (Element e = element; e.getKind() != ElementKind.PACKAGE; e = e.getEnclosingElement()) {
-      if (e.getModifiers().contains(Modifier.PRIVATE)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   private static String companionSimpleName(TypeElement record) {

@@ -73,6 +73,8 @@ import org.higherkindedj.optics.annotations.OptionalBridge;
 import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
+import org.higherkindedj.optics.processing.util.Reachability.Crossing;
 
 /**
  * Annotation processor for {@code @GenerateMapping}: the bidirectional record↔DTO mapper.
@@ -158,6 +160,13 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * inherited by the Impl), stay legal. The private static {@code hkj$ifPresent} guard sits in the
  * {@code $} namespace JLS 3.8 reserves for generated code, so no ordinary spec method can collide
  * with it or capture its call sites, and the sweep never reserves it.
+ *
+ * <p>The Impl is a top-level class in the spec's package, so every type the mapping crosses has to
+ * be visible from there: the spec, its domain and wire, each component the wire carries on both
+ * sides, and the members the Impl stubs or stores. A private type nested beside the spec, or a
+ * package-private one from another package, is refused at the spec rather than left to fail inside
+ * the generated file. A domain component the wire does not carry is carried over unnamed, so it is
+ * exempt.
  */
 @AutoService(Processor.class)
 @SupportedAnnotationTypes("org.higherkindedj.optics.annotations.GenerateMapping")
@@ -2968,42 +2977,154 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The generated Impl is a top-level class in the spec's package that writes this member's type
-   * out in full, so every type the member names has to be visible there. Two routes get one past
-   * the spec's own compile: a mix-in in another package hands over a package-private type the spec
-   * never names itself, and a nested spec's member names a private type of its enclosing class,
-   * which the flattened top-level Impl cannot see.
+   * A rename, leaf or marker the Impl stubs or stores names its type in full, so the type is one
+   * more crossing ({@link Reachability#check}). Two routes get one past the spec's own compile: a
+   * mix-in in another package hands over a package-private type the spec never names itself, and a
+   * nested spec's member names a private type of its enclosing class.
    */
   private boolean checkMemberTypeReachable(
       TypeElement spec, ExecutableElement method, String kind) {
-    String implPackage = implClassName(spec).packageName();
-    TypeElement unreachable =
-        ProcessorUtils.firstUnreachableIn(
-            processingEnv.getElementUtils(), memberTypeIn(spec, method), implPackage);
-    if (unreachable == null) {
-      return true;
-    }
-    Diagnostics.error(
-        processingEnv.getMessager(),
-        method,
+    return Reachability.check(
+        processingEnv,
         TAG,
-        kind
-            + " '"
-            + method.getSimpleName()
-            + "'"
-            + inheritedNote(method, spec)
-            + " names '"
-            + unreachable.getSimpleName()
-            + "', which cannot be reached from '"
-            + implPackage
-            + "'.",
-        "The generated Impl writes the member's type out in full, so every type named inside it"
-            + " has to be visible in the spec's package, where the Impl is declared.",
-        "Make '"
-            + unreachable.getSimpleName()
-            + "' and the types enclosing it public, or declare the spec in the package they are"
-            + " already visible from.");
-    return false;
+        method,
+        implTarget(spec),
+        Stream.of(
+            Crossing.member(
+                kind + " '" + method.getSimpleName() + "'" + inheritedNote(method, spec),
+                memberTypeIn(spec, method))));
+  }
+
+  /**
+   * Where a mapping's Impl is declared, as a refusal of a type it cannot name describes it: a
+   * top-level class in the spec's package, which a spec in the hidden type's package reaches.
+   * Shared with {@link MergeProcessor}, whose Impl is declared the same way.
+   */
+  static Reachability.Target implTarget(TypeElement spec) {
+    return new Reachability.Target(
+        implPackage(spec),
+        "The generated Impl is a top-level class in the spec's package, where it names every type"
+            + " the mapping crosses, so each has to be visible from there.",
+        home -> Optional.of("declare the spec in '" + home + "'"));
+  }
+
+  /**
+   * The types every mapping's Impl names before any component: the spec it implements, the bounds
+   * of the type parameters it redeclares, and the domain and wire in its signatures.
+   */
+  private static Stream<Crossing> specCrossings(
+      TypeElement spec, TypeMirror domain, TypeMirror wire) {
+    return Stream.of(
+            Stream.of(Crossing.over("spec '" + spec.getSimpleName() + "'", spec.asType())),
+            Reachability.bounds(spec),
+            Stream.of(
+                Crossing.over(
+                    "domain type '" + ProcessorUtils.simpleTypeName(domain) + "'", domain),
+                Crossing.over("wire type '" + ProcessorUtils.simpleTypeName(wire) + "'", wire)))
+        .flatMap(Function.identity());
+  }
+
+  /**
+   * The builder a bean wire is written through, which the Impl calls from its own package. Only a
+   * dense mapping builds its wire; a sparse update reads its bean and never builds one.
+   */
+  private static Stream<Crossing> builderCrossing(WireShape wire) {
+    return wire instanceof WireShape.BeanShape bean
+            && bean.strategy().orElse(null)
+                instanceof WireShape.ConstructionStrategy.Builder builder
+        ? Stream.of(
+            Crossing.over(
+                "builder '"
+                    + ProcessorUtils.simpleTypeName(builder.builderType())
+                    + "' of '"
+                    + bean.element().getSimpleName()
+                    + "'",
+                builder.builderType()))
+        : Stream.empty();
+  }
+
+  /**
+   * Whether a dense mapping's Impl can name every component it maps, as {@link Reachability#check}
+   * asks: both sides of each pair, and, on a tier whose reads are guarded ({@code scanned}), the
+   * element types its null scans infer. Only the mapped ones: a domain component the wire does not
+   * carry (one a projection drops) is carried over from the domain, never named, so its type may be
+   * one the spec's package cannot see.
+   */
+  private boolean mapsReachably(
+      TypeElement spec,
+      DeclaredType domain,
+      WireShape wire,
+      List<Correspondence> mapped,
+      boolean scanned) {
+    TypeElement domainRecord = (TypeElement) domain.asElement();
+    return Reachability.check(
+        processingEnv,
+        TAG,
+        spec,
+        implTarget(spec),
+        mapped.stream()
+            .flatMap(
+                c -> {
+                  if (c.kind() == Kind.DERIVED) {
+                    return Stream.of(wireCrossing(wire, c.wireName()));
+                  }
+                  // A flattened member is read under the group's instantiation, as the domain
+                  // declares the group component.
+                  DeclaredType owner =
+                      c.group() == null
+                          ? domain
+                          : (DeclaredType)
+                              componentType(domain, componentNamed(domainRecord, c.group().name()));
+                  Crossing domainSide = domainCrossing(owner, c.name());
+                  return Stream.concat(
+                      Stream.of(domainSide, wireCrossing(wire, c.wireName())),
+                      scanned ? inferredCrossings(domainSide, c.valueScan()) : Stream.empty());
+                }));
+  }
+
+  /** The domain component {@code name} of {@code owner}'s record, read as {@code owner} has it. */
+  private Crossing domainCrossing(DeclaredType owner, String name) {
+    TypeElement record = (TypeElement) owner.asElement();
+    RecordComponentElement component =
+        Objects.requireNonNull(componentNamed(record, name), "a mapped component of the record");
+    return Crossing.member(
+        "record component '" + name + "' of '" + record.getSimpleName() + "'",
+        componentType(owner, component));
+  }
+
+  /** The wire member {@code wireName}, a record component or a bean property. */
+  private static Crossing wireCrossing(WireShape wire, String wireName) {
+    return Crossing.member(
+        wireMemberTerm(wire) + " '" + wireName + "' of '" + wire.element().getSimpleName() + "'",
+        wire.componentNamed(wireName).orElseThrow().type());
+  }
+
+  /**
+   * The element types the lambdas of a pair's null scan infer, reported against the pair's {@code
+   * side}. The scan follows a container's own declaration, so it can name a type the component's
+   * type never shows ({@code class Grid extends ArrayList<List<Sku>>}); a copy only follows the
+   * component's type, which its own crossing covers. Asked only where the reads are guarded, since
+   * nothing else runs the scan.
+   */
+  static Stream<Crossing> inferredCrossings(Crossing side, NullScan scan) {
+    return Stream.ofNullable(scan)
+        .flatMap(NullScan::inferred)
+        .map(type -> Crossing.member(side.subject(), type));
+  }
+
+  /**
+   * Every domain component, and every member of each flattened group under its instantiation: the
+   * components a tier that parses builds the domain from.
+   */
+  private Stream<Crossing> wholeDomainCrossings(DeclaredType domain, List<Flattened> flattened) {
+    return Stream.concat(Stream.of(domain), flattened.stream().map(Flattened::type))
+        .flatMap(
+            owner ->
+                ((TypeElement) owner.asElement())
+                    .getRecordComponents().stream()
+                        .map(
+                            component ->
+                                domainCrossing(owner, component.getSimpleName().toString())));
   }
 
   /** Generic specs or mapped types would leave the Impl naming undeclared type variables. */
@@ -3244,7 +3365,13 @@ public class MappingProcessor extends AbstractProcessor {
     // Flattened components come first: their inner components join the names leaves and renames
     // may bind to.
     List<Flattened> flattened = collectFlattened(spec, domain, domainDeclared, wireShape);
-    if (flattened == null) {
+    if (flattened == null
+        || !Reachability.check(
+            processingEnv,
+            TAG,
+            spec,
+            implTarget(spec),
+            Stream.concat(specCrossings(spec, domainArg, wireUsed), builderCrossing(wireShape)))) {
       return;
     }
     // Asked after flattening, which refuses a group spread across a bean, so a flattened component
@@ -3292,6 +3419,22 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
+    boolean projects = wireShape.componentCount() - derived.size() < wireSlots(domain, flattened);
+    // A tier that parses builds the whole domain, so every domain component is crossed. Asked
+    // before classification, so a leaf or spec it offers for a hidden type does not lead here next.
+    boolean parsesDomain =
+        wireShape.direction() == WireShape.Direction.PARSE_ONLY
+            || (wireShape.direction() == WireShape.Direction.BIDIRECTIONAL && !projects);
+    if (parsesDomain
+        && !Reachability.check(
+            processingEnv,
+            TAG,
+            spec,
+            implTarget(spec),
+            wholeDomainCrossings(domainDeclared, flattened))) {
+      return;
+    }
+
     // A one-way bean has no lossiness to speak of: nothing is read back after a build, and nothing
     // is written after a parse, so it maps its one direction whatever its width.
     if (wireShape.direction() == WireShape.Direction.PARSE_ONLY) {
@@ -3305,7 +3448,7 @@ public class MappingProcessor extends AbstractProcessor {
               renames,
               flattened,
               WireShape.Direction.PARSE_ONLY);
-      if (parsed == null) {
+      if (parsed == null || !mapsReachably(spec, domainDeclared, wireShape, parsed, true)) {
         return;
       }
       writeParseOnlyImpl(spec, domainDeclared, wireShape, wireUsed, parsed);
@@ -3322,14 +3465,14 @@ public class MappingProcessor extends AbstractProcessor {
               renames,
               derived,
               WireShape.Direction.BUILD_ONLY);
-      if (built == null) {
+      if (built == null || !mapsReachably(spec, domainDeclared, wireShape, built, false)) {
         return;
       }
       writeBuildOnlyImpl(spec, domainDeclared, wireShape, wireUsed, built);
       return;
     }
 
-    if (wireShape.componentCount() - derived.size() < wireSlots(domain, flattened)) {
+    if (projects) {
       if (!flattened.isEmpty()) {
         reportProjectionWithFlattened(spec, domain, wireShape, flattened);
         return;
@@ -3348,11 +3491,14 @@ public class MappingProcessor extends AbstractProcessor {
               renames,
               List.of(),
               WireShape.Direction.BIDIRECTIONAL);
-      if (projection == null) {
+      // A write-back that can fail is no lens: it maps as the validated patch tier instead, whose
+      // guarded reads scan what they copy.
+      boolean lens = projection != null && totalReads(projection, wireShape);
+      if (projection == null
+          || !mapsReachably(spec, domainDeclared, wireShape, projection, !lens)) {
         return;
       }
-      // A write-back that can fail is no lens: it maps as the validated patch tier instead.
-      if (totalReads(projection, wireShape)) {
+      if (lens) {
         writeLensImpl(spec, domain, domainDeclared, wireShape, wireUsed, projection);
         return;
       }
@@ -3362,7 +3508,8 @@ public class MappingProcessor extends AbstractProcessor {
 
     List<Correspondence> correspondences =
         classify(spec, registry, domain, domainDeclared, wireShape, renames, derived, flattened);
-    if (correspondences == null) {
+    if (correspondences == null
+        || !mapsReachably(spec, domainDeclared, wireShape, correspondences, true)) {
       return;
     }
     writeImpl(spec, domain, domainDeclared, wireShape, wireUsed, correspondences);
@@ -3448,7 +3595,14 @@ public class MappingProcessor extends AbstractProcessor {
 
     WireShape.BeanShape wireShape =
         new BeanPropertyAnalyser(processingEnv).analysePatch(spec, wireBean, TAG);
-    if (wireShape == null || !checkPatchBeanTwoWay(spec, wireShape)) {
+    if (wireShape == null
+        || !checkPatchBeanTwoWay(spec, wireShape)
+        || !Reachability.check(
+            processingEnv,
+            TAG,
+            spec,
+            implTarget(spec),
+            specCrossings(spec, domainArg, wireBean.asType()))) {
       return;
     }
     Set<String> unmapped = unmappedNames(spec, wireShape);
@@ -3469,7 +3623,21 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     List<UpdateEdit> edits = classifyUpdate(spec, domain, wireShape, renames, registry);
-    if (edits == null) {
+    if (edits == null
+        || !Reachability.check(
+            processingEnv,
+            TAG,
+            spec,
+            implTarget(spec),
+            edits.stream()
+                .flatMap(
+                    edit -> {
+                      Crossing domainSide =
+                          domainCrossing((DeclaredType) domainArg, edit.domainName());
+                      return Stream.concat(
+                          Stream.of(domainSide, wireCrossing(wireShape, edit.wireName())),
+                          inferredCrossings(domainSide, edit.scan()));
+                    }))) {
       return;
     }
     writeUpdateImpl(spec, domain, (DeclaredType) domainArg, wireShape, edits);
@@ -8713,10 +8881,35 @@ public class MappingProcessor extends AbstractProcessor {
   /** One dispatch arm of a sealed mapping: a domain subtype, its wire subtype, and the impl. */
   private record SealedPair(TypeMirror domain, TypeMirror wire, ClassName impl) {}
 
+  /**
+   * The types a sealed mapping's Impl names: those of {@link #specCrossings}, then each permitted
+   * subtype on both sides, which its dispatch matches by type.
+   */
+  private static Stream<Crossing> sealedCrossings(
+      TypeElement spec, TypeElement domain, TypeElement wire) {
+    return Stream.concat(
+        specCrossings(spec, domain.asType(), wire.asType()),
+        Stream.of(domain, wire)
+            .flatMap(
+                hierarchy ->
+                    hierarchy.getPermittedSubclasses().stream()
+                        .map(
+                            subtype ->
+                                Crossing.over(
+                                    "permitted subtype '"
+                                        + ProcessorUtils.simpleTypeName(subtype)
+                                        + "' of '"
+                                        + hierarchy.getSimpleName()
+                                        + "'",
+                                    subtype))));
+  }
+
   private void processSealedSpec(
       TypeElement spec, List<RegisteredSpec> registry, TypeElement domain, TypeElement wire) {
     List<? extends TypeMirror> wirePermitted = wire.getPermittedSubclasses();
-    if (!checkDispatchable(spec, domain, wire)) {
+    if (!checkDispatchable(spec, domain, wire)
+        || !Reachability.check(
+            processingEnv, TAG, spec, implTarget(spec), sealedCrossings(spec, domain, wire))) {
       return;
     }
     List<SealedPair> pairs = new ArrayList<>();

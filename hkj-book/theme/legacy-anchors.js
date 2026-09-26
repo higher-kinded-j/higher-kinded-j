@@ -33,6 +33,8 @@
     "mapping/beans_patch.html#bean-projections": "mapping/beans.html#bean-projections",
     "mapping/beans_patch.html#accessors-meant-to-stay-out": "mapping/beans.html#accessors-meant-to-stay-out",
     "mapping/beans_patch.html#one-directional-beans": "mapping/beans.html#one-directional-beans",
+    "mapping/compiler_errors.html#private-access-in-an-impl": "mapping/compiler_errors.html#component-cannot-be-reached",
+    "mapping/compiler_errors.html#inside-a-generated-impl": "mapping/compiler_errors.html#where-the-message-came-from",
   };
 
   function target() {

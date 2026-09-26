@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import com.palantir.javapoet.*;
 import java.util.*;
+import java.util.Optional;
 import java.util.function.Function;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -29,6 +30,7 @@ import org.higherkindedj.optics.processing.WideningAnalysis.Widening;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /**
  * Generates navigator wrapper classes for fluent cross-type navigation.
@@ -124,7 +126,8 @@ public class NavigatorClassGenerator {
    * — reaches that same disagreement.
    */
   private boolean widensContainers(TypeElement record, RecordComponentElement component) {
-    return (spiNavigable(component.asType()) != null && navigatorTarget(record, component) != null)
+    return (spiNavigable(component.asType(), companionPackage(record)) != null
+            && navigatorTarget(record, component) != null)
         || focusSettings(record).widenCollections();
   }
 
@@ -141,6 +144,15 @@ public class NavigatorClassGenerator {
   /** The Focus companion class a record generates, honouring a redirected target package. */
   private ClassName focusClassOf(TypeElement record) {
     return focusClassOf(record, focusSettings(record));
+  }
+
+  /**
+   * The package a record's Focus companion is written into, which is where every question about
+   * that companion's navigators is answered from. Asking it from the navigating record's package
+   * instead would describe a target's companion as it was never generated.
+   */
+  private String companionPackage(TypeElement record) {
+    return focusClassOf(record).packageName();
   }
 
   /** The Focus companion class a record generates under the given settings. */
@@ -168,9 +180,11 @@ public class NavigatorClassGenerator {
       // show in the declaration; navigatorTarget conflates them by design.
       TypeElement candidate = navigatorCandidate(recordElement, component);
       if (candidate == null) {
-        TypeElement unpublished = unpublishedCandidate(recordElement, component);
-        if (unpublished != null) {
-          reportUnpublishedTargetSkipped(recordElement, component, unpublished);
+        Reach skipped = skippedTarget(recordElement, component);
+        if (skipped instanceof Reach.Unpublished unpublished) {
+          reportUnpublishedTargetSkipped(recordElement, component, unpublished.record());
+        } else if (skipped instanceof Reach.Hidden hidden) {
+          reportHiddenTargetSkipped(recordElement, component, hidden);
         }
         continue;
       }
@@ -266,17 +280,58 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * The record a component would have a navigator for, were its companion published: it reaches,
-   * directly or as an SPI container's element, a non-generic record from a dependency that carries
-   * {@code @GenerateFocus} but has no companion this module can compose.
+   * Says why a component asking for a navigator did not get one, when the navigator would name a
+   * type this Focus class's package cannot reach: the target record, or one of its components, is
+   * {@code private} or hidden in another package. The Focus class itself can still name the target,
+   * so the component keeps its plain path.
+   *
+   * @param recordElement the record declaring the component
+   * @param component the component whose navigator was not generated
+   * @param hidden the target and the type its navigator would name, already established
+   */
+  private void reportHiddenTargetSkipped(
+      TypeElement recordElement, RecordComponentElement component, Reach.Hidden hidden) {
+
+    String componentName = component.getSimpleName().toString();
+    processingEnv
+        .getMessager()
+        .printMessage(
+            Diagnostic.Kind.NOTE,
+            "Navigator for field '"
+                + componentName
+                + "' is not generated: a navigator into "
+                + hidden.record().getSimpleName()
+                + " names '"
+                + hidden.hidden().getSimpleName()
+                + "', which cannot be reached from '"
+                + companionPackage(recordElement)
+                + "'. "
+                + Reachability.fix(
+                    processingEnv.getElementUtils(),
+                    hidden.hidden(),
+                    new Reachability.Target(
+                        companionPackage(recordElement), "", home -> Optional.empty()))
+                + " Until then "
+                + focusClassOf(recordElement).simpleName()
+                + "."
+                + componentName
+                + "() keeps its plain path.",
+            component);
+  }
+
+  /**
+   * Why a component that reaches a record has no navigator into it, where the reason does not show
+   * in the declaration: the record, directly or as an SPI container's element, is a non-generic one
+   * from a dependency with no companion this module can compose, or its navigator would name a type
+   * this Focus class's package cannot reach.
    *
    * @param record the record that declares the component
    * @param component the component, which has no navigator
-   * @return that record, or null when the component reaches none
+   * @return an {@code Unpublished} or {@code Hidden} reach, or {@code None} when neither applies
    */
-  private TypeElement unpublishedCandidate(TypeElement record, RecordComponentElement component) {
+  private Reach skippedTarget(TypeElement record, RecordComponentElement component) {
     if (!shouldGenerateNavigator(record, component)) {
-      return null;
+      return new Reach.None();
     }
     TypeMirror fieldType = component.asType();
     TypeMirror reached =
@@ -285,11 +340,15 @@ public class NavigatorClassGenerator {
                 && analysis.spiLookup(fieldType, null) instanceof SpiLookup.Admitted admitted
             ? spiElement(fieldType, admitted.generator())
             : fieldType;
-    return reached != null
-            && reach(reached) instanceof Reach.Unpublished unpublished
-            && !declaresTypeParameters(unpublished.record())
-        ? unpublished.record()
-        : null;
+    if (reached == null) {
+      return new Reach.None();
+    }
+    return switch (reach(reached, companionPackage(record))) {
+      case Reach.Unpublished unpublished when !declaresTypeParameters(unpublished.record()) ->
+          unpublished;
+      case Reach.Hidden hidden -> hidden;
+      default -> new Reach.None();
+    };
   }
 
   /**
@@ -306,7 +365,7 @@ public class NavigatorClassGenerator {
    * @return true when the container is still in focus, so the element is a step further on
    */
   private boolean keepsContainerInFocus(TypeElement record, RecordComponentElement component) {
-    SpiNavigable spiNavigable = spiNavigable(component.asType());
+    SpiNavigable spiNavigable = spiNavigable(component.asType(), companionPackage(record));
     return spiNavigable != null
         && spiNavigable.generator().getCardinality() == Cardinality.ZERO_OR_MORE
         && !focusSettings(record).widenCollections();
@@ -317,15 +376,16 @@ public class NavigatorClassGenerator {
    * of it.
    *
    * @param component the component to read
+   * @param fromPackage the package of the companion whose navigator is in question
    * @return the navigable type it reaches, or null when it reaches none
    */
-  private TypeElement navigableTarget(RecordComponentElement component) {
+  private TypeElement navigableTarget(RecordComponentElement component, String fromPackage) {
     TypeMirror fieldType = component.asType();
-    TypeElement direct = navigableTypeElement(fieldType);
+    TypeElement direct = navigableTypeElement(fieldType, fromPackage);
     if (direct != null) {
       return direct;
     }
-    SpiNavigable spiNavigable = spiNavigable(fieldType);
+    SpiNavigable spiNavigable = spiNavigable(fieldType, fromPackage);
     return spiNavigable == null ? null : spiNavigable.element();
   }
 
@@ -366,7 +426,7 @@ public class NavigatorClassGenerator {
         || !shouldGenerateNavigator(record, component)) {
       return null;
     }
-    return navigableTarget(component);
+    return navigableTarget(component, companionPackage(record));
   }
 
   /**
@@ -1135,14 +1195,14 @@ public class NavigatorClassGenerator {
    * Optional/Collection fields are excluded because they widen through their own path and never get
    * a navigator class.
    */
-  private SpiNavigable spiNavigable(TypeMirror fieldType) {
+  private SpiNavigable spiNavigable(TypeMirror fieldType, String fromPackage) {
     if (fieldType.getKind() != TypeKind.DECLARED || analysis.recognisedContainer(fieldType)) {
       return null;
     }
     // A container the analysis turns away gets no navigator: the static method it would compose
     // leaves the container itself in focus, so there is no element to navigate to.
     return analysis.spiLookup(fieldType, null) instanceof SpiLookup.Admitted admitted
-        ? spiNavigableUnder(fieldType, admitted.generator())
+        ? spiNavigableUnder(fieldType, admitted.generator(), fromPackage)
         : null;
   }
 
@@ -1153,9 +1213,10 @@ public class NavigatorClassGenerator {
    * <p>Split from {@link #spiNavigable} so that {@link #widensUndenotableSpiContainer} can ask the
    * same question of a generator the lookup refused.
    */
-  private SpiNavigable spiNavigableUnder(TypeMirror fieldType, TraversableGenerator generator) {
+  private SpiNavigable spiNavigableUnder(
+      TypeMirror fieldType, TraversableGenerator generator, String fromPackage) {
     TypeMirror innerType = spiElement(fieldType, generator);
-    TypeElement element = innerType == null ? null : navigableTypeElement(innerType);
+    TypeElement element = innerType == null ? null : navigableTypeElement(innerType, fromPackage);
     return element == null ? null : new SpiNavigable(generator, element);
   }
 
@@ -1200,6 +1261,9 @@ public class NavigatorClassGenerator {
     /** A record outside this round that carries the annotation but has no companion to compose. */
     record Unpublished(TypeElement record) implements Reach {}
 
+    /** A record whose navigator would name {@code hidden}, which this package cannot reach. */
+    record Hidden(TypeElement record, TypeElement hidden) implements Reach {}
+
     /** Anything else. */
     record None() implements Reach {}
   }
@@ -1221,7 +1285,26 @@ public class NavigatorClassGenerator {
    * anything else where it is declared, so a class file carrying it elsewhere came from a module
    * that never checked.
    */
-  private Reach reach(TypeMirror type) {
+  private Reach reach(TypeMirror type, String fromPackage) {
+    Reach reach = published(type);
+    if (reach instanceof Reach.Navigable(TypeElement record)) {
+      // A navigator names the target and the type of each component it steps to, from the
+      // package of the companion it belongs to: the one being written, or, for a target record,
+      // the one that record's own processor run writes.
+      Optional<TypeElement> hidden =
+          Reachability.firstHidden(
+              processingEnv.getElementUtils(),
+              fromPackage,
+              Reachability.record(record, record.getRecordComponents()));
+      if (hidden.isPresent()) {
+        return new Reach.Hidden(record, hidden.get());
+      }
+    }
+    return reach;
+  }
+
+  /** Whether a type is navigable, published or neither, before asking what its navigator names. */
+  private Reach published(TypeMirror type) {
     if (type.getKind() != TypeKind.DECLARED) {
       return new Reach.None();
     }
@@ -1249,8 +1332,10 @@ public class NavigatorClassGenerator {
    * a declared type can be navigable, so a caller holding a navigable type already holds its
    * element.
    */
-  private TypeElement navigableTypeElement(TypeMirror type) {
-    return reach(type) instanceof Reach.Navigable navigable ? navigable.record() : null;
+  private TypeElement navigableTypeElement(TypeMirror type, String fromPackage) {
+    return reach(type, fromPackage) instanceof Reach.Navigable navigable
+        ? navigable.record()
+        : null;
   }
 
   /**
@@ -1273,7 +1358,7 @@ public class NavigatorClassGenerator {
     // through their own path.
     if (!shouldGenerateNavigator(record, component)
         || fieldType.getKind() != TypeKind.DECLARED
-        || navigableTypeElement(fieldType) != null
+        || navigableTypeElement(fieldType, companionPackage(record)) != null
         || analysis.recognisedContainer(fieldType)) {
       return false;
     }
@@ -1282,7 +1367,8 @@ public class NavigatorClassGenerator {
     }
     // The element must be one a navigator is offered for. A generic element gets none whatever
     // the container's arguments, so that container is left alone as it would have been anyway.
-    SpiNavigable navigable = spiNavigableUnder(fieldType, refused.generator());
+    SpiNavigable navigable =
+        spiNavigableUnder(fieldType, refused.generator(), companionPackage(record));
     return navigable != null && !declaresTypeParameters(navigable.element());
   }
 
