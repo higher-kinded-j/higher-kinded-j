@@ -2,15 +2,36 @@
 // The "Across modules" snippet declares only the downstream spec; the pair it nests, and the
 // spec mapping that pair, stand in for the dependency (in the gate they share the compilation,
 // which resolves identically).
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.validated.ValidatedPrism;
 
-record Customer(String name, String email) {}
+record EmailAddress(String value) {}
+
+final class EmailCodecs {
+  static final ValidatedPrism<String, EmailAddress> EMAIL =
+      ValidatedPrism.of(
+          raw ->
+              raw.contains("@")
+                  ? Validated.validNel(new EmailAddress(raw))
+                  : Validated.invalidNel(FieldError.of("not an email address")),
+          EmailAddress::value);
+
+  private EmailCodecs() {}
+}
+
+record Customer(String name, EmailAddress email) {}
 
 record CustomerDto(String name, String email) {}
 
 @GenerateMapping
-interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
+interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
 
 record Invoice(String id, Customer customer) {}
 
