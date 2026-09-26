@@ -1,6 +1,6 @@
 # Higher-Kinded-J 0.5.0 Migration Recipes
-# Rewrites usages of APIs deprecated for removal in 0.5.0 to their replacements.
-# These are pure method renames with compatible signatures.
+# Rewrites usages of APIs deprecated for removal in 0.5.0 to their replacements,
+# and removes a deprecated annotation that has no effect.
 #
 # Usage:
 #   rewrite {
@@ -16,7 +16,7 @@ description: >-
   0.5.0 to their replacements: StateTKind.narrowK -> StateTKind.narrow,
   KindValidator.narrowWithPattern -> KindValidator.narrowHolder, and
   Try.fold / TryPath.fold (success-first) -> foldFailureFirst (error-first,
-  with arguments swapped).
+  with arguments swapped). Also removes @PathConfig, which has no effect.
 tags:
   - higher-kinded-j
   - migration
@@ -25,6 +25,7 @@ recipeList:
   - org.higherkindedj.openrewrite.RenameStateTKindNarrowK
   - org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern
   - org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe
+  - org.higherkindedj.openrewrite.RemovePathConfig
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
@@ -59,3 +60,19 @@ recipeList:
       methodPattern: org.higherkindedj.hkt.util.validation.KindValidator narrowWithPattern(..)
       newMethodName: narrowHolder
       ignoreDefinition: true
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.RemovePathConfig
+displayName: Remove @PathConfig
+description: >-
+  @PathConfig was deprecated since 0.4.11 and scheduled for removal in
+  0.5.0. No processor reads it, so removing it from a package-info.java
+  changes nothing generated. A type whose Path class should be named with
+  another suffix sets @PathSource(suffix = ...) instead.
+tags:
+  - higher-kinded-j
+  - deprecation
+recipeList:
+  - org.openrewrite.java.RemoveAnnotation:
+      annotationPattern: '@org.higherkindedj.hkt.effect.annotation.PathConfig'

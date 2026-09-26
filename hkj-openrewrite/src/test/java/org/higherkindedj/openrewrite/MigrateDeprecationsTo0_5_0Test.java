@@ -28,6 +28,12 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
         + "              Function<? super Throwable, ? extends U> failureMapper);"
         + "   <U> U foldFailureFirst(Function<? super Throwable, ? extends U> failureMapper,"
         + "                          Function<? super T, ? extends U> successMapper); }",
+    "package org.higherkindedj.hkt.effect.annotation;"
+        + " import java.lang.annotation.*;"
+        + " @Target(ElementType.PACKAGE) @Retention(RetentionPolicy.SOURCE)"
+        + " public @interface PathConfig {"
+        + "   String pathSuffix() default \"Path\";"
+        + "   boolean makeFinal() default true; }",
   };
 
   @Override
@@ -135,5 +141,42 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
                 }
             }
             """));
+  }
+
+  @Test
+  void removesPathConfigFromAPackageInfo() {
+    rewriteRun(
+        java(
+            """
+            /** Effects. */
+            @PathConfig(pathSuffix = "Effect", makeFinal = false)
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.annotation.PathConfig;
+            """,
+            """
+            /** Effects. */
+
+            package com.example;
+            """,
+            spec -> spec.path("com/example/package-info.java")));
+  }
+
+  @Test
+  void keepsAnotherPackageAnnotation() {
+    rewriteRun(
+        java(
+            """
+            @Deprecated
+            @PathConfig
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.annotation.PathConfig;
+            """,
+            """
+            @Deprecated
+            package com.example;
+            """,
+            spec -> spec.path("com/example/package-info.java")));
   }
 }

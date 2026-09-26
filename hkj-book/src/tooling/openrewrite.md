@@ -67,7 +67,7 @@ mvn rewrite:dryRun   # preview changes
 mvn rewrite:run      # apply changes
 ```
 
-Pick the `hkj-openrewrite` version that contains the recipe group you need: the arity recipes exist from 0.3.0 onward, and the 0.5.0 deprecation recipes from the 0.5.0-era release onward. Newer releases retain the older recipes.
+Pick the `hkj-openrewrite` version that contains the recipe you need: the arity recipes exist from 0.3.0 onward, and each 0.5.0 deprecation recipe from the release that deprecates its API onward. Newer releases retain the older recipes.
 
 ---
 
@@ -131,13 +131,15 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 
 ### 0.5.0 deprecation migration
 
-Rewrites call sites of APIs deprecated for removal in 0.5.0 to their signature-compatible replacements. These recipes do rewrite source; both are pure method renames implemented via `org.openrewrite.java.ChangeMethodName`.
+Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, and removes a deprecated annotation that has no effect. These recipes do rewrite source.
 
-| Recipe | Rename |
+| Recipe | Change |
 |--------|--------|
-| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs both renames below |
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all four recipes below |
 | `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` becomes `StateTKind.narrow(..)`; the wildcard `Kind` overload bypassed witness type safety |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` becomes `KindValidator.narrowHolder(..)` |
+| `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(...)` become `foldFailureFirst(failureMapper, successMapper)`, swapping the two arguments as well as renaming the method |
+| `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |
 
 ```kotlin
 rewrite {

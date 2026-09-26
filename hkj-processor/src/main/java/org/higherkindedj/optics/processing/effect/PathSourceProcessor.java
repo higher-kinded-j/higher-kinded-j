@@ -33,7 +33,6 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
  *   <li>Factory methods (of, pure)
  *   <li>Composition methods (map, peek, via, then, zipWith)
  *   <li>Error recovery methods if errorType is specified
- *   <li>Conversion methods to other path types
  * </ul>
  *
  * @see PathSource

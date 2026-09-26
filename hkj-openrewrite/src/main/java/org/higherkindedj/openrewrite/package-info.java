@@ -37,16 +37,20 @@
  *
  * <h2>0.5.0 Deprecation Migration</h2>
  *
- * <p>Rewrites usages of APIs deprecated for removal in 0.5.0 to their signature-compatible
- * replacements.
+ * <p>Rewrites usages of APIs deprecated for removal in 0.5.0 to their replacements, and removes a
+ * deprecated annotation that has no effect.
  *
  * <ul>
  *   <li>{@code org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0} - Runs all 0.5.0
- *       deprecation renames
+ *       deprecation migrations
  *   <li>{@code org.higherkindedj.openrewrite.RenameStateTKindNarrowK} - {@code StateTKind.narrowK}
  *       to {@code StateTKind.narrow}
  *   <li>{@code org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern} - {@code
  *       KindValidator.narrowWithPattern} to {@code KindValidator.narrowHolder}
+ *   <li>{@code org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe} - {@code
+ *       Try.fold} and {@code TryPath.fold} to {@code foldFailureFirst}, swapping the arguments
+ *   <li>{@code org.higherkindedj.openrewrite.RemovePathConfig} - Removes {@code @PathConfig}, which
+ *       has no effect
  * </ul>
  *
  * <h2>Usage</h2>

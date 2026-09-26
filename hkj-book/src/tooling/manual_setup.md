@@ -142,7 +142,7 @@ The [HKJ build plugin](gradle_plugin.md) handles all of the above (dependencies,
 
 ## Incremental compilation
 
-The HKJ annotation processors register with Gradle's incremental annotation processing: the processors that generate code as aggregating, since cross-spec features such as nested mapping resolution may read any annotated element in the compilation and the mapping processors also read the classpath index described below; and `CompanionAnnotationProcessor`, which generates nothing and only claims hkj's annotations so that `-Xlint:processing` does not report them, as isolating. A source set using them keeps incremental compilation; no configuration is needed. Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first.
+The HKJ annotation processors register with Gradle's incremental annotation processing: the processors that generate code as aggregating, since cross-spec features such as nested mapping resolution may read any annotated element in the compilation and the mapping processors also read the classpath index described below; and `CompanionAnnotationProcessor`, which generates nothing and claims hkj's annotations so that `-Xlint:processing` does not report them, as isolating. A source set using them keeps incremental compilation; no configuration is needed. Unregistered third-party processors on the same processor path disable incrementality for the whole source set, so if compile times regress, audit the other entries on the path first.
 
 ## Multi-module builds
 
