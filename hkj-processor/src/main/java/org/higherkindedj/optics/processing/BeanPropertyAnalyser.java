@@ -143,14 +143,16 @@ final class BeanPropertyAnalyser {
         ExecutableElement setter = pairedWriter(setters.get(name), beanType, getterType);
         if (setter != null) {
           if (typesDiffer(
-              spec,
-              bean,
-              entry.getValue(),
-              tag,
-              name,
-              getterType,
-              paramType(beanType, setter),
-              report)) {
+                  spec,
+                  bean,
+                  entry.getValue(),
+                  tag,
+                  name,
+                  getterType,
+                  paramType(beanType, setter),
+                  report)
+              || writerAmbiguous(
+                  spec, bean, tag, name, getterType, setter, setters.get(name), beanType, report)) {
             return null;
           }
           properties.add(
@@ -191,14 +193,24 @@ final class BeanPropertyAnalyser {
           continue;
         }
         if (typesDiffer(
-            spec,
-            bean,
-            entry.getValue(),
-            tag,
-            name,
-            getterType,
-            paramType(builderType, builderSetter),
-            report)) {
+                spec,
+                bean,
+                entry.getValue(),
+                tag,
+                name,
+                getterType,
+                paramType(builderType, builderSetter),
+                report)
+            || writerAmbiguous(
+                spec,
+                bean,
+                tag,
+                name,
+                getterType,
+                builderSetter,
+                builderSetters.get(name),
+                builderType,
+                report)) {
           return null;
         }
         properties.add(
@@ -264,10 +276,9 @@ final class BeanPropertyAnalyser {
 
   /**
    * The writer a getter pairs with among a property's {@code overloads}, or null when the property
-   * has none: the first whose parameter, as {@code owner} declares it, is the getter's type, since
-   * {@code build} passes a value of that type and javac binds the call to that overload. When none
-   * is, the first overload stands for the property, and the pair is refused as read and written at
-   * different types.
+   * has none: the one whose parameter, as {@code owner} declares it, is the getter's type, since
+   * {@code build} passes a value of that type. When none is, the {@link #representative} stands for
+   * the property, and the pair is refused as read and written at different types.
    */
   private ExecutableElement pairedWriter(
       List<ExecutableElement> overloads, DeclaredType owner, TypeMirror getterType) {
@@ -277,13 +288,89 @@ final class BeanPropertyAnalyser {
     return overloads.stream()
         .filter(writer -> env.getTypeUtils().isSameType(paramType(owner, writer), getterType))
         .findFirst()
-        .orElse(overloads.getFirst());
+        .orElse(representative(overloads));
+  }
+
+  /**
+   * The overload that stands for a property no getter's type chooses a writer for: the first one
+   * met. It gives a writer nothing reads its type in a diagnostic, and a bean that is only written
+   * the type of its property, where javac binds the call {@code build} makes by the value passed.
+   */
+  private static ExecutableElement representative(List<ExecutableElement> overloads) {
+    return overloads.getFirst();
+  }
+
+  /**
+   * Whether javac could not choose the {@code writer} a getter pairs with from among its {@code
+   * overloads}, and reports so when {@code report}. {@code build} passes a value of the getter's
+   * type, and another overload takes that value too unless its parameter is no supertype of the
+   * getter's type, once both are erased: a copied container is a generic method's result, which
+   * javac infers afresh for each overload. javac then calls the more specific of the two, and finds
+   * the call ambiguous when {@code writer} is not that one. A primitive value never meets this,
+   * since an overload that takes it only by widening or boxing is always the less specific.
+   */
+  private boolean writerAmbiguous(
+      TypeElement spec,
+      TypeElement bean,
+      String tag,
+      String name,
+      TypeMirror getterType,
+      ExecutableElement writer,
+      List<ExecutableElement> overloads,
+      DeclaredType owner,
+      boolean report) {
+    if (getterType.getKind().isPrimitive()) {
+      return false;
+    }
+    Types types = env.getTypeUtils();
+    TypeMirror written = paramType(owner, writer);
+    Optional<ExecutableElement> rival =
+        overloads.stream()
+            .filter(other -> !other.equals(writer))
+            .filter(
+                other -> {
+                  TypeMirror parameter = paramType(owner, other);
+                  return types.isSubtype(types.erasure(getterType), types.erasure(parameter))
+                      && (types.isSameType(written, parameter)
+                          || !types.isSubtype(written, parameter));
+                })
+            .findFirst();
+    if (rival.isPresent() && report) {
+      Diagnostics.error(
+          env.getMessager(),
+          spec,
+          tag,
+          "bean property '"
+              + name
+              + "' on '"
+              + bean.getSimpleName()
+              + "' has two writers the generated call cannot choose between: "
+              + writerSignature(writer)
+              + " and "
+              + writerSignature(rival.get())
+              + ".",
+          "build passes each property a value of its getter's type, "
+              + ProcessorUtils.simpleTypeName(getterType)
+              + ", and both writers take it with neither more specific than the other, so javac"
+              + " would refuse the call as ambiguous.",
+          "Remove or rename one of the two where they are declared, so that one writer takes the"
+              + " property.");
+    }
+    return rival.isPresent();
+  }
+
+  /** A writer as its declaration spells it, so the reader can find the one to change. */
+  private static String writerSignature(ExecutableElement writer) {
+    return writer.getSimpleName()
+        + "("
+        + ProcessorUtils.simpleTypeName(writer.getParameters().getFirst().asType())
+        + ")";
   }
 
   /**
    * The writers no getter shares a name with, each at its type as {@code owner} (the bean, or the
-   * builder as its factory instantiates it) declares it. A property's first overload stands for it,
-   * as it does when nothing reads the property at all.
+   * builder as its factory instantiates it) declares it, a property's {@link #representative}
+   * standing for its overloads.
    */
   private List<WireShape.UnpairedAccessor> unpairedWriters(
       Map<String, ExecutableElement> getters,
@@ -292,7 +379,7 @@ final class BeanPropertyAnalyser {
       WireShape.UnpairedAccessor.Role role) {
     return writers.entrySet().stream()
         .filter(entry -> !getters.containsKey(entry.getKey()))
-        .map(entry -> Map.entry(entry.getKey(), entry.getValue().getFirst()))
+        .map(entry -> Map.entry(entry.getKey(), representative(entry.getValue())))
         .map(
             entry ->
                 new WireShape.UnpairedAccessor(
@@ -332,8 +419,7 @@ final class BeanPropertyAnalyser {
    * Every writer, written and never read: a bean that declares no getter maps build-only. A writer
    * speaks its owner's variables, as a getter does, so {@code owner} is the bean for a setter and
    * the builder as the factory instantiates it for a builder setter. With no getter to match, a
-   * property's first overload decides its type, and javac binds the call {@code build} makes by the
-   * value it passes.
+   * property's {@link #representative} decides its type.
    */
   private WireShape.BeanShape writeOnly(
       TypeElement bean,
@@ -342,7 +428,7 @@ final class BeanPropertyAnalyser {
       WireShape.ConstructionStrategy strategy) {
     List<WireShape.BeanProperty> properties =
         writers.entrySet().stream()
-            .map(entry -> Map.entry(entry.getKey(), entry.getValue().getFirst()))
+            .map(entry -> Map.entry(entry.getKey(), representative(entry.getValue())))
             .map(
                 entry ->
                     new WireShape.BeanProperty(
@@ -438,12 +524,14 @@ final class BeanPropertyAnalyser {
   private Map<String, List<ExecutableElement>> collectSetters(TypeElement bean) {
     return byProperty(
         publicInstanceMethods(bean).stream()
-            .filter(method -> method.getParameters().size() == 1 && isSetName(method)),
-        "set".length());
+            .filter(
+                method ->
+                    method.getParameters().size() == 1
+                        && isSetName(method.getSimpleName().toString())),
+        3);
   }
 
-  private static boolean isSetName(ExecutableElement method) {
-    String methodName = method.getSimpleName().toString();
+  private static boolean isSetName(String methodName) {
     return methodName.length() > 3 && methodName.startsWith("set");
   }
 
@@ -457,7 +545,7 @@ final class BeanPropertyAnalyser {
         Collectors.groupingBy(
             method -> decapitalise(method.getSimpleName().toString().substring(prefix)),
             LinkedHashMap::new,
-            Collectors.toList()));
+            Collectors.toUnmodifiableList()));
   }
 
   /**
@@ -477,8 +565,10 @@ final class BeanPropertyAnalyser {
             .toList();
     Map<String, List<ExecutableElement>> merged =
         new LinkedHashMap<>(
-            byProperty(writers.stream().filter(BeanPropertyAnalyser::isSetName), "set".length()));
-    byProperty(writers.stream().filter(method -> !isSetName(method)), 0)
+            byProperty(
+                writers.stream().filter(method -> isSetName(method.getSimpleName().toString())),
+                3));
+    byProperty(writers.stream().filter(method -> !isSetName(method.getSimpleName().toString())), 0)
         .forEach(
             (name, propertyNamed) ->
                 merged.merge(
@@ -559,7 +649,7 @@ final class BeanPropertyAnalyser {
   /**
    * Refuses a bean no reading fits. Asked only once the one-way readings are ruled out, so the two
    * name sets are either both empty, a bean with nothing to read or write, or both non-empty, a
-   * bean whose getters and writers never share a name. {@code patch} marks a sparse update's PATCH
+   * bean whose getters and writers never share a name. {@code sparse} marks a sparse update's PATCH
    * bean, which a record cannot replace.
    */
   private void reportUnusable(
@@ -568,7 +658,7 @@ final class BeanPropertyAnalyser {
       String tag,
       Set<String> reads,
       Set<String> writes,
-      boolean patch) {
+      boolean sparse) {
     if (reads.isEmpty() && declaresSetters(bean)) {
       Diagnostics.error(
           env.getMessager(),
@@ -619,7 +709,7 @@ final class BeanPropertyAnalyser {
             + ". A bean maps both ways over the properties it can read and write, and one way only"
             + " when it offers nothing at all in the other direction, so reading some names and"
             + " writing others fits neither.",
-        protobufFix(env, bean, patch)
+        protobufFix(env, bean, sparse)
             .orElse(
                 "Align each getter with its setter (or builder setter), which a misspelt accessor"
                     + " usually explains, or remove the accessors of the direction the wire is not"
@@ -636,10 +726,10 @@ final class BeanPropertyAnalyser {
    *
    * @param env the processing environment, to look protobuf-java up on the path
    * @param wire the wire a refusal names
-   * @param patch whether the wire is a sparse update's PATCH body, which a record cannot be
+   * @param sparse whether the wire is a sparse update's PATCH body, which a record cannot be
    * @return the fix line, when {@code wire} is a protobuf-java message
    */
-  static Optional<String> protobufFix(ProcessingEnvironment env, TypeElement wire, boolean patch) {
+  static Optional<String> protobufFix(ProcessingEnvironment env, TypeElement wire, boolean sparse) {
     TypeElement message = env.getElementUtils().getTypeElement(PROTOBUF_MESSAGE);
     Types types = env.getTypeUtils();
     if (message == null || !types.isSubtype(types.erasure(wire.asType()), message.asType())) {
@@ -649,11 +739,11 @@ final class BeanPropertyAnalyser {
         "Convert '"
             + wire.getSimpleName()
             + "' by hand to "
-            + (patch ? "a PATCH bean whose getters answer null until set" : "a record")
+            + (sparse ? "a PATCH bean whose getters answer null until set" : "a record")
             + ", and map that instead: a protobuf-java message is not supported yet,"
-            + " since the companion accessors protobuf generates (getXBytes() beside a string"
-            + " field, getXValue() beside an enum, getUnknownFields()) pair up as properties, and"
-            + " a repeated or map field, having no setter, is no property at all.");
+            + " since the companion accessors protobuf generates (such as getXBytes() beside a"
+            + " string field, getXValue() beside a proto3 enum, and getUnknownFields()) pair up as"
+            + " properties, and a repeated or map field, having no setter, is no property at all.");
   }
 
   private List<ExecutableElement> publicInstanceMethods(TypeElement type) {

@@ -98,6 +98,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 |---|---|
 | [`does not support on the domain side`](#bean-domain) | The domain is a bean, not a record |
 | [`so the mapping leaves it out`](#setter-with-no-getter) | An accessor has no partner |
+| [`is read and written at different types`](#read-and-written-at-different-types) | A getter and its writer disagree on type |
 | [`names no accessor`](#unmapped-names-no-accessor) | An `@Unmapped` marker names nothing left out |
 | [`names a property`](#unmapped-names-a-mapped-property) | An `@Unmapped` marker names a paired property |
 | [`which a build cannot fill`](#getter-only-list-build) | A getter-only `List` is raw or a wildcard |
@@ -327,15 +328,16 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
 
 The wire has components nothing on the domain fills, so `build` cannot write them. The message names each one.
 
-**Fix.** Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`. A protobuf-java message is not supported yet, so for one the message says to map a record instead.
+**Fix.** Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`. For a protobuf-java message, which is not supported yet, convert it to a record by hand and map the record.
 
 ```
 @GenerateMapping: 'CustomerDto' has more components than 'Customer', leaving [email] unfilled.
 build must fill every wire component from a domain source or a derived field, and the extras
 have neither. A wire with fewer components maps as a projection (Lens tier). Remove the extra
-wire components, add matching domain components, declare derived fields ('default
-Getter<Customer, ComponentType>' methods named after the extras), or spread a nested domain
-component across the extras with an '@Flatten' marker named after it.
+wire components, add matching domain components (or a @MapField rename where a name differs),
+declare derived fields ('default Getter<Customer, ComponentType>' methods named after the
+extras), or spread a nested domain component across the extras with an '@Flatten' marker named
+after it.
 ```
 
 The rule: [Derived wire fields](basics.md#derived-wire-fields).
@@ -1493,6 +1495,38 @@ class CustomerBean {
   public void setName(String name) { this.name = name; }
   public String getEmial() { return email; }
   public void setEmail(String email) { this.email = email; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {}
+```
+~~~
+
+### `bean property 'x' on 'Y' is read and written at different types` {#read-and-written-at-different-types}
+
+A getter and the setter or builder setter that shares its name take the property at different types, and no overload of the writer takes the getter's type.
+
+**Fix.** Give the writer, or one of its overloads, the getter's type where they are declared.
+
+```
+@GenerateMapping: bean property 'age' on 'CustomerBean' is read and written at different types
+(int vs String). A mappable property has one type; the mapper cannot guess which of the two the
+component should carry. Align the getter and its setter (or builder setter) where they are
+declared, or drop one of them.
+```
+
+The rule: [How a bean is read and written](rules.md#how-a-bean-is-read-and-written).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "is read and written at different types" -->
+```java
+record Customer(int age) {}
+
+class CustomerBean {
+  private int age;
+
+  public int getAge() { return age; }
+  public void setAge(String age) { this.age = Integer.parseInt(age); }
 }
 
 @GenerateMapping

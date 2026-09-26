@@ -12,10 +12,10 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  * A small end-to-end story for bean-shaped wire targets: mapping a domain record across an I/O
  * boundary where the wire is a <em>bean</em>, not a record.
  *
- * <p>Real boundaries hand you bean-shaped DTOs, not records: a JSON/JAXB/protobuf binder fills a
- * mutable getter/setter request object on the way in, and you build an immutable response (often
- * via a builder) on the way out. {@code @GenerateMapping} maps both directions with the same spec
- * you would write for a record wire; only how the bean is read (getters) and written (setters or a
+ * <p>Real boundaries hand you bean-shaped DTOs, not records: a JSON or JAXB binder fills a mutable
+ * getter/setter request object on the way in, and you build an immutable response (often via a
+ * builder) on the way out. {@code @GenerateMapping} maps both directions with the same spec you
+ * would write for a record wire; only how the bean is read (getters) and written (setters or a
  * builder) changes.
  *
  * <ul>
