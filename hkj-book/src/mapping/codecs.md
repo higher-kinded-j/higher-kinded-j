@@ -154,7 +154,7 @@ Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPr
 
 ## Shared vocabulary: mix-in interfaces {#shared-vocabulary-mix-in-interfaces}
 
-The same rename or leaf tends to recur across an API's specs: every wire calls it `fullName`, and every email parses the same way. Move the shared members onto a **plain interface**, and extend it alongside `MappingSpec`. Like a Jackson mix-in, it holds mapping declarations apart from the types they describe. Unlike one, a spec extends it, so Java's inheritance decides which declaration wins:
+The same rename or leaf tends to recur across an API's specs: every wire calls it `fullName`, and every email parses the same way. Record Mapping Basics' `PartnerCustomerMapping` declared that rename and the email leaf by hand, and every other spec whose wire spells them the same way would repeat both. Move the shared members onto a **plain interface**, and extend it alongside `MappingSpec`. Like a Jackson mix-in, it holds mapping declarations apart from the types they describe. Unlike one, a spec extends it, so Java's inheritance decides which declaration wins:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:mixin_spec}}
