@@ -54,9 +54,9 @@ import org.higherkindedj.optics.processing.util.Reachability.Crossing;
  * <p>Each target component is filled from the one source with a same-named component: identity when
  * the types match, through a zero-parameter {@code default} leaf method returning {@code
  * ValidatedPrism<SourceComponent, TargetComponent>} when they differ. Ambiguous and unfilled
- * components are compile errors. Truthful types: with any fallible leaf the declared return type
- * must be {@code Validated<NonEmptyList<FieldError>, Target>}, and without one it must be the plain
- * target.
+ * components are compile errors. The declared return type follows the fills: with any fill that can
+ * fail, through a leaf or a nested spec, it must be {@code Validated<NonEmptyList<FieldError>,
+ * Target>}, and without one it must be the plain target.
  *
  * <p>The fallible path carries the mapper family's null doctrine: every reference-typed
  * source-component read is null-guarded through the shared {@code hkj$ifPresent} helper, so a null
@@ -156,14 +156,7 @@ public class MergeProcessor extends AbstractProcessor {
     }
     TypeElement spec = (TypeElement) element;
     if (!spec.getTypeParameters().isEmpty()) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          spec,
-          TAG,
-          "'" + spec.getSimpleName() + "' is generic, which this merge does not support.",
-          "The generated Impl names the merged types directly; type parameters would leave it"
-              + " referencing undeclared type variables.",
-          "Merge concrete record types.");
+      reportGeneric(spec, spec);
       return;
     }
 
@@ -219,14 +212,7 @@ public class MergeProcessor extends AbstractProcessor {
         return;
       }
       if (!sourceRecord.getTypeParameters().isEmpty()) {
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            mergeMethod,
-            TAG,
-            "'" + sourceRecord.getSimpleName() + "' is generic, which this merge does not support.",
-            "The generated Impl names the merged types directly; type parameters would leave it"
-                + " referencing undeclared type variables.",
-            "Merge concrete record types.");
+        reportGeneric(mergeMethod, sourceRecord);
         return;
       }
     }
@@ -264,7 +250,8 @@ public class MergeProcessor extends AbstractProcessor {
               + "' uses fallible fills but declares a plain '"
               + shape.target().getSimpleName()
               + "' return.",
-          "Truthful types: a merge that can fail must say so in its signature.",
+          "A fill through a leaf or a nested spec can fail, and a plain return type has no way"
+              + " to report the failure.",
           "Declare 'Validated<NonEmptyList<FieldError>, "
               + shape.target().getSimpleName()
               + "> "
@@ -280,7 +267,8 @@ public class MergeProcessor extends AbstractProcessor {
           "'"
               + mergeMethod.getSimpleName()
               + "' declares a Validated return but every fill is an identity copy.",
-          "Truthful types: a merge that cannot fail must not claim it can.",
+          "A merge that cannot fail returns the plain target type, so its callers never handle"
+              + " an error that cannot happen.",
           "Declare the plain '" + shape.target().getSimpleName() + "' return type.");
       return;
     }
@@ -428,17 +416,26 @@ public class MergeProcessor extends AbstractProcessor {
   private ReturnShape checkTarget(
       ExecutableElement mergeMethod, TypeElement target, boolean fallibleDeclared) {
     if (!target.getTypeParameters().isEmpty()) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          mergeMethod,
-          TAG,
-          "'" + target.getSimpleName() + "' is generic, which this merge does not support.",
-          "The generated Impl names the merged types directly; type parameters would leave it"
-              + " referencing undeclared type variables.",
-          "Merge concrete record types.");
+      reportGeneric(mergeMethod, target);
       return null;
     }
     return new ReturnShape(target, fallibleDeclared);
+  }
+
+  /**
+   * Refuses a generic merge interface, source or target at {@code site}. The check reads the
+   * declaration, so a concrete instantiation is refused too.
+   */
+  private void reportGeneric(Element site, TypeElement generic) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        site,
+        TAG,
+        "'" + generic.getSimpleName() + "' is generic, which this merge does not support.",
+        "The generated Impl names the merge interface and reads each record's components as"
+            + " declared, so a type parameter would reach it as an undeclared type variable, even"
+            + " under a concrete instantiation.",
+        "Declare the merge interface and the records it merges without type parameters.");
   }
 
   /**
@@ -508,11 +505,11 @@ public class MergeProcessor extends AbstractProcessor {
                 + name
                 + "' is ambiguous: "
                 + holders.stream().map(h -> "'" + h.getSimpleName() + "'").toList()
-                + " both carry it.",
+                + (holders.size() == 2 ? " both carry it." : " all carry it."),
             "Every target component needs exactly one source; with several, the choice would be"
                 + " arbitrary.",
-            "Rename the component on all but one source (a typed disambiguation mechanism is a"
-                + " planned follow-on).");
+            "Rename the component on all but one source (choosing a source is not supported"
+                + " yet).");
         return null;
       }
       VariableElement holder = holders.getFirst();

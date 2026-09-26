@@ -71,12 +71,12 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a PATCH spec dispatch over a sealed hierarchy?](#no-sealed-patch) | No: an absent property cannot choose a subtype. | by design |
 | [Does a PATCH merge a nested object field by field?](#patch-replaces-wholesale) | No: a nested record, list or map is replaced whole. | by design |
 | **Generic specs** | | |
-| [Can a generic spec map a bean, or a PATCH?](#generic-boundaries) | No: generic mappings are record-to-record. | not supported yet |
+| [Can a bean or PATCH mapping use a generic type?](#generic-boundaries) | No, not even at a concrete instantiation: generic mappings are record-to-record. | not supported yet |
 | [Can a leaf, rename or marker declare its own type parameters?](#generic-boundaries) | No: the element types go on the spec's parameters. | by design |
 | [Can a generic sealed hierarchy be mapped?](#generic-boundaries) | No, not even at a concrete instantiation: model it as a record. | not supported yet |
 | [What supplies an element-mapped spec's prisms where it nests?](#element-mapped-nesting) | A leaf on the using spec, or another registered mapping. | by design |
 | **Merge and error envelopes** | | |
-| [Can a merge rename a component?](#how-a-merge-fills) | No: a target name must match exactly one source component. | not supported yet |
+| [Can a merge rename a component, or choose its source?](#how-a-merge-fills) | No: a target name must match exactly one source component. | not supported yet |
 | [Can a merge fill a component through a spec's `build`?](#how-a-merge-fills) | No: a merge runs a spec's `parse` only. | not supported yet |
 | [Can an error envelope hierarchy be generic?](#error-envelope-rules) | No: the hierarchy, its variants and the context are non-generic. | by design |
 
@@ -208,8 +208,8 @@ The processor says:
 @GenerateMapping: @OptionalBridge on 'nickname' is redundant on a bean wire. A bean wire
 bridges a domain Optional to its nullable property automatically, because bean conventions
 leave Optional off property types; the annotation opts a RECORD wire into the same
-correspondence. Remove the annotation, or keep it if the vocabulary is shared with a
-record-wire spec.
+correspondence. Remove the annotation. If a record-wire spec needs it too, declare the
+annotated method on a mix-in both specs extend; an inherited one draws no note.
 ```
 
 ### Which surfaces a constructor's refusal reaches {#constructor-refusal-surfaces}
@@ -510,7 +510,7 @@ An element-mapped spec's `of(...)` takes one `ValidatedPrism` per abstract leaf,
 
 | Shape | Verdict |
 |---|---|
-| a bean-shaped wire or an `UpdateSpec` mapping | stays concrete |
+| a bean-shaped wire or an `UpdateSpec` mapping | refused even at a concrete instantiation, not supported yet |
 | a generic sealed hierarchy (`sealed interface Result<E, A>`) | refused even at a concrete instantiation, not supported yet |
 | a raw use, a raw *nested* argument, or a wildcard | diagnosed |
 | an array argument (`Page<String[]>`) | concrete: it maps, and unifies structurally at nested use sites |
@@ -527,7 +527,7 @@ A leaf's element types go on the spec's own type parameters, and a rename declar
 
 **A merge is one abstract method on an `@GenerateMerge` interface: two or more record sources in, one record target out.** The processor refuses fewer than two sources, a second abstract method, and a generic merge.
 
-- **Each target component fills from the one source with a component of the same name.** A merge matches by name only and has no rename, so the processor refuses a target component no source names ([`is not filled by any source`](compiler_errors.md#merge-unfilled)), and one two sources carry ([`both carry it`](compiler_errors.md#merge-component-ambiguous)). A source component the target lacks fills nothing.
+- **Each target component fills from the one source with a component of the same name.** A merge matches by name only and has no rename, so the processor refuses a target component no source names ([`is not filled by any source`](compiler_errors.md#merge-unfilled)), and one that two or more sources carry ([`both carry it`](compiler_errors.md#merge-component-ambiguous)). A source component the target lacks fills nothing.
 - **A fill copies when the types match**, a same-typed container as a [copy](#same-typed-containers-cross-as-copies).
 - **A leaf converts a fill.** It is a zero-parameter `default` method on the merge interface, named after the target component, returning `ValidatedPrism<SourceComponent, TargetComponent>`, source first. An explicit leaf wins even when the types match.
 - **A `@GenerateMapping` spec fills a component as `parse`.** The source component must be the spec's wire and the target component its domain, in this module or a dependency. A merge never runs a spec's `build`, so an outbound view cannot fill through one yet.

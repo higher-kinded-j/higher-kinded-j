@@ -68,7 +68,7 @@ The processor says:
 (java.lang.String vs java.util.Optional<java.lang.String>) and no matching leaf method was
 found. Found on Reader: [name, nickname]. Add '@OptionalBridge
 java.util.Optional<java.lang.String> nickname();' to the spec, so an absent value reads as a
-null wire component and back. Add 'default ValidatedPrism<java.lang.String,
+null wire component and back. Or add 'default ValidatedPrism<java.lang.String,
 java.util.Optional<java.lang.String>> nickname()' to the spec.
 ```
 

@@ -118,14 +118,14 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 
 | The message says | What it means |
 |---|---|
-| [`is generic, which this mapper does not support`](#generic-bean-or-patch) | A generic spec maps a bean or a PATCH |
+| [`is generic, which a … does not support yet`](#generic-bean-or-patch) | A bean, PATCH or sealed mapping is generic |
 | [`needs a generic spec`](#abstract-leaf-needs-a-generic-spec) | A concrete spec declares a leaf with no body |
 
 **[Merge and error envelopes](#merge-and-error-envelopes)**
 
 | The message says | What it means |
 |---|---|
-| [`both carry it`](#merge-component-ambiguous) | Two merge sources carry one component |
+| [`both carry it`](#merge-component-ambiguous) | Several merge sources carry one component |
 | [`uses fallible fills but declares a plain`](#merge-plain-return) | A fallible merge declares a plain return |
 | [`declares a Validated return but every fill is an identity copy`](#merge-validated-identity) | A merge of copies declares a Validated return |
 | [`is not filled by any source`](#merge-unfilled) | No merge source names a target component |
@@ -706,7 +706,7 @@ A domain `Optional` faces a plain wire component, and the spec has not said that
 (java.lang.String vs java.util.Optional<java.lang.String>) and no matching leaf method was
 found. Found on Reader: [name, nickname]. Add '@OptionalBridge
 java.util.Optional<java.lang.String> nickname();' to the spec, so an absent value reads as a
-null wire component and back. Add 'default ValidatedPrism<java.lang.String,
+null wire component and back. Or add 'default ValidatedPrism<java.lang.String,
 java.util.Optional<java.lang.String>> nickname()' to the spec.
 ```
 
@@ -832,7 +832,8 @@ A bean wire bridges a domain `Optional` without the marker, so the annotation ch
 @GenerateMapping: @OptionalBridge on 'nickname' is redundant on a bean wire. A bean wire bridges
 a domain Optional to its nullable property automatically, because bean conventions leave
 Optional off property types; the annotation opts a RECORD wire into the same correspondence.
-Remove the annotation, or keep it if the vocabulary is shared with a record-wire spec.
+Remove the annotation. If a record-wire spec needs it too, declare the annotated method on a
+mix-in both specs extend; an inherited one draws no note.
 ```
 
 The rule: [Optional fields: `@OptionalBridge`](absence.md#optional-bridge).
@@ -1319,14 +1320,13 @@ interface ContactMapping extends MappingSpec<Contact, ContactDto> {
 
 A flattened record has a component named like one of the domain's own, so both would claim the same wire component.
 
-**Fix.** Rename one of the two record components.
+**Fix.** Rename one of the two record components, or, where two groups spread one record type, flatten only one of them and nest the other.
 
 ```
 @GenerateMapping: @Flatten on 'address' spreads a component 'city' that 'Customer' also has.
 Every wire component takes exactly one source, and a flattened group's components are sourced by
 name, so a name shared with the domain or with another group would claim one wire component
-twice. Rename one of the two record components: every wire component takes one source, and both
-would claim the same one.
+twice. Rename one of the two record components.
 ```
 
 The rule: [Names in a flattened group](rules.md#names-in-a-flattened-group).
@@ -1868,23 +1868,25 @@ interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}
 
 ## Generic specs {#generic-specs}
 
-### `'X' is generic, which this mapper does not support` {#generic-bean-or-patch}
+### `'X' is generic, which a bean-wire mapping does not support yet` {#generic-bean-or-patch}
 
-The spec, its domain or its wire declares type parameters where a generic mapping cannot go: a bean or PATCH wire, or a sealed hierarchy, which is refused even at a concrete instantiation.
+The spec, its domain or its wire declares type parameters on a bean-wire mapping, a sparse UpdateSpec or a sealed mapping (the message names which), which is not supported yet, even at a concrete instantiation.
 
-**Fix.** Give a bean, PATCH or sealed mapping non-generic domain and wire types, or model the generic type as a record.
+**Fix.** Declare the spec and the types it maps without type parameters. Outside a sparse `UpdateSpec`, a generic type can instead be a record, mapped record to record.
 
 ```
-@GenerateMapping: 'PageMapping' is generic, which this mapper does not support. The generated
-Impl names the mapped types directly; type parameters would leave it referencing undeclared type
-variables. Map concrete types here; generic mappings (concrete instantiations and threaded
-specs) are currently supported for record-record pairs only.
+@GenerateMapping: 'PageMapping' is generic, which a bean-wire mapping does not support yet. The
+generated Impl names the spec and reads the mapped types' members as declared, so a type
+parameter would reach it as an undeclared type variable, even under a concrete instantiation.
+Declare the spec and the types it maps without type parameters; a record-to-record mapping may
+use generic types, either concretely instantiated or threaded through the spec's type
+parameters.
 ```
 
 The rule: [The boundaries of a generic spec](rules.md#generic-boundaries).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "is generic, which this mapper does not support" -->
+<!-- verify:rejects "is generic, which a bean-wire mapping does not support yet" -->
 ```java
 record Page<T>(List<T> items) {}
 
@@ -1935,15 +1937,14 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
 
 ### `@GenerateMerge: target component 'x' is ambiguous: [...] both carry it` {#merge-component-ambiguous}
 
-Two sources carry a component the target needs, and every target component takes exactly one source.
+Two or more sources carry a component the target needs (the message says `all carry it` for three or more), and every target component takes exactly one source.
 
 **Fix.** Rename the component on all but one source.
 
 ```
 @GenerateMerge: target component 'name' is ambiguous: ['customer', 'account'] both carry it.
 Every target component needs exactly one source; with several, the choice would be arbitrary.
-Rename the component on all but one source (a typed disambiguation mechanism is a planned
-follow-on).
+Rename the component on all but one source (choosing a source is not supported yet).
 ```
 
 The rule: [How a merge fills](rules.md#how-a-merge-fills).
@@ -1971,9 +1972,9 @@ A merge converts through a leaf, which can fail, but its signature promises a pl
 **Fix.** Declare the `Validated<NonEmptyList<FieldError>, T>` return the message spells out.
 
 ```
-@GenerateMerge: 'merge' uses fallible fills but declares a plain 'Summary' return. Truthful
-types: a merge that can fail must say so in its signature. Declare
-'Validated<NonEmptyList<FieldError>, Summary> merge(...)'.
+@GenerateMerge: 'merge' uses fallible fills but declares a plain 'Summary' return. A fill
+through a leaf or a nested spec can fail, and a plain return type has no way to report the
+failure. Declare 'Validated<NonEmptyList<FieldError>, Summary> merge(...)'.
 ```
 
 The rule: [How a merge fills](rules.md#how-a-merge-fills).
@@ -2005,9 +2006,9 @@ Every fill copies its source, so the merge cannot fail, but its signature says i
 **Fix.** Declare the plain target return, or give a component a leaf that can fail, which makes the `Validated` return true.
 
 ```
-@GenerateMerge: 'assemble' declares a Validated return but every fill is an identity copy.
-Truthful types: a merge that cannot fail must not claim it can. Declare the plain 'Header'
-return type.
+@GenerateMerge: 'assemble' declares a Validated return but every fill is an identity copy. A
+merge that cannot fail returns the plain target type, so its callers never handle an error that
+cannot happen. Declare the plain 'Header' return type.
 ```
 
 The rule: [How a merge fills](rules.md#how-a-merge-fills).

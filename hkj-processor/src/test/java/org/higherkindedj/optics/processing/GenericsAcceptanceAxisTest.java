@@ -534,7 +534,9 @@ class GenericsAcceptanceAxisTest {
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("'PairMerge' is generic");
-      assertThat(compilation).hadErrorContaining("Merge concrete record types.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare the merge interface and the records it merges without type parameters.");
     }
 
     @Test

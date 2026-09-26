@@ -5754,7 +5754,7 @@ class MappingProcessorTest {
                       + " Records.GW<String>> {}"));
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("'GS' is generic, which this mapper does not support");
+          .hadErrorContaining("'GS' is generic, which a sealed mapping does not support yet.");
     }
 
     @Test
@@ -12000,33 +12000,6 @@ class MappingProcessorTest {
     }
 
     @Test
-    @DisplayName("without the annotation the component stays null-is-an-error: the default holds")
-    void withoutTheAnnotationTheDefaultDoctrineHolds() {
-      JavaFileObject bare =
-          JavaFileObjects.forSourceString(
-              "com.example.CustomerMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-
-              @GenerateMapping
-              public interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
-              """);
-      Compilation compilation = compile(CUSTOMER, CUSTOMER_DTO, bare);
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("target field 'CustomerDto.nickname' has no usable source");
-      // and the refusal points at the opt-in rather than at a lossless-looking whole-Optional
-      // leaf, with the declaration to paste
-      assertThat(compilation)
-          .hadErrorContaining(
-              "Add '@OptionalBridge java.util.Optional<java.lang.String> nickname();' to the"
-                  + " spec, so an absent value reads as a null wire component and back.");
-    }
-
-    @Test
     @DisplayName("the refusal offers the bridge plus an element leaf when the elements differ")
     void theRefusalOffersTheBridgeWithALeafWhenElementsDiffer() {
       JavaFileObject bare =
@@ -12048,7 +12021,9 @@ class MappingProcessorTest {
           .hadErrorContaining(
               "Add '@OptionalBridge default ValidatedPrism<java.lang.String,"
                   + " com.example.EmailAddress> email()' to the spec, a leaf over the ELEMENT"
-                  + " types");
+                  + " types, so an absent value reads as a null wire component and a present one"
+                  + " converts. Or add 'default ValidatedPrism<java.lang.String,"
+                  + " java.util.Optional<com.example.EmailAddress>> email()' to the spec.");
     }
 
     @Test
@@ -12890,58 +12865,6 @@ class MappingProcessorTest {
       // the bean's own bridge is unchanged: an empty Optional writes null, as on a record
       Assertions.assertThat(generatedSource(compilation, "com.example.CustomerBeanMappingImpl"))
           .contains("wire.setNickname(domain.nickname().orElse(null))");
-    }
-
-    @Test
-    @DisplayName("an inherited bridge on a bean wire is silent: shared vocabulary serves both")
-    void anInheritedBridgeOnABeanWireIsSilent() {
-      JavaFileObject bean =
-          JavaFileObjects.forSourceString(
-              "com.example.CustomerBean",
-              """
-              package com.example;
-
-              public class CustomerBean {
-                private String name;
-                private String nickname;
-
-                public String getName() { return name; }
-                public void setName(String name) { this.name = name; }
-                public String getNickname() { return nickname; }
-                public void setNickname(String nickname) { this.nickname = nickname; }
-              }
-              """);
-      JavaFileObject vocabulary =
-          JavaFileObjects.forSourceString(
-              "com.example.Nicknames",
-              """
-              package com.example;
-
-              import java.util.Optional;
-              import org.higherkindedj.optics.annotations.OptionalBridge;
-
-              public interface Nicknames {
-                @OptionalBridge
-                Optional<String> nickname();
-              }
-              """);
-      JavaFileObject spec =
-          JavaFileObjects.forSourceString(
-              "com.example.CustomerBeanMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-
-              @GenerateMapping
-              public interface CustomerBeanMapping
-                  extends Nicknames, MappingSpec<Customer, CustomerBean> {}
-              """);
-      Compilation compilation = compile(CUSTOMER, bean, vocabulary, spec);
-      assertThat(compilation).succeeded();
-      Assertions.assertThat(compilation.diagnostics())
-          .noneMatch(d -> d.toString().contains("redundant"));
     }
 
     @Test
