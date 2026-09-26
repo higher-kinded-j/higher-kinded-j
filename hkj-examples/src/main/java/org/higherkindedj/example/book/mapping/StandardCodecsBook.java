@@ -134,16 +134,15 @@ final class WireFormats {
 // ANCHOR_END: codecs_formatters
 
 // ANCHOR: canonical_leaf
-// A pallet from the warehouse's feed, which writes its ids in upper case.
+// A pallet from the warehouse's feed, which writes UUIDs in upper case, as SQL Server does.
 record Pallet(UUID id, String label) {}
 
 record PalletDto(String id, String label) {}
 
 @GenerateMapping
 interface PalletMapping extends MappingSpec<Pallet, PalletDto> {
-  // An uppercase-UUID wire (SQL Server): the lenient, throwing parse is fine,
-  // because the render defines the canon and the per-value guard rejects
-  // every spelling it cannot reproduce.
+  // The lenient, throwing parse is fine: the render defines the canon, and the per-value guard
+  // rejects every spelling it cannot reproduce.
   default ValidatedPrism<String, UUID> id() {
     return ValidatedPrism.canonical(
         "not an uppercase UUID",
@@ -154,24 +153,22 @@ interface PalletMapping extends MappingSpec<Pallet, PalletDto> {
 
 // ANCHOR_END: canonical_leaf
 
-// ANCHOR: instant_spec
-record Reading(UUID id, Instant takenAt) {}
+// A scan from the warehouse's handheld readers, stamped with an ISO-8601 instant.
+record Scan(UUID id, Instant scannedAt) {}
 
-record ReadingDto(String id, String takenAt) {}
+record ScanDto(String id, String scannedAt) {}
 
 @GenerateMapping
-interface ReadingMapping extends MappingSpec<Reading, ReadingDto> {
+interface ScanMapping extends MappingSpec<Scan, ScanDto> {
   default ValidatedPrism<String, UUID> id() {
     return uuid();
   }
 
   // instant() renders as Instant.toString() does, and accepts exactly that.
-  default ValidatedPrism<String, Instant> takenAt() {
+  default ValidatedPrism<String, Instant> scannedAt() {
     return instant();
   }
 }
-
-// ANCHOR_END: instant_spec
 
 // ANCHOR: mixin_spec
 // Plain vocabulary - not a spec itself. Any spec whose records share these
@@ -195,7 +192,7 @@ interface ContactVocabulary {
   }
 }
 
-// The Customer from Record Mapping Basics, on a wire that calls its name fullName.
+// A CRM's contact export: the Customer from Record Mapping Basics, calling its name fullName.
 record CustomerContactDto(String fullName, String email) {}
 
 @GenerateMapping
