@@ -176,7 +176,10 @@ public final class StandardCodecs {
   /**
    * Each enum type's failure message, computed once. A generated mapping calls its leaf on every
    * parse and build, so without this every call would copy the constants and join their names. An
-   * invalid type throws from here, uncached, on every attempt.
+   * invalid type throws from here, uncached, on every attempt. It holds the message, not the codec:
+   * an entry lives on the enum's {@code Class}, and a {@code String} reaches nothing of this
+   * library, so an enum from a parent loader (a JDK enum such as {@code DayOfWeek}) cannot keep
+   * this library's loader alive.
    */
   private static final ClassValue<String> ENUM_MESSAGES =
       new ClassValue<>() {
