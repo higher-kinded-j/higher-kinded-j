@@ -558,6 +558,9 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
       // Get the referenced effect algebra class
       TypeElement algebraType = getHandlesAlgebraType(interpreterType);
       if (algebraType == null) continue;
+      if (algebraType.asType().getKind() == TypeKind.ERROR) {
+        continue; // javac already reports the unresolvable type; a second message adds nothing
+      }
 
       // Check that the algebra is sealed
       if (!algebraType.getModifiers().contains(Modifier.SEALED)) {

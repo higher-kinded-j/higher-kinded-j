@@ -883,6 +883,25 @@ class ComposeEffectsProcessorTest {
     }
 
     @Test
+    @DisplayName("@Handles naming an unresolvable type leaves the report to javac")
+    void handlesUnresolvableTypeLeavesTheReportToJavac() {
+      var source =
+          JavaFileObjects.forSourceString(
+              "test.pkg.Interpreter",
+              """
+              package test.pkg;
+              import org.higherkindedj.hkt.effect.annotation.Handles;
+
+              @Handles(Missing.class)
+              public class Interpreter {}
+              """);
+
+      Compilation compilation = compile(source);
+      assertThat(compilation.errors()).hasSize(1);
+      assertThat(compilation.errors().get(0).getMessage(null)).contains("cannot find symbol");
+    }
+
+    @Test
     @DisplayName("Missing handler should produce error")
     void missingHandlerShouldError() {
       // Need sealed interface + interpreter in same compilation

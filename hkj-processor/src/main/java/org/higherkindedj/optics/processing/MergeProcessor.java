@@ -45,6 +45,7 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
 import org.higherkindedj.optics.processing.util.Reachability.Crossing;
+import org.higherkindedj.optics.processing.util.TypeKey;
 
 /**
  * Annotation processor for {@code @GenerateMerge}: forward-only assembly of one target record from
@@ -91,7 +92,7 @@ public class MergeProcessor extends AbstractProcessor {
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
 
   /** The merge interfaces met but not processed yet: arriving this round, or waiting. */
-  private final Set<WaitingSpecs.TypeKey> unprocessed = new LinkedHashSet<>();
+  private final Set<TypeKey> unprocessed = new LinkedHashSet<>();
 
   /** Creates a new MergeProcessor. */
   public MergeProcessor() {}
@@ -122,12 +123,12 @@ public class MergeProcessor extends AbstractProcessor {
       return true;
     }
     List<TypeElement> merges = unprocessed.stream().map(merge -> merge.in(elements)).toList();
-    Set<WaitingSpecs.TypeKey> waiting = WaitingSpecs.among(elements, mappings, merges);
+    Set<TypeKey> waiting = WaitingSpecs.among(elements, mappings, merges);
     // Nested fills resolve against the compilation's @GenerateMapping specs and the classpath index
     // (shared scan).
     List<MappingProcessor.RegisteredSpec> registry =
         MappingProcessor.scanRegistry(processingEnv, mappings, merges.getFirst(), waiting);
-    for (WaitingSpecs.TypeKey merge : List.copyOf(unprocessed)) {
+    for (TypeKey merge : List.copyOf(unprocessed)) {
       if (!waiting.contains(merge)) {
         unprocessed.remove(merge);
         processSpec(merge.in(elements), registry);

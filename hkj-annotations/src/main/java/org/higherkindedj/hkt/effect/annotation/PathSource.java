@@ -11,8 +11,9 @@ import java.lang.annotation.Target;
 /**
  * Generates a custom Path wrapper for an effect type.
  *
- * <p>Apply this annotation to a type (typically a sealed interface) to generate a corresponding
- * Path class with fluent composition methods.
+ * <p>Apply this annotation to an effect type (a class, an interface or a record, typically a sealed
+ * interface) to generate a corresponding Path class with fluent composition methods. An enum or an
+ * annotation interface is refused.
  *
  * <h2>Example Usage</h2>
  *
@@ -55,7 +56,11 @@ public @interface PathSource {
   /**
    * The HKT witness for this type: the marker class its {@code Kind} is indexed by, such as {@code
    * ApiResultKind.Witness.class} in the higher-kinded-j convention of a {@code Witness} nested in
-   * the type's {@code Kind} interface. The generated Path wraps a {@code Kind} of it.
+   * the type's {@code Kind} interface. The generated Path wraps a {@code Kind} of it and takes a
+   * {@code Monad} over it, so it must implement {@code WitnessArity<TypeArity.Unary>} and have no
+   * type parameters of its own: a class literal can name only a generic witness's raw type. For a
+   * witness that takes type arguments, such as {@code EitherKind.Witness<L>}, use {@code
+   * GenericPath}.
    *
    * @return the witness class
    */
@@ -66,7 +71,9 @@ public @interface PathSource {
    *
    * <p>Recovery methods are generated only when this is given and {@link #capability()} is {@link
    * Capability#RECOVERABLE}: the generated {@code of} and {@code pure} then take a {@code
-   * MonadError} over it, so it must be a reference type. With any other capability it is not used,
+   * MonadError} over it, so it must be a reference type, and one a class literal names fully: a
+   * class literal can name only a generic type's raw type, and no {@code MonadError} over a
+   * parameterised type could be passed for the raw one. With any other capability it is not used,
    * and the processor reports a note saying so.
    *
    * <p>Use {@link Void} to indicate no error type (the default).
@@ -82,7 +89,8 @@ public @interface PathSource {
    *
    * <ul>
    *   <li>{@link Capability#COMPOSABLE} - {@code map} and {@code peek}
-   *   <li>{@link Capability#COMBINABLE} - adds {@code zipWith}
+   *   <li>{@link Capability#COMBINABLE} - adds {@code zipWith}, which combines with another Path of
+   *       the same class
    *   <li>{@link Capability#CHAINABLE} - adds {@code via}, {@code then} and {@code flatMap}
    *   <li>{@link Capability#RECOVERABLE} - adds {@code recover}, {@code recoverWith} and {@code
    *       mapError}, given an {@link #errorType()}
@@ -119,7 +127,7 @@ public @interface PathSource {
     /** Functor-level: {@code map}, {@code peek}. */
     COMPOSABLE,
 
-    /** Applicative-level: adds {@code zipWith}. */
+    /** Applicative-level: adds {@code zipWith}, with another Path of the same class. */
     COMBINABLE,
 
     /** Monad-level: adds {@code via}, {@code then}, {@code flatMap}. */
