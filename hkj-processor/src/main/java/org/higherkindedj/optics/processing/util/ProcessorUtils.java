@@ -1079,32 +1079,66 @@ public final class ProcessorUtils {
    * enters: {@code @Nullable Set<?>} reads as {@code Set<?>}, the same way the corrected
    * declaration beside it is rendered. The annotation is not what a diagnostic about the type is
    * about, and a message that prints it in one half and drops it in the other reads as advice to
-   * remove it (#759). The remaining kinds, an unresolvable type or an intersection, render from
-   * {@code toString()} with annotations stripped. Generated source is the opposite decision: {@link
-   * #typeNameOf} keeps type-use annotations, because there the annotation is part of the source
-   * being emitted (#750).
+   * remove it. The remaining kinds, an unresolvable type or an intersection, render from {@code
+   * toString()} with annotations stripped. {@link #qualifiedTypeName} is the same rendering with
+   * every package kept. Generated source is the opposite decision: {@link #typeNameOf} keeps
+   * type-use annotations, because there the annotation is part of the source being emitted.
    *
    * @param type the type to render; must not be null
    * @return the rendered name (non-null)
    * @since 0.4.10
    */
   public static String simpleTypeName(TypeMirror type) {
+    return diagnosticName(type, Spelling.SIMPLE);
+  }
+
+  /**
+   * Renders a type for a diagnostic that names it in full, with type arguments spaced and type-use
+   * annotations left out.
+   *
+   * <p>This is the spelling for any message that names a type in full, and the one a line the
+   * reader pastes needs, such as the leaf a fix line offers: every package is kept, so {@code
+   * java.util.Optional<java.time.LocalDate>} compiles without an import. In every other respect it
+   * is {@link #simpleTypeName}'s rendering, so a type-use annotation never enters. {@code
+   * toString()} would spell a {@code @Nullable String} as {@code
+   * java.lang.@org.jspecify.annotations.Nullable String}: legal, seldom seen, and a nullness claim
+   * the pasted line has no use for, since the processors match a leaf's types with annotations
+   * ignored.
+   *
+   * @param type the type to render; must not be null
+   * @return the rendered name, fully qualified (non-null)
+   * @since 0.4.11
+   */
+  public static String qualifiedTypeName(TypeMirror type) {
+    return diagnosticName(type, Spelling.QUALIFIED);
+  }
+
+  /** How a rendered type spells a class: within its enclosing classes, or with its package too. */
+  private enum Spelling {
+    SIMPLE,
+    QUALIFIED
+  }
+
+  /** The type's name in a diagnostic, spelt as {@code spelling} says. */
+  private static String diagnosticName(TypeMirror type, Spelling spelling) {
     return switch (type.getKind()) {
-      case DECLARED -> declaredName((DeclaredType) type);
-      case ARRAY -> simpleTypeName(((ArrayType) type).getComponentType()) + "[]";
-      case WILDCARD -> wildcardName((WildcardType) type);
+      case DECLARED -> declaredName((DeclaredType) type, spelling);
+      case ARRAY -> diagnosticName(((ArrayType) type).getComponentType(), spelling) + "[]";
+      case WILDCARD -> wildcardName((WildcardType) type, spelling);
       case TYPEVAR -> ((TypeVariable) type).asElement().getSimpleName().toString();
       // The kind names the type on its own; toString would carry any type-use annotation.
       case BOOLEAN, BYTE, SHORT, INT, LONG, CHAR, FLOAT, DOUBLE ->
           type.getKind().name().toLowerCase(Locale.ROOT);
-      // The lossy pre-#759 renderer, for what remains: an unresolvable type, whose element walk
-      // loses the qualifier on a nested name that the string keeps, and an intersection, which a
-      // structural arm would have to render bound by bound. Annotations are stripped, argument
-      // lists and all.
-      default ->
-          stripAnnotations(type.toString())
-              .replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "")
-              .replace(",", ", ");
+      // The string form, for what remains: an unresolvable type, whose element walk loses the
+      // qualifier on a nested name that the string keeps, and an intersection, which a structural
+      // arm would have to render bound by bound. Annotations are stripped, argument lists and all.
+      default -> {
+        String written = stripAnnotations(type.toString());
+        yield (spelling == Spelling.SIMPLE
+                ? written.replaceAll("\\b(?:[a-z][\\p{Alnum}_]*\\.)+", "")
+                : written)
+            .replace(",", ", ");
+      }
     };
   }
 
@@ -1115,9 +1149,10 @@ public final class ProcessorUtils {
    * <p>A scan rather than a pattern, because an annotation argument may contain the very characters
    * a pattern would stop at: a bracket or a quote inside a string ({@code @Marker(")")}) or a
    * nested annotation ({@code @Outer(@Inner(1))}). The scan tracks parenthesis depth and string and
-   * character literals, escapes included. A dot directly before the annotation goes with it: javac
-   * prints an annotated type as {@code enclosing.@Anno Simple}, and keeps the dot even where the
-   * enclosing is empty.
+   * character literals, escapes included. javac prints an annotated type as {@code enclosing.@Anno
+   * Simple}, so the dot before the annotation stays where it joins a package or an enclosing type
+   * to the name ({@code com.example.Money}, {@code Missing.Inner}), and goes with the annotation
+   * where javac prints it for an empty enclosing ({@code .@Anno Missing}).
    *
    * @param rendered the type's string form; must not be null
    * @return the string with annotation tokens and their trailing spaces removed (non-null)
@@ -1128,7 +1163,7 @@ public final class ProcessorUtils {
     while (i < rendered.length()) {
       char c = rendered.charAt(i);
       if (c == '@') {
-        if (!out.isEmpty() && out.charAt(out.length() - 1) == '.') {
+        if (standsForAnEmptyEnclosing(out)) {
           out.setLength(out.length() - 1);
         }
         i = skipAnnotation(rendered, i);
@@ -1138,6 +1173,22 @@ public final class ProcessorUtils {
       }
     }
     return out.toString();
+  }
+
+  /**
+   * Whether the text so far ends in a dot javac printed for an empty enclosing: one with no name
+   * before it, where a name ends in an identifier character or an argument list's {@code '>'}.
+   */
+  private static boolean standsForAnEmptyEnclosing(StringBuilder out) {
+    int length = out.length();
+    if (length == 0 || out.charAt(length - 1) != '.') {
+      return false;
+    }
+    if (length == 1) {
+      return true;
+    }
+    char before = out.charAt(length - 2);
+    return !Character.isJavaIdentifierPart(before) && before != '>';
   }
 
   /** Consumes one annotation token starting at the {@code '@'}, returning the next index. */
@@ -1177,14 +1228,14 @@ public final class ProcessorUtils {
   }
 
   /** The declared type's name: enclosing chain, simple name, and resolved arguments. */
-  private static String declaredName(DeclaredType declared) {
+  private static String declaredName(DeclaredType declared, Spelling spelling) {
     String arguments =
         declared.getTypeArguments().isEmpty()
             ? ""
             : declared.getTypeArguments().stream()
-                .map(ProcessorUtils::simpleTypeName)
+                .map(argument -> diagnosticName(argument, spelling))
                 .collect(Collectors.joining(", ", "<", ">"));
-    return declaredHead(declared) + arguments;
+    return declaredHead(declared, spelling) + arguments;
   }
 
   /**
@@ -1199,30 +1250,40 @@ public final class ProcessorUtils {
    * @since 0.4.11
    */
   public static String declaredHead(DeclaredType declared) {
-    String prefix = "";
+    return declaredHead(declared, Spelling.SIMPLE);
+  }
+
+  /** The declared type's head, spelt as {@code spelling} says. */
+  private static String declaredHead(DeclaredType declared, Spelling spelling) {
     if (declared.getEnclosingType().getKind() == TypeKind.DECLARED) {
       // A member reached through an instance carries the enclosing type, arguments and all:
       // Outer<String>.Holder, or Outer.Holder where the outer level is written raw.
-      prefix = simpleTypeName(declared.getEnclosingType()) + ".";
-    } else {
-      // A static or top-level nesting has a NoType enclosing type, but the enclosing classes
-      // still print: Registry.Tag, as the declaration site would write it.
-      for (Element outer = declared.asElement().getEnclosingElement();
-          outer instanceof TypeElement typeElement;
-          outer = typeElement.getEnclosingElement()) {
-        prefix = typeElement.getSimpleName() + "." + prefix;
-      }
+      return diagnosticName(declared.getEnclosingType(), spelling)
+          + "."
+          + declared.asElement().getSimpleName();
     }
-    return prefix + declared.asElement().getSimpleName();
+    // A static or top-level nesting has a NoType enclosing type, but the enclosing classes still
+    // print: Registry.Tag, as the declaration site would write it, or in full with its package.
+    TypeElement element = (TypeElement) declared.asElement();
+    if (spelling == Spelling.QUALIFIED) {
+      return element.getQualifiedName().toString();
+    }
+    String prefix = "";
+    for (Element outer = element.getEnclosingElement();
+        outer instanceof TypeElement typeElement;
+        outer = typeElement.getEnclosingElement()) {
+      prefix = typeElement.getSimpleName() + "." + prefix;
+    }
+    return prefix + element.getSimpleName();
   }
 
   /** The wildcard as written: bare, extends-bounded or super-bounded. */
-  private static String wildcardName(WildcardType wildcard) {
+  private static String wildcardName(WildcardType wildcard, Spelling spelling) {
     if (wildcard.getExtendsBound() != null) {
-      return "? extends " + simpleTypeName(wildcard.getExtendsBound());
+      return "? extends " + diagnosticName(wildcard.getExtendsBound(), spelling);
     }
     if (wildcard.getSuperBound() != null) {
-      return "? super " + simpleTypeName(wildcard.getSuperBound());
+      return "? super " + diagnosticName(wildcard.getSuperBound(), spelling);
     }
     return "?";
   }

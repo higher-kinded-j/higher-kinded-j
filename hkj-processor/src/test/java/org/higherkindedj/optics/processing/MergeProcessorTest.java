@@ -853,7 +853,7 @@ class MergeProcessorTest {
           .hadErrorContaining(
               "exists but returns"
                   + " 'org.higherkindedj.optics.validated.ValidatedPrism<java.lang.String,"
-                  + "java.lang.String>'. A ValidatedPrism names reference types only");
+                  + " java.lang.String>'. A ValidatedPrism names reference types only");
       assertThat(compilation)
           .hadErrorContaining(
               "and replace 'days()' with 'default ValidatedPrism<java.lang.Integer,"

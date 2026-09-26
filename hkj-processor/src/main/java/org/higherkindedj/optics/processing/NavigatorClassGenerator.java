@@ -914,7 +914,7 @@ public class NavigatorClassGenerator {
                 + "."
                 + fieldName
                 + "() names "
-                + type
+                + ProcessorUtils.qualifiedTypeName(type)
                 + ", which is not on this module's compile classpath. Put the module declaring it on"
                 + " this module's compile classpath to navigate through '"
                 + fieldName

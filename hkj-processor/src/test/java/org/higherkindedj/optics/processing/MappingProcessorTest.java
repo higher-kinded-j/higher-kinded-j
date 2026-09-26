@@ -14364,8 +14364,8 @@ class MappingProcessorTest {
       assertThat(compilation)
           .hadErrorContaining(
               "declare '@OptionalBridge"
-                  + " java.util.Optional<java.util.Map<com.example.EmailAddress,java.lang.String>>"
-                  + " owners();'");
+                  + " java.util.Optional<java.util.Map<com.example.EmailAddress,"
+                  + " java.lang.String>> owners();'");
       // one carrying no Map is not
       Assertions.assertThat(compilation.errors())
           .filteredOn(d -> d.getMessage(null).contains("'Tagged.owners'"))

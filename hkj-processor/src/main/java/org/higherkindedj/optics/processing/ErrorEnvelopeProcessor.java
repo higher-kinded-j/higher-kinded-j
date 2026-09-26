@@ -182,11 +182,11 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
                 + "' disagree on the context type: '"
                 + variants.getFirst().record().getSimpleName()
                 + "' carries ErrorEnvelope<"
-                + contextType
+                + ProcessorUtils.qualifiedTypeName(contextType)
                 + "> but '"
                 + variant.record().getSimpleName()
                 + "' carries ErrorEnvelope<"
-                + variant.contextType()
+                + ProcessorUtils.qualifiedTypeName(variant.contextType())
                 + ">.",
             "One companion serves the whole hierarchy; a single context schema is what makes the"
                 + " generated builder and editContext type-safe.",
@@ -201,7 +201,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
           processingEnv.getMessager(),
           iface,
           TAG,
-          "context type '" + contextType + "' is not a record.",
+          "context type '" + ProcessorUtils.qualifiedTypeName(contextType) + "' is not a record.",
           "The context is records-as-schema: the generated ContextBuilder is derived from the"
               + " context record's components.",
           "Declare the context as a record with nullable components.");
@@ -212,7 +212,9 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
           processingEnv.getMessager(),
           iface,
           TAG,
-          "context type '" + contextType + "' is generic, which this companion does not support.",
+          "context type '"
+              + ProcessorUtils.qualifiedTypeName(contextType)
+              + "' is generic, which this companion does not support.",
           "The ContextBuilder and the all-absent instance are derived from the context record's"
               + " components; type variables would leave the generated fields undeclared.",
           "Use a concrete (non-generic) context record.");
@@ -229,7 +231,7 @@ public class ErrorEnvelopeProcessor extends AbstractProcessor {
                 + "' of '"
                 + context.getSimpleName()
                 + "' is a primitive "
-                + component.asType()
+                + ProcessorUtils.qualifiedTypeName(component.asType())
                 + ".",
             "The all-absent context instance holds null for every component not yet set, which a"
                 + " primitive component cannot represent.",

@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.time.LocalDate;
 import java.util.Optional;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -238,7 +239,7 @@ class MappingFixLineTest {
       assertThat(compilation)
           .hadErrorContaining(
               "Replace 'labels()' with the marker '@OptionalBridge"
-                  + " java.util.Optional<java.util.Map<java.util.Locale,java.lang.String>>"
+                  + " java.util.Optional<java.util.Map<java.util.Locale, java.lang.String>>"
                   + " labels();', so the keys convert through 'labelsKey()' and the values copy");
       assertThat(compilation)
           .hadErrorContaining(
@@ -335,7 +336,7 @@ class MappingFixLineTest {
                 @MapKey("labels")
                 default ValidatedPrism<String, Locale> labelsKey() { return StandardCodecs.locale(); }
                 @OptionalBridge
-                java.util.Optional<java.util.Map<java.util.Locale,java.lang.String>> labels();
+                java.util.Optional<java.util.Map<java.util.Locale, java.lang.String>> labels();
               }
 
               record Tags(Map<Locale, String> tags) {}
@@ -671,7 +672,7 @@ class MappingFixLineTest {
           .hadErrorContaining(
               "A default method 'days()' exists but returns"
                   + " 'org.higherkindedj.optics.validated.ValidatedPrism<java.lang.Integer,"
-                  + "java.lang.Long>'. A ValidatedPrism names reference types only");
+                  + " java.lang.Long>'. A ValidatedPrism names reference types only");
       assertThat(compilation)
           .hadErrorContaining(
               "Align the component types, or declare 'Wide.days' as java.lang.Long, which the leaf"
@@ -1133,6 +1134,183 @@ class MappingFixLineTest {
     }
   }
 
+  /**
+   * A {@code @NullMarked} wire declares a component {@code @Nullable} where it may be absent, as a
+   * bridged one must be, since the bridge writes an empty value as null, so a refusal about that
+   * component meets a type-use annotation. The lines spell the type without it: a leaf is matched
+   * with annotations ignored, and never receives the null: parse locates it first, or the bridge
+   * reads it as absent.
+   */
+  @Nested
+  @DisplayName("a @Nullable component of a @NullMarked wire")
+  class NullableWireComponent {
+
+    private static final String MARKED =
+        """
+        import java.time.LocalDate;
+        import org.jspecify.annotations.NullMarked;
+        import org.jspecify.annotations.Nullable;
+
+        """;
+
+    @Test
+    @DisplayName("is named without the annotation in every refusal and every leaf offered")
+    void refused() {
+      Compilation compilation =
+          compile(
+              MARKED
+                  + """
+                  @NullMarked record Patron(Optional<LocalDate> birthday) {}
+                  @NullMarked record PatronDto(@Nullable String birthday) {}
+                  @GenerateMapping
+                  interface PatronMapping extends MappingSpec<Patron, PatronDto> {
+                    @OptionalBridge
+                    Optional<LocalDate> birthday();
+                  }
+
+                  @NullMarked record Loan(Optional<LocalDate> due) {}
+                  @NullMarked record LoanDto(@Nullable String due) {}
+                  @GenerateMapping
+                  interface LoanMapping extends MappingSpec<Loan, LoanDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<String, Optional<LocalDate>> due() {
+                      throw new UnsupportedOperationException();
+                    }
+                  }
+
+                  @NullMarked record Event(LocalDate on) {}
+                  @NullMarked record EventDto(@Nullable String on) {}
+                  @GenerateMapping
+                  interface EventMapping extends MappingSpec<Event, EventDto> {}
+
+                  @NullMarked record Visit(Optional<LocalDate> next) {}
+                  @NullMarked record VisitDto(@Nullable String next) {}
+                  @GenerateMapping
+                  interface VisitMapping extends MappingSpec<Visit, VisitDto> {}
+                  """);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "bridged to the nullable record component 'birthday' of type java.lang.String,");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare '@OptionalBridge default ValidatedPrism<java.lang.String,"
+                  + " java.time.LocalDate> birthday()' as the component's only spec method");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare the leaf as 'ValidatedPrism<java.lang.String, java.time.LocalDate>', or"
+                  + " drop the annotation to keep the whole-Optional leaf.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "The types differ (java.lang.String vs java.time.LocalDate) and no matching leaf"
+                  + " method was found. Found on Event: [on]. Add 'default"
+                  + " ValidatedPrism<java.lang.String, java.time.LocalDate> on()' to the spec.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add '@OptionalBridge default ValidatedPrism<java.lang.String, java.time.LocalDate>"
+                  + " next()' to the spec, a leaf over the ELEMENT types, so an absent value"
+                  + " reads as a null wire component and a present one converts. Or add 'default"
+                  + " ValidatedPrism<java.lang.String, java.util.Optional<java.time.LocalDate>>"
+                  + " next()' to the spec.");
+      Assertions.assertThat(compilation.errors())
+          .hasSize(4)
+          .extracting(error -> error.getMessage(null))
+          .noneMatch(message -> message.contains("jspecify"));
+    }
+
+    @Test
+    @DisplayName("each leaf it offers maps the pair, and none of them is handed the null")
+    void followed() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileFollowed(
+              MARKED
+                  + """
+                  @NullMarked record Patron(Optional<LocalDate> birthday) {}
+                  @NullMarked record PatronDto(@Nullable String birthday) {}
+                  @GenerateMapping
+                  interface PatronMapping extends MappingSpec<Patron, PatronDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<java.lang.String, java.time.LocalDate> birthday() {
+                      return StandardCodecs.localDate();
+                    }
+                  }
+
+                  @NullMarked record Loan(Optional<LocalDate> due) {}
+                  @NullMarked record LoanDto(@Nullable String due) {}
+                  @GenerateMapping
+                  interface LoanMapping extends MappingSpec<Loan, LoanDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<java.lang.String, java.time.LocalDate> due() {
+                      return StandardCodecs.localDate();
+                    }
+                  }
+
+                  @NullMarked record Event(LocalDate on) {}
+                  @NullMarked record EventDto(@Nullable String on) {}
+                  @GenerateMapping
+                  interface EventMapping extends MappingSpec<Event, EventDto> {
+                    default ValidatedPrism<java.lang.String, java.time.LocalDate> on() {
+                      return StandardCodecs.localDate();
+                    }
+                  }
+
+                  @NullMarked record Visit(Optional<LocalDate> next) {}
+                  @NullMarked record VisitDto(@Nullable String next) {}
+                  @GenerateMapping
+                  interface VisitMapping extends MappingSpec<Visit, VisitDto> {
+                    @OptionalBridge
+                    default ValidatedPrism<java.lang.String, java.time.LocalDate> next() {
+                      return StandardCodecs.localDate();
+                    }
+                  }
+
+                  @GenerateMapping
+                  interface VisitLeafMapping extends MappingSpec<Visit, VisitDto> {
+                    default ValidatedPrism<java.lang.String, java.util.Optional<java.time.LocalDate>>
+                        next() {
+                      return ValidatedPrism.of(
+                          raw -> Validated.validNel(Optional.of(LocalDate.parse(raw))),
+                          next -> next.map(LocalDate::toString).orElse(""));
+                    }
+                  }
+
+                  final class Probe {
+                    static Object patron() {
+                      return PatronMappingImpl.INSTANCE
+                          .parse(new PatronDto(null))
+                          .map(Patron::birthday);
+                    }
+
+                    static Object loan() {
+                      return LoanMappingImpl.INSTANCE
+                          .parse(new LoanDto("2024-02-29"))
+                          .map(Loan::due);
+                    }
+
+                    static Object event() {
+                      return EventMappingImpl.INSTANCE.parse(new EventDto(null));
+                    }
+
+                    static Object visit() {
+                      return VisitMappingImpl.INSTANCE.parse(new VisitDto(null)).map(Visit::next);
+                    }
+
+                    static Object visitLeaf() {
+                      return VisitLeafMappingImpl.INSTANCE
+                          .parse(new VisitDto("2024-02-29"))
+                          .map(Visit::next);
+                    }
+                  }
+                  """);
+      assertThatValidated(probe(result, "patron")).hasValue(Optional.empty());
+      assertThatValidated(probe(result, "loan")).hasValue(Optional.of(LocalDate.of(2024, 2, 29)));
+      assertThatValidated(probe(result, "event")).hasFieldErrors("on: must not be null");
+      assertThatValidated(probe(result, "visit")).hasValue(Optional.empty());
+      assertThatValidated(probe(result, "visitLeaf"))
+          .hasValue(Optional.of(LocalDate.of(2024, 2, 29)));
+    }
+  }
+
   @Nested
   @DisplayName("an @OptionalBridge the wire does not need")
   class RedundantBridge {
@@ -1454,8 +1632,8 @@ class MappingFixLineTest {
         """;
 
     private static final String WHOLE_LEAF =
-        "default ValidatedPrism<com.example.BoxDto<java.lang.String,java.lang.String>,"
-            + " com.example.Box<java.util.UUID,java.lang.Integer>> box()";
+        "default ValidatedPrism<com.example.BoxDto<java.lang.String, java.lang.String>,"
+            + " com.example.Box<java.util.UUID, java.lang.Integer>> box()";
 
     @Test
     @DisplayName("offers the leaf that element-mapped spec can take, and a spec only for records")

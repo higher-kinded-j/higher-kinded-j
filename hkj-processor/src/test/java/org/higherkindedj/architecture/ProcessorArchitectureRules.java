@@ -11,16 +11,45 @@ import com.tngtech.archunit.core.domain.JavaAccess;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaModifier;
+import com.tngtech.archunit.core.domain.Source;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.CodeElement;
+import java.lang.classfile.CodeModel;
+import java.lang.classfile.Instruction;
+import java.lang.classfile.Label;
+import java.lang.classfile.MethodModel;
+import java.lang.classfile.Opcode;
+import java.lang.classfile.TypeKind;
+import java.lang.classfile.instruction.ArrayLoadInstruction;
+import java.lang.classfile.instruction.FieldInstruction;
+import java.lang.classfile.instruction.InvokeInstruction;
+import java.lang.classfile.instruction.LabelTarget;
+import java.lang.classfile.instruction.LoadInstruction;
+import java.lang.classfile.instruction.LocalVariable;
+import java.lang.classfile.instruction.TypeCheckInstruction;
+import java.lang.constant.ClassDesc;
+import java.lang.constant.ConstantDescs;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.processing.AbstractProcessor;
+import javax.lang.model.element.Element;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -390,6 +419,106 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * Only the methods that need a type's string form render a type through it.
+   *
+   * <p>A {@code TypeMirror}'s string form keeps type-use annotations and qualifies them, so a
+   * component declared {@code @Nullable String} reads as {@code
+   * java.lang.@org.jspecify.annotations.Nullable String}, and a fix line built from it offers that
+   * spelling as the leaf to write. {@code ProcessorUtils.simpleTypeName} and {@code
+   * qualifiedTypeName} render a type for a message without it. The methods allowed here use the
+   * string form as a lookup key, as the name of a type javac could not resolve, or as the fallback
+   * for the kinds a structural walk does not render. Collecting the renderers rather than
+   * forbidding the rest also fails the rule if it stops seeing the ones it allows.
+   */
+  @Test
+  @DisplayName("Only the methods that need a type's string form should render a type through it")
+  void only_the_methods_that_need_a_types_string_form_should_render_a_type_through_it() {
+    Set<String> renderers =
+        StreamSupport.stream(classes.spliterator(), false)
+            .filter(JavaClass.Predicates.resideInAPackage("..processing.."))
+            .flatMap(ProcessorArchitectureRules::typeRenderingsIn)
+            .collect(Collectors.toSet());
+
+    assertThat(renderers)
+        .as(
+            "render a type for a message through ProcessorUtils.simpleTypeName, or"
+                + " qualifiedTypeName where the message names it in full, as a line the reader"
+                + " pastes must, so no type-use annotation enters the text")
+        .isEqualTo(STRING_FORM_READERS);
+  }
+
+  /**
+   * The rendering rule sees every way a message has concatenated a type.
+   *
+   * <p>javac compiles a concatenated object to {@code String.valueOf(Object)}, so the rule reads
+   * the type of the value from the instruction that put it on the stack. Each shape a message has
+   * used is kept here, and an element or its {@code Name} written into text is not flagged.
+   */
+  @Test
+  @DisplayName("The rendering rule should see a type however a message concatenates it")
+  void the_rendering_rule_should_see_a_type_however_a_message_concatenates_it() {
+    Set<String> renderers =
+        typeRenderingsIn(new ClassFileImporter().importClass(RendersTypes.class))
+            .collect(Collectors.toSet());
+
+    assertThat(renderers)
+        .containsExactlyInAnyOrder(
+            "RendersTypes.parameter",
+            "RendersTypes.returned",
+            "RendersTypes.arrayElement",
+            "RendersTypes.field",
+            "RendersTypes.cast",
+            "RendersTypes.lambda",
+            "RendersTypes.explicit");
+  }
+
+  /** Each shape by which a message has written a type into text, and two that write no type. */
+  @SuppressWarnings("unused") // read as bytecode by the rule's own test
+  private static final class RendersTypes {
+    private final TypeMirror held;
+
+    RendersTypes(TypeMirror held) {
+      this.held = held;
+    }
+
+    String parameter(DeclaredType type) {
+      return "a " + type;
+    }
+
+    String returned(Element element) {
+      return "a " + element.asType();
+    }
+
+    String arrayElement(TypeMirror[] pair) {
+      return "a " + pair[1];
+    }
+
+    String field() {
+      return "a " + held;
+    }
+
+    String cast(Object type) {
+      return "a " + (TypeMirror) type;
+    }
+
+    List<String> lambda(List<TypeMirror> types) {
+      return types.stream().map(type -> "a " + type).toList();
+    }
+
+    String explicit(TypeMirror type) {
+      return type.toString();
+    }
+
+    String described(Element element) {
+      return "a " + element;
+    }
+
+    String named(Element element) {
+      return "a " + element.getSimpleName();
+    }
+  }
+
+  /**
    * Custom condition checking for final or static fields only.
    *
    * @return the arch condition
@@ -441,6 +570,133 @@ class ProcessorArchitectureRules {
                                 javaClass.getSimpleName(), access.getOrigin().getName()))));
       }
     };
+  }
+
+  /**
+   * The methods that may render a type through its string form: the structural renderer's own
+   * fallback, which strips the annotations; a visited-set key and two erased-signature keys; a
+   * witness javac could not resolve, named in generated code as written; and an annotation's type
+   * name compared against the recognised nullness annotations.
+   */
+  private static final Set<String> STRING_FORM_READERS =
+      Set.of(
+          "ProcessorUtils.diagnosticName",
+          "ProcessorUtils.supertypeOf",
+          "PathProcessor.erasedSignature",
+          "PathProcessor.bridgeSignature",
+          "KindFieldAnalyser.witnessNameOf",
+          "NullableAnnotations.hasNullable");
+
+  /**
+   * The methods of {@code javaClass} that render a type mirror through its string form: an explicit
+   * {@code toString()}, or a concatenation, which javac compiles to {@code String.valueOf(Object)}
+   * on the mirror. A lambda counts as the method it is written in.
+   */
+  private static Stream<String> typeRenderingsIn(JavaClass javaClass) {
+    return ClassFile.of().parse(bytesOf(javaClass)).methods().stream()
+        .filter(
+            method ->
+                method.code().map(MethodCode::of).filter(MethodCode::rendersAType).isPresent())
+        .map(method -> javaClass.getSimpleName() + "." + writtenIn(method));
+  }
+
+  /** The method a compiled method was written in: a lambda's body is compiled into its own. */
+  private static String writtenIn(MethodModel method) {
+    return method.methodName().stringValue().replaceFirst("^lambda\\$(.+)\\$\\d+$", "$1");
+  }
+
+  private static byte[] bytesOf(JavaClass javaClass) {
+    Source source = javaClass.getSource().orElseThrow();
+    try (InputStream in = source.getUri().toURL().openStream()) {
+      return in.readAllBytes();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * One method's instructions, with its local variables placed against them.
+   *
+   * <p>The type of a value on the stack is read from the instruction that pushed it: a call's
+   * return type, a field's, a cast's target, a local's declared type, or an array local's element
+   * type where a constant index loads from it. A value computed any other way is not traced: a
+   * generic call reads as its erased return type, and a conditional, an assignment or a computed
+   * index is not read at all. Nor does the rule see an append, a format or a method reference, none
+   * of which a message uses.
+   */
+  private record MethodCode(
+      List<Instruction> instructions, List<LocalVariable> locals, Map<Label, Integer> positions) {
+
+    static MethodCode of(CodeModel code) {
+      List<Instruction> instructions = new ArrayList<>();
+      List<LocalVariable> locals = new ArrayList<>();
+      Map<Label, Integer> positions = new HashMap<>();
+      for (CodeElement element : code) {
+        switch (element) {
+          case Instruction instruction -> instructions.add(instruction);
+          case LocalVariable local -> locals.add(local);
+          case LabelTarget target -> positions.put(target.label(), instructions.size());
+          default -> {}
+        }
+      }
+      return new MethodCode(List.copyOf(instructions), List.copyOf(locals), Map.copyOf(positions));
+    }
+
+    boolean rendersAType() {
+      return IntStream.range(0, instructions.size()).anyMatch(this::rendersATypeAt);
+    }
+
+    private boolean rendersATypeAt(int at) {
+      if (!(instructions.get(at) instanceof InvokeInstruction call)) {
+        return false;
+      }
+      String name = call.name().stringValue();
+      String descriptor = call.typeSymbol().descriptorString();
+      if (name.equals("toString") && descriptor.equals("()Ljava/lang/String;")) {
+        return isTypeMirror(call.owner().asSymbol());
+      }
+      return call.owner().asInternalName().equals("java/lang/String")
+          && name.equals("valueOf")
+          && descriptor.equals("(Ljava/lang/Object;)Ljava/lang/String;")
+          && isTypeMirror(pushedAt(at - 1));
+    }
+
+    private ClassDesc pushedAt(int at) {
+      return switch (instructions.get(at)) {
+        case InvokeInstruction call -> call.typeSymbol().returnType();
+        case FieldInstruction field -> field.typeSymbol();
+        case TypeCheckInstruction check when check.opcode() == Opcode.CHECKCAST ->
+            check.type().asSymbol();
+        case LoadInstruction load when load.typeKind() == TypeKind.REFERENCE -> localAt(load, at);
+        case ArrayLoadInstruction load when load.typeKind() == TypeKind.REFERENCE -> {
+          ClassDesc array = pushedAt(at - 2);
+          yield array.isArray() ? array.componentType() : ConstantDescs.CD_Object;
+        }
+        default -> ConstantDescs.CD_Object;
+      };
+    }
+
+    private ClassDesc localAt(LoadInstruction load, int at) {
+      return locals.stream()
+          .filter(local -> local.slot() == load.slot())
+          .filter(local -> positions.getOrDefault(local.startScope(), 0) <= at)
+          .filter(local -> at < positions.getOrDefault(local.endScope(), instructions.size()))
+          .map(LocalVariable::typeSymbol)
+          .findFirst()
+          .orElse(ConstantDescs.CD_Object);
+    }
+
+    private static boolean isTypeMirror(ClassDesc type) {
+      if (!type.isClassOrInterface() || !type.packageName().equals("javax.lang.model.type")) {
+        return false;
+      }
+      try {
+        return TypeMirror.class.isAssignableFrom(
+            Class.forName(type.packageName() + "." + type.displayName()));
+      } catch (ClassNotFoundException e) {
+        return false;
+      }
+    }
   }
 
   /** The interface whose choosing methods only the registry may consult. */

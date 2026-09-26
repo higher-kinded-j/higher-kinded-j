@@ -51,17 +51,19 @@ class ProcessorUtilsTest {
   }
 
   /**
-   * Contract tests for {@link ProcessorUtils#simpleTypeName}, driven through a real compilation so
-   * the type mirrors are javac's own. The subject declares one probe method per shape; each
-   * method's single parameter type is rendered and captured under the method's name.
+   * Contract tests for {@link ProcessorUtils#simpleTypeName} and {@link
+   * ProcessorUtils#qualifiedTypeName}, driven through a real compilation so the type mirrors are
+   * javac's own. The subject declares one probe method per shape; each method's single parameter
+   * type is rendered both ways and captured under the method's name.
    */
   @Nested
-  @DisplayName("simpleTypeName")
-  class SimpleTypeName {
+  @DisplayName("simpleTypeName and qualifiedTypeName")
+  class DiagnosticTypeNames {
 
     /** Renders each probe method's parameter type, keyed by method name. */
     private static final class CapturingProcessor extends AbstractProcessor {
       private final Map<String, String> rendered = new LinkedHashMap<>();
+      private final Map<String, String> qualified = new LinkedHashMap<>();
       private final Map<String, TypeKind> kinds = new LinkedHashMap<>();
 
       @Override
@@ -84,6 +86,9 @@ class ProcessorUtilsTest {
           VariableElement parameter = method.getParameters().getFirst();
           rendered.put(
               method.getSimpleName().toString(), ProcessorUtils.simpleTypeName(parameter.asType()));
+          qualified.put(
+              method.getSimpleName().toString(),
+              ProcessorUtils.qualifiedTypeName(parameter.asType()));
           kinds.put(method.getSimpleName().toString(), parameter.asType().getKind());
         }
         for (TypeKind kind :
@@ -104,13 +109,15 @@ class ProcessorUtilsTest {
           TypeVariable variable = (TypeVariable) subject.getTypeParameters().getFirst().asType();
           rendered.put(
               "intersectionBound", ProcessorUtils.simpleTypeName(variable.getUpperBound()));
+          qualified.put(
+              "intersectionBound", ProcessorUtils.qualifiedTypeName(variable.getUpperBound()));
         }
         return false;
       }
     }
 
     @Test
-    @DisplayName("renders by element and arguments: annotations out, packages off, nesting kept")
+    @DisplayName("renders structurally: annotations out, nesting kept, packages dropped or kept")
     void rendersByElementAndArguments() {
       var subject =
           JavaFileObjects.forSourceString(
@@ -125,7 +132,7 @@ class ProcessorUtilsTest {
               import java.util.Set;
 
               @SuppressWarnings("rawtypes")
-              abstract class Named<T extends CharSequence & Runnable> {
+              abstract class Named<T extends @Named.Nully CharSequence & Runnable> {
                   @Target(ElementType.TYPE_USE)
                   @interface Nully {}
 
@@ -159,8 +166,9 @@ class ProcessorUtilsTest {
       CapturingProcessor processor = new CapturingProcessor();
       javac().withProcessors(processor).compile(subject);
 
-      // The annotated rows pin #759; the rest characterise the rendering the old string form
-      // already produced, so a change to any of them is a message change across the module.
+      // The annotated rows pin that a type-use annotation never enters; the rest characterise the
+      // rendering the old string form already produced, so a change to any of them is a message
+      // change across the module.
       assertThat(processor.rendered)
           .containsEntry("plain", "List<String>")
           .containsEntry("spacedArguments", "Map<String, Integer>")
@@ -186,6 +194,23 @@ class ProcessorUtilsTest {
           .containsEntry("primitive:FLOAT", "float")
           .containsEntry("primitive:DOUBLE", "double")
           .containsEntry("intersectionBound", "Object&CharSequence&Runnable");
+      // The same walk with every package kept, which is what a fix line pastes: the annotated
+      // rows lose the annotation here too, and argument lists are spaced as the simple ones are.
+      assertThat(processor.qualified)
+          .containsEntry("plain", "java.util.List<java.lang.String>")
+          .containsEntry("spacedArguments", "java.util.Map<java.lang.String, java.lang.Integer>")
+          .containsEntry("annotatedTop", "java.util.Set<?>")
+          .containsEntry("annotatedArgument", "java.util.List<java.lang.String>")
+          .containsEntry("wildcardExtends", "java.util.List<? extends java.lang.Number>")
+          .containsEntry("wildcardSuper", "java.util.List<? super java.lang.Number>")
+          .containsEntry("typeVariable", "T")
+          .containsEntry("annotatedPrimitive", "int")
+          .containsEntry("annotatedArrayComponent", "java.lang.String[]")
+          .containsEntry("staticNested", "com.test.Named.Registry.Tag")
+          .containsEntry("innerOfGeneric", "com.test.Named<java.lang.String>.Holder")
+          .containsEntry("rawSite", "java.util.List")
+          .containsEntry(
+              "intersectionBound", "java.lang.Object&java.lang.CharSequence&java.lang.Runnable");
     }
 
     @Test
@@ -203,6 +228,12 @@ class ProcessorUtilsTest {
       assertThat(ProcessorUtils.stripAnnotations("@A")).isEmpty();
       assertThat(ProcessorUtils.stripAnnotations("@A(")).isEmpty();
       assertThat(ProcessorUtils.stripAnnotations("@A(1)X")).isEqualTo("X");
+      // the dot before an annotation joins a name to what encloses it, unless nothing does
+      assertThat(ProcessorUtils.stripAnnotations("com.a.@A Money")).isEqualTo("com.a.Money");
+      assertThat(ProcessorUtils.stripAnnotations("Missing.@A Inner")).isEqualTo("Missing.Inner");
+      assertThat(ProcessorUtils.stripAnnotations("Outer<X>.@A Inner")).isEqualTo("Outer<X>.Inner");
+      assertThat(ProcessorUtils.stripAnnotations("List<.@A Missing>")).isEqualTo("List<Missing>");
+      assertThat(ProcessorUtils.stripAnnotations("Pair<X, .@A Y>")).isEqualTo("Pair<X, Y>");
     }
 
     @Test
@@ -226,9 +257,12 @@ class ProcessorUtilsTest {
 
                   abstract void unresolved(Missing p);
                   abstract void unresolvedNested(Missing.Inner p);
+                  abstract void unresolvedQualified(com.nowhere.Missing p);
                   abstract void unresolvedArguments(Missing<String, Integer> p);
                   abstract void annotatedUnresolved(@Ranged(from = 0) Missing p);
                   abstract void quotedUnresolved(@Labelled(")") Missing p);
+                  abstract void annotatedQualifiedUnresolved(com.nowhere.@Ranged(from = 0) Gone p);
+                  abstract void annotatedNestedUnresolved(Missing.@Ranged(from = 0) Inner p);
               }
               """);
 
@@ -243,9 +277,21 @@ class ProcessorUtilsTest {
       assertThat(processor.rendered)
           .containsEntry("unresolved", "Missing")
           .containsEntry("unresolvedNested", "Missing.Inner")
+          .containsEntry("unresolvedQualified", "Missing")
           .containsEntry("unresolvedArguments", "Missing<String, Integer>")
           .containsEntry("annotatedUnresolved", "Missing")
-          .containsEntry("quotedUnresolved", "Missing");
+          .containsEntry("quotedUnresolved", "Missing")
+          .containsEntry("annotatedQualifiedUnresolved", "Gone")
+          .containsEntry("annotatedNestedUnresolved", "Missing.Inner");
+      assertThat(processor.qualified)
+          .containsEntry("unresolved", "Missing")
+          .containsEntry("unresolvedNested", "Missing.Inner")
+          .containsEntry("unresolvedQualified", "com.nowhere.Missing")
+          .containsEntry("unresolvedArguments", "Missing<java.lang.String, java.lang.Integer>")
+          .containsEntry("annotatedUnresolved", "Missing")
+          .containsEntry("quotedUnresolved", "Missing")
+          .containsEntry("annotatedQualifiedUnresolved", "com.nowhere.Gone")
+          .containsEntry("annotatedNestedUnresolved", "Missing.Inner");
     }
   }
 
