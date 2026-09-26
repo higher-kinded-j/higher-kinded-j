@@ -120,7 +120,7 @@ class DiagnosticsTest {
   }
 
   @Test
-  @DisplayName("reportAt guards what it locates by")
+  @DisplayName("reportAt rejects a null messager, kind, element or annotation")
   void reportAtGuardsItsPosition() {
     AnnotationMirror mirror = unusable(AnnotationMirror.class);
     assertThatNullPointerException()

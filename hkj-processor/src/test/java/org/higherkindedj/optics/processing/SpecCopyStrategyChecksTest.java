@@ -8,11 +8,15 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGene
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * What a spec's copy strategy is held to: which method a generated call binds, and whether every
@@ -51,6 +55,24 @@ class SpecCopyStrategyChecksTest {
         .withProcessors(new ImportOpticsProcessor())
         .withOptions("-Xlint:unchecked,rawtypes,static", "-Werror")
         .compile(sources);
+  }
+
+  /**
+   * Compiles {@code source} beside a class {@code com.external.Gone} into a class directory, then
+   * deletes {@code Gone}, and compiles {@code spec} against the rest: the spec reads a class file
+   * naming a type missing from the classpath, which a spec in source never waits for.
+   */
+  private static Compilation compileAgainstAClassFileMissingGone(
+      Path dir, JavaFileObject source, JavaFileObject spec) throws IOException {
+    Compilation upstream = javac().compile(source, external("Gone", "public final class Gone {}"));
+    assertThat(upstream).succeeded();
+    Path classes = GeneratorTestHelper.classDirectory(upstream, dir);
+    Files.delete(classes.resolve("com/external/Gone.class"));
+    return javac()
+        .withProcessors(new ImportOpticsProcessor())
+        .withOptions("-Xlint:unchecked,rawtypes,static", "-Werror")
+        .withClasspath(GeneratorTestHelper.classpathWith(classes))
+        .compile(spec);
   }
 
   @Nested
@@ -1829,9 +1851,10 @@ class SpecCopyStrategyChecksTest {
 
     @Test
     @DisplayName("a setter whose own type does not resolve is left to javac")
-    void setterWhoseOwnTypeDoesNotResolveIsLeftToJavac() {
+    void setterWhoseOwnTypeDoesNotResolveIsLeftToJavac(@TempDir Path dir) throws IOException {
       var compilation =
-          compile(
+          compileAgainstAClassFileMissingGone(
+              dir,
               external(
                   "Vanish",
                   """
@@ -1914,9 +1937,10 @@ class SpecCopyStrategyChecksTest {
 
     @Test
     @DisplayName("a builder type that does not resolve is left to javac")
-    void builderTypeThatDoesNotResolveIsLeftToJavac() {
+    void builderTypeThatDoesNotResolveIsLeftToJavac(@TempDir Path dir) throws IOException {
       var compilation =
-          compile(
+          compileAgainstAClassFileMissingGone(
+              dir,
               external(
                   "Absent",
                   """

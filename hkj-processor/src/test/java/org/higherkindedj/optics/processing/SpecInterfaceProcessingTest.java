@@ -10,11 +10,16 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Integration tests for spec interface processing in {@link ImportOpticsProcessor}.
@@ -2030,9 +2035,10 @@ class SpecInterfaceProcessingTest {
 
     @Test
     @DisplayName("should not blame the attribute when the hierarchy cannot be read")
-    void shouldNotRejectWhenASupertypeIsUnresolved() {
-      // Node's base is absent from the compilation, so the supertype walk reads no supertypes at
-      // all. javac reports the missing type; the attribute must not be blamed for it as well.
+    void shouldNotRejectWhenASupertypeIsUnresolved(@TempDir Path dir) throws IOException {
+      // Broken is read from a class file whose superclass is missing from the classpath, so the
+      // supertype walk reads no supertypes at all. A source type would be waited for; this one
+      // cannot be, and the attribute must not be blamed for the type javac cannot find.
       final var brokenNode =
           JavaFileObjects.forSourceString(
               "com.external.Broken",
@@ -2065,13 +2071,24 @@ class SpecInterfaceProcessingTest {
               }
               """);
 
+      final var absent =
+          JavaFileObjects.forSourceString(
+              "com.external.Absent", "package com.external;\n\npublic class Absent {}\n");
+      Compilation upstream = javac().compile(brokenNode, absent);
+      assertThat(upstream).succeeded();
+      Path classes = GeneratorTestHelper.classDirectory(upstream, dir);
+      Files.delete(classes.resolve("com/external/Absent.class"));
+
       Compilation compilation =
-          javac().withProcessors(new ImportOpticsProcessor()).compile(brokenNode, specInterface);
+          javac()
+              .withProcessors(new ImportOpticsProcessor())
+              .withClasspath(GeneratorTestHelper.classpathWith(classes))
+              .compile(specInterface);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("cannot find symbol");
       assertThat(compilation).hadErrorContaining("Absent");
-      assertThat(compilation).hadErrorCount(1);
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("@ViaCopyAndSet:"));
     }
   }
 
@@ -3350,6 +3367,14 @@ class SpecInterfaceProcessingTest {
               interface RawX {
                   Lens x();
               }
+
+              interface SourcedBits<T> {
+                  @Wither("withItems")
+                  Lens<T, List<String>> items();
+              }
+
+              @SuppressWarnings("rawtypes")
+              interface RawSourcedBits extends SourcedBits {}
               """);
       final var specs =
           JavaFileObjects.forSourceString(
@@ -3373,6 +3398,9 @@ class SpecInterfaceProcessingTest {
 
               @ImportOptics
               interface RawXSpec extends OpticsSpec<Point>, RawX {}
+
+              @ImportOptics
+              interface RawSourcedBitsSpec extends OpticsSpec<Sack>, RawSourcedBits {}
               """);
 
       var compilation = compile(POINT, SACK, mixins, specs);
@@ -3384,7 +3412,8 @@ class SpecInterfaceProcessingTest {
                   + " optics from the methods it declares itself, and reading them from another"
                   + " interface is not supported yet, so 'x' would be missing from the generated"
                   + " class. Declare 'Lens<Point, Integer> x()' on 'DefaultXSpec' itself as an"
-                  + " abstract method, with the annotation its optic needs.");
+                  + " abstract method carrying a copy strategy or hint annotation, or move the"
+                  + " composition to a static method that calls the generated statics.");
       // A raw clause erases what the spec sees, so the signature is the one the method declares.
       assertThat(compilation)
           .hadErrorContaining(
@@ -3393,7 +3422,10 @@ class SpecInterfaceProcessingTest {
       // Where the declaration has nothing better to offer, the signature is the spec's view.
       assertThat(compilation).hadErrorContaining("Declare 'Lens x()' on 'RawHasLensSpec' itself");
       assertThat(compilation).hadErrorContaining("Declare 'Lens x()' on 'RawXSpec' itself");
-      assertThat(compilation).hadErrorCount(4);
+      // A declaration naming its interface's own type parameter would not compile on the spec.
+      assertThat(compilation)
+          .hadErrorContaining("Declare 'Lens items()' on 'RawSourcedBitsSpec' itself");
+      assertThat(compilation).hadErrorCount(5);
     }
 
     @Test
@@ -3417,6 +3449,12 @@ class SpecInterfaceProcessingTest {
                   String label();
 
                   default int twice() { return count() * 2; }
+
+                  // Neither could be an optic the spec declares: one takes an argument, and one
+                  // declares a type parameter of its own.
+                  Lens<Point, Integer> at(String key);
+
+                  <T> Lens<Point, T> any();
               }
 
               @ImportOptics

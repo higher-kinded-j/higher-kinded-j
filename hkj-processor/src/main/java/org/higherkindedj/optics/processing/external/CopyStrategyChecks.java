@@ -102,9 +102,9 @@ final class CopyStrategyChecks {
       TypeElement sourceTypeElement,
       TypeMirror focusType,
       String targetPackage) {
-    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
-    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
-    // makes the cast total; 'is a declared type' on its own would not.
+    // analyse() admits a source type only when asElement gives a TypeElement, and the processor
+    // holds a spec back until its source type resolves, which leaves DECLARED alone. That is what
+    // makes the cast total.
     DeclaredType declaredSource = (DeclaredType) sourceType;
     // Every strategy reads through an accessor, and names it by the lens method where the
     // annotation does not.
@@ -792,6 +792,8 @@ final class CopyStrategyChecks {
     }
     TypeMirror builderType =
         stepType(ProcessorUtils.returnTypeIn(typeUtils, sourceType, toBuilder));
+    // A source type read from a class file can name a type missing from the classpath; one
+    // declared in source is waited for until it resolves.
     if (builderType == null || builderType.getKind() == TypeKind.ERROR) {
       return false;
     }
@@ -821,6 +823,7 @@ final class CopyStrategyChecks {
     }
     TypeMirror setType =
         stepType(ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) builderType, bound));
+    // As for the builder type, only a class-file source type can leave this unresolved.
     if (setType == null || setType.getKind() == TypeKind.ERROR) {
       return false;
     }

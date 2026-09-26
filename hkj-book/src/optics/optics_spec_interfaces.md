@@ -57,8 +57,6 @@ An interface extending `OpticsSpec<S>`, with one annotated abstract method per o
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/JsonNodeOpticsSpec.java:spec}}
 ```
 
-The spec declares `OpticsSpec<S>` and each of its optic methods itself. Inheriting `OpticsSpec<S>` or an optic method from another interface is not supported yet.
-
 `@InstanceOf` tells the processor to generate a prism that matches when the node is an instance of the given class, rebuilding through identity. From this declaration you get a class of static prisms:
 
 <!-- verify -->
@@ -294,6 +292,8 @@ interface BoxOpticsSpec extends OpticsSpec<Box<String>> {
     <X> Lens<Box<String>, X> content();
 }
 ```
+
+A spec declares `OpticsSpec<S>` and each of its optic methods itself. Inheriting `OpticsSpec<S>` or an optic method from another interface is not supported yet.
 
 ---
 

@@ -51,8 +51,9 @@ public @interface ImportOptics {
    * <p>Each class will be analysed and appropriate optics generated based on its structure.
    *
    * <p>A spec interface, one extending {@code OpticsSpec<S>} itself, reads its source type from
-   * that clause and leaves this list empty: a list there is refused. Anywhere else an empty list
-   * imports nothing, and draws a warning.
+   * that clause and leaves this list empty: a list there is refused. On a package, or on a class or
+   * interface that does not reach {@code OpticsSpec}, an empty list imports nothing and draws a
+   * warning.
    *
    * @return array of classes to import optics for
    */

@@ -2,10 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
@@ -14,29 +18,39 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import org.higherkindedj.optics.processing.external.SpecInterfaceAnalyser;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
 /**
  * Which {@code @ImportOptics} importers wait for a later round.
  *
  * <p>Another annotation processor may write, in the round an importer first appears, a type the
- * importer names: a class it lists, the source type of a spec, or a type either of those declares.
- * Such a type does not resolve until the next round. Read now, the importer would import nothing
- * for it, or generate a class naming a type that class cannot see. So an importer waits while a
- * type the generated code would name, as declared in source, does not resolve, and is looked at
- * again in the next round.
+ * importer's generated code would name or the processor would read. Such a type does not resolve
+ * until the next round. Read now, the importer would import nothing for it, refuse a copy strategy
+ * the type does support, or generate a class naming a type that class cannot see. So an importer
+ * waits while any of these, as declared in source, names a type that does not resolve, and is
+ * looked at again in the next round:
  *
- * <p>Only source declarations are asked. A class file naming a type missing from the classpath
- * would wait for a type that never comes, and javac reports nothing about it; a source declaration
- * that never resolves is javac's own error. Waiting on more than the generated code names therefore
- * delays an importer, and never loses one.
+ * <ul>
+ *   <li>a class literal it lists;
+ *   <li>a listed class, and a spec's source type: supertypes, the bounds of every type parameter in
+ *       scope, and the members a companion or a copy strategy reads, which are the ones neither
+ *       static nor private; their supertypes declared in source are read the same way;
+ *   <li>the importer itself: supertypes, the bounds of its type parameters, and its abstract
+ *       methods with the class literals their annotations carry.
+ * </ul>
+ *
+ * <p>Static members are left alone throughout, since one may name the companion the importer
+ * generates, which cannot resolve before it is generated. Only source declarations are asked: a
+ * class file naming a type missing from the classpath would wait for a type that never comes, and a
+ * source declaration that never resolves is javac's own error.
  */
 final class WaitingImporters {
 
@@ -69,8 +83,7 @@ final class WaitingImporters {
   }
 
   /**
-   * Whether an importer names a type that does not resolve yet: a literal in its class list, a type
-   * a listed class declares, or, for a class or interface importer, a type it declares itself.
+   * Whether an importer names a type that does not resolve yet.
    *
    * @param elements the element utilities of the compilation
    * @param types the type utilities of the compilation
@@ -81,59 +94,102 @@ final class WaitingImporters {
   static boolean waits(
       Elements elements, Types types, Element importer, List<AnnotationValue> listed) {
     return listed.stream().anyMatch(entry -> listsUnresolved(elements, types, entry))
-        || importer instanceof TypeElement type && declaresUnresolved(type, false);
+        || importer instanceof TypeElement type
+            && (declaresUnresolved(
+                    type, member -> member.getModifiers().contains(Modifier.ABSTRACT))
+                || sourceTypeUnresolved(elements, types, type));
   }
 
-  /**
-   * Whether a class-list entry does not resolve, or names a class declared in source whose own
-   * declaration does not. A companion writes out the types its class declares, its components,
-   * subtypes and wither parameters, so each of them has to resolve first.
-   */
+  /** Whether a class-list entry does not resolve, or names a class whose declaration does not. */
   private static boolean listsUnresolved(Elements elements, Types types, AnnotationValue entry) {
     // javac hands over a literal it cannot resolve as something other than a type.
     return !(entry.getValue() instanceof TypeMirror type)
-        || types.asElement(type) instanceof TypeElement listed
-            && ProcessorUtils.compiledFromSource(elements, listed)
-            && declaresUnresolved(listed, true);
+        || structureUnresolved(elements, types, type);
   }
 
   /**
-   * Whether a declaration names a type that does not resolve: in its supertypes, the bounds of its
-   * type parameters, or its members' signatures. A listed class is read for every member. An
-   * importer is read for its abstract methods only, the optics a spec declares, together with the
-   * class literals their annotations carry: a spec's static methods may name the class generated
-   * from it, which cannot resolve before it is generated.
-   *
-   * @param type the declaration to read
-   * @param everyMember true to read every member, false for the abstract methods alone
+   * Whether a spec's source type, as its {@code OpticsSpec} clause names it, has a declaration that
+   * does not resolve. The copy strategies read its members, and inherited ones with them.
    */
-  private static boolean declaresUnresolved(TypeElement type, boolean everyMember) {
-    List<? extends Element> members =
-        type.getEnclosedElements().stream()
-            .filter(member -> everyMember || member.getModifiers().contains(Modifier.ABSTRACT))
-            .toList();
+  private static boolean sourceTypeUnresolved(Elements elements, Types types, TypeElement type) {
+    DeclaredType clause = SpecInterfaceAnalyser.declaredOpticsSpec(type);
+    // A raw clause names no source type, and so none to read.
+    return clause != null
+        && clause.getTypeArguments().stream()
+            .anyMatch(argument -> structureUnresolved(elements, types, argument));
+  }
+
+  /**
+   * Whether the class or interface a type names, where declared in source, or one of its supertypes
+   * declared in source, names a type that does not resolve. Each is read once.
+   */
+  private static boolean structureUnresolved(Elements elements, Types types, TypeMirror type) {
+    Deque<TypeElement> pending = new ArrayDeque<>();
+    Set<TypeElement> seen = new HashSet<>();
+    Stream.of(types.asElement(type))
+        .filter(TypeElement.class::isInstance)
+        .map(TypeElement.class::cast)
+        .filter(element -> ProcessorUtils.compiledFromSource(elements, element))
+        .filter(seen::add)
+        .forEach(pending::add);
+    while (!pending.isEmpty()) {
+      TypeElement declaration = pending.pop();
+      if (declaresUnresolved(declaration, WaitingImporters::readFromOutside)) {
+        return true;
+      }
+      supertypesOf(declaration)
+          .map(supertype -> (TypeElement) supertype.asElement())
+          .filter(supertype -> ProcessorUtils.compiledFromSource(elements, supertype))
+          .filter(seen::add)
+          .forEach(pending::add);
+    }
+    return false;
+  }
+
+  /** A member a companion or a copy strategy reads: one neither static nor private. */
+  private static boolean readFromOutside(Element member) {
+    Set<Modifier> modifiers = member.getModifiers();
+    return !modifiers.contains(Modifier.STATIC) && !modifiers.contains(Modifier.PRIVATE);
+  }
+
+  /** A type's direct superclass and super-interfaces, as the declared types they are. */
+  private static Stream<DeclaredType> supertypesOf(TypeElement type) {
+    return Stream.concat(Stream.of(type.getSuperclass()), type.getInterfaces().stream())
+        .filter(DeclaredType.class::isInstance)
+        .map(DeclaredType.class::cast);
+  }
+
+  /**
+   * Whether a declaration names a type that does not resolve: in its supertypes, the bounds of
+   * every type parameter in scope, or the signatures of the members {@code read} selects, together
+   * with the class literals their annotations carry.
+   */
+  private static boolean declaresUnresolved(TypeElement type, Predicate<Element> read) {
+    List<? extends Element> members = type.getEnclosedElements().stream().filter(read).toList();
     return Stream.of(
                 Stream.of(type.getSuperclass()),
                 type.getInterfaces().stream(),
                 type.getPermittedSubclasses().stream(),
-                type.getTypeParameters().stream()
+                ProcessorUtils.typeParametersInScope(type).stream()
                     .flatMap(parameter -> parameter.getBounds().stream()),
-                members.stream().flatMap(WaitingImporters::signature))
+                ElementFilter.fieldsIn(members).stream().map(Element::asType),
+                Stream.concat(
+                        ElementFilter.methodsIn(members).stream(),
+                        ElementFilter.constructorsIn(members).stream())
+                    .flatMap(WaitingImporters::signature))
             .<TypeMirror>flatMap(Function.identity())
             .anyMatch(WaitingImporters::unresolved)
         || members.stream().anyMatch(WaitingImporters::carriesUnresolvedClass);
   }
 
-  /** The types a member's declaration names: a method's return and parameters, a field's type. */
-  private static Stream<TypeMirror> signature(Element member) {
-    return switch (member) {
-      case ExecutableElement executable ->
-          Stream.concat(
-              Stream.of(executable.getReturnType()),
-              executable.getParameters().stream().map(Element::asType));
-      case VariableElement field -> Stream.of(field.asType());
-      default -> Stream.empty();
-    };
+  /** The types a method or constructor names: its return, parameters and type-parameter bounds. */
+  private static Stream<TypeMirror> signature(ExecutableElement executable) {
+    return Stream.of(
+            Stream.of(executable.getReturnType()),
+            executable.getParameters().stream().map(Element::asType),
+            executable.getTypeParameters().stream()
+                .flatMap(parameter -> parameter.getBounds().stream()))
+        .<TypeMirror>flatMap(Function.identity());
   }
 
   /**
@@ -155,7 +211,7 @@ final class WaitingImporters {
 
   /**
    * Whether a type, or a type it is built from, does not resolve. A type variable is not opened:
-   * its bounds are read where it is declared.
+   * the bounds of each one in scope are read where it is declared.
    */
   private static boolean unresolved(TypeMirror type) {
     return switch (type.getKind()) {

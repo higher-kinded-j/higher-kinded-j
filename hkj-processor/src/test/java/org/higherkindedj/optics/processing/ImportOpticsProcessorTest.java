@@ -1494,10 +1494,43 @@ class ImportOpticsProcessorTest {
       var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(enumSource);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("@ImportOptics: cannot be applied to 'Colour'");
+      assertThat(compilation)
+          .hadErrorContaining("@ImportOptics: cannot be applied to enum 'Colour'.");
       assertThat(compilation)
           .hadErrorContaining(
-              "Move the annotation to a package-info.java, a class or an interface.");
+              "Move the annotation to a package-info.java, or to a class or interface that is not"
+                  + " a record, an enum or an annotation interface.");
+    }
+
+    @Test
+    @DisplayName("should name a record or an annotation interface it cannot be applied to")
+    void shouldNameTheKindItCannotBeAppliedTo() {
+      final var sources =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Placements",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({java.lang.String.class})
+              record Named(String name) {}
+
+              @ImportOptics({java.lang.String.class})
+              @interface Marker {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(sources);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ImportOptics: cannot be applied to record 'Named'. It is read on a"
+                  + " package-info.java, on a class or interface listing the types to import, or"
+                  + " on an interface extending OpticsSpec<S>, and a record is none of those.");
+      assertThat(compilation)
+          .hadErrorContaining("@ImportOptics: cannot be applied to annotation interface 'Marker'.");
+      assertThat(compilation).hadErrorCount(2);
     }
 
     @Test

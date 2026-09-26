@@ -155,7 +155,9 @@ class ImportOpticsRoundsTest {
               """
               package com.myapp;
 
-              public record Order(com.gen.Widget widget, int count) {}
+              import com.gen.Widget;
+
+              public record Order(Widget widget, int count) {}
               """);
       var importer =
           source(
@@ -297,6 +299,224 @@ class ImportOpticsRoundsTest {
     }
 
     @Test
+    @DisplayName("a spec's source type implementing a written interface is read once it resolves")
+    void sourceTypeImplementingAWrittenInterfaceIsRead() {
+      // The wither comes from the written interface, as a generated 'With' interface supplies it;
+      // read in the first round, the spec was refused for lacking it.
+      var person =
+          source(
+              "com.myapp.Person",
+              """
+              package com.myapp;
+
+              public record Person(String name) implements com.gen.PersonWith {}
+              """);
+      var spec =
+          source(
+              "com.myapp.PersonOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              interface PersonOpticsSpec extends OpticsSpec<Person> {
+                  @Wither(value = "withName", getter = "name")
+                  Lens<Person, String> name();
+              }
+              """);
+
+      var compilation =
+          compile(
+              Map.of(
+                  "com.gen.PersonWith",
+                  """
+                  package com.gen;
+
+                  import com.myapp.Person;
+
+                  public interface PersonWith {
+                      default Person withName(String name) { return new Person(name); }
+                  }
+                  """),
+              person,
+              spec);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.PersonOptics").isNotNull();
+    }
+
+    @Test
+    @DisplayName("a spec's source type is read through its source superclass once that resolves")
+    void sourceTypeIsReadThroughItsSourceSuperclass() {
+      // The wither reaches the source type through a superclass declared in source, which
+      // implements the written interface supplying it.
+      var person =
+          source(
+              "com.myapp.Person",
+              """
+              package com.myapp;
+
+              abstract class PersonBase implements com.gen.PersonWith {}
+
+              public final class Person extends PersonBase {
+                  private final String name;
+
+                  public Person(String name) { this.name = name; }
+
+                  public String name() { return name; }
+              }
+              """);
+      var spec =
+          source(
+              "com.myapp.PersonOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics
+              interface PersonOpticsSpec extends OpticsSpec<Person> {
+                  @Wither(value = "withName", getter = "name")
+                  Lens<Person, String> name();
+              }
+              """);
+
+      var compilation =
+          compile(
+              Map.of(
+                  "com.gen.PersonWith",
+                  """
+                  package com.gen;
+
+                  import com.myapp.Person;
+
+                  public interface PersonWith {
+                      default Person withName(String name) { return new Person(name); }
+                  }
+                  """),
+              person,
+              spec);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.PersonOptics").isNotNull();
+    }
+
+    @Test
+    @DisplayName("a spec over a source type with a written builder is checked against it")
+    void specOverASourceTypeWithAWrittenBuilderIsChecked() {
+      // Read in the first round, the builder did not resolve, the setter could not be checked,
+      // and the misspelling surfaced inside the generated file.
+      var person =
+          source(
+              "com.myapp.Person",
+              """
+              package com.myapp;
+
+              public final class Person {
+                  private final String name;
+
+                  public Person(String name) { this.name = name; }
+
+                  public String name() { return name; }
+
+                  public com.gen.PersonBuilder toBuilder() { return new com.gen.PersonBuilder(name); }
+              }
+              """);
+      var spec =
+          source(
+              "com.myapp.PersonOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+
+              @ImportOptics
+              interface PersonOpticsSpec extends OpticsSpec<Person> {
+                  @ViaBuilder(setter = "nmae")
+                  Lens<Person, String> name();
+              }
+              """);
+
+      var compilation =
+          compile(
+              Map.of(
+                  "com.gen.PersonBuilder",
+                  """
+                  package com.gen;
+
+                  import com.myapp.Person;
+
+                  public final class PersonBuilder {
+                      private String name;
+
+                      public PersonBuilder(String name) { this.name = name; }
+
+                      public PersonBuilder name(String name) { this.name = name; return this; }
+
+                      public Person build() { return new Person(name); }
+                  }
+                  """),
+              person,
+              spec);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("'nmae'").inFile(spec);
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("an inner class under an enclosing parameter bounded by a written type waits")
+    void innerClassUnderABoundByAWrittenTypeWaits() {
+      // The companion declares every type parameter in scope, the enclosing class's with its bound.
+      var outer =
+          source(
+              "com.myapp.Outer",
+              """
+              package com.myapp;
+
+              import com.gen.Widget;
+
+              public class Outer<T extends Widget> {
+                  public final class Inner {
+                      private final int x;
+
+                      public Inner(int x) { this.x = x; }
+
+                      public int x() { return x; }
+
+                      public Inner withX(int x) { return new Inner(x); }
+                  }
+              }
+              """);
+      var importer =
+          source(
+              "com.myapp.InnerImports",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({Outer.Inner.class})
+              class InnerImports {}
+              """);
+
+      var compilation = compile(Map.of("com.gen.Widget", WIDGET), outer, importer);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.InnerLenses").isNotNull();
+    }
+
+    @Test
     @DisplayName("an interface extending a written spec base is refused once it resolves")
     void interfaceExtendingAWrittenSpecBaseIsRefused() {
       // Read in the first round, its supertype did not resolve, and nothing was said.
@@ -388,6 +608,39 @@ class ImportOpticsRoundsTest {
 
       assertThat(compilation).succeededWithoutWarnings();
       assertThat(compilation).generatedSourceFile("com.myapp.PointOptics").isNotNull();
+    }
+
+    @Test
+    @DisplayName("a listed class's static method naming its companion does not hold it back")
+    void listedClassStaticMethodNamingItsCompanionDoesNotHoldItBack() {
+      var point =
+          source(
+              "com.myapp.Point",
+              """
+              package com.myapp;
+
+              public record Point(int x) {
+                  public static PointLenses lenses() {
+                      return null;
+                  }
+              }
+              """);
+      var importer =
+          source(
+              "com.myapp.PointImports",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({Point.class})
+              class PointImports {}
+              """);
+
+      var compilation = compile(Map.of(), point, importer);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.PointLenses").isNotNull();
     }
 
     @Test

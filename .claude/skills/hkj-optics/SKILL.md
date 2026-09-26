@@ -323,7 +323,7 @@ Generates `LocalDateLenses` with `year()`, `dayOfMonth()` and `dayOfYear()` by a
 
 ### Full Control: `OpticsSpec`
 
-`OpticsSpec<S>` is a marker interface. Declare an interface that extends it, annotate the interface with `@ImportOptics`, and declare the optics you want via abstract methods with `@InstanceOf` prisms:
+`OpticsSpec<S>` is a marker interface. Declare an interface that extends it directly, annotate the interface with `@ImportOptics`, and declare the optics you want via abstract methods with `@InstanceOf` prisms:
 
 <!-- verify -->
 ```java

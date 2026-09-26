@@ -126,16 +126,32 @@ public class ImportOpticsProcessor extends AbstractProcessor {
     switch (element.getKind()) {
       case PACKAGE -> processPackage((PackageElement) element, importOptics);
       case INTERFACE, CLASS -> processImporter((TypeElement) element, importOptics);
-      default ->
-          Diagnostics.error(
-              processingEnv.getMessager(),
-              element,
-              "@ImportOptics",
-              "cannot be applied to '" + element.getSimpleName() + "'.",
-              "It is read on a package-info.java, on a class or interface listing the types to"
-                  + " import, or on an interface extending OpticsSpec<S>.",
-              "Move the annotation to a package-info.java, a class or an interface.");
+      default -> reportPlacement(element);
     }
+  }
+
+  /**
+   * Refuses {@code @ImportOptics} on a record, an enum or an annotation interface, naming which: to
+   * the language each is a kind of class or interface, so the kind found is what tells them apart.
+   */
+  private void reportPlacement(Element element) {
+    String kind =
+        switch (element.getKind()) {
+          case RECORD -> "record";
+          case ENUM -> "enum";
+          default -> "annotation interface";
+        };
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        element,
+        "@ImportOptics",
+        "cannot be applied to " + kind + " '" + element.getSimpleName() + "'.",
+        "It is read on a package-info.java, on a class or interface listing the types to import,"
+            + " or on an interface extending OpticsSpec<S>, and a "
+            + kind
+            + " is none of those.",
+        "Move the annotation to a package-info.java, or to a class or interface that is not a"
+            + " record, an enum or an annotation interface.");
   }
 
   private void processPackage(PackageElement pkg, AnnotationMirror importOptics) {
@@ -154,8 +170,7 @@ public class ImportOpticsProcessor extends AbstractProcessor {
    */
   private void processImporter(TypeElement type, AnnotationMirror importOptics) {
     List<AnnotationValue> listed = listedClasses(importOptics);
-    if (type.getKind() == ElementKind.INTERFACE
-        && SpecInterfaceAnalyser.declaredOpticsSpec(type) != null) {
+    if (SpecInterfaceAnalyser.isSpecInterface(type)) {
       processSpecInterface(type, importOptics, listed);
     } else if (!listed.isEmpty()) {
       importListed(type, importOptics, listed, packageOf(type));
