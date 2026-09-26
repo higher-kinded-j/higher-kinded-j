@@ -25,7 +25,7 @@ The `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/o
 3. [Fluent & Free DSL](fluent_free_journey.md) - Fluent API, advanced Prisms, Free Monad DSL
 4. [Focus DSL](focus_dsl_journey.md) - Type-safe path navigation, container widening
 5. [Batching & Coupled Updates](batching_journey.md) - Request batching, guardrails, coupled lenses
-6. [Boundary Mapping](boundary_mapping_journey.md) - Multi-edit, ValidatedPrism, generated record mapping
+6. [Boundary Mapping](boundary_mapping_journey.md) - Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases
 
 ---
 
@@ -38,7 +38,7 @@ At a glance:
 | [Fluent & Free DSL](fluent_free_journey.md) | ~35 min | 22 |
 | [Focus DSL](focus_dsl_journey.md) | ~35 min | 29 |
 | [Batching & Coupled Updates](batching_journey.md) | ~40 min | 13 |
-| [Boundary Mapping](boundary_mapping_journey.md) | ~35 min | 13 |
+| [Boundary Mapping](boundary_mapping_journey.md) | ~50 min | 19 |
 
 ---
 

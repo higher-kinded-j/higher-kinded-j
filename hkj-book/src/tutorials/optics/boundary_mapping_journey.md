@@ -5,12 +5,13 @@
 - `ValidatedPrism`: parse-don't-validate as an optic, with both round-trip laws
 - `@GenerateMapping`: the whole domain ↔ DTO boundary derived from a spec interface
 - Located errors end to end: leaves, nesting, renames, and the sparse PATCH sibling
+- The edge cases: a `null`, a list index, a left-out field, a record's own rule, and a PATCH bean's default
 ~~~
 
-**Duration**: ~35 minutes | **Tutorials**: 3 (T24-T26) | **Exercises**: 13
+**Duration**: ~50 minutes | **Tutorials**: 4 (T24-T27) | **Exercises**: 19
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
-This journey is the hands-on lane for the [Mapping at the Boundary](../../mapping/ch_intro.md) chapter. Tutorial 24 builds the update-side machinery by hand (`Edits.combine` / `Edits.accumulate`), Tutorial 25 builds the leaf every fallible correspondence rests on (`ValidatedPrism`), and Tutorial 26 lets the processor derive the whole boundary and proves it lawful. The [capstone](../../mapping/capstone.md) then shows the same machinery at full scale.
+This journey is the hands-on lane for the [Mapping at the Boundary](../../mapping/ch_intro.md) chapter. Tutorial 24 builds the update-side machinery by hand (`Edits.combine` / `Edits.accumulate`), Tutorial 25 builds the leaf every fallible correspondence rests on (`ValidatedPrism`), and Tutorial 26 lets the processor derive the whole boundary and proves it lawful. Tutorial 27 takes it to the edge cases a real request brings. The [capstone](../../mapping/capstone.md) then shows the same machinery at full scale.
 ~~~
 
 **Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md); the accumulating-assembly exercises in the [Error Handling Journey](../coretypes/error_handling_journey.md) help with Tutorials 25-26.
@@ -20,9 +21,9 @@ This journey is the hands-on lane for the [Mapping at the Boundary](../../mappin
 A service boundary has two directions and two failure styles: outbound rendering that cannot fail, and inbound parsing that should report *every* problem, located. This journey builds that boundary from its parts, then generates it:
 
 ```
-Edits.accumulate          ValidatedPrism            @GenerateMapping
-(hand-written fold)  ──▶  (the fallible leaf)  ──▶  (the derived boundary)
-     T24                       T25                       T26
+Edits.accumulate          ValidatedPrism            @GenerateMapping           edge cases
+(hand-written fold)  ──▶  (the fallible leaf)  ──▶  (the derived boundary) ──▶ (nulls, lists, defaults)
+     T24                       T25                       T26                      T27
 ```
 
 ---
@@ -72,9 +73,29 @@ The boundary, generated: `@GenerateMapping` derives a total `build` and an accum
 
 ---
 
+## Tutorial 27: Boundary Edge Cases (~15 minutes)
+**File**: `Tutorial27_BoundaryEdgeCases.java` | **Exercises**: 6
+
+| Exercise | The request | Where it lands |
+|---|---|---|
+| 1 | A `null` id, and a guest with no email | `id: must not be null`, beside `guest.email: must not be null` |
+| 2 | A bad email on the second guest in a list | `guests.1.email`, located by its index |
+| 3 | A room request that leaves its note out | `Optional.empty()`, because `@OptionalBridge` says `null` means absent |
+| 4 | A stay that ends before it starts | the record's own path, carrying its constructor's message |
+| 5 | An empty PATCH | no change, as the sparse identity law checks |
+| Diagnostic | An empty PATCH on a bean with `marketingOptIn = false` | the opt-in overwritten, which the law catches only if the sample differs from the default |
+
+A real request is rarely just a bad value. It leaves a field out, sends a list with one bad element, breaks a rule that spans two fields, or arrives as a PATCH bean that fills in a value nobody sent. Each exercise asks where that request lands. Its specs sit beside Tutorial 26's.
+
+**Key insight**: every edge case ends up as a value in the `Validated`, never as an exception, except the one no compiler can see. For that one you need a law, and a sample chosen to catch it.
+
+---
+
 ~~~admonish tip title="See Also"
 - [Mapping at the Boundary](../../mapping/ch_intro.md) - The reference chapter this journey practises
 - [Capstone: One 422, Every Bad Field](../../mapping/capstone.md) - The same machinery at full scale
+- [Absent Fields and Record Invariants](../../mapping/absence.md) - Tutorial 27's `@OptionalBridge` and invariant rules in full
+- [Sparse PATCH](../../mapping/beans_patch.md) - Why a PATCH bean must leave its fields uninitialised
 - [Multi-Edit and Sparse Updates](../../optics/multi_edit.md) - Tutorial 24's reference page
 - [Validated Prisms](../../optics/validated_prism.md) - Tutorial 25's reference page
 ~~~
