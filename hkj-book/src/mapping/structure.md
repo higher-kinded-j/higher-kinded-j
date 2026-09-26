@@ -117,13 +117,13 @@ Where this lives: [Nesting a spec, and a list of them](#nesting-containers-and-r
 ~~~
 
 ~~~admonish question title="Checkpoint: whose list is it?" id="check-structure-copy"
-`Memo` and `MemoDto` both hold a `List<String> tags`, and `MemoMapping` is empty:
+`OrderNote` and `OrderNoteDto` both hold a `List<String> tags`, and `OrderNoteMapping` is empty:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:memo_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:order_note_spec}}
 ```
 
-A controller parses a `MemoDto` whose `tags` is the `ArrayList` Jackson bound, holding `"vip"`. A later filter clears that `ArrayList`. What does the parsed memo's `tags()` hold then, and what does `memo.tags().add("urgent")` do?
+A controller parses an `OrderNoteDto` whose `tags` is the `ArrayList` Jackson bound, holding `"vip"`. A later filter clears that `ArrayList`. What does the parsed note's `tags()` hold then, and what does `note.tags().add("urgent")` do?
 
 1. Nothing, and the add succeeds
 2. `"vip"`, and the add succeeds
@@ -132,13 +132,13 @@ A controller parses a `MemoDto` whose `tags` is the `ArrayList` Jackson bound, h
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-structure-copy-answer"
-**3.** `tags` is declared `List` and needs no conversion, so `parse` copies it, and the copy is unmodifiable. Clearing the request's list cannot reach the memo, and adding to the memo's list throws:
+**3.** `tags` is declared `List` and needs no conversion, so `parse` copies it, and the copy is unmodifiable. Clearing the request's list cannot reach the note, and adding to the note's list throws:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StructureBookTest.java:check_copy}}
 ```
 
-Build a new `Memo` with the tags you want, or copy them first with `new ArrayList<>(memo.tags())`.
+Build a new `OrderNote` with the tags you want, or copy them first with `new ArrayList<>(note.tags())`.
 
 Where this lives: [Nesting a spec, and a list of them](#nesting-containers-and-recursion).
 ~~~
@@ -175,11 +175,11 @@ A `Set`, an array, an `Optional` and a `Map` lift like a `List`. Each locates a 
 
 | Component | Lifts through the element's leaf or spec | A failure locates by |
 | --- | --- | --- |
-| `List<E>` | ✅ | its **index**: `emails.1`, or `customers.1.email` through a nested spec |
-| `E[]` | ✅ | its **index**, exactly as a list |
-| `Set<E>` | ✅ | the **element's own rendering** (`emails.nope`), since a set has no index |
+| `List<E>` | ✅ | its **index**: `lines.1`, or `invitees.1.email` through a nested spec |
+| `E[]` | ✅ | its **index**, exactly as a list: `standby.1` |
+| `Set<E>` | ✅ | the **element's own rendering** (`agents.nope`), since a set has no index |
 | `Optional<E>` on both sides | ✅ | the component itself, since there is only one element |
-| `Map<K, V>` | ✅ values, and keys with [`@MapKey`](#converting-map-keys) | the **source key**: `attributes.en.email` |
+| `Map<K, V>` | ✅ values, and keys with [`@MapKey`](#converting-map-keys) | the **source key**: `notes.bad-key` |
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:widened_spec}}
@@ -191,11 +191,11 @@ A domain `Optional` against a plain nullable wire component is the [bridge](#opt
 
 An array that needs no conversion crosses as a clone. A record compares an array by reference, so a record with an array and no `equals` of its own is not equal to its own round trip.
 
-The generated Impl calls a nested spec as it would a leaf, through its `asValidatedPrism()`, so recursion needs nothing special: a self-referential `Tree(String value, List<Tree> children)` maps with an empty spec. A [one-directional bean mapping](beans.md#one-directional-beans) nests for the direction it has.
+The generated Impl calls a nested spec as it would a leaf, through its `asValidatedPrism()`, so recursion needs nothing special: a self-referential product `Category(String name, List<Category> children)` maps with an empty spec. A [one-directional bean mapping](beans.md#one-directional-beans) nests for the direction it has.
 
 ### Converting Map keys {#converting-map-keys}
 
-A `Map` component's value leaf takes the component's name, so a key leaf carries `@MapKey` naming its component instead, as `noteKey()` does in `CrewMapping`. Keys and values convert independently. Without a key leaf the key types must match exactly, and the processor refuses a mismatch, offering the annotation.
+A `Map` component's value leaf takes the component's name, so a key leaf carries `@MapKey` naming its component instead, as `noteKey()` does in `SupportRotaMapping`. Keys and values convert independently. Without a key leaf the key types must match exactly, and the processor refuses a mismatch, offering the annotation.
 
 A failing key locates by the **source** key, the one the client sent, and an entry whose key and value both fail reports both there. A leaf over the whole `Map` wins over both: [a key leaf beside a whole-map leaf](rules.md#key-leaf-beside-a-whole-map-leaf) says when that is refused.
 
@@ -218,13 +218,13 @@ Nesting assumes the wire nests too. When a wire fixed by someone else carries an
 ```mermaid
 flowchart LR
     accTitle: A flattened address
-    accDescr: Each member of the domain's Address record, address.street, address.city and address.postcode, pairs by name with the flat VendorDto field of the same name.
-    subgraph D["Vendor.address"]
+    accDescr: Each member of the domain's Address record, address.street, address.city and address.postcode, pairs by name with the flat DepotDto field of the same name.
+    subgraph D["Depot.address"]
         AS["address.street"]
         AC["address.city"]
         AP["address.postcode"]
     end
-    subgraph W["VendorDto"]
+    subgraph W["DepotDto"]
         S["street"]
         C["city"]
         P["postcode"]
@@ -241,7 +241,7 @@ flowchart LR
 
 In words: each member of the address pairs with the flat field of the same name, so a bad `street` comes back as `address.street`.
 
-The record's components, spread this way, are the **group**. `parse` builds the `Address` from those fields, with their failures accumulating beside the vendor's, at the domain path `address.street`. The flat wire never sent that name, but like a [rename](basics.md#renames-mapfield), a path always uses domain names.
+The record's components, spread this way, are the **group**. `parse` builds the `Address` from those fields, with their failures accumulating beside the depot's, at the domain path `address.street`. The flat wire never sent that name, but like a [rename](basics.md#renames-mapfield), a path always uses domain names.
 
 The vocabulary applies inside the group by name:
 
