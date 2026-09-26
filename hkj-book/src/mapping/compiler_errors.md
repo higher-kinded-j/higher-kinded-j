@@ -325,17 +325,17 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
 
 ### `'XDto' has more components than 'X'` {#wire-has-more-components}
 
-The wire has components nothing on the domain fills, so `build` cannot write them.
+The wire has components nothing on the domain fills, so `build` cannot write them. The message names each one.
 
-**Fix.** Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`.
+**Fix.** Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`. A protobuf-java message is not supported yet, so for one the message says to map a record instead.
 
 ```
-@GenerateMapping: 'CustomerDto' has more components than 'Customer'. build must fill every wire
-component from a domain source or a derived field, and the extras have neither. A wire with
-fewer components maps as a projection (Lens tier). Remove the extra wire components, add
-matching domain components, declare derived fields ('default Getter<Customer, ComponentType>'
-methods named after the extras), or spread a nested domain component across the extras with an
-'@Flatten' marker named after it.
+@GenerateMapping: 'CustomerDto' has more components than 'Customer', leaving [email] unfilled.
+build must fill every wire component from a domain source or a derived field, and the extras
+have neither. A wire with fewer components maps as a projection (Lens tier). Remove the extra
+wire components, add matching domain components, declare derived fields ('default
+Getter<Customer, ComponentType>' methods named after the extras), or spread a nested domain
+component across the extras with an '@Flatten' marker named after it.
 ```
 
 The rule: [Derived wire fields](basics.md#derived-wire-fields).

@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -19,6 +20,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -35,14 +37,16 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * </ol>
  *
  * <p>The mapped property set is the intersection of readable and writable names, so a computed
- * getter with no writer is not treated as a mappable component. Where that intersection is empty
- * under every strategy, the bean maps one way if it offers nothing at all in the other: a bean with
- * getters and no way to be written maps parse-only over all of its getters, and one that can be
- * written but declares no getter maps build-only over all of its writers. A bean that reads some
- * names and writes others is refused, since a misspelt accessor is a likelier story than a wire
- * meant to be crossed one way. A getter-only {@code List} counts as written only on a bean that
- * also has a setter, or whose every getter is such a list: a {@code List} getter among read-only
- * getters belongs to a read model, which maps parse-only.
+ * getter with no writer is not treated as a mappable component. Where a property's writer is
+ * overloaded, the overload whose parameter is the getter's type writes it, whatever order the two
+ * are declared in. Where that intersection is empty under every strategy, the bean maps one way if
+ * it offers nothing at all in the other: a bean with getters and no way to be written maps
+ * parse-only over all of its getters, and one that can be written but declares no getter maps
+ * build-only over all of its writers. A bean that reads some names and writes others is refused,
+ * since a misspelt accessor is a likelier story than a wire meant to be crossed one way. A
+ * getter-only {@code List} counts as written only on a bean that also has a setter, or whose every
+ * getter is such a list: a {@code List} getter among read-only getters belongs to a read model,
+ * which maps parse-only.
  *
  * <p>A two-way bean records the accessors it leaves out, each getter nothing writes and each writer
  * nothing reads, so that the processor can refuse one whose omission would lose a value: this
@@ -61,6 +65,9 @@ final class BeanPropertyAnalyser {
   private static final String LIST = "java.util.List";
 
   private static final String BOOLEAN = "java.lang.Boolean";
+
+  /** The interface every protobuf-java message implements, on the full and lite runtimes alike. */
+  private static final String PROTOBUF_MESSAGE = "com.google.protobuf.MessageLite";
 
   private final ProcessingEnvironment env;
 
@@ -118,7 +125,7 @@ final class BeanPropertyAnalyser {
     // something else constructs.
     boolean setterWritten =
         hasUsableNoArgsConstructor(spec, bean) || (neverBuilt && findBuilderModel(bean) == null);
-    Map<String, ExecutableElement> setters = setterWritten ? collectSetters(bean) : Map.of();
+    Map<String, List<ExecutableElement>> setters = setterWritten ? collectSetters(bean) : Map.of();
 
     if (setterWritten) {
       // A getter-only List is written through its own getter, the JAXB convention, but only on a
@@ -133,7 +140,7 @@ final class BeanPropertyAnalyser {
         String name = entry.getKey();
         TypeMirror getterType = getterType(beanType, entry.getValue());
         String getter = entry.getValue().getSimpleName().toString();
-        ExecutableElement setter = setters.get(name);
+        ExecutableElement setter = pairedWriter(setters.get(name), beanType, getterType);
         if (setter != null) {
           if (typesDiffer(
               spec,
@@ -168,7 +175,7 @@ final class BeanPropertyAnalyser {
     }
 
     BuilderModel builder = findBuilderModel(bean);
-    Map<String, ExecutableElement> builderSetters = Map.of();
+    Map<String, List<ExecutableElement>> builderSetters = Map.of();
     if (builder != null) {
       builderSetters = collectBuilderSetters(bean, builder);
       DeclaredType builderType = builder.builderType();
@@ -176,8 +183,9 @@ final class BeanPropertyAnalyser {
       List<WireShape.UnpairedAccessor> unpaired = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
         String name = entry.getKey();
-        ExecutableElement builderSetter = builderSetters.get(name);
         TypeMirror getterType = getterType(beanType, entry.getValue());
+        ExecutableElement builderSetter =
+            pairedWriter(builderSetters.get(name), builderType, getterType);
         if (builderSetter == null) {
           unpaired.add(unpairedGetter(bean, name, entry.getValue(), getterType));
           continue;
@@ -233,7 +241,8 @@ final class BeanPropertyAnalyser {
           bean,
           tag,
           getters.keySet(),
-          setters.isEmpty() ? builderSetters.keySet() : setters.keySet());
+          setters.isEmpty() ? builderSetters.keySet() : setters.keySet(),
+          neverBuilt);
     }
     return null;
   }
@@ -254,16 +263,36 @@ final class BeanPropertyAnalyser {
   }
 
   /**
+   * The writer a getter pairs with among a property's {@code overloads}, or null when the property
+   * has none: the first whose parameter, as {@code owner} declares it, is the getter's type, since
+   * {@code build} passes a value of that type and javac binds the call to that overload. When none
+   * is, the first overload stands for the property, and the pair is refused as read and written at
+   * different types.
+   */
+  private ExecutableElement pairedWriter(
+      List<ExecutableElement> overloads, DeclaredType owner, TypeMirror getterType) {
+    if (overloads == null) {
+      return null;
+    }
+    return overloads.stream()
+        .filter(writer -> env.getTypeUtils().isSameType(paramType(owner, writer), getterType))
+        .findFirst()
+        .orElse(overloads.getFirst());
+  }
+
+  /**
    * The writers no getter shares a name with, each at its type as {@code owner} (the bean, or the
-   * builder as its factory instantiates it) declares it.
+   * builder as its factory instantiates it) declares it. A property's first overload stands for it,
+   * as it does when nothing reads the property at all.
    */
   private List<WireShape.UnpairedAccessor> unpairedWriters(
       Map<String, ExecutableElement> getters,
-      Map<String, ExecutableElement> writers,
+      Map<String, List<ExecutableElement>> writers,
       DeclaredType owner,
       WireShape.UnpairedAccessor.Role role) {
     return writers.entrySet().stream()
         .filter(entry -> !getters.containsKey(entry.getKey()))
+        .map(entry -> Map.entry(entry.getKey(), entry.getValue().getFirst()))
         .map(
             entry ->
                 new WireShape.UnpairedAccessor(
@@ -302,15 +331,18 @@ final class BeanPropertyAnalyser {
   /**
    * Every writer, written and never read: a bean that declares no getter maps build-only. A writer
    * speaks its owner's variables, as a getter does, so {@code owner} is the bean for a setter and
-   * the builder as the factory instantiates it for a builder setter.
+   * the builder as the factory instantiates it for a builder setter. With no getter to match, a
+   * property's first overload decides its type, and javac binds the call {@code build} makes by the
+   * value it passes.
    */
   private WireShape.BeanShape writeOnly(
       TypeElement bean,
       DeclaredType owner,
-      Map<String, ExecutableElement> writers,
+      Map<String, List<ExecutableElement>> writers,
       WireShape.ConstructionStrategy strategy) {
     List<WireShape.BeanProperty> properties =
         writers.entrySet().stream()
+            .map(entry -> Map.entry(entry.getKey(), entry.getValue().getFirst()))
             .map(
                 entry ->
                     new WireShape.BeanProperty(
@@ -398,45 +430,61 @@ final class BeanPropertyAnalyser {
     return methodName.length() > 3 && methodName.startsWith("get");
   }
 
-  private Map<String, ExecutableElement> collectSetters(TypeElement bean) {
-    Map<String, ExecutableElement> setters = new LinkedHashMap<>();
-    for (ExecutableElement method : publicInstanceMethods(bean)) {
-      String methodName = method.getSimpleName().toString();
-      if (method.getParameters().size() == 1
-          && methodName.length() > 3
-          && methodName.startsWith("set")) {
-        // Void or fluent (returns the bean) setters both work: build calls the setter as a
-        // statement, discarding any fluent return.
-        setters.putIfAbsent(decapitalise(methodName.substring(3)), method);
-      }
-    }
-    return setters;
+  /**
+   * The bean's setters, keyed by property, each property's overloads in the order they are met.
+   * Void or fluent (returns the bean) setters both work: build calls the setter as a statement,
+   * discarding any fluent return.
+   */
+  private Map<String, List<ExecutableElement>> collectSetters(TypeElement bean) {
+    return byProperty(
+        publicInstanceMethods(bean).stream()
+            .filter(method -> method.getParameters().size() == 1 && isSetName(method)),
+        "set".length());
+  }
+
+  private static boolean isSetName(ExecutableElement method) {
+    String methodName = method.getSimpleName().toString();
+    return methodName.length() > 3 && methodName.startsWith("set");
   }
 
   /**
-   * The builder's setters, keyed by property. Both the property-named convention ({@code name(T)},
-   * as Lombok/Immutables/AutoValue emit) and the {@code setX} convention (as protobuf emits) are
-   * accepted; when a property has both, the property-named one wins. A method taking the bean or
-   * the builder itself copies a whole value in ({@code from(Bean)}, {@code mergeFrom(Builder)}), so
-   * it is no property's setter.
+   * Writers grouped by the property their name gives after {@code prefix} characters, in the order
+   * each property is first met, with each property's overloads in the order they are met.
    */
-  private Map<String, ExecutableElement> collectBuilderSetters(
+  private static Map<String, List<ExecutableElement>> byProperty(
+      Stream<ExecutableElement> writers, int prefix) {
+    return writers.collect(
+        Collectors.groupingBy(
+            method -> decapitalise(method.getSimpleName().toString().substring(prefix)),
+            LinkedHashMap::new,
+            Collectors.toList()));
+  }
+
+  /**
+   * The builder's setters, keyed by property, each property's overloads in the order they are met.
+   * Both the property-named convention ({@code name(T)}, as Lombok/Immutables/AutoValue emit) and
+   * the {@code setX} convention (as protobuf emits) are accepted; when a property has both, its
+   * property-named overloads come first, so one of them wins whenever it fits the getter as well. A
+   * method taking the bean or the builder itself copies a whole value in ({@code from(Bean)},
+   * {@code mergeFrom(Builder)}), so it is no property's setter.
+   */
+  private Map<String, List<ExecutableElement>> collectBuilderSetters(
       TypeElement bean, BuilderModel builder) {
-    Map<String, ExecutableElement> setX = new LinkedHashMap<>();
-    Map<String, ExecutableElement> propertyNamed = new LinkedHashMap<>();
-    for (ExecutableElement method : publicInstanceMethods(builder.builderElement())) {
-      if (method.getParameters().size() != 1 || copiesWhole(method, bean, builder)) {
-        continue;
-      }
-      String methodName = method.getSimpleName().toString();
-      if (methodName.length() > 3 && methodName.startsWith("set")) {
-        setX.putIfAbsent(decapitalise(methodName.substring(3)), method);
-      } else {
-        propertyNamed.putIfAbsent(decapitalise(methodName), method);
-      }
-    }
-    Map<String, ExecutableElement> merged = new LinkedHashMap<>(setX);
-    merged.putAll(propertyNamed);
+    List<ExecutableElement> writers =
+        publicInstanceMethods(builder.builderElement()).stream()
+            .filter(method -> method.getParameters().size() == 1)
+            .filter(method -> !copiesWhole(method, bean, builder))
+            .toList();
+    Map<String, List<ExecutableElement>> merged =
+        new LinkedHashMap<>(
+            byProperty(writers.stream().filter(BeanPropertyAnalyser::isSetName), "set".length()));
+    byProperty(writers.stream().filter(method -> !isSetName(method)), 0)
+        .forEach(
+            (name, propertyNamed) ->
+                merged.merge(
+                    name,
+                    propertyNamed,
+                    (setX, named) -> Stream.concat(named.stream(), setX.stream()).toList()));
     return merged;
   }
 
@@ -511,10 +559,16 @@ final class BeanPropertyAnalyser {
   /**
    * Refuses a bean no reading fits. Asked only once the one-way readings are ruled out, so the two
    * name sets are either both empty, a bean with nothing to read or write, or both non-empty, a
-   * bean whose getters and writers never share a name.
+   * bean whose getters and writers never share a name. {@code patch} marks a sparse update's PATCH
+   * bean, which a record cannot replace.
    */
   private void reportUnusable(
-      TypeElement spec, TypeElement bean, String tag, Set<String> reads, Set<String> writes) {
+      TypeElement spec,
+      TypeElement bean,
+      String tag,
+      Set<String> reads,
+      Set<String> writes,
+      boolean patch) {
     if (reads.isEmpty() && declaresSetters(bean)) {
       Diagnostics.error(
           env.getMessager(),
@@ -565,8 +619,41 @@ final class BeanPropertyAnalyser {
             + ". A bean maps both ways over the properties it can read and write, and one way only"
             + " when it offers nothing at all in the other direction, so reading some names and"
             + " writing others fits neither.",
-        "Align each getter with its setter (or builder setter), which a misspelt accessor usually"
-            + " explains, or remove the accessors of the direction the wire is not crossed in.");
+        protobufFix(env, bean, patch)
+            .orElse(
+                "Align each getter with its setter (or builder setter), which a misspelt accessor"
+                    + " usually explains, or remove the accessors of the direction the wire is not"
+                    + " crossed in."));
+  }
+
+  /**
+   * The fix for a refusal a protobuf-java message meets, or empty for any other wire: convert the
+   * message by hand to a record, or for a PATCH body to a bean whose getters answer {@code null}
+   * until set, and map that. A message reads as a builder bean, but the properties that reading
+   * finds are not the fields it carries: protobuf generates companion accessors that pair up like
+   * properties, and gives a repeated or map field no setter, so a refusal's own fix, which works
+   * within the mapping, cannot reach a working one.
+   *
+   * @param env the processing environment, to look protobuf-java up on the path
+   * @param wire the wire a refusal names
+   * @param patch whether the wire is a sparse update's PATCH body, which a record cannot be
+   * @return the fix line, when {@code wire} is a protobuf-java message
+   */
+  static Optional<String> protobufFix(ProcessingEnvironment env, TypeElement wire, boolean patch) {
+    TypeElement message = env.getElementUtils().getTypeElement(PROTOBUF_MESSAGE);
+    Types types = env.getTypeUtils();
+    if (message == null || !types.isSubtype(types.erasure(wire.asType()), message.asType())) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        "Convert '"
+            + wire.getSimpleName()
+            + "' by hand to "
+            + (patch ? "a PATCH bean whose getters answer null until set" : "a record")
+            + ", and map that instead: a protobuf-java message is not supported yet,"
+            + " since the companion accessors protobuf generates (getXBytes() beside a string"
+            + " field, getXValue() beside an enum, getUnknownFields()) pair up as properties, and"
+            + " a repeated or map field, having no setter, is no property at all.");
   }
 
   private List<ExecutableElement> publicInstanceMethods(TypeElement type) {

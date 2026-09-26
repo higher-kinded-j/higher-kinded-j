@@ -163,7 +163,7 @@ public interface PersonMapping extends MappingSpec<Person, PersonDto> {
 
 ## Bean-Shaped DTOs
 
-The wire you were handed is rarely a record. JAXB, protobuf-lite and most OpenAPI generators emit a
+The wire you were handed is rarely a record. JAXB and most OpenAPI generators emit a
 **bean**: a mutable class with getters and setters, or an immutable one with a builder. It maps the
 same way, with every feature above. Only the shape changes: `build` fills through setters (or a
 builder), `parse` reads through getters. The annotation still sits on your spec, never on the bean,
@@ -200,7 +200,7 @@ A bean property is `null` when unset, and a leaf's `parse` throws on a `null` so
 null-guards each nullable getter result *before* handing it to the leaf: a missing field becomes a
 located `FieldError` (`email: must not be null`) instead of an NPE, and `parse` stays total and
 accumulating. Three construction shapes are detected: a no-args constructor with setters (above); an
-immutable bean with a static `builder()`/`newBuilder()` (Lombok, Immutables, AutoValue, protobuf),
+immutable bean with a static `builder()`/`newBuilder()` (Lombok, Immutables, AutoValue),
 where `build` goes through the builder; and the JAXB convention, where a getter-only `List` (its
 getter returns a live mutable list, no setter) is filled with `getItems().addAll(...)`. That last
 one must name its element type: `addAll` cannot be written over a raw receiver without going

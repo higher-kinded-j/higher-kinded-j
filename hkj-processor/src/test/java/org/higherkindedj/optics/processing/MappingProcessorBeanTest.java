@@ -1123,6 +1123,218 @@ class MappingProcessorBeanTest {
   }
 
   @Nested
+  @DisplayName("Overloaded writers")
+  class OverloadedWriters {
+
+    private static final JavaFileObject PERSON =
+        JavaFileObjects.forSourceString(
+            "com.example.Person",
+            """
+            package com.example;
+
+            public record Person(int age) {}
+            """);
+
+    private static final JavaFileObject PERSON_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.PersonMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface PersonMapping extends MappingSpec<Person, PersonDto> {}
+            """);
+
+    private static final String INT_SETTER = "public void setAge(int age) { this.age = age; }";
+
+    // The other overload marks what it was given, so a build through it cannot pass unseen.
+    private static final String STRING_SETTER = "public void setAge(String age) { this.age = -1; }";
+
+    private static JavaFileObject personDto(String first, String second) {
+      return JavaFileObjects.forSourceString(
+          "com.example.PersonDto",
+          """
+          package com.example;
+
+          public class PersonDto {
+            private int age;
+            public int getAge() { return age; }
+            %s
+            %s
+          }
+          """
+              .formatted(first, second));
+    }
+
+    @Test
+    @DisplayName("a setter overloaded at another type pairs by the getter's type, in either order")
+    void setterOverloads() throws ReflectiveOperationException {
+      for (JavaFileObject wire :
+          List.of(personDto(STRING_SETTER, INT_SETTER), personDto(INT_SETTER, STRING_SETTER))) {
+        Compilation compilation = compile(PERSON, wire, PERSON_MAPPING);
+        assertThat(compilation).succeeded();
+        var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+        Object impl = result.instance("com.example.PersonMappingImpl");
+        Object person = result.newInstance("com.example.Person", 42);
+        Object dto = invoke(impl, "build", person);
+        Assertions.assertThat(invoke(dto, "getAge")).isEqualTo(42);
+        Assertions.assertThat(validated(invoke(impl, "parse", dto)).get()).isEqualTo(person);
+      }
+    }
+
+    private static final JavaFileObject STAMP =
+        JavaFileObjects.forSourceString(
+            "com.example.Stamp",
+            """
+            package com.example;
+
+            public final class Stamp {
+              public static final class Builder {
+                public Stamp build() { return new Stamp(); }
+              }
+            }
+            """);
+
+    private static final JavaFileObject CARD =
+        JavaFileObjects.forSourceString(
+            "com.example.Card",
+            """
+            package com.example;
+
+            public record Card(Stamp stamp) {}
+            """);
+
+    private static final JavaFileObject CARD_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.CardMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface CardMapping extends MappingSpec<Card, CardMessage> {}
+            """);
+
+    private static final String VALUE_SETTER =
+        "public Builder setStamp(Stamp stamp) { this.stamp = stamp; return this; }";
+
+    private static final String BUILDER_SETTER =
+        "public Builder setStamp(Stamp.Builder stamp) { this.stamp = stamp.build(); return this; }";
+
+    // A message field, as protobuf generates it: its builder takes the value or a builder for it.
+    private static JavaFileObject cardMessage(String first, String second) {
+      return JavaFileObjects.forSourceString(
+          "com.example.CardMessage",
+          """
+          package com.example;
+
+          public final class CardMessage {
+            private final Stamp stamp;
+            private CardMessage(Stamp stamp) { this.stamp = stamp; }
+            public Stamp getStamp() { return stamp; }
+            public static Builder newBuilder() { return new Builder(); }
+            public static final class Builder {
+              private Stamp stamp;
+              %s
+              %s
+              public CardMessage build() { return new CardMessage(stamp); }
+            }
+          }
+          """
+              .formatted(first, second));
+    }
+
+    @Test
+    @DisplayName("a builder setter overloaded at another type pairs by the getter's type, too")
+    void builderSetterOverloads() throws ReflectiveOperationException {
+      for (JavaFileObject wire :
+          List.of(
+              cardMessage(BUILDER_SETTER, VALUE_SETTER),
+              cardMessage(VALUE_SETTER, BUILDER_SETTER))) {
+        Compilation compilation = compile(STAMP, CARD, wire, CARD_MAPPING);
+        assertThat(compilation).succeeded();
+        var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+        Object impl = result.instance("com.example.CardMappingImpl");
+        Object stamp = result.newInstance("com.example.Stamp");
+        Object card = result.newInstance("com.example.Card", stamp);
+        Object message = invoke(impl, "build", card);
+        Assertions.assertThat(invoke(message, "getStamp")).isSameAs(stamp);
+        Assertions.assertThat(validated(invoke(impl, "parse", message)).get()).isEqualTo(card);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "a setX builder setter at the getter's type wins over a property-named one that is not")
+    void setXAtTheGettersType() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Label",
+              """
+              package com.example;
+
+              public record Label(String text) {}
+              """);
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.LabelView",
+              """
+              package com.example;
+
+              import java.util.function.Supplier;
+
+              public final class LabelView {
+                private final String text;
+                private LabelView(String text) { this.text = text; }
+                public String getText() { return text; }
+                public static Builder builder() { return new Builder(); }
+                public static final class Builder {
+                  private String text;
+                  public Builder text(Supplier<String> text) { this.text = text.get(); return this; }
+                  public Builder setText(String text) { this.text = text; return this; }
+                  public LabelView build() { return new LabelView(text); }
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.LabelMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface LabelMapping extends MappingSpec<Label, LabelView> {}
+              """);
+
+      Compilation compilation = compile(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.LabelMappingImpl"))
+          .contains("b.setText(domain.text());");
+    }
+
+    @Test
+    @DisplayName("overloads none of which takes the getter's type are refused, naming the first")
+    void noOverloadAtTheGettersType() {
+      JavaFileObject wire =
+          personDto(STRING_SETTER, "public void setAge(long age) { this.age = (int) age; }");
+      Compilation compilation = compile(PERSON, wire, PERSON_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "bean property 'age' on 'PersonDto' is read and written at different types (int vs"
+                  + " String)");
+    }
+  }
+
+  @Nested
   @DisplayName("Optional bridging")
   class OptionalBridging {
 
@@ -3126,6 +3338,272 @@ class MappingProcessorBeanTest {
       assertThat(compilation)
           .hadErrorContaining(
               "'BoxDto' is generic, which a bean-wire mapping does not support yet.");
+    }
+  }
+
+  @Nested
+  @DisplayName("Protobuf-java messages, which are not supported yet")
+  class ProtobufMessages {
+
+    // Stands in for protobuf-java's root interface, which the processor looks up by name.
+    private static final JavaFileObject MESSAGE_LITE =
+        JavaFileObjects.forSourceString(
+            "com.google.protobuf.MessageLite",
+            """
+            package com.google.protobuf;
+
+            public interface MessageLite {}
+            """);
+
+    private static final JavaFileObject USER =
+        JavaFileObjects.forSourceString(
+            "com.example.User",
+            """
+            package com.example;
+
+            public record User(String name) {}
+            """);
+
+    private static final JavaFileObject USER_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.UserMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface UserMapping extends MappingSpec<User, UserMessage> {}
+            """);
+
+    private static final String PROTOBUF_FIX =
+        "Convert 'UserMessage' by hand to a record, and map that instead: a protobuf-java message"
+            + " is not supported yet";
+
+    // A string field's accessors as protobuf-java generates them, companions included.
+    private static JavaFileObject userMessage(String implementsClause) {
+      return JavaFileObjects.forSourceString(
+          "com.example.UserMessage",
+          """
+          package com.example;
+
+          public final class UserMessage %s {
+            public static final class Bytes {}
+            public static final class UnknownFields {}
+            private final String name;
+            private UserMessage(String name) { this.name = name; }
+            public String getName() { return name; }
+            public Bytes getNameBytes() { return new Bytes(); }
+            public UnknownFields getUnknownFields() { return new UnknownFields(); }
+            public static Builder newBuilder() { return new Builder(); }
+            public static final class Builder {
+              private String name;
+              public Builder setName(String name) { this.name = name; return this; }
+              public Builder setNameBytes(Bytes bytes) { return this; }
+              public Builder setUnknownFields(UnknownFields fields) { return this; }
+              public UserMessage build() { return new UserMessage(name); }
+            }
+          }
+          """
+              .formatted(implementsClause));
+    }
+
+    @Test
+    @DisplayName("the companions a bean pairs up are named as the extras it leaves unfilled")
+    void companionsNamed() {
+      Compilation compilation = compile(MESSAGE_LITE, USER, userMessage(""), USER_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'UserMessage' has more components than 'User', leaving [nameBytes, unknownFields]"
+                  + " unfilled.");
+      assertThat(compilation).hadErrorContaining("declare derived fields");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("protobuf"));
+    }
+
+    @Test
+    @DisplayName("a message names its companions too, and is pointed at a record in front of it")
+    void messageCompanions() {
+      Compilation compilation =
+          compile(
+              MESSAGE_LITE,
+              USER,
+              userMessage("implements com.google.protobuf.MessageLite"),
+              USER_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'UserMessage' has more components than 'User', leaving [nameBytes, unknownFields]"
+                  + " unfilled.");
+      assertThat(compilation).hadErrorContaining(PROTOBUF_FIX);
+      assertThat(compilation).hadErrorContaining("getXBytes() beside a string field");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("declare derived fields"));
+    }
+
+    private static final JavaFileObject MASK =
+        JavaFileObjects.forSourceString(
+            "com.example.Mask",
+            """
+            package com.example;
+
+            import java.util.List;
+
+            public record Mask(List<String> paths) {}
+            """);
+
+    private static final JavaFileObject MASK_MAPPING =
+        JavaFileObjects.forSourceString(
+            "com.example.MaskMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface MaskMapping extends MappingSpec<Mask, MaskMessage> {}
+            """);
+
+    // A repeated field's accessors as protobuf-java generates them: read as a list, and written
+    // only through adders, with or without the full runtime's unknown fields beside it.
+    private static JavaFileObject maskMessage(
+        String unknownFieldsGetter, String unknownFieldsSetter) {
+      return JavaFileObjects.forSourceString(
+          "com.example.MaskMessage",
+          """
+          package com.example;
+
+          import java.util.List;
+
+          public final class MaskMessage implements com.google.protobuf.MessageLite {
+            public static final class UnknownFields {}
+            private final List<String> paths;
+            private MaskMessage(List<String> paths) { this.paths = paths; }
+            public List<String> getPathsList() { return paths; }
+            %s
+            public static Builder newBuilder() { return new Builder(); }
+            public static final class Builder {
+              private List<String> paths = List.of();
+              public Builder addAllPaths(Iterable<String> paths) { return this; }
+              %s
+              public MaskMessage build() { return new MaskMessage(paths); }
+            }
+          }
+          """
+              .formatted(unknownFieldsGetter, unknownFieldsSetter));
+    }
+
+    @Test
+    @DisplayName("a repeated field, which has no setter, is refused with the same pointer")
+    void repeatedField() {
+      JavaFileObject wire =
+          maskMessage(
+              "public UnknownFields getUnknownFields() { return new UnknownFields(); }",
+              "public Builder setUnknownFields(UnknownFields fields) { return this; }");
+      Compilation compilation = compile(MESSAGE_LITE, MASK, wire, MASK_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("domain field 'Mask.paths' has no wire counterpart named 'paths'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Convert 'MaskMessage' by hand to a record, and map that instead: a protobuf-java"
+                  + " message is not supported yet");
+      assertThat(compilation).hadErrorContaining("a repeated or map field, having no setter");
+    }
+
+    @Test
+    @DisplayName("a message that pairs no accessor at all is refused with the same pointer")
+    void nothingPaired() {
+      Compilation compilation = compile(MESSAGE_LITE, MASK, maskMessage("", ""), MASK_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'MaskMessage' is not a usable bean-shaped wire: no property it reads is one it can"
+                  + " write.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Convert 'MaskMessage' by hand to a record, and map that instead: a protobuf-java"
+                  + " message is not supported yet");
+    }
+
+    @Test
+    @DisplayName("a PATCH body that pairs no accessor at all is pointed at a PATCH bean")
+    void patchBodyNothingPaired() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.MaskPatch",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface MaskPatch extends UpdateSpec<Mask, MaskMessage> {}
+              """);
+      Compilation compilation = compile(MESSAGE_LITE, MASK, maskMessage("", ""), spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'MaskMessage' is not a usable bean-shaped wire: no property it reads is one it can"
+                  + " write.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Convert 'MaskMessage' by hand to a PATCH bean whose getters answer null until set,"
+                  + " and map that instead");
+    }
+
+    @Test
+    @DisplayName("a message as a PATCH body is pointed at a PATCH bean instead")
+    void patchBody() {
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.UserPatch",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.UpdateSpec;
+
+              @GenerateMapping
+              public interface UserPatch extends UpdateSpec<User, UserMessage> {}
+              """);
+      Compilation compilation =
+          compile(
+              MESSAGE_LITE, USER, userMessage("implements com.google.protobuf.MessageLite"), spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("the wire property 'nameBytes' names no component of User.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Convert 'UserMessage' by hand to a PATCH bean whose getters answer null until set,"
+                  + " and map that instead");
+    }
+
+    @Test
+    @DisplayName("a message narrower than the domain is refused with the same pointer")
+    void narrowerMessage() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.User",
+              """
+              package com.example;
+
+              public record User(String name, String email, String bio, int age) {}
+              """);
+      Compilation compilation =
+          compile(
+              MESSAGE_LITE,
+              domain,
+              userMessage("implements com.google.protobuf.MessageLite"),
+              USER_MAPPING);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("projection field 'UserMessage.nameBytes' has no domain source.");
+      assertThat(compilation).hadErrorContaining(PROTOBUF_FIX);
     }
   }
 

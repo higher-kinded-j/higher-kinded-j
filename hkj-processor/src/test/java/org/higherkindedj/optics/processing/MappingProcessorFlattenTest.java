@@ -1297,7 +1297,7 @@ class MappingProcessorFlattenTest {
       assertThat(compilation)
           .hadErrorContaining(
               "'ExtraDto' has more components than 'Customer' fills, flattened [address]"
-                  + " included.");
+                  + " included, leaving [extra] unfilled.");
       assertThat(compilation).hadErrorContaining("with an '@Flatten' marker named after it");
     }
 

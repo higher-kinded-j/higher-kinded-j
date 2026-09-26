@@ -138,8 +138,8 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
         dict(id="wire-has-more-components",
              heading="'XDto' has more components than 'X'",
              fragment="has more components than",
-             meaning="The wire has components nothing on the domain fills, so `build` cannot write them.",
-             fix="Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`.",
+             meaning="The wire has components nothing on the domain fills, so `build` cannot write them. The message names each one.",
+             fix="Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`. A protobuf-java message is not supported yet, so for one the message says to map a record instead.",
              rule=("Derived wire fields", "basics.md#derived-wire-fields"),
              code="""record Customer(String name) {}
 
