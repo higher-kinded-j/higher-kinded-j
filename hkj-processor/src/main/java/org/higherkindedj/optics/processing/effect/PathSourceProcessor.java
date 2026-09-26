@@ -14,9 +14,12 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.MirroredTypeException;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.PathSource;
+import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
@@ -35,14 +38,18 @@ import org.higherkindedj.optics.processing.util.Reachability.Crossing;
  *
  * <ul>
  *   <li>Factory methods (of, pure)
- *   <li>Composition methods (map, peek, via, then, zipWith)
- *   <li>Error recovery methods if errorType is specified
+ *   <li>Composition methods for its capability: map and peek, then zipWith, then via, then and
+ *       flatMap
+ *   <li>Error recovery methods where the capability is RECOVERABLE and an errorType is given
  * </ul>
+ *
+ * <p>An errorType with a capability that generates no recovery methods, and RECOVERABLE without an
+ * errorType, each draw a note: the Path is generated, without recovery methods.
  *
  * @see PathSource
  */
 @AutoService(Processor.class)
-@SupportedAnnotationTypes("org.higherkindedj.hkt.effect.annotation.PathSource")
+@SupportedAnnotationTypes(PathSourceProcessor.PATH_SOURCE)
 public class PathSourceProcessor extends AbstractProcessor {
 
   @Override
@@ -58,6 +65,12 @@ public class PathSourceProcessor extends AbstractProcessor {
   private static final ClassName CONSUMER = ClassName.get("java.util.function", "Consumer");
   private static final ClassName SUPPLIER = ClassName.get("java.util.function", "Supplier");
   private static final ClassName BI_FUNCTION = ClassName.get("java.util.function", "BiFunction");
+
+  static final String PATH_SOURCE = "org.higherkindedj.hkt.effect.annotation.PathSource";
+
+  /** Names Java permits as identifiers but not as the name of a class. */
+  private static final Set<String> RESTRICTED_TYPE_NAMES =
+      Set.of("permits", "record", "sealed", "var", "yield");
 
   private static final ClassName GENERATED =
       ClassName.get("org.higherkindedj.optics.annotations", "Generated");
@@ -107,13 +120,15 @@ public class PathSourceProcessor extends AbstractProcessor {
         processingEnv.getElementUtils().getPackageOf(sourceElement).getQualifiedName().toString();
 
     PathSource annotation = sourceElement.getAnnotation(PathSource.class);
+    AnnotationMirror mirror = ProcessorUtils.findAnnotation(sourceElement, PATH_SOURCE);
 
     // Get annotation values
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
     String suffix = annotation.suffix();
     String pathClassName = sourceName + suffix;
-    PathSource.Capability capability = annotation.capability();
+    PathSource.Capability written = annotation.capability();
+    PathSource.Capability capability = generatedLevel(written);
 
     // Get witness type (using MirroredTypeException pattern)
     TypeMirror witnessTypeMirror = getWitnessType(annotation);
@@ -123,6 +138,17 @@ public class PathSourceProcessor extends AbstractProcessor {
     TypeMirror errorTypeMirror = getErrorType(annotation);
     TypeName errorType = TypeName.get(errorTypeMirror);
     boolean hasErrorType = !errorType.toString().equals("java.lang.Void");
+    boolean recovers = hasErrorType && isRecoverable(capability);
+
+    // Every check runs, so each refused attribute is reported in the one compilation.
+    boolean targetPackageValid = checkTargetPackage(sourceElement, mirror, targetPackage);
+    boolean suffixValid = checkSuffix(sourceElement, mirror, suffix, pathClassName);
+    boolean witnessValid = checkWitness(sourceElement, mirror, witnessTypeMirror);
+    boolean errorTypeValid = !recovers || checkErrorType(sourceElement, mirror, errorTypeMirror);
+    if (!(targetPackageValid && suffixValid && witnessValid && errorTypeValid)
+        || !checkNameIsFree(sourceElement, mirror, suffix, packageName, pathClassName)) {
+      return;
+    }
     // The Kind the path wraps names the witness; the error type is named only where the
     // capability recovers, and the source type only in the Javadoc.
     if (!Reachability.check(
@@ -135,7 +161,7 @@ public class PathSourceProcessor extends AbstractProcessor {
                 Crossing.over(
                     "witness '" + ProcessorUtils.simpleTypeName(witnessTypeMirror) + "'",
                     witnessTypeMirror)),
-            hasErrorType && isRecoverable(capability)
+            recovers
                 ? Stream.of(
                     Crossing.over(
                         "error type '" + ProcessorUtils.simpleTypeName(errorTypeMirror) + "'",
@@ -143,6 +169,14 @@ public class PathSourceProcessor extends AbstractProcessor {
                 : Stream.empty()))) {
       return;
     }
+    noteRecoveryMismatch(
+        sourceElement,
+        mirror,
+        written,
+        hasErrorType,
+        witnessTypeMirror,
+        errorTypeMirror,
+        pathClassName);
 
     ClassName sourceClassName = ClassName.get(sourceElement);
 
@@ -163,11 +197,8 @@ public class PathSourceProcessor extends AbstractProcessor {
             .addTypeVariable(typeA)
             .addOriginatingElement(sourceElement);
 
-    // Add the appropriate interface implementations based on capability
-    List<TypeName> interfaces = determineInterfaces(capability, hasErrorType, errorType, typeA);
-    for (TypeName iface : interfaces) {
-      classBuilder.addSuperinterface(iface);
-    }
+    // Add the interface implementation for the capability
+    classBuilder.addSuperinterface(capabilityInterface(capability, typeA));
 
     // Add the wrapped value field
     ParameterizedTypeName kindType = ParameterizedTypeName.get(KIND, witnessType, typeA);
@@ -180,7 +211,7 @@ public class PathSourceProcessor extends AbstractProcessor {
         FieldSpec.builder(monadType, "monad", Modifier.PRIVATE, Modifier.FINAL).build());
 
     // Add monadError field if recoverable
-    if (hasErrorType && isRecoverable(capability)) {
+    if (recovers) {
       ParameterizedTypeName monadErrorType =
           ParameterizedTypeName.get(MONAD_ERROR, witnessType, errorType);
       classBuilder.addField(
@@ -189,23 +220,14 @@ public class PathSourceProcessor extends AbstractProcessor {
     }
 
     // Add constructor
-    classBuilder.addMethod(
-        buildConstructor(kindType, monadType, hasErrorType, capability, witnessType, errorType));
+    classBuilder.addMethod(buildConstructor(kindType, monadType, recovers, witnessType, errorType));
 
     // Add factory methods
     classBuilder.addMethod(
         buildOfFactory(
-            pathClassName,
-            kindType,
-            monadType,
-            hasErrorType,
-            capability,
-            witnessType,
-            errorType,
-            typeA));
+            pathClassName, kindType, monadType, recovers, witnessType, errorType, typeA));
     classBuilder.addMethod(
-        buildPureFactory(
-            pathClassName, monadType, hasErrorType, capability, witnessType, errorType, typeA));
+        buildPureFactory(pathClassName, monadType, recovers, witnessType, errorType, typeA));
 
     // Add run() method
     classBuilder.addMethod(buildRunMethod(kindType));
@@ -214,7 +236,7 @@ public class PathSourceProcessor extends AbstractProcessor {
     classBuilder.addMethod(buildRunKindMethod(kindType));
 
     // Determine if monadError should be passed to constructor
-    boolean includeMonadError = hasErrorType && isRecoverable(capability);
+    boolean includeMonadError = recovers;
 
     // Add Composable methods: map, peek
     classBuilder.addMethod(buildMapMethod(pathClassName, witnessType, typeA, includeMonadError));
@@ -234,7 +256,7 @@ public class PathSourceProcessor extends AbstractProcessor {
     }
 
     // Add Recoverable methods if applicable: recover, recoverWith, mapError
-    if (hasErrorType && isRecoverable(capability)) {
+    if (recovers) {
       classBuilder.addMethod(buildRecoverMethod(pathClassName, errorType, typeA));
       classBuilder.addMethod(buildRecoverWithMethod(pathClassName, errorType, typeA));
       classBuilder.addMethod(buildMapErrorMethod(pathClassName, errorType, typeA));
@@ -243,7 +265,7 @@ public class PathSourceProcessor extends AbstractProcessor {
     // Add equals, hashCode, toString
     classBuilder.addMethod(buildEqualsMethod(pathClassName, typeA));
     classBuilder.addMethod(buildHashCodeMethod());
-    classBuilder.addMethod(buildToStringMethod(sourceName));
+    classBuilder.addMethod(buildToStringMethod(pathClassName));
 
     // Write the file
     JavaFile javaFile =
@@ -252,6 +274,239 @@ public class PathSourceProcessor extends AbstractProcessor {
             .build();
 
     javaFile.writeTo(processingEnv.getFiler());
+  }
+
+  /**
+   * Refuses a suffix that cannot name a class: one that does not continue a Java identifier, and
+   * one that makes a name Java reserves.
+   */
+  private boolean checkSuffix(
+      TypeElement source, AnnotationMirror mirror, String suffix, String pathClassName) {
+    String problem;
+    String fix;
+    if (!SourceVersion.isIdentifier(pathClassName)
+        || pathClassName.codePoints().anyMatch(Character::isIdentifierIgnorable)) {
+      problem = "which is not a Java identifier";
+      fix =
+          "Remove suffix to use the default \"Path\", or give a suffix of letters, digits, '_' or"
+              + " '$'.";
+    } else if (SourceVersion.isKeyword(pathClassName)
+        || RESTRICTED_TYPE_NAMES.contains(pathClassName)) {
+      problem = "which Java does not allow as the name of a class";
+      fix = "Remove suffix to use the default \"Path\", or give a suffix that makes another name.";
+    } else {
+      return true;
+    }
+    report(
+        Diagnostic.Kind.ERROR,
+        source,
+        mirror,
+        "suffix",
+        "suffix "
+            + processingEnv.getElementUtils().getConstantExpression(suffix)
+            + " would name the generated Path '"
+            + pathClassName
+            + "', "
+            + problem,
+        "The Path class is named with the annotated type's name followed by the suffix.",
+        fix);
+    return false;
+  }
+
+  /**
+   * Refuses a Path class name a type compiled from source here already has: the annotated type's
+   * own, where an empty suffix leaves it in its package, or any other. A class file of that name,
+   * such as one a previous build generated, is not in the way, since the Filer writes a source.
+   */
+  private boolean checkNameIsFree(
+      TypeElement source,
+      AnnotationMirror mirror,
+      String suffix,
+      String packageName,
+      String pathClassName) {
+    Elements elements = processingEnv.getElementUtils();
+    TypeElement taken = elements.getTypeElement(packageName + "." + pathClassName);
+    if (taken == null || !ProcessorUtils.compiledFromSource(elements, taken)) {
+      return true;
+    }
+    boolean itself = taken.equals(source);
+    report(
+        Diagnostic.Kind.ERROR,
+        source,
+        mirror,
+        "suffix",
+        (ProcessorUtils.getAnnotationValue(mirror, "suffix") == null
+                ? "the default suffix "
+                : "suffix ")
+            + elements.getConstantExpression(suffix)
+            + " would name the generated Path '"
+            + taken.getQualifiedName()
+            + "'",
+        itself
+            ? "That is the type it is generated for."
+            : "A type of that name is already declared in the compilation.",
+        itself
+            ? "Give a non-empty suffix, remove suffix to use the default \"Path\", or set a"
+                + " targetPackage to write the Path elsewhere."
+            : "Set a suffix that names a free class, or rename '"
+                + taken.getQualifiedName()
+                + "'.");
+    return false;
+  }
+
+  /** Refuses a targetPackage that is not a package name. */
+  private boolean checkTargetPackage(
+      TypeElement source, AnnotationMirror mirror, String targetPackage) {
+    if (targetPackage.isEmpty() || SourceVersion.isName(targetPackage)) {
+      return true;
+    }
+    report(
+        Diagnostic.Kind.ERROR,
+        source,
+        mirror,
+        "targetPackage",
+        "targetPackage "
+            + processingEnv.getElementUtils().getConstantExpression(targetPackage)
+            + " is not a package name",
+        "The generated Path is written into that package.",
+        "Remove targetPackage to write it beside '"
+            + source.getSimpleName()
+            + "', or give a package name such as \"com.example.paths\".");
+    return false;
+  }
+
+  /** Refuses a witness that is not a class, such as {@code int.class}: no Kind is indexed by it. */
+  private boolean checkWitness(TypeElement source, AnnotationMirror mirror, TypeMirror witness) {
+    if (!notAClass(witness)) {
+      return true;
+    }
+    report(
+        Diagnostic.Kind.ERROR,
+        source,
+        mirror,
+        "witness",
+        "witness '" + ProcessorUtils.simpleTypeName(witness) + "' is not a class",
+        "The witness is the marker class the effect's Kind is indexed by, and the generated Path"
+            + " wraps a Kind of it.",
+        "Name the effect's witness marker, such as BoxKind.Witness.class.");
+    return false;
+  }
+
+  /**
+   * Refuses a primitive or {@code void} errorType on a capability that recovers: the Path takes a
+   * MonadError over it, whose error type must be a reference type.
+   */
+  private boolean checkErrorType(
+      TypeElement source, AnnotationMirror mirror, TypeMirror errorType) {
+    if (usableErrorType(errorType)) {
+      return true;
+    }
+    report(
+        Diagnostic.Kind.ERROR,
+        source,
+        mirror,
+        "errorType",
+        "errorType '" + ProcessorUtils.simpleTypeName(errorType) + "' is not a reference type",
+        "Recovery takes a MonadError over the error type, and a type argument must be a reference"
+            + " type.",
+        "Use a reference type for the error, such as a record describing it, or remove errorType.");
+    return false;
+  }
+
+  private static boolean notAClass(TypeMirror type) {
+    return type.getKind().isPrimitive()
+        || type.getKind() == TypeKind.VOID
+        || type.getKind() == TypeKind.ARRAY;
+  }
+
+  private static boolean usableErrorType(TypeMirror type) {
+    return !type.getKind().isPrimitive() && type.getKind() != TypeKind.VOID;
+  }
+
+  /**
+   * Notes an errorType and a capability that do not generate recovery methods together: an
+   * errorType with a capability below RECOVERABLE is not used, and RECOVERABLE without one has no
+   * error type to recover from. A note rather than a warning, since the Path generated either way
+   * is sound, and a processor's warning cannot be suppressed under {@code -Werror}.
+   */
+  private void noteRecoveryMismatch(
+      TypeElement source,
+      AnnotationMirror mirror,
+      PathSource.Capability written,
+      boolean hasErrorType,
+      TypeMirror witness,
+      TypeMirror errorType,
+      String pathClassName) {
+    boolean recoverable = isRecoverable(generatedLevel(written));
+    if (hasErrorType && !recoverable) {
+      String errorName = ProcessorUtils.simpleTypeName(errorType);
+      report(
+          Diagnostic.Kind.NOTE,
+          source,
+          mirror,
+          "errorType",
+          "errorType '" + errorName + "' has no effect on the generated '" + pathClassName + "'",
+          (ProcessorUtils.getAnnotationValue(mirror, "capability") == null
+                  ? "The default capability, " + written + ","
+                  : "Capability " + written)
+              + " generates no recovery methods; recover, recoverWith and mapError are generated"
+              + " only for RECOVERABLE.",
+          usableErrorType(errorType)
+              ? "For them, set capability = PathSource.Capability.RECOVERABLE: of and pure then"
+                  + " take a MonadError<"
+                  + ProcessorUtils.simpleTypeName(witness)
+                  + ", "
+                  + errorName
+                  + ">, so existing calls must pass one. Otherwise remove errorType."
+              : "Remove errorType.");
+    } else if (!hasErrorType && recoverable) {
+      report(
+          Diagnostic.Kind.NOTE,
+          source,
+          mirror,
+          "capability",
+          "capability "
+              + written
+              + " generates no recovery methods on '"
+              + pathClassName
+              + "' without an errorType",
+          "The methods recover, recoverWith and mapError are typed by the error type, so the Path"
+              + " gets CHAINABLE's methods only.",
+          "Set errorType to the effect's error type, or use capability ="
+              + " PathSource.Capability.CHAINABLE, which generates the same class.");
+    }
+  }
+
+  /** Reports in the what/why/fix format, at the value the attribute is written with. */
+  private void report(
+      Diagnostic.Kind kind,
+      TypeElement source,
+      AnnotationMirror mirror,
+      String attribute,
+      String what,
+      String why,
+      String fix) {
+    processingEnv
+        .getMessager()
+        .printMessage(
+            kind,
+            Diagnostics.format("@PathSource", what, why, fix),
+            source,
+            mirror,
+            ProcessorUtils.getAnnotationValue(mirror, attribute));
+  }
+
+  /**
+   * The level whose methods a capability generates. The deprecated levels generate exactly what
+   * CHAINABLE and RECOVERABLE do, so replacing them changes nothing generated.
+   */
+  @SuppressWarnings("removal") // the deprecated levels generate until they are removed
+  static PathSource.Capability generatedLevel(PathSource.Capability capability) {
+    return switch (capability) {
+      case EFFECTFUL -> PathSource.Capability.CHAINABLE;
+      case ACCUMULATING -> PathSource.Capability.RECOVERABLE;
+      case COMPOSABLE, COMBINABLE, CHAINABLE, RECOVERABLE -> capability;
+    };
   }
 
   // Package-private for tests.
@@ -274,30 +529,21 @@ public class PathSourceProcessor extends AbstractProcessor {
     }
   }
 
-  private List<TypeName> determineInterfaces(
-      PathSource.Capability capability,
-      boolean hasErrorType,
-      TypeName errorType,
-      TypeVariableName typeA) {
-    List<TypeName> interfaces = new ArrayList<>();
-
-    // Note: Chainable and Recoverable are sealed, so generated classes implement Combinable
-    // instead but still provide via/flatMap/then (and recover/recoverWith/mapError) methods.
-    interfaces.add(
-        switch (capability) {
-          case COMPOSABLE -> ParameterizedTypeName.get(COMPOSABLE, typeA);
-          case COMBINABLE, CHAINABLE, EFFECTFUL, RECOVERABLE, ACCUMULATING ->
-              ParameterizedTypeName.get(COMBINABLE, typeA);
-        });
-
-    return interfaces;
+  /**
+   * The capability interface a generated Path implements. Chainable and Recoverable are sealed, so
+   * above COMPOSABLE it implements Combinable, and declares via/flatMap/then (and
+   * recover/recoverWith/mapError) itself.
+   */
+  private static TypeName capabilityInterface(
+      PathSource.Capability capability, TypeVariableName typeA) {
+    return ParameterizedTypeName.get(
+        capability == PathSource.Capability.COMPOSABLE ? COMPOSABLE : COMBINABLE, typeA);
   }
 
+  // Each takes a level from generatedLevel, which never answers a deprecated one.
   private boolean isChainable(PathSource.Capability capability) {
     return capability == PathSource.Capability.CHAINABLE
-        || capability == PathSource.Capability.RECOVERABLE
-        || capability == PathSource.Capability.EFFECTFUL
-        || capability == PathSource.Capability.ACCUMULATING;
+        || capability == PathSource.Capability.RECOVERABLE;
   }
 
   private boolean isCombinable(PathSource.Capability capability) {
@@ -305,15 +551,13 @@ public class PathSourceProcessor extends AbstractProcessor {
   }
 
   private boolean isRecoverable(PathSource.Capability capability) {
-    return capability == PathSource.Capability.RECOVERABLE
-        || capability == PathSource.Capability.ACCUMULATING;
+    return capability == PathSource.Capability.RECOVERABLE;
   }
 
   private MethodSpec buildConstructor(
       ParameterizedTypeName kindType,
       ParameterizedTypeName monadType,
-      boolean hasErrorType,
-      PathSource.Capability capability,
+      boolean recovers,
       TypeName witnessType,
       TypeName errorType) {
     MethodSpec.Builder builder =
@@ -326,7 +570,7 @@ public class PathSourceProcessor extends AbstractProcessor {
             .addStatement(
                 "this.monad = $T.requireNonNull(monad, $S)", OBJECTS, "monad must not be null");
 
-    if (hasErrorType && isRecoverable(capability)) {
+    if (recovers) {
       ParameterizedTypeName monadErrorType =
           ParameterizedTypeName.get(MONAD_ERROR, witnessType, errorType);
       builder.addParameter(monadErrorType, "monadError");
@@ -343,8 +587,7 @@ public class PathSourceProcessor extends AbstractProcessor {
       String pathClassName,
       ParameterizedTypeName kindType,
       ParameterizedTypeName monadType,
-      boolean hasErrorType,
-      PathSource.Capability capability,
+      boolean recovers,
       TypeName witnessType,
       TypeName errorType,
       TypeVariableName typeA) {
@@ -366,7 +609,7 @@ public class PathSourceProcessor extends AbstractProcessor {
                 pathClassName,
                 pathClassName);
 
-    if (hasErrorType && isRecoverable(capability)) {
+    if (recovers) {
       ParameterizedTypeName monadErrorType =
           ParameterizedTypeName.get(MONAD_ERROR, witnessType, errorType);
       builder.addParameter(monadErrorType, "monadError");
@@ -382,8 +625,7 @@ public class PathSourceProcessor extends AbstractProcessor {
   private MethodSpec buildPureFactory(
       String pathClassName,
       ParameterizedTypeName monadType,
-      boolean hasErrorType,
-      PathSource.Capability capability,
+      boolean recovers,
       TypeName witnessType,
       TypeName errorType,
       TypeVariableName typeA) {
@@ -405,7 +647,7 @@ public class PathSourceProcessor extends AbstractProcessor {
                 pathClassName,
                 pathClassName);
 
-    if (hasErrorType && isRecoverable(capability)) {
+    if (recovers) {
       ParameterizedTypeName monadErrorType =
           ParameterizedTypeName.get(MONAD_ERROR, witnessType, errorType);
       builder.addParameter(monadErrorType, "monadError");
@@ -763,12 +1005,12 @@ public class PathSourceProcessor extends AbstractProcessor {
         .build();
   }
 
-  private MethodSpec buildToStringMethod(String sourceName) {
+  private MethodSpec buildToStringMethod(String pathClassName) {
     return MethodSpec.methodBuilder("toString")
         .addAnnotation(Override.class)
         .addModifiers(Modifier.PUBLIC)
         .returns(String.class)
-        .addStatement("return $S + kind + $S", sourceName + "Path(", ")")
+        .addStatement("return $S + kind + $S", pathClassName + "(", ")")
         .build();
   }
 

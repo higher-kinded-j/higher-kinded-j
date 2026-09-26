@@ -338,55 +338,6 @@ class PathProcessorCoverageTest {
   }
 
   @Nested
-  @DisplayName("PathSourceProcessor ACCUMULATING capability")
-  class PathSourceAccumulating {
-
-    @Test
-    @DisplayName("should generate ACCUMULATING path source with monadError field")
-    void shouldGenerateAccumulatingPathSource() {
-      final var witnessSource =
-          JavaFileObjects.forSourceString(
-              "com.example.AccKind",
-              """
-              package com.example;
-
-              import org.higherkindedj.hkt.Kind;
-              import org.higherkindedj.hkt.TypeArity;
-              import org.higherkindedj.hkt.WitnessArity;
-
-              public interface AccKind<A> extends Kind<AccKind.Witness, A> {
-                  final class Witness implements WitnessArity<TypeArity.Unary> {}
-              }
-              """);
-
-      final var sourceFile =
-          JavaFileObjects.forSourceString(
-              "com.example.AccSvc",
-              """
-              package com.example;
-
-              import org.higherkindedj.hkt.effect.annotation.PathSource;
-
-              @PathSource(
-                  witness = AccKind.Witness.class,
-                  capability = PathSource.Capability.ACCUMULATING,
-                  errorType = String.class
-              )
-              public interface AccSvc<A> {}
-              """);
-
-      var compilation =
-          javac().withProcessors(new PathSourceProcessor()).compile(witnessSource, sourceFile);
-
-      assertThat(compilation).succeeded();
-      // ACCUMULATING capability should generate MonadError field and recover methods
-      assertGeneratedCodeContains(compilation, "com.example.AccSvcPath", "MonadError");
-      assertGeneratedCodeContains(compilation, "com.example.AccSvcPath", "recover(");
-      assertGeneratedCodeContains(compilation, "com.example.AccSvcPath", "mapError(");
-    }
-  }
-
-  @Nested
   @DisplayName("PathSourceProcessor coverage")
   class PathSourceCoverage {
 

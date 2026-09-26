@@ -34,6 +34,15 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
         + " public @interface PathConfig {"
         + "   String pathSuffix() default \"Path\";"
         + "   boolean makeFinal() default true; }",
+    "package org.higherkindedj.hkt.effect.annotation;"
+        + " import java.lang.annotation.*;"
+        + " @Target(ElementType.TYPE) @Retention(RetentionPolicy.SOURCE)"
+        + " public @interface PathSource {"
+        + "   Class<?> witness();"
+        + "   Class<?> errorType() default Void.class;"
+        + "   Capability capability() default Capability.CHAINABLE;"
+        + "   enum Capability {"
+        + "     COMPOSABLE, COMBINABLE, CHAINABLE, RECOVERABLE, EFFECTFUL, ACCUMULATING } }",
   };
 
   @Override
@@ -178,5 +187,43 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
             package com.example;
             """,
             spec -> spec.path("com/example/package-info.java")));
+  }
+
+  @Test
+  void replacesDeprecatedPathSourceCapabilities() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+            public class Usage {
+                @PathSource(witness = Object.class, capability = PathSource.Capability.EFFECTFUL)
+                interface Effect<A> {}
+
+                @PathSource(
+                    witness = Object.class,
+                    errorType = String.class,
+                    capability = PathSource.Capability.ACCUMULATING)
+                interface Result<A> {}
+            }
+            """,
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+            public class Usage {
+                @PathSource(witness = Object.class, capability = PathSource.Capability.CHAINABLE)
+                interface Effect<A> {}
+
+                @PathSource(
+                    witness = Object.class,
+                    errorType = String.class,
+                    capability = PathSource.Capability.RECOVERABLE)
+                interface Result<A> {}
+            }
+            """));
   }
 }

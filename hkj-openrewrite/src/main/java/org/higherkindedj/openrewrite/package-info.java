@@ -37,8 +37,9 @@
  *
  * <h2>0.5.0 Deprecation Migration</h2>
  *
- * <p>Rewrites usages of APIs deprecated for removal in 0.5.0 to their replacements, and removes a
- * deprecated annotation that has no effect.
+ * <p>Rewrites usages of APIs deprecated for removal in 0.5.0 to their replacements, removes a
+ * deprecated annotation that has no effect, and replaces two deprecated {@code @PathSource}
+ * capabilities with the levels they generate.
  *
  * <ul>
  *   <li>{@code org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0} - Runs all 0.5.0
@@ -51,6 +52,8 @@
  *       Try.fold} and {@code TryPath.fold} to {@code foldFailureFirst}, swapping the arguments
  *   <li>{@code org.higherkindedj.openrewrite.RemovePathConfig} - Removes {@code @PathConfig}, which
  *       has no effect
+ *   <li>{@code org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe} -
+ *       {@code EFFECTFUL} to {@code CHAINABLE} and {@code ACCUMULATING} to {@code RECOVERABLE}
  * </ul>
  *
  * <h2>Usage</h2>
