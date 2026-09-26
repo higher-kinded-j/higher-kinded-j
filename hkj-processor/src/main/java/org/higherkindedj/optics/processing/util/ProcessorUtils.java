@@ -1491,6 +1491,24 @@ public final class ProcessorUtils {
   }
 
   /**
+   * The value an annotation is written with for one element, or null where it is left at its
+   * default. A diagnostic about that element can be located at the value.
+   *
+   * @param annotation the annotation's mirror; must not be null
+   * @param elementName the element to read; must not be null
+   * @return the written value, or null
+   * @since 0.4.11
+   */
+  public static AnnotationValue getAnnotationValue(
+      AnnotationMirror annotation, String elementName) {
+    return annotation.getElementValues().entrySet().stream()
+        .filter(entry -> entry.getKey().getSimpleName().contentEquals(elementName))
+        .map(Map.Entry::getValue)
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
    * A string an annotation carries, or {@code defaultValue} where it does not name that element.
    *
    * <p>An element left at its declared default is not written into the mirror, so the caller's own
