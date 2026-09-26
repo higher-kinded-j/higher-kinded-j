@@ -73,9 +73,20 @@ MapStruct, and the `hkj-mapping` skill in `.claude/skills/`, which ships to user
 - **On a teaching page, every runnable block is an include** from those files. A refused shape is a `verify:rejects`
   fence, and a shape that cannot run is a `verify` fence, as the Style Guide's [Java code in
   hkj-book must be verified](STYLE-GUIDE.md#java-code-in-hkj-book-must-be-verified) rule says.
-- **The chapter's running cast is the order service**: `Customer`, `Address`, `Order`, `LineItem`, a
-  sealed `Payment` and an `OrderStatus` enum. A new example joins it wherever the feature fits, as
-  [One Cast per Chapter](STYLE-GUIDE.md#one-cast-per-chapter) asks.
+- **The chapter's running cast is the order service**: `Customer` (with a checked `EmailAddress`),
+  `Address`, `Order`, `LineItem`, a sealed `Payment` and an `OrderStatus` enum, as
+  [One Cast per Chapter](STYLE-GUIDE.md#one-cast-per-chapter) asks. The chapter intro names them in
+  its "One service, one cast" note.
+  - **Reuse a cast member where its shape fits the feature.** Basics maps `Address` first because
+    its components already match, and its rename is `Customer`'s `fullName`.
+  - **The package holds one shape per name.** A feature that needs another shape brings a supporting
+    type from the same service, named for its role (a `Courier`, a `Warehouse`, a `Recipient`),
+    never a second `Customer` with different components. A fence on a page compiles in a package of
+    its own, so it may declare a cast name, but only with the package's shape or a subset of it.
+  - **A guest star from outside the service needs a reason the service cannot give**, such as
+    `PriceBand`'s construct-once invariant or a recursive `Tree`.
+  - **The capstone's package holds the full-size cast**: an `Order` with its customer, lines,
+    currency and status, where the main package's `Order` is the slice the Codecs page needs.
 
 ## Checks
 

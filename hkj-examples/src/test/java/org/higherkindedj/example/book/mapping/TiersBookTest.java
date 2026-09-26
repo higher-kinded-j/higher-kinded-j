@@ -82,12 +82,12 @@ class TiersBookTest {
   @DisplayName("reverseGet lets a bound null into the domain, where parse locates it")
   void reverseGetLetsABoundNullIn() {
     // ANCHOR: reverse_get_null
-    PersonDto bound = new PersonDto(null, 36); // the request body left out "name"
+    AddressDto bound = new AddressDto(null, "Leeds", "LS1 4AP"); // the body left out "street"
 
-    assertThat(PersonMappingImpl.INSTANCE.asIso().reverseGet(bound))
-        .isEqualTo(new Person(null, 36)); // no error, and no exception
-    assertThatValidated(PersonMappingImpl.INSTANCE.parse(bound))
-        .hasFieldErrors("name: must not be null"); // parse locates it
+    assertThat(AddressMappingImpl.INSTANCE.asIso().reverseGet(bound))
+        .isEqualTo(new Address(null, "Leeds", "LS1 4AP")); // no error, and no exception
+    assertThatValidated(AddressMappingImpl.INSTANCE.parse(bound))
+        .hasFieldErrors("street: must not be null"); // parse locates it
     // ANCHOR_END: reverse_get_null
   }
 

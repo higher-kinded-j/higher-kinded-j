@@ -90,7 +90,7 @@ A two-way mapping's methods turn on two independent questions: does the wire car
 ### A bound request goes to `parse` or `patch` {#a-bound-request-goes-to-parse}
 
 ~~~admonish warning title="Not checked for you: reverseGet has no guard"
-A lossless `parse` is guarded. A `null` becomes a located error, and a value the domain's [constructor refuses](absence.md#constructor-invariants) becomes an error carrying its message. `asIso().reverseGet` runs the same direction with neither guard: it builds the record directly, so whatever the constructor accepts goes in, and whatever it throws propagates. Here a request body left out `name`:
+A lossless `parse` is guarded. A `null` becomes a located error, and a value the domain's [constructor refuses](absence.md#constructor-invariants) becomes an error carrying its message. `asIso().reverseGet` runs the same direction with neither guard: it builds the record directly, so whatever the constructor accepts goes in, and whatever it throws propagates. Here a request body left out `street`:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/TiersBookTest.java:reverse_get_null}}

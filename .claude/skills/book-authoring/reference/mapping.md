@@ -66,3 +66,13 @@ the claim, since the processor or a library can change under it.
 - **The mermaid check only parses.** It cannot see a missing `classDef` or a diagram wider than the
   page. A sequence diagram with four participants needs an `actorMargin` init directive and short
   labels to fit.
+- **An explanation can read as an output claim.** A comment on a line of its own that opens with
+  `Name(`, `Name[`, `[`, a number, a boolean or `Nothing` is a claim, so the output gate checks it and
+  the example's claim count rises past its floor. Start an explanation in lower case:
+  `// the Address that Record Mapping Basics maps first`.
+- **A renamed cast type moves in more places than its declaration.** Its `toString` sits in output
+  comments; `BasicsBookTest`, `SelfCheckBookTest` and `FreshPackage` name specs in strings;
+  a `verify:rejects` marker and its visible copy quote type names; and the fixtures in
+  `hkj-examples/src/test/resources/fixtures/` declare their own copies. The chapter's examples share
+  one package, so a name holds one shape
+  (`docs/MAPPING-CHAPTER-GUIDE.md`, "The chapter's running cast is the order service").

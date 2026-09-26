@@ -31,13 +31,13 @@ public final class BasicsBook {
 
   public static void main(String[] args) {
     // ANCHOR: basics_usage
-    Person person = new Person("Ada", 36);
-    PersonMappingImpl personMapping = PersonMappingImpl.INSTANCE; // bind once, reuse
+    Address address = new Address("1 Main Street", "Leeds", "LS1 4AP");
+    AddressMappingImpl addressMapping = AddressMappingImpl.INSTANCE; // bind once, reuse
 
     // Same-named, same-typed components match automatically:
-    PersonDto dto = personMapping.build(person); // total
-    Validated<NonEmptyList<FieldError>, Person> back =
-        personMapping.parse(dto); // accumulating, located
+    AddressDto dto = addressMapping.build(address); // total
+    Validated<NonEmptyList<FieldError>, Address> back =
+        addressMapping.parse(dto); // accumulating, located
     // ANCHOR_END: basics_usage
     System.out.println(dto + " / " + back);
 
@@ -66,8 +66,8 @@ public final class BasicsBook {
     System.out.println(missing);
 
     // ANCHOR: derived_usage
-    ProfileDto built = ProfileMappingImpl.INSTANCE.build(new Profile("Ada", "Lovelace"));
-    // ProfileDto[first=Ada, last=Lovelace, displayName=Ada Lovelace]
+    RecipientDto built = RecipientMappingImpl.INSTANCE.build(new Recipient("Ada", "Lovelace"));
+    // RecipientDto[first=Ada, last=Lovelace, displayName=Ada Lovelace]
     // ANCHOR_END: derived_usage
     System.out.println(built);
   }
@@ -91,12 +91,12 @@ final class EmailCodecs {
 // ANCHOR_END: email_leaf
 
 // ANCHOR: basics_spec
-record Person(String name, int age) {}
+record Address(String street, String city, String postcode) {}
 
-record PersonDto(String name, int age) {}
+record AddressDto(String street, String city, String postcode) {}
 
 @GenerateMapping
-interface PersonMapping extends MappingSpec<Person, PersonDto> {}
+interface AddressMapping extends MappingSpec<Address, AddressDto> {}
 
 // ANCHOR_END: basics_spec
 
@@ -115,24 +115,28 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
 // ANCHOR_END: leaf_spec
 
 // ANCHOR: rename_spec
-record PersonCardDto(String fullName, int age) {}
+record CustomerCardDto(String fullName, String email) {}
 
 @GenerateMapping
-interface PersonCardMapping extends MappingSpec<Person, PersonCardDto> {
+interface CustomerCardMapping extends MappingSpec<Customer, CustomerCardDto> {
   @MapField(to = "fullName")
-  String name(); // Person.name <-> PersonCardDto.fullName
+  String name(); // Customer.name <-> CustomerCardDto.fullName
+
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
 }
 
 // ANCHOR_END: rename_spec
 
 // ANCHOR: derived_spec
-record Profile(String first, String last) {}
+record Recipient(String first, String last) {}
 
-record ProfileDto(String first, String last, String displayName) {}
+record RecipientDto(String first, String last, String displayName) {}
 
 @GenerateMapping
-interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
-  default Getter<Profile, String> displayName() {
+interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
+  default Getter<Recipient, String> displayName() {
     return Getter.of(p -> p.first() + " " + p.last());
   }
 }
@@ -141,22 +145,22 @@ interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
 
 // ANCHOR: mapper_constants
 // The MapStruct idiom, on two specs: never do this.
-record Ticket(String holder, int seat) {}
+record Warehouse(String code, int bays) {}
 
-record TicketDto(String holder, int seat) {}
+record WarehouseDto(String code, int bays) {}
 
 @GenerateMapping
-interface TicketMapping extends MappingSpec<Ticket, TicketDto> {
-  TicketMappingImpl MAPPER = TicketMappingImpl.INSTANCE;
+interface WarehouseMapping extends MappingSpec<Warehouse, WarehouseDto> {
+  WarehouseMappingImpl MAPPER = WarehouseMappingImpl.INSTANCE;
 }
 
-record Pass(String holder, EmailAddress email) {}
+record Courier(String name, EmailAddress email) {}
 
-record PassDto(String holder, String email) {}
+record CourierDto(String name, String email) {}
 
 @GenerateMapping
-interface PassMapping extends MappingSpec<Pass, PassDto> {
-  PassMappingImpl MAPPER = PassMappingImpl.INSTANCE;
+interface CourierMapping extends MappingSpec<Courier, CourierDto> {
+  CourierMappingImpl MAPPER = CourierMappingImpl.INSTANCE;
 
   default ValidatedPrism<String, EmailAddress> email() {
     return EmailCodecs.EMAIL;

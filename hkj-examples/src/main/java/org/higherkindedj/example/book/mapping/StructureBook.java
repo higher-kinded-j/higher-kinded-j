@@ -194,8 +194,7 @@ interface GuestlistMapping extends MappingSpec<Guestlist, GuestlistDto> {
 // ANCHOR_END: bridge_container_spec
 
 // ANCHOR: flatten_spec
-record Address(String street, String city, String postcode) {}
-
+// the Address that Record Mapping Basics maps first: its street, city and postcode
 record Vendor(String name, Address address) {}
 
 record VendorDto(String name, String street, String city, String postcode) {} // fixed, flat

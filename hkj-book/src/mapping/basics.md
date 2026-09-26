@@ -39,11 +39,11 @@ The two directions have different shapes, and that asymmetry runs through the wh
 
 A [`Validated`](../monads/validated_monad.md) holds either the parsed value (`Valid`) or every error (`Invalid`), and a [`NonEmptyList`](../monads/nonemptylist_monad.md) is a list with at least one element.
 
-The processor generates `PersonMappingImpl` in the spec's package, and you reach it through its `INSTANCE` constant. A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`. A [generic spec](generics.md#one-rule-three-access-shapes) is reached through `instance()` or `of(...)` instead.
+The processor generates `AddressMappingImpl` in the spec's package, and you reach it through its `INSTANCE` constant. A spec nested in an outer class joins the enclosing simple names: `Shop.CustomerMapping` generates `ShopCustomerMappingImpl`. A [generic spec](generics.md#one-rule-three-access-shapes) is reached through `instance()` or `of(...)` instead.
 
 ### Bind in the caller, not on the spec {#bind-in-the-caller}
 
-Code that calls a mapping more than once keeps the Impl in a variable, as `personMapping` does, and reuses it. Reading `INSTANCE` costs nothing, so the variable is only for readability. Type it as the Impl, since `build` and `parse` live there, not on the spec. A local suits a few calls in one method, and a `private static final` field suits a class that maps in several methods. In Spring, register the mapping as a `ValidatedPrism` bean and inject that, as the example app does:
+Code that calls a mapping more than once keeps the Impl in a variable, as `addressMapping` does, and reuses it. Reading `INSTANCE` costs nothing, so the variable is only for readability. Type it as the Impl, since `build` and `parse` live there, not on the spec. A local suits a few calls in one method, and a `private static final` field suits a class that maps in several methods. In Spring, register the mapping as a `ValidatedPrism` bean and inject that, as the example app does:
 
 ``` java
 {{#include ../../../hkj-spring/example/src/main/java/org/higherkindedj/spring/example/config/MappingConfiguration.java:mapping_configuration}}
@@ -113,7 +113,7 @@ Jackson leaves a missing property `null`, so a boundary meets nulls constantly. 
 
 The path reaches into nested records (`customer.name`) and lists (`emails.1`, the second email). A `null` never reaches a leaf, so a leaf needs no null check of its own.
 
-A primitive wire component such as `int age` never holds a `null`, so the rule does not reach it: what a missing or malformed one becomes is Jackson's decision.
+A primitive wire component, such as an `int`, never holds a `null`, so the rule does not reach it: what a missing or malformed one becomes is Jackson's decision.
 
 ~~~admonish tip title="Why this matters"
 Compare the alternatives you have debugged before: an NPE with a stack trace pointing into generated code, or Jackson's `MismatchedInputException` naming a Java class. A located error names the field by its path, sits beside every other defect in the same response, and costs the client one round trip instead of one per `null`.
@@ -133,19 +133,19 @@ Both of these specs carry the MapStruct-style constant. In each program, some co
 ```
 
 1. Neither: an interface constant is set before any code can use it
-2. `TicketMapping.MAPPER` only
-3. `PassMapping.MAPPER` only
+2. `WarehouseMapping.MAPPER` only
+3. `CourierMapping.MAPPER` only
 4. Both
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-basics-constant-answer"
-**3.** `PassMapping` declares a leaf, so using `PassMappingImpl.INSTANCE` first leaves its `MAPPER` `null` for good. `TicketMapping` has no leaf, so its constant is safe, for now:
+**3.** `CourierMapping` declares a leaf, so using `CourierMappingImpl.INSTANCE` first leaves its `MAPPER` `null` for good. `WarehouseMapping` has no leaf, so its constant is safe, for now:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/BasicsBookTest.java:constant_proof}}
 ```
 
-The day someone adds a leaf to `TicketMapping`, its constant breaks too. Delete both constants, and keep each Impl in the calling code.
+The day someone adds a leaf to `WarehouseMapping`, its constant breaks too. Delete both constants, and keep each Impl in the calling code.
 
 Where this lives: [Bind in the caller, not on the spec](#bind-in-the-caller).
 ~~~
@@ -202,15 +202,15 @@ The two directions are asymmetric: `build` computes the derived component, and `
 ```
   build : fills the derived component from the whole domain value
   ────────────────────────────────────────────────────────────────
-  Profile(first, last) ──▶ ProfileDto(first, last, displayName)
-                                                   ▲
-             displayName() : Getter<Profile,String>│  first + " " + last
-                                                   └── computed, not copied
+  Recipient(first, last) ──▶ RecipientDto(first, last, displayName)
+                                                       ▲
+               displayName() : Getter<Recipient,String>│  first + " " + last
+                                                       └── computed, not copied
 
   parse : ignores the derived component (it is derivable)
   ────────────────────────────────────────────────────────────────
-  ProfileDto(first, last, displayName) ──▶ Valid(Profile(first, last))
-                          └── displayName dropped, never read
+  RecipientDto(first, last, displayName) ──▶ Valid(Recipient(first, last))
+                            └── displayName dropped, never read
 ```
 
 [Spec members](rules.md#spec-members) says how the processor tells a leaf from a derived field, and [What Your Spec Generates](tiers.md) what a derived field changes in the generated methods.

@@ -23,8 +23,9 @@ class BasicsBookTest {
   void aConstantOnTheSpecReadsNullOnceTheSpecDeclaresALeaf() throws Exception {
     // ANCHOR: constant_proof
     // Two programs, each loading this package afresh and using the Impl before MAPPER:
-    assertThat(mapperAfterFirstUsing("TicketMappingImpl", "TicketMapping")).isNotNull(); // no leaf
-    assertThat(mapperAfterFirstUsing("PassMappingImpl", "PassMapping")).isNull(); // a leaf
+    assertThat(mapperAfterFirstUsing("WarehouseMappingImpl", "WarehouseMapping"))
+        .isNotNull(); // no leaf
+    assertThat(mapperAfterFirstUsing("CourierMappingImpl", "CourierMapping")).isNull(); // a leaf
     // ANCHOR_END: constant_proof
   }
 
