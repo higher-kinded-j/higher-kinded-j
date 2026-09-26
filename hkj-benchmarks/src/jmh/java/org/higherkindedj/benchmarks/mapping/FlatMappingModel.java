@@ -17,7 +17,7 @@ import org.mapstruct.Mapper;
 
 /**
  * The flat pair the mapping benchmarks measure: ten fields and no nesting, nine of them converted.
- * Beside the nested order pair, it separates the cost per field from the cost of nesting.
+ * It is a second data point beside the nested order pair, with no nesting and no list.
  */
 final class FlatMappingModel {
 
@@ -131,6 +131,10 @@ interface FlatMapstruct {
 
   default String localDate(LocalDate value) {
     return value.toString();
+  }
+
+  default String price(BigDecimal value) {
+    return value.toPlainString();
   }
 }
 

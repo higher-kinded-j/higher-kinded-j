@@ -31,9 +31,10 @@ final class OrderMappingModel {
   private OrderMappingModel() {}
 
   static final String UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-  static final String INSTANT_PATTERN = "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z";
-  static final String PLAIN_DECIMAL_PATTERN = "-?\\d+(\\.\\d+)?";
-  static final String INTEGER_PATTERN = "-?\\d+";
+  static final String INSTANT_PATTERN =
+      "\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.(\\d{3}|\\d{6}|\\d{9}))?Z";
+  static final String PLAIN_DECIMAL_PATTERN = "-?(0|[1-9]\\d*)(\\.\\d+)?";
+  static final String INTEGER_PATTERN = "-?(0|[1-9]\\d{0,9})";
 
   /** The one hand-written check the pair needs; every other conversion is a stock codec. */
   static final ValidatedPrism<String, EmailAddress> EMAIL =
@@ -94,7 +95,7 @@ record ValidatedLineItemDto(
 record ValidatedOrderDto(
     @NotNull @Pattern(regexp = OrderMappingModel.UUID_PATTERN) String id,
     @NotNull @Valid ValidatedCustomerDto customer,
-    @NotNull List<@Valid ValidatedLineItemDto> lines,
+    @NotNull List<@NotNull @Valid ValidatedLineItemDto> lines,
     @NotNull @Pattern(regexp = OrderMappingModel.INSTANT_PATTERN) String placedAt,
     @NotNull @Pattern(regexp = "[A-Z]{3}") String currency,
     @NotNull @Pattern(regexp = "NEW|PAID|SHIPPED") String status) {}
@@ -138,8 +139,10 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {
   }
 }
 
-// MapStruct: one mapper for both wires. Built-in conversions cover UUID, Currency, BigDecimal,
-// Integer and the enum; the email and the instant need a method each.
+// MapStruct: one mapper for both wires. Built-in conversions cover UUID, Currency, Integer and the
+// enum; the email and the instant need a method each. The price renders in plain notation, as the
+// other two approaches do: MapStruct's built-in BigDecimal.toString would read the per-instance
+// string cache, which a benchmark reusing one domain value hits on every call.
 
 @Mapper
 interface OrderMapstruct {
@@ -163,6 +166,10 @@ interface OrderMapstruct {
 
   default String instant(Instant value) {
     return value.toString();
+  }
+
+  default String price(BigDecimal value) {
+    return value.toPlainString();
   }
 }
 

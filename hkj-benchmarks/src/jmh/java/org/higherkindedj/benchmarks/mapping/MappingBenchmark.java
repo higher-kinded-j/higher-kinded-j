@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -24,6 +25,7 @@ import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -40,15 +42,41 @@ import org.openjdk.jmh.annotations.TearDown;
  * Validation report all five problems; the hand-written mapper and plain MapStruct stop at the
  * first exception.
  *
- * <p>Run with: {@code ./gradlew :hkj-benchmarks:jmh -Pincludes=".*MappingBenchmark.*"}, and add
- * {@code -Pjmh.profilers=gc} for allocation per operation.
+ * <p>Three things shape the numbers:
+ *
+ * <ul>
+ *   <li>The generated mapper calls each leaf method on every {@code build} and {@code parse}, as a
+ *       spec written the way the book teaches does, so a leaf that builds its codec per call is
+ *       part of the cost.
+ *   <li>A rejection that throws inside a codec pays for a stack trace, which grows with the
+ *       caller's stack. The bad-wire benchmarks therefore run at two depths ({@link Caller}).
+ *   <li>Bean Validation runs with {@link ParameterMessageInterpolator}, lighter than the
+ *       expression-language interpolator a default Spring Boot set-up uses, so its figures are
+ *       favourable to it. Its patterns check each field's shape, where a codec also checks the
+ *       value and its canonical form, so a wire that passes validation can still fail MapStruct's
+ *       conversion.
+ * </ul>
+ *
+ * <p>Run with: {@code ./gradlew :hkj-benchmarks:jmh -Pincludes=".*MappingBenchmark.*"}. For figures
+ * worth quoting, run the benchmark jar with more iterations, two forks and {@code -prof gc}, as
+ * {@code hkj-book/src/benchmarks.md} shows.
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
-@State(Scope.Benchmark)
+@State(Scope.Thread)
 public class MappingBenchmark {
 
   private static final int BAD_FIELDS = 5;
+
+  /**
+   * How deep the caller's stack is when a bad wire is parsed: shallow, as JMH calls a benchmark,
+   * and 100 frames deeper, nearer the depth a web framework calls a controller at.
+   */
+  @State(Scope.Thread)
+  public static class Caller {
+    @Param({"0", "100"})
+    public int depth;
+  }
 
   private final OrderMapstruct orderMapstruct = Mappers.getMapper(OrderMapstruct.class);
   private final FlatMapstruct flatMapstruct = Mappers.getMapper(FlatMapstruct.class);
@@ -175,12 +203,30 @@ public class MappingBenchmark {
   }
 
   @Benchmark
-  public Validated<NonEmptyList<FieldError>, Order> orderParseInvalidHkj() {
-    return OrderMappingImpl.INSTANCE.parse(badOrder);
+  public Validated<NonEmptyList<FieldError>, Order> orderParseInvalidHkj(Caller caller) {
+    return atDepth(caller.depth, this::parseBadOrderHkj);
   }
 
   @Benchmark
-  public Object orderParseInvalidHandWritten() {
+  public Object orderParseInvalidHandWritten(Caller caller) {
+    return atDepth(caller.depth, this::parseBadOrderHandWritten);
+  }
+
+  @Benchmark
+  public Object orderParseInvalidMapstruct(Caller caller) {
+    return atDepth(caller.depth, this::parseBadOrderMapstruct);
+  }
+
+  @Benchmark
+  public Object orderParseInvalidMapstructBeanValidation(Caller caller) {
+    return atDepth(caller.depth, this::parseBadOrderMapstructBeanValidation);
+  }
+
+  private Validated<NonEmptyList<FieldError>, Order> parseBadOrderHkj() {
+    return OrderMappingImpl.INSTANCE.parse(badOrder);
+  }
+
+  private Object parseBadOrderHandWritten() {
     try {
       return HandWrittenOrderMapper.toDomain(badOrder);
     } catch (RuntimeException firstProblem) {
@@ -188,8 +234,7 @@ public class MappingBenchmark {
     }
   }
 
-  @Benchmark
-  public Object orderParseInvalidMapstruct() {
+  private Object parseBadOrderMapstruct() {
     try {
       return orderMapstruct.toDomain(badOrder);
     } catch (RuntimeException firstProblem) {
@@ -197,8 +242,7 @@ public class MappingBenchmark {
     }
   }
 
-  @Benchmark
-  public Object orderParseInvalidMapstructBeanValidation() {
+  private Object parseBadOrderMapstructBeanValidation() {
     Set<ConstraintViolation<ValidatedOrderDto>> violations =
         validator.validate(badOrderForValidation);
     return violations.isEmpty() ? orderMapstruct.toDomain(badOrderForValidation) : violations;
@@ -244,12 +288,30 @@ public class MappingBenchmark {
   }
 
   @Benchmark
-  public Validated<NonEmptyList<FieldError>, FlatRecord> flatParseInvalidHkj() {
-    return FlatMappingImpl.INSTANCE.parse(badFlat);
+  public Validated<NonEmptyList<FieldError>, FlatRecord> flatParseInvalidHkj(Caller caller) {
+    return atDepth(caller.depth, this::parseBadFlatHkj);
   }
 
   @Benchmark
-  public Object flatParseInvalidHandWritten() {
+  public Object flatParseInvalidHandWritten(Caller caller) {
+    return atDepth(caller.depth, this::parseBadFlatHandWritten);
+  }
+
+  @Benchmark
+  public Object flatParseInvalidMapstruct(Caller caller) {
+    return atDepth(caller.depth, this::parseBadFlatMapstruct);
+  }
+
+  @Benchmark
+  public Object flatParseInvalidMapstructBeanValidation(Caller caller) {
+    return atDepth(caller.depth, this::parseBadFlatMapstructBeanValidation);
+  }
+
+  private Validated<NonEmptyList<FieldError>, FlatRecord> parseBadFlatHkj() {
+    return FlatMappingImpl.INSTANCE.parse(badFlat);
+  }
+
+  private Object parseBadFlatHandWritten() {
     try {
       return HandWrittenFlatMapper.toDomain(badFlat);
     } catch (RuntimeException firstProblem) {
@@ -257,8 +319,7 @@ public class MappingBenchmark {
     }
   }
 
-  @Benchmark
-  public Object flatParseInvalidMapstruct() {
+  private Object parseBadFlatMapstruct() {
     try {
       return flatMapstruct.toDomain(badFlat);
     } catch (RuntimeException firstProblem) {
@@ -266,8 +327,7 @@ public class MappingBenchmark {
     }
   }
 
-  @Benchmark
-  public Object flatParseInvalidMapstructBeanValidation() {
+  private Object parseBadFlatMapstructBeanValidation() {
     Set<ConstraintViolation<ValidatedFlatDto>> violations =
         validator.validate(badFlatForValidation);
     return violations.isEmpty() ? flatMapstruct.toDomain(badFlatForValidation) : violations;
@@ -308,27 +368,36 @@ public class MappingBenchmark {
    * wires, and the other two stop at an exception.
    */
   private void checkFixtures() {
-    require(orderParseValidHkj().isValid(), "the generated mapper parses the valid order");
+    require(
+        orderParseValidHkj().fold(errors -> false, order::equals),
+        "the generated mapper round-trips");
     require(order.equals(orderParseValidHandWritten()), "the hand-written mapper round-trips");
     require(order.equals(orderParseValidMapstruct()), "MapStruct round-trips the order");
     require(order.equals(orderParseValidMapstructBeanValidation()), "Bean Validation passes it");
     require(validOrder.equals(orderBuildHandWritten()), "the hand-written build agrees");
     require(validOrder.equals(orderBuildMapstruct()), "the MapStruct build agrees");
-    require(errorCount(orderParseInvalidHkj()) == BAD_FIELDS, "five located order errors");
-    require(violationCount(orderParseInvalidMapstructBeanValidation()) == BAD_FIELDS, "five BV");
-    require(orderParseInvalidHandWritten() instanceof RuntimeException, "hand-written throws");
-    require(orderParseInvalidMapstruct() instanceof RuntimeException, "MapStruct throws");
+    require(errorCount(parseBadOrderHkj()) == BAD_FIELDS, "five located order errors");
+    require(violationCount(parseBadOrderMapstructBeanValidation()) == BAD_FIELDS, "five BV");
+    require(parseBadOrderHandWritten() instanceof RuntimeException, "hand-written throws");
+    require(parseBadOrderMapstruct() instanceof RuntimeException, "MapStruct throws");
 
-    require(flatParseValidHkj().isValid(), "the generated mapper parses the valid flat record");
+    require(
+        flatParseValidHkj().fold(errors -> false, flat::equals),
+        "the generated mapper round-trips");
     require(flat.equals(flatParseValidHandWritten()), "the hand-written mapper round-trips");
     require(flat.equals(flatParseValidMapstruct()), "MapStruct round-trips the flat record");
     require(flat.equals(flatParseValidMapstructBeanValidation()), "Bean Validation passes it");
     require(validFlat.equals(flatBuildHandWritten()), "the hand-written build agrees");
     require(validFlat.equals(flatBuildMapstruct()), "the MapStruct build agrees");
-    require(errorCount(flatParseInvalidHkj()) == BAD_FIELDS, "five located flat errors");
-    require(violationCount(flatParseInvalidMapstructBeanValidation()) == BAD_FIELDS, "five BV");
-    require(flatParseInvalidHandWritten() instanceof RuntimeException, "hand-written throws");
-    require(flatParseInvalidMapstruct() instanceof RuntimeException, "MapStruct throws");
+    require(errorCount(parseBadFlatHkj()) == BAD_FIELDS, "five located flat errors");
+    require(violationCount(parseBadFlatMapstructBeanValidation()) == BAD_FIELDS, "five BV");
+    require(parseBadFlatHandWritten() instanceof RuntimeException, "hand-written throws");
+    require(parseBadFlatMapstruct() instanceof RuntimeException, "MapStruct throws");
+  }
+
+  /** Calls {@code call} with {@code depth} more frames on the stack than the caller has. */
+  private static <T> T atDepth(int depth, Supplier<T> call) {
+    return depth == 0 ? call.get() : atDepth(depth - 1, call);
   }
 
   private static int errorCount(Validated<NonEmptyList<FieldError>, ?> parsed) {
