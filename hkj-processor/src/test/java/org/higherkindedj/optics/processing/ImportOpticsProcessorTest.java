@@ -1527,9 +1527,13 @@ class ImportOpticsProcessorTest {
           .hadErrorContaining(
               "@ImportOptics: cannot be applied to record 'Named'. It is read on a"
                   + " package-info.java, on a class or interface listing the types to import, or"
-                  + " on an interface extending OpticsSpec<S>, and a record is none of those.");
+                  + " on an interface extending OpticsSpec<S>, and not on a record.");
       assertThat(compilation)
-          .hadErrorContaining("@ImportOptics: cannot be applied to annotation interface 'Marker'.");
+          .hadErrorContaining(
+              "@ImportOptics: cannot be applied to annotation interface 'Marker'. It is read on a"
+                  + " package-info.java, on a class or interface listing the types to import, or"
+                  + " on an interface extending OpticsSpec<S>, and not on an annotation"
+                  + " interface.");
       assertThat(compilation).hadErrorCount(2);
     }
 

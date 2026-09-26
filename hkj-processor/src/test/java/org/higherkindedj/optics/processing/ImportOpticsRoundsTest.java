@@ -221,8 +221,8 @@ class ImportOpticsRoundsTest {
     @Test
     @DisplayName("a spec over a written source type is checked against it once it resolves")
     void specOverAWrittenSourceTypeIsChecked() {
-      // Read in the first round, the wither could not be checked, and the generated class named
-      // a type it could not see.
+      // Read in the first round, the wither could not be checked, and the generated class would
+      // name a type it cannot see.
       var spec =
           source(
               "com.myapp.FooOpticsSpec",
@@ -302,7 +302,7 @@ class ImportOpticsRoundsTest {
     @DisplayName("a spec's source type implementing a written interface is read once it resolves")
     void sourceTypeImplementingAWrittenInterfaceIsRead() {
       // The wither comes from the written interface, as a generated 'With' interface supplies it;
-      // read in the first round, the spec was refused for lacking it.
+      // read in the first round, the spec would be refused for lacking it.
       var person =
           source(
               "com.myapp.Person",
@@ -411,8 +411,8 @@ class ImportOpticsRoundsTest {
     @Test
     @DisplayName("a spec over a source type with a written builder is checked against it")
     void specOverASourceTypeWithAWrittenBuilderIsChecked() {
-      // Read in the first round, the builder did not resolve, the setter could not be checked,
-      // and the misspelling surfaced inside the generated file.
+      // Read in the first round, the builder would not resolve, the setter could not be checked,
+      // and the misspelling would surface inside the generated file.
       var person =
           source(
               "com.myapp.Person",
@@ -517,9 +517,99 @@ class ImportOpticsRoundsTest {
     }
 
     @Test
+    @DisplayName("a listed sealed interface permitting a written subtype waits for it")
+    void sealedInterfacePermittingAWrittenSubtypeWaits() {
+      // In one package the companion names the subtype correctly either way; across the packages
+      // of a module it would not, which a single-module compilation cannot show. This holds the
+      // read of the permits clause to generating once the subtype exists.
+      var shape =
+          source(
+              "com.myapp.Shape",
+              """
+              package com.myapp;
+
+              public sealed interface Shape permits Circle {}
+              """);
+      var importer =
+          source(
+              "com.myapp.ShapeImports",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({Shape.class})
+              class ShapeImports {}
+              """);
+
+      var compilation =
+          compile(
+              Map.of(
+                  "com.myapp.Circle",
+                  """
+                  package com.myapp;
+
+                  public record Circle(double radius) implements Shape {}
+                  """),
+              shape,
+              importer);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.ShapePrisms").isNotNull();
+    }
+
+    @Test
+    @DisplayName("an @InstanceOf target extending a written class waits for it")
+    void instanceOfTargetExtendingAWrittenClassWaits() {
+      // Read in the first round, the target would not be a subtype of the source type yet.
+      var shapes =
+          source(
+              "com.myapp.Figure",
+              """
+              package com.myapp;
+
+              public abstract class Figure {}
+
+              final class Round extends com.gen.GenRound {}
+              """);
+      var spec =
+          source(
+              "com.myapp.FigureOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Prism;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.InstanceOf;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              interface FigureOpticsSpec extends OpticsSpec<Figure> {
+                  @InstanceOf(Round.class)
+                  Prism<Figure, Figure> round();
+              }
+              """);
+
+      var compilation =
+          compile(
+              Map.of(
+                  "com.gen.GenRound",
+                  """
+                  package com.gen;
+
+                  public abstract class GenRound extends com.myapp.Figure {}
+                  """),
+              shapes,
+              spec);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.FigureOptics").isNotNull();
+    }
+
+    @Test
     @DisplayName("an interface extending a written spec base is refused once it resolves")
     void interfaceExtendingAWrittenSpecBaseIsRefused() {
-      // Read in the first round, its supertype did not resolve, and nothing was said.
+      // Read in the first round, its supertype would not resolve, and nothing would be said.
       var importer =
           source(
               "com.myapp.BarOptics",
@@ -641,6 +731,225 @@ class ImportOpticsRoundsTest {
 
       assertThat(compilation).succeededWithoutWarnings();
       assertThat(compilation).generatedSourceFile("com.myapp.PointLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("a listed class's instance method naming its companion does not hold it back")
+    void listedClassInstanceMethodNamingItsCompanionDoesNotHoldItBack() {
+      var point =
+          source(
+              "com.myapp.Point",
+              """
+              package com.myapp;
+
+              public record Point(int x) {
+                  public PointLenses lenses() {
+                      return null;
+                  }
+              }
+              """);
+      var importer =
+          source(
+              "com.myapp.PointImports",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({Point.class})
+              class PointImports {}
+              """);
+
+      var compilation = compile(Map.of(), point, importer);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.PointLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("a class in the unnamed package naming its companion does not hold it back")
+    void unnamedPackageClassNamingItsCompanionDoesNotHoldItBack() {
+      // In the unnamed package a companion's qualified name is its simple name.
+      var point =
+          source(
+              "Point",
+              """
+              public record Point(int x) {
+                  public PointLenses lenses() {
+                      return null;
+                  }
+              }
+              """);
+      var importer =
+          source(
+              "PointImports",
+              """
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({Point.class})
+              class PointImports {}
+              """);
+
+      var compilation = compile(Map.of(), point, importer);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("PointLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("a source type naming the class generated from its spec does not hold it back")
+    void sourceTypeNamingItsSpecsClassDoesNotHoldItBack() {
+      var point =
+          source(
+              "com.myapp.Point",
+              """
+              package com.myapp;
+
+              public final class Point {
+                  private final int x;
+
+                  public Point(int x) { this.x = x; }
+
+                  public int getX() { return x; }
+
+                  public Point withX(int x) { return new Point(x); }
+
+                  public com.myapp.optics.PointOptics optics() { return null; }
+              }
+              """);
+      var spec =
+          source(
+              "com.myapp.PointOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              @ImportOptics(targetPackage = "com.myapp.optics")
+              public interface PointOpticsSpec extends OpticsSpec<Point> {
+                  @Wither(value = "withX", getter = "getX")
+                  Lens<Point, Integer> x();
+              }
+              """);
+
+      var compilation = compile(Map.of(), point, spec);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.optics.PointOptics").isNotNull();
+    }
+
+    @Test
+    @DisplayName("two importers whose classes name each other's companions do not hold each back")
+    void importersNamingEachOthersCompanionsDoNotHoldEachOtherBack() {
+      var records =
+          source(
+              "com.myapp.Pair",
+              """
+              package com.myapp;
+
+              public record Pair(int a) {
+                  public OtherLenses other() { return null; }
+              }
+
+              record Other(int b) {
+                  public PairLenses pair() { return null; }
+              }
+              """);
+      var importers =
+          source(
+              "com.myapp.Imports",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({Pair.class})
+              class PairImports {}
+
+              @ImportOptics({Other.class})
+              class OtherImports {}
+              """);
+
+      var compilation = compile(Map.of(), records, importers);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.PairLenses").isNotNull();
+      assertThat(compilation).generatedSourceFile("com.myapp.OtherLenses").isNotNull();
+    }
+
+    @Test
+    @DisplayName("a builder extending a written base is not refused for what it inherits")
+    void builderExtendingAWrittenBaseIsNotRefused() {
+      // The builder resolves, so nothing waits for it, and its setter comes from the written base:
+      // the chain is written out as it stands, and javac checks it once the base exists.
+      var person =
+          source(
+              "com.myapp.Person",
+              """
+              package com.myapp;
+
+              public final class Person {
+                  private final String name;
+
+                  public Person(String name) { this.name = name; }
+
+                  public String name() { return name; }
+
+                  public Builder toBuilder() { return new Builder(name); }
+
+                  public static final class Builder extends com.gen.PersonBuilderBase {
+                      Builder(String name) { super(name); }
+                  }
+              }
+              """);
+      var spec =
+          source(
+              "com.myapp.PersonOpticsSpec",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ViaBuilder;
+
+              @ImportOptics
+              interface PersonOpticsSpec extends OpticsSpec<Person> {
+                  @ViaBuilder
+                  Lens<Person, String> name();
+              }
+              """);
+
+      var compilation =
+          compile(
+              Map.of(
+                  "com.gen.PersonBuilderBase",
+                  """
+                  package com.gen;
+
+                  import com.myapp.Person;
+
+                  public abstract class PersonBuilderBase {
+                      private String name;
+
+                      protected PersonBuilderBase(String name) { this.name = name; }
+
+                      public Person.Builder name(String name) {
+                          this.name = name;
+                          return (Person.Builder) this;
+                      }
+
+                      public Person build() { return new Person(name); }
+                  }
+                  """),
+              person,
+              spec);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.PersonOptics").isNotNull();
     }
 
     @Test

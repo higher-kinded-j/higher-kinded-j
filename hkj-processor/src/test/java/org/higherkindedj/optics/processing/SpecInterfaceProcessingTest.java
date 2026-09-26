@@ -11,7 +11,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import javax.tools.JavaFileObject;
@@ -2076,17 +2075,18 @@ class SpecInterfaceProcessingTest {
               "com.external.Absent", "package com.external;\n\npublic class Absent {}\n");
       Compilation upstream = javac().compile(brokenNode, absent);
       assertThat(upstream).succeeded();
-      Path classes = GeneratorTestHelper.classDirectory(upstream, dir);
-      Files.delete(classes.resolve("com/external/Absent.class"));
 
       Compilation compilation =
           javac()
               .withProcessors(new ImportOpticsProcessor())
-              .withClasspath(GeneratorTestHelper.classpathWith(classes))
+              .withClasspath(
+                  GeneratorTestHelper.classpathWith(
+                      GeneratorTestHelper.classDirectoryWithout(
+                          upstream, dir, "com.external.Absent")))
               .compile(specInterface);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("Absent");
+      assertThat(compilation).hadErrorContaining("class file for com.external.Absent not found");
       Assertions.assertThat(compilation.errors())
           .noneMatch(error -> error.getMessage(null).contains("@ViaCopyAndSet:"));
     }
@@ -3413,18 +3413,24 @@ class SpecInterfaceProcessingTest {
                   + " interface is not supported yet, so 'x' would be missing from the generated"
                   + " class. Declare 'Lens<Point, Integer> x()' on 'DefaultXSpec' itself as an"
                   + " abstract method carrying a copy strategy or hint annotation, or move the"
-                  + " composition to a static method that calls the generated statics.");
+                  + " default out of 'DefaultX' into a static method that calls the generated"
+                  + " statics.");
       // A raw clause erases what the spec sees, so the signature is the one the method declares.
       assertThat(compilation)
           .hadErrorContaining(
               "Declare 'Lens<Sack, List<String>> items()' on 'RawBitsSpec' itself, annotated as it"
                   + " is on 'Bits'.");
-      // Where the declaration has nothing better to offer, the signature is the spec's view.
-      assertThat(compilation).hadErrorContaining("Declare 'Lens x()' on 'RawHasLensSpec' itself");
-      assertThat(compilation).hadErrorContaining("Declare 'Lens x()' on 'RawXSpec' itself");
-      // A declaration naming its interface's own type parameter would not compile on the spec.
+      // Where neither the spec's view nor the declaration has the type arguments, the fix asks
+      // for them, rather than offer a raw lens or a type parameter the spec cannot see.
       assertThat(compilation)
-          .hadErrorContaining("Declare 'Lens items()' on 'RawSourcedBitsSpec' itself");
+          .hadErrorContaining(
+              "Declare 'x' with its type arguments on 'RawHasLensSpec' itself, annotated as it is"
+                  + " on 'HasLens'.");
+      assertThat(compilation)
+          .hadErrorContaining("Declare 'x' with its type arguments on 'RawXSpec' itself");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'items' with its type arguments on 'RawSourcedBitsSpec' itself");
       assertThat(compilation).hadErrorCount(5);
     }
 

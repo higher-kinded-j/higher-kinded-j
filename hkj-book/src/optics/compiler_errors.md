@@ -61,7 +61,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`which hides the 'T' of its enclosing class`](#importoptics-type--names-the-type-parameter-t-of--which-hides-the-t-of-its-enclosing-class-) | An imported inner class reuses a type-parameter name of its enclosing class |
 | [`rather than as the List interface`](#throughfield--reaches-field-items-which-is-declared-as-arrayliststring-rather-than-as-the-list-interface) | `@ThroughField`'s lens focuses a concrete container, or another interface |
 | [`which the spec does not declare`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` has no lens for the field to compose with |
-| [`which the spec declares static`, `private`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` names a lens the generated class does not carry |
+| [`which the spec declares static` or `private`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` names a lens the generated class does not carry |
 | [`hands back as 'String'`](#throughfield--declares-focus-integer-over-field-items-of-type-liststring-whose-elements-the-standard-traversal-hands-back-as-string) | `@ThroughField`'s declared focus is not what the traversal returns |
 | [`is not a subtype of source type`](#instanceof-target-comexamplefoo-is-not-a-subtype-of-source-type-comexamplebase) | `@InstanceOf` names a class outside the hierarchy |
 | [`which the test cannot narrow to`](#instanceof--declares-its-focus-as-circlet-which-the-test-cannot-narrow-to) | The focus promises a type argument `instanceof` cannot check |
@@ -160,7 +160,7 @@ A `cannot find symbol: class XLenses` sits outside the diagram altogether: it me
 
 ### "cannot find symbol: class XLenses"
 
-The annotation processor has not run yet, or the IDE has not picked up the generated sources directory. With `@ImportOptics`, the class is also missing when a type it imports never appeared: the import waits for a type another processor writes, and javac reports that type as missing too. An earlier error stops the build before a waiting import is read, so fix those first.
+The annotation processor has not run yet, or the IDE has not picked up the generated sources directory. With `@ImportOptics`, the class is also missing when a type it imports never appeared: the import waits for a type another processor writes, and javac reports that type as missing too. An error reported earlier, or a warning under `-Werror`, stops annotation processing before a waiting import is read, so fix those first.
 
 **Fix.** Run a build (`./gradlew build` or `mvn compile`). After the build completes, refresh the project in your IDE so it indexes `build/generated/sources/annotationProcessor/java/main` (Gradle) or `target/generated-sources/annotations` (Maven).
 ### "@GenerateLenses: can only be applied to records, but 'Foo' is a class"
@@ -430,7 +430,7 @@ record Batch(Kind<NonEmptyListKind.Witness, String> items) {}
 
 ### "@ImportOptics: '...' lists no classes to import, so nothing is generated" (a warning) {#importoptics-lists-no-classes}
 
-An `@ImportOptics` on a `package-info.java`, a class or an interface that is not a spec names no class to import, so it generates nothing.
+An `@ImportOptics` on a `package-info.java`, or on a class or interface that does not reach `OpticsSpec`, names no class to import, so it generates nothing.
 
 **Fix.** List the classes to import, as `@ImportOptics({Order.class})`, or remove the annotation. On an interface you meant as a spec, extend `OpticsSpec<S>` for the type its optics are for.
 
@@ -529,7 +529,7 @@ abstract class SessionOpticsSpec implements OpticsSpec<Session> {}
 
 A spec interface inherits a method that returns an optic, abstract or `default`, from another interface. A spec generates optics from the methods it declares itself, and reading them from another interface is not supported yet, so the generated class would be missing that optic.
 
-**Fix.** Declare the method on the spec itself, annotated as it is on the interface it comes from. The message writes the signature for the spec's own source type, `Lens<Order, Long> id()` for a mix-in's `Lens<S, Long> id()`. For a `default` method, declare it abstract with its copy strategy or hint annotation, or move the composition to a static method that calls the generated statics. A method the spec redeclares is its own, and the one it inherits is no longer read.
+**Fix.** Declare the method on the spec itself, annotated as it is on the interface it comes from. The message writes the signature for the spec's own source type, `Lens<Order, Long> id()` for a mix-in's `Lens<S, Long> id()`; reached through a raw clause, it asks for the type arguments instead. For a `default` method, redeclare it on the spec as an abstract method with its copy strategy or hint annotation, which replaces the inherited one. Or move the default out of the mix-in into a static method that calls the generated statics. A method the spec redeclares is its own, and the one it inherits is no longer read.
 
 ~~~admonish note title="Why" collapsible=true
 Leaving the method out would be quieter and worse: code calling it would fail with `cannot find symbol`, and a `@ThroughField` traversal composing through an inherited lens would fail inside the generated file. A spec extending another `@ImportOptics` spec draws it too, since its own generated class would lack the other's optics. An inherited method that returns something other than an optic, such as `int count()`, is not a declaration of an optic and leaves the spec as it is. So does one taking arguments or declaring type parameters of its own, which a spec could not declare as an optic either.

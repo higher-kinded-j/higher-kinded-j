@@ -94,8 +94,9 @@ public class SpecInterfaceAnalyser {
    * Analyses a spec interface to determine what optics to generate.
    *
    * @param specInterface the type carrying {@code @ImportOptics} that reaches {@code
-   *     OpticsSpec<S>}; one that is not an interface is refused. Every type it names resolves: the
-   *     processor holds an importer back until they do, so the checks below read real members
+   *     OpticsSpec<S>}; one that is not an interface is refused. Its clause, supertypes and
+   *     abstract methods resolve, and so does its source type's declaration where it is in source:
+   *     the processor holds an importer back until they do
    * @param targetPackage the package the optics class is generated into, which decides what the
    *     generated code is allowed to name
    * @return the analysis result, or empty if the interface is invalid
@@ -338,14 +339,13 @@ public class SpecInterfaceAnalyser {
         ElementFilter.methodsIn(elementUtils.getAllMembers(specInterface))) {
       // An interface's static methods are not members of the interfaces extending it, so every
       // member declared elsewhere is inherited.
-      TypeMirror returned =
-          ((ExecutableType) typeUtils.asMemberOf(specType, member)).getReturnType();
       if (!member.getEnclosingElement().equals(specInterface)
           && member.getParameters().isEmpty()
           && member.getTypeParameters().isEmpty()
-          && opticKindOf(returned) != null) {
-        // An optic kind is only ever read from a declared type.
-        reportInheritedOptic(specInterface, member, (DeclaredType) returned);
+          && ((ExecutableType) typeUtils.asMemberOf(specType, member)).getReturnType()
+              instanceof DeclaredType returned
+          && determineOpticKind(returned) != null) {
+        reportInheritedOptic(specInterface, member, returned);
         reported = true;
       }
     }
@@ -354,7 +354,7 @@ public class SpecInterfaceAnalyser {
 
   /**
    * Reports one optic method a spec inherits, asking for it on the spec under the spec's own type
-   * arguments, so the signature in the fix can be pasted as it is.
+   * arguments where the spec's view of it has them.
    *
    * @param specInterface the spec interface inheriting the method
    * @param method the inherited optic method
@@ -371,12 +371,17 @@ public class SpecInterfaceAnalyser {
     TypeMirror written =
         ProcessorUtils.firstRawIn(returned) != null
                 && ProcessorUtils.firstRawIn(declared) == null
+                // A method's enclosing element is the class or interface declaring it.
                 && ((TypeElement) method.getEnclosingElement())
                     .getTypeParameters().stream()
                         .noneMatch(parameter -> ProcessorUtils.mentions(declared, parameter))
             ? declared
             : returned;
-    String signature = ProcessorUtils.simpleTypeName(written) + " " + name + "()";
+    // A raw view has no type arguments to paste, so the fix asks for them instead.
+    String declaration =
+        ProcessorUtils.firstRawIn(written) == null
+            ? "'" + ProcessorUtils.simpleTypeName(written) + " " + name + "()'"
+            : "'" + name + "' with its type arguments";
     Diagnostics.error(
         messager,
         specInterface,
@@ -387,15 +392,17 @@ public class SpecInterfaceAnalyser {
             + name
             + "' would be missing from the generated class.",
         method.isDefault()
-            ? "Declare '"
-                + signature
-                + "' on '"
+            ? "Declare "
+                + declaration
+                + " on '"
                 + spec
                 + "' itself as an abstract method carrying a copy strategy or hint annotation, or"
-                + " move the composition to a static method that calls the generated statics."
-            : "Declare '"
-                + signature
-                + "' on '"
+                + " move the default out of '"
+                + from
+                + "' into a static method that calls the generated statics."
+            : "Declare "
+                + declaration
+                + " on '"
                 + spec
                 + "' itself, annotated as it is on '"
                 + from
@@ -517,7 +524,6 @@ public class SpecInterfaceAnalyser {
     if (sourceType instanceof TypeVariable typeVariable
         && typeVariable.getUpperBound() instanceof DeclaredType bound
         && bound.getKind() == TypeKind.DECLARED
-        // isSameType, not a name comparison.
         && !typeUtils.isSameType(bound, elementUtils.getTypeElement(OBJECT_FQN).asType())
         && !ProcessorUtils.mentions(bound, typeVariable.asElement())
         // A hint naming a raw bound would steer straight into the raw-source refusal.
@@ -675,11 +681,6 @@ public class SpecInterfaceAnalyser {
             prismHintInfo,
             traversalHint,
             traversalHintInfo));
-  }
-
-  /** The optic kind a type is, or null where it is not an optic, or not a declared type at all. */
-  private OpticKind opticKindOf(TypeMirror type) {
-    return type instanceof DeclaredType declared ? determineOpticKind(declared) : null;
   }
 
   /**
@@ -1289,21 +1290,22 @@ public class SpecInterfaceAnalyser {
    * The spec's own lens for {@code fieldName}, or null when the spec declares no lens by that name.
    * A raw one is answered as it is declared; it has no focus, and the caller says so. Inherited
    * optics are refused before this is asked, so the lens found is the spec's own: generated when
-   * abstract, and left on the spec when it has a body. A method taking arguments is not a lens for
-   * a field, whatever it returns.
+   * abstract, and left on the spec when it has a body. A method taking arguments or declaring type
+   * parameters is not a lens for a field, whatever it returns.
    */
   private LensMember declaredLens(TypeElement specInterface, String fieldName) {
     DeclaredType specType = (DeclaredType) specInterface.asType();
     for (ExecutableElement member :
         ElementFilter.methodsIn(elementUtils.getAllMembers(specInterface))) {
-      if (!member.getSimpleName().contentEquals(fieldName) || !member.getParameters().isEmpty()) {
+      if (!member.getSimpleName().contentEquals(fieldName)
+          || !member.getParameters().isEmpty()
+          || !member.getTypeParameters().isEmpty()) {
         continue;
       }
       TypeMirror returned =
           ((ExecutableType) typeUtils.asMemberOf(specType, member)).getReturnType();
-      if (opticKindOf(returned) == OpticKind.LENS) {
-        // An optic kind is only ever read from a declared type.
-        return new LensMember((DeclaredType) returned, member.getReturnType(), member);
+      if (returned instanceof DeclaredType optic && determineOpticKind(optic) == OpticKind.LENS) {
+        return new LensMember(optic, member.getReturnType(), member);
       }
     }
     return null;

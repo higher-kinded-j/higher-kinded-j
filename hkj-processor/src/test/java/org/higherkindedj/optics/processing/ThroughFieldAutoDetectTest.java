@@ -396,14 +396,29 @@ class ThroughFieldAutoDetectTest {
                   @ThroughField(field = "items")
                   Traversal<Sack, String> items();
               }
+
+              @ImportOptics
+              interface SackCountSpec extends OpticsSpec<Sack> {
+                  @ThroughField(field = "items")
+                  Traversal<Sack, String> eachItem();
+
+                  static int items() {
+                      return 0;
+                  }
+              }
               """);
 
       Compilation compilation = compile(container, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "composes through a lens named 'items', which the spec does not declare.");
-      assertThat(compilation).hadErrorCount(1);
+              "'SackSpec.items' composes through a lens named 'items', which the spec does not"
+                  + " declare.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'SackCountSpec.eachItem' composes through a lens named 'items', which the spec"
+                  + " does not declare.");
+      assertThat(compilation).hadErrorCount(2);
     }
 
     @Test
@@ -434,6 +449,8 @@ class ThroughFieldAutoDetectTest {
 
               interface Keyed {
                   Lens<Sack, List<String>> items(String key);
+
+                  <T> Lens<Sack, T> items();
               }
 
               @ImportOptics

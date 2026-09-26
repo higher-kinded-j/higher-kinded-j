@@ -9,8 +9,8 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGene
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
@@ -49,29 +49,28 @@ class SpecCopyStrategyChecksTest {
             + body);
   }
 
+  private static final List<String> LINT = List.of("-Xlint:unchecked,rawtypes,static", "-Werror");
+
   /** Compiles under the lint a call bound to the wrong method would trip, as an error. */
   private static Compilation compile(JavaFileObject... sources) {
-    return javac()
-        .withProcessors(new ImportOpticsProcessor())
-        .withOptions("-Xlint:unchecked,rawtypes,static", "-Werror")
-        .compile(sources);
+    return javac().withProcessors(new ImportOpticsProcessor()).withOptions(LINT).compile(sources);
   }
 
   /**
-   * Compiles {@code source} beside a class {@code com.external.Gone} into a class directory, then
-   * deletes {@code Gone}, and compiles {@code spec} against the rest: the spec reads a class file
-   * naming a type missing from the classpath, which a spec in source never waits for.
+   * Compiles {@code spec} against {@code source} read from a class file that names {@code
+   * com.external.Gone}, which is missing from the classpath: a type the processor does not wait
+   * for, since it would never come.
    */
-  private static Compilation compileAgainstAClassFileMissingGone(
+  private static Compilation compileAgainstAClassFileNamingAMissingType(
       Path dir, JavaFileObject source, JavaFileObject spec) throws IOException {
     Compilation upstream = javac().compile(source, external("Gone", "public final class Gone {}"));
     assertThat(upstream).succeeded();
-    Path classes = GeneratorTestHelper.classDirectory(upstream, dir);
-    Files.delete(classes.resolve("com/external/Gone.class"));
     return javac()
         .withProcessors(new ImportOpticsProcessor())
-        .withOptions("-Xlint:unchecked,rawtypes,static", "-Werror")
-        .withClasspath(GeneratorTestHelper.classpathWith(classes))
+        .withOptions(LINT)
+        .withClasspath(
+            GeneratorTestHelper.classpathWith(
+                GeneratorTestHelper.classDirectoryWithout(upstream, dir, "com.external.Gone")))
         .compile(spec);
   }
 
@@ -1853,7 +1852,7 @@ class SpecCopyStrategyChecksTest {
     @DisplayName("a setter whose own type does not resolve is left to javac")
     void setterWhoseOwnTypeDoesNotResolveIsLeftToJavac(@TempDir Path dir) throws IOException {
       var compilation =
-          compileAgainstAClassFileMissingGone(
+          compileAgainstAClassFileNamingAMissingType(
               dir,
               external(
                   "Vanish",
@@ -1939,7 +1938,7 @@ class SpecCopyStrategyChecksTest {
     @DisplayName("a builder type that does not resolve is left to javac")
     void builderTypeThatDoesNotResolveIsLeftToJavac(@TempDir Path dir) throws IOException {
       var compilation =
-          compileAgainstAClassFileMissingGone(
+          compileAgainstAClassFileNamingAMissingType(
               dir,
               external(
                   "Absent",

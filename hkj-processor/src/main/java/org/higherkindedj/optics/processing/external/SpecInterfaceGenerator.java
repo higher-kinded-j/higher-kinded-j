@@ -86,7 +86,7 @@ public class SpecInterfaceGenerator {
    */
   public void generate(SpecAnalysis analysis, String targetPackage, Element originatingElement) {
     TypeElement specInterface = analysis.specInterface();
-    String className = deriveGeneratedClassName(specInterface.getSimpleName().toString());
+    String className = generatedClassName(specInterface.getSimpleName().toString());
 
     TypeSpec.Builder classBuilder =
         TypeSpec.classBuilder(className)
@@ -463,7 +463,7 @@ public class SpecInterfaceGenerator {
    * @param interfaceName the spec interface simple name
    * @return the generated class name
    */
-  private String deriveGeneratedClassName(String interfaceName) {
+  public static String generatedClassName(String interfaceName) {
     if (interfaceName.endsWith("Spec")) {
       return interfaceName.substring(0, interfaceName.length() - 4);
     }

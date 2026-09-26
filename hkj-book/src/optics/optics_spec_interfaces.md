@@ -72,6 +72,8 @@ Prism<JsonNode, BooleanNode> bool    = JsonNodeOptics.bool();
 An interface whose name ends in `Spec` loses that suffix: `JsonNodeOpticsSpec` generates `JsonNodeOptics`. Any other name gains `Impl` instead, so `JsonOptics` would generate `JsonOpticsImpl`. Naming the interface `...Spec` is the convention worth following: it keeps the name you actually call short.
 ~~~
 
+A spec declares `OpticsSpec<S>` and each of its optic methods itself. Inheriting `OpticsSpec<S>` or an optic method from another interface is not supported yet.
+
 ---
 
 ## Building Richer Tools
@@ -292,8 +294,6 @@ interface BoxOpticsSpec extends OpticsSpec<Box<String>> {
     <X> Lens<Box<String>, X> content();
 }
 ```
-
-A spec declares `OpticsSpec<S>` and each of its optic methods itself. Inheriting `OpticsSpec<S>` or an optic method from another interface is not supported yet.
 
 ---
 

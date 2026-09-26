@@ -2,8 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.external;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -806,6 +809,12 @@ final class CopyStrategyChecks {
         method, builderElement, toBuilderName + "()", sourceType, targetPackage)) {
       return true;
     }
+    // A builder extending a type another processor writes, as a hand-written builder over a
+    // generated one does, inherits members this round cannot read; the chain is written out as it
+    // stands, and javac checks it once the type exists.
+    if (hierarchyUnresolved(builderType)) {
+      return false;
+    }
     SetterCall setter =
         boundSetter(
             method,
@@ -823,7 +832,8 @@ final class CopyStrategyChecks {
     }
     TypeMirror setType =
         stepType(ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) builderType, bound));
-    // As for the builder type, only a class-file source type can leave this unresolved.
+    // A builder the processor does not wait on, one nested in the source type or read from a class
+    // file, can hand back a type that does not resolve.
     if (setType == null || setType.getKind() == TypeKind.ERROR) {
       return false;
     }
@@ -1745,13 +1755,32 @@ final class CopyStrategyChecks {
   }
 
   /**
+   * Whether a type's hierarchy holds a supertype that does not resolve, so the members it inherits
+   * cannot all be read this round. Each supertype is walked once.
+   */
+  private boolean hierarchyUnresolved(TypeMirror type) {
+    Deque<TypeMirror> pending = new ArrayDeque<>(List.of(type));
+    Set<Element> walked = new HashSet<>();
+    while (!pending.isEmpty()) {
+      List<? extends TypeMirror> supertypes = typeUtils.directSupertypes(pending.pop());
+      if (supertypes.stream().anyMatch(supertype -> supertype.getKind() == TypeKind.ERROR)) {
+        return true;
+      }
+      supertypes.stream()
+          .filter(supertype -> walked.add(typeUtils.asElement(supertype)))
+          .forEach(pending::add);
+    }
+    return false;
+  }
+
+  /**
    * Finds the supertype relation the cast depends on, reporting when it does not hold.
    *
-   * <p>A hierarchy containing a type this round cannot resolve - one another processor has yet to
-   * generate, say - reads as having no supertypes at all, which would make every name look wrong.
-   * The compiler is asked directly before any name is rejected, so an unreadable hierarchy costs
-   * the instantiation rather than drawing an error that blames the attribute for a missing type
-   * javac is already reporting.
+   * <p>A hierarchy javac cannot read, as a class file whose supertype is missing from the classpath
+   * has, reads as having no supertypes at all, which would make every name look wrong. The compiler
+   * is asked directly before any name is rejected, so an unreadable hierarchy costs the
+   * instantiation rather than drawing an error that blames the attribute for a missing type javac
+   * is already reporting.
    *
    * @param method the annotated optic method, for error reporting
    * @param sourceType the source type {@code S}
