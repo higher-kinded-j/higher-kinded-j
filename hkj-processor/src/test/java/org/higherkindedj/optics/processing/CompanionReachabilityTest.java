@@ -664,6 +664,59 @@ class CompanionReachabilityTest {
     }
 
     @Test
+    @DisplayName("a navigator composes a target's own navigator as that target's package sees it")
+    void navigatorAgreesWithTargetCompanion() {
+      // ItemFocus, written beside Box, gives box() a navigator even though Sku is package-private
+      // there; OrderFocus composes it as it is, and never names Sku itself.
+      Compilation compilation =
+          compile(
+              List.of("-Xlint:all,-processing", "-Werror"),
+              source(
+                  "com.example.stock.Item",
+                  """
+                  package com.example.stock;
+
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                  @GenerateFocus(generateNavigators = true)
+                  public record Item(Box box, String name) {}
+                  """),
+              source(
+                  "com.example.stock.Box",
+                  """
+                  package com.example.stock;
+
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                  @GenerateFocus(generateNavigators = true)
+                  public record Box(Sku sku, String label) {}
+                  """),
+              source(
+                  "com.example.stock.Sku",
+                  """
+                  package com.example.stock;
+
+                  record Sku(String value) {}
+                  """),
+              source(
+                  "com.example.Order",
+                  """
+                  package com.example;
+
+                  import com.example.stock.Item;
+                  import org.higherkindedj.optics.annotations.GenerateFocus;
+
+                  @GenerateFocus(generateNavigators = true)
+                  public record Order(Item item, String id) {}
+                  """));
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation)
+          .generatedSourceFile("com.example.OrderFocus")
+          .contentsAsUtf8String()
+          .contains("BoxNavigator");
+    }
+
+    @Test
     @DisplayName("a navigator into a record whose component its package cannot see is left out")
     void navigatorFallsBack() {
       Compilation compilation =

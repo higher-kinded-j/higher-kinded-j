@@ -218,8 +218,7 @@ public class FocusProcessor extends AbstractProcessor {
     NavigatorClassGenerator navigatorGenerator = null;
     if (generateNavigators) {
       navigatorGenerator =
-          new NavigatorClassGenerator(
-              processingEnv, navigableTypes, maxNavigatorDepth, analysis, packageName);
+          new NavigatorClassGenerator(processingEnv, navigableTypes, maxNavigatorDepth, analysis);
     }
 
     // Generate FocusPath methods for each component
