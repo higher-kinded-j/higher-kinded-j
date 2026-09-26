@@ -18,6 +18,12 @@ dependencies {
   // PCollections — for HKT compatibility benchmarks
   jmhImplementation(libs.pcollections)
 
+  // Mapping benchmarks: the generated mapper against MapStruct, with and without Bean Validation
+  jmhAnnotationProcessor(project(":hkj-processor-plugins"))
+  jmhImplementation(libs.mapstruct)
+  jmhAnnotationProcessor(libs.mapstruct.processor)
+  jmhImplementation(libs.hibernate.validator)
+
   // Test dependencies for benchmark assertions
   testImplementation(platform(libs.junit.bom))
   testImplementation(libs.junit.jupiter)
