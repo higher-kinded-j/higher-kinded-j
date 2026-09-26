@@ -233,5 +233,7 @@ public class Tutorial26_RecordMapping {
    *     Spring 422 rendering.
    *   • Tutorial 24 — the hand-written Edits fold this tutorial's PATCH sibling generates.
    *   • Tutorial 25 — the ValidatedPrism leaf underneath every fallible correspondence.
+   *   • Tutorial 27 — the edge cases: nulls, list indexes, absent fields, invariants, and a
+   *     PATCH bean's defaults.
    */
 }

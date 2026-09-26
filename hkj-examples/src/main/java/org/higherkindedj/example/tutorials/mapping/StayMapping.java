@@ -11,7 +11,7 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
  * Tutorial 27: the stay mapping. Each date parses through its own leaf; once both have parsed,
- * {@link Stay}'s constructor runs, and its refusal becomes a located error.
+ * {@link Stay}'s constructor runs, and its refusal becomes an error at the record's path.
  */
 @GenerateMapping
 public interface StayMapping extends MappingSpec<Stay, StayDto> {

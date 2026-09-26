@@ -7,7 +7,7 @@ package org.higherkindedj.example.tutorials.mapping;
  * initialiser, so every getter answers {@code null} until its setter is called, and a property the
  * request leaves out reads as absent.
  */
-public final class PreferencesForm {
+public final class PreferencesPatchForm {
   private String language;
   private Boolean marketingOptIn;
 

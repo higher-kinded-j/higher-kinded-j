@@ -6,9 +6,10 @@ package org.higherkindedj.example.tutorials.mapping;
  * Tutorial 27's PATCH request bean as a code generator renders it from a schema that declares
  * {@code default: false}: the default becomes a field initialiser. {@code getMarketingOptIn()} then
  * answers {@code false} on a request that never mentioned the field, and a PATCH reads that as
- * sent. Nothing at compile time can see this; the sparse identity law can.
+ * sent. No compiler can check this. The sparse identity law can, given a sample whose opt-in
+ * differs from the default.
  */
-public final class GeneratedPreferencesForm {
+public final class DefaultedPreferencesPatchForm {
   private String language;
   private Boolean marketingOptIn = false;
 

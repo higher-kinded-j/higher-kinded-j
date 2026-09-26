@@ -1,7 +1,7 @@
 # Learning Paths
 
 ~~~admonish info title="Choose a Path"
-Each journey is designed to be completed in a single sitting (25–40 minutes). The paths below are recommended *sequences* of journeys for different goals.
+Each journey is designed to be completed in a single sitting (25–65 minutes). The paths below are recommended *sequences* of journeys for different goals.
 ~~~
 
 ## All Journeys at a Glance

@@ -4,5 +4,9 @@ package org.higherkindedj.example.tutorials.mapping;
 
 import org.jspecify.annotations.Nullable;
 
-/** Tutorial 27 wire: a note the guest leaves out arrives as {@code null}, as JSON has it. */
+/**
+ * Tutorial 27 wire: a note the guest leaves out arrives as {@code null}, as a JSON binder hands it
+ * over. The component is {@code @Nullable} because this module is null-marked, and the processor
+ * refuses to bridge a component that is not declared nullable.
+ */
 public record RoomRequestDto(String roomType, @Nullable String note) {}

@@ -170,6 +170,10 @@ Where this lives: [A record's own invariants](#constructor-invariants).
 * **A record's own invariant is located too**: an exception from its constructor becomes a `FieldError` at the record's path, beside the errors from the rest of the value, once its own components have parsed
 ~~~
 
+~~~admonish info title="Hands-On Learning"
+Practise both rules in [Tutorial 27: Boundary Edge Cases](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial27_BoundaryEdgeCases.java) (6 exercises, ~15 minutes): a room request that leaves its note out, and a stay whose constructor refuses its dates.
+~~~
+
 ~~~admonish tip title="See Also"
 - [Sparse PATCH](beans_patch.md): When an omitted field should keep its current value, not become empty
 - [Optional nested objects](structure.md#optional-nested-objects): A bridged component whose element has a spec of its own

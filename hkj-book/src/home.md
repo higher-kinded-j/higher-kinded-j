@@ -397,7 +397,7 @@ Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover
 
 ## Learn by Doing
 
-The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**: seventeen journeys of hands-on exercises with immediate test feedback. Start with **[Effect API](tutorials/effect/effect_journey.md)** (~65 min) for the railway, **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** (~40 min) for immutable updates, or **[Optics: Boundary Mapping](tutorials/optics/boundary_mapping_journey.md)** (~35 min) for the 422 leg.
+The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**: seventeen journeys of hands-on exercises with immediate test feedback. Start with **[Effect API](tutorials/effect/effect_journey.md)** (~65 min) for the railway, **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** (~40 min) for immutable updates, or **[Optics: Boundary Mapping](tutorials/optics/boundary_mapping_journey.md)** (~50 min) for the 422 leg.
 
 ~~~admonish note title="All seventeen journeys" collapsible=true
 | Journey | Focus | Duration | Exercises |

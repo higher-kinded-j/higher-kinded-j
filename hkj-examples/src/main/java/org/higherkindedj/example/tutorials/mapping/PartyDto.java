@@ -4,5 +4,5 @@ package org.higherkindedj.example.tutorials.mapping;
 
 import java.util.List;
 
-/** Tutorial 27 wire: the party, its guests a list of {@link GuestDto}. */
+/** Tutorial 27 wire: the party, with its guests as a list of {@link GuestDto}. */
 public record PartyDto(String bookingId, List<GuestDto> guests) {}

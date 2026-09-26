@@ -6,9 +6,9 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 
 /**
- * Tutorial 27: the same sparse PATCH mapping over {@link GeneratedPreferencesForm}. It compiles
- * cleanly, which is the point: the defect is in the bean, where no compiler looks.
+ * Tutorial 27: the same sparse PATCH mapping over {@link DefaultedPreferencesPatchForm}. It
+ * compiles cleanly, which is the point: the defect is in the bean, where no compiler looks.
  */
 @GenerateMapping
-public interface GeneratedPreferencesPatchMapping
-    extends UpdateSpec<GuestPreferences, GeneratedPreferencesForm> {}
+public interface DefaultedPreferencesPatchMapping
+    extends UpdateSpec<GuestPreferences, DefaultedPreferencesPatchForm> {}

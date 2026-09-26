@@ -15,17 +15,17 @@ The `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/o
 - **Fluent & Free DSL** – The ergonomic layer for validation-aware updates, advanced prism patterns, and optics as programs-as-data with multiple interpreters.
 - **Focus DSL** – Type-safe path navigation with automatic type widening through optional values and collections; the way most day-to-day optics code is written.
 - **Batching & Coupled Updates** – What happens when paths meet the outside world and each other: one batched call per traversal instead of N, plans you can inspect and bound, and atomic updates for fields that share an invariant.
-- **Boundary Mapping** – The hands-on lane for the mapping chapter: hand-written multi-edits, the `ValidatedPrism` leaf, and the whole DTO boundary generated and law-checked.
+- **Boundary Mapping** – The hands-on lane for the mapping chapter: hand-written multi-edits, the `ValidatedPrism` leaf, the whole DTO boundary generated and law-checked, and the edge cases a real request brings.
 ~~~
 
 ## Chapter Contents
 
-1. [Lens & Prism](lens_prism_journey.md) - Lens basics, composition, Prism, Affine
-2. [Traversals & Practice](traversals_journey.md) - Traversals, composition, real-world applications
-3. [Fluent & Free DSL](fluent_free_journey.md) - Fluent API, advanced Prisms, Free Monad DSL
-4. [Focus DSL](focus_dsl_journey.md) - Type-safe path navigation, container widening
-5. [Batching & Coupled Updates](batching_journey.md) - Request batching, guardrails, coupled lenses
-6. [Boundary Mapping](boundary_mapping_journey.md) - Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases
+1. [Lens & Prism](lens_prism_journey.md): Lens basics, composition, Prism, Affine
+2. [Traversals & Practice](traversals_journey.md): Traversals, composition, real-world applications
+3. [Fluent & Free DSL](fluent_free_journey.md): Fluent API, advanced Prisms, Free Monad DSL
+4. [Focus DSL](focus_dsl_journey.md): Type-safe path navigation, container widening
+5. [Batching & Coupled Updates](batching_journey.md): Request batching, guardrails, coupled lenses
+6. [Boundary Mapping](boundary_mapping_journey.md): Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases
 
 ---
 

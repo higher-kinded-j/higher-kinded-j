@@ -3,20 +3,24 @@
 package org.higherkindedj.tutorial.solutions.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.List;
 import java.util.Optional;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.higherkindedj.example.tutorials.mapping.Booking;
 import org.higherkindedj.example.tutorials.mapping.BookingDto;
 import org.higherkindedj.example.tutorials.mapping.BookingMappingImpl;
-import org.higherkindedj.example.tutorials.mapping.GeneratedPreferencesForm;
-import org.higherkindedj.example.tutorials.mapping.GeneratedPreferencesPatchMappingImpl;
+import org.higherkindedj.example.tutorials.mapping.DefaultedPreferencesPatchForm;
+import org.higherkindedj.example.tutorials.mapping.DefaultedPreferencesPatchMappingImpl;
 import org.higherkindedj.example.tutorials.mapping.GuestDto;
 import org.higherkindedj.example.tutorials.mapping.GuestPreferences;
+import org.higherkindedj.example.tutorials.mapping.Party;
 import org.higherkindedj.example.tutorials.mapping.PartyDto;
 import org.higherkindedj.example.tutorials.mapping.PartyMappingImpl;
-import org.higherkindedj.example.tutorials.mapping.PreferencesForm;
+import org.higherkindedj.example.tutorials.mapping.PreferencesPatchForm;
 import org.higherkindedj.example.tutorials.mapping.PreferencesPatchMappingImpl;
 import org.higherkindedj.example.tutorials.mapping.RoomRequest;
 import org.higherkindedj.example.tutorials.mapping.RoomRequestDto;
@@ -34,10 +38,11 @@ import org.junit.jupiter.api.Test;
 /**
  * Solutions for Tutorial 27: Boundary Edge Cases.
  *
- * <p>The pattern throughout: a boundary's edge cases are ordinary values, never exceptions. A
- * {@code null} is a located error unless the spec says it means absent; a list element is located
- * by its index; a record's own refusal is located where the record is; and a PATCH bean's default
- * is caught by a law, because no compiler can see it.
+ * <p>The pattern throughout: {@code parse} and {@code updateFrom} return every edge case as a
+ * value, never a thrown exception. A {@code null} field is a located error unless the spec says it
+ * means absent; a list element is located by its index; a record's own refusal is reported where
+ * the record is. The one case no compiler can see, a PATCH bean's default, comes back valid and
+ * wrong, so a law with a well-chosen sample is what catches it.
  */
 @DisplayName("Tutorial 27: Boundary Edge Cases (Solutions)")
 public class Tutorial27_BoundaryEdgeCases_Solution {
@@ -57,27 +62,30 @@ public class Tutorial27_BoundaryEdgeCases_Solution {
   private static final PreferencesPatchMappingImpl PREFERENCES_PATCH =
       PreferencesPatchMappingImpl.INSTANCE;
 
-  private static final GeneratedPreferencesPatchMappingImpl GENERATED_PREFERENCES_PATCH =
-      GeneratedPreferencesPatchMappingImpl.INSTANCE;
+  private static final DefaultedPreferencesPatchMappingImpl DEFAULTED_PREFERENCES_PATCH =
+      DefaultedPreferencesPatchMappingImpl.INSTANCE;
 
-  // A guest who has opted in. Its opt-in differs from the generated bean's default, which is what
-  // lets the law in Part 3 see that default.
-  private static final GuestPreferences OPTED_IN = new GuestPreferences("en-GB", true);
+  // A guest who speaks British English and has opted in to marketing.
+  private static final GuestPreferences STORED = new GuestPreferences("en-GB", true);
 
   @Nested
   @DisplayName("Part 1: nulls, lists and absence")
   class NullsListsAndAbsence {
 
     /**
-     * Why this is idiomatic: a {@code null} on the wire is the client's mistake, so it is reported
-     * like any other, at the field that held it, beside every other error.
+     * Why this is idiomatic: a {@code null} field is the client's mistake, so it is reported like
+     * any other, at the field that held it, beside every other error. The null check runs before
+     * the leaf, so {@code GuestCodecs.EMAIL}, which would throw on a {@code null}, never sees one.
+     *
+     * <p>Common wrong attempt: expecting {@code parse} to throw a {@code NullPointerException}, or
+     * listing only the first error. {@code parse} accumulates, so both are reported.
      */
     @Test
     @DisplayName("Exercise 1: a null has an address")
-    void exercise1_aNullHasAnAddress() {
+    void exercise1_nullHasAnAddress() {
       BookingDto wire = new BookingDto(null, new GuestDto("Ada Lovelace", null), "2026-07-28", 3);
 
-      Validated<NonEmptyList<FieldError>, ?> parsed = BOOKING_MAPPING.parse(wire);
+      Validated<NonEmptyList<FieldError>, Booking> parsed = BOOKING_MAPPING.parse(wire);
 
       List<String> expected = List.of("id: must not be null", "guest.email: must not be null");
 
@@ -87,10 +95,14 @@ public class Tutorial27_BoundaryEdgeCases_Solution {
     /**
      * Why this is idiomatic: the path names the domain's components, and a list element is named by
      * its index, so a client can point at the exact guest to fix.
+     *
+     * <p>Common wrong attempt: {@code guests[1].email} (a bracket, as Bean Validation writes it),
+     * {@code guests.2.email} (counting from 1), or {@code guests.0.fullName} (the wire's name for
+     * the component, not the domain's).
      */
     @Test
     @DisplayName("Exercise 2: a list element is located by its index")
-    void exercise2_aListIndexInThePath() {
+    void exercise2_listIndexInThePath() {
       PartyDto wire =
           new PartyDto(
               BOOKING_ID,
@@ -98,7 +110,7 @@ public class Tutorial27_BoundaryEdgeCases_Solution {
                   new GuestDto(null, "ada@corp.example"),
                   new GuestDto("Grace Hopper", "not-an-email")));
 
-      Validated<NonEmptyList<FieldError>, ?> parsed = PARTY_MAPPING.parse(wire);
+      Validated<NonEmptyList<FieldError>, Party> parsed = PARTY_MAPPING.parse(wire);
 
       List<String> expected =
           List.of("guests.0.name: must not be null", "guests.1.email: not an email address");
@@ -109,37 +121,49 @@ public class Tutorial27_BoundaryEdgeCases_Solution {
     /**
      * Why this is idiomatic: absence is declared on the spec, per component, and the domain holds
      * it in the type that says so, an {@code Optional}.
+     *
+     * <p>Common wrong attempt: {@code "note: must not be null"}, which is what a {@code null} means
+     * on a component the spec did not bridge, such as {@code roomType}.
      */
     @Test
     @DisplayName("Exercise 3: @OptionalBridge reads a null as absent")
-    void exercise3_absentIsNotAnError() {
+    void exercise3_bridgeReadsNullAsAbsent() {
       RoomRequestDto wire = new RoomRequestDto("double", null);
 
       RoomRequest expected = new RoomRequest("double", Optional.empty());
 
       assertThatValidated(ROOM_REQUEST_MAPPING.parse(wire)).isValid().hasValue(expected);
-      // The other direction writes an empty Optional back as null, as JSON has it.
+      // The other direction writes an empty Optional back as null.
       assertThat(ROOM_REQUEST_MAPPING.build(expected)).isEqualTo(wire);
+      // The bridge is per component: the room type is not bridged, so its null is still an error.
+      assertThatValidated(ROOM_REQUEST_MAPPING.parse(new RoomRequestDto(null, null)))
+          .isInvalid()
+          .hasFieldErrors("roomType: must not be null");
     }
   }
 
   @Nested
-  @DisplayName("Part 2: the record's own rules")
-  class TheRecordsOwnRules {
+  @DisplayName("Part 2: a record's invariants")
+  class RecordInvariants {
 
     /**
      * Why this is idiomatic: the constructor keeps its guard, and {@code parse} reports the refusal
-     * where the record is. At the top level that is no path at all, so the error is its message.
+     * where the record is. At the top level that is no path at all, so the error renders as its
+     * message alone. Under a parent it would read {@code stay: departure must be after arrival}.
+     *
+     * <p>Common wrong attempt: {@code "departure: departure must be after arrival"}, which puts the
+     * refusal on one field. A rule that spans two fields belongs to neither.
      */
     @Test
     @DisplayName("Exercise 4: a constructor's refusal becomes an error")
-    void exercise4_anInvariantBecomesAnError() {
+    void exercise4_invariantBecomesAnError() {
       StayDto wire = new StayDto("2026-07-28", "2026-07-27");
 
       String expected = "departure must be after arrival";
 
       assertThatValidated(STAY_MAPPING.parse(wire)).isInvalid().hasFieldErrors(expected);
-      // The constructor runs only once both dates have parsed, so a bad date is reported alone.
+      // The constructor runs only once both dates have parsed, so a bad date is reported alone,
+      // and a client meets the invariant only on its second attempt.
       assertThatValidated(STAY_MAPPING.parse(new StayDto("2026-07-28", "tomorrow")))
           .isInvalid()
           .hasFieldErrors("departure: not an ISO-8601 date (expected e.g. 2026-07-28)");
@@ -148,47 +172,64 @@ public class Tutorial27_BoundaryEdgeCases_Solution {
 
   @Nested
   @DisplayName("Part 3: a PATCH bean's defaults")
-  class APatchBeansDefaults {
+  class PatchBeanDefaults {
 
     /**
      * Why this is idiomatic: a request that sends nothing must change nothing, and a freshly
      * constructed bean is exactly that request, so it is the law's all-absent wire.
+     *
+     * <p>Alternative: {@code MappingLaws.assertMappingLaws(updateFrom, sample, empty, valid,
+     * invalid)} checks all three sparse laws at once. It needs a wire that fails to parse, which
+     * this mapping cannot have, since it has no leaf that can fail.
+     *
+     * <p>Common wrong attempt: a form built with {@code setMarketingOptIn(false)} "to be explicit".
+     * That sends {@code false}, so it is no longer the request that sent nothing.
      */
     @Test
-    @DisplayName("Exercise 5: the sparse identity law")
-    void exercise5_theSparseIdentityLaw() {
-      PreferencesForm allAbsent = new PreferencesForm();
+    @DisplayName("Exercise 5: an empty PATCH changes nothing")
+    void exercise5_emptyPatchChangesNothing() {
+      ThrowingCallable identityLaw =
+          () ->
+              MappingLaws.assertSparseIdentity(
+                  PREFERENCES_PATCH::updateFrom, STORED, new PreferencesPatchForm());
 
-      MappingLaws.assertSparseIdentity(PREFERENCES_PATCH::updateFrom, OPTED_IN, allAbsent);
+      assertThatCode(identityLaw).doesNotThrowAnyException();
     }
 
     /**
-     * Why this is idiomatic: the law is the only check that can see a default, and only when the
-     * sample differs from it. Test with a sample whose every field differs from every default.
+     * Why this is idiomatic: the law is the standing check that sees a default, but only when the
+     * sample differs from it. So a PATCH law's sample should differ from every default in every
+     * field.
+     *
+     * <p>Common wrong attempt: a sample that already holds the default, such as a guest who never
+     * opted in. Writing {@code false} over {@code false} changes nothing, so the law passes.
      */
     @Test
-    @DisplayName("Diagnostic: a field initialiser reads as sent, and the law catches it")
-    void diagnostic_aDefaultReadsAsSent() {
-      Validated<NonEmptyList<FieldError>, GuestPreferences> patched =
-          GENERATED_PREFERENCES_PATCH.updateFrom(new GeneratedPreferencesForm()).apply(OPTED_IN);
+    @DisplayName("Diagnostic: a sample that holds the default hides it; one that differs finds it")
+    void diagnostic_sampleMustDifferFromTheDefault() {
+      // The existing test, and it is green: its guest never opted in, so the default hides.
+      MappingLaws.assertSparseIdentity(
+          DEFAULTED_PREFERENCES_PATCH::updateFrom,
+          new GuestPreferences("en-GB", false),
+          new DefaultedPreferencesPatchForm());
 
-      GuestPreferences expected = new GuestPreferences("en-GB", false);
+      GuestPreferences sample = new GuestPreferences("en-GB", true);
 
-      assertThatValidated(patched).isValid().hasValue(expected);
       assertThatThrownBy(
               () ->
                   MappingLaws.assertSparseIdentity(
-                      GENERATED_PREFERENCES_PATCH::updateFrom,
-                      OPTED_IN,
-                      new GeneratedPreferencesForm()))
+                      DEFAULTED_PREFERENCES_PATCH::updateFrom,
+                      sample,
+                      new DefaultedPreferencesPatchForm()))
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("Sparse identity law");
-      // A sample that already holds the default hides the defect: writing false over false changes
-      // nothing, so the same law passes.
-      MappingLaws.assertSparseIdentity(
-          GENERATED_PREFERENCES_PATCH::updateFrom,
-          new GuestPreferences("en-GB", false),
-          new GeneratedPreferencesForm());
+      // What the empty request did: the language was absent and kept; the opt-in was "sent".
+      assertThatValidated(
+              DEFAULTED_PREFERENCES_PATCH
+                  .updateFrom(new DefaultedPreferencesPatchForm())
+                  .apply(sample))
+          .isValid()
+          .hasValue(new GuestPreferences("en-GB", false));
     }
   }
 }

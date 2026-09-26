@@ -5,6 +5,7 @@ package org.higherkindedj.example.tutorials.mapping;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 
-/** Tutorial 27: the sparse PATCH mapping over the well-behaved {@link PreferencesForm}. */
+/** Tutorial 27: the sparse PATCH mapping over the well-behaved {@link PreferencesPatchForm}. */
 @GenerateMapping
-public interface PreferencesPatchMapping extends UpdateSpec<GuestPreferences, PreferencesForm> {}
+public interface PreferencesPatchMapping
+    extends UpdateSpec<GuestPreferences, PreferencesPatchForm> {}

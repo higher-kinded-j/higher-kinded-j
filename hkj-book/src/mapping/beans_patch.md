@@ -241,6 +241,10 @@ The processor refuses a PATCH spec it cannot honour, and names the fix. The last
 * **Only an `Optional` property can be cleared**: an explicit `null` clears it, and on any other property a `null` keeps the value
 ~~~
 
+~~~admonish info title="Hands-On Learning"
+Practise the sparse identity law in [Tutorial 27: Boundary Edge Cases](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial27_BoundaryEdgeCases.java) (6 exercises, ~15 minutes). Its last exercise runs the law on a bean whose schema said `default: false`, and only a well-chosen sample makes it fail.
+~~~
+
 ~~~admonish tip title="See Also"
 - [Bean-Shaped Wires](beans.md): What counts as a bean, and how its getters and setters are read and written
 - [Multi-Edit and Sparse Updates](../optics/multi_edit.md): The hand-written `Edits.accumulate` this tier generates

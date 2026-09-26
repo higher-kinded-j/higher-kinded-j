@@ -6,8 +6,8 @@ import java.time.LocalDate;
 import java.util.Objects;
 
 /**
- * Tutorial 27 domain: a stay, which guards its own dates. A stay that ends before it starts is
- * refused by the constructor, whichever way it was built.
+ * Tutorial 27 domain: a stay, which guards its own dates. A stay whose departure is not after its
+ * arrival is refused by the constructor, whichever way it was built.
  */
 public record Stay(LocalDate arrival, LocalDate departure) {
   public Stay {
