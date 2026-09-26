@@ -96,14 +96,14 @@ class StandardCodecsBookTest {
   @Test
   void theCanonicalLeafAcceptsExactlyWhatItsRenderProduces() {
     String upper = "123E4567-E89B-12D3-A456-426614174000";
-    Asset asset = new Asset(UUID.fromString(upper), "rack");
+    Pallet pallet = new Pallet(UUID.fromString(upper), "bay 4");
 
-    assertThat(AssetMappingImpl.INSTANCE.build(asset).id()).isEqualTo(upper);
-    assertThatValidated(AssetMappingImpl.INSTANCE.parse(new AssetDto(upper, "rack"))).isValid();
+    assertThat(PalletMappingImpl.INSTANCE.build(pallet).id()).isEqualTo(upper);
+    assertThatValidated(PalletMappingImpl.INSTANCE.parse(new PalletDto(upper, "bay 4"))).isValid();
     // The JDK parses lowercase happily; the render cannot reproduce it, so the guard rejects it.
     assertThatValidated(
-            AssetMappingImpl.INSTANCE.parse(
-                new AssetDto(upper.toLowerCase(java.util.Locale.ROOT), "rack")))
+            PalletMappingImpl.INSTANCE.parse(
+                new PalletDto(upper.toLowerCase(java.util.Locale.ROOT), "bay 4")))
         .isInvalid();
   }
 
