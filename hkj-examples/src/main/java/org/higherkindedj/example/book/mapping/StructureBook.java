@@ -107,8 +107,8 @@ public final class StructureBook {
     VendorMappingImpl vendorMapping = VendorMappingImpl.INSTANCE;
 
     VendorDto flat =
-        vendorMapping.build(new Vendor("Acme", new Address("1 High St", "Leeds", "LS1 4AP")));
-    // VendorDto[name=Acme, street=1 High St, city=Leeds, postcode=LS1 4AP]
+        vendorMapping.build(new Vendor("Acme", new Address("1 High Street", "Leeds", "LS1 4AP")));
+    // VendorDto[name=Acme, street=1 High Street, city=Leeds, postcode=LS1 4AP]
     Validated<NonEmptyList<FieldError>, Vendor> missing =
         vendorMapping.parse(new VendorDto("Acme", null, "Leeds", null));
     // Invalid(NonEmptyList[address.street: must not be null, address.postcode: must not be null])
@@ -194,8 +194,7 @@ interface GuestlistMapping extends MappingSpec<Guestlist, GuestlistDto> {
 // ANCHOR_END: bridge_container_spec
 
 // ANCHOR: flatten_spec
-// the Address that Record Mapping Basics maps first: its street, city and postcode
-record Vendor(String name, Address address) {}
+record Vendor(String name, Address address) {} // Address as on Record Mapping Basics
 
 record VendorDto(String name, String street, String city, String postcode) {} // fixed, flat
 

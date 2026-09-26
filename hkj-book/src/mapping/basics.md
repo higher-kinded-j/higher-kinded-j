@@ -19,7 +19,7 @@ For a larger worked example, see [GenerateMappingExample.java](https://github.co
 
 ## Your first mapping {#your-first-mapping}
 
-The whole declaration is an empty interface naming the pair, domain first and wire second. The wire is the DTO: the shape that crosses the network.
+The whole declaration is an empty interface naming the pair, domain first and wire second. The wire is the DTO: the shape that crosses the network. Most examples here map the records of an order service, starting with its `Address`.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:basics_spec}}
@@ -111,9 +111,9 @@ Jackson leaves a missing property `null`, so a boundary meets nulls constantly. 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:null_usage}}
 ```
 
-The path reaches into nested records (`customer.name`) and lists (`emails.1`, the second email). A `null` never reaches a leaf, so a leaf needs no null check of its own.
+The path reaches into nested records (`customer.name`) and lists (`lines.1`, the second line item). A `null` never reaches a leaf, so a leaf needs no null check of its own.
 
-A primitive wire component, such as an `int`, never holds a `null`, so the rule does not reach it: what a missing or malformed one becomes is Jackson's decision.
+A primitive wire component, such as an `int` quantity, never holds a `null`, so the rule does not reach it: what a missing or malformed one becomes is Jackson's decision.
 
 ~~~admonish tip title="Why this matters"
 Compare the alternatives you have debugged before: an NPE with a stack trace pointing into generated code, or Jackson's `MismatchedInputException` naming a Java class. A located error names the field by its path, sits beside every other defect in the same response, and costs the client one round trip instead of one per `null`.
@@ -173,13 +173,15 @@ Where this lives: [Null has an address, not a stack trace](#null-doctrine).
 
 ## Renames: `@MapField` {#renames-mapfield}
 
-When the wire calls it `fullName` and the domain calls it `name`, declare an abstract method named after the *domain* component, with `to` naming the *wire* component:
+When the wire calls it `fullName` and the domain calls it `name`, as a partner's customer feed might, declare an abstract method named after the *domain* component, with `to` naming the *wire* component:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:rename_spec}}
 ```
 
 Each wire component takes exactly one domain source, so the processor refuses two renames onto one name. Give the method the domain component's type, as `String name()` does. The Impl only names the method, and never calls it.
+
+The `email` leaf comes along because this spec maps the whole `Customer`, and each spec declares the leaves its own pair needs. A [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) declares them once for several specs. The [Capstone](capstone.md)'s `CustomerDto` makes the same rename.
 
 ~~~admonish note title="Error paths use domain names, not JSON keys"
 A client that sent `fullName` gets its errors at `name`. The same holds for a Jackson rename: under `@JsonProperty("first_name")` on a `firstName` component, or a snake_case naming strategy, the path stays `firstName`. Every path in the system is domain-named, so paths stay consistent, and stable when the wire is refactored. A client that maps errors back onto its own payload keys applies the renames in reverse.

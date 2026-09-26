@@ -54,10 +54,6 @@ This chapter replaces that mapper with one interface you own and one annotation.
 
 The bad email is *inside a nested record*; the bad price is on the *second element of a list*. The client fixes all five and resubmits once. Nobody wrote a line of error-handling code to produce this: it falls out of the declarations. The [Capstone](capstone.md) builds it end to end, and a test the build runs proves its five errors. This copy leaves out the `segments` array the full response carries beside each `path`.
 
-~~~admonish note title="One service, one cast"
-Every example in this chapter comes from that order service. The `Customer` carries a checked `EmailAddress`, there is an `Address` to deliver to, and an `Order` holds its `LineItem`s, its `OrderStatus` and a sealed `Payment`. A page whose feature needs a new shape adds a piece from the same service, such as a courier or a delivery window, so what one page teaches carries to the next.
-~~~
-
 The shape of the machinery is a railway with two directions:
 
 ```mermaid

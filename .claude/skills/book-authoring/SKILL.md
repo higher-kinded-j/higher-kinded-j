@@ -63,6 +63,10 @@ guide's "Chapter Guides" section says.
 
 ## Traps
 
+- **An explanation can read as an output claim.** Inside an anchor of an example with a `main`, a
+  comment on a line of its own is a claim when it opens with `[`, `Name(` or `Name[`, or is only a
+  number, a boolean or `Nothing`. The output gate then fails the example, because nothing binds and
+  prints that value. Lead an explanation with words: `// the Address from Record Mapping Basics`.
 - **A gate that reports zero is checking nothing.** Read its counts. The output gate names each
   example with the number of output comments it checked.
 - **The snippet gate normalises what it compiles.** It drops a top-level access modifier, for

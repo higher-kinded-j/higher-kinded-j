@@ -31,7 +31,7 @@ public final class BasicsBook {
 
   public static void main(String[] args) {
     // ANCHOR: basics_usage
-    Address address = new Address("1 Main Street", "Leeds", "LS1 4AP");
+    Address address = new Address("1 High Street", "Leeds", "LS1 4AP");
     AddressMappingImpl addressMapping = AddressMappingImpl.INSTANCE; // bind once, reuse
 
     // Same-named, same-typed components match automatically:
@@ -115,12 +115,12 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
 // ANCHOR_END: leaf_spec
 
 // ANCHOR: rename_spec
-record CustomerCardDto(String fullName, String email) {}
+record PartnerCustomerDto(String fullName, String email) {} // a partner's customer feed
 
 @GenerateMapping
-interface CustomerCardMapping extends MappingSpec<Customer, CustomerCardDto> {
+interface PartnerCustomerMapping extends MappingSpec<Customer, PartnerCustomerDto> {
   @MapField(to = "fullName")
-  String name(); // Customer.name <-> CustomerCardDto.fullName
+  String name(); // Customer.name <-> PartnerCustomerDto.fullName
 
   default ValidatedPrism<String, EmailAddress> email() {
     return EmailCodecs.EMAIL;
@@ -137,7 +137,7 @@ record RecipientDto(String first, String last, String displayName) {}
 @GenerateMapping
 interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
   default Getter<Recipient, String> displayName() {
-    return Getter.of(p -> p.first() + " " + p.last());
+    return Getter.of(r -> r.first() + " " + r.last());
   }
 }
 
