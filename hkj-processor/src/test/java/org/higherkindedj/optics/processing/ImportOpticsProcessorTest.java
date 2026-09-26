@@ -1146,6 +1146,8 @@ class ImportOpticsProcessorTest {
                   + " 'isN()' and is left out.");
       assertThat(compilation)
           .hadNoteContaining("importing the type there rather than by class literal.");
+      // The two left-out withers are all the processor has to say.
+      assertThat(compilation).hadNoteCount(2);
       // 'isActive()' is declared first and 'getActive()' still wins, which is the rule rather
       // than the declaration order speaking.
       assertGeneratedCodeContains(compilation, generated, "Spelt::getActive");
@@ -1703,6 +1705,7 @@ class ImportOpticsProcessorTest {
 
       assertThat(compilation).succeeded();
       assertThat(compilation).generatedSourceFile("com.myapp.WidgetLenses").isNotNull();
+      assertThat(compilation).hadNoteCount(0);
     }
 
     @Test

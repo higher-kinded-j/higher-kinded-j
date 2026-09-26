@@ -25,7 +25,6 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
-import javax.tools.Diagnostic;
 import org.higherkindedj.optics.annotations.ImportOptics;
 import org.higherkindedj.optics.processing.external.ExternalLensGenerator;
 import org.higherkindedj.optics.processing.external.ExternalPrismGenerator;
@@ -56,7 +55,7 @@ import org.higherkindedj.optics.processing.util.Reachability.Crossing;
  *   <li>Classes with wither methods → Lens per wither (in {@code <TypeName>Lenses.java})
  * </ul>
  *
- * <h2>2. Spec Interface (Phase 2)</h2>
+ * <h2>2. Spec Interface</h2>
  *
  * <p>When applied to an interface extending {@code OpticsSpec<S>}, it generates a utility class
  * implementing the optics defined by the interface's abstract methods. This supports:
@@ -91,18 +90,11 @@ public class ImportOpticsProcessor extends AbstractProcessor {
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
     for (Element element : roundEnv.getElementsAnnotatedWith(ImportOptics.class)) {
-      note(
-          "Processing @ImportOptics on: " + element + " (kind: " + element.getKind() + ")",
-          element);
-
       if (element.getKind() == ElementKind.PACKAGE) {
         processPackageAnnotation((PackageElement) element);
       } else if (element.getKind() == ElementKind.INTERFACE) {
-        // Check if it's a spec interface (extends OpticsSpec<S>)
         TypeElement typeElement = (TypeElement) element;
-        boolean isSpec = isSpecInterface(typeElement);
-        note("Is spec interface: " + isSpec, element);
-        if (isSpec) {
+        if (isSpecInterface(typeElement)) {
           processSpecInterface(typeElement);
         } else {
           // Interface with class list (less common but supported)
@@ -131,16 +123,11 @@ public class ImportOpticsProcessor extends AbstractProcessor {
    * @return true if the interface extends OpticsSpec
    */
   private boolean isSpecInterface(TypeElement typeElement) {
-    note("Checking interfaces for: " + typeElement.getQualifiedName(), typeElement);
     for (TypeMirror superInterface : typeElement.getInterfaces()) {
-      note(
-          "  Found super interface: " + ProcessorUtils.qualifiedTypeName(superInterface),
-          typeElement);
       // Super-interfaces returned by getInterfaces() are always declared types.
       DeclaredType declaredType = (DeclaredType) superInterface;
       TypeElement interfaceElement = (TypeElement) declaredType.asElement();
       String fqn = interfaceElement.getQualifiedName().toString();
-      note("  Interface FQN: " + fqn + " (expected: " + OPTICS_SPEC_FQN + ")", typeElement);
       if (fqn.equals(OPTICS_SPEC_FQN)) {
         return true;
       }
@@ -154,8 +141,6 @@ public class ImportOpticsProcessor extends AbstractProcessor {
    * @param specInterface the spec interface extending OpticsSpec<S>
    */
   private void processSpecInterface(TypeElement specInterface) {
-    note("processSpecInterface called for: " + specInterface.getQualifiedName(), specInterface);
-
     ImportOptics annotation = specInterface.getAnnotation(ImportOptics.class);
 
     String targetPackage = annotation.targetPackage();
@@ -163,7 +148,6 @@ public class ImportOpticsProcessor extends AbstractProcessor {
       targetPackage =
           processingEnv.getElementUtils().getPackageOf(specInterface).getQualifiedName().toString();
     }
-    note("Target package: " + targetPackage, specInterface);
 
     SpecInterfaceAnalyser analyser =
         new SpecInterfaceAnalyser(
@@ -172,11 +156,9 @@ public class ImportOpticsProcessor extends AbstractProcessor {
             processingEnv.getMessager());
 
     Optional<SpecAnalysis> analysisOpt = analyser.analyse(specInterface, targetPackage);
-    note("Analysis result present: " + analysisOpt.isPresent(), specInterface);
 
     if (analysisOpt.isEmpty()) {
       // Errors already reported by analyser
-      note("Analysis returned empty - not generating", specInterface);
       return;
     }
 
@@ -209,12 +191,10 @@ public class ImportOpticsProcessor extends AbstractProcessor {
       return;
     }
 
-    note("Generating optics class...", specInterface);
     SpecInterfaceGenerator generator =
         new SpecInterfaceGenerator(processingEnv.getFiler(), processingEnv.getMessager());
 
     generator.generate(analysis, targetPackage, specInterface);
-    note("Generation complete", specInterface);
   }
 
   private void processPackageAnnotation(PackageElement packageElement) {
@@ -457,9 +437,5 @@ public class ImportOpticsProcessor extends AbstractProcessor {
       }
     }
     return false;
-  }
-
-  private void note(String msg, Element e) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, msg, e);
   }
 }

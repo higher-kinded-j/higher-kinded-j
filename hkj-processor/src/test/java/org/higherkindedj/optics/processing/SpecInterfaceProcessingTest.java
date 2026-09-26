@@ -90,19 +90,6 @@ class SpecInterfaceProcessingTest {
               .withProcessors(new ImportOpticsProcessor())
               .compile(externalRecord, specInterface);
 
-      // Print all diagnostics for debugging FIRST
-      System.out.println("=== Compilation Status: " + compilation.status() + " ===");
-      System.out.println("=== Compilation Diagnostics ===");
-      for (var diagnostic : compilation.diagnostics()) {
-        System.out.println(diagnostic.getKind() + ": " + diagnostic.getMessage(null));
-      }
-
-      // Only try to access generated files if compilation succeeded
-      if (compilation.status() == Compilation.Status.SUCCESS) {
-        System.out.println("\n=== Generated Files ===");
-        compilation.generatedSourceFiles().forEach(f -> System.out.println("  " + f.getName()));
-      }
-
       assertCompilationSucceeded(compilation);
       // Generated class has "Impl" suffix since interface doesn't end with "Spec"
       assertGeneratedFileExists(compilation, "com.myapp.SimpleRecordOpticsImpl");
@@ -392,6 +379,8 @@ class SpecInterfaceProcessingTest {
           javac().withProcessors(new ImportOpticsProcessor()).compile(externalClass, specInterface);
 
       assertThat(compilation).succeeded();
+      // A clean spec interface prints no notes.
+      assertThat(compilation).hadNoteCount(0);
 
       // Verify wither method is used
       // Generated class has "Impl" suffix since interface doesn't end with "Spec"
@@ -2409,6 +2398,8 @@ class SpecInterfaceProcessingTest {
 
       assertThat(compilation).failed();
       assertThat(compilation).hadErrorContaining("carries no copy strategy annotation");
+      // The refusal is all it reports.
+      assertThat(compilation).hadNoteCount(0);
     }
 
     @Test
