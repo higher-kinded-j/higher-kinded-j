@@ -175,16 +175,16 @@ Where this lives: [Validated leaves](basics.md#validated-leaves) and [Shared voc
 ~~~
 
 ~~~admonish question title="Checkpoint 7: predict the errors" id="check-self-invariant"
-`DeliveryWindow`'s constructor refuses a window whose `latest` date is not after its `earliest`, and `DeliveryWindowMapping` parses both dates with `StandardCodecs.localDate()`. A `DeliveryDto` arrives with no recipient. Its second window opens on `2026-03-09` and closes on `07/03/2026`, meaning 7 March. Which errors does `DeliveryMappingImpl.INSTANCE.parse` report?
+`DeliveryWindow`'s constructor refuses a window whose `latest` date is before its `earliest`, and `DeliveryWindowMapping` parses both dates with `StandardCodecs.localDate()`. A `DeliveryDto` arrives with no order id. Its second window's `earliest` is `2026-03-09` and its `latest` is `07/03/2026`, meaning 7 March. Which errors does `DeliveryMappingImpl.INSTANCE.parse` report?
 
-1. `recipient: must not be null` only
-2. `recipient`, and `windows.1: latest must be after earliest`
-3. `recipient`, and `windows.1.latest: not an ISO-8601 date (expected e.g. 2026-07-28)`
+1. `orderId: must not be null` only
+2. `orderId`, and `windows.1: latest must not be before earliest`
+3. `orderId`, and `windows.1.latest: not an ISO-8601 date (expected e.g. 2026-07-28)`
 4. All three
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-self-invariant-answer"
-**3.** The constructor needs every component, so it runs only once they have all parsed. `latest` never parsed, so the invariant is never checked, while the missing recipient still accumulates beside it:
+**3.** The constructor needs every component, so it runs only once they have all parsed. `latest` never parsed, so the invariant is never checked, while the missing order id still accumulates beside it:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/SelfCheckBookTest.java:constructor_last}}

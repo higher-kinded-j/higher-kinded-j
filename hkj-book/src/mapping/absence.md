@@ -46,7 +46,9 @@ Use one placement or the other: Java cannot declare both, since they share a nam
 `build` writes `null` into the bridged wire component for an absent value, so declare it to take one: `@Nullable String nickname`. [A bridged component must take `null`](rules.md#bridged-component-nullable) lists the declarations the processor refuses.
 ~~~
 
-~~~admonish example title="A pair without the annotation, refused"
+~~~admonish example title="The nickname without its marker, refused"
+`Shopper` keeps only a name and a nickname, and its spec leaves the marker off:
+
 <!-- verify:rejects "Add '@OptionalBridge java.util.Optional<java.lang.String> nickname();' to the spec" -->
 ```java
 import java.util.Optional;
@@ -93,7 +95,7 @@ A domain record often guards itself, with a compact constructor that throws when
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:invariant_usage}}
 ```
 
-`DeliveryMapping` uses `DeliveryWindowMapping` for each window without being told: [Nesting](structure.md#nesting-containers-and-recursion) explains how. The second window fails at `windows.1`, and the missing recipient is still reported beside it. The rules:
+`DeliveryMapping` uses `DeliveryWindowMapping` for each window without being told: [Nesting](structure.md#nesting-containers-and-recursion) explains how. The second window fails at `windows.1`, and the missing order id is still reported beside it. The rules:
 
 - **The record is the address.** A cross-field invariant belongs to no single component, so it locates where the record does: under the component holding it (`windows.1`), or at the top level, where the 422 renders an empty `"path": ""`.
 - **The constructor runs last.** It runs only once every component has parsed. So a record reports its components' errors or its invariant, never both, and a client may meet the invariant on a second attempt.
@@ -111,13 +113,13 @@ You can now accept requests that leave some fields out, and keep a record's own 
 ~~~
 
 ~~~admonish question title="Checkpoint: where does `@OptionalBridge` go?" id="check-absence-bridge"
-A voucher may have no expiry date, and one it carries must be an ISO date that `StandardCodecs.localDate()` parses:
+A gift card may have no expiry date. When it has one, the wire sends an ISO date that `StandardCodecs.localDate()` parses:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:voucher_pair}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:gift_card_pair}}
 ```
 
-Which declaration on `VoucherMapping` does that?
+Which declaration on `GiftCardMapping` does that?
 
 1. `@OptionalBridge Optional<LocalDate> expiry();`
 2. `@OptionalBridge default ValidatedPrism<String, LocalDate> expiry()`, returning `StandardCodecs.localDate()`
@@ -129,21 +131,21 @@ Which declaration on `VoucherMapping` does that?
 **2.** The date inside the `Optional` needs a leaf, so the annotation goes on that leaf, over the types inside the `Optional`. The marker (1) is only for a value that copies or has a spec of its own, and nothing copies a `String` into a `LocalDate`. The processor refuses the annotation on a whole-`Optional` leaf (3). Without it (4), that leaf compiles but reads a `null` as `must not be null`, so the expiry could never be left out:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:voucher_spec}}
-{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/AbsenceBookTest.java:voucher_proof}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:gift_card_spec}}
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/AbsenceBookTest.java:gift_card_proof}}
 ```
 
 Where this lives: [Optional fields: `@OptionalBridge`](#optional-bridge).
 ~~~
 
 ~~~admonish question title="Checkpoint: what does the client read?" id="check-absence-address"
-`BulkDiscount` spreads a basket's discount over its items, and its constructor divides by `items`:
+`BulkDiscount` spreads a quote's discount over its items, and its constructor divides by `items`:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/AbsenceBook.java:discount_spec}}
 ```
 
-A client sends a discount with `items` set to `0`. What does `BasketMappingImpl.INSTANCE.parse(new BasketDto("B-7", new BulkDiscountDto(1000, 0)))` report?
+A client sends a discount with `items` set to `0`. What does `QuoteMappingImpl.INSTANCE.parse(new QuoteDto("Q-7", new BulkDiscountDto(1000, 0)))` report?
 
 1. Nothing: the `ArithmeticException` propagates out of `parse`
 2. `discount: not a valid BulkDiscount`

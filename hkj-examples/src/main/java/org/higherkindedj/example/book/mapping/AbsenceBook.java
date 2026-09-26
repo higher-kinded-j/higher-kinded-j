@@ -64,13 +64,15 @@ public final class AbsenceBook {
                 List.of(
                     new DeliveryWindowDto("2026-03-01", "2026-03-04"),
                     new DeliveryWindowDto("2026-03-09", "2026-03-07"))));
-    // Invalid(NonEmptyList[recipient: must not be null, windows.1: latest must be after earliest])
+    // Invalid(NonEmptyList[orderId: must not be null, windows.1: latest must not be before
+    // earliest])
     // ANCHOR_END: invariant_usage
     System.out.println(delivery);
   }
 }
 
 // ANCHOR: bridge_spec
+// the profile a customer fills in, apart from the Customer record: every detail is optional
 record CustomerProfile(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
 
 // The wire carries optional data the way a JSON binder does: a nullable component.
@@ -92,20 +94,20 @@ interface CustomerProfileMapping extends MappingSpec<CustomerProfile, CustomerPr
 // ANCHOR_END: bridge_spec
 
 // ANCHOR: invariant_spec
-// The domain guards itself: a window must end after it starts. The wire carries no such rule.
+// The domain guards itself: a window cannot end before it starts. The wire carries no such rule.
 record DeliveryWindow(LocalDate earliest, LocalDate latest) {
   DeliveryWindow {
-    if (!latest.isAfter(earliest)) {
-      throw new IllegalArgumentException("latest must be after earliest");
+    if (latest.isBefore(earliest)) {
+      throw new IllegalArgumentException("latest must not be before earliest");
     }
   }
 }
 
 record DeliveryWindowDto(String earliest, String latest) {}
 
-record Delivery(String recipient, List<DeliveryWindow> windows) {}
+record Delivery(String orderId, List<DeliveryWindow> windows) {} // first choice first
 
-record DeliveryDto(String recipient, List<DeliveryWindowDto> windows) {}
+record DeliveryDto(String orderId, List<DeliveryWindowDto> windows) {}
 
 @GenerateMapping
 interface DeliveryWindowMapping extends MappingSpec<DeliveryWindow, DeliveryWindowDto> {
@@ -123,26 +125,26 @@ interface DeliveryMapping extends MappingSpec<Delivery, DeliveryDto> {}
 
 // ANCHOR_END: invariant_spec
 
-// ANCHOR: voucher_pair
-record Voucher(String code, Optional<LocalDate> expiry) {}
+// ANCHOR: gift_card_pair
+record GiftCard(String code, Optional<LocalDate> expiry) {}
 
-record VoucherDto(String code, @Nullable String expiry) {}
+record GiftCardDto(String code, @Nullable String expiry) {}
 
-// ANCHOR_END: voucher_pair
+// ANCHOR_END: gift_card_pair
 
-// ANCHOR: voucher_spec
+// ANCHOR: gift_card_spec
 @GenerateMapping
-interface VoucherMapping extends MappingSpec<Voucher, VoucherDto> {
+interface GiftCardMapping extends MappingSpec<GiftCard, GiftCardDto> {
   @OptionalBridge
   default ValidatedPrism<String, LocalDate> expiry() {
     return StandardCodecs.localDate();
   }
 }
 
-// ANCHOR_END: voucher_spec
+// ANCHOR_END: gift_card_spec
 
 // ANCHOR: discount_spec
-// A basket's discount, spread over its items: at most 500p off each.
+// A quote's discount, spread over its items: at most 500p off each.
 record BulkDiscount(int totalPence, int items) {
   BulkDiscount {
     if (Math.ceilDiv(totalPence, items) > 500) { // rounds up, so 1001p over 2 items is 501p
@@ -153,14 +155,14 @@ record BulkDiscount(int totalPence, int items) {
 
 record BulkDiscountDto(int totalPence, int items) {}
 
-record Basket(String id, BulkDiscount discount) {}
+record Quote(String id, BulkDiscount discount) {}
 
-record BasketDto(String id, BulkDiscountDto discount) {}
+record QuoteDto(String id, BulkDiscountDto discount) {}
 
 @GenerateMapping
 interface BulkDiscountMapping extends MappingSpec<BulkDiscount, BulkDiscountDto> {}
 
 @GenerateMapping
-interface BasketMapping extends MappingSpec<Basket, BasketDto> {}
+interface QuoteMapping extends MappingSpec<Quote, QuoteDto> {}
 
 // ANCHOR_END: discount_spec

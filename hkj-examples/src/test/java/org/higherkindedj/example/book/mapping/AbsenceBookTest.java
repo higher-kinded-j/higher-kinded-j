@@ -4,6 +4,7 @@ package org.higherkindedj.example.book.mapping;
 
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.optics.laws.MappingLaws;
@@ -23,11 +24,11 @@ import org.junit.jupiter.api.Test;
 class AbsenceBookTest {
 
   @Test
-  void deliveryMappingLocatesAWindowsInvariantAndObeysTheLaws() {
+  void deliveryMappingLocatesAWindowInvariantAndObeysTheLaws() {
     DeliveryDto accepted =
-        new DeliveryDto("Ada", List.of(new DeliveryWindowDto("2026-03-01", "2026-03-04")));
+        new DeliveryDto("O-1042", List.of(new DeliveryWindowDto("2026-03-01", "2026-03-04")));
     DeliveryDto refused =
-        new DeliveryDto("Ada", List.of(new DeliveryWindowDto("2026-03-09", "2026-03-07")));
+        new DeliveryDto("O-1042", List.of(new DeliveryWindowDto("2026-03-09", "2026-03-07")));
     MappingLaws.assertMappingLaws(
         DeliveryMappingImpl.INSTANCE.asValidatedPrism(), accepted, refused);
 
@@ -40,20 +41,21 @@ class AbsenceBookTest {
                         new DeliveryWindowDto("2026-03-01", "2026-03-04"),
                         new DeliveryWindowDto("2026-03-09", "2026-03-07")))))
         .isInvalid()
-        .hasFieldErrors("recipient: must not be null", "windows.1: latest must be after earliest");
+        .hasFieldErrors(
+            "orderId: must not be null", "windows.1: latest must not be before earliest");
   }
 
   @Test
   @DisplayName("a bridged leaf over the date reads null as absent and still parses a present date")
   void aBridgedLeafOverTheDateReadsNullAsAbsent() {
-    // ANCHOR: voucher_proof
-    VoucherMappingImpl voucherMapping = VoucherMappingImpl.INSTANCE;
+    // ANCHOR: gift_card_proof
+    GiftCardMappingImpl giftCardMapping = GiftCardMappingImpl.INSTANCE;
 
-    assertThatValidated(voucherMapping.parse(new VoucherDto("SPRING10", null)))
-        .hasValue(new Voucher("SPRING10", Optional.empty())); // left out: absent
-    assertThatValidated(voucherMapping.parse(new VoucherDto("SPRING10", "07/03/2026")))
+    assertThatValidated(giftCardMapping.parse(new GiftCardDto("SPRING10", null)))
+        .hasValue(new GiftCard("SPRING10", Optional.empty())); // left out: absent
+    assertThatValidated(giftCardMapping.parse(new GiftCardDto("SPRING10", "07/03/2026")))
         .hasFieldErrors("expiry: not an ISO-8601 date (expected e.g. 2026-07-28)");
-    // ANCHOR_END: voucher_proof
+    // ANCHOR_END: gift_card_proof
   }
 
   @Test
@@ -61,7 +63,7 @@ class AbsenceBookTest {
   void aConstructorsBugReachesTheClientAtTheRecordsPath() {
     // ANCHOR: discount_proof
     assertThatValidated(
-            BasketMappingImpl.INSTANCE.parse(new BasketDto("B-7", new BulkDiscountDto(1000, 0))))
+            QuoteMappingImpl.INSTANCE.parse(new QuoteDto("Q-7", new BulkDiscountDto(1000, 0))))
         .hasFieldErrors("discount: / by zero");
     // ANCHOR_END: discount_proof
   }
@@ -70,11 +72,21 @@ class AbsenceBookTest {
   @DisplayName("the per-item limit rounds up, so a remainder cannot slip past it")
   void thePerItemLimitRoundsUp() {
     assertThatValidated(
-            BasketMappingImpl.INSTANCE.parse(new BasketDto("B-8", new BulkDiscountDto(1001, 2))))
+            QuoteMappingImpl.INSTANCE.parse(new QuoteDto("Q-8", new BulkDiscountDto(1001, 2))))
         .hasFieldErrors("discount: at most 500p off per item");
     assertThatValidated(
-            BasketMappingImpl.INSTANCE.parse(new BasketDto("B-9", new BulkDiscountDto(1000, 2))))
+            QuoteMappingImpl.INSTANCE.parse(new QuoteDto("Q-9", new BulkDiscountDto(1000, 2))))
         .isValid();
+  }
+
+  @Test
+  @DisplayName(
+      "a one-day delivery window is a window: only one that ends before it starts is refused")
+  void aOneDayWindowIsAccepted() {
+    assertThatValidated(
+            DeliveryWindowMappingImpl.INSTANCE.parse(
+                new DeliveryWindowDto("2026-03-03", "2026-03-03")))
+        .hasValue(new DeliveryWindow(LocalDate.of(2026, 3, 3), LocalDate.of(2026, 3, 3)));
   }
 
   @Test
@@ -83,11 +95,12 @@ class AbsenceBookTest {
     DeliveryWindowDto reversed = new DeliveryWindowDto("2026-03-09", "2026-03-07");
 
     assertThatValidated(DeliveryWindowMappingImpl.INSTANCE.parse(reversed)) // unlabelled alone
-        .hasFieldErrors("latest must be after earliest");
+        .hasFieldErrors("latest must not be before earliest");
     assertThatValidated(
             DeliveryMappingImpl.INSTANCE.parse(
                 new DeliveryDto(
-                    "Ada", List.of(new DeliveryWindowDto("2026-03-01", "2026-03-04"), reversed))))
-        .hasFieldErrors("windows.1: latest must be after earliest");
+                    "O-1042",
+                    List.of(new DeliveryWindowDto("2026-03-01", "2026-03-04"), reversed))))
+        .hasFieldErrors("windows.1: latest must not be before earliest");
   }
 }

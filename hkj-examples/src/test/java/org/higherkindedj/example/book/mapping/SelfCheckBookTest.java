@@ -39,16 +39,15 @@ class SelfCheckBookTest {
     // ANCHOR: constructor_last
     DeliveryDto request =
         new DeliveryDto(
-            null, // no recipient
+            null, // no order id
             List.of(
                 new DeliveryWindowDto("2026-03-01", "2026-03-04"),
-                new DeliveryWindowDto(
-                    "2026-03-09", "07/03/2026"))); // meant to close before it opens
+                new DeliveryWindowDto("2026-03-09", "07/03/2026"))); // 7 March, before earliest
 
     assertThatValidated(DeliveryMappingImpl.INSTANCE.parse(request))
         .isInvalid()
         .hasFieldErrors(
-            "recipient: must not be null",
+            "orderId: must not be null",
             "windows.1.latest: not an ISO-8601 date (expected e.g. 2026-07-28)");
     // ANCHOR_END: constructor_last
   }
