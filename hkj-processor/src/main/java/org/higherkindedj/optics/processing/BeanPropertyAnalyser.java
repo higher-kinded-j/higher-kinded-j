@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -19,6 +20,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import org.higherkindedj.optics.processing.util.Diagnostics;
@@ -302,11 +304,9 @@ final class BeanPropertyAnalyser {
 
   /**
    * Whether javac could not choose the {@code writer} a getter pairs with from among its {@code
-   * overloads}, and reports so when {@code report}. {@code build} passes a value of the getter's
-   * type, and another overload takes that value too unless its parameter is no supertype of the
-   * getter's type, once both are erased: a copied container is a generic method's result, which
-   * javac infers afresh for each overload. javac then calls the more specific of the two, and finds
-   * the call ambiguous when {@code writer} is not that one. A primitive value never meets this,
+   * overloads}, and reports so when {@code report}. Another overload that takes the value {@code
+   * build} passes ({@link #takesValue}) leaves javac to call the more specific of the two, and the
+   * call is ambiguous when {@code writer} is not that one. A primitive value never meets this,
    * since an overload that takes it only by widening or boxing is always the less specific.
    */
   private boolean writerAmbiguous(
@@ -330,7 +330,7 @@ final class BeanPropertyAnalyser {
             .filter(
                 other -> {
                   TypeMirror parameter = paramType(owner, other);
-                  return types.isSubtype(types.erasure(getterType), types.erasure(parameter))
+                  return takesValue(getterType, parameter)
                       && (types.isSameType(written, parameter)
                           || !types.isSubtype(written, parameter));
                 })
@@ -357,6 +357,47 @@ final class BeanPropertyAnalyser {
               + " property.");
     }
     return rival.isPresent();
+  }
+
+  /**
+   * Whether a writer whose parameter is {@code parameter} takes the value {@code build} passes for
+   * a property read at {@code getterType}. The value has the getter's type, except where the
+   * mapping hands over a {@link ContainerCopy}: a generic method's result, whose element type javac
+   * infers afresh for each writer. A copied {@code List<String>} can be a {@code List<Object>}, and
+   * so a {@code Collection<Object>}, but never a {@code Collection<Integer>}. So a parameter the
+   * container is no subtype of still takes its copy when it is a supertype of the container whose
+   * type argument either is a supertype of the element there or has a lower bound, and always when
+   * the container is raw. An argument with an upper bound, or none, that admitted the element would
+   * have made the container itself a subtype, since every container copied with a supertype of
+   * another erasure has one type argument.
+   */
+  private boolean takesValue(TypeMirror getterType, TypeMirror parameter) {
+    Types types = env.getTypeUtils();
+    if (types.isSubtype(getterType, parameter)) {
+      return true;
+    }
+    if (ContainerCopy.of(getterType) == null
+        || getterType.getKind() != TypeKind.DECLARED
+        || parameter.getKind() != TypeKind.DECLARED) {
+      return false;
+    }
+    // Captured, so an element declared through a wildcard compares as the type it stands for.
+    TypeMirror container =
+        ProcessorUtils.supertypeOf(
+            types, types.capture(getterType), (TypeElement) ((DeclaredType) parameter).asElement());
+    if (container == null) {
+      return false;
+    }
+    List<? extends TypeMirror> elements = ((DeclaredType) container).getTypeArguments();
+    List<? extends TypeMirror> arguments = ((DeclaredType) parameter).getTypeArguments();
+    // A raw container names no element, so javac infers the copy's from the writer alone.
+    return elements.isEmpty()
+        || IntStream.range(0, arguments.size())
+            .allMatch(
+                index ->
+                    arguments.get(index).getKind() == TypeKind.WILDCARD
+                        ? ((WildcardType) arguments.get(index)).getSuperBound() != null
+                        : types.isSubtype(elements.get(index), arguments.get(index)));
   }
 
   /** A writer as its declaration spells it, so the reader can find the one to change. */

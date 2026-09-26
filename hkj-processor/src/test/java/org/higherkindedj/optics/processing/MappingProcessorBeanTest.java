@@ -1333,73 +1333,87 @@ class MappingProcessorBeanTest {
               "bean property 'age' on 'PersonDto' is read and written at different types");
     }
 
-    private static final JavaFileObject TAGS =
-        JavaFileObjects.forSourceString(
-            "com.example.Tags",
-            """
-            package com.example;
-
-            import java.util.List;
-
-            public record Tags(List<String> tags) {}
-            """);
-
-    private static final JavaFileObject TAGS_MAPPING =
-        JavaFileObjects.forSourceString(
-            "com.example.TagsMapping",
-            """
-            package com.example;
-
-            import org.higherkindedj.optics.annotations.GenerateMapping;
-            import org.higherkindedj.optics.annotations.MappingSpec;
-
-            @GenerateMapping
-            public interface TagsMapping extends MappingSpec<Tags, TagsDto> {}
-            """);
-
-    private static JavaFileObject tagsDto(String otherSetter) {
+    /**
+     * A bean whose property {@code x}, read at {@code type}, has a setter at that type and a rival
+     * overload at {@code rival}, with a domain record and a spec for it, all named after {@code
+     * name}.
+     */
+    private static JavaFileObject rivalling(String name, String type, String rival) {
       return JavaFileObjects.forSourceString(
-          "com.example.TagsDto",
+          "com.example." + name,
           """
           package com.example;
 
-          import java.util.Collection;
-          import java.util.List;
+          import java.util.*;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
 
-          public class TagsDto {
-            private List<String> tags;
-            public List<String> getTags() { return tags; }
-            public void setTags(List<String> tags) { this.tags = tags; }
-            %s
+          class %1$sDto {
+            private %2$s x;
+            public %2$s getX() { return x; }
+            public void setX(%2$s x) { this.x = x; }
+            public void setX(%3$s x) {}
           }
+
+          record %1$s(%2$s x) {}
+
+          @GenerateMapping
+          interface %1$sMapping extends MappingSpec<%1$s, %1$sDto> {}
           """
-              .formatted(otherSetter));
+              .formatted(name, type, rival));
     }
 
     @Test
-    @DisplayName("a second overload the copied value also fits is refused, naming both")
-    void ambiguousOverload() {
-      Compilation compilation =
-          compile(TAGS, tagsDto("public void setTags(Collection<Object> tags) {}"), TAGS_MAPPING);
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining(
-              "bean property 'tags' on 'TagsDto' has two writers the generated call cannot choose"
-                  + " between: setTags(List<String>) and setTags(Collection<Object>).");
-      assertThat(compilation).hadErrorContaining("Remove or rename one of the two");
-    }
-
-    @Test
-    @DisplayName("a second overload at a supertype is left to javac, which calls the more specific")
-    void lessSpecificOverload() {
-      Compilation compilation =
-          compile(
-              TAGS,
-              tagsDto("public void setTags(Collection<String> tags) { this.tags = List.of(); }"),
-              TAGS_MAPPING);
+    @DisplayName("a rival overload is refused exactly where the value build passes fits it as well")
+    void rivalOverloads() {
+      // A copied container is a generic call's result, whose element javac infers for each writer:
+      // the copy of a List<String> fits Collection<Object>, never Collection<Integer>.
+      Map<String, String[]> refused =
+          Map.of(
+              "Widened", new String[] {"List<String>", "Collection<Object>"},
+              "LowerBound", new String[] {"List<String>", "Collection<? super Integer>"},
+              "Captured", new String[] {"List<? extends Number>", "Collection<Number>"},
+              "Raw", new String[] {"List", "Collection<Object>"});
+      Map<String, String[]> accepted =
+          Map.of(
+              "Supertype", new String[] {"List<String>", "Collection<String>"},
+              "OtherElement", new String[] {"List<String>", "Collection<Integer>"},
+              "UpperBound", new String[] {"List<String>", "Collection<? extends Integer>"},
+              "Unrelated", new String[] {"List<String>", "Comparable<String>"},
+              "ToArray", new String[] {"List<String>", "String[]"},
+              "FromArray", new String[] {"String[]", "List<String>"},
+              "NotCopied", new String[] {"String", "Comparable<Integer>"});
+      Compilation refusals = compileRivals(refused);
+      refused.forEach(
+          (name, types) ->
+              assertThat(refusals)
+                  .hadErrorContaining(
+                      "bean property 'x' on '"
+                          + name
+                          + "Dto' has two writers the generated call cannot choose between: setX("
+                          + types[0]
+                          + ") and setX("
+                          + types[1]
+                          + ")."));
+      assertThat(refusals).hadErrorContaining("Remove or rename one of the two");
+      Assertions.assertThat(refusals.errors()).hasSize(refused.size());
+      // Each accepted shape compiles through to javac's own choice of setter.
+      Compilation compilation = compileRivals(accepted);
       assertThat(compilation).succeeded();
-      Assertions.assertThat(generatedSource(compilation, "com.example.TagsMappingImpl"))
-          .contains("wire.setTags(");
+      accepted
+          .keySet()
+          .forEach(
+              name ->
+                  Assertions.assertThat(
+                          generatedSource(compilation, "com.example." + name + "MappingImpl"))
+                      .contains("wire.setX("));
+    }
+
+    private Compilation compileRivals(Map<String, String[]> rivals) {
+      return compile(
+          rivals.entrySet().stream()
+              .map(entry -> rivalling(entry.getKey(), entry.getValue()[0], entry.getValue()[1]))
+              .toArray(JavaFileObject[]::new));
     }
 
     @Test
