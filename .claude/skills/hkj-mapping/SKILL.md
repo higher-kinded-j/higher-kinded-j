@@ -336,7 +336,7 @@ element-mapped specs by composition (`of(entries())`, element pairs resolved via
 component-named leaf for single-leaf specs, else recursively via the registry; unresolvable pairs
 diagnosed, failures
 located through the composed path `entries.items.1`). All generic mappings are record-to-record
-only (bean wires and `UpdateSpec` stay concrete). Raw and wildcard shapes are diagnosed; array
+only (bean wires, `UpdateSpec` and sealed hierarchies take no generic type, even instantiated). Raw and wildcard shapes are diagnosed; array
 arguments are concrete and unify structurally. An abstract leaf on a concrete or sealed spec is
 diagnosed (nothing defers its parser), and so is a leaf or rename declaring type parameters of
 its own: a constructor-supplied field and a stub have nowhere to declare them.

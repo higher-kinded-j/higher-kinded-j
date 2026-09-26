@@ -179,9 +179,7 @@ class MappingProcessorBeanTest {
     }
 
     @Test
-    @DisplayName(
-        "an instantiated generic domain stays concrete-only on a bean wire (record-record"
-            + " for now)")
+    @DisplayName("a generic domain is refused on a bean wire, even instantiated")
     void instantiatedGenericDomainRejectedOnBeanWire() {
       JavaFileObject page =
           JavaFileObjects.forSourceString(
@@ -209,8 +207,14 @@ class MappingProcessorBeanTest {
       Compilation compilation = compile(EMAIL, USER, USER_DTO, page, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("'Page' is generic, which this mapper does not support");
-      assertThat(compilation).hadErrorContaining("record-record pairs only");
+          .hadErrorContaining("'Page' is generic, which a bean-wire mapping does not support yet.");
+      // an instantiation is refused too, so the fix asks for no type parameters at all, and
+      // points at the record-to-record mapping that may be generic
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare the spec and the types it maps without type parameters; a"
+                  + " record-to-record mapping may use generic types, either concretely"
+                  + " instantiated or threaded through the spec's type parameters.");
     }
 
     @Test
@@ -3120,7 +3124,8 @@ class MappingProcessorBeanTest {
           compile(D, wire, spec("public interface M extends MappingSpec<D, BoxDto<String>> {}"));
       assertThat(compilation).failed();
       assertThat(compilation)
-          .hadErrorContaining("'BoxDto' is generic, which this mapper does not support");
+          .hadErrorContaining(
+              "'BoxDto' is generic, which a bean-wire mapping does not support yet.");
     }
   }
 

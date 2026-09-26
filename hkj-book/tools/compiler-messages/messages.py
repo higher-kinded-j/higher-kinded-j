@@ -685,7 +685,7 @@ interface ContactMapping extends MappingSpec<Contact, ContactDto> {
              heading="@Flatten on 'x' spreads a component 'y' that 'Z' also has",
              fragment="spreads a component",
              meaning="A flattened record has a component named like one of the domain's own, so both would claim the same wire component.",
-             fix="Rename one of the two record components.",
+             fix="Rename one of the two record components, or, where two groups spread one record type, flatten only one of them and nest the other.",
              rule=("Names in a flattened group", "rules.md#names-in-a-flattened-group"),
              code="""record Address(String street, String city) {}
 
@@ -989,10 +989,11 @@ interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}"""
     ]),
     ("Generic specs", "generic-specs", [
         dict(id="generic-bean-or-patch",
-             heading="'X' is generic, which this mapper does not support",
-             fragment="is generic, which this mapper does not support",
-             meaning="The spec, its domain or its wire declares type parameters where a generic mapping cannot go: a bean or PATCH wire, or a sealed hierarchy, which is refused even at a concrete instantiation.",
-             fix="Give a bean, PATCH or sealed mapping non-generic domain and wire types, or model the generic type as a record.",
+             heading="'X' is generic, which a bean-wire mapping does not support yet",
+             fragment="is generic, which a bean-wire mapping does not support yet",
+             display="is generic, which a … does not support yet",
+             meaning="The spec, its domain or its wire declares type parameters on a bean-wire mapping, a sparse UpdateSpec or a sealed mapping (the message names which), which is not supported yet, even at a concrete instantiation.",
+             fix="Declare the spec and the types it maps without type parameters. Outside a sparse `UpdateSpec`, a generic type can instead be a record, mapped record to record.",
              rule=("The boundaries of a generic spec", "rules.md#generic-boundaries"),
              code="""record Page<T>(List<T> items) {}
 
@@ -1024,7 +1025,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
         dict(id="merge-component-ambiguous",
              heading="@GenerateMerge: target component 'x' is ambiguous: [...] both carry it",
              fragment="both carry it",
-             meaning="Two sources carry a component the target needs, and every target component takes exactly one source.",
+             meaning="Two or more sources carry a component the target needs (the message says `all carry it` for three or more), and every target component takes exactly one source.",
              fix="Rename the component on all but one source.",
              rule=("How a merge fills", "rules.md#how-a-merge-fills"),
              code="""record Customer(String name) {}

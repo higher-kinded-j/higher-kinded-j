@@ -2503,8 +2503,9 @@ public class MappingProcessor extends AbstractProcessor {
               + "' is already Optional.",
           "The bridge gives a plain nullable member an absent state; this one declares its own,"
               + " and maps by identity or through its element leaf either way.",
-          "Remove the annotation, or keep it if the vocabulary is shared with a spec whose wire"
-              + " component is a plain nullable one.");
+          "Remove the annotation. If a spec whose wire component is a plain nullable one needs it"
+              + " too, declare the annotated method on a mix-in both specs extend; an inherited one"
+              + " draws no note.");
       return true;
     }
     if (wire instanceof WireShape.BeanShape) {
@@ -2516,7 +2517,8 @@ public class MappingProcessor extends AbstractProcessor {
           "A bean wire bridges a domain Optional to its nullable property automatically, because"
               + " bean conventions leave Optional off property types; the annotation opts a RECORD"
               + " wire into the same correspondence.",
-          "Remove the annotation, or keep it if the vocabulary is shared with a record-wire spec.");
+          "Remove the annotation. If a record-wire spec needs it too, declare the annotated"
+              + " method on a mix-in both specs extend; an inherited one draws no note.");
     }
     return true;
   }
@@ -3127,8 +3129,27 @@ public class MappingProcessor extends AbstractProcessor {
                                 domainCrossing(owner, component.getSimpleName().toString())));
   }
 
+  /**
+   * The mappings that take no type parameters, as a refusal names them, and whether the author can
+   * map a generic type record to record instead: a sparse update maps onto a bean only.
+   */
+  private enum NonGenericMapping {
+    SEALED("a sealed mapping", true),
+    BEAN_WIRE("a bean-wire mapping", true),
+    SPARSE("a sparse UpdateSpec", false);
+
+    private final String term;
+    private final boolean recordAlternative;
+
+    NonGenericMapping(String term, boolean recordAlternative) {
+      this.term = term;
+      this.recordAlternative = recordAlternative;
+    }
+  }
+
   /** Generic specs or mapped types would leave the Impl naming undeclared type variables. */
-  private boolean checkNotGeneric(TypeElement spec, TypeElement domain, TypeElement wire) {
+  private boolean checkNotGeneric(
+      TypeElement spec, TypeElement domain, TypeElement wire, NonGenericMapping mapping) {
     TypeElement offender =
         !spec.getTypeParameters().isEmpty()
             ? spec
@@ -3142,11 +3163,19 @@ public class MappingProcessor extends AbstractProcessor {
         processingEnv.getMessager(),
         spec,
         TAG,
-        "'" + offender.getSimpleName() + "' is generic, which this mapper does not support.",
-        "The generated Impl names the mapped types directly; type parameters would leave it"
-            + " referencing undeclared type variables.",
-        "Map concrete types here; generic mappings (concrete instantiations and threaded specs)"
-            + " are currently supported for record-record pairs only.");
+        "'"
+            + offender.getSimpleName()
+            + "' is generic, which "
+            + mapping.term
+            + " does not support yet.",
+        "The generated Impl names the spec and reads the mapped types' members as declared, so"
+            + " a type parameter would reach it as an undeclared type variable, even under a"
+            + " concrete instantiation.",
+        "Declare the spec and the types it maps without type parameters"
+            + (mapping.recordAlternative
+                ? "; a record-to-record mapping may use generic types, either concretely"
+                    + " instantiated or threaded through the spec's type parameters."
+                : "."));
     return false;
   }
 
@@ -3311,7 +3340,7 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
     if (sealedDomain != null && sealedWire != null) {
-      if (!checkNotGeneric(spec, sealedDomain, sealedWire)) {
+      if (!checkNotGeneric(spec, sealedDomain, sealedWire, NonGenericMapping.SEALED)) {
         return;
       }
       if (!checkNoSealedVocabulary(spec)) {
@@ -3347,7 +3376,7 @@ public class MappingProcessor extends AbstractProcessor {
         reportUnsupportedWire(spec, wireArg);
         return;
       }
-      if (!checkNotGeneric(spec, domain, wireBean)) {
+      if (!checkNotGeneric(spec, domain, wireBean, NonGenericMapping.BEAN_WIRE)) {
         return;
       }
       BeanPropertyAnalyser analyser = new BeanPropertyAnalyser(processingEnv);
@@ -3589,7 +3618,7 @@ public class MappingProcessor extends AbstractProcessor {
       reportUpdateWireNotBean(spec, wireArg);
       return;
     }
-    if (!checkNotGeneric(spec, domain, wireBean)) {
+    if (!checkNotGeneric(spec, domain, wireBean, NonGenericMapping.SPARSE)) {
       return;
     }
 
@@ -5386,6 +5415,12 @@ public class MappingProcessor extends AbstractProcessor {
         String innerName = innerComponent.getSimpleName().toString();
         String owner = owners.putIfAbsent(innerName, name);
         if (owner != null) {
+          // Two groups of one record type share every name, so no rename can part them.
+          boolean sameRecord =
+              groups.stream()
+                  .filter(group -> group.name().equals(owner))
+                  .map(Flattened::record)
+                  .anyMatch(record::equals);
           Diagnostics.error(
               processingEnv.getMessager(),
               method,
@@ -5400,8 +5435,14 @@ public class MappingProcessor extends AbstractProcessor {
               "Every wire component takes exactly one source, and a flattened group's components"
                   + " are sourced by name, so a name shared with the domain or with another group"
                   + " would claim one wire component twice.",
-              "Rename one of the two record components: every wire component takes one source,"
-                  + " and both would claim the same one.");
+              sameRecord
+                  ? "Flatten only one of '"
+                      + owner
+                      + "' and '"
+                      + name
+                      + "'; the other maps through a nested wire component, as an unflattened"
+                      + " record component does."
+                  : "Rename one of the two record components.");
           return null;
         }
         inner.add(innerName);
@@ -5500,7 +5541,7 @@ public class MappingProcessor extends AbstractProcessor {
             + "' spreads (not supported yet).",
         "A flattened group belongs to the full tier, where every source has a wire counterpart;"
             + " a wire with fewer components is a projection, whose write-back has no shape for a"
-            + " group yet. Flattened: "
+            + " group. Flattened: "
             + flattened.stream().map(Flattened::name).toList()
             + ".",
         "Add the missing wire components, or map the projection without the flattened"
@@ -5565,7 +5606,7 @@ public class MappingProcessor extends AbstractProcessor {
               + " has no meaning on a sparse UpdateSpec (not supported yet).",
           "A sparse update folds each present wire property into an edit of one domain component;"
               + " a flattened group would have to fold several properties into one nested"
-              + " record, which no edit expresses yet."
+              + " record, which no edit expresses."
               + (spread.isEmpty()
                   ? ""
                   : " '"
@@ -6224,21 +6265,23 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The fix for a pair of reference types nothing maps: the Optional bridge where the pair has its
-   * shape, then the leaf over the pair (over its elements where a container lifts them), a spec
+   * shape, or else the leaf over the pair (over its elements where a container lifts them), a spec
    * where both sides are records, and the declaration that would let a container lift where it does
    * not as declared.
    */
   private String referenceFix(MemberSite member, TypeMirror wireType, TypeMirror domainType) {
     LeafOffer offer = leafOffer(member.spec(), member.name(), wireType, domainType);
-    return bridgeOffer(
+    String bridge =
+        bridgeOffer(
             member.spec(),
             member.registry(),
             member.name(),
             wireType,
             domainType,
             member.need(),
-            nonNullWriteSite(member.wire(), member.wireName()))
-        + leafLine(
+            nonNullWriteSite(member.wire(), member.wireName()));
+    String leaf =
+        leafLine(
             member.spec(),
             member.name(),
             "'default ValidatedPrism<"
@@ -6247,7 +6290,9 @@ public class MappingProcessor extends AbstractProcessor {
                 + offer.domain()
                 + "> "
                 + member.name()
-                + "()'")
+                + "()'");
+    return bridge
+        + (bridge.isEmpty() ? leaf : "Or " + lowerFirst(leaf))
         + (offer.lifts() ? ", a leaf over the " + offer.parts() + " types" : "")
         // A spec is offered only for a record pair, as the bridged refusal offers it.
         + (offer.records()
@@ -7759,10 +7804,13 @@ public class MappingProcessor extends AbstractProcessor {
    * chooses by what the field means. The bare marker is offered wherever the present element needs
    * no leaf: it copies, or a single mapping serving the site covers the element pair, which the
    * bridge nests through. With two, the element leaf that chooses between them is offered instead.
-   * Empty when the shape cannot bridge. Never asked of a primitive wire member, which cannot hold
-   * the {@code null} and is offered its wrapper first ({@link #primitiveFix}). A component declared
-   * non-null ({@code nonNull}) is told to take a {@code @Nullable} as well, so the offer does not
-   * lead to the refusal a bridge onto it would draw ({@link #reportNonNullBridge}).
+   * A leaf the spec already has over the elements is offered the annotation alone, and any other
+   * same-named default is offered for replacement, since the spec cannot declare both ({@link
+   * #leafLine}). Empty when the shape cannot bridge. Never asked of a primitive wire member, which
+   * cannot hold the {@code null} and is offered its wrapper first ({@link #primitiveFix}). A
+   * component declared non-null ({@code nonNull}) is told to take a {@code @Nullable} as well, so
+   * the offer does not lead to the refusal a bridge onto it would draw ({@link
+   * #reportNonNullBridge}).
    */
   private String bridgeOffer(
       TypeElement spec,
@@ -7785,21 +7833,28 @@ public class MappingProcessor extends AbstractProcessor {
             || servingCandidates(spec, registry, offer.wire(), offer.domain(), need).chosen().size()
                 == 1;
     String nullable = nonNull == null ? "" : ", and " + nullableFix(nonNull);
+    if (findLeaf(spec, name, offer.wire(), offer.domain()) != null) {
+      return "Annotate '"
+          + name
+          + "()' with @OptionalBridge"
+          + nullable
+          + ", so an absent value reads as a null wire component and a present one converts. ";
+    }
     return needsNoLeaf
-        ? "Add '@OptionalBridge "
-            + domainType
-            + " "
-            + name
-            + "();' to the spec"
+        ? leafLine(spec, name, "'@OptionalBridge " + domainType + " " + name + "();'")
             + nullable
             + ", so an absent value reads as a null wire component and back. "
-        : "Add '@OptionalBridge default ValidatedPrism<"
-            + offer.wire()
-            + ", "
-            + offer.domain()
-            + "> "
-            + name
-            + "()' to the spec, a leaf over the ELEMENT types"
+        : leafLine(
+                spec,
+                name,
+                "'@OptionalBridge default ValidatedPrism<"
+                    + offer.wire()
+                    + ", "
+                    + offer.domain()
+                    + "> "
+                    + name
+                    + "()'")
+            + ", a leaf over the ELEMENT types"
             + nullable
             + ", so an absent value reads as a null wire component and a present one converts. ";
   }

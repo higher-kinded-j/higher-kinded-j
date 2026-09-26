@@ -900,6 +900,10 @@ class MappingProcessorFlattenTest {
       assertThat(compilation)
           .hadErrorContaining(
               "@Flatten on 'address' spreads a component 'city' that 'CityCustomer' also has");
+      // the fix is the rename alone: the reason sentence before it already says why
+      assertThat(compilation)
+          .hadErrorContaining(
+              "would claim one wire component twice. Rename one of the two record components.");
     }
 
     @Test

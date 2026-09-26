@@ -634,7 +634,14 @@ class MergeProcessorTest {
                   }
                   """));
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'Box' is generic");
+      // an instantiation is refused too, so the fix asks for no type parameters at all
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'Box' is generic, which this merge does not support. The generated Impl names the"
+                  + " merge interface and reads each record's components as declared, so a type"
+                  + " parameter would reach it as an undeclared type variable, even under a"
+                  + " concrete instantiation. Declare the merge interface and the records it"
+                  + " merges without type parameters.");
     }
 
     @Test
@@ -871,7 +878,7 @@ class MergeProcessorTest {
     }
 
     @Test
-    @DisplayName("a component carried by two sources is ambiguous")
+    @DisplayName("a component carried by two or more sources is ambiguous, naming every source")
     void ambiguousComponentRejected() {
       JavaFileObject clashing =
           JavaFileObjects.forSourceString(
@@ -883,6 +890,8 @@ class MergeProcessorTest {
                 public record A(String name) {}
 
                 public record B(String name) {}
+
+                public record C(String name) {}
 
                 public record Target(String name, String other) {}
               }
@@ -896,10 +905,24 @@ class MergeProcessorTest {
                   public interface ClashAssembly {
                     Clash.Target assemble(Clash.A a, Clash.B b);
                   }
+                  """),
+              spec(
+                  "TripleAssembly",
+                  """
+                  public interface TripleAssembly {
+                    Clash.Target assemble(Clash.A a, Clash.B b, Clash.C c);
+                  }
                   """));
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("target component 'name' is ambiguous");
-      assertThat(compilation).hadErrorContaining("Rename the component on all but one source");
+      assertThat(compilation)
+          .hadErrorContaining("target component 'name' is ambiguous: ['a', 'b'] both carry it.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "target component 'name' is ambiguous: ['a', 'b', 'c'] all carry it.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Rename the component on all but one source (choosing a source is not supported"
+                  + " yet).");
     }
 
     @Test
@@ -939,7 +962,7 @@ class MergeProcessorTest {
     }
 
     @Test
-    @DisplayName("truthful types: fallible leaves demand a Validated return")
+    @DisplayName("the return type follows the fills: a fallible leaf demands a Validated return")
     void fallibleWithPlainReturnRejected() {
       Compilation compilation =
           compile(
@@ -960,10 +983,15 @@ class MergeProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("uses fallible fills but declares a plain 'TypedDashboard' return");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "A fill through a leaf or a nested spec can fail, and a plain return type has no"
+                  + " way to report the failure.");
     }
 
     @Test
-    @DisplayName("truthful types: an identity-only merge must not claim Validated")
+    @DisplayName(
+        "the return type follows the fills: an identity-only merge must not claim Validated")
     void losslessWithValidatedReturnRejected() {
       Compilation compilation =
           compile(
@@ -979,6 +1007,10 @@ class MergeProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("declares a Validated return but every fill is an identity copy");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "A merge that cannot fail returns the plain target type, so its callers never"
+                  + " handle an error that cannot happen.");
     }
 
     @Test

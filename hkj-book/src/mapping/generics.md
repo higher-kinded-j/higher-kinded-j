@@ -81,7 +81,7 @@ Where a record nests an element-mapped spec, the processor composes it, so a `Ca
 A generic spec covers every instantiation it matches, so it competes with a concrete spec for the same pair: `CodecPageMapping<T, TDto>` covers `Page<Customer>` against `PageDto<CustomerDto>` too. Declared side by side, as on this page, a record nesting `Page<Customer>` stops with [`matches more than one mapping spec`](compiler_errors.md#more-than-one-spec) until a leaf picks one. Declare one form for each pair a record nests.
 ~~~
 
-Generic mappings are record-to-record only. A generic spec over a bean wire or a PATCH is not supported yet, and nor is a generic sealed hierarchy, even at a concrete instantiation. Model an envelope such as `Result<E, A>` as a record. [The boundaries of a generic spec](rules.md#generic-boundaries) lists what else the processor diagnoses.
+Generic mappings are record-to-record only. A generic type on a bean wire, a PATCH or a sealed hierarchy is not supported yet, even at a concrete instantiation. Model an envelope such as `Result<E, A>` as a record. [The boundaries of a generic spec](rules.md#generic-boundaries) lists what else the processor diagnoses.
 
 ~~~admonish tip title="You can ship now"
 You can now map a generic record for one instantiation, for every instantiation, or with element prisms the caller supplies, and reach each Impl. The rest of this page, [generic mix-ins](#generic-mix-ins), is for when you need it.

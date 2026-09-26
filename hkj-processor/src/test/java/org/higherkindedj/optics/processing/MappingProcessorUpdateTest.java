@@ -3141,7 +3141,14 @@ class MappingProcessorUpdateTest {
               """);
       Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("is generic");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'GenericMapping' is generic, which a sparse UpdateSpec does not support yet.");
+      // a sparse update maps onto a bean only, so no record-to-record alternative is offered
+      assertThat(compilation)
+          .hadErrorContaining(
+              "even under a concrete instantiation. Declare the spec and the types it maps"
+                  + " without type parameters.");
     }
 
     @Test

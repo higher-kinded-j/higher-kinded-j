@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.Optional;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
@@ -966,6 +967,321 @@ class MappingFixLineTest {
             }
           }
           """);
+    }
+  }
+
+  @Nested
+  @DisplayName("a domain Optional against a plain wire component")
+  class OptionalAgainstPlain {
+
+    @Test
+    @DisplayName("is refused, offering the bridge, or else a leaf over the whole Optional")
+    void refused() {
+      Compilation compilation =
+          compile(
+              """
+              record Reader(String name, Optional<String> nickname) {}
+              record ReaderDto(String name, String nickname) {}
+              @GenerateMapping
+              interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {}
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("target field 'ReaderDto.nickname' has no usable source.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add '@OptionalBridge java.util.Optional<java.lang.String> nickname();' to the spec,"
+                  + " so an absent value reads as a null wire component and back. Or add 'default"
+                  + " ValidatedPrism<java.lang.String, java.util.Optional<java.lang.String>>"
+                  + " nickname()' to the spec.");
+    }
+
+    @Test
+    @DisplayName("either offer maps the pair on its own, and only the bridge reads null as absent")
+    void followed() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileFollowed(
+              """
+              record Reader(String name, Optional<String> nickname) {}
+              record ReaderDto(String name, String nickname) {}
+              @GenerateMapping
+              interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
+                @OptionalBridge java.util.Optional<java.lang.String> nickname();
+              }
+
+              @GenerateMapping
+              interface ReaderLeafMapping extends MappingSpec<Reader, ReaderDto> {
+                default ValidatedPrism<java.lang.String, java.util.Optional<java.lang.String>>
+                    nickname() {
+                  return ValidatedPrism.of(
+                      raw -> Validated.validNel(Optional.of(raw)), nickname -> nickname.orElse(""));
+                }
+              }
+
+              final class Probe {
+                static Object bridged() {
+                  return ReaderMappingImpl.INSTANCE
+                      .parse(new ReaderDto("Ada", null))
+                      .map(Reader::nickname);
+                }
+
+                static Object leaf() {
+                  return ReaderLeafMappingImpl.INSTANCE
+                      .parse(new ReaderDto("Ada", null))
+                      .map(Reader::nickname);
+                }
+              }
+              """);
+      assertThatValidated(probe(result, "bridged")).hasValue(Optional.empty());
+      assertThatValidated(probe(result, "leaf")).hasFieldErrors("nickname: must not be null");
+    }
+  }
+
+  @Nested
+  @DisplayName("the Optional bridge offered beside a same-named method")
+  class BridgeBesideAMethod {
+
+    @Test
+    @DisplayName("annotates an element leaf the spec has, and replaces any other method")
+    void refused() {
+      Compilation compilation =
+          compile(
+              """
+              record Email(String value) {}
+              record Contact(Optional<Email> email) {}
+              record ContactDto(String email) {}
+              @GenerateMapping
+              interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+                default ValidatedPrism<String, Email> email() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new Email(raw)), Email::value);
+                }
+              }
+
+              record Card(Optional<Email> email) {}
+              record CardDto(String email) {}
+              @GenerateMapping
+              interface CardMapping extends MappingSpec<Card, CardDto> {
+                default String email() { return ""; }
+              }
+
+              record Reader(Optional<String> nickname) {}
+              record ReaderDto(String nickname) {}
+              @GenerateMapping
+              interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
+                default String nickname() { return ""; }
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Annotate 'email()' with @OptionalBridge, so an absent value reads as a null wire"
+                  + " component and a present one converts. Or replace 'email()' with 'default"
+                  + " ValidatedPrism<java.lang.String, java.util.Optional<com.example.Email>>"
+                  + " email()'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Replace 'email()' with '@OptionalBridge default ValidatedPrism<java.lang.String,"
+                  + " com.example.Email> email()', a leaf over the ELEMENT types, so an absent"
+                  + " value reads as a null wire component and a present one converts.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Replace 'nickname()' with '@OptionalBridge java.util.Optional<java.lang.String>"
+                  + " nickname();', so an absent value reads as a null wire component and back.");
+      Assertions.assertThat(compilation.errors().toString()).doesNotContain("Add '@OptionalBridge");
+    }
+
+    @Test
+    @DisplayName("each bridge it offers maps the pair once followed")
+    void followed() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileFollowed(
+              """
+              record Email(String value) {}
+              record Contact(Optional<Email> email) {}
+              record ContactDto(String email) {}
+              @GenerateMapping
+              interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+                @OptionalBridge
+                default ValidatedPrism<String, Email> email() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new Email(raw)), Email::value);
+                }
+              }
+
+              record Reader(Optional<String> nickname) {}
+              record ReaderDto(String nickname) {}
+              @GenerateMapping
+              interface ReaderMapping extends MappingSpec<Reader, ReaderDto> {
+                @OptionalBridge java.util.Optional<java.lang.String> nickname();
+              }
+
+              final class Probe {
+                static Object contact() {
+                  return ContactMappingImpl.INSTANCE
+                      .parse(new ContactDto("ada@example.com"))
+                      .map(contact -> contact.email().map(Email::value));
+                }
+
+                static Object reader() {
+                  return ReaderMappingImpl.INSTANCE
+                      .parse(new ReaderDto(null))
+                      .map(Reader::nickname);
+                }
+              }
+              """);
+      assertThatValidated(probe(result, "contact")).hasValue(Optional.of("ada@example.com"));
+      assertThatValidated(probe(result, "reader")).hasValue(Optional.empty());
+    }
+  }
+
+  @Nested
+  @DisplayName("an @OptionalBridge the wire does not need")
+  class RedundantBridge {
+
+    private static final String GUEST_BEAN =
+        """
+        class GuestBean {
+          private String name;
+          private String nickname;
+          public String getName() { return name; }
+          public void setName(String name) { this.name = name; }
+          public String getNickname() { return nickname; }
+          public void setNickname(String nickname) { this.nickname = nickname; }
+        }
+        """;
+
+    @Test
+    @DisplayName("is noted where the spec declares it, and the fix moves it to a shared mix-in")
+    void noted() {
+      Compilation compilation =
+          compile(
+              GUEST_BEAN
+                  + """
+                  record Guest(String name, Optional<String> nickname) {}
+                  @GenerateMapping
+                  interface GuestBeanMapping extends MappingSpec<Guest, GuestBean> {
+                    @OptionalBridge Optional<String> nickname();
+                  }
+
+                  record GuestView(String name, Optional<String> nickname) {}
+                  @GenerateMapping
+                  interface GuestViewMapping extends MappingSpec<Guest, GuestView> {
+                    @OptionalBridge Optional<String> nickname();
+                  }
+                  """);
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadNoteContaining(
+              "Remove the annotation. If a record-wire spec needs it too, declare the annotated"
+                  + " method on a mix-in both specs extend; an inherited one draws no note.");
+      assertThat(compilation)
+          .hadNoteContaining(
+              "Remove the annotation. If a spec whose wire component is a plain nullable one needs"
+                  + " it too, declare the annotated method on a mix-in both specs extend; an"
+                  + " inherited one draws no note.");
+    }
+
+    @Test
+    @DisplayName("on a shared mix-in, serves the wire that needs it and is silent on the others")
+    void followed() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileFollowed(
+              GUEST_BEAN
+                  + """
+                  record Guest(String name, Optional<String> nickname) {}
+                  interface NicknameBridge {
+                    @OptionalBridge Optional<String> nickname();
+                  }
+                  @GenerateMapping
+                  interface GuestBeanMapping extends MappingSpec<Guest, GuestBean>, NicknameBridge {}
+
+                  record GuestView(String name, Optional<String> nickname) {}
+                  @GenerateMapping
+                  interface GuestViewMapping extends MappingSpec<Guest, GuestView>, NicknameBridge {}
+
+                  record GuestDto(String name, String nickname) {}
+                  @GenerateMapping
+                  interface GuestDtoMapping extends MappingSpec<Guest, GuestDto>, NicknameBridge {}
+
+                  final class Probe {
+                    static Object record() {
+                      return GuestDtoMappingImpl.INSTANCE
+                          .parse(new GuestDto("Ada", null))
+                          .map(Guest::nickname);
+                    }
+                  }
+                  """);
+      assertThatValidated(probe(result, "record")).hasValue(Optional.empty());
+    }
+  }
+
+  @Nested
+  @DisplayName("two flattened groups that share a component name")
+  class SharedFlattenedName {
+
+    @Test
+    @DisplayName("of one record type are offered one group, and of two are offered a rename")
+    void refused() {
+      Compilation compilation =
+          compile(
+              """
+              record Address(String street, String city) {}
+              record Moves(String name, Address home, Address work) {}
+              record MovesDto(String name, String street, String city) {}
+              @GenerateMapping
+              interface MovesMapping extends MappingSpec<Moves, MovesDto> {
+                @Flatten Address home();
+                @Flatten Address work();
+              }
+
+              record Office(String street, String floor) {}
+              record Places(String name, Address home, Office work) {}
+              record PlacesDto(String name, String street, String city, String floor) {}
+              @GenerateMapping
+              interface PlacesMapping extends MappingSpec<Places, PlacesDto> {
+                @Flatten Address home();
+                @Flatten Office work();
+              }
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Flatten only one of 'home' and 'work'; the other maps through a nested wire"
+                  + " component, as an unflattened record component does.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "would claim one wire component twice. Rename one of the two record components.");
+      Assertions.assertThat(compilation.errors()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("of one record type map with one group spread and the other nested")
+    void followed() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileFollowed(
+              """
+              record Address(String street, String city) {}
+              record AddressDto(String street, String city) {}
+              @GenerateMapping
+              interface AddressMapping extends MappingSpec<Address, AddressDto> {}
+
+              record Moves(String name, Address home, Address work) {}
+              record MovesDto(String name, String street, String city, AddressDto work) {}
+              @GenerateMapping
+              interface MovesMapping extends MappingSpec<Moves, MovesDto> {
+                @Flatten Address home();
+              }
+
+              final class Probe {
+                static Object moves() {
+                  MovesDto dto =
+                      new MovesDto("Ada", "1 Road", "Leeds", new AddressDto("2 Street", "York"));
+                  return MovesMappingImpl.INSTANCE
+                      .parse(dto)
+                      .map(moves -> moves.home().street() + "/" + moves.work().street());
+                }
+              }
+              """);
+      assertThatValidated(probe(result, "moves")).hasValue("1 Road/2 Street");
     }
   }
 
