@@ -56,7 +56,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a getter-only `List` carry an absent `Optional`?](#getter-only-list-refuses-the-bridge) | No: its getter creates the list, so absence reads as empty. | not supported yet |
 | [Can a two-way bean map a property that has only a getter?](beans.md#generated-client-checklist) | No: `@Unmapped` accepts it, but the component then stays out. | not supported yet |
 | [Can a Lombok builder use `@Singular` on a collection?](beans.md#generated-client-checklist) | No: the processor refuses it on two-way and build-only builders alike. | not supported yet |
-| [Does a protobuf-java message map?](beans.md#generated-client-checklist) | No: its companion accessors pair as extra properties. | not supported yet |
+| [Does a protobuf-java message map?](beans.md#generated-client-checklist) | No: its companion accessors pair as extra properties, and a repeated or map field has no setter. | not supported yet |
 | [Where does a one-directional bean nest?](#how-a-beans-direction-is-read) | Only where nothing needs its missing direction. | by design |
 | **Sparse PATCH** | | |
 | [Can one spec extend `MappingSpec` and `UpdateSpec`?](#one-tier-per-spec) | No: declare a spec per tier and share a mix-in. | by design |
@@ -362,6 +362,8 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 **The processor reads a bean through getters, and writes it by one of two strategies, tried in order.** First, a no-args constructor the Impl can call, public or package-private beside the spec, with `setX` setters, and for a getter-only `List` the JAXB convention `getItems().addAll(...)`. Then, a static `builder()` or `newBuilder()` whose setters fill it and whose `build()` yields the wire. A bean with getters that fits neither is only ever read, so it maps [parse-only](beans.md#one-directional-beans), and a bean with nothing to read or write gets a what/why/fix diagnostic.
 
 - **A property is a getter and a writer that share a name.** Getters are `getX()`, and `isX()` returning `boolean` or `Boolean`, the shape JAXB declares for an optional boolean. Where a bean declares both for one name, `getX()` reads it.
+- **An overloaded writer pairs by the getter's type.** Beside `int getAge()`, `setAge(int)` writes the property and `setAge(String)` is passed over, whatever order the two are declared in. A builder setter pairs the same way. With no getter to match, on a bean that is only written, the first overload met decides.
+- **An overload that cannot pair is refused.** When no overload takes the getter's type, the property is read and written at different types. When a second overload would take the value as well, and is no less specific, javac could not choose between the two.
 - **An unpaired accessor is left out of the mapping.** That suits a computed getter such as `getSummary()`, or a builder's singular adder. The processor refuses one named after a domain component instead: [When an unpaired accessor is refused](#unpaired-accessors).
 - **The domain stays a record.** `parse` assembles the domain through its canonical constructor, so only the wire may be bean-shaped, and a bean domain gets a diagnostic.
 - **Nesting is unaffected.** A bean mapping that builds and parses exposes `asValidatedPrism()` like any other, so record specs nest it and containers lift it, and a one-directional one nests [where its direction is used](#how-a-beans-direction-is-read).

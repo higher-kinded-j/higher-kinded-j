@@ -1064,7 +1064,7 @@ public class MappingProcessor extends AbstractProcessor {
    * which is the typo guard; one inherited from a mix-in binds where it can and is otherwise inert,
    * like every other inherited vocabulary member, so one mix-in serves wires that differ.
    */
-  private Set<String> unmappedNames(TypeElement spec, WireShape wire) {
+  private Set<String> unmappedNames(TypeElement spec, WireShape wire, boolean sparse) {
     Set<String> unpaired =
         wire.unpaired().stream()
             .map(WireShape.UnpairedAccessor::name)
@@ -1103,10 +1103,13 @@ public class MappingProcessor extends AbstractProcessor {
                   + unpaired
                   + ".",
           carried
-              ? "Remove the marker; to leave the property out of the mapping, remove one of its"
-                  + " accessors from '"
-                  + wire.element().getSimpleName()
-                  + "'."
+              ? componentFix(
+                  wire,
+                  sparse,
+                  "Remove the marker; to leave the property out of the mapping, remove one of its"
+                      + " accessors from '"
+                      + wire.element().getSimpleName()
+                      + "'.")
               : "Name the marker after the accessor's property, or remove it."
                   + didYouMean(name, List.copyOf(unpaired)));
       return null;
@@ -1155,30 +1158,33 @@ public class MappingProcessor extends AbstractProcessor {
             : "A mapping carries only the properties a bean both reads and writes, so "
                 + target
                 + " would go unmapped without a word: build would never write it.",
-        addPartner(bean, accessor, sparse)
-            + refusal
-                .partner()
-                .map(
-                    other ->
-                        " Or, if "
-                            + other.signature()
-                            + " is meant to "
-                            + (accessor.reads() ? "write" : "read")
-                            + " '"
-                            + name
-                            + "', rename it "
-                            + other.renamedFor(name)
-                            + ".")
-                .orElse(
-                    (sparse
-                            ? " Or, if clients must not change " + component
-                            : " Or, if "
-                                + accessor.signature()
-                                + " is not meant to carry "
-                                + component)
-                        + ", declare "
-                        + unmappedMarker(accessor)
-                        + " on the spec."));
+        componentFix(
+            bean,
+            sparse,
+            addPartner(bean, accessor, sparse)
+                + refusal
+                    .partner()
+                    .map(
+                        other ->
+                            " Or, if "
+                                + other.signature()
+                                + " is meant to "
+                                + (accessor.reads() ? "write" : "read")
+                                + " '"
+                                + name
+                                + "', rename it "
+                                + other.renamedFor(name)
+                                + ".")
+                    .orElse(
+                        (sparse
+                                ? " Or, if clients must not change " + component
+                                : " Or, if "
+                                    + accessor.signature()
+                                    + " is not meant to carry "
+                                    + component)
+                            + ", declare "
+                            + unmappedMarker(accessor)
+                            + " on the spec.")));
   }
 
   private void reportUnreadSetter(
@@ -1329,11 +1335,14 @@ public class MappingProcessor extends AbstractProcessor {
               + " written can leave a property unset: a read-only bean's getter may answer from its"
               + " constructor or create its value on first call, and either reads as present and"
               + " overwrites the domain value.",
-          "Give '"
-              + name
-              + "' setters or a builder for its properties, and getters that answer null until a"
-              + " value is set, so an omitted field stays null, or extend MappingSpec instead,"
-              + " whose dense parse needs no absence.");
+          componentFix(
+              bean,
+              true,
+              "Give '"
+                  + name
+                  + "' setters or a builder for its properties, and getters that answer null until"
+                  + " a value is set, so an omitted field stays null, or extend MappingSpec instead,"
+                  + " whose dense parse needs no absence."));
     } else {
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -1382,10 +1391,13 @@ public class MappingProcessor extends AbstractProcessor {
                   + name
                   + "' should be built too, give it a no-args constructor the generated Impl can"
                   + " call: public, or package-private beside the spec."
-              : "If '"
-                  + name
-                  + "' should be built too, give it a no-args constructor with setX setters"
-                  + " matching its getters, or a builder.");
+              : componentFix(
+                  bean,
+                  false,
+                  "If '"
+                      + name
+                      + "' should be built too, give it a no-args constructor with setX setters"
+                      + " matching its getters, or a builder."));
       return;
     }
     Diagnostics.note(
@@ -3405,7 +3417,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     // Asked after flattening, which refuses a group spread across a bean, so a flattened component
     // is never told to take an accessor of its record's type.
-    Set<String> unmapped = unmappedNames(spec, wireShape);
+    Set<String> unmapped = unmappedNames(spec, wireShape, false);
     if (unmapped == null) {
       return;
     }
@@ -3634,7 +3646,7 @@ public class MappingProcessor extends AbstractProcessor {
             specCrossings(spec, domainArg, wireBean.asType()))) {
       return;
     }
-    Set<String> unmapped = unmappedNames(spec, wireShape);
+    Set<String> unmapped = unmappedNames(spec, wireShape, true);
     if (unmapped == null
         || !checkPatchAccessorsPair(spec, domain, wireShape, unmapped)
         || !checkCollectionGettersCarryAbsence(spec, wireShape)) {
@@ -3765,7 +3777,7 @@ public class MappingProcessor extends AbstractProcessor {
               .findFirst()
               .orElse(null);
       if (domainComp == null) {
-        reportDanglingWireProperty(spec, domain, property);
+        reportDanglingWireProperty(spec, domain, wire, property);
         return null;
       }
       // One wire property per domain component: a same-named property and a rename can otherwise
@@ -3777,7 +3789,7 @@ public class MappingProcessor extends AbstractProcessor {
       }
       claimedBy.put(domainName, property.name());
       if (property.type().getKind().isPrimitive()) {
-        reportPrimitiveProperty(spec, property);
+        reportPrimitiveProperty(spec, wire, property);
         return null;
       }
       TypeMirror wireType = property.type();
@@ -3988,7 +4000,8 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * A primitive wire property is always present, so it can never carry the null-as-absent signal.
    */
-  private void reportPrimitiveProperty(TypeElement spec, WireShape.WireComponent property) {
+  private void reportPrimitiveProperty(
+      TypeElement spec, WireShape wire, WireShape.WireComponent property) {
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,
@@ -3996,14 +4009,22 @@ public class MappingProcessor extends AbstractProcessor {
         "the wire property '" + property.name() + "' is primitive and can never be absent.",
         "An all-absent PATCH body must fold to the identity update, but a primitive property always"
             + " carries a value (its default), so its 'absent' state cannot be distinguished.",
-        "Declare '" + property.name() + "' on the PATCH DTO as " + boxed(property.type()) + ".");
+        componentFix(
+            wire,
+            true,
+            "Declare '"
+                + property.name()
+                + "' on the PATCH DTO as "
+                + boxed(property.type())
+                + "."));
   }
 
   /**
    * A wire property with no domain component to write into (one-sided coverage still requires one).
+   * A PATCH wire is a bean, so the replacement a protobuf-java message is offered is one too.
    */
   private void reportDanglingWireProperty(
-      TypeElement spec, TypeElement domain, WireShape.WireComponent property) {
+      TypeElement spec, TypeElement domain, WireShape wire, WireShape.WireComponent property) {
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,
@@ -4019,7 +4040,8 @@ public class MappingProcessor extends AbstractProcessor {
             + ": "
             + wireNames(domain.getRecordComponents())
             + ".",
-        "Add a @MapField rename to a domain component, or remove the property.");
+        componentFix(
+            wire, true, "Add a @MapField rename to a domain component, or remove the property."));
   }
 
   /**
@@ -5931,18 +5953,26 @@ public class MappingProcessor extends AbstractProcessor {
               + "' has more components than '"
               + domain.getSimpleName()
               + (flattened.isEmpty()
-                  ? "'."
+                  ? "'"
                   : "' fills, flattened "
                       + flattened.stream().map(Flattened::name).toList()
-                      + " included."),
+                      + " included")
+              + ", leaving "
+              + unfilled(domain, wire, renames, derived, flattened)
+              + " unfilled.",
           "build must fill every wire component from a domain source or a derived field, and the"
               + " extras have neither. A wire with fewer components maps as a projection (Lens"
               + " tier).",
-          "Remove the extra wire components, add matching domain components, declare derived"
-              + " fields ('default Getter<"
-              + domain.getSimpleName()
-              + ", ComponentType>' methods named after the extras), or spread a nested domain"
-              + " component across the extras with an '@Flatten' marker named after it.");
+          componentFix(
+              wire,
+              false,
+              "Remove the extra wire components, add matching domain components (or a"
+                  + " @MapField rename where a name differs), declare derived fields ('default"
+                  + " Getter<"
+                  + domain.getSimpleName()
+                  + ", ComponentType>' methods named after the extras), or spread a nested"
+                  + " domain component across the extras with an '@Flatten' marker named after"
+                  + " it."));
       return null;
     }
 
@@ -5965,6 +5995,42 @@ public class MappingProcessor extends AbstractProcessor {
       result.add(derivedCorrespondence(field));
     }
     return result;
+  }
+
+  /**
+   * The wire components nothing names as its source, in the wire's order: no domain component,
+   * under its own name or its rename, no component of a flattened group, and no derived field. A
+   * wire wider than its sources has at least one, so the refusal can name what to fill or remove.
+   */
+  private static List<String> unfilled(
+      TypeElement domain,
+      WireShape wire,
+      Map<String, String> renames,
+      List<DerivedField> derived,
+      List<Flattened> flattened) {
+    Set<String> sourced =
+        Stream.concat(
+                componentNames(domain).stream()
+                    .flatMap(
+                        name ->
+                            Optional.ofNullable(flattenedNamed(flattened, name))
+                                .map(group -> group.inner().stream())
+                                .orElseGet(() -> Stream.of(name)))
+                    .map(name -> renames.getOrDefault(name, name)),
+                derived.stream().map(DerivedField::wireName))
+            .collect(Collectors.toSet());
+    return wire.componentNames().stream().filter(name -> !sourced.contains(name)).toList();
+  }
+
+  /**
+   * The fix a refusal about which wire components meet which domain components offers: {@code fix},
+   * or for a protobuf-java message, a record in front of it, or a PATCH bean on the {@code sparse}
+   * tier ({@link BeanPropertyAnalyser#protobufFix}). A message's accessors are generated, and a
+   * derived field for one of its companions writes a field a second time, so no fix within the
+   * mapping is offered for one.
+   */
+  private String componentFix(WireShape wire, boolean sparse, String fix) {
+    return BeanPropertyAnalyser.protobufFix(processingEnv, wire.element(), sparse).orElse(fix);
   }
 
   /**
@@ -6096,8 +6162,11 @@ public class MappingProcessor extends AbstractProcessor {
               + wireName
               + "'.",
           "Found on " + wire.element().getSimpleName() + ": " + wire.componentNames() + ".",
-          "Align the component names, or add a '@MapField(to = ...)' rename on the spec."
-              + flattenOffer);
+          componentFix(
+              wire,
+              false,
+              "Align the component names, or add a '@MapField(to = ...)' rename on the spec."
+                  + flattenOffer));
       return null;
     }
     String previousSource = claimedWire.putIfAbsent(wireName, source);
@@ -7186,16 +7255,19 @@ public class MappingProcessor extends AbstractProcessor {
                 + ".",
             // A derived field's Getter names the component's type as a type argument, which a
             // primitive cannot be, so only a reference component is offered one.
-            built && !wireComponent.type().getKind().isPrimitive()
-                ? "Align the component names, add a @MapField rename, or declare a derived field"
-                    + " 'default Getter<"
-                    + domain.getSimpleName()
-                    + ", "
-                    + ProcessorUtils.simpleTypeName(wireComponent.type())
-                    + "> "
-                    + wireName
-                    + "()' that computes it."
-                : "Align the component names, or add a @MapField rename.");
+            componentFix(
+                wire,
+                false,
+                built && !wireComponent.type().getKind().isPrimitive()
+                    ? "Align the component names, add a @MapField rename, or declare a derived"
+                        + " field 'default Getter<"
+                        + domain.getSimpleName()
+                        + ", "
+                        + ProcessorUtils.simpleTypeName(wireComponent.type())
+                        + "> "
+                        + wireName
+                        + "()' that computes it."
+                    : "Align the component names, or add a @MapField rename."));
         return null;
       }
       if (!usedDomain.add(name)) {

@@ -33,7 +33,7 @@ An unset property is an ordinary state of a bean, and `parse` reports it as any 
 | getters, and nothing that writes it, such as a view built through a constructor with arguments | nothing | [`parse` only](#one-directional-beans) |
 | setters or a builder, and no getters | the setters or the builder | [`build` only](#one-directional-beans) |
 
-As on a record, every property the bean both reads and writes needs a domain component or a [derived field](basics.md#derived-wire-fields). The processor refuses a property your domain lacks, with [`has more components than`](compiler_errors.md#wire-has-more-components). [How a bean is read and written](rules.md#how-a-bean-is-read-and-written) says how the processor pairs getters with writers.
+As on a record, every property the bean both reads and writes needs a domain component or a [derived field](basics.md#derived-wire-fields). The processor refuses the properties your domain lacks, naming each one, with [`has more components than`](compiler_errors.md#wire-has-more-components). [How a bean is read and written](rules.md#how-a-bean-is-read-and-written) says how the processor pairs getters with writers.
 
 Because a property can be unset, three things differ from a record wire:
 
@@ -211,7 +211,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 | a PATCH request bean with `default:` values or container defaults | the generator renders them as initialisers, which read as sent | give the PATCH request its own schema: [A PATCH getter must answer `null` until set](beans_patch.md#patch-getters-answer-null) |
 | a Lombok class | the processor sees its accessors only once Lombok has run | list Lombok's `annotationProcessor` before `hkj-processor`; the HKJ Gradle plugin adds its own after your `dependencies` block ([Lombok](../tooling/manual_setup.md#lombok)) |
 | Lombok's `@Singular` on a collection | not supported yet. On a two-way builder, its setter takes a `Collection<? extends T>`, not the getter's `List<T>`. On a build-only builder, its singular adder is one more writer, with no domain component to fill it | drop `@Singular`, so the builder takes the `List` whole |
-| a protobuf-java message | not supported yet: `getUnknownFields()`, and a `getXBytes()` beside each string field, pair up as properties your domain lacks | convert it to a record by hand, and map the record |
+| a protobuf-java message | not supported yet: protobuf's companions pair up as properties your domain lacks (`getUnknownFields()`, `getXBytes()` beside a string field, `getXValue()` beside an enum), and a repeated or map field has no setter. Each refusal it meets says it is not supported yet | convert it to a record by hand, and map the record |
 | a bean another annotation processor generates | the mapping waits for the type to exist, with nothing to configure | nothing: [Mapping over types other processors generate](../tooling/manual_setup.md#mapping-over-types-other-processors-generate) |
 
 ---

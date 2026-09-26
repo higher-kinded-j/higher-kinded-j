@@ -4619,8 +4619,53 @@ class MappingProcessorTest {
 
       Compilation compilation = compile(EMPLOYEE, wire, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("'WideDto' has more components than 'Employee'");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'WideDto' has more components than 'Employee', leaving [extra] unfilled.");
       assertThat(compilation).hadErrorContaining("maps as a projection (Lens tier)");
+      assertThat(compilation).hadErrorContaining("declare derived fields");
+    }
+
+    @Test
+    @DisplayName("the extras it names leave out a renamed component's target and a derived field")
+    void widerWireNamesOnlyTheUnsourced() {
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.WideDto",
+              """
+              package com.example;
+
+              public record WideDto(
+                  String badge, String fullName, String department, String extra, int age,
+                  String note) {}
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.WideMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.Getter;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MapField;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface WideMapping extends MappingSpec<Employee, WideDto> {
+                @MapField(to = "fullName")
+                String name();
+
+                default Getter<Employee, String> badge() {
+                  return Getter.of(Employee::department);
+                }
+              }
+              """);
+
+      Compilation compilation = compile(EMPLOYEE, wire, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'WideDto' has more components than 'Employee', leaving [extra, note] unfilled.");
     }
   }
 

@@ -138,8 +138,8 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
         dict(id="wire-has-more-components",
              heading="'XDto' has more components than 'X'",
              fragment="has more components than",
-             meaning="The wire has components nothing on the domain fills, so `build` cannot write them.",
-             fix="Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`.",
+             meaning="The wire has components nothing on the domain fills, so `build` cannot write them. The message names each one.",
+             fix="Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`. For a protobuf-java message, which is not supported yet, convert it to a record by hand and map the record.",
              rule=("Derived wire fields", "basics.md#derived-wire-fields"),
              code="""record Customer(String name) {}
 
@@ -783,6 +783,23 @@ class CustomerBean {
   public void setName(String name) { this.name = name; }
   public String getEmial() { return email; }
   public void setEmail(String email) { this.email = email; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {}"""),
+        dict(id="read-and-written-at-different-types",
+             heading="bean property 'x' on 'Y' is read and written at different types",
+             fragment="is read and written at different types",
+             meaning="A getter and the setter or builder setter that shares its name take the property at different types, and no overload of the writer takes the getter's type.",
+             fix="Give the writer, or one of its overloads, the getter's type where they are declared.",
+             rule=("How a bean is read and written", "rules.md#how-a-bean-is-read-and-written"),
+             code="""record Customer(int age) {}
+
+class CustomerBean {
+  private int age;
+
+  public int getAge() { return age; }
+  public void setAge(String age) { this.age = Integer.parseInt(age); }
 }
 
 @GenerateMapping
