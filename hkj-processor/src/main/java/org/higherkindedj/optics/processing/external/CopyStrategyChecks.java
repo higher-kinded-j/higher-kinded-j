@@ -404,9 +404,6 @@ final class CopyStrategyChecks {
       String getterName,
       TypeMirror focusType,
       String targetPackage) {
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     ExecutableElement getter =
         accessorNamed(callableMembers(sourceTypeElement, targetPackage), getterName);
     String ownerName = ProcessorUtils.simpleTypeName(sourceType);
@@ -507,9 +504,6 @@ final class CopyStrategyChecks {
       String setterName,
       TypeMirror focusType,
       String targetPackage) {
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     return boundSetter(
             method,
             tag,
@@ -779,9 +773,6 @@ final class CopyStrategyChecks {
       String buildName,
       TypeMirror focusType,
       String targetPackage) {
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     ExecutableElement toBuilder =
         accessorNamed(callableMembers(sourceTypeElement, targetPackage), toBuilderName);
     if (toBuilder == null) {
@@ -963,9 +954,6 @@ final class CopyStrategyChecks {
       TypeElement sourceTypeElement,
       String[] parameterOrder,
       String targetPackage) {
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     String fieldName = method.getSimpleName().toString();
     if (parameterOrder.length > 0
         && Arrays.stream(parameterOrder).noneMatch(parameter -> parameter.equals(fieldName))) {
@@ -1028,8 +1016,7 @@ final class CopyStrategyChecks {
    * @param focusType the lens's focus type, which the wither is called with
    * @param witherName the method the annotation names
    * @param targetPackage the package the optics class is generated into
-   * @return true when the call binds no such method, and an error was reported; a source type that
-   *     did not resolve is left to javac
+   * @return true when the call binds no such method, and an error was reported
    */
   private boolean rebuildsThroughUnusableWither(
       ExecutableElement method,
@@ -1038,11 +1025,6 @@ final class CopyStrategyChecks {
       TypeMirror focusType,
       String witherName,
       String targetPackage) {
-    // A source type that did not resolve has no members to read, and javac's own error names the
-    // type that is missing, which is the one worth reading.
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     List<ExecutableElement> members =
         ElementFilter.methodsIn(elementUtils.getAllMembers(sourceTypeElement));
     List<ExecutableElement> callable =

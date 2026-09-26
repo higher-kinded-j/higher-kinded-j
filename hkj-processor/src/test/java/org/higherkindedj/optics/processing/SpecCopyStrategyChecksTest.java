@@ -589,7 +589,8 @@ class SpecCopyStrategyChecksTest {
                   """));
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      // The spec waits for the type, and javac reports the missing package at the spec itself.
+      assertThat(compilation).hadErrorContaining("package com.external does not exist");
       Assertions.assertThat(compilation.errors())
           .noneMatch(error -> error.getMessage(null).contains("@Wither:"));
     }

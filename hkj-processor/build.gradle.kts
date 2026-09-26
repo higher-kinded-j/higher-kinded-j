@@ -110,6 +110,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.BeanPropertyAnalyser*",
                 "org.higherkindedj.optics.processing.WireShape*",
                 "org.higherkindedj.optics.processing.WaitingSpecs*",
+                "org.higherkindedj.optics.processing.WaitingImporters*",
                 "org.higherkindedj.optics.processing.NavigatorClassGenerator*",
                 "org.higherkindedj.optics.processing.WideningAnalysis*",
                 "org.higherkindedj.optics.processing.GeneratorRegistry*",

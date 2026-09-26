@@ -2931,6 +2931,19 @@ class SpecInterfaceProcessingTest {
             }
             """);
 
+    private static final JavaFileObject SACK =
+        JavaFileObjects.forSourceString(
+            "com.external.Sack",
+            """
+            package com.external;
+
+            import java.util.List;
+
+            public record Sack(List<String> items) {
+                public Sack withItems(List<String> items) { return new Sack(items); }
+            }
+            """);
+
     private static Compilation compile(JavaFileObject... sources) {
       return javac().withProcessors(new ImportOpticsProcessor()).compile(sources);
     }
@@ -2963,14 +2976,59 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "@ImportOptics: spec interface 'PointOptics' also lists classes to import. A spec"
-                  + " generates the optics its methods declare for the type its OpticsSpec<S>"
-                  + " names, and does not read a class list, so the classes listed would get none."
-                  + " Move the class list to a package-info.java or to another class or interface,"
-                  + " or remove it.")
+              "@ImportOptics: 'PointOptics' extends OpticsSpec<Point> and also lists classes to"
+                  + " import. A spec generates the optics its methods declare for the type its"
+                  + " OpticsSpec<S> names, and does not read a class list, so the classes listed"
+                  + " would get none. Move the class list to a package-info.java or to another"
+                  + " class or interface, or remove it.")
           .inFile(spec)
           .onLineContaining("LocalDate.class");
       assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("a type that lists classes imports them, whatever it extends")
+    void typeListingClassesImportsThemWhateverItExtends() {
+      final var rec =
+          JavaFileObjects.forSourceString(
+              "com.external.Rec",
+              """
+              package com.external;
+
+              public record Rec(int a) {}
+              """);
+      final var rec2 =
+          JavaFileObjects.forSourceString(
+              "com.external.Rec2",
+              """
+              package com.external;
+
+              public record Rec2(int b) {}
+              """);
+      final var importers =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Importers",
+              """
+              package com.myapp;
+
+              import com.external.Point;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              interface PointBase extends OpticsSpec<Point> {}
+
+              @ImportOptics({com.external.Rec.class})
+              interface Holder extends PointBase {}
+
+              @ImportOptics({com.external.Rec2.class})
+              abstract class Holder2 implements PointBase {}
+              """);
+
+      var compilation = compile(POINT, rec, rec2, importers);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).generatedSourceFile("com.myapp.RecLenses").isNotNull();
+      assertThat(compilation).generatedSourceFile("com.myapp.Rec2Lenses").isNotNull();
     }
 
     @Test
@@ -2983,13 +3041,20 @@ class SpecInterfaceProcessingTest {
               package com.myapp;
 
               import com.external.Point;
+              import org.higherkindedj.optics.Lens;
               import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.Wither;
 
               interface PointBase extends OpticsSpec<Point> {}
 
               interface Base<S> extends OpticsSpec<S> {}
 
               interface Deeper extends PointBase {}
+
+              interface XBase extends OpticsSpec<Point> {
+                  @Wither(value = "withX", getter = "getX")
+                  Lens<Point, Integer> x();
+              }
               """);
       final var specs =
           JavaFileObjects.forSourceString(
@@ -2998,6 +3063,7 @@ class SpecInterfaceProcessingTest {
               package com.myapp;
 
               import com.external.Point;
+              import java.util.List;
               import org.higherkindedj.optics.annotations.ImportOptics;
 
               @ImportOptics
@@ -3008,6 +3074,15 @@ class SpecInterfaceProcessingTest {
 
               @ImportOptics
               interface DeeperOptics extends Deeper {}
+
+              @ImportOptics
+              interface ListOptics<T> extends Base<List<T>> {}
+
+              @ImportOptics
+              interface XOptics extends XBase {}
+
+              @ImportOptics
+              interface MixedOptics extends java.io.Serializable, PointBase {}
               """);
 
       var compilation = compile(POINT, bases, specs);
@@ -3017,25 +3092,36 @@ class SpecInterfaceProcessingTest {
           .hadErrorContaining(
               "@ImportOptics: 'PointOptics' extends OpticsSpec only through 'PointBase'. A spec"
                   + " interface is read from the OpticsSpec<S> it declares itself, and reaching it"
-                  + " through another interface is not supported yet, so nothing would be"
-                  + " generated. Declare OpticsSpec<Point> on 'PointOptics' itself: 'interface"
-                  + " PointOptics extends OpticsSpec<Point>, PointBase'.")
+                  + " through another interface is not supported yet, so it is not read as a spec."
+                  + " Declare OpticsSpec<Point> on 'PointOptics' itself, beside 'PointBase'.")
           .inFile(specs)
           .onLineContaining("interface PointOptics");
       // The source type is read through the intermediate interface's own type arguments.
       assertThat(compilation)
           .hadErrorContaining(
-              "Declare OpticsSpec<Point> on 'GenericPointOptics' itself: 'interface"
-                  + " GenericPointOptics extends OpticsSpec<Point>, Base<Point>'.");
+              "Declare OpticsSpec<Point> on 'GenericPointOptics' itself, beside 'Base<Point>'.");
       assertThat(compilation)
           .hadErrorContaining(
-              "'DeeperOptics' extends OpticsSpec only through 'Deeper'. A spec interface is read");
-      assertThat(compilation).hadErrorCount(3);
+              "Declare OpticsSpec<Point> on 'DeeperOptics' itself, beside 'Deeper'.");
+      // The spec keeps its own type parameter, so the clause can be added as it is written.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare OpticsSpec<List<T>> on 'ListOptics' itself, beside 'Base<List<T>>'.");
+      // What the base declares is reported in the same round.
+      assertThat(compilation)
+          .hadErrorContaining("'XOptics' extends OpticsSpec only through 'XBase'.");
+      assertThat(compilation)
+          .hadErrorContaining("'XOptics' inherits the optic method 'x' from 'XBase'.");
+      // The interface named is the one that leads to OpticsSpec, not the first one written.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare OpticsSpec<Point> on 'MixedOptics' itself, beside 'PointBase'.");
+      assertThat(compilation).hadErrorCount(7);
     }
 
     @Test
-    @DisplayName("an indirect spec whose path pins no source type is asked to name one")
-    void indirectSpecWithoutASourceTypeIsAskedToNameOne() {
+    @DisplayName("an indirect spec whose path names no source type is asked for one in its place")
+    void indirectSpecWithoutASourceTypeIsAskedForOne() {
       final var specs =
           JavaFileObjects.forSourceString(
               "com.myapp.Specs",
@@ -3058,20 +3144,23 @@ class SpecInterfaceProcessingTest {
       var compilation = compile(specs);
 
       assertThat(compilation).failed();
+      // Beside a clause that names no source type, a second OpticsSpec clause would disagree.
       assertThat(compilation)
           .hadErrorContaining(
               "'RawOptics' extends OpticsSpec only through 'Base'. A spec interface is read from"
                   + " the OpticsSpec<S> it declares itself, and reaching it through another"
-                  + " interface is not supported yet, so nothing would be generated. Declare"
-                  + " OpticsSpec<S> on 'RawOptics' itself, naming the type its optics are for.");
+                  + " interface is not supported yet, so it is not read as a spec. Declare"
+                  + " OpticsSpec on 'RawOptics' itself, naming the type its optics are for, in"
+                  + " place of 'Base'.");
       assertThat(compilation)
           .hadErrorContaining(
-              "Declare OpticsSpec<S> on 'OpenOptics' itself, naming the type its optics are for.");
+              "Declare OpticsSpec on 'OpenOptics' itself, naming the type its optics are for, in"
+                  + " place of 'Base<T>'.");
       assertThat(compilation).hadErrorCount(2);
     }
 
     @Test
-    @DisplayName("a class implementing OpticsSpec, directly or not, is told to be an interface")
+    @DisplayName("a class reaching OpticsSpec by any route is told to be an interface")
     void classImplementingOpticsSpecIsRefused() {
       final var classes =
           JavaFileObjects.forSourceString(
@@ -3085,11 +3174,22 @@ class SpecInterfaceProcessingTest {
 
               interface PointBase extends OpticsSpec<Point> {}
 
-              @ImportOptics({java.time.LocalDate.class})
+              interface Base<S> extends OpticsSpec<S> {}
+
+              abstract class AbstractPointSpec implements OpticsSpec<Point> {}
+
+              @ImportOptics
               abstract class DirectOptics implements OpticsSpec<Point> {}
 
               @ImportOptics
               abstract class IndirectOptics implements PointBase {}
+
+              @ImportOptics
+              final class SubclassOptics extends AbstractPointSpec {}
+
+              @ImportOptics
+              @SuppressWarnings("rawtypes")
+              abstract class RawOptics implements Base {}
               """);
 
       var compilation = compile(POINT, classes);
@@ -3097,67 +3197,91 @@ class SpecInterfaceProcessingTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "@ImportOptics: 'DirectOptics' implements OpticsSpec but is not an interface.");
+              "@ImportOptics: 'DirectOptics' implements OpticsSpec but is not an interface. A spec"
+                  + " is an interface: its abstract methods are the optics to generate, and the"
+                  + " generated class stands in for it rather than extending it. Declare it as an"
+                  + " interface extending OpticsSpec<Point>, in place of the class.");
+      assertThat(compilation)
+          .hadErrorContaining("'IndirectOptics' implements OpticsSpec but is not an interface.");
+      assertThat(compilation)
+          .hadErrorContaining("'SubclassOptics' implements OpticsSpec but is not an interface.");
       assertThat(compilation)
           .hadErrorContaining(
-              "@ImportOptics: 'IndirectOptics' implements OpticsSpec but is not an interface.");
-      // The class is told to become an interface first; its class list is judged after that.
-      assertThat(compilation).hadErrorCount(2);
+              "Declare it as an interface extending OpticsSpec<S>, naming the type its optics are"
+                  + " for, in place of the class.");
+      assertThat(compilation).hadErrorCount(4);
     }
 
     @Test
-    @DisplayName("an optic method the spec inherits is refused, not dropped")
+    @DisplayName("an optic the spec inherits is refused, with its signature as the spec sees it")
     void inheritedOpticIsRefused() {
-      final var sack =
+      final var mixins =
           JavaFileObjects.forSourceString(
-              "com.external.Sack",
-              """
-              package com.external;
-
-              import java.util.List;
-
-              public record Sack(List<String> items) {
-                  public Sack withItems(List<String> items) { return new Sack(items); }
-              }
-              """);
-      final var bits =
-          JavaFileObjects.forSourceString(
-              "com.myapp.Bits",
+              "com.myapp.Mixins",
               """
               package com.myapp;
 
+              import com.external.Point;
               import com.external.Sack;
               import java.util.List;
               import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
               import org.higherkindedj.optics.annotations.Wither;
 
-              public interface Bits {
+              interface Bits {
                   @Wither("withItems")
                   Lens<Sack, List<String>> items();
+              }
+
+              interface Xs<S> {
+                  @Wither(value = "withX", getter = "getX")
+                  Lens<S, Integer> x();
+              }
+
+              interface HasX<L> {
+                  L x();
+              }
+
+              @ImportOptics
+              interface PointBaseSpec extends OpticsSpec<Point> {
+                  @Wither(value = "withX", getter = "getX")
+                  Lens<Point, Integer> x();
               }
               """);
       // Without the refusal, the traversal would compose through a lens the generated class
       // does not have, and fail inside the generated file.
-      final var spec =
+      final var specs =
           JavaFileObjects.forSourceString(
-              "com.myapp.SackSpec",
+              "com.myapp.Specs",
               """
               package com.myapp;
 
+              import com.external.Point;
               import com.external.Sack;
+              import org.higherkindedj.optics.Lens;
               import org.higherkindedj.optics.Traversal;
               import org.higherkindedj.optics.annotations.ImportOptics;
               import org.higherkindedj.optics.annotations.OpticsSpec;
               import org.higherkindedj.optics.annotations.ThroughField;
 
               @ImportOptics
-              public interface SackSpec extends OpticsSpec<Sack>, Bits {
+              interface SackSpec extends OpticsSpec<Sack>, Bits {
                   @ThroughField(field = "items")
                   Traversal<Sack, String> eachItem();
               }
+
+              @ImportOptics
+              interface GenericXSpec extends OpticsSpec<Point>, Xs<Point> {}
+
+              @ImportOptics
+              interface TypeVariableXSpec extends OpticsSpec<Point>, HasX<Lens<Point, Integer>> {}
+
+              @ImportOptics
+              interface FullSpec extends OpticsSpec<Point>, PointBaseSpec {}
               """);
 
-      var compilation = compile(sack, bits, spec);
+      var compilation = compile(POINT, SACK, mixins, specs);
 
       assertThat(compilation).failed();
       assertThat(compilation)
@@ -3165,11 +3289,111 @@ class SpecInterfaceProcessingTest {
               "@ImportOptics: 'SackSpec' inherits the optic method 'items' from 'Bits'. A spec"
                   + " generates optics from the methods it declares itself, and reading them from"
                   + " another interface is not supported yet, so 'items' would be missing from the"
-                  + " generated class. Declare 'items' on 'SackSpec' itself, annotated as it is on"
-                  + " 'Bits'.")
-          .inFile(spec)
+                  + " generated class. Declare 'Lens<Sack, List<String>> items()' on 'SackSpec'"
+                  + " itself, annotated as it is on 'Bits'.")
+          .inFile(specs)
           .onLineContaining("interface SackSpec");
-      assertThat(compilation).hadErrorCount(1);
+      // The signature is written for the spec's own source type, so it can be pasted as it is.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'Lens<Point, Integer> x()' on 'GenericXSpec' itself, annotated as it is on"
+                  + " 'Xs'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'Lens<Point, Integer> x()' on 'TypeVariableXSpec' itself, annotated as it"
+                  + " is on 'HasX'.");
+      // A spec extending another spec is refused as well: its own generated class would lack
+      // the optic the other one generates.
+      assertThat(compilation)
+          .hadErrorContaining("'FullSpec' inherits the optic method 'x' from 'PointBaseSpec'.");
+      assertThat(compilation).hadErrorCount(4);
+    }
+
+    @Test
+    @DisplayName("an inherited default optic, or one read through a raw clause, is refused too")
+    void inheritedDefaultOrRawReadOpticIsRefused() {
+      final var mixins =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Mixins",
+              """
+              package com.myapp;
+
+              import com.external.Point;
+              import com.external.Sack;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.annotations.Wither;
+
+              interface DefaultX {
+                  default Lens<Point, Integer> x() {
+                      return null;
+                  }
+              }
+
+              interface Bits<T> {
+                  @Wither("withItems")
+                  Lens<Sack, List<String>> items();
+              }
+
+              @SuppressWarnings("rawtypes")
+              interface RawBits extends Bits {}
+
+              @SuppressWarnings("rawtypes")
+              interface HasLens<L extends Lens> {
+                  L x();
+              }
+
+              @SuppressWarnings("rawtypes")
+              interface RawHasLens extends HasLens {}
+
+              @SuppressWarnings("rawtypes")
+              interface RawX {
+                  Lens x();
+              }
+              """);
+      final var specs =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Specs",
+              """
+              package com.myapp;
+
+              import com.external.Point;
+              import com.external.Sack;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+
+              @ImportOptics
+              interface DefaultXSpec extends OpticsSpec<Point>, DefaultX {}
+
+              @ImportOptics
+              interface RawBitsSpec extends OpticsSpec<Sack>, RawBits {}
+
+              @ImportOptics
+              interface RawHasLensSpec extends OpticsSpec<Point>, RawHasLens {}
+
+              @ImportOptics
+              interface RawXSpec extends OpticsSpec<Point>, RawX {}
+              """);
+
+      var compilation = compile(POINT, SACK, mixins, specs);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'DefaultXSpec' inherits the optic method 'x' from 'DefaultX'. A spec generates"
+                  + " optics from the methods it declares itself, and reading them from another"
+                  + " interface is not supported yet, so 'x' would be missing from the generated"
+                  + " class. Declare 'Lens<Point, Integer> x()' on 'DefaultXSpec' itself as an"
+                  + " abstract method, with the annotation its optic needs.");
+      // A raw clause erases what the spec sees, so the signature is the one the method declares.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'Lens<Sack, List<String>> items()' on 'RawBitsSpec' itself, annotated as it"
+                  + " is on 'Bits'.");
+      // Where the declaration has nothing better to offer, the signature is the spec's view.
+      assertThat(compilation).hadErrorContaining("Declare 'Lens x()' on 'RawHasLensSpec' itself");
+      assertThat(compilation).hadErrorContaining("Declare 'Lens x()' on 'RawXSpec' itself");
+      assertThat(compilation).hadErrorCount(4);
     }
 
     @Test

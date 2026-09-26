@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.processing.Messager;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.tools.Diagnostic;
 
@@ -84,6 +86,39 @@ public final class Diagnostics {
     Objects.requireNonNull(messager, "messager must not be null");
     Objects.requireNonNull(element, "element must not be null");
     messager.printMessage(Diagnostic.Kind.NOTE, format(annotation, what, why, fix), element);
+  }
+
+  /**
+   * Reports a message in the what/why/fix format located at an annotation on {@code element}, or at
+   * one of the annotation's values, so the compiler points at what was written rather than at the
+   * declaration.
+   *
+   * @param messager the processing-round messager; must not be null
+   * @param kind the severity; must not be null
+   * @param element the annotated element; must not be null
+   * @param annotationMirror the annotation the message is about; must not be null
+   * @param value the value to point at, or null to point at the annotation
+   * @param annotation the annotation tag; must not be null
+   * @param what one sentence naming what is wrong; must not be null
+   * @param why one sentence of context; must not be null
+   * @param fix one imperative sentence prescribing the remedy; must not be null
+   */
+  public static void reportAt(
+      Messager messager,
+      Diagnostic.Kind kind,
+      Element element,
+      AnnotationMirror annotationMirror,
+      AnnotationValue value,
+      String annotation,
+      String what,
+      String why,
+      String fix) {
+    Objects.requireNonNull(messager, "messager must not be null");
+    Objects.requireNonNull(kind, "kind must not be null");
+    Objects.requireNonNull(element, "element must not be null");
+    Objects.requireNonNull(annotationMirror, "annotationMirror must not be null");
+    messager.printMessage(
+        kind, format(annotation, what, why, fix), element, annotationMirror, value);
   }
 
   /**

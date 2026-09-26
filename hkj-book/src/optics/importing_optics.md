@@ -213,6 +213,8 @@ package com.myapp.optics;
 3. **Does it use builders, predicates, or non-standard naming?** Write a [spec interface](optics_spec_interfaces.md) and declare the optics you want.
 4. **Does it already implement `List`, `Map` or `Optional`?** You may need nothing at all: the standard traversals work on it directly.
 
+A type another annotation processor writes in the same build, such as an Immutables value class, works like any other. List it, or name it as a spec's source type, and `@ImportOptics` waits until that processor has written it.
+
 ---
 
 ~~~admonish info title="Key Takeaways"

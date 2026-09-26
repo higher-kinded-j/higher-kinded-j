@@ -49,8 +49,8 @@ Rows below and headings on the page say which, wherever it is not an error.
 | The message says | What it means |
 |------------------|---------------|
 | [`lists no classes to import`](#importoptics-lists-no-classes) | **Warning.** The annotation names no class, so nothing is generated |
-| [`names no class, interface, record or enum`](#importoptics-literal-names-no-type) | The class list holds a primitive, an array or `void` |
-| [`also lists classes to import`](#importoptics-spec-lists-classes) | A spec interface carries a class list it does not read |
+| [`which has no optics to import`](#importoptics-literal-names-no-type) | The class list holds a primitive, an array or `void` |
+| [`and also lists classes to import`](#importoptics-spec-lists-classes) | A spec interface carries a class list it does not read |
 | [`extends OpticsSpec only through`](#importoptics-indirect-spec) | A spec reaches `OpticsSpec<S>` through another interface |
 | [`implements OpticsSpec but is not an interface`](#importoptics-spec-not-an-interface) | A class is written as a spec |
 | [`inherits the optic method`](#importoptics-inherited-optic) | A spec's optic method is declared on another interface |
@@ -61,6 +61,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 | [`which hides the 'T' of its enclosing class`](#importoptics-type--names-the-type-parameter-t-of--which-hides-the-t-of-its-enclosing-class-) | An imported inner class reuses a type-parameter name of its enclosing class |
 | [`rather than as the List interface`](#throughfield--reaches-field-items-which-is-declared-as-arrayliststring-rather-than-as-the-list-interface) | `@ThroughField`'s lens focuses a concrete container, or another interface |
 | [`which the spec does not declare`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` has no lens for the field to compose with |
+| [`which the spec declares static`](#throughfield--composes-through-a-lens-named-items-which-the-spec-does-not-declare) | `@ThroughField` names a lens the generated class does not carry |
 | [`hands back as 'String'`](#throughfield--declares-focus-integer-over-field-items-of-type-liststring-whose-elements-the-standard-traversal-hands-back-as-string) | `@ThroughField`'s declared focus is not what the traversal returns |
 | [`is not a subtype of source type`](#instanceof-target-comexamplefoo-is-not-a-subtype-of-source-type-comexamplebase) | `@InstanceOf` names a class outside the hierarchy |
 | [`which the test cannot narrow to`](#instanceof--declares-its-focus-as-circlet-which-the-test-cannot-narrow-to) | The focus promises a type argument `instanceof` cannot check |
@@ -429,12 +430,12 @@ record Batch(Kind<NonEmptyListKind.Witness, String> items) {}
 
 ### "@ImportOptics: '...' lists no classes to import, so nothing is generated" (a warning) {#importoptics-lists-no-classes}
 
-An `@ImportOptics` on a `package-info.java`, a class, or an interface that is not a spec names no class to import, so it generates nothing.
+An `@ImportOptics` on a `package-info.java`, a class or an interface that is not a spec names no class to import, so it generates nothing.
 
 **Fix.** List the classes to import, as `@ImportOptics({Order.class})`, or remove the annotation. On an interface you meant as a spec, extend `OpticsSpec<S>` for the type its optics are for.
 
 ~~~admonish note title="Why" collapsible=true
-A warning, because a build that compiles can still be missing the classes it expected, and the first sign would otherwise be a `cannot find symbol` somewhere else. A processor warning cannot be suppressed, so under `-Werror` the remedy is the fix.
+A warning, because a build that compiles can still be missing the classes it expected, and the first sign would otherwise be a `cannot find symbol` somewhere else. A processor warning cannot be suppressed, so under `-Werror` the remedy is the fix. A class or interface whose supertype another processor writes is read once the supertype exists, so the warning is not given before then.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
@@ -445,28 +446,28 @@ class OrderImports {}
 ```
 ~~~
 
-### "@ImportOptics: '...' names no class, interface, record or enum" {#importoptics-literal-names-no-type}
+### "@ImportOptics: '....class' names a primitive type, which has no optics to import" {#importoptics-literal-names-no-type}
 
-The class list holds a literal for a primitive, an array or `void`, such as `int.class` or `String[].class`. Optics are generated from a type's declaration, and these have none.
+The class list holds a literal for a primitive type, an array type or `void`, such as `int.class` or `String[].class`. Optics are generated from the declaration of a class, interface, record or enum, and these have none. An array reads `names an array type`, and `void.class` reads `names void`.
 
 **Fix.** Remove the literal from the list.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "names no class, interface, record or enum" -->
+<!-- verify:rejects "which has no optics to import" -->
 ```java
 @ImportOptics({int.class})
 class CountImports {}
 ```
 ~~~
 
-### "@ImportOptics: spec interface '...' also lists classes to import" {#importoptics-spec-lists-classes}
+### "@ImportOptics: '...' extends OpticsSpec<...> and also lists classes to import" {#importoptics-spec-lists-classes}
 
 A spec interface also carries a class list. A spec generates the optics its own methods declare, for the type its `OpticsSpec<S>` names, and does not read a class list.
 
 **Fix.** Move the class list to a `package-info.java` or to another class or interface, or remove it.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "also lists classes to import" -->
+<!-- verify:rejects "and also lists classes to import" -->
 ```java
 final class Session {
 
@@ -490,9 +491,11 @@ interface SessionOpticsSpec extends OpticsSpec<Session> {
 
 ### "@ImportOptics: '...' extends OpticsSpec only through '...'" {#importoptics-indirect-spec}
 
-A spec interface reaches `OpticsSpec<S>` through another interface rather than declaring it itself. Reading a spec that way is not supported yet.
+An interface that lists no classes reaches `OpticsSpec<S>` through another interface rather than declaring it itself. Reading a spec that way is not supported yet.
 
-**Fix.** Declare `OpticsSpec<S>` on the spec itself, beside the interface it extends. Where the path pins the source type, the message writes the clause out for you: `interface SessionOpticsSpec extends OpticsSpec<Session>, SessionBase`.
+**Fix.** Declare `OpticsSpec<S>` on the spec itself. Where the interface in between names the source type, the message gives the clause to add beside it, `extends OpticsSpec<Session>, SessionBase`. Where it does not, because it is raw or passes on a type parameter, name the source type in its place: `extends OpticsSpec<Session>`.
+
+An interface that lists classes imports them, and is not read as a spec, whatever it extends.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "extends OpticsSpec only through" -->
@@ -508,9 +511,9 @@ interface SessionOpticsSpec extends SessionBase {}
 
 ### "@ImportOptics: '...' implements OpticsSpec but is not an interface" {#importoptics-spec-not-an-interface}
 
-A class, abstract or not, implements `OpticsSpec<S>`, directly or through an interface. A spec is read for its abstract methods, one per optic to generate, and only an interface has that shape.
+A class that lists no classes reaches `OpticsSpec<S>`, directly, through an interface or through a superclass. A spec is an interface: its abstract methods are the optics to generate, and the generated class stands in for it rather than extending it.
 
-**Fix.** Declare the spec as an interface.
+**Fix.** Declare the spec as an interface extending `OpticsSpec<S>` in place of the class. The message names the clause where it can: `Declare it as an interface extending OpticsSpec<Session>`.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "implements OpticsSpec but is not an interface" -->
@@ -524,12 +527,12 @@ abstract class SessionOpticsSpec implements OpticsSpec<Session> {}
 
 ### "@ImportOptics: '...' inherits the optic method '...' from '...'" {#importoptics-inherited-optic}
 
-A spec interface inherits an abstract method returning an optic from another interface. A spec generates optics from the methods it declares itself, and reading them from another interface is not supported yet, so the generated class would be missing that optic.
+A spec interface inherits a method that returns an optic, abstract or `default`, from another interface. A spec generates optics from the methods it declares itself, and reading them from another interface is not supported yet, so the generated class would be missing that optic.
 
-**Fix.** Declare the method on the spec itself, annotated as it is on the interface it comes from. A method the spec redeclares is its own, and the one it inherits is no longer read.
+**Fix.** Declare the method on the spec itself, annotated as it is on the interface it comes from. The message writes the signature for the spec's own source type, `Lens<Order, Long> id()` for a mix-in's `Lens<S, Long> id()`, so it can be pasted as it is. A method the spec redeclares is its own, and the one it inherits is no longer read.
 
 ~~~admonish note title="Why" collapsible=true
-Leaving the method out would be quieter and worse: code calling it would fail with `cannot find symbol`, and a `@ThroughField` traversal composing through an inherited lens would fail inside the generated file. An inherited method that returns something other than an optic, such as `int count()`, is not a declaration of an optic and leaves the spec as it is.
+Leaving the method out would be quieter and worse: code calling it would fail with `cannot find symbol`, and a `@ThroughField` traversal composing through an inherited lens would fail inside the generated file. A spec extending another `@ImportOptics` spec draws it too, since its own generated class would lack the other's optics. An inherited method that returns something other than an optic, such as `int count()`, is not a declaration of an optic and leaves the spec as it is.
 ~~~
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
@@ -744,6 +747,8 @@ A `@ThroughField` traversal is generated as the spec's own lens for the field co
 **Fix.** Declare the lens method for the field on the spec, or use `@TraverseWith` to name a traversal over the source type that stands on its own.
 
 A lens declared raw, `Lens items()`, reads as `which the spec declares raw`. It is refused for the same reason: the traversal composes onto what the lens focuses, and a raw lens says nothing about that. Declare it with both type arguments, as `Lens<Sack, List<String>>`.
+
+A lens declared `static` reads as `which the spec declares static`. A static method stays on the spec, and the traversal composes through the generated class's lens, so declare `items` as an abstract `Lens` method with its copy strategy.
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "which the spec does not declare" -->

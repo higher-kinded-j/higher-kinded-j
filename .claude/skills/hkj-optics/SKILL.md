@@ -33,7 +33,7 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 | `@GenerateFolds` | `record` | `{Record}Folds` class with `Fold<S, A>` for each field |
 | `@GenerateForComprehensions` | `record` | For-comprehension-aware traversals |
 | `@ImportOptics` | `package-info.java` or `interface extends OpticsSpec<S>` | Lenses for external types (JDK, Jackson, etc.) via auto-detection |
-| `OpticsSpec<S>` | Interface a `@ImportOptics` spec interface extends directly | Fine-grained optics for external types with custom copy strategies |
+| `OpticsSpec<S>` | Interface an `@ImportOptics` spec interface extends directly | Fine-grained optics for external types with custom copy strategies |
 
 ### Copy Strategy Annotations (for `OpticsSpec`)
 

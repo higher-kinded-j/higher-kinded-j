@@ -9,6 +9,8 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.processing.Messager;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.tools.Diagnostic;
 import org.junit.jupiter.api.DisplayName;
@@ -21,6 +23,15 @@ class DiagnosticsTest {
 
   private final List<Printed> printed = new ArrayList<>();
 
+  private record Located(
+      Diagnostic.Kind kind,
+      String message,
+      Element element,
+      AnnotationMirror mirror,
+      AnnotationValue value) {}
+
+  private final List<Located> located = new ArrayList<>();
+
   private final Messager messager =
       (Messager)
           Proxy.newProxyInstance(
@@ -31,6 +42,14 @@ class DiagnosticsTest {
                   printed.add(
                       new Printed(
                           (Diagnostic.Kind) args[0], args[1].toString(), (Element) args[2]));
+                } else if ("printMessage".equals(method.getName()) && args.length == 5) {
+                  located.add(
+                      new Located(
+                          (Diagnostic.Kind) args[0],
+                          args[1].toString(),
+                          (Element) args[2],
+                          (AnnotationMirror) args[3],
+                          (AnnotationValue) args[4]));
                 }
                 return null;
               });
@@ -71,6 +90,62 @@ class DiagnosticsTest {
         .containsExactly(
             new Printed(Diagnostic.Kind.ERROR, "@GenerateFocus: what. why. fix.", element),
             new Printed(Diagnostic.Kind.WARNING, "@GenerateFocus: what. why. fix.", element));
+  }
+
+  private static <T> T unusable(Class<T> type) {
+    return type.cast(
+        Proxy.newProxyInstance(
+            DiagnosticsTest.class.getClassLoader(),
+            new Class<?>[] {type},
+            (proxy, method, args) -> {
+              throw new UnsupportedOperationException(method.getName());
+            }));
+  }
+
+  @Test
+  @DisplayName("reportAt prints the formatted message at the annotation, or at one of its values")
+  void reportAtPrintsAtTheAnnotation() {
+    AnnotationMirror mirror = unusable(AnnotationMirror.class);
+    AnnotationValue value = unusable(AnnotationValue.class);
+
+    Diagnostics.reportAt(
+        messager, Diagnostic.Kind.WARNING, element, mirror, null, "@A", "what.", "why.", "fix.");
+    Diagnostics.reportAt(
+        messager, Diagnostic.Kind.ERROR, element, mirror, value, "@A", "what.", "why.", "fix.");
+
+    assertThat(located)
+        .containsExactly(
+            new Located(Diagnostic.Kind.WARNING, "@A: what. why. fix.", element, mirror, null),
+            new Located(Diagnostic.Kind.ERROR, "@A: what. why. fix.", element, mirror, value));
+  }
+
+  @Test
+  @DisplayName("reportAt guards what it locates by")
+  void reportAtGuardsItsPosition() {
+    AnnotationMirror mirror = unusable(AnnotationMirror.class);
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                Diagnostics.reportAt(
+                    null, Diagnostic.Kind.NOTE, element, mirror, null, "@A", "w.", "y.", "f."))
+        .withMessage("messager must not be null");
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                Diagnostics.reportAt(messager, null, element, mirror, null, "@A", "w.", "y.", "f."))
+        .withMessage("kind must not be null");
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                Diagnostics.reportAt(
+                    messager, Diagnostic.Kind.NOTE, null, mirror, null, "@A", "w.", "y.", "f."))
+        .withMessage("element must not be null");
+    assertThatNullPointerException()
+        .isThrownBy(
+            () ->
+                Diagnostics.reportAt(
+                    messager, Diagnostic.Kind.NOTE, element, null, null, "@A", "w.", "y.", "f."))
+        .withMessage("annotationMirror must not be null");
   }
 
   @Test
