@@ -22,13 +22,13 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import org.higherkindedj.hkt.effect.annotation.GeneratePathBridge;
 import org.higherkindedj.hkt.effect.annotation.PathVia;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /**
  * Annotation processor that generates Path bridge classes for service interfaces.
@@ -693,14 +693,14 @@ public class PathProcessor extends AbstractProcessor {
       TypeElement interfaceElement,
       String packageName,
       String position) {
-
-    TypeElement unreachable =
-        ProcessorUtils.firstUnreachableIn(processingEnv.getElementUtils(), type, packageName);
-    if (unreachable == null) {
-      return false;
-    }
-    reportUnreachable(unreachable, site, interfaceElement, packageName, "the " + position);
-    return true;
+    return !Reachability.check(
+        processingEnv,
+        BRIDGE_TAG,
+        site,
+        bridgeTarget(interfaceElement, packageName),
+        Stream.of(
+            Reachability.Crossing.member(
+                "on '" + interfaceElement.getSimpleName() + "', the " + position, type)));
   }
 
   /**
@@ -716,47 +716,38 @@ public class PathProcessor extends AbstractProcessor {
       Element site,
       TypeElement interfaceElement,
       String packageName) {
-
-    Elements elements = processingEnv.getElementUtils();
-    for (TypeMirror bound : bounds) {
-      TypeElement unreachable = ProcessorUtils.firstUnreachableIn(elements, bound, packageName);
-      if (unreachable != null) {
-        reportUnreachable(
-            unreachable,
-            site,
-            interfaceElement,
-            packageName,
-            "the bound on '" + parameterName + "'");
-        return true;
-      }
-    }
-    return false;
+    return !Reachability.check(
+        processingEnv,
+        BRIDGE_TAG,
+        site,
+        bridgeTarget(interfaceElement, packageName),
+        bounds.stream()
+            .map(
+                bound ->
+                    Reachability.Crossing.member(
+                        "on '"
+                            + interfaceElement.getSimpleName()
+                            + "', the bound on '"
+                            + parameterName
+                            + "'",
+                        bound)));
   }
 
-  private void reportUnreachable(
-      TypeElement unreachable,
-      Element site,
-      TypeElement interfaceElement,
-      String packageName,
-      String position) {
-
-    Diagnostics.error(
-        processingEnv.getMessager(),
-        site,
-        BRIDGE_TAG,
-        "on '"
-            + interfaceElement.getSimpleName()
-            + "', "
-            + position
-            + " names '"
-            + unreachable.getSimpleName()
-            + "', which cannot be reached from '"
-            + packageName
-            + "'.",
+  /**
+   * Where the bridge is declared, as a refusal of a type it cannot name describes it: written as it
+   * stands into {@code packageName}, and beside its interface once {@code targetPackage} is gone.
+   */
+  private Reachability.Target bridgeTarget(TypeElement interfaceElement, String packageName) {
+    return new Reachability.Target(
+        packageName,
         "The bridge writes it down as it stands, and it is not visible there.",
-        "Make '"
-            + unreachable.getSimpleName()
-            + "' public, or drop targetPackage so the bridge is written beside the interface.");
+        Reachability.removingTargetPackage(
+            packageName,
+            processingEnv
+                .getElementUtils()
+                .getPackageOf(interfaceElement)
+                .getQualifiedName()
+                .toString()));
   }
 
   /**

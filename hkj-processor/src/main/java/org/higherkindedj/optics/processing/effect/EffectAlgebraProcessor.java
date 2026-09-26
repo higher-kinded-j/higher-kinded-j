@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -22,6 +23,8 @@ import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
+import org.higherkindedj.optics.processing.util.Reachability.Crossing;
 
 /**
  * Annotation processor for {@link EffectAlgebra @EffectAlgebra} that generates HKT boilerplate for
@@ -113,11 +116,49 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
         // Validate all permits are records with no extra type params
         List<TypeElement> permits = getPermittedRecords(typeElement);
         if (permits == null) continue; // errors already reported
+        if (!Reachability.check(
+            processingEnv,
+            "@EffectAlgebra",
+            element,
+            Reachability.companion(
+                resolveTargetPackage(typeElement, typeElement.getAnnotation(EffectAlgebra.class)),
+                processingEnv
+                    .getElementUtils()
+                    .getPackageOf(typeElement)
+                    .getQualifiedName()
+                    .toString()),
+            crossings(typeElement, permits))) {
+          continue;
+        }
 
         writeAlgebraClasses(typeElement, permits, element);
       }
     }
     return true;
+  }
+
+  /**
+   * The types the generated Kind, helper, Functor, Ops and interpreter name: the algebra, each
+   * operation record, and the components each operation's factory takes. Shared with {@code
+   * ComposeEffectsProcessor}, which declines an algebra this refuses.
+   */
+  static Stream<Crossing> crossings(TypeElement algebra, List<TypeElement> operations) {
+    return Stream.concat(
+        Stream.of(Reachability.declared(algebra)),
+        operations.stream()
+            .flatMap(
+                operation ->
+                    Stream.concat(
+                        Stream.of(
+                            Crossing.over(
+                                "operation '"
+                                    + Reachability.name(operation)
+                                    + "' of '"
+                                    + algebra.getSimpleName()
+                                    + "'",
+                                operation.asType())),
+                        operation.getRecordComponents().stream()
+                            .map(component -> Reachability.component(operation, component)))));
   }
 
   @ExcludeFromJacocoGeneratedReport

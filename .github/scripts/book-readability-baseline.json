@@ -49,7 +49,7 @@
     "mapping/at_a_glance.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "mapping/compiler_errors.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
     "mapping/quickstart.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 2 },
-    "mapping/rules.md": { "long35": 46, "long50": 8, "bullets": 7, "runs": 3, "dashes": 0, "aboveBelow": 4 },
+    "mapping/rules.md": { "long35": 44, "long50": 8, "bullets": 7, "runs": 3, "dashes": 0, "aboveBelow": 4 },
     "monads/ch_intro.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 15, "aboveBelow": 0 },
     "monads/const_type.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "monads/context_scoped.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },

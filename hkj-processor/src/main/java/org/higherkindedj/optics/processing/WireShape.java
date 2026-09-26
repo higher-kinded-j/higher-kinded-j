@@ -10,6 +10,7 @@ import java.util.function.Function;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 
@@ -328,10 +329,12 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
     /**
      * A builder: {@code var b = W.builder(); b.name(...); return b.build();}. {@code factory} is
-     * the static builder factory ({@code builder} or {@code newBuilder}) and {@code buildMethod}
-     * the builder's terminal method; each property writes through its builder setter.
+     * the static builder factory ({@code builder} or {@code newBuilder}), {@code buildMethod} the
+     * builder's terminal method, and {@code builderType} the builder as the factory returns it,
+     * whose methods the Impl calls; each property writes through its builder setter.
      */
-    record Builder(String factory, String buildMethod) implements ConstructionStrategy {
+    record Builder(String factory, String buildMethod, DeclaredType builderType)
+        implements ConstructionStrategy {
       @Override
       public String receiver() {
         return "b";

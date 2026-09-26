@@ -102,7 +102,7 @@ public class FoldProcessorIntegrationTest {
           @Override
           public <M> M foldMap(Monoid<M> monoid, Function<? super String, ? extends M> f, Order source) {
             M result = monoid.empty();
-            for (var element : source.items()) {
+            for (String element : source.items()) {
               result = monoid.combine(result, f.apply(element));
             }
             return result;

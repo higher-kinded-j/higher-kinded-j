@@ -360,6 +360,36 @@ class ProcessorArchitectureRules {
   }
 
   /**
+   * Only the shared check asks whether generated code can name a type.
+   *
+   * <p>A processor that asks {@code ProcessorUtils.firstUnreachableIn} itself writes its own
+   * refusal, and the refusals drift apart: one names the type where a class enclosing it is what
+   * hides it, another offers a move no package can make. {@code Reachability} asks for every
+   * processor, with one message and one fix line naming the class to change. Collecting the callers
+   * rather than forbidding the rest also fails the rule if it stops seeing the ones it allows.
+   */
+  @Test
+  @DisplayName(
+      "Only the shared reachability check should ask whether generated code can name a type")
+  void only_the_shared_reachability_check_should_ask_whether_generated_code_can_name_a_type() {
+    Set<String> askers =
+        StreamSupport.stream(classes.spliterator(), false)
+            .flatMap(ProcessorArchitectureRules::callsAndReferencesFrom)
+            .filter(
+                access -> access.getTarget().getOwner().getSimpleName().equals("ProcessorUtils"))
+            .filter(access -> access.getTarget().getName().equals("firstUnreachableIn"))
+            .map(access -> access.getOriginOwner().getSimpleName())
+            .filter(owner -> !owner.equals("ProcessorUtils"))
+            .collect(Collectors.toSet());
+
+    assertThat(askers)
+        .as(
+            "refuse through Reachability.check, or ask Reachability.firstHidden, so every processor"
+                + " gives the same message and fix line")
+        .isEqualTo(Set.of("Reachability"));
+  }
+
+  /**
    * Custom condition checking for final or static fields only.
    *
    * @return the arch condition

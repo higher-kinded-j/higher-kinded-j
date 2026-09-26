@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
@@ -17,6 +18,9 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.PathSource;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
+import org.higherkindedj.optics.processing.util.Reachability.Crossing;
 
 /**
  * Annotation processor that generates Path wrapper classes for custom effect types.
@@ -119,6 +123,26 @@ public class PathSourceProcessor extends AbstractProcessor {
     TypeMirror errorTypeMirror = getErrorType(annotation);
     TypeName errorType = TypeName.get(errorTypeMirror);
     boolean hasErrorType = !errorType.toString().equals("java.lang.Void");
+    // The Kind the path wraps names the witness; the error type is named only where the
+    // capability recovers, and the source type only in the Javadoc.
+    if (!Reachability.check(
+        processingEnv,
+        "@PathSource",
+        sourceElement,
+        Reachability.companion(packageName, defaultPackage),
+        Stream.concat(
+            Stream.of(
+                Crossing.over(
+                    "witness '" + ProcessorUtils.simpleTypeName(witnessTypeMirror) + "'",
+                    witnessTypeMirror)),
+            hasErrorType && isRecoverable(capability)
+                ? Stream.of(
+                    Crossing.over(
+                        "error type '" + ProcessorUtils.simpleTypeName(errorTypeMirror) + "'",
+                        errorTypeMirror))
+                : Stream.empty()))) {
+      return;
+    }
 
     ClassName sourceClassName = ClassName.get(sourceElement);
 

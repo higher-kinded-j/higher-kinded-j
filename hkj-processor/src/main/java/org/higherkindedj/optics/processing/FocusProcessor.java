@@ -27,6 +27,7 @@ import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /**
  * Annotation processor for {@link GenerateFocus} that generates Focus DSL utility classes.
@@ -168,6 +169,14 @@ public class FocusProcessor extends AbstractProcessor {
     GenerateFocus annotation = recordElement.getAnnotation(GenerateFocus.class);
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    if (!Reachability.check(
+        processingEnv,
+        "@GenerateFocus",
+        recordElement,
+        Reachability.companion(packageName, defaultPackage),
+        Reachability.record(recordElement, recordElement.getRecordComponents()))) {
+      return;
+    }
     boolean generateNavigators = annotation.generateNavigators();
     boolean widenCollections = annotation.widenCollections();
     int maxNavigatorDepth = annotation.maxNavigatorDepth();
@@ -209,7 +218,8 @@ public class FocusProcessor extends AbstractProcessor {
     NavigatorClassGenerator navigatorGenerator = null;
     if (generateNavigators) {
       navigatorGenerator =
-          new NavigatorClassGenerator(processingEnv, navigableTypes, maxNavigatorDepth, analysis);
+          new NavigatorClassGenerator(
+              processingEnv, navigableTypes, maxNavigatorDepth, analysis, packageName);
     }
 
     // Generate FocusPath methods for each component

@@ -49,7 +49,8 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`returns a Getter but is named after a domain component`](#getter-named-after-domain) | A derived field carries a domain component's name |
 | [`combines a projection with derived fields`](#projection-with-derived-fields) | A smaller wire also declares a derived field |
 | [`declares type parameters of its own`](#own-type-parameters) | A leaf, rename or marker declares its own `<R>` |
-| [`which cannot be reached from`](#cannot-be-reached) | A member names a type its package cannot see |
+| [`method '…' names '…', which cannot be reached from`](#cannot-be-reached) | A member names a type its package cannot see |
+| [`record component '…' of '…' names '…', which cannot be reached from`](#component-cannot-be-reached) | A mapped type is hidden from the spec's package |
 
 **[Optional fields](#optional-fields)**
 
@@ -131,12 +132,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`is a primitive`](#envelope-primitive-context) | An envelope context component is a primitive |
 | [`is a class, not a record`](#envelope-variant-not-a-record) | An envelope variant is a class |
 | [`which this companion does not support`](#envelope-generic) | An envelope hierarchy is generic |
-
-**[Inside a generated Impl](#inside-a-generated-impl)**
-
-| The message says | What it means |
-|---|---|
-| [`has private access in`](#private-access-in-an-impl) | A mapped type is private and nested |
+| [`@GenerateErrorEnvelope: … cannot be reached from`](#envelope-cannot-be-reached) | An envelope's type is hidden from its companion's package |
 
 **[At your call site](#at-your-call-site)**
 
@@ -173,7 +169,7 @@ flowchart TD
     class OK ok
 ```
 
-Most messages come from the first branch: the processor reads your spec, finds a shape it cannot map correctly, and says so where you declared it. A refused spec writes no Impl, so every call to it also reports `cannot find symbol`; fix the refusal and those go with it. An error inside a generated `*Impl` means the processor accepted a spec it should have refused. Please [report it](https://github.com/higher-kinded-j/higher-kinded-j/issues) with the spec; the cause is usually still in the spec, and the error names it, as [the one known case](#private-access-in-an-impl) shows.
+Most messages come from the first branch: the processor reads your spec, finds a shape it cannot map correctly, and says so where you declared it. A refused spec writes no Impl, so every call to it also reports `cannot find symbol`; fix the refusal and those go with it. An error inside a generated file, an `*Impl` or a companion such as `*Errors`, means the processor accepted a declaration it should have refused. Please [report it](https://github.com/higher-kinded-j/higher-kinded-j/issues) with the declaration, since the cause is usually still there.
 
 ---
 
@@ -630,23 +626,23 @@ interface PageMapping extends MappingSpec<Page, PageDto> {
 ```
 ~~~
 
-### `@MapField method 'x' names 'T', which cannot be reached from 'p'` {#cannot-be-reached}
+### `@MapField method 'x' names 'Y', which cannot be reached from 'p'` {#cannot-be-reached}
 
-A member names a type the spec's package cannot see, and the Impl is generated in that package.
+A rename, leaf or marker names a type the spec's package cannot see, and the Impl is generated in that package.
 
-**Fix.** Make the type, and the types enclosing it, `public`, or declare the spec in the package they are visible from.
+**Fix.** In the spec's package, remove `private` from the type and any class enclosing it. From another package, make the type and the classes enclosing it `public`, or, when none is `private`, declare the spec in the type's package.
 
 ```
 @GenerateMapping: @MapField method 'sku' names 'Sku', which cannot be reached from
-'com.example'. The generated Impl writes the member's type out in full, so every type named
-inside it has to be visible in the spec's package, where the Impl is declared. Make 'Sku' and
-the types enclosing it public, or declare the spec in the package they are already visible from.
+'com.example'. The generated Impl is a top-level class in the spec's package, where it names
+every type the mapping crosses, so each has to be visible from there. Remove 'private' from
+'Sku'.
 ```
 
-The rule: [A member's type must be visible from the spec's package](rules.md#how-the-two-default-families-are-told-apart).
+The rule: [Every type a mapping crosses is visible from the spec's package](rules.md#visible-from-the-spec-package).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "which cannot be reached from" -->
+<!-- verify:rejects "method 'sku' names 'Sku', which cannot be reached from" -->
 ```java
 class Shop {
   private record Sku(String value) {}
@@ -660,6 +656,37 @@ class Shop {
     @MapField(to = "code")
     Sku sku();
   }
+}
+```
+~~~
+
+### `record component 'x' of 'X' names 'Y', which cannot be reached from 'p'` {#component-cannot-be-reached}
+
+A type the mapping crosses is hidden from the spec's package, where the Impl is generated. The subject names where: a record component or bean property, a type parameter, a builder, or a merge's target or source component. Where the hidden type is the spec itself, its domain or wire, a permitted subtype or a merge target, the message reads `domain type 'Item' cannot be reached from 'p'`.
+
+**Fix.** In the spec's package, remove `private` from the type and any class enclosing it. From another package, make the type and the classes enclosing it `public`, or, when none is `private`, declare the spec in the type's package.
+
+```
+@GenerateMapping: record component 'sku' of 'Item' names 'Sku', which cannot be reached from
+'com.example'. The generated Impl is a top-level class in the spec's package, where it names
+every type the mapping crosses, so each has to be visible from there. Remove 'private' from
+'Sku'.
+```
+
+The rule: [Every type a mapping crosses is visible from the spec's package](rules.md#visible-from-the-spec-package).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "record component 'sku' of 'Item' names 'Sku', which cannot be reached from" -->
+```java
+class Shop {
+  private record Sku(String value) {}
+
+  record Item(Sku sku) {}
+
+  record ItemDto(Sku sku) {}
+
+  @GenerateMapping
+  interface ItemMapping extends MappingSpec<Item, ItemDto> {}
 }
 ```
 ~~~
@@ -2110,34 +2137,31 @@ sealed interface OrderError<T> {
 ```
 ~~~
 
----
+### `@GenerateErrorEnvelope: context record 'X' cannot be reached from 'p'` {#envelope-cannot-be-reached}
 
-## Inside a generated Impl {#inside-a-generated-impl}
+A type the envelope companion names is hidden from the hierarchy's package, where the companion is generated: the context record here, or the hierarchy, a variant, or a component of either.
 
-### `XImpl.java: error: T has private access in Y` {#private-access-in-an-impl}
-
-A mapped component's type is `private` and nested in the class that holds the spec, and the Impl, generated beside that class, cannot see it. The processor lets this through, where it refuses the same type on a rename or marker.
-
-**Fix.** Make the nested type package-private, or `public`.
+**Fix.** Remove `private` from the class the message names.
 
 ```
-ShopItemMappingImpl.java: Sku has private access in Shop
+@GenerateErrorEnvelope: context record 'Orders.OrderContext' cannot be reached from
+'com.example'. The generated companion is a top-level class in that package, where it names
+every type it reads or writes, so each has to be visible from there. Remove 'private' from
+'OrderContext'.
 ```
 
-The rule: [A member's type must be visible from the spec's package](rules.md#how-the-two-default-families-are-told-apart).
+The rule: [Error envelope rules](rules.md#error-envelope-rules).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "has private access in" -->
+<!-- verify:rejects "context record 'Orders.OrderContext' cannot be reached from" -->
 ```java
-class Shop {
-  private record Sku(String value) {}
+class Orders {
+  private record OrderContext(String orderId) {}
 
-  record Item(Sku sku) {}
-
-  record ItemDto(Sku sku) {}
-
-  @GenerateMapping
-  interface ItemMapping extends MappingSpec<Item, ItemDto> {}
+  @GenerateErrorEnvelope
+  sealed interface OrderError {
+    record NotFound(String id, ErrorEnvelope<OrderContext> envelope) implements OrderError {}
+  }
 }
 ```
 ~~~

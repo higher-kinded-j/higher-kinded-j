@@ -123,6 +123,7 @@ tasks.jacocoTestCoverageVerification {
                 "org.higherkindedj.optics.processing.external.WitherBinding*",
                 "org.higherkindedj.optics.processing.external.CopyStrategyCodeGenerator*",
                 "org.higherkindedj.optics.processing.util.ProcessorUtils*",
+                "org.higherkindedj.optics.processing.util.Reachability*",
             )
             limit {
                 counter = "LINE"

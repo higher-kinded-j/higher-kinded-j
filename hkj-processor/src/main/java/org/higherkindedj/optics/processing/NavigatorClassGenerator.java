@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import com.palantir.javapoet.*;
 import java.util.*;
+import java.util.Optional;
 import java.util.function.Function;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -29,6 +30,7 @@ import org.higherkindedj.optics.processing.WideningAnalysis.Widening;
 import org.higherkindedj.optics.processing.spi.Cardinality;
 import org.higherkindedj.optics.processing.spi.TraversableGenerator;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /**
  * Generates navigator wrapper classes for fluent cross-type navigation.
@@ -76,6 +78,7 @@ public class NavigatorClassGenerator {
   private final Set<String> navigableTypes;
   private final int maxDepth;
   private final WideningAnalysis analysis;
+  private final String packageName;
 
   /**
    * Creates a new navigator class generator.
@@ -84,16 +87,19 @@ public class NavigatorClassGenerator {
    * @param navigableTypes set of fully qualified type names that have @GenerateFocus
    * @param maxDepth maximum depth for navigator chains
    * @param analysis the analysis that answers what a component's Focus method returns
+   * @param packageName the package the navigating Focus class is written into
    */
   public NavigatorClassGenerator(
       ProcessingEnvironment processingEnv,
       Set<String> navigableTypes,
       int maxDepth,
-      WideningAnalysis analysis) {
+      WideningAnalysis analysis,
+      String packageName) {
     this.processingEnv = processingEnv;
     this.navigableTypes = navigableTypes;
     this.maxDepth = Math.max(1, Math.min(10, maxDepth));
     this.analysis = analysis;
+    this.packageName = packageName;
   }
 
   /**
@@ -168,9 +174,11 @@ public class NavigatorClassGenerator {
       // show in the declaration; navigatorTarget conflates them by design.
       TypeElement candidate = navigatorCandidate(recordElement, component);
       if (candidate == null) {
-        TypeElement unpublished = unpublishedCandidate(recordElement, component);
-        if (unpublished != null) {
-          reportUnpublishedTargetSkipped(recordElement, component, unpublished);
+        Reach skipped = skippedTarget(recordElement, component);
+        if (skipped instanceof Reach.Unpublished unpublished) {
+          reportUnpublishedTargetSkipped(recordElement, component, unpublished.record());
+        } else if (skipped instanceof Reach.Hidden hidden) {
+          reportHiddenTargetSkipped(recordElement, component, hidden);
         }
         continue;
       }
@@ -266,17 +274,57 @@ public class NavigatorClassGenerator {
   }
 
   /**
-   * The record a component would have a navigator for, were its companion published: it reaches,
-   * directly or as an SPI container's element, a non-generic record from a dependency that carries
-   * {@code @GenerateFocus} but has no companion this module can compose.
+   * Says why a component asking for a navigator did not get one, when the navigator would name a
+   * type this Focus class's package cannot reach: the target record, or one of its components, is
+   * {@code private} or hidden in another package. The Focus class itself can still name the target,
+   * so the component keeps its plain path.
+   *
+   * @param recordElement the record declaring the component
+   * @param component the component whose navigator was not generated
+   * @param hidden the target and the type its navigator would name, already established
+   */
+  private void reportHiddenTargetSkipped(
+      TypeElement recordElement, RecordComponentElement component, Reach.Hidden hidden) {
+
+    String componentName = component.getSimpleName().toString();
+    processingEnv
+        .getMessager()
+        .printMessage(
+            Diagnostic.Kind.NOTE,
+            "Navigator for field '"
+                + componentName
+                + "' is not generated: a navigator into "
+                + hidden.record().getSimpleName()
+                + " names '"
+                + hidden.hidden().getSimpleName()
+                + "', which cannot be reached from '"
+                + packageName
+                + "'. "
+                + Reachability.fix(
+                    processingEnv.getElementUtils(),
+                    hidden.hidden(),
+                    new Reachability.Target(packageName, "", home -> Optional.empty()))
+                + " Until then "
+                + focusClassOf(recordElement).simpleName()
+                + "."
+                + componentName
+                + "() keeps its plain path.",
+            component);
+  }
+
+  /**
+   * Why a component that reaches a record has no navigator into it, where the reason does not show
+   * in the declaration: the record, directly or as an SPI container's element, is a non-generic one
+   * from a dependency with no companion this module can compose, or its navigator would name a type
+   * this Focus class's package cannot reach.
    *
    * @param record the record that declares the component
    * @param component the component, which has no navigator
-   * @return that record, or null when the component reaches none
+   * @return an {@code Unpublished} or {@code Hidden} reach, or {@code None} when neither applies
    */
-  private TypeElement unpublishedCandidate(TypeElement record, RecordComponentElement component) {
+  private Reach skippedTarget(TypeElement record, RecordComponentElement component) {
     if (!shouldGenerateNavigator(record, component)) {
-      return null;
+      return new Reach.None();
     }
     TypeMirror fieldType = component.asType();
     TypeMirror reached =
@@ -285,11 +333,15 @@ public class NavigatorClassGenerator {
                 && analysis.spiLookup(fieldType, null) instanceof SpiLookup.Admitted admitted
             ? spiElement(fieldType, admitted.generator())
             : fieldType;
-    return reached != null
-            && reach(reached) instanceof Reach.Unpublished unpublished
-            && !declaresTypeParameters(unpublished.record())
-        ? unpublished.record()
-        : null;
+    if (reached == null) {
+      return new Reach.None();
+    }
+    return switch (reach(reached)) {
+      case Reach.Unpublished unpublished when !declaresTypeParameters(unpublished.record()) ->
+          unpublished;
+      case Reach.Hidden hidden -> hidden;
+      default -> new Reach.None();
+    };
   }
 
   /**
@@ -1200,6 +1252,9 @@ public class NavigatorClassGenerator {
     /** A record outside this round that carries the annotation but has no companion to compose. */
     record Unpublished(TypeElement record) implements Reach {}
 
+    /** A record whose navigator would name {@code hidden}, which this package cannot reach. */
+    record Hidden(TypeElement record, TypeElement hidden) implements Reach {}
+
     /** Anything else. */
     record None() implements Reach {}
   }
@@ -1222,6 +1277,24 @@ public class NavigatorClassGenerator {
    * that never checked.
    */
   private Reach reach(TypeMirror type) {
+    Reach reach = published(type);
+    if (reach instanceof Reach.Navigable(TypeElement record)) {
+      // A navigator names the target and the type of each component it steps to, from the
+      // navigating Focus class's package.
+      Optional<TypeElement> hidden =
+          Reachability.firstHidden(
+              processingEnv.getElementUtils(),
+              packageName,
+              Reachability.record(record, record.getRecordComponents()));
+      if (hidden.isPresent()) {
+        return new Reach.Hidden(record, hidden.get());
+      }
+    }
+    return reach;
+  }
+
+  /** Whether a type is navigable, published or neither, before asking what its navigator names. */
+  private Reach published(TypeMirror type) {
     if (type.getKind() != TypeKind.DECLARED) {
       return new Reach.None();
     }

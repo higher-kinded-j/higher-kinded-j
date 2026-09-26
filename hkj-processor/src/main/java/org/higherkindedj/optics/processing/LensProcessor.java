@@ -24,6 +24,7 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /** Annotation processor that generates Lens optics for record types. */
 @AutoService(Processor.class)
@@ -88,6 +89,14 @@ public class LensProcessor extends AbstractProcessor {
     GenerateLenses annotation = recordElement.getAnnotation(GenerateLenses.class);
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    if (!Reachability.check(
+        processingEnv,
+        "@GenerateLenses",
+        recordElement,
+        Reachability.companion(packageName, defaultPackage),
+        Reachability.record(recordElement, recordElement.getRecordComponents()))) {
+      return;
+    }
 
     String lensesClassName = recordName + "Lenses";
 

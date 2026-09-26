@@ -24,6 +24,7 @@ import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.annotations.GenerateGetters;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /** Annotation processor that generates Getter optics for record types. */
 @AutoService(Processor.class)
@@ -71,6 +72,14 @@ public class GetterProcessor extends AbstractProcessor {
     GenerateGetters annotation = recordElement.getAnnotation(GenerateGetters.class);
     String targetPackage = annotation.targetPackage();
     String packageName = targetPackage.isEmpty() ? defaultPackage : targetPackage;
+    if (!Reachability.check(
+        processingEnv,
+        "@GenerateGetters",
+        recordElement,
+        Reachability.companion(packageName, defaultPackage),
+        Reachability.record(recordElement, recordElement.getRecordComponents()))) {
+      return;
+    }
 
     String gettersClassName = recordName + "Getters";
 

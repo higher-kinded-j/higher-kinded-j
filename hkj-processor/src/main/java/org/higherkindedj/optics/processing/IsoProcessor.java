@@ -27,6 +27,7 @@ import org.higherkindedj.optics.annotations.GenerateIsos;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.Reachability;
 
 /**
  * An annotation processor that generates a container class with static Iso fields for each method
@@ -137,33 +138,22 @@ public final class IsoProcessor extends AbstractProcessor {
           "Take the arguments away, or drop @GenerateIsos and call '" + name + "(...)' directly.");
       return true;
     }
-    final TypeElement unreachable =
+    String ownPackage =
+        processingEnv.getElementUtils().getPackageOf(method).getQualifiedName().toString();
+    if (!Reachability.check(
+        processingEnv,
+        TAG,
+        method,
+        new Reachability.Target(
+            targetPackage,
+            "The generated field writes its own type out in full, so every type named inside it"
+                + " has to be visible where the field is declared.",
+            Reachability.removingTargetPackage(targetPackage, ownPackage)),
         returned.getTypeArguments().stream()
             .map(
                 argument ->
-                    ProcessorUtils.firstUnreachableIn(
-                        processingEnv.getElementUtils(), argument, targetPackage))
-            .filter(java.util.Objects::nonNull)
-            .findFirst()
-            .orElse(null);
-    if (unreachable != null) {
-      Diagnostics.error(
-          processingEnv.getMessager(),
-          method,
-          TAG,
-          "the iso returned by '"
-              + name
-              + "' names '"
-              + unreachable.getSimpleName()
-              + "', which cannot be reached from '"
-              + targetPackage
-              + "'.",
-          "The generated field writes its own type out in full, so every type named inside it has"
-              + " to be visible where the field is declared.",
-          "Make '"
-              + unreachable.getSimpleName()
-              + "' and the types enclosing it public, or generate into the package they are"
-              + " already visible from.");
+                    Reachability.Crossing.member(
+                        "the iso returned by '" + name + "'", argument)))) {
       return true;
     }
     if (!ProcessorUtils.reachableFrom(processingEnv.getElementUtils(), method, targetPackage)) {

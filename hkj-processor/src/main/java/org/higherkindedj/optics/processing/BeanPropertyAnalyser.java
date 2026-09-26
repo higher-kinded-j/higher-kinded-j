@@ -469,7 +469,7 @@ final class BeanPropertyAnalyser {
 
     /** The construction strategy that fills the bean through this builder. */
     WireShape.ConstructionStrategy strategy() {
-      return new WireShape.ConstructionStrategy.Builder(factory, buildMethod);
+      return new WireShape.ConstructionStrategy.Builder(factory, buildMethod, builderType);
     }
   }
 
