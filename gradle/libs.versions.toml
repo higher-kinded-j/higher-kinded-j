@@ -17,6 +17,9 @@ truth = "1.4.5"
 # Benchmarking
 jmh = "1.37"
 jol = "0.17"
+# Mapping benchmarks: the comparisons for the generated mapper
+mapstruct = "1.6.3"
+hibernate-validator = "9.0.1.Final"
 
 # Spring Boot 4.1.0 (requires Java 17+, Jakarta EE 11, Servlet 6.1; Spring Framework 7.0.8)
 # Note: hkj-spring 0.2.7 supports Spring Boot 3.5.7, 0.2.8+ requires Spring Boot 4.0.1+
@@ -79,6 +82,9 @@ truth = { module = "com.google.truth:truth", version.ref = "truth" }
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 jol-core = { module = "org.openjdk.jol:jol-core", version.ref = "jol" }
+mapstruct = { module = "org.mapstruct:mapstruct", version.ref = "mapstruct" }
+mapstruct-processor = { module = "org.mapstruct:mapstruct-processor", version.ref = "mapstruct" }
+hibernate-validator = { module = "org.hibernate.validator:hibernate-validator", version.ref = "hibernate-validator" }
 
 # Spring Boot
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }

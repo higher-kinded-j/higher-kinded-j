@@ -28,7 +28,7 @@ The suite is designed around three principles:
 
 ## What Is Measured
 
-The `hkj-benchmarks` module contains 19 benchmark classes covering every major type in the library:
+The `hkj-benchmarks` module contains 22 benchmark classes covering every major type in the library:
 
 ### Core Types
 
@@ -67,6 +67,12 @@ The `hkj-benchmarks` module contains 19 benchmark classes covering every major t
 | `AbstractionOverheadBenchmark` | HKJ abstractions vs raw Java |
 | `ConcurrencyScalingBenchmark` | Thread scaling under concurrent load |
 | `MemoryFootprintBenchmark` | Allocation rates for VTask, IO, CompletableFuture |
+
+### Mapping
+
+| Benchmark | What It Compares |
+|-----------|-----------------|
+| `MappingBenchmark` | The generated mapper's `build` and `parse` against a hand-written mapper, MapStruct, and MapStruct with Bean Validation, on a nested pair and a flat one |
 
 ---
 
@@ -107,6 +113,24 @@ Runs with `chainDepth=10000` and `recursionDepth=10000` for thorough stack-safet
 ```bash
 ./gradlew :hkj-benchmarks:longBenchmark
 ```
+
+### The Mapping Benchmark
+
+A quick run goes through Gradle:
+
+```bash
+./gradlew :hkj-benchmarks:jmh -Pincludes=".*MappingBenchmark.*"
+```
+
+For figures worth quoting, run the benchmark jar directly, with more iterations, two forks, and the allocation per operation:
+
+```bash
+./gradlew :hkj-benchmarks:jmhJar
+java --enable-preview -jar hkj-benchmarks/build/libs/hkj-benchmarks-<version>-jmh.jar MappingBenchmark \
+  -wi 3 -w 1s -i 5 -r 1s -f 2 -jvmArgs "--enable-preview" -prof gc
+```
+
+Run it on a quiet machine. Another build running at the same time shows up as forks that disagree with each other. A Gradle run also writes the results file the assertion tests read, so run the whole suite before running them.
 
 ### Formatted Report
 
