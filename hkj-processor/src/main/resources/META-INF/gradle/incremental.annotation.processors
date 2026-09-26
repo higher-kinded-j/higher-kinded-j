@@ -13,9 +13,12 @@
 # and already restores incremental compilation for consuming source sets. Refining individual
 # processors to ISOLATING needs a per-processor one-origin-per-file audit first.
 #
-# CompanionAnnotationProcessor generates nothing: it only claims the annotations the others read or
-# write, so the one-origin-per-file rule holds for it trivially. ISOLATING leaves Gradle nothing to
-# track, where AGGREGATING would reprocess every type carrying them, every generated class included.
+# CompanionAnnotationProcessor generates nothing: it claims the annotations the others read or write,
+# and reports a note on the one no processor reads, so the one-origin-per-file rule holds for it
+# trivially. ISOLATING leaves Gradle nothing to track, where AGGREGATING would reprocess every type
+# carrying them, every generated class included. ISOLATING also lets it claim the SOURCE-retained
+# @PathConfig: Gradle forces a full recompile when an aggregating processor is offered a SOURCE
+# annotation, and checks no retention for an isolating one.
 org.higherkindedj.optics.processing.AccumulatorProcessor,aggregating
 org.higherkindedj.optics.processing.AssemblyProcessor,aggregating
 org.higherkindedj.optics.processing.CompanionAnnotationProcessor,isolating

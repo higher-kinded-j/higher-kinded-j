@@ -36,11 +36,8 @@ import java.lang.annotation.Target;
  * <ul>
  *   <li>Factory methods ({@code of}, {@code pure})
  *   <li>All capability interface methods (map, via, etc.)
- *   <li>Conversion methods to other path types
  *   <li>Error recovery methods (if errorType is specified)
  * </ul>
- *
- * @see PathConfig
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)

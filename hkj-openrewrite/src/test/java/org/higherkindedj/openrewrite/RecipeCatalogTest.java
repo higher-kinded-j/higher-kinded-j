@@ -55,7 +55,8 @@ class RecipeCatalogTest {
             "org.higherkindedj.openrewrite.EffectAlgebraMigration",
             "org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0",
             "org.higherkindedj.openrewrite.RenameStateTKindNarrowK",
-            "org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern");
+            "org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern",
+            "org.higherkindedj.openrewrite.RemovePathConfig");
   }
 
   @Test

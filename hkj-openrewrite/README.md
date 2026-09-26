@@ -10,7 +10,7 @@ The module ships three recipe groups:
 |-------|------------------|--------------|
 | Arity migration (0.2.x → 0.3.0) | `org.higherkindedj.openrewrite.AddArityBounds` | Adds `WitnessArity` / `TypeArity` bounds introduced by the embedded kind system |
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | Flags raw `Free` / manual `Inject` usage and incomplete `Free` switches |
-| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Renames APIs deprecated for removal in 0.5.0 |
+| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Migrates APIs deprecated for removal in 0.5.0 |
 
 ## Quick Start
 
@@ -179,15 +179,16 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 
 ### 0.5.0 deprecation migration
 
-Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements.
-The composite recipe runs all sub-recipes in one pass.
+Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, and removes
+a deprecated annotation that has no effect. The composite recipe runs all sub-recipes in one pass.
 
-| Recipe | Rename |
+| Recipe | Change |
 |--------|--------|
 | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | **Composite** — runs the sub-recipes below |
 | `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` → `StateTKind.narrow(..)` (the wildcard `Kind` overload bypassed witness type safety) |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` → `KindValidator.narrowHolder(..)` |
 | `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMapper, failureMapper)` → `foldFailureFirst(failureMapper, successMapper)` (renames the method *and* swaps the two arguments; tracked under [#452](https://github.com/higher-kinded-j/higher-kinded-j/issues/452)) |
+| `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |
 
 ```kotlin
 rewrite {

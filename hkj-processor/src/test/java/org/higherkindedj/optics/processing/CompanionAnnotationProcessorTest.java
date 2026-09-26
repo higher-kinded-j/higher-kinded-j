@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.optics.processing.effect.PathSourceProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -135,12 +136,158 @@ class CompanionAnnotationProcessorTest {
   }
 
   @Nested
+  @DisplayName("@PathConfig")
+  class PathConfigNote {
+
+    private static final JavaFileObject WITNESS =
+        JavaFileObjects.forSourceString(
+            "com.example.BoxKind",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.Kind;
+            import org.higherkindedj.hkt.TypeArity;
+            import org.higherkindedj.hkt.WitnessArity;
+
+            public interface BoxKind<A> extends Kind<BoxKind.Witness, A> {
+              final class Witness implements WitnessArity<TypeArity.Unary> {}
+            }
+            """);
+
+    private static final JavaFileObject BOX =
+        JavaFileObjects.forSourceString(
+            "com.example.Box",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+            @PathSource(witness = BoxKind.Witness.class)
+            public interface Box<A> {}
+            """);
+
+    /** Sets every setting the generated Path would show, each away from its default. */
+    private static final JavaFileObject CONFIGURED =
+        packageInfo(
+            "com.example",
+            """
+            @PathConfig(pathSuffix = "Effect", makeFinal = false, generateToString = false,
+                includeGeneratedAnnotation = false)
+            """);
+
+    private static final String NO_EFFECT =
+        "@PathConfig: it has no effect on package 'com.example'.";
+
+    private static JavaFileObject packageInfo(String packageName, String annotation) {
+      return JavaFileObjects.forSourceString(
+          packageName + ".package-info",
+          annotation
+              + "package "
+              + packageName
+              + ";\n\nimport org.higherkindedj.hkt.effect.annotation.PathConfig;\n");
+    }
+
+    private static Compilation compile(String lint, JavaFileObject... sources) {
+      return javac()
+          .withProcessors(new PathSourceProcessor(), new CompanionAnnotationProcessor())
+          .withOptions(lint, "-Werror")
+          .compile(sources);
+    }
+
+    private static String generatedBoxPath(Compilation compilation) throws IOException {
+      return compilation
+          .generatedSourceFile("com.example.BoxPath")
+          .orElseThrow()
+          .getCharContent(true)
+          .toString();
+    }
+
+    @Test
+    @DisplayName(
+        "notes at the annotation that it has no effect and how to get its suffix, and the Path"
+            + " generates as without it")
+    void notesThatItHasNoEffect() throws IOException {
+      final Compilation configured = compile("-Xlint:all,-removal", CONFIGURED, WITNESS, BOX);
+      final Compilation plain = compile("-Xlint:all", WITNESS, BOX);
+
+      assertThat(configured).succeededWithoutWarnings();
+      assertThat(configured).hadNoteContaining(NO_EFFECT).inFile(CONFIGURED).onLine(1);
+      assertThat(configured)
+          .hadNoteContaining(
+              "Remove it; nothing generated changes. To name the package's Path classes with"
+                  + " \"Effect\" instead, which renames them, add suffix = \"Effect\" to each"
+                  + " @PathSource.");
+      assertThat(plain).succeededWithoutWarnings();
+      assertThat(generatedBoxPath(configured)).isEqualTo(generatedBoxPath(plain));
+    }
+
+    @Test
+    @DisplayName("offers only its removal for a pathSuffix that is the default or names no class")
+    void offersOnlyItsRemoval() {
+      final List<JavaFileObject> packageInfos =
+          List.of(
+              packageInfo("com.example.unset", "@PathConfig(makeFinal = false)\n"),
+              packageInfo("com.example.path", "@PathConfig(pathSuffix = \"Path\")\n"),
+              packageInfo("com.example.empty", "@PathConfig(pathSuffix = \"\")\n"),
+              packageInfo("com.example.invalid", "@PathConfig(pathSuffix = \"-x\")\n"));
+
+      final Compilation compilation =
+          javac()
+              .withProcessors(new CompanionAnnotationProcessor())
+              .withOptions("-Xlint:all,-removal", "-Werror")
+              .compile(packageInfos);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation)
+          .hadNoteContaining("@PathConfig: it has no effect on package 'com.example.invalid'.")
+          .inFile(packageInfos.getLast())
+          .onLine(1);
+      assertThat(compilation.notes().stream().map(note -> note.getMessage(null)))
+          .filteredOn(message -> message.startsWith("@PathConfig"))
+          .hasSize(packageInfos.size())
+          .allSatisfy(
+              message -> assertThat(message).endsWith("Remove it; nothing generated changes."));
+    }
+
+    @Test
+    @DisplayName("is claimed, so javac reports only that it is deprecated for removal")
+    void isReportedOnlyAsDeprecated() {
+      final Compilation compilation =
+          javac()
+              .withProcessors(new PathSourceProcessor(), new CompanionAnnotationProcessor())
+              .withOptions("-Xlint:all")
+              .compile(CONFIGURED, WITNESS, BOX);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadWarningContaining(
+              "PathConfig in org.higherkindedj.hkt.effect.annotation has been"
+                  + " deprecated and marked for removal")
+          .inFile(CONFIGURED)
+          .onLine(1);
+      assertThat(compilation.warnings().stream().map(warning -> warning.getMessage(null)))
+          .allSatisfy(message -> assertThat(message).contains("marked for removal"));
+    }
+
+    @Test
+    @DisplayName("without it, the Path processor leaves @PathConfig unclaimed")
+    void withoutItPathConfigIsUnclaimed() {
+      final Compilation compilation =
+          javac()
+              .withProcessors(new PathSourceProcessor())
+              .withOptions("-Xlint:processing")
+              .compile(CONFIGURED, WITNESS, BOX);
+
+      assertThat(compilation).hadWarningContaining(UNCLAIMED);
+      assertThat(compilation.warnings().stream().map(warning -> warning.getMessage(null)))
+          .anySatisfy(
+              message -> assertThat(message).contains(CompanionAnnotationProcessor.PATH_CONFIG));
+    }
+  }
+
+  @Nested
   @DisplayName("Coverage of hkj-annotations")
   class Coverage {
-
-    /** The one annotation no processor reads, so none claims it: it has no effect to report. */
-    private static final Set<String> READ_BY_NONE =
-        Set.of("org.higherkindedj.hkt.effect.annotation.PathConfig");
 
     @Test
     @DisplayName("every annotation hkj-annotations declares is claimed by an hkj processor")
@@ -160,7 +307,6 @@ class CompanionAnnotationProcessorTest {
                   .stream()
                   .filter(JavaClass::isAnnotation)
                   .map(JavaClass::getName)
-                  .filter(name -> !READ_BY_NONE.contains(name))
                   .toList();
 
       assertThat(declared).isNotEmpty();

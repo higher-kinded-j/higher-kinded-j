@@ -9,113 +9,80 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Global configuration for Path code generation.
+ * Package-level settings for Path code generation, which no processor reads.
  *
- * <p>Apply this annotation to a {@code package-info.java} to configure default settings for all
- * {@code @PathSource} annotations in that package.
+ * <p>None of these settings has any effect. Every Path generated for a {@link PathSource} in the
+ * package comes out as it would without this annotation, and {@code hkj-processor} reports a note
+ * where the annotation is written to say so. Removing it changes nothing that is generated.
  *
- * <h2>Example Usage</h2>
+ * <p>The one setting with a counterpart is {@link #pathSuffix()}: to name a generated Path class
+ * with a suffix other than {@code Path}, set {@link PathSource#suffix()} on the type.
  *
- * <pre>{@code
- * // In package-info.java
- * @PathConfig(
- *     generateToString = true,
- *     generateEquals = true,
- *     pathSuffix = "Path"
- * )
- * package com.example.effects;
- *
- * import org.higherkindedj.hkt.effect.annotation.PathConfig;
- * }</pre>
- *
- * <h2>Precedence</h2>
- *
- * <p>Settings specified in {@code @PathSource} take precedence over {@code @PathConfig} defaults.
- * This allows package-level defaults with per-type overrides.
- *
+ * @deprecated since 0.4.11, for removal in 0.5.0. It has no effect: remove it, and set {@link
+ *     PathSource#suffix()} on a type whose Path class should be named with another suffix. The
+ *     {@code MigrateDeprecationsTo0_5_0} OpenRewrite recipe removes it.
  * @see PathSource
  */
+@Deprecated(since = "0.4.11", forRemoval = true)
 @Target(ElementType.PACKAGE)
 @Retention(RetentionPolicy.SOURCE)
 @Documented
 public @interface PathConfig {
 
   /**
-   * Whether to generate {@code toString()} methods in generated Path classes.
+   * Has no effect: a generated Path always has a {@code toString()} method.
    *
-   * <p>Default: {@code true}
-   *
-   * @return true to generate toString methods
+   * @return ignored
    */
   boolean generateToString() default true;
 
   /**
-   * Whether to generate {@code equals()} and {@code hashCode()} methods.
+   * Has no effect: a generated Path always has {@code equals()} and {@code hashCode()} methods.
    *
-   * <p>Default: {@code true}
-   *
-   * @return true to generate equals and hashCode methods
+   * @return ignored
    */
   boolean generateEquals() default true;
 
   /**
-   * The default suffix for generated Path class names.
+   * Has no effect: a generated Path class is named with {@link PathSource#suffix()}, which defaults
+   * to {@code "Path"}. Set the suffix there instead.
    *
-   * <p>Default: {@code "Path"}
-   *
-   * @return the default class name suffix
+   * @return ignored
    */
   String pathSuffix() default "Path";
 
   /**
-   * Whether to generate conversion methods to other Path types.
+   * Has no effect: a generated Path has no conversion methods to other Path types.
    *
-   * <p>This includes methods like {@code toMaybePath()}, {@code toEitherPath()}, etc.
-   *
-   * <p>Default: {@code true}
-   *
-   * @return true to generate conversion methods
+   * @return ignored
    */
   boolean generateConversions() default true;
 
   /**
-   * Whether to generate a static {@code pure} factory method.
+   * Has no effect: a generated Path always has a static {@code pure} factory method.
    *
-   * <p>Default: {@code true}
-   *
-   * @return true to generate the pure method
+   * @return ignored
    */
   boolean generatePure() default true;
 
   /**
-   * Whether to include the {@code Generated} annotation on generated classes.
+   * Has no effect: a generated Path class always carries {@code @Generated}.
    *
-   * <p>This adds {@code @Generated("org.higherkindedj.hkt.effect.processor.PathProcessor")} to
-   * generated files, which can be useful for IDE integration and code coverage exclusion.
-   *
-   * <p>Default: {@code true}
-   *
-   * @return true to include the Generated annotation
+   * @return ignored
    */
   boolean includeGeneratedAnnotation() default true;
 
   /**
-   * Whether generated classes should be final.
+   * Has no effect: a generated Path class is always final.
    *
-   * <p>Default: {@code true}
-   *
-   * @return true to make generated classes final
+   * @return ignored
    */
   boolean makeFinal() default true;
 
   /**
-   * Additional imports to include in generated files.
+   * Has no effect: a generated Path imports only the types it names.
    *
-   * <p>This is useful when custom types are used in conversion methods.
-   *
-   * <p>Default: empty (no additional imports)
-   *
-   * @return array of fully qualified class names to import
+   * @return ignored
    */
   String[] additionalImports() default {};
 }

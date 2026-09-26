@@ -16,7 +16,7 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 - **[Compile-Time Checks](compile_checks.md)**: A javac plugin that detects Path type mismatches at compile time, preventing runtime `IllegalArgumentException` errors. Follows a strict no-false-positives policy.
 
-- **[Migration Recipes](openrewrite.md)**: The `hkj-openrewrite` recipe catalogue for upgrading between Higher-Kinded-J releases. Covers the 0.2.x to 0.3.0 arity migration, detection-only effect-algebra helpers, and the 0.5.0 deprecation renames; runnable from Gradle or Maven.
+- **[Migration Recipes](openrewrite.md)**: The `hkj-openrewrite` recipe catalogue for upgrading between Higher-Kinded-J releases. Covers the 0.2.x to 0.3.0 arity migration, detection-only effect-algebra helpers, and the 0.5.0 deprecation migration; runnable from Gradle or Maven.
 
 - **[Diagnostics](diagnostics.md)**: The `hkjDiagnostics` Gradle task or `mvn hkj:diagnostics` Maven goal that reports your current HKJ configuration, showing exactly which dependencies, compiler arguments, and checks are active.
 
