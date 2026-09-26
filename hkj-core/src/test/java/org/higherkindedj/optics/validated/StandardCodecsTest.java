@@ -242,11 +242,14 @@ class StandardCodecsTest {
     enum Uninhabited {}
 
     @Test
-    @DisplayName("enumByName: an enum with no constants fails at construction, nothing can parse")
+    @DisplayName("enumByName: an enum with no constants fails at construction, on every call")
     void emptyEnumRejectedAtConstruction() {
       assertThatIllegalArgumentException()
           .isThrownBy(() -> StandardCodecs.enumByName(Uninhabited.class))
           .withMessageContaining("has no constants");
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> StandardCodecs.enumByName(Uninhabited.class))
+          .withMessageContaining("has no constants"); // a refusal is not cached
     }
   }
 
