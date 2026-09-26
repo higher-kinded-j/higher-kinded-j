@@ -96,14 +96,15 @@ class StandardCodecsBookTest {
   @Test
   void theCanonicalLeafAcceptsExactlyWhatItsRenderProduces() {
     String upper = "123E4567-E89B-12D3-A456-426614174000";
-    Pallet pallet = new Pallet(UUID.fromString(upper), "bay 4");
+    Pallet pallet = new Pallet(UUID.fromString(upper), "kettles x48");
 
     assertThat(PalletMappingImpl.INSTANCE.build(pallet).id()).isEqualTo(upper);
-    assertThatValidated(PalletMappingImpl.INSTANCE.parse(new PalletDto(upper, "bay 4"))).isValid();
+    assertThatValidated(PalletMappingImpl.INSTANCE.parse(new PalletDto(upper, "kettles x48")))
+        .isValid();
     // The JDK parses lowercase happily; the render cannot reproduce it, so the guard rejects it.
     assertThatValidated(
             PalletMappingImpl.INSTANCE.parse(
-                new PalletDto(upper.toLowerCase(java.util.Locale.ROOT), "bay 4")))
+                new PalletDto(upper.toLowerCase(java.util.Locale.ROOT), "kettles x48")))
         .isInvalid();
   }
 
@@ -113,11 +114,9 @@ class StandardCodecsBookTest {
     String id = "123e4567-e89b-12d3-a456-426614174000";
 
     // Instant.toString() writes Z for a zero offset, and fractions in three-digit groups.
-    assertThatValidated(
-            ReadingMappingImpl.INSTANCE.parse(new ReadingDto(id, "2026-07-28T12:34:56Z")))
+    assertThatValidated(ScanMappingImpl.INSTANCE.parse(new ScanDto(id, "2026-07-28T12:34:56Z")))
         .isValid();
-    assertThatValidated(
-            ReadingMappingImpl.INSTANCE.parse(new ReadingDto(id, "2026-07-28T12:34:56.500Z")))
+    assertThatValidated(ScanMappingImpl.INSTANCE.parse(new ScanDto(id, "2026-07-28T12:34:56.500Z")))
         .isValid();
 
     // It renders no fraction at all when the fraction is zero, and never one digit.
@@ -127,9 +126,10 @@ class StandardCodecsBookTest {
             "2026-07-28T12:34:56.5Z", // one digit where Instant writes three
             "2026-07-28T12:34:56+00:00"); // Python's isoformat(), a spelled-out zero offset
     for (String spelling : rejected) {
-      assertThatValidated(ReadingMappingImpl.INSTANCE.parse(new ReadingDto(id, spelling)))
+      assertThatValidated(ScanMappingImpl.INSTANCE.parse(new ScanDto(id, spelling)))
           .isInvalid()
-          .hasFieldErrors("takenAt: not an ISO-8601 instant (expected e.g. 2026-07-28T12:34:56Z)");
+          .hasFieldErrors(
+              "scannedAt: not an ISO-8601 instant (expected e.g. 2026-07-28T12:34:56Z)");
     }
   }
 
