@@ -45,11 +45,11 @@ import org.junit.jupiter.api.Test;
  *   <li><b>Logging</b>: Record all operations for audit trails
  *   <li><b>Validation</b>: Dry-run to check constraints before executing
  *   <li><b>Testing</b>: Mock operations without real data
- *   <li><b>Optimization</b>: Analyze and fuse operations for efficiency
+ *   <li><b>Optimisation</b>: Analyse and fuse operations for efficiency
  * </ul>
  *
  * <p>When to Use: - Complex multi-step workflows - Audit trails (logging what changed) - Validation
- * before execution (dry-run) - Testing without side effects - Performance optimization (batch
+ * before execution (dry-run) - Testing without side effects - Performance optimisation (batch
  * operations)
  *
  * <p>When NOT to Use: - Simple one-off operations (use OpticOps instead) - No need for multiple
@@ -271,7 +271,7 @@ public class Tutorial11_AdvancedOpticsDSL {
     Lens<User, Boolean> activeLens = UserLenses.active();
 
     // Build a program that:
-    // 1. Capitalizes the name (first letter uppercase, rest lowercase)
+    // 1. Capitalises the name (first letter uppercase, rest lowercase)
     // 2. Lowercases the email
     // 3. Sets active to true
     //

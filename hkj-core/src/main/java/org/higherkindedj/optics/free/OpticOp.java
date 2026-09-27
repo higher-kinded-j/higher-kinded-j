@@ -23,7 +23,7 @@ import org.jspecify.annotations.NullMarked;
  *
  * <ul>
  *   <li>Building complex optic workflows as data structures
- *   <li>Multiple interpreters (direct execution, logging, validation, optimization)
+ *   <li>Multiple interpreters (direct execution, logging, validation, optimisation)
  *   <li>Program inspection and transformation before execution
  *   <li>Transactional semantics (validate then commit)
  * </ul>

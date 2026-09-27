@@ -31,7 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>{@code @WebMvcTest} only loads the MVC slice — third-party auto-configurations registered via
  * {@code META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports} are
- * <b>not</b> picked up. Without importing them explicitly, MockMvc sees a raw POJO serialization of
+ * <b>not</b> picked up. Without importing them explicitly, MockMvc sees a raw POJO serialisation of
  * the {@code Either} and no status-code mapping, because:
  *
  * <ul>

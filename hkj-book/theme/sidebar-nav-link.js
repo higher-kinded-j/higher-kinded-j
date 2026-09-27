@@ -154,14 +154,14 @@
     }
 
     /**
-     * Initialize
+     * Initialise
      */
     function init() {
         injectNavLinks();
         observeSidebarChanges();
     }
 
-    // Initialize when DOM is ready
+    // Initialise when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

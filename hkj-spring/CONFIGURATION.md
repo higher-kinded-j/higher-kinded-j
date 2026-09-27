@@ -6,7 +6,7 @@ This document provides a complete reference for all configuration properties ava
 
 1. [Quick Start](#quick-start)
 2. [Web/MVC Configuration](#webmvc-configuration)
-3. [JSON Serialization Configuration](#json-serialization-configuration)
+3. [JSON Serialisation Configuration](#json-serialisation-configuration)
 4. [Async Configuration](#async-configuration)
 5. [Virtual Thread Configuration](#virtual-thread-configuration)
 6. [Effect Boundary Configuration](#effect-boundary-configuration)
@@ -438,18 +438,18 @@ For anything beyond table lookup — for example, a status that depends on a rec
 (`MfaThrottledError.retryAfter() ≥ 60 → 503`) — register a custom
 [`ErrorStatusCodeStrategy` bean](#error-status-code-strategy-bean).
 
-## JSON Serialization Configuration
+## JSON Serialisation Configuration
 
-Configure Jackson serialization for higher-kinded-j types.
+Configure Jackson serialisation for higher-kinded-j types.
 
 ### `hkj.json.custom-serializers-enabled`
 
-Enable or disable the custom Jackson serializers for `Either`, `Validated`, `EitherOrBoth`, and `NonEmptyList`.
+Enable or disable the custom Jackson serialisers for `Either`, `Validated`, `EitherOrBoth`, and `NonEmptyList`.
 
 - **Type:** `boolean`
 - **Default:** `true`
 - **Effect:** Controls registration of `HkjJacksonModule`
-- **When disabled:** Nested HKJ types will use default Jackson serialization (may fail)
+- **When disabled:** Nested HKJ types will use default Jackson serialisation (may fail)
 
 **Example:**
 ```yaml
@@ -475,7 +475,7 @@ The JSON shapes produced by the module are **fixed** — there are no format-tog
 {"kind": "left", "left": <warnings>}
 ```
 
-`Maybe` and `Try` have no Jackson support: return them at the top level (where the return-value handlers apply) rather than nesting them inside DTOs. Top-level controller return values are shaped by the handlers, not by these serializers — see [JACKSON_SERIALIZATION.md](JACKSON_SERIALIZATION.md).
+`Maybe` and `Try` have no Jackson support: return them at the top level (where the return-value handlers apply) rather than nesting them inside DTOs. Top-level controller return values are shaped by the handlers, not by these serialisers — see [JACKSON_SERIALIZATION.md](JACKSON_SERIALIZATION.md).
 
 ## Async Configuration
 
@@ -675,7 +675,7 @@ hkj:
 ```
 
 **Effect:**
-- Controllers returning `Either` will use default Spring MVC serialization
+- Controllers returning `Either` will use default Spring MVC serialisation
 - May result in unexpected JSON output
 
 ### Disable Validation Support
@@ -687,7 +687,7 @@ hkj:
 ```
 
 **Effect:**
-- Controllers returning `Validated` will use default Spring MVC serialization
+- Controllers returning `Validated` will use default Spring MVC serialisation
 - Error accumulation features will not work
 
 ### Disable Async Support
@@ -699,10 +699,10 @@ hkj:
 ```
 
 **Effect:**
-- Controllers returning `CompletableFuturePath` will use default Spring MVC serialization
+- Controllers returning `CompletableFuturePath` will use default Spring MVC serialisation
 - Async error handling will not work
 
-### Disable Jackson Serializers
+### Disable Jackson Serialisers
 
 ```yaml
 hkj:
@@ -711,8 +711,8 @@ hkj:
 ```
 
 **Effect:**
-- Nested Either/Validated in DTOs will use default Jackson serialization
-- Will likely fail with serialization errors
+- Nested Either/Validated in DTOs will use default Jackson serialisation
+- Will likely fail with serialisation errors
 
 ### Disable Virtual Thread Support
 
@@ -724,7 +724,7 @@ hkj:
 ```
 
 **Effect:**
-- Controllers returning `VTaskPath` or `VStreamPath` will use default Spring MVC serialization
+- Controllers returning `VTaskPath` or `VStreamPath` will use default Spring MVC serialisation
 - Virtual thread async and SSE streaming features will not work
 
 ### Disable All Effect Path Handlers
@@ -936,5 +936,5 @@ any of these block you, please open an issue.
 
 - [Testing Guide](./example/TESTING.md) - How to test your configured application
 - [`ErrorStatusFixtureController`](./example/src/main/java/org/higherkindedj/spring/example/controller/ErrorStatusFixtureController.java) - Canonical `@WebMvcTest` fixture exercising every status-mapping rule
-- [Jackson Serialization](./JACKSON_SERIALIZATION.md) - Details on JSON serialization
+- [Jackson Serialisation](./JACKSON_SERIALIZATION.md) - Details on JSON serialisation
 - [HTTP Client Reference](./HTTP_CLIENT.md) - Declarative `@HkjHttpClient` clients and their configuration

@@ -27,7 +27,7 @@ import org.higherkindedj.optics.util.Traversals;
 
 /**
  * Comprehensive example demonstrating Selective functor enhancements to optics. Shows conditional
- * modifications, branching logic, and performance optimizations.
+ * modifications, branching logic, and performance optimisations.
  */
 public class SelectiveOpticsExample {
 

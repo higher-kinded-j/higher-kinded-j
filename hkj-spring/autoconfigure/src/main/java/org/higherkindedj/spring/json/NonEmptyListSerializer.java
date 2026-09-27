@@ -8,9 +8,9 @@ import tools.jackson.databind.SerializationContext;
 import tools.jackson.databind.ser.std.StdSerializer;
 
 /**
- * Jackson 3.x serializer for {@link NonEmptyList} types.
+ * Jackson 3.x serialiser for {@link NonEmptyList} types.
  *
- * <p>Serializes a {@code NonEmptyList} as a plain JSON array of its elements, in order ({@code
+ * <p>Serialises a {@code NonEmptyList} as a plain JSON array of its elements, in order ({@code
  * head} followed by {@code tail}). For example {@code NonEmptyList.of("a", "b")} becomes {@code
  * ["a", "b"]}. This is the natural wire shape for a {@code NonEmptyList<Error>} accumulating-error
  * channel crossing an HTTP boundary.

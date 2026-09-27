@@ -422,7 +422,7 @@ class VTaskPathResilienceTest {
   class GuaranteeTests {
 
     @Test
-    @DisplayName("runs finalizer on success")
+    @DisplayName("runs finaliser on success")
     void runsFinalizerOnSuccess() {
       AtomicBoolean finalizerRan = new AtomicBoolean(false);
 
@@ -434,7 +434,7 @@ class VTaskPathResilienceTest {
     }
 
     @Test
-    @DisplayName("runs finalizer on failure")
+    @DisplayName("runs finaliser on failure")
     void runsFinalizerOnFailure() {
       AtomicBoolean finalizerRan = new AtomicBoolean(false);
 
@@ -450,7 +450,7 @@ class VTaskPathResilienceTest {
     }
 
     @Test
-    @DisplayName("preserves original exception when finalizer runs")
+    @DisplayName("preserves original exception when finaliser runs")
     void preservesOriginalException() {
       VTaskPath<String> path =
           Path.<String>vtask(
@@ -569,7 +569,7 @@ class VTaskPathResilienceTest {
     }
 
     @Test
-    @DisplayName("guarantee() with retry ensures finalizer runs")
+    @DisplayName("guarantee() with retry ensures finaliser runs")
     void guaranteeWithRetry() {
       RetryPolicy policy = RetryPolicy.fixed(2, Duration.ofMillis(1));
       AtomicBoolean finalizerRan = new AtomicBoolean(false);

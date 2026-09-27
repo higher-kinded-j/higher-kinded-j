@@ -71,7 +71,7 @@ public final class MaybeSelective extends MaybeMonad implements Selective<MaybeK
    * The core selective operation for Maybe. Given an effectful choice {@code fab} and an effectful
    * function {@code ff}, applies the function only if the choice is a {@code Left}.
    *
-   * <p>Behavior:
+   * <p>Behaviour:
    *
    * <ul>
    *   <li>If {@code fab} is {@code Nothing}: Returns {@code Nothing}, {@code ff} is not evaluated.

@@ -66,7 +66,7 @@ public final class ListSelective extends ListMonad implements Selective<ListKind
    *
    * <p>This operation processes each element independently, collecting all results.
    *
-   * <p>Behavior:
+   * <p>Behaviour:
    *
    * <ul>
    *   <li>For each {@code Right(b)} in the choice list: Include {@code b} in the result.

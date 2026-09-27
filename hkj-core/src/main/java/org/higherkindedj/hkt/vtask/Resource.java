@@ -136,7 +136,7 @@ public final class Resource<A> {
    *
    * @param <A> the type parameter (arbitrary since no resource is managed)
    * @param value the value to return
-   * @return a Resource that returns the value without any acquire/release behavior
+   * @return a Resource that returns the value without any acquire/release behaviour
    */
   public static <A> Resource<A> pure(A value) {
     return new Resource<>(() -> value, a -> {});
@@ -415,16 +415,16 @@ public final class Resource<A> {
         });
   }
 
-  // ==================== Finalizer Support ====================
+  // ==================== Finaliser Support ====================
 
   /**
-   * Adds a finalizer that runs after the primary release.
+   * Adds a finaliser that runs after the primary release.
    *
-   * <p>The finalizer is guaranteed to run even if the primary release throws an exception.
+   * <p>The finaliser is guaranteed to run even if the primary release throws an exception.
    *
-   * @param finalizer the finalizer to run; must not be null
-   * @return a new Resource with the finalizer added
-   * @throws NullPointerException if finalizer is null
+   * @param finalizer the finaliser to run; must not be null
+   * @return a new Resource with the finaliser added
+   * @throws NullPointerException if finaliser is null
    */
   public Resource<A> withFinalizer(Runnable finalizer) {
     Validation.function().require(finalizer, "finalizer", CONSTRUCTION);

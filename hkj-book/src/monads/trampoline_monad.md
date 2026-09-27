@@ -38,7 +38,7 @@ Exception in thread "main" java.lang.StackOverflowError
 
 Every recursive call pushes a frame onto the JVM call stack. The stack has a fixed size (typically a few hundred KB to 1 MB). Once you exceed roughly 5,000-10,000 frames, the JVM kills your program. Unlike a heap `OutOfMemoryError`, you cannot catch and recover from this gracefully. Your computation is simply gone.
 
-Languages like Haskell and Scala can optimize tail calls so the stack never grows. Java cannot. If your algorithm is recursive and your data is large, you have a problem.
+Languages like Haskell and Scala can optimise tail calls so the stack never grows. Java cannot. If your algorithm is recursive and your data is large, you have a problem.
 
 The `Trampoline<A>` type solves it.
 
@@ -235,7 +235,7 @@ Key utilities: `traverseListStackSafe` and `sequenceStackSafe`. Use these when y
 | Simple iteration that is already a loop | Skip it: do not add complexity where none is needed |
 
 ~~~admonish important title="Key Points"
-- The JVM has no tail-call optimization. Trampoline gives you the equivalent by converting recursion into heap-allocated data structures processed by a flat loop.
+- The JVM has no tail-call optimisation. Trampoline gives you the equivalent by converting recursion into heap-allocated data structures processed by a flat loop.
 - Stack space is O(1). Heap space is O(n): you trade stack frames for small objects on the heap.
 - The 3-step recipe (change return type, wrap base case, wrap recursive call) is mechanical and works on any recursive function.
 - Call `.run()` to execute. Until then, nothing happens; evaluation is lazy.

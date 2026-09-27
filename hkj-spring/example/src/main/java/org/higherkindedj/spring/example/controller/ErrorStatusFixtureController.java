@@ -98,7 +98,7 @@ public class ErrorStatusFixtureController {
     /**
      * Heuristic match → 403.
      *
-     * @param reason the authorization failure reason
+     * @param reason the authorisation failure reason
      */
     record AuthorizationError(String reason) implements DomainError {}
 

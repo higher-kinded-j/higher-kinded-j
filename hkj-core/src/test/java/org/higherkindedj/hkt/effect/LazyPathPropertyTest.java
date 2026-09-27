@@ -13,7 +13,7 @@ import net.jqwik.api.constraints.IntRange;
  * Property-based tests for LazyPath using jQwik.
  *
  * <p>Verifies Functor and Monad laws hold across a wide range of inputs. LazyPath represents
- * deferred computations that are memoized on first evaluation.
+ * deferred computations that are memoised on first evaluation.
  */
 @Label("LazyPath Property-Based Tests")
 class LazyPathPropertyTest {
@@ -141,7 +141,7 @@ class LazyPathPropertyTest {
   }
 
   @Property
-  @Label("lazy values are memoized")
+  @Label("lazy values are memoised")
   void lazyValuesAreMemoized(@ForAll @IntRange(min = -100, max = 100) int value) {
     AtomicInteger counter = new AtomicInteger(0);
     LazyPath<Integer> path =

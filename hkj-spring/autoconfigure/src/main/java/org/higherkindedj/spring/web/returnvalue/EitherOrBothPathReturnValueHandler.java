@@ -52,7 +52,7 @@ public class EitherOrBothPathReturnValueHandler implements HandlerMethodReturnVa
   /**
    * Backward-compatible constructor using heuristics-only error status resolution.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param defaultErrorStatus the default HTTP status code for a {@code Left} when no rule matches
    */
   public EitherOrBothPathReturnValueHandler(JsonMapper jsonMapper, int defaultErrorStatus) {
@@ -62,7 +62,7 @@ public class EitherOrBothPathReturnValueHandler implements HandlerMethodReturnVa
   /**
    * Creates a new handler with the specified settings.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param defaultErrorStatus the default HTTP status code for a {@code Left} when no rule matches
    * @param errorStatusCodeStrategy the strategy that resolves the status code for a {@code Left}
    */

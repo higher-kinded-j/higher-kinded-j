@@ -178,7 +178,7 @@ public class ResourceManagementExample {
   private static void guaranteeExample() {
     System.out.println("--- guarantee() for Cleanup ---");
 
-    // guarantee ensures a finalizer runs regardless of success or failure
+    // guarantee ensures a finaliser runs regardless of success or failure
     // Useful for cleanup that doesn't depend on the operation's result
 
     AtomicInteger cleanupCount = new AtomicInteger(0);

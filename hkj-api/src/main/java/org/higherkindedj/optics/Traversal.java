@@ -19,14 +19,14 @@ import org.higherkindedj.hkt.WitnessArity;
  * in a {@code List} or {@code Set}. It is the most general of the core optics, capable of modifying
  * all focused parts simultaneously within an {@link Applicative} context.
  *
- * <p>Both {@link Lens} and {@link Prism} can be viewed as specialized {@code Traversal}s:
+ * <p>Both {@link Lens} and {@link Prism} can be viewed as specialised {@code Traversal}s:
  *
  * <ul>
  *   <li>A {@code Lens} is a {@code Traversal} that focuses on exactly one item.
  *   <li>A {@code Prism} is a {@code Traversal} that focuses on zero or one item.
  * </ul>
  *
- * <p>It extends the generic {@link Optic}, specializing it for {@code S = T} and {@code A = B}.
+ * <p>It extends the generic {@link Optic}, specialising it for {@code S = T} and {@code A = B}.
  *
  * @param <S> The type of the whole structure (e.g., a {@code List<User>}).
  * @param <A> The type of the focused parts (e.g., the {@code User} elements).
@@ -94,7 +94,7 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
    * Composes this {@code Traversal<S, A>} with another {@code Traversal<A, B>} to create a new
    * {@code Traversal<S, B>}.
    *
-   * <p>This specialized overload is kept for convenience to ensure the result is correctly and
+   * <p>This specialised overload is kept for convenience to ensure the result is correctly and
    * conveniently typed as a {@code Traversal}. For example, composing a traversal for a {@code
    * List<Team>} with one for a {@code List<Player>} results in a traversal for every {@code Player}
    * in the nested structure.

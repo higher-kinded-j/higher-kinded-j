@@ -83,7 +83,7 @@ public class ResilienceExample {
     // Delays: 100ms, 200ms, 400ms
     demonstratePolicy(exponential);
 
-    // 3. Exponential with jitter - randomized to prevent thundering herd
+    // 3. Exponential with jitter - randomised to prevent thundering herd
     System.out.println("\n3. Exponential with jitter (4 attempts, 100ms initial):");
     RetryPolicy jitter = RetryPolicy.exponentialBackoffWithJitter(4, Duration.ofMillis(100));
     demonstratePolicy(jitter);

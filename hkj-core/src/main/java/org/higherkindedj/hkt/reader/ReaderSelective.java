@@ -68,7 +68,7 @@ public final class ReaderSelective<R> extends ReaderMonad<R>
    * <p>For Reader, both the choice and the function are computations that depend on the environment
    * {@code R}. The selective operation sequences these computations appropriately.
    *
-   * <p>Behavior:
+   * <p>Behaviour:
    *
    * <ul>
    *   <li>If {@code fab} produces {@code Right(b)}: Returns a Reader that produces {@code b},

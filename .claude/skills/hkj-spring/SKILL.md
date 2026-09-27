@@ -1,6 +1,6 @@
 ---
 name: hkj-spring
-description: "Higher-Kinded-J Spring Boot integration (hkj-spring-boot-starter). Use PROACTIVELY whenever the working file or task involves: (1) a Spring controller method (@RestController / @GetMapping / @PostMapping / @PutMapping / @PatchMapping / @DeleteMapping) that returns Either, Validated, EitherOrBoth, EitherOrBothPath, EitherPath, MaybePath, ValidationPath, TryPath, IOPath, CompletableFuturePath, VTaskPath, VStreamPath, or FreePath, including a sparse PATCH via @GenerateMapping on an UpdateSpec (updateFrom returning Edits.Accumulated); (2) a sealed interface or sealed hierarchy named DomainError / *Error / *Failure used as the Left of an Either; (3) Jackson 3.x / tools.jackson serialization of HKJ types, including EitherOrBoth and NonEmptyList; (4) any application.yml / application.properties key under hkj.web.* (including hkj.web.either-or-both-path-enabled and hkj.web.validation-field-error-status), hkj.json.*, hkj.validation.*, hkj.async.*, hkj.virtual-threads.*, hkj.actuator.*, hkj.security.*, or hkj.effect-boundary.*; (5) mapping a domain error to an HTTP status code, including 4xx/5xx codes outside the heuristic table (409 Conflict, 422 Unprocessable Content, 429 Too Many Requests, 503 Service Unavailable); (6) ErrorStatusCodeStrategy, ErrorStatusCodeMapper, DefaultErrorStatusCodeStrategy, or HttpHeaderCarrier (Retry-After, WWW-Authenticate, Location); (7) @WebMvcTest slices that need HkjAutoConfiguration / HkjJacksonAutoConfiguration / HkjWebMvcAutoConfiguration imported; (8) EffectBoundary, @Interpreter, @EnableEffectBoundary, @EffectTest, or returning FreePath from a controller; (9) auto-configuration questions about the starter; (10) calling another service over HTTP and keeping the typed error: @HkjHttpClient on a @HttpExchange interface whose methods return EitherPath / VTaskPath<Either> / MaybePath; spring.http.serviceclient.* configuration (base-url, timeouts) for the client; hkj.client.status-error-mappings; @OnStatus(value=, error=); ResponseErrorDecoder / ResponseErrorDecoderFactory / HkjClientExchange / ClientErrorResponse.retryAfter; decoding the {\"success\":false,\"error\":…} envelope back into a typed error; or a generated <Name>HttpExchange / <Name>Client / <Name>ClientConfiguration."
+description: "Higher-Kinded-J Spring Boot integration (hkj-spring-boot-starter). Use PROACTIVELY whenever the working file or task involves: (1) a Spring controller method (@RestController / @GetMapping / @PostMapping / @PutMapping / @PatchMapping / @DeleteMapping) that returns Either, Validated, EitherOrBoth, EitherOrBothPath, EitherPath, MaybePath, ValidationPath, TryPath, IOPath, CompletableFuturePath, VTaskPath, VStreamPath, or FreePath, including a sparse PATCH via @GenerateMapping on an UpdateSpec (updateFrom returning Edits.Accumulated); (2) a sealed interface or sealed hierarchy named DomainError / *Error / *Failure used as the Left of an Either; (3) Jackson 3.x / tools.jackson serialisation of HKJ types, including EitherOrBoth and NonEmptyList; (4) any application.yml / application.properties key under hkj.web.* (including hkj.web.either-or-both-path-enabled and hkj.web.validation-field-error-status), hkj.json.*, hkj.validation.*, hkj.async.*, hkj.virtual-threads.*, hkj.actuator.*, hkj.security.*, or hkj.effect-boundary.*; (5) mapping a domain error to an HTTP status code, including 4xx/5xx codes outside the heuristic table (409 Conflict, 422 Unprocessable Content, 429 Too Many Requests, 503 Service Unavailable); (6) ErrorStatusCodeStrategy, ErrorStatusCodeMapper, DefaultErrorStatusCodeStrategy, or HttpHeaderCarrier (Retry-After, WWW-Authenticate, Location); (7) @WebMvcTest slices that need HkjAutoConfiguration / HkjJacksonAutoConfiguration / HkjWebMvcAutoConfiguration imported; (8) EffectBoundary, @Interpreter, @EnableEffectBoundary, @EffectTest, or returning FreePath from a controller; (9) auto-configuration questions about the starter; (10) calling another service over HTTP and keeping the typed error: @HkjHttpClient on a @HttpExchange interface whose methods return EitherPath / VTaskPath<Either> / MaybePath; spring.http.serviceclient.* configuration (base-url, timeouts) for the client; hkj.client.status-error-mappings; @OnStatus(value=, error=); ResponseErrorDecoder / ResponseErrorDecoderFactory / HkjClientExchange / ClientErrorResponse.retryAfter; decoding the {\"success\":false,\"error\":…} envelope back into a typed error; or a generated <Name>HttpExchange / <Name>Client / <Name>ClientConfiguration."
 ---
 
 # Higher-Kinded-J Spring Boot Integration
@@ -64,7 +64,7 @@ public class UserController {
 
 ### 3. That's It
 
-The starter auto-configures everything: response conversion, JSON serialization, status code mapping.
+The starter auto-configures everything: response conversion, JSON serialisation, status code mapping.
 
 ---
 
@@ -78,7 +78,7 @@ The starter auto-configures everything: response conversion, JSON serialization,
 | `CompletableFuturePath` async | Async operations with functional error handling |
 | `VTaskPath` async | Virtual thread async via `DeferredResult` |
 | `VStreamPath` SSE | Server-Sent Events streaming on virtual threads |
-| Jackson serialization | JSON support for Either, Maybe, Try, Validated, EitherOrBoth, NonEmptyList |
+| Jackson serialisation | JSON support for Either, Maybe, Try, Validated, EitherOrBoth, NonEmptyList |
 | Status code mapping | Customisable domain error -> HTTP status mapping |
 | `@HkjHttpClient` clients | Declarative HTTP clients returning Effect Paths, decoding a typed error from the response |
 | Actuator integration | Monitoring functional operations |
@@ -524,7 +524,7 @@ Once all endpoints are migrated, remove exception handlers.
 > `*ReturnValueHandler`s and HTTP status-code mapping) via
 > `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`.
 > `@WebMvcTest` slices those out, so without explicit imports MockMvc sees a
-> raw serialized `Either` and no status mapping. Add the three auto-configs
+> raw serialised `Either` and no status mapping. Add the three auto-configs
 > below to restore production behaviour inside the slice.
 
 ```java

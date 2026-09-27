@@ -665,7 +665,7 @@ class SagaTest {
     }
 
     @Test
-    @DisplayName("map preserves compensation behavior")
+    @DisplayName("map preserves compensation behaviour")
     void mapPreservesCompensationBehavior() {
       CopyOnWriteArrayList<String> compensated = new CopyOnWriteArrayList<>();
 

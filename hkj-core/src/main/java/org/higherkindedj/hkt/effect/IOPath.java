@@ -451,10 +451,10 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   }
 
   /**
-   * Ensures a finalizer runs regardless of success or failure.
+   * Ensures a finaliser runs regardless of success or failure.
    *
-   * <p>The finalizer is guaranteed to run even if this IOPath throws an exception. The original
-   * exception (if any) is preserved and rethrown after the finalizer runs.
+   * <p>The finaliser is guaranteed to run even if this IOPath throws an exception. The original
+   * exception (if any) is preserved and rethrown after the finaliser runs.
    *
    * <p>Example:
    *
@@ -464,8 +464,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * }</pre>
    *
    * @param finalizer the action to run; must not be null
-   * @return an IOPath that runs the finalizer after this computation
-   * @throws NullPointerException if finalizer is null
+   * @return an IOPath that runs the finaliser after this computation
+   * @throws NullPointerException if finaliser is null
    */
   @Override
   public IOPath<A> guarantee(Runnable finalizer) {
@@ -482,12 +482,12 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   }
 
   /**
-   * Ensures an IOPath finalizer runs regardless of success or failure.
+   * Ensures an IOPath finaliser runs regardless of success or failure.
    *
-   * <p>Similar to {@link #guarantee} but the finalizer is itself an IOPath.
+   * <p>Similar to {@link #guarantee} but the finaliser is itself an IOPath.
    *
-   * @param finalizerIO the IOPath to run as finalizer; must not be null
-   * @return an IOPath that runs the finalizer after this computation
+   * @param finalizerIO the IOPath to run as finaliser; must not be null
+   * @return an IOPath that runs the finaliser after this computation
    * @throws NullPointerException if finalizerIO is null
    */
   public IOPath<A> guaranteeIO(IOPath<?> finalizerIO) {

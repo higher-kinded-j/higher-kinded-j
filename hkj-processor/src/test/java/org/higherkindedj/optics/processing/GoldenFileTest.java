@@ -353,7 +353,7 @@ class GoldenFileTest {
   }
 
   /**
-   * Normalizes source code for comparison by:
+   * Normalises source code for comparison by:
    *
    * <ul>
    *   <li>Converting line endings to LF

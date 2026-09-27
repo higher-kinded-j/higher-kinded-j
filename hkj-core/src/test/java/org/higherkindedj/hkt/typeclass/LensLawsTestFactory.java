@@ -69,7 +69,7 @@ class LensLawsTestFactory {
   /**
    * Provides test data for all lens implementations.
    *
-   * <p>This is a centralized source of test data. Adding a new lens implementation requires only
+   * <p>This is a centralised source of test data. Adding a new lens implementation requires only
    * adding one line here, and all law tests will automatically cover it.
    */
   private static Stream<LensTestData<?, ?>> allLenses() {

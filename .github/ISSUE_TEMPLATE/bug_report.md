@@ -11,15 +11,15 @@ assignees: ''
 A clear and concise description of what the bug is.
 
 **To Reproduce**
-Steps to reproduce the behavior:
+Steps to reproduce the behaviour:
 1. Go to '...'
 2. Call method '....' with params '....'
 3. See error '....'
 
-**Expected behavior**
+**Expected behaviour**
 A clear and concise description of what you expected to happen.
 
-**Actual behavior**
+**Actual behaviour**
 A clear and concise description of what actually happened. Include stack traces or error messages if applicable.
 
 **Screenshots (Optional)**

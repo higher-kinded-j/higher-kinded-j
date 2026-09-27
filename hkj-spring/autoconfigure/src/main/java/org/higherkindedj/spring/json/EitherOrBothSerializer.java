@@ -8,9 +8,9 @@ import tools.jackson.databind.SerializationContext;
 import tools.jackson.databind.ser.std.StdSerializer;
 
 /**
- * Jackson 3.x serializer for {@link EitherOrBoth} (the inclusive-or).
+ * Jackson 3.x serialiser for {@link EitherOrBoth} (the inclusive-or).
  *
- * <p>Serializes values with a tag-based {@code kind} discriminator, since {@code EitherOrBoth} has
+ * <p>Serialises values with a tag-based {@code kind} discriminator, since {@code EitherOrBoth} has
  * three cases:
  *
  * <pre>
@@ -28,7 +28,7 @@ public class EitherOrBothSerializer extends StdSerializer<EitherOrBoth<?, ?>> {
 
   private static final long serialVersionUID = 1L;
 
-  /** Creates a new serializer for {@link EitherOrBoth} types. */
+  /** Creates a new serialiser for {@link EitherOrBoth} types. */
   @SuppressWarnings("unchecked")
   public EitherOrBothSerializer() {
     super((Class<EitherOrBoth<?, ?>>) (Class<?>) EitherOrBoth.class);

@@ -920,7 +920,7 @@ class OpticOpsTest {
   void testValidationWithTransformation() {
     User user = new User("ALICE", "alice@example.com", 30);
 
-    // Validate and normalize username
+    // Validate and normalise username
     Either<String, User> result =
         OpticOps.modifyEither(
             user,
@@ -932,12 +932,12 @@ class OpticOpsTest {
               if (username.length() > 20) {
                 return Either.left("Username too long");
               }
-              // Normalize to lowercase
+              // Normalise to lowercase
               return Either.right(username.toLowerCase());
             });
 
     assertTrue(result.isRight());
-    assertEquals("alice", result.getRight().username()); // Normalized to lowercase
+    assertEquals("alice", result.getRight().username()); // Normalised to lowercase
   }
 
   // ============================================================================

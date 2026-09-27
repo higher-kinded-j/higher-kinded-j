@@ -56,7 +56,7 @@ public class TryPathReturnValueHandler implements HandlerMethodReturnValueHandle
   /**
    * Creates a new TryPathReturnValueHandler with the specified settings.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param failureStatus the HTTP status code for failures (default 500)
    * @param includeExceptionDetails whether to include exception details in the response
    */

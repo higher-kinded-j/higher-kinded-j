@@ -82,7 +82,7 @@ public class HkjMetricsService {
   public HkjMetricsService(MeterRegistry meterRegistry) {
     this.meterRegistry = meterRegistry;
 
-    // Initialize Either counters
+    // Initialise Either counters
     this.eitherSuccessCounter =
         Counter.builder("hkj.either.invocations")
             .description("Number of Either return value handler invocations")
@@ -95,7 +95,7 @@ public class HkjMetricsService {
             .tag("result", "error")
             .register(meterRegistry);
 
-    // Initialize Validated counters
+    // Initialise Validated counters
     this.validatedValidCounter =
         Counter.builder("hkj.validated.invocations")
             .description("Number of Validated return value handler invocations")
@@ -108,7 +108,7 @@ public class HkjMetricsService {
             .tag("result", "invalid")
             .register(meterRegistry);
 
-    // Initialize EitherT async counters
+    // Initialise EitherT async counters
     this.eitherTSuccessCounter =
         Counter.builder("hkj.either_t.invocations")
             .description("Number of EitherT async return value handler invocations")
@@ -121,13 +121,13 @@ public class HkjMetricsService {
             .tag("result", "error")
             .register(meterRegistry);
 
-    // Initialize EitherT async timer
+    // Initialise EitherT async timer
     this.eitherTAsyncTimer =
         Timer.builder("hkj.either_t.async.duration")
             .description("Duration of async EitherT operations")
             .register(meterRegistry);
 
-    // Initialize VTask counters and timer
+    // Initialise VTask counters and timer
     this.vtaskSuccessCounter =
         Counter.builder("hkj.vtask.invocations")
             .description("Number of VTask return value handler invocations")
@@ -145,7 +145,7 @@ public class HkjMetricsService {
             .description("Duration of VTask virtual thread operations")
             .register(meterRegistry);
 
-    // Initialize VStream counters
+    // Initialise VStream counters
     this.vstreamSuccessCounter =
         Counter.builder("hkj.vstream.invocations")
             .description("Number of VStream return value handler invocations")
@@ -158,7 +158,7 @@ public class HkjMetricsService {
             .tag("result", "error")
             .register(meterRegistry);
 
-    // Initialize effect boundary counters and timer
+    // Initialise effect boundary counters and timer
     this.effectBoundarySuccessCounter =
         Counter.builder("hkj.effect.boundary.invocations")
             .description("Number of EffectBoundary invocations")

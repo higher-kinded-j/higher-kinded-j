@@ -116,7 +116,7 @@ class GenericPathTest {
     }
 
     @Test
-    @DisplayName("pure() with null value creates Just(null) via MaybeMonad.of() behavior")
+    @DisplayName("pure() with null value creates Just(null) via MaybeMonad.of() behaviour")
     void pureWithNullValue() {
       // MaybeMonad.of(null) returns Nothing via Maybe.fromNullable
       GenericPath<MaybeKind.Witness, String> path = GenericPath.pure(null, MONAD);

@@ -83,7 +83,7 @@ class FunctorLawsTestFactory {
   /**
    * Provides test data for all functor implementations.
    *
-   * <p>This is a centralized source of test data. Adding a new functor implementation requires only
+   * <p>This is a centralised source of test data. Adding a new functor implementation requires only
    * adding one line here, and all law tests will automatically cover it.
    */
   private static Stream<FunctorTestData<?>> allFunctors() {

@@ -32,7 +32,7 @@ import javax.lang.model.util.Types;
  *
  * <p>For each {@code via}/{@code flatMap}/{@code then} call on such a receiver it records: the
  * resolved receiver {@code E}, the resolved lambda-return {@code E}, whether each is a concrete
- * (comparable) type, and the verdict the candidate rule would reach. The characterization test
+ * (comparable) type, and the verdict the candidate rule would reach. The characterisation test
  * asserts the true-positive / no-false-positive matrix from these records rather than by
  * assumption.
  */

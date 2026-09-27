@@ -42,7 +42,7 @@ class TestCoverageRules {
    * Monad implementations should have corresponding test classes.
    *
    * <p>Each Monad implementation (e.g., MaybeMonad) should have a corresponding test class (e.g.,
-   * MaybeMonadTest) to verify monad laws and behavior.
+   * MaybeMonadTest) to verify monad laws and behaviour.
    */
   @Test
   @DisplayName("Monad implementations should have corresponding test classes")

@@ -29,7 +29,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  *   <li>Creating DSLs with deferred execution
  *   <li>Separating program description from interpretation
  *   <li>Testing by providing mock interpreters
- *   <li>Optimizing programs before execution
+ *   <li>Optimising programs before execution
  * </ul>
  *
  * <p>The implementation uses three constructors for stack-safe execution:
@@ -37,7 +37,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * <ul>
  *   <li>{@code Pure} - A completed computation with a value
  *   <li>{@code Suspend} - A suspended computation in the functor F
- *   <li>{@code FlatMapped} - A sequenced computation (flatMap optimization)
+ *   <li>{@code FlatMapped} - A sequenced computation (flatMap optimisation)
  * </ul>
  *
  * <p>As part of the HKT simulation, {@code Free} extends {@link FreeKind}, so every {@code Free} is

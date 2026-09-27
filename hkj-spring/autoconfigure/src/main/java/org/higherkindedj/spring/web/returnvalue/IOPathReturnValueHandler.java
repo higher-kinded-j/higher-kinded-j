@@ -63,7 +63,7 @@ public class IOPathReturnValueHandler implements HandlerMethodReturnValueHandler
   /**
    * Creates a new IOPathReturnValueHandler with the specified settings.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param failureStatus the HTTP status code for execution failures (default 500)
    * @param includeExceptionDetails whether to include exception details in error responses
    */

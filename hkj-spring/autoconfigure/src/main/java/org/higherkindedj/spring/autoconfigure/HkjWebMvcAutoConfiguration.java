@@ -63,7 +63,7 @@ import tools.jackson.databind.json.JsonMapper;
  *       threads
  * </ul>
  *
- * <p>Uses {@link WebMvcRegistrations} to customize the {@link RequestMappingHandlerAdapter} and
+ * <p>Uses {@link WebMvcRegistrations} to customise the {@link RequestMappingHandlerAdapter} and
  * inject our handlers BEFORE Spring's default handlers, ensuring they take precedence.
  *
  * <p><b>Note:</b> This version requires Spring Boot 4.0.1+ and uses Jackson 3.x. For Spring Boot
@@ -123,7 +123,7 @@ public class HkjWebMvcAutoConfiguration {
   }
 
   /**
-   * Customizes the RequestMappingHandlerAdapter to add Effect Path return value handlers before
+   * Customises the RequestMappingHandlerAdapter to add Effect Path return value handlers before
    * Spring's default handlers.
    *
    * <p>Handlers are conditionally registered based on configuration properties:
@@ -144,9 +144,9 @@ public class HkjWebMvcAutoConfiguration {
    * </ul>
    *
    * @param properties The HKJ configuration properties
-   * @param jsonMapper The Jackson 3.x JsonMapper bean for JSON serialization
+   * @param jsonMapper The Jackson 3.x JsonMapper bean for JSON serialisation
    * @param metricsService The metrics service for recording handler invocations (may be null)
-   * @return WebMvcRegistrations that customize the handler adapter
+   * @return WebMvcRegistrations that customise the handler adapter
    */
   @Bean
   public WebMvcRegistrations hkjWebMvcRegistrations(

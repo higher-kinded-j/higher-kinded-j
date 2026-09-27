@@ -12,7 +12,7 @@ import org.higherkindedj.hkt.WitnessArity;
 /**
  * Handles domain-specific validations for transformers, witnesses, etc.
  *
- * <p>This validator provides specialized validation for Higher-Kinded-J specific concepts like
+ * <p>This validator provides specialised validation for Higher-Kinded-J specific concepts like
  * monad transformers and witness types.
  */
 public enum TransformerValidator {

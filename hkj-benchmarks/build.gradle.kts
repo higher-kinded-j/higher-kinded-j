@@ -60,7 +60,7 @@ jmh {
     includes.set(listOf(it))
   }
 
-  // Optimized for fast feedback (~1 minute total)
+  // Optimised for fast feedback (~1 minute total)
   // For rigorous benchmarking, use: ./gradlew jmh -Pjmh.iterations=5 -Pjmh.warmupIterations=3
   iterations = 1
   warmupIterations = 1

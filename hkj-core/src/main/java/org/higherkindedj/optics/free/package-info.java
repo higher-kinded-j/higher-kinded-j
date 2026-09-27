@@ -41,7 +41,7 @@
  *       flatMap}
  *   <li><b>Conditional Logic</b> - Programs can branch based on optic reads
  *   <li><b>Testability</b> - Mock interpreters for pure testing
- *   <li><b>Future Extensibility</b> - Add optimization, transaction support, etc.
+ *   <li><b>Future Extensibility</b> - Add optimisation, transaction support, etc.
  * </ol>
  *
  * <h2>Example: Logging Interpreter</h2>

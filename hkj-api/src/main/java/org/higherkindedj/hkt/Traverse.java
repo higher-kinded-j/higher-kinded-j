@@ -20,7 +20,7 @@ import org.jspecify.annotations.NullMarked;
  * <ul>
  *   <li>{@link #traverse(Applicative, Function, Kind)}: The fundamental operation that maps an
  *       effectful function over a structure and sequences the effects.
- *   <li>{@link #sequenceA(Applicative, Kind)}: A specialized version of traverse that "flips" a
+ *   <li>{@link #sequenceA(Applicative, Kind)}: A specialised version of traverse that "flips" a
  *       structure of effects into an effect of a structure.
  * </ul>
  *
@@ -125,7 +125,7 @@ import org.jspecify.annotations.NullMarked;
  * <h2>Performance Considerations</h2>
  *
  * <p>The default implementation of {@link #sequenceA(Applicative, Kind)} delegates to {@code
- * traverse} with an identity function. For some data structures, a specialized implementation may
+ * traverse} with an identity function. For some data structures, a specialised implementation may
  * be more efficient. Similarly, {@code foldMap} can often be implemented more efficiently than a
  * general traverse followed by extraction.
  *
@@ -225,7 +225,7 @@ public interface Traverse<T extends WitnessArity<TypeArity.Unary>> extends Funct
    * where each element is an effect (like an IO action), and turning it into a single effect that
    * produces the structure of results.
    *
-   * <p>This is a specialized version of {@link #traverse(Applicative, Function, Kind)} where the
+   * <p>This is a specialised version of {@link #traverse(Applicative, Function, Kind)} where the
    * function {@code f} is the identity function (i.e., the effects are already present in the
    * structure, we just need to sequence them).
    *

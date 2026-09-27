@@ -436,7 +436,7 @@ public class FluentValidationExample {
           return null;
         },
         validImport -> {
-          System.out.println("  ✓ All emails validated and normalized:");
+          System.out.println("  ✓ All emails validated and normalised:");
           validImport.emails().forEach(email -> System.out.println("    - " + email));
           return null;
         });
@@ -622,7 +622,7 @@ public class FluentValidationExample {
         validImport -> {
           System.out.println("✓ Import successful!");
           System.out.println(
-              "  Imported and normalized " + validImport.emails().size() + " email(s):");
+              "  Imported and normalised " + validImport.emails().size() + " email(s):");
           validImport.emails().forEach(email -> System.out.println("    - " + email));
           return null;
         });

@@ -122,7 +122,7 @@ class EitherPathReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should serialize Right value with complex object")
+    @DisplayName("Should serialise Right value with complex object")
     void shouldSerializeRightValueWithComplexObject() throws Exception {
       TestComplexObject obj = new TestComplexObject("test", 42, true);
       EitherPath<String, TestComplexObject> path = Path.right(obj);
@@ -232,7 +232,7 @@ class EitherPathReturnValueHandlerTest {
     void shouldRouteUnmatchedDomainErrorsToConfiguredDefault() throws Exception {
       // Reproduces the scenario from issue #490: a record whose simple name contains none
       // of the heuristic substrings (NotFound / Validation / Invalid / Forbidden /
-      // Authorization / Authentication / Unauthorized) must fall through to the configured
+      // "Authorization" / Authentication / Unauthorized) must fall through to the configured
       // default status — 500 here — not the hardcoded 400 default.
       EitherPathReturnValueHandler customHandler =
           new EitherPathReturnValueHandler(jsonMapper, 500);
@@ -280,7 +280,7 @@ class EitherPathReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should honor @ResponseStatus(CREATED) on POST handler")
+    @DisplayName("Should honour @ResponseStatus(CREATED) on POST handler")
     void shouldHonorCreatedStatus() throws Exception {
       MethodParameter rt = methodParamFor("createUser");
       TestUser user = new TestUser("1", "alice@example.com");
@@ -297,7 +297,7 @@ class EitherPathReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should honor @ResponseStatus(NO_CONTENT) on DELETE handler and skip body")
+    @DisplayName("Should honour @ResponseStatus(NO_CONTENT) on DELETE handler and skip body")
     void shouldHonorNoContentStatus() throws Exception {
       MethodParameter rt = methodParamFor("deleteUser");
       EitherPath<String, String> path = Path.right("deleted");

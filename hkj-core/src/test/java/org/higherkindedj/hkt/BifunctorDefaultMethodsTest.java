@@ -22,7 +22,7 @@ class BifunctorDefaultMethodsTest {
   /**
    * A minimal Bifunctor implementation that only implements bimap, relying on the default
    * implementations for first and second. This is needed because EitherBifunctor overrides those
-   * methods with optimized implementations.
+   * methods with optimised implementations.
    */
   private static class DefaultMethodsBifunctor implements Bifunctor<EitherKind2.Witness> {
     @Override

@@ -349,10 +349,10 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
   // ===== Resource Safety =====
 
   /**
-   * Ensures a finalizer runs whether this task succeeds or fails.
+   * Ensures a finaliser runs whether this task succeeds or fails.
    *
-   * @param finalizer the finalizer to run; must not be null
-   * @return a new VTaskPath with guaranteed finalization
+   * @param finalizer the finaliser to run; must not be null
+   * @return a new VTaskPath with guaranteed finalisation
    */
   @Override
   VTaskPath<A> guarantee(Runnable finalizer);

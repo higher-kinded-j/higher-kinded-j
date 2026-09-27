@@ -324,7 +324,7 @@ class ValidationPathTest {
   }
 
   @Nested
-  @DisplayName("Chainable Operations (via, then) - Short-Circuit Behavior")
+  @DisplayName("Chainable Operations (via, then) - Short-Circuit Behaviour")
   class ChainableOperationsTests {
 
     @Test
@@ -564,7 +564,7 @@ class ValidationPathTest {
   }
 
   @Nested
-  @DisplayName("Combinable Operations (zipWith) - Short-Circuit Behavior")
+  @DisplayName("Combinable Operations (zipWith) - Short-Circuit Behaviour")
   class CombinableOperationsTests {
 
     @Test

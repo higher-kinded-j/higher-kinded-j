@@ -50,7 +50,7 @@ public class MaybePathReturnValueHandler implements HandlerMethodReturnValueHand
   /**
    * Creates a new MaybePathReturnValueHandler with the specified settings.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param nothingStatus the HTTP status code for Nothing values (default 404)
    */
   public MaybePathReturnValueHandler(JsonMapper jsonMapper, int nothingStatus) {

@@ -10,7 +10,7 @@ import java.util.function.Predicate;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A configurable policy for retry behavior.
+ * A configurable policy for retry behaviour.
  *
  * <p>{@code RetryPolicy} defines how operations should be retried: how many times, with what delay
  * between attempts, and which exceptions should trigger retries.
@@ -21,7 +21,7 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link #fixed(int, Duration)} - Fixed delay between attempts
  *   <li>{@link #exponentialBackoff(int, Duration)} - Exponentially increasing delays
  *   <li>{@link #exponentialBackoffWithJitter(int, Duration)} - Exponential backoff with
- *       randomization
+ *       randomisation
  *   <li>{@link #noRetry()} - No retries (fail immediately)
  * </ul>
  *
@@ -132,7 +132,7 @@ public final class RetryPolicy {
   /**
    * Creates a policy with exponential backoff plus jitter.
    *
-   * <p>Jitter adds randomization to delays to prevent the "thundering herd" problem when many
+   * <p>Jitter adds randomisation to delays to prevent the "thundering herd" problem when many
    * clients retry simultaneously.
    *
    * @param maxAttempts maximum number of attempts (must be at least 1)

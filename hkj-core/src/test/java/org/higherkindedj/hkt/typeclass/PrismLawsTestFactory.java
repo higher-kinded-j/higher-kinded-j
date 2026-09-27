@@ -32,7 +32,7 @@ import org.junit.jupiter.api.TestFactory;
  *
  * <p>Note: The full "Preview-Review" law ({@code getOptional(s) == Some(a) => build(a) == s}) only
  * holds for reversible prisms. Since prisms work with sum types where not all cases match, we focus
- * on the universal Review law and behavioral consistency.
+ * on the universal Review law and behavioural consistency.
  *
  * <p>Benefits of @TestFactory approach:
  *
@@ -94,7 +94,7 @@ class PrismLawsTestFactory {
   /**
    * Provides test data for all prism implementations.
    *
-   * <p>This is a centralized source of test data. Adding a new prism implementation requires only
+   * <p>This is a centralised source of test data. Adding a new prism implementation requires only
    * adding one line here, and all law tests will automatically cover it.
    */
   private static Stream<PrismTestData<?, ?>> allPrisms() {

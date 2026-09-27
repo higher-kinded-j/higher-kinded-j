@@ -1126,7 +1126,7 @@ class VStreamPathTest {
   class ResourceManagementTests {
 
     @Test
-    @DisplayName("onFinalize() runs finalizer on stream completion")
+    @DisplayName("onFinalize() runs finaliser on stream completion")
     void onFinalizeRunsFinalizerOnCompletion() {
       AtomicBoolean finalized = new AtomicBoolean(false);
 
@@ -1140,7 +1140,7 @@ class VStreamPathTest {
     }
 
     @Test
-    @DisplayName("onFinalize() runs finalizer on error")
+    @DisplayName("onFinalize() runs finaliser on error")
     void onFinalizeRunsFinalizerOnError() {
       AtomicBoolean finalized = new AtomicBoolean(false);
 

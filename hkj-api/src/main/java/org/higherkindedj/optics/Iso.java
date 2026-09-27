@@ -23,7 +23,7 @@ import org.higherkindedj.hkt.WitnessArity;
  *   <li>Bridging two different data structures (e.g., {@code Point <-> Tuple2}).
  * </ul>
  *
- * <p>It extends the generic {@link Optic}, specializing it for {@code S = T} and {@code A = B}.
+ * <p>It extends the generic {@link Optic}, specialising it for {@code S = T} and {@code A = B}.
  *
  * @param <S> The source type of the conversion.
  * @param <A> The target type of the conversion.
@@ -64,7 +64,7 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
    * Composes this {@code Iso<S, A>} with a {@code Lens<A, B>} to produce a new {@code Lens<S, B>}.
    *
    * <p>This is possible because composing a lossless, two-way conversion with a one-way focus
-   * results in a new one-way focus. This specialized overload ensures the result is correctly and
+   * results in a new one-way focus. This specialised overload ensures the result is correctly and
    * conveniently typed as a {@link Lens}.
    *
    * @param other The {@link Lens} to compose with.
@@ -81,7 +81,7 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
    * B>}.
    *
    * <p>This is possible because composing a lossless, two-way conversion with a partial focus
-   * results in a new partial focus. This specialized overload ensures the result is correctly and
+   * results in a new partial focus. This specialised overload ensures the result is correctly and
    * conveniently typed as a {@link Prism}.
    *
    * <p>Example:
@@ -114,7 +114,7 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
    * B>}.
    *
    * <p>This is possible because composing a lossless, two-way conversion with a partial focus
-   * results in a new partial focus. This specialized overload ensures the result is correctly and
+   * results in a new partial focus. This specialised overload ensures the result is correctly and
    * conveniently typed as an {@link Affine}.
    *
    * @param other The {@link Affine} to compose with.

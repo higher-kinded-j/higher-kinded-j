@@ -811,7 +811,7 @@ EitherPath<DomainError, User> preserved =
 | Service chaining | Sequential dependent calls | `via`, `mapError` |
 | Fallback chain | Multiple sources | `recoverWith` |
 | Resource management | Acquire/use/release | `bracket`, `withResource` |
-| Cleanup guarantee | Ensure finalizer runs | `guarantee` |
+| Cleanup guarantee | Ensure finaliser runs | `guarantee` |
 | Effect pipeline | Deferred composition | `via`, `then`, `unsafeRun` |
 | Error enrichment | Add context | `mapError` |
 | Circuit breaker | Protect failing service | `recover`, `recoverWith` |

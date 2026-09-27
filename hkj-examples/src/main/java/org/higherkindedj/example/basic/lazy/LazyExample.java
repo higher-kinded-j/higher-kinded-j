@@ -71,11 +71,11 @@ public class LazyExample {
 
     } catch (Throwable t) { // Catch Throwable because force() can re-throw anything
       System.err.println("Caught exception during force: " + t);
-      // Exception is also memoized:
+      // Exception is also memoised:
       try {
         LAZY.force(deferredLazy);
       } catch (Throwable t2) {
-        System.err.println("Caught memoized exception: " + t2);
+        System.err.println("Caught memoised exception: " + t2);
         System.out.println("Counter after failed force: " + counter.get()); // Output: 1
       }
     }

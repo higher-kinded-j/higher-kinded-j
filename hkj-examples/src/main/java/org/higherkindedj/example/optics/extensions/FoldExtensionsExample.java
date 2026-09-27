@@ -320,8 +320,8 @@ public class FoldExtensionsExample {
     System.out.println(vipRewardMessage.orElse("No customers eligible for rewards"));
     System.out.println();
 
-    // Scenario C: Order Fulfillment Check
-    System.out.println("Order Fulfillment Check:");
+    // Scenario C: Order Fulfilment Check
+    System.out.println("Order Fulfilment Check:");
 
     Fold<Order, Product> itemsFold = Fold.of(Order::items);
 

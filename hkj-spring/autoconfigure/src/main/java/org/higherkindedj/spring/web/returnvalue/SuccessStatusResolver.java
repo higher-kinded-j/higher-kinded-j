@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 /**
  * Utility class for resolving the success HTTP status code for a controller method.
  *
- * <p>Honors Spring's {@link ResponseStatus} annotation when declared on the handler method or on
+ * <p>Honours Spring's {@link ResponseStatus} annotation when declared on the handler method or on
  * its containing controller class (including meta-annotated usages, e.g. a custom
  * {@code @CreatedStatus} annotation that is itself annotated with {@code @ResponseStatus}).
  *

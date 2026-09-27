@@ -203,7 +203,7 @@
     }
 
     /**
-     * Initialize the version switcher
+     * Initialise the version switcher
      */
     async function init() {
         const currentVersion = detectCurrentVersion();
@@ -237,7 +237,7 @@
         }
     }
 
-    // Initialize when DOM is ready
+    // Initialise when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

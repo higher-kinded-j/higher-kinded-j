@@ -25,7 +25,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
  *       empty; register accounts explicitly)
  *   <li>{@link EitherAuthenticationConverter} - JWT conversion with Either error handling (rejects
  *       the token when authority extraction fails)
- *   <li>{@link EitherAuthorizationManager} - Authorization decisions using composable Either-based
+ *   <li>{@link EitherAuthorizationManager} - Authorisation decisions using composable Either-based
  *       rules
  * </ul>
  *
@@ -161,9 +161,9 @@ public class HkjSecurityAutoConfiguration {
   }
 
   /**
-   * Provides an EitherAuthorizationManager for functional authorization decisions.
+   * Provides an EitherAuthorizationManager for functional authorisation decisions.
    *
-   * <p>This manager uses Either to represent authorization success/failure in a functional way,
+   * <p>This manager uses Either to represent authorisation success/failure in a functional way,
    * enabling composition and better error tracking.
    *
    * <p>Configure via:
@@ -174,7 +174,7 @@ public class HkjSecurityAutoConfiguration {
    *     either-authorization: true  # default: true
    * </pre>
    *
-   * @return either authorization manager
+   * @return either authorisation manager
    */
   @Bean
   @ConditionalOnMissingBean(EitherAuthorizationManager.class)

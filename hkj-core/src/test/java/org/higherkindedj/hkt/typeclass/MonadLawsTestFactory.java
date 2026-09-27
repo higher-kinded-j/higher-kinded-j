@@ -90,7 +90,7 @@ class MonadLawsTestFactory {
   /**
    * Provides test data for all monad implementations.
    *
-   * <p>This is a centralized source of test data. Adding a new monad implementation requires only
+   * <p>This is a centralised source of test data. Adding a new monad implementation requires only
    * adding one line here, and all law tests will automatically cover it.
    */
   private static Stream<MonadTestData<?>> allMonads() {

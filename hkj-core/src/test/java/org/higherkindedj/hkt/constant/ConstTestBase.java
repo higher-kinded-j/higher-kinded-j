@@ -15,7 +15,7 @@ import org.higherkindedj.hkt.test.fixtures.TypeClassTestBase;
 /**
  * Base class for Const type class tests.
  *
- * <p>Provides common fixture creation, standardized test constants, and helper methods for all
+ * <p>Provides common fixture creation, standardised test constants, and helper methods for all
  * Const type class tests.
  *
  * <h2>Test Constants</h2>

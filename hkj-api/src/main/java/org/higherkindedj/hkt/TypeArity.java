@@ -23,7 +23,7 @@ import org.jspecify.annotations.NullMarked;
  *
  * <h2>Usage</h2>
  *
- * <p>Witness types implement {@link WitnessArity} parameterized by one of these arity types to
+ * <p>Witness types implement {@link WitnessArity} parameterised by one of these arity types to
  * declare their role in the HKT encoding:
  *
  * <pre>{@code
@@ -58,10 +58,10 @@ public sealed interface TypeArity permits TypeArity.Unary, TypeArity.Binary {
    * <p>Examples of unary type constructors:
    *
    * <ul>
-   *   <li>{@code List<_>} - A list parameterized by element type
-   *   <li>{@code Optional<_>} - An optional parameterized by value type
-   *   <li>{@code Maybe<_>} - A maybe parameterized by value type
-   *   <li>{@code IO<_>} - An IO action parameterized by result type
+   *   <li>{@code List<_>} - A list parameterised by element type
+   *   <li>{@code Optional<_>} - An optional parameterised by value type
+   *   <li>{@code Maybe<_>} - A maybe parameterised by value type
+   *   <li>{@code IO<_>} - An IO action parameterised by result type
    *   <li>{@code Either<L, _>} - Either with left type fixed (partial application)
    * </ul>
    *

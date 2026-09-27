@@ -13,7 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Spike result, frozen as a characterization test (the risk gate for the inference-failure family).
+ * Spike result, frozen as a characterisation test (the risk gate for the inference-failure family).
  *
  * <p><b>Question the spike had to answer:</b> can the {@code Path.right(...)} / {@code
  * Path.left(...)} "cannot infer type-variable(s) E" failure be detected structurally, given that it

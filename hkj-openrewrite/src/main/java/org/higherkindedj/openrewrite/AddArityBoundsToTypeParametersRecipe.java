@@ -288,7 +288,7 @@ public class AddArityBoundsToTypeParametersRecipe extends Recipe {
         return referencesParam(args.get(0), paramName) ? carrierArity : null;
       }
 
-      /** Classifies the carrier type of a parameterized type as unary, binary, or not a carrier. */
+      /** Classifies the carrier type of a parameterised type as unary, binary, or not a carrier. */
       private Arity carrierArity(J.ParameterizedType pt) {
         // Prefer resolved type information when available.
         if (pt.getType() instanceof JavaType.Parameterized p) {

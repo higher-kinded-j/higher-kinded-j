@@ -5,7 +5,7 @@
 - Using `Resource` for safe resource management in concurrent computations
 - Creating resources from `AutoCloseable`, explicit acquire/release, and pure values
 - Composing multiple resources with `flatMap` and `and`
-- Adding finalizers for cleanup actions
+- Adding finalisers for cleanup actions
 - Integrating resources with `Scope` for concurrent resource management
 ~~~
 
@@ -77,7 +77,7 @@ Resource<Config> configResource = Resource.pure(loadedConfig);
 |--------|-------------|----------|
 | `fromAutoCloseable(supplier)` | Wraps an `AutoCloseable` | Database connections, streams, channels |
 | `make(acquire, release)` | Explicit acquire and release functions | Custom resources, locks, external handles |
-| `pure(value)` | Wraps a value with no cleanup | Configuration, constants, pre-initialized values |
+| `pure(value)` | Wraps a value with no cleanup | Configuration, constants, pre-initialised values |
 
 ---
 
@@ -196,7 +196,7 @@ This ensures that resources depending on other resources are released first.
 
 ---
 
-## Resource Finalizers
+## Resource Finalisers {#resource-finalizers}
 
 Add cleanup actions that run after the primary release:
 
@@ -212,12 +212,12 @@ Resource<Lock> lockResource = Resource.make(
 ).withFinalizer(() -> metrics.recordLockRelease());
 ```
 
-### Finalizer Behaviour
+### Finaliser Behaviour {#finalizer-behaviour}
 
-- Finalizers run after the primary release function
-- Multiple finalizers can be added (they run in reverse order of addition)
-- If the primary release throws, finalizers still run
-- If a finalizer throws, subsequent finalizers still run
+- Finalisers run after the primary release function
+- Multiple finalisers can be added (they run in reverse order of addition)
+- If the primary release throws, finalisers still run
+- If a finaliser throws, subsequent finalisers still run
 - All exceptions are collected and suppressed on the original exception
 
 <!-- verify -->
@@ -329,7 +329,7 @@ VTask<Data> robust = connResource.use(conn ->
 * **Resource** implements the bracket pattern: acquire-use-release with guaranteed cleanup
 * **fromAutoCloseable** wraps standard Java resources; **make** handles custom acquire/release
 * **Composition** with `flatMap` and `and` maintains proper release ordering (LIFO)
-* **Finalizers** add cleanup actions that run even if release throws
+* **Finalisers** add cleanup actions that run even if release throws
 * **Scope integration** enables concurrent computations with safe resource management
 * **Exception safety** ensures resources are released even when computations fail
 ~~~

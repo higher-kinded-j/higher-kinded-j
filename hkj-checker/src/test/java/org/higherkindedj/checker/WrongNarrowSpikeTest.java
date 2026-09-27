@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Spike result, frozen as a characterization test.
+ * Spike result, frozen as a characterisation test.
  *
  * <p><b>Question:</b> is a wrong-{@code KindHelper} {@code narrow} mismatch ({@code
  * EITHER.narrow(anOptionalKind)}) a <em>silent</em> runtime {@code KindUnwrapException}, or does

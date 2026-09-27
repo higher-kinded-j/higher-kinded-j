@@ -12,7 +12,7 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
  * @param transactionId unique identifier for the payment transaction
  * @param chargedAmount the amount that was charged
  * @param processedAt when the payment was processed
- * @param authorizationCode the authorization code from the payment processor
+ * @param authorizationCode the authorisation code from the payment processor
  */
 @GenerateLenses
 public record PaymentConfirmation(

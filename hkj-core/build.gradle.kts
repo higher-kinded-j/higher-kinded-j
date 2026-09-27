@@ -56,7 +56,7 @@ tasks.test {
 
   // Note: Parallel execution disabled due to:
   // - Performance test timing instability
-  // - Thread-safety issues in some test fixtures (Lazy memoization)
+  // - Thread-safety issues in some test fixtures (Lazy memoisation)
   // - Performance testing should be handled by hkj-benchmarks module
   // Future: May re-enable with @Execution(CONCURRENT) opt-in per test class
 }

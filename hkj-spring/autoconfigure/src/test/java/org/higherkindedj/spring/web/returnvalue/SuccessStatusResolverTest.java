@@ -35,7 +35,7 @@ class SuccessStatusResolverTest {
     }
 
     @Test
-    @DisplayName("Should honor @ResponseStatus(CREATED) on POST handler")
+    @DisplayName("Should honour @ResponseStatus(CREATED) on POST handler")
     void createdOnPost() throws Exception {
       MethodParameter rt = returnTypeOf(SampleController.class, "createUser");
       int status = SuccessStatusResolver.resolveSuccessStatus(rt, HttpStatus.OK.value());
@@ -43,7 +43,7 @@ class SuccessStatusResolverTest {
     }
 
     @Test
-    @DisplayName("Should honor @ResponseStatus(NO_CONTENT) on DELETE handler")
+    @DisplayName("Should honour @ResponseStatus(NO_CONTENT) on DELETE handler")
     void noContentOnDelete() throws Exception {
       MethodParameter rt = returnTypeOf(SampleController.class, "deleteUser");
       int status = SuccessStatusResolver.resolveSuccessStatus(rt, HttpStatus.OK.value());
@@ -51,7 +51,7 @@ class SuccessStatusResolverTest {
     }
 
     @Test
-    @DisplayName("Should honor @ResponseStatus(code = ACCEPTED) via code alias")
+    @DisplayName("Should honour @ResponseStatus(code = ACCEPTED) via code alias")
     void acceptedViaCodeAlias() throws Exception {
       MethodParameter rt = returnTypeOf(SampleController.class, "acceptAsync");
       int status = SuccessStatusResolver.resolveSuccessStatus(rt, HttpStatus.OK.value());
@@ -64,7 +64,7 @@ class SuccessStatusResolverTest {
   class ClassLevel {
 
     @Test
-    @DisplayName("Should honor @ResponseStatus on controller class when method has none")
+    @DisplayName("Should honour @ResponseStatus on controller class when method has none")
     void classLevelApplied() throws Exception {
       MethodParameter rt = returnTypeOf(ClassLevelController.class, "anything");
       int status = SuccessStatusResolver.resolveSuccessStatus(rt, HttpStatus.OK.value());
@@ -77,7 +77,7 @@ class SuccessStatusResolverTest {
   class MetaAnnotation {
 
     @Test
-    @DisplayName("Should honor @ResponseStatus when composed via meta-annotation")
+    @DisplayName("Should honour @ResponseStatus when composed via meta-annotation")
     void metaAnnotated() throws Exception {
       MethodParameter rt = returnTypeOf(SampleController.class, "metaAnnotated");
       int status = SuccessStatusResolver.resolveSuccessStatus(rt, HttpStatus.OK.value());

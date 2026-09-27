@@ -56,7 +56,7 @@ public final class IOSelective extends IOMonad implements Selective<IOKind.Witne
    * <p>This operation maintains IO's lazy evaluation semantics. The function IO is only executed if
    * the choice IO produces a {@code Left} value.
    *
-   * <p>Behavior:
+   * <p>Behaviour:
    *
    * <ul>
    *   <li>If {@code fab} produces {@code Right(b)}: Returns an IO that produces {@code b}, {@code

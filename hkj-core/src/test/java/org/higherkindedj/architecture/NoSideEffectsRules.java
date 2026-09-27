@@ -138,7 +138,7 @@ class NoSideEffectsRules {
    *
    * <p>Note: This rule only checks Just, not Nothing. Nothing.get() intentionally throws
    * NoSuchElementException following Java's standard pattern for absence-of-value (similar to
-   * Optional.get()). This is correct FP behavior where the caller should check isJust() first.
+   * Optional.get()). This is correct FP behaviour where the caller should check isJust() first.
    */
   @Test
   @DisplayName("Just should not directly throw RuntimeException")

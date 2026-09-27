@@ -21,7 +21,7 @@ dependencies {
   // Spring Web MVC (optional - for web integration)
   compileOnly(libs.bundles.spring.web)
 
-  // Jackson (optional - for JSON serialization)
+  // Jackson (optional - for JSON serialisation)
   compileOnly(libs.jackson.databind)
   compileOnly(libs.spring.boot.jackson)
 

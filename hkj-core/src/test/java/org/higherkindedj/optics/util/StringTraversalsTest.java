@@ -176,7 +176,7 @@ class StringTraversalsTest {
     }
 
     @Test
-    @DisplayName("worded() should normalize multiple spaces to single space")
+    @DisplayName("worded() should normalise multiple spaces to single space")
     void wordedNormalizesWhitespace() {
       Traversal<String, String> wordTraversal = StringTraversals.worded();
 
@@ -582,7 +582,7 @@ class StringTraversalsTest {
     }
 
     @Test
-    @DisplayName("lined() should normalize \\r\\n to \\n")
+    @DisplayName("lined() should normalise \\r\\n to \\n")
     void linedNormalizesWindowsLineEndings() {
       Traversal<String, String> lineTraversal = StringTraversals.lined();
 
@@ -642,7 +642,7 @@ class StringTraversalsTest {
     void linedHandlesTrailingNewline() {
       Traversal<String, String> lineTraversal = StringTraversals.lined();
 
-      // Trailing newline doesn't create an extra empty line (standard split behavior)
+      // Trailing newline doesn't create an extra empty line (standard split behaviour)
       List<String> result = Traversals.getAll(lineTraversal, "foo\nbar\n");
 
       assertThat(result).containsExactly("foo", "bar");

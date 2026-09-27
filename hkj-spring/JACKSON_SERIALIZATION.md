@@ -1,20 +1,20 @@
-# Jackson Serialization for Higher-Kinded-J Types
+# Jackson Serialisation for Higher-Kinded-J Types
 
-This document explains how higher-kinded-j types (Either, Validated) are serialized to JSON using Jackson.
+This document explains how higher-kinded-j types (Either, Validated) are serialised to JSON using Jackson.
 
 ## Overview
 
-The `hkj-spring-autoconfigure` module provides custom Jackson serializers and deserializers for:
+The `hkj-spring-autoconfigure` module provides custom Jackson serialisers and deserialisers for:
 - `Either<L, R>` - Sum type for error handling
 - `Validated<E, A>` - Validation with error accumulation
 - `EitherOrBoth<W, A>` - Inclusive-or (success that may carry warnings)
 - `NonEmptyList<A>` - Non-empty list (serialised as a plain JSON array)
 
-These serializers are **automatically registered** when using Spring Boot auto-configuration. The shapes below are fixed — there are no format-toggle properties. `Maybe` and `Try` have **no** Jackson support: return them at the top level (where the return-value handlers apply) rather than nesting them in DTOs.
+These serialisers are **automatically registered** when using Spring Boot auto-configuration. The shapes below are fixed — there are no format-toggle properties. `Maybe` and `Try` have **no** Jackson support: return them at the top level (where the return-value handlers apply) rather than nesting them in DTOs.
 
 ## JSON Format
 
-### Either Serialization
+### Either Serialisation
 
 **Either.Right (success):**
 ```json
@@ -41,7 +41,7 @@ Either<String, User> error = Either.left("User not found");
 // JSON: {"isRight": false, "left": "User not found"}
 ```
 
-### Validated Serialization
+### Validated Serialisation
 
 **Validated.Valid (success):**
 ```json
@@ -68,7 +68,7 @@ Validated<List<String>, User> errors = Validated.invalid(List.of("Invalid email"
 // JSON: {"valid": false, "errors": ["Invalid email", "Name required"]}
 ```
 
-### EitherOrBoth Serialization
+### EitherOrBoth Serialisation
 
 `EitherOrBoth` has three cases, so it uses a `kind` discriminator:
 
@@ -80,9 +80,9 @@ Validated<List<String>, User> errors = Validated.invalid(List.of("Invalid email"
 
 This applies to **nested** `EitherOrBoth` values. A top-level `EitherOrBoth` / `EitherOrBothPath` controller return value is shaped by `EitherOrBothPathReturnValueHandler` instead: the success body is the bare value, `Both` warnings travel JSON-encoded in the `X-Hkj-Warnings` response header, and a `Left` produces the `{"success": false, "error": ...}` envelope (see [CONFIGURATION.md](CONFIGURATION.md#hkjwebeither-or-both-path-enabled)).
 
-## When Jackson Serializers Are Used
+## When Jackson Serialisers Are Used
 
-Jackson serializers are used in the following scenarios:
+Jackson serialisers are used in the following scenarios:
 
 ### 1. Nested Either/Validated in Response DTOs
 
@@ -152,7 +152,7 @@ public class ReportService {
 
 ### 3. Testing
 
-When writing tests that serialize/deserialize:
+When writing tests that serialise/deserialise:
 
 ```java
 @Test
@@ -166,9 +166,9 @@ void shouldSerializeEither() throws Exception {
 }
 ```
 
-## When Jackson Serializers Are NOT Used
+## When Jackson Serialisers Are NOT Used
 
-Jackson serializers are **NOT** used for top-level controller return values because the return value handlers take precedence:
+Jackson serialisers are **NOT** used for top-level controller return values because the return value handlers take precedence:
 
 ```java
 @GetMapping("/users/{id}")
@@ -198,7 +198,7 @@ In this case, `EitherPathReturnValueHandler` produces a cleaner unwrapped respon
 
 This is intentional - the unwrapped format is cleaner for API consumers.
 
-## Comparison: Return Value Handlers vs Jackson Serializers
+## Comparison: Return Value Handlers vs Jackson Serialisers
 
 | Scenario | Handler Used | JSON Format |
 |----------|--------------|-------------|
@@ -206,11 +206,11 @@ This is intentional - the unwrapped format is cleaner for API consumers.
 | Top-level Validated in controller | ValidationPathReturnValueHandler | Wrapped with valid/errors |
 | Nested Either in DTO | Jackson EitherSerializer | Wrapped with isRight/left/right |
 | Nested Validated in DTO | Jackson ValidatedSerializer | Wrapped with valid/value/errors |
-| Manual ObjectMapper.writeValue() | Jackson serializers | Wrapped format |
+| Manual ObjectMapper.writeValue() | Jackson serialisers | Wrapped format |
 
-## Client-Side Deserialization (`@HkjHttpClient`)
+## Client-Side Deserialisation (`@HkjHttpClient`)
 
-The serializers above are about *producing* JSON. The `@HkjHttpClient` client does the reverse: it
+The serialisers above are about *producing* JSON. The `@HkjHttpClient` client does the reverse: it
 *reads* a failed HTTP response and decodes the body back into your declared error type. The default
 decoder expects the server envelope `{"success": false, "error": <E>}` and deserialises `<E>` with
 the same `JsonMapper`, reusing `HkjJacksonModule` so a nested `Either`/`Validated` inside the error
@@ -253,7 +253,7 @@ override or `hkj.client.status-error-mappings` entry. See the
 
 ### Automatic Configuration (Default)
 
-Jackson serializers are automatically registered when using Spring Boot:
+Jackson serialisers are automatically registered when using Spring Boot:
 
 ```java
 @SpringBootApplication
@@ -330,7 +330,7 @@ public ValidationResult validateBatch(@RequestBody List<UserRequest> requests) {
 
 ### Type Safety Considerations
 
-Due to Java's type erasure, deserialized Either and Validated have `Object` types:
+Due to Java's type erasure, deserialised Either and Validated have `Object` types:
 
 ```java
 String json = "{\"isRight\":true,\"right\":42}";
@@ -340,7 +340,7 @@ Either<?, ?> either = objectMapper.readValue(json, Either.class);
 Object value = either.getRight();  // Returns 42 as Object
 ```
 
-For type-safe deserialization, use DTOs:
+For type-safe deserialisation, use DTOs:
 
 ```java
 public record UserResult(Either<String, User> result) {}
@@ -395,9 +395,9 @@ class BatchControllerTest {
 
 ## Troubleshooting
 
-### Serializers Not Applied
+### Serialisers Not Applied
 
-**Problem:** Either/Validated not serializing with custom format
+**Problem:** Either/Validated not serialising with custom format
 
 **Solution:** Verify HkjJacksonModule is registered by probing real serialisation behaviour (Jackson 3.x does not expose registered module IDs directly). The example module's `/api/users/debug/jackson-modules` endpoint serialises a sample `Either` with the injected `JsonMapper` and reports whether the tagged shape came back:
 
@@ -410,7 +410,7 @@ public Map<String, Object> getJacksonInfo() {
 }
 ```
 
-Or verify programmatically that the module is configured correctly by checking that serialization works as expected:
+Or verify programmatically that the module is configured correctly by checking that serialisation works as expected:
 ```java
 @Test
 void verifyModuleRegistered() throws Exception {
@@ -435,9 +435,9 @@ void verifyModuleRegistered() throws Exception {
 
 ### Type Erasure Issues
 
-**Problem:** Deserialized values have wrong types
+**Problem:** Deserialised values have wrong types
 
-**Solution:** Use DTOs with specific types instead of raw Either/Validated deserialization
+**Solution:** Use DTOs with specific types instead of raw Either/Validated deserialisation
 
 ## See Also
 

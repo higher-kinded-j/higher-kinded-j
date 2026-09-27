@@ -73,7 +73,7 @@ public class CircuitBreakerExample {
     // Protect the call with the circuit breaker
     VTask<String> protectedGet = breaker.protect(httpGet);
 
-    // Make several calls to observe circuit breaker behavior
+    // Make several calls to observe circuit breaker behaviour
     for (int i = 1; i <= 8; i++) {
       try {
         String result = protectedGet.run();

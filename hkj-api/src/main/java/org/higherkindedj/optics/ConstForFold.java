@@ -25,7 +25,7 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 record ConstForFold<M, A>(M value) implements Kind<ConstForFold.Witness<M>, A> {
 
-  /** Witness type for the Const functor, parameterized by the monoid type. */
+  /** Witness type for the Const functor, parameterised by the monoid type. */
   static final class Witness<M> implements WitnessArity<TypeArity.Unary> {
     private Witness() {}
   }

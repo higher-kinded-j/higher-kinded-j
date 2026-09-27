@@ -1319,7 +1319,7 @@ public interface VStream<A> extends VStreamKind<A> {
    *
    * @param finalizer the VTask to execute on stream completion or error; must not be null
    * @return a new VStream with the finaliser attached; never null
-   * @throws NullPointerException if finalizer is null
+   * @throws NullPointerException if finaliser is null
    */
   default VStream<A> onFinalize(VTask<Unit> finalizer) {
     Objects.requireNonNull(finalizer, "finalizer must not be null");

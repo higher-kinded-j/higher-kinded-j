@@ -370,7 +370,7 @@ class VStreamBracketTest {
   class ExplicitCloseTests {
 
     @Test
-    @DisplayName("close() on onFinalize stream triggers finalizer")
+    @DisplayName("close() on onFinalize stream triggers finaliser")
     void closeOnOnFinalizeStreamTriggersFinalizer() {
       AtomicBoolean finalized = new AtomicBoolean(false);
 
@@ -384,7 +384,7 @@ class VStreamBracketTest {
     }
 
     @Test
-    @DisplayName("close() then pull does not run finalizer twice")
+    @DisplayName("close() then pull does not run finaliser twice")
     void closeThenPullDoesNotRunFinalizerTwice() {
       AtomicInteger count = new AtomicInteger(0);
 
@@ -394,25 +394,25 @@ class VStreamBracketTest {
       stream.close().run();
       assertThat(count.get()).isEqualTo(1);
 
-      // Consuming the stream to Done should not run finalizer again
+      // Consuming the stream to Done should not run finaliser again
       stream.toList().run();
       assertThat(count.get()).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("pull to completion then close() does not run finalizer twice")
+    @DisplayName("pull to completion then close() does not run finaliser twice")
     void pullThenCloseDoesNotRunFinalizerTwice() {
       AtomicInteger count = new AtomicInteger(0);
 
       VStream<Integer> stream = VStream.of(1, 2, 3).onFinalize(VTask.exec(count::incrementAndGet));
 
-      // Consume to completion — triggers finalizer via Done branch
+      // Consume to completion — triggers finaliser via Done branch
       List<Integer> result = stream.toList().run();
       assertThat(result).containsExactly(1, 2, 3);
       assertThat(count.get()).isEqualTo(1);
 
       // Calling close() after stream completed — released is already true,
-      // so compareAndSet(false, true) fails and finalizer is not run again
+      // so compareAndSet(false, true) fails and finaliser is not run again
       stream.close().run();
       assertThat(count.get()).isEqualTo(1);
     }
@@ -474,7 +474,7 @@ class VStreamBracketTest {
     }
 
     @Test
-    @DisplayName("onFinalize() validates non-null finalizer")
+    @DisplayName("onFinalize() validates non-null finaliser")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void onFinalizeValidatesFinalizer() {
       assertThatNullPointerException()

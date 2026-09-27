@@ -103,7 +103,7 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
   /**
    * Creates a new ValidationPathReturnValueHandler with the specified settings.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param invalidStatus the HTTP status code for invalid results (default 400)
    * @param fieldErrorStatus the HTTP status code for invalid results made entirely of located
    *     {@link FieldError}s (default 422)
@@ -120,7 +120,7 @@ public class ValidationPathReturnValueHandler implements HandlerMethodReturnValu
    * directly without going through the auto-configuration. Equivalent to constructing with the
    * default FieldError status of 422 Unprocessable Content.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param invalidStatus the HTTP status code for invalid results (default 400)
    */
   public ValidationPathReturnValueHandler(JsonMapper jsonMapper, int invalidStatus) {

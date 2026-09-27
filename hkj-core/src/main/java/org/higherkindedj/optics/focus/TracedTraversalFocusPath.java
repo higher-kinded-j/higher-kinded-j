@@ -17,7 +17,7 @@ import org.jspecify.annotations.NullMarked;
 /**
  * A traced implementation of {@link TraversalPath} that invokes an observer during get operations.
  *
- * <p>This class wraps an underlying TraversalPath and adds tracing behavior to the {@link
+ * <p>This class wraps an underlying TraversalPath and adds tracing behaviour to the {@link
  * #getAll(Object)} method. The observer is only invoked during get operations, not during modify
  * operations.
  *

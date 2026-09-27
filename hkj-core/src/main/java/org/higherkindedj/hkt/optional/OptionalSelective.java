@@ -72,7 +72,7 @@ public final class OptionalSelective extends OptionalMonad
    * The core selective operation for Optional. Given an effectful choice {@code fab} and an
    * effectful function {@code ff}, applies the function only if the choice is a {@code Left}.
    *
-   * <p>Behavior:
+   * <p>Behaviour:
    *
    * <ul>
    *   <li>If {@code fab} is {@code Optional.empty()}: Returns {@code Optional.empty()}, {@code ff}

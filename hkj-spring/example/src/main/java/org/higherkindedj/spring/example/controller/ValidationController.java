@@ -79,12 +79,12 @@ public class ValidationController {
    */
 
   /**
-   * Validate a batch of user creation requests demonstrating Jackson serialization of nested
+   * Validate a batch of user creation requests demonstrating Jackson serialisation of nested
    * Validated values.
    *
    * <p>This endpoint returns a DTO containing a List of Validated values. Unlike the top-level
    * Validated endpoint above (which is unwrapped by ValidatedReturnValueHandler), the nested
-   * Validated values in the list are serialized by Jackson using the custom ValidatedSerializer.
+   * Validated values in the list are serialised by Jackson using the custom ValidatedSerializer.
    *
    * <p>Example response:
    *
@@ -114,7 +114,7 @@ public class ValidationController {
 
   /**
    * Response DTO demonstrating nested Validated values. The List of Validated values will be
-   * serialized using Jackson's ValidatedSerializer, producing wrapped JSON with valid/value/errors
+   * serialised using Jackson's ValidatedSerializer, producing wrapped JSON with valid/value/errors
    * structure.
    *
    * @param batchId the batch identifier

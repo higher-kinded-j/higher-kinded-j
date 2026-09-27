@@ -32,9 +32,9 @@ hkj:
       AuthorizationError: 403
       AuthenticationError: 401
 
-  # JSON serialization configuration
+  # JSON serialisation configuration
   json:
-    # Enable custom Jackson serializers for Either, Validated,
+    # Enable custom Jackson serialisers for Either, Validated,
     # EitherOrBoth, and NonEmptyList (default: true).
     # Nested Either values serialise as {"isRight": true/false, "right"/"left": value}
     custom-serializers-enabled: true

@@ -1880,7 +1880,7 @@ class PathOpsTest {
               });
 
       // Need at least 2 paths to test the exception wrapping code path
-      // (single path optimization returns the path directly)
+      // (single path optimisation returns the path directly)
       List<IOPath<String>> paths = List.of(failing1, failing2);
 
       IOPath<String> result = PathOps.raceIO(paths);

@@ -119,7 +119,7 @@ public final class StringTraversals {
    * list of words. Each word can be transformed via an effectful function. The transformed words
    * are then joined back with single spaces.
    *
-   * <p><b>Note:</b> Multiple consecutive whitespace characters are normalized to a single space in
+   * <p><b>Note:</b> Multiple consecutive whitespace characters are normalised to a single space in
    * the output when words are present. Leading and trailing whitespace is removed when joining
    * words.
    *
@@ -183,7 +183,7 @@ public final class StringTraversals {
    * line can be transformed via an effectful function. The transformed lines are then joined back
    * with {@code \n} (Unix-style line separator).
    *
-   * <p><b>Note:</b> The output normalizes all line separators to {@code \n}. If you need to
+   * <p><b>Note:</b> The output normalises all line separators to {@code \n}. If you need to
    * preserve the original line separator style, consider using a different approach.
    *
    * <p>Empty strings produce an empty traversal. Strings with no line separators focus on the

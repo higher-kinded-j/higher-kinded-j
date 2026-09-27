@@ -107,7 +107,7 @@ class HkjAsyncHealthIndicatorTest {
     @Test
     @DisplayName("Should return DOWN when thread pool executor is null")
     void shouldReturnDownWhenThreadPoolExecutorIsNull() {
-      // Create executor but don't initialize (threadPoolExecutor will be null)
+      // Create executor but don't initialise (threadPoolExecutor will be null)
       ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
       HkjAsyncHealthIndicator indicator = new HkjAsyncHealthIndicator(executor);

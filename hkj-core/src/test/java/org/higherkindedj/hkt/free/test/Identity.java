@@ -8,7 +8,7 @@ import java.util.function.Function;
  * Simple Identity type for testing Free monad.
  *
  * <p>Identity is the simplest possible functor - it just wraps a value without adding any
- * additional behavior.
+ * additional behaviour.
  *
  * @param <A> The wrapped value type
  */

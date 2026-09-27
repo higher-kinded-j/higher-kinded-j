@@ -16,9 +16,9 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
- * Authorization manager using Either for functional authorization decisions.
+ * Authorisation manager using Either for functional authorisation decisions.
  *
- * <p>Authorization policy is supplied as an ordered list of {@link AuthorizationRule}s, each
+ * <p>Authorisation policy is supplied as an ordered list of {@link AuthorizationRule}s, each
  * returning {@code Either<AuthorizationError, Authentication>}. Rules are chained with {@code
  * flatMap}: the first {@code Left} denies access; if every rule passes, access is granted. An
  * authentication-present check always runs before the supplied rules.
@@ -45,11 +45,11 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * }
  * }</pre>
  *
- * <p>Benefits of Either for authorization:
+ * <p>Benefits of Either for authorisation:
  *
  * <ul>
  *   <li>Type-safe error handling
- *   <li>Composable authorization rules
+ *   <li>Composable authorisation rules
  *   <li>Clear success/failure semantics
  *   <li>Better logging and auditing
  * </ul>
@@ -58,7 +58,7 @@ public class EitherAuthorizationManager
     implements AuthorizationManager<RequestAuthorizationContext> {
 
   /**
-   * A single authorization rule: passes the authentication through on success, or denies with an
+   * A single authorisation rule: passes the authentication through on success, or denies with an
    * {@link AuthorizationError}.
    */
   @FunctionalInterface
@@ -91,7 +91,7 @@ public class EitherAuthorizationManager
   /**
    * Creates a manager with the given ordered rules. All rules must pass for access to be granted.
    *
-   * @param rules the authorization rules, evaluated in order
+   * @param rules the authorisation rules, evaluated in order
    */
   public EitherAuthorizationManager(List<AuthorizationRule> rules) {
     this.rules = List.copyOf(rules);
@@ -167,11 +167,11 @@ public class EitherAuthorizationManager
   }
 
   /**
-   * Authorizes access using Either for functional decision making.
+   * Authorises access using Either for functional decision making.
    *
    * @param authentication the authentication supplier
    * @param context the request context
-   * @return authorization result (may be null when abstaining)
+   * @return authorisation result (may be null when abstaining)
    */
   @Override
   public @Nullable AuthorizationResult authorize(
@@ -206,9 +206,9 @@ public class EitherAuthorizationManager
   }
 
   /**
-   * Error type for authorization failures.
+   * Error type for authorisation failures.
    *
-   * @param reason the reason authorization was denied
+   * @param reason the reason authorisation was denied
    */
   public record AuthorizationError(String reason) {}
 }

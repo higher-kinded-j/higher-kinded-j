@@ -1188,7 +1188,7 @@ class MutationKillingPhase3Test {
 
       // The processor should detect the spec interface and generate output
       // (compilation may have errors in generated code, but the processor
-      // should recognize OpticsSpec and attempt generation)
+      // should recognise OpticsSpec and attempt generation)
       assertThat(compilation).generatedSourceFile("com.example.EmployeeOpticsImpl").isNotNull();
     }
 

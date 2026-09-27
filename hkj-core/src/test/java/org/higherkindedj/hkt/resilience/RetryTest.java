@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Comprehensive test suite for Retry utility class.
  *
- * <p>Tests cover execute methods, retry behavior, and edge cases.
+ * <p>Tests cover execute methods, retry behaviour, and edge cases.
  */
 @DisplayName("Retry Test Suite")
 class RetryTest {
@@ -245,7 +245,7 @@ class RetryTest {
   }
 
   @Nested
-  @DisplayName("Delay Behavior")
+  @DisplayName("Delay Behaviour")
   class DelayBehaviorTests {
 
     @Test

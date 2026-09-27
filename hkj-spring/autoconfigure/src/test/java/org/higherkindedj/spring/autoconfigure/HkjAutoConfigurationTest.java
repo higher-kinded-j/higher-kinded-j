@@ -15,8 +15,8 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Tests for {@link HkjAutoConfiguration}.
  *
- * <p>Uses Spring Boot's ApplicationContextRunner to test auto-configuration behavior with different
- * property combinations.
+ * <p>Uses Spring Boot's ApplicationContextRunner to test auto-configuration behaviour with
+ * different property combinations.
  */
 @DisplayName("HkjAutoConfiguration Tests")
 class HkjAutoConfigurationTest {
@@ -135,7 +135,7 @@ class HkjAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("Should register JsonMapper when custom serializers enabled")
+    @DisplayName("Should register JsonMapper when custom serialisers enabled")
     void shouldRegisterJsonMapperWithModule() {
       contextRunner
           .withPropertyValues("hkj.json.custom-serializers-enabled=true")
@@ -146,7 +146,7 @@ class HkjAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("Should still have JsonMapper when custom serializers disabled")
+    @DisplayName("Should still have JsonMapper when custom serialisers disabled")
     void shouldHaveJsonMapperWhenDisabled() {
       contextRunner
           .withPropertyValues("hkj.json.custom-serializers-enabled=false")

@@ -12,7 +12,7 @@ import org.higherkindedj.hkt.trymonad.Try;
  *
  * <p>This capability is specific to effect types like {@code IOPath} and {@code VTaskPath} that
  * encapsulate side effects. Types implementing this interface provide methods to execute the
- * deferred computation, to recover from exceptions, and to run a finalizer regardless of outcome.
+ * deferred computation, to recover from exceptions, and to run a finaliser regardless of outcome.
  *
  * <h2>Operations</h2>
  *
@@ -21,7 +21,7 @@ import org.higherkindedj.hkt.trymonad.Try;
  *   <li>{@link #runSafe()} - Execute the effect and wrap the result in a {@code Try}
  *   <li>{@link #handleError(Function)} - Recover from an exception with a pure value
  *   <li>{@link #handleErrorWith(Function)} - Recover from an exception with an alternative effect
- *   <li>{@link #guarantee(Runnable)} - Run a finalizer whether the effect succeeds or fails
+ *   <li>{@link #guarantee(Runnable)} - Run a finaliser whether the effect succeeds or fails
  * </ul>
  *
  * <h2>Safety Considerations</h2>
@@ -134,8 +134,8 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
   Effectful<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<A>> recovery);
 
   /**
-   * Runs a finalizer after this effect completes, regardless of whether it succeeded or threw. The
-   * finalizer runs even if the effect throws, but any exception thrown by the finalizer itself will
+   * Runs a finaliser after this effect completes, regardless of whether it succeeded or threw. The
+   * finaliser runs even if the effect throws, but any exception thrown by the finaliser itself will
    * mask (or follow, depending on implementation) the original failure. The returned effect has the
    * same concrete type as this one.
    *
@@ -147,7 +147,7 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
    * }</pre>
    *
    * @param finalizer action to run on completion; must not be {@code null}
-   * @return an effect that runs the finalizer after this effect
+   * @return an effect that runs the finaliser after this effect
    * @throws NullPointerException if {@code finalizer} is {@code null}
    */
   Effectful<A> guarantee(Runnable finalizer);

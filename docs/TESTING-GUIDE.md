@@ -18,7 +18,7 @@ This document provides comprehensive guidance on testing patterns and best pract
 
 The higher-kinded-j project employs a multi-layered testing strategy:
 
-1. **Unit Tests**: Verify individual component behavior
+1. **Unit Tests**: Verify individual component behaviour
 2. **Property-Based Tests**: Generate hundreds of test cases automatically
 3. **Law Tests**: Ensure typeclass and optics implementations satisfy mathematical laws
 4. **Integration Tests**: Verify components work together correctly
@@ -35,7 +35,7 @@ The higher-kinded-j project employs a multi-layered testing strategy:
 
 ### @ParameterizedTest
 
-Use parameterized tests to verify behavior across multiple inputs without duplication.
+Use parameterised tests to verify behaviour across multiple inputs without duplication.
 
 **Example with @MethodSource:**
 
@@ -122,7 +122,7 @@ private <F> void testIdentityLaw(FunctorTestData<F> data) {
 
 ### @Nested Classes
 
-Organize related tests into logical groups for better structure and readability.
+Organise related tests into logical groups for better structure and readability.
 
 **Example:**
 
@@ -149,7 +149,7 @@ class MaybeMonadTest {
 ```
 
 **Benefits:**
-- Clear test organization in IDE and reports
+- Clear test organisation in IDE and reports
 - Shared setup via `@BeforeEach` at appropriate level
 - Better test discovery
 
@@ -667,7 +667,7 @@ Stream<DynamicTest> reviewLaw() {
 }
 ```
 
-**Testing matching behavior:**
+**Testing matching behaviour:**
 
 ```java
 @TestFactory
@@ -714,7 +714,7 @@ The following Path types are implemented and should have comprehensive test cove
 - **ReaderPath** - Environment-dependent computations
 - **WriterPath** - Computations with log accumulation
 - **WithStatePath** - Stateful computations
-- **LazyPath** - Memoized deferred computation
+- **LazyPath** - Memoised deferred computation
 - **CompletableFuturePath** - Asynchronous computations
 - **ListPath** - Collection with positional semantics
 - **StreamPath** - Lazy stream computations
@@ -724,7 +724,7 @@ The following Path types are implemented and should have comprehensive test cove
 
 Each effect path type should have three layers of tests:
 
-1. **Unit Tests** (`*PathTest.java`): Comprehensive behavior testing
+1. **Unit Tests** (`*PathTest.java`): Comprehensive behaviour testing
 2. **Property Tests** (`*PathPropertyTest.java`): Functor and Monad laws via jQwik
 3. **Laws Tests** (`*PathLawsTest.java`): Explicit law verification with DynamicTests
 
@@ -881,7 +881,7 @@ void rightIdentityLaw(...) { /* ... */ }
 void associativityLaw(...) { /* ... */ }
 ```
 
-### Laws Test DynamicTest Organization
+### Laws Test DynamicTest Organisation
 
 Laws tests should use `@TestFactory` with nested classes:
 
@@ -945,7 +945,7 @@ void mapTransformsCompletedValue() {
 
 ### Lazy Path Testing (LazyPath)
 
-Test laziness preservation and memoization:
+Test laziness preservation and memoisation:
 
 ```java
 @Test
@@ -1238,7 +1238,7 @@ apiProject.sourceSets.main.get().output.classesDirs.map { dir ->
 
 1. **Prefer delegation over override**: Only override default methods when there's a clear performance benefit
 2. **Test default methods explicitly**: Even if a method has a default implementation, write tests that exercise it through at least one implementing class
-3. **Document overrides**: When overriding a default method, add a comment explaining why (e.g., performance optimization)
+3. **Document overrides**: When overriding a default method, add a comment explaining why (e.g., performance optimisation)
 
 ## Running Tests
 
@@ -1289,7 +1289,7 @@ Coverage reports: `build/reports/jacoco/test/html/index.html`
 
 ## Annotation Processor Testing
 
-The `hkj-processor` module uses specialized testing patterns to verify that generated optics code is correct and stable.
+The `hkj-processor` module uses specialised testing patterns to verify that generated optics code is correct and stable.
 
 ### Processor Optic Law Verification
 
@@ -1581,7 +1581,7 @@ The higher-kinded-j testing approach combines:
 1. **JUnit 6 Features**: @ParameterizedTest, @TestFactory, @Nested for minimal boilerplate
 2. **Property-Based Testing**: jQwik for comprehensive coverage with generated inputs
 3. **Law Verification**: Systematic testing of typeclass and optics laws
-4. **Clear Organization**: Nested classes and descriptive names for maintainability
+4. **Clear Organisation**: Nested classes and descriptive names for maintainability
 5. **Separation of Concerns**: Functional tests in hkj-core, performance in hkj-benchmarks
 
 This comprehensive strategy ensures correctness, maintains clarity, and provides fast feedback during development.

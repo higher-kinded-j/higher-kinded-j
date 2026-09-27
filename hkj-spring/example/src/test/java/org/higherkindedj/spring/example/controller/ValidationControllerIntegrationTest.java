@@ -24,8 +24,8 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ul>
  *   <li>ValidatedReturnValueHandler for Validated return types
- *   <li>Jackson serialization for nested Validated values
- *   <li>Error accumulation behavior
+ *   <li>Jackson serialisation for nested Validated values
+ *   <li>Error accumulation behaviour
  *   <li>HTTP status code mapping (400 for invalid)
  * </ul>
  */
@@ -237,7 +237,7 @@ class ValidationControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should serialize valid Validated values in batch with TAGGED format")
+    @DisplayName("Should serialise valid Validated values in batch with TAGGED format")
     void shouldSerializeValidValidatedValues() throws Exception {
       String requestBody =
           """
@@ -267,7 +267,7 @@ class ValidationControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should serialize invalid Validated values in batch with accumulated errors")
+    @DisplayName("Should serialise invalid Validated values in batch with accumulated errors")
     void shouldSerializeInvalidValidatedValues() throws Exception {
       String requestBody =
           """
@@ -498,7 +498,7 @@ class ValidationControllerIntegrationTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(requestBody))
           .andExpect(status().isOk())
-          // Nested Validated values are serialized by Jackson with wrappers
+          // Nested Validated values are serialised by Jackson with wrappers
           .andExpect(jsonPath("$.results[0].valid").exists())
           .andExpect(jsonPath("$.results[0].value").exists())
           .andExpect(jsonPath("$.results[1].valid").exists())
@@ -558,7 +558,7 @@ class ValidationControllerIntegrationTest {
   class JacksonIntegrationTests {
 
     @Test
-    @DisplayName("Should use custom Jackson serializers for nested Validated")
+    @DisplayName("Should use custom Jackson serialisers for nested Validated")
     void shouldUseCustomSerializersForNestedValidated() throws Exception {
       String requestBody =
           """
@@ -593,7 +593,7 @@ class ValidationControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should correctly serialize validation error objects")
+    @DisplayName("Should correctly serialise validation error objects")
     void shouldCorrectlySerializeValidationErrors() throws Exception {
       String requestBody =
           """

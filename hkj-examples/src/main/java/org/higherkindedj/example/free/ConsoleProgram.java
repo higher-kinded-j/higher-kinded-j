@@ -269,7 +269,7 @@ public class ConsoleProgram {
    * Simple value wrapper used as a target monad for testing Free monad programs.
    *
    * <p>This demonstrates that Free programs can be interpreted into <i>any</i> monad, not just IO.
-   * By interpreting into this test monad, we can verify program behavior without performing actual
+   * By interpreting into this test monad, we can verify program behaviour without performing actual
    * I/O operations. The {@link TestInterpreter} uses this to capture console output and provide
    * pre-defined input, making it easy to test programs that would otherwise require user
    * interaction.
@@ -390,7 +390,7 @@ public class ConsoleProgram {
 
     System.out.println("\n=== Benefits of Free Monad ===");
     System.out.println("1. Programs are data structures that can be inspected");
-    System.out.println("2. Multiple interpreters (IO, Test, Optimization, etc.)");
+    System.out.println("2. Multiple interpreters (IO, Test, Optimisation, etc.)");
     System.out.println("3. Separation of program description from execution");
     System.out.println("4. Easy testing without side effects");
   }

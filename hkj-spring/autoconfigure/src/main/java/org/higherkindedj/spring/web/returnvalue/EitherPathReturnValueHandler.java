@@ -64,7 +64,7 @@ public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHan
    * directly without going through the auto-configuration. Equivalent to constructing with a {@link
    * DefaultErrorStatusCodeStrategy} backed by an empty mapping table — i.e. heuristics only.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param defaultErrorStatus the default HTTP status code for errors
    */
   public EitherPathReturnValueHandler(JsonMapper jsonMapper, int defaultErrorStatus) {
@@ -74,7 +74,7 @@ public class EitherPathReturnValueHandler implements HandlerMethodReturnValueHan
   /**
    * Creates a new EitherPathReturnValueHandler with the specified settings.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param defaultErrorStatus the default HTTP status code for errors when no rule matches
    * @param errorStatusCodeStrategy the strategy that resolves the status code for an error
    */

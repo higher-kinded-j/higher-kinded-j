@@ -61,7 +61,7 @@ public final class IdSelective extends IdMonad implements Selective<IdKind.Witne
    * <p>Since Id has no effects, this eagerly evaluates the choice. If the choice contains a Left
    * value, the function is applied. If it contains a Right value, that value is returned directly.
    *
-   * <p>Behavior:
+   * <p>Behaviour:
    *
    * <ul>
    *   <li>If choice is {@code Right(b)}: Returns {@code Id(b)}, function is not evaluated.

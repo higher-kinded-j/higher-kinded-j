@@ -120,7 +120,7 @@ public class VTaskParBenchmark {
   /**
    * Parallel all collecting results.
    *
-   * <p>Uses parameterized list size.
+   * <p>Uses parameterised list size.
    */
   @Benchmark
   public List<Integer> allTasks() {
@@ -142,7 +142,7 @@ public class VTaskParBenchmark {
   /**
    * Parallel traverse applying function.
    *
-   * <p>Uses parameterized list size.
+   * <p>Uses parameterised list size.
    */
   @Benchmark
   public List<Integer> traverseList() {

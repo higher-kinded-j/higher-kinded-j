@@ -19,7 +19,7 @@ import org.higherkindedj.hkt.context.Context;
  *   <li><b>TENANT_ID</b> - Multi-tenancy isolation identifier
  *   <li><b>DEADLINE</b> - SLA deadline for the entire order processing
  *   <li><b>PRINCIPAL</b> - The authenticated user placing the order
- *   <li><b>ROLES</b> - Authorization roles for feature access
+ *   <li><b>ROLES</b> - Authorisation roles for feature access
  * </ul>
  *
  * <p>These scoped values automatically propagate to child virtual threads when using structured
@@ -84,12 +84,12 @@ public final class OrderContext {
   /**
    * Authenticated principal (user) placing the order.
    *
-   * <p>Used for authorization checks and audit logging.
+   * <p>Used for authorisation checks and audit logging.
    */
   public static final ScopedValue<Principal> PRINCIPAL = ScopedValue.newInstance();
 
   /**
-   * Authorization roles for the current user.
+   * Authorisation roles for the current user.
    *
    * <p>Used for feature access control (e.g., premium features, admin operations).
    */

@@ -34,7 +34,7 @@ import org.jspecify.annotations.NullMarked;
  * }
  * }</pre>
  *
- * <h3>Parameterized Unary Witness (Partial Application)</h3>
+ * <h3>Parameterised Unary Witness (Partial Application)</h3>
  *
  * <pre>{@code
  * // For types like Either<L, R> used as Functor/Monad (right-biased)

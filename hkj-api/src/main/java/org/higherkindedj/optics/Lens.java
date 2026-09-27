@@ -24,7 +24,7 @@ import org.higherkindedj.optics.indexed.Pair;
  * property of a class (e.g., a {@code User} has an {@code Address}). It is defined by two core,
  * well-behaved operations: getting the part, and setting the part in an immutable way.
  *
- * <p>It extends the generic {@link Optic}, specializing it for {@code S = T} and {@code A = B}.
+ * <p>It extends the generic {@link Optic}, specialising it for {@code S = T} and {@code A = B}.
  *
  * @param <S> The source type of the whole structure (e.g., {@code User}).
  * @param <A> The target type of the focused part (e.g., {@code Address}).
@@ -132,7 +132,7 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * Composes this {@code Lens<S, A>} with another {@code Lens<A, B>} to create a new {@code Lens<S,
    * B>}.
    *
-   * <p>This specialized version is kept for efficiency and to ensure the result is correctly and
+   * <p>This specialised version is kept for efficiency and to ensure the result is correctly and
    * conveniently typed as a {@code Lens}.
    *
    * @param other The {@link Lens} to compose with.
@@ -164,7 +164,7 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * Composes this {@code Lens<S, A>} with an {@code Iso<A, B>} to produce a new {@code Lens<S, B>}.
    *
    * <p>This is possible because composing a one-way focus with a lossless, two-way conversion
-   * results in a new one-way focus. This specialized overload ensures the result is correctly and
+   * results in a new one-way focus. This specialised overload ensures the result is correctly and
    * conveniently typed as a {@link Lens}.
    *
    * <p>Example:

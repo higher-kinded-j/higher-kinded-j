@@ -346,7 +346,7 @@ public class Tutorial09_FluentOpticsAPI {
           return Either.right(email.toLowerCase());
         };
 
-    // TODO: Replace null with OpticOps.modifyEither() to validate and normalize email
+    // TODO: Replace null with OpticOps.modifyEither() to validate and normalise email
     // Hint: OpticOps.modifyEither(user, emailLens, validateEmail)
     Either<String, User> validResult = answerRequired();
 

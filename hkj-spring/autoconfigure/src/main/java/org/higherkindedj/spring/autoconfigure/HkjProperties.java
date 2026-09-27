@@ -831,7 +831,7 @@ public class HkjProperties {
       /**
        * Default HTTP status code for Left values when the error type's simple class name matches
        * none of the {@code ErrorStatusCodeMapper} heuristics (NotFound, Validation/Invalid,
-       * Forbidden/Authorization, Authentication/Unauthorized). Default: 400 (Bad Request).
+       * Forbidden/{@code Authorization}, Authentication/Unauthorized). Default: 400 (Bad Request).
        */
       private int defaultErrorStatus = 400;
 
@@ -858,27 +858,27 @@ public class HkjProperties {
     }
   }
 
-  /** Jackson JSON serialization configuration properties. */
+  /** Jackson JSON serialisation configuration properties. */
   public static class Jackson {
-    /** Enable custom Jackson serializers for Either, Validated types. Default: true */
+    /** Enable custom Jackson serialisers for Either, Validated types. Default: true */
     private boolean customSerializersEnabled = true;
 
     /** Creates a new Jackson configuration with default values. */
     public Jackson() {}
 
     /**
-     * Returns whether custom serializers are enabled.
+     * Returns whether custom serialisers are enabled.
      *
-     * @return whether custom serializers are enabled
+     * @return whether custom serialisers are enabled
      */
     public boolean isCustomSerializersEnabled() {
       return customSerializersEnabled;
     }
 
     /**
-     * Sets whether custom serializers are enabled.
+     * Sets whether custom serialisers are enabled.
      *
-     * @param customSerializersEnabled whether custom serializers are enabled
+     * @param customSerializersEnabled whether custom serialisers are enabled
      */
     public void setCustomSerializersEnabled(boolean customSerializersEnabled) {
       this.customSerializersEnabled = customSerializersEnabled;
@@ -957,7 +957,7 @@ public class HkjProperties {
     /** Enable EitherAuthenticationConverter for JWT processing. Default: true */
     private boolean eitherAuthentication = true;
 
-    /** Enable EitherAuthorizationManager for functional authorization. Default: true */
+    /** Enable EitherAuthorizationManager for functional authorisation. Default: true */
     private boolean eitherAuthorization = true;
 
     /** JWT claim name containing user authorities/roles. Default: "roles" */

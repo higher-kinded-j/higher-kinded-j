@@ -67,9 +67,9 @@ interface CheckVisitor {
   default void onSwitchExpression(SwitchExpressionTree node, TreePath path) {}
 
   /**
-   * Invoked for each parameterized type node visited during the scan.
+   * Invoked for each parameterised type node visited during the scan.
    *
-   * @param node the parameterized type node
+   * @param node the parameterised type node
    * @param path the tree path to {@code node}
    */
   default void onParameterizedType(ParameterizedTypeTree node, TreePath path) {}

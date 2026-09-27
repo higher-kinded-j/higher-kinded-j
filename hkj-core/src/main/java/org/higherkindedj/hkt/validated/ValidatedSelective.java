@@ -81,7 +81,7 @@ public final class ValidatedSelective<E> extends ValidatedMonad<E>
    * {@code fab} and an effectful function {@code ff}, applies the function only if the choice is a
    * {@code Left}, accumulating any errors encountered.
    *
-   * <p>Behavior with error accumulation:
+   * <p>Behaviour with error accumulation:
    *
    * <ul>
    *   <li>If {@code fab} is {@code Valid(Choice.Right(b))}: Returns {@code Valid(b)}, {@code ff} is

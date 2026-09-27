@@ -126,7 +126,7 @@ class ValidationPathReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should serialize Valid value with primitive")
+    @DisplayName("Should serialise Valid value with primitive")
     void shouldSerializeValidValueWithPrimitive() throws Exception {
       ValidationPath<List<String>, Integer> path = Path.valid(42, Semigroups.list());
 

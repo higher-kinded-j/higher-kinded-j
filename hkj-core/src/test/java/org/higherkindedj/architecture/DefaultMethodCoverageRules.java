@@ -42,7 +42,7 @@ class DefaultMethodCoverageRules {
   }
 
   /**
-   * Analyzes default methods in API interfaces and reports which ones are overridden by all
+   * Analyses default methods in API interfaces and reports which ones are overridden by all
    * implementations.
    *
    * <p>This is an informational test that helps maintain the JaCoCo exclusion list. Default methods

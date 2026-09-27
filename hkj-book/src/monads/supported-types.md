@@ -91,7 +91,7 @@ Eight ways to model "this computation does something beyond returning a value."
 
 **[`IO<A>`](./io_monad.md)**: Describes a side effect without running it. Nothing happens until you call `unsafeRunSync()`. File reads, API calls, database writes: anything that touches the outside world belongs in `IO`. Think of it as a recipe for a side effect.
 
-**[`Lazy<A>`](./lazy_monad.md)**: Describes a *pure* computation without running it. Like `IO`, nothing happens until you call `force()`, but unlike `IO`, the result is memoized. Second call returns the cached value instantly. Perfect for expensive computations you may never need.
+**[`Lazy<A>`](./lazy_monad.md)**: Describes a *pure* computation without running it. Like `IO`, nothing happens until you call `force()`, but unlike `IO`, the result is memoised. Second call returns the cached value instantly. Perfect for expensive computations you may never need.
 
 **[`CompletableFuture<A>`](./cf_monad.md)**: HKT bridge to `java.util.concurrent.CompletableFuture`. Asynchronous computation that is already running. Provides MonadError so you can `flatMap` over futures and handle failures through the typeclass hierarchy.
 

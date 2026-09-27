@@ -1244,7 +1244,7 @@ class TraversalsTest {
      * sequenceStateList is private, we test it through its usage.
      */
     private <S, A> State<S, List<A>> invokeSequenceStateList(List<State<S, A>> states) {
-      // We can't call the private method directly, but we can test its behavior
+      // We can't call the private method directly, but we can test its behaviour
       // through traverseListUntil which uses it internally
       return states.stream()
           .reduce(

@@ -414,7 +414,7 @@ public final class GeneratorTestHelper {
   }
 
   /**
-   * Asserts that the generated file contains the expected code snippet, after normalizing both for
+   * Asserts that the generated file contains the expected code snippet, after normalising both for
    * whitespace and class name qualifications.
    *
    * @param compilation The result from the compiler.

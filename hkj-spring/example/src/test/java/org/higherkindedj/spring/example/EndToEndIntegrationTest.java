@@ -29,7 +29,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ul>
  *   <li>Both Either and Validated return value handlers
- *   <li>Jackson serialization for nested values
+ *   <li>Jackson serialisation for nested values
  *   <li>Configuration properties application
  *   <li>Multiple controllers working together
  *   <li>Complete request/response cycle
@@ -199,7 +199,7 @@ class EndToEndIntegrationTest {
   }
 
   @Nested
-  @DisplayName("Either vs Validated Behavior Tests")
+  @DisplayName("Either vs Validated Behaviour Tests")
   class EitherVsValidatedBehaviorTests {
 
     @Test
@@ -272,7 +272,7 @@ class EndToEndIntegrationTest {
   }
 
   @Nested
-  @DisplayName("Jackson Serialization Integration Tests")
+  @DisplayName("Jackson Serialisation Integration Tests")
   class JacksonSerializationIntegrationTests {
 
     @Test
@@ -286,7 +286,7 @@ class EndToEndIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should serialize nested Either values with Jackson")
+    @DisplayName("Should serialise nested Either values with Jackson")
     void shouldSerializeNestedEitherWithJackson() throws Exception {
       MvcResult result =
           mockMvc.perform(get("/api/users/batch")).andExpect(status().isOk()).andReturn();
@@ -302,7 +302,7 @@ class EndToEndIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should serialize nested Validated values with Jackson")
+    @DisplayName("Should serialise nested Validated values with Jackson")
     void shouldSerializeNestedValidatedWithJackson() throws Exception {
       String batchRequest =
           """
@@ -340,7 +340,7 @@ class EndToEndIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should handle top-level vs nested serialization differently")
+    @DisplayName("Should handle top-level vs nested serialisation differently")
     void shouldHandleTopLevelVsNestedSerializationDifferently() throws Exception {
       // Top-level Either: unwrapped by EitherReturnValueHandler
       MvcResult topLevelResult =
@@ -354,7 +354,7 @@ class EndToEndIntegrationTest {
       assertThat(topLevelJson.has("id")).isTrue();
       assertThat(topLevelJson.has("email")).isTrue();
 
-      // Nested Either: serialized by Jackson with wrappers
+      // Nested Either: serialised by Jackson with wrappers
       MvcResult nestedResult =
           mockMvc.perform(get("/api/users/batch")).andExpect(status().isOk()).andReturn();
 
@@ -667,7 +667,7 @@ class EndToEndIntegrationTest {
           .andExpect(status().isNotFound())
           .andExpect(jsonPath("$.success").value(false));
 
-      // 4. Get batch (nested Either serialization)
+      // 4. Get batch (nested Either serialisation)
       mockMvc
           .perform(get("/api/users/batch"))
           .andExpect(status().isOk())
@@ -708,7 +708,7 @@ class EndToEndIntegrationTest {
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.errors", hasSize(3)));
 
-      // 7. Batch validation (nested Validated serialization)
+      // 7. Batch validation (nested Validated serialisation)
       String batchRequest =
           """
           [
@@ -745,7 +745,7 @@ class EndToEndIntegrationTest {
       // 3. Jackson module registered
       // 4. Controllers working
       // 5. Services working
-      // 6. Serialization working
+      // 6. Serialisation working
       // 7. Status code mapping working
 
       // Multiple successful operations prove all components are integrated
