@@ -133,7 +133,9 @@ public class ImportOpticsProcessor extends AbstractProcessor {
   private boolean isSpecInterface(TypeElement typeElement) {
     note("Checking interfaces for: " + typeElement.getQualifiedName(), typeElement);
     for (TypeMirror superInterface : typeElement.getInterfaces()) {
-      note("  Found super interface: " + superInterface, typeElement);
+      note(
+          "  Found super interface: " + ProcessorUtils.qualifiedTypeName(superInterface),
+          typeElement);
       // Super-interfaces returned by getInterfaces() are always declared types.
       DeclaredType declaredType = (DeclaredType) superInterface;
       TypeElement interfaceElement = (TypeElement) declaredType.asElement();

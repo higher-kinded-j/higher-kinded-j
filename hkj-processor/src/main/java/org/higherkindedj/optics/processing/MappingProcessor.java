@@ -1786,7 +1786,7 @@ public class MappingProcessor extends AbstractProcessor {
             "mix-in '"
                 + element.getSimpleName()
                 + "' is used at an unsupported instantiation: '"
-                + declared
+                + ProcessorUtils.qualifiedTypeName(declared)
                 + "'.",
             "Its members are written into the generated Impl at the arguments given here, and a raw"
                 + " or wildcard argument leaves a type the Impl cannot name.",
@@ -2134,12 +2134,12 @@ public class MappingProcessor extends AbstractProcessor {
                     + "."
                     + name
                     + "' is "
-                    + domainType
+                    + ProcessorUtils.qualifiedTypeName(domainType)
                     + ", which has no absent state to bridge.",
             raw
                 ? "Declare the type argument, for example Optional<String>."
                 : "Declare the domain component as Optional<"
-                    + domainType
+                    + ProcessorUtils.qualifiedTypeName(domainType)
                     + ">, or remove the annotation.");
         return false;
       }
@@ -2166,16 +2166,17 @@ public class MappingProcessor extends AbstractProcessor {
                 + " is declared over the whole Optional.",
             "A bridged leaf converts the element the bridge found, so it is declared over the"
                 + " element types; declared over "
-                + leafDomain
+                + ProcessorUtils.qualifiedTypeName(leafDomain)
                 + " it is an ordinary whole-component leaf, which parses a null wire value to a"
                 + " located 'must not be null' rather than to an empty Optional.",
             // A primitive wire member is named by its wrapper, the one type a leaf can name.
             "Declare the leaf as 'ValidatedPrism<"
                 + wire.componentNamed(renames.getOrDefault(name, name))
-                    .map(c -> boxed(c.type()).toString())
+                    .map(c -> ProcessorUtils.qualifiedTypeName(boxed(c.type())))
                     .orElse("WireComponent")
                 + ", "
-                + containerElement(domainType, "java.util.Optional")
+                + ProcessorUtils.qualifiedTypeName(
+                    containerElement(domainType, "java.util.Optional"))
                 + ">', or drop the annotation to keep the whole-Optional leaf.");
         return false;
       }
@@ -2194,7 +2195,7 @@ public class MappingProcessor extends AbstractProcessor {
                 + "'"
                 + inheritedNote(method, spec)
                 + " returns "
-                + declared
+                + ProcessorUtils.qualifiedTypeName(declared)
                 + ", not the component's own type.",
             "A marker restates the domain component it bridges, so the spec fails to compile"
                 + " rather than bridging a component that has since changed shape; '"
@@ -2202,9 +2203,13 @@ public class MappingProcessor extends AbstractProcessor {
                 + "."
                 + name
                 + "' is "
-                + domainType
+                + ProcessorUtils.qualifiedTypeName(domainType)
                 + ".",
-            "Declare the marker as '" + domainType + " " + name + "()'.");
+            "Declare the marker as '"
+                + ProcessorUtils.qualifiedTypeName(domainType)
+                + " "
+                + name
+                + "()'.");
         return false;
       }
       // A projection leaves some domain components unmapped; a bridge on one of those has no wire
@@ -2302,7 +2307,7 @@ public class MappingProcessor extends AbstractProcessor {
                     + "."
                     + name
                     + "' is "
-                    + domainType
+                    + ProcessorUtils.qualifiedTypeName(domainType)
                     + ", which has no keys."
                 : "A key leaf converts the key type, and a raw Map declares none.",
             asMap == null
@@ -2311,7 +2316,7 @@ public class MappingProcessor extends AbstractProcessor {
                         ? " On a MappingSpec whose wire member is a plain nullable Map, a key leaf"
                             + " reaches the Map the Optional carries once it is bridged: declare"
                             + " '@OptionalBridge "
-                            + componentType
+                            + ProcessorUtils.qualifiedTypeName(componentType)
                             + " "
                             + name
                             + "();'."
@@ -2348,14 +2353,14 @@ public class MappingProcessor extends AbstractProcessor {
                 + " does not declare a leaf over that component's key type.",
             "A key leaf is a zero-parameter 'default' method returning exactly"
                 + " ValidatedPrism<WireKey, "
-                + domainKey
+                + ProcessorUtils.qualifiedTypeName(domainKey)
                 + "> (wire first, domain second); '"
                 + method.getSimpleName()
                 + "' returns "
-                + memberTypeIn(spec, method)
+                + ProcessorUtils.qualifiedTypeName(memberTypeIn(spec, method))
                 + ", so it would convert nothing and the keys would copy unvalidated.",
             "Return ValidatedPrism<WireKey, "
-                + domainKey
+                + ProcessorUtils.qualifiedTypeName(domainKey)
                 + "> from '"
                 + method.getSimpleName()
                 + "', or point the annotation at the component it does convert.");
@@ -2477,7 +2482,7 @@ public class MappingProcessor extends AbstractProcessor {
           "The bridge encodes an empty Optional as null, and the "
               + wireMemberTerm(wire)
               + " is declared "
-              + wireComponent.type()
+              + ProcessorUtils.qualifiedTypeName(wireComponent.type())
               + ", which can never be null.",
           primitiveBridgeFix(
                   spec,
@@ -3235,7 +3240,7 @@ public class MappingProcessor extends AbstractProcessor {
             processingEnv.getMessager(),
             spec,
             TAG,
-            "'" + used + "' is not a supported instantiation.",
+            "'" + ProcessorUtils.qualifiedTypeName(used) + "' is not a supported instantiation.",
             "A type argument must be a concrete type or one of the spec's own type parameters;"
                 + " wildcards and raw nested uses leave component types unresolvable.",
             "Use concrete arguments on the "
@@ -3950,7 +3955,9 @@ public class MappingProcessor extends AbstractProcessor {
         processingEnv.getMessager(),
         spec,
         TAG,
-        "the UpdateSpec domain type argument '" + domainArg + "' is not a record.",
+        "the UpdateSpec domain type argument '"
+            + ProcessorUtils.qualifiedTypeName(domainArg)
+            + "' is not a record.",
         "A sparse update rebuilds the domain positionally through its canonical constructor, so the"
             + " domain must be a record; only the wire may be bean-shaped.",
         "Use a record for the domain, mapping the bean as the wire.");
@@ -3966,7 +3973,9 @@ public class MappingProcessor extends AbstractProcessor {
         processingEnv.getMessager(),
         spec,
         TAG,
-        "the UpdateSpec wire type argument '" + wireArg + "' is not a bean-shaped class.",
+        "the UpdateSpec wire type argument '"
+            + ProcessorUtils.qualifiedTypeName(wireArg)
+            + "' is not a bean-shaped class.",
         "A sparse update reads the present properties through the wire's getters, so the wire must"
             + " be a bean (a class with getters and setters or a builder); a record component is"
             + " always present, so a record cannot express an absent field.",
@@ -4011,7 +4020,7 @@ public class MappingProcessor extends AbstractProcessor {
             "Declare '"
                 + property.name()
                 + "' on the PATCH DTO as "
-                + boxed(property.type())
+                + ProcessorUtils.qualifiedTypeName(boxed(property.type()))
                 + "."));
   }
 
@@ -4065,14 +4074,14 @@ public class MappingProcessor extends AbstractProcessor {
             + "."
             + domainComp.getSimpleName()
             + " ("
-            + domainComp.asType()
+            + ProcessorUtils.qualifiedTypeName(domainComp.asType())
             + "), which a sparse update cannot express.",
         "Under null-as-absent a null property means 'leave unchanged', so a plain property has no"
             + " state left to set the component to an empty Optional.",
         "Declare '"
             + property.name()
             + "' as Optional<"
-            + property.type()
+            + ProcessorUtils.qualifiedTypeName(property.type())
             + "> with the field defaulting to null, not Optional.empty(), which would read every"
             + " omitted property as a clear: null then leaves the component unchanged, and a present"
             + " empty Optional sets it empty.");
@@ -4123,13 +4132,13 @@ public class MappingProcessor extends AbstractProcessor {
         "the wire property '"
             + property.name()
             + "' ("
-            + property.type()
+            + ProcessorUtils.qualifiedTypeName(property.type())
             + ") cannot be written into "
             + domain.getSimpleName()
             + "."
             + domainComp.getSimpleName()
             + " ("
-            + domainComp.asType()
+            + ProcessorUtils.qualifiedTypeName(domainComp.asType())
             + ").",
         "A sparse update writes a present property by identity (same type, or a wrapper of a"
             + " primitive component), through a leaf named after the domain component, or — for a"
@@ -4171,21 +4180,21 @@ public class MappingProcessor extends AbstractProcessor {
         + "' on '"
         + wire.element().getSimpleName()
         + "' as "
-        + wrapper
+        + ProcessorUtils.qualifiedTypeName(wrapper)
         + ", which a sparse update writes straight into the "
-        + domainComp.asType()
+        + ProcessorUtils.qualifiedTypeName(domainComp.asType())
         + " component, or declare '"
         + domain.getSimpleName()
         + "."
         + name
         + "' as "
-        + wrapper
+        + ProcessorUtils.qualifiedTypeName(wrapper)
         + (leaf != null
             ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts."
             : " and add a leaf 'default ValidatedPrism<"
-                + property.type()
+                + ProcessorUtils.qualifiedTypeName(property.type())
                 + ", "
-                + wrapper
+                + ProcessorUtils.qualifiedTypeName(wrapper)
                 + "> "
                 + name
                 + "()'.");
@@ -4209,25 +4218,25 @@ public class MappingProcessor extends AbstractProcessor {
     if (lifted != null) {
       return declare
           + "an element leaf 'default ValidatedPrism<"
-          + lifted[0]
+          + ProcessorUtils.qualifiedTypeName(lifted[0])
           + ", "
-          + lifted[1]
+          + ProcessorUtils.qualifiedTypeName(lifted[1])
           + "> "
           + name
           + "()' (lifted over the container; it may delegate to a nested Impl's"
           + " asValidatedPrism()), a whole-container leaf 'default ValidatedPrism<"
-          + wireType
+          + ProcessorUtils.qualifiedTypeName(wireType)
           + ", "
-          + domainType
+          + ProcessorUtils.qualifiedTypeName(domainType)
           + "> "
           + name
           + "()', or align the types.";
     }
     return declare
         + "a leaf 'default ValidatedPrism<"
-        + wireType
+        + ProcessorUtils.qualifiedTypeName(wireType)
         + ", "
-        + domainType
+        + ProcessorUtils.qualifiedTypeName(domainType)
         + "> "
         + name
         + "()', or align the types.";
@@ -4682,9 +4691,9 @@ public class MappingProcessor extends AbstractProcessor {
       return "'"
           + annotation
           + "default ValidatedPrism<"
-          + wireType
+          + ProcessorUtils.qualifiedTypeName(wireType)
           + ", "
-          + domainType
+          + ProcessorUtils.qualifiedTypeName(domainType)
           + "> "
           + name
           + "()'"
@@ -4756,9 +4765,9 @@ public class MappingProcessor extends AbstractProcessor {
           TAG,
           "field '" + name + "' matches more than one mapping spec: " + candidates.names() + ".",
           "A nested component resolves to the single spec mapping ("
-              + domainType
+              + ProcessorUtils.qualifiedTypeName(domainType)
               + ", "
-              + wireType
+              + ProcessorUtils.qualifiedTypeName(wireType)
               + "); with several, the choice would be arbitrary.",
           "Add the leaf "
               + site.declaration(name, wireType, domainType)
@@ -4937,9 +4946,9 @@ public class MappingProcessor extends AbstractProcessor {
               + "' nests the element-mapped '"
               + match.describe()
               + "', which maps itself: resolving its leaf returns to the pair ("
-              + domainType
+              + ProcessorUtils.qualifiedTypeName(domainType)
               + ", "
-              + wireType
+              + ProcessorUtils.qualifiedTypeName(wireType)
               + ").",
           "An of(...) composition needs a prism for every leaf; a self-covering element mapping"
               + " would need its own prism as that input, so the composition never terminates.",
@@ -5000,9 +5009,9 @@ public class MappingProcessor extends AbstractProcessor {
               + "' nests the element-mapped '"
               + match.describe()
               + "', but the element pair ("
-              + elementDomain
+              + ProcessorUtils.qualifiedTypeName(elementDomain)
               + ", "
-              + elementWire
+              + ProcessorUtils.qualifiedTypeName(elementWire)
               + ") for its leaf '"
               + leaf.getSimpleName()
               + "' has no mapping.",
@@ -5032,9 +5041,9 @@ public class MappingProcessor extends AbstractProcessor {
                           .collect(Collectors.joining(", ")))
               + (records
                   ? ", or map "
-                      + elementWire
+                      + ProcessorUtils.qualifiedTypeName(elementWire)
                       + " to "
-                      + elementDomain
+                      + ProcessorUtils.qualifiedTypeName(elementDomain)
                       + " with its own @GenerateMapping spec."
                   : "."));
       return new PrismResolution(null, true);
@@ -5837,9 +5846,9 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' must return Getter<"
                 + domain.getSimpleName()
                 + ", "
-                + wireComponent.type()
+                + ProcessorUtils.qualifiedTypeName(wireComponent.type())
                 + "> but returns '"
-                + memberTypeIn(spec, method)
+                + ProcessorUtils.qualifiedTypeName(memberTypeIn(spec, method))
                 + "'.",
             "build fills the wire component by applying the getter to the whole domain value, so"
                 + " the first type argument must be the domain record and the second the wire"
@@ -5847,7 +5856,7 @@ public class MappingProcessor extends AbstractProcessor {
             "Declare 'default Getter<"
                 + domain.getSimpleName()
                 + ", "
-                + wireComponent.type()
+                + ProcessorUtils.qualifiedTypeName(wireComponent.type())
                 + "> "
                 + name
                 + "()'.");
@@ -6276,9 +6285,9 @@ public class MappingProcessor extends AbstractProcessor {
               + wireName
               + "' has no usable source.",
           "The types differ ("
-              + wireType
+              + ProcessorUtils.qualifiedTypeName(wireType)
               + " vs "
-              + domainType
+              + ProcessorUtils.qualifiedTypeName(domainType)
               + ") and no matching leaf method was found."
               + leafNearMissHint(spec, name, wireType, domainType)
               + (hasPrimitive(wireType, domainType) ? PRIMITIVE_REASON : "")
@@ -6350,9 +6359,9 @@ public class MappingProcessor extends AbstractProcessor {
             member.spec(),
             member.name(),
             "'default ValidatedPrism<"
-                + offer.wire()
+                + ProcessorUtils.qualifiedTypeName(offer.wire())
                 + ", "
-                + offer.domain()
+                + ProcessorUtils.qualifiedTypeName(offer.domain())
                 + "> "
                 + member.name()
                 + "()'");
@@ -6406,17 +6415,23 @@ public class MappingProcessor extends AbstractProcessor {
           + " and "
           + domainMember
           + " both "
-          + types.unboxedType(wireBoxed)
+          + ProcessorUtils.qualifiedTypeName(types.unboxedType(wireBoxed))
           + ", or both "
-          + wireBoxed
+          + ProcessorUtils.qualifiedTypeName(wireBoxed)
           + ", so that they copy.";
     }
     List<String> wrappers = new ArrayList<>();
     if (wireType.getKind().isPrimitive()) {
-      wrappers.add("the " + wireMemberTerm(member.wire()) + " " + wireMember + " as " + wireBoxed);
+      wrappers.add(
+          "the "
+              + wireMemberTerm(member.wire())
+              + " "
+              + wireMember
+              + " as "
+              + ProcessorUtils.qualifiedTypeName(wireBoxed));
     }
     if (domainType.getKind().isPrimitive()) {
-      wrappers.add(domainMember + " as " + domainBoxed);
+      wrappers.add(domainMember + " as " + ProcessorUtils.qualifiedTypeName(domainBoxed));
     }
     ExecutableElement leaf = findLeaf(member.spec(), member.name(), wireBoxed, domainBoxed);
     // Only a primitive wire member meets a domain Optional here, so a bridge offer is about the
@@ -6602,17 +6617,17 @@ public class MappingProcessor extends AbstractProcessor {
             "field '"
                 + name
                 + "' maps between Maps whose key types differ ("
-                + wireKey
+                + ProcessorUtils.qualifiedTypeName(wireKey)
                 + " vs "
-                + domainKey
+                + ProcessorUtils.qualifiedTypeName(domainKey)
                 + ").",
             "Keys pass through as identity unless a @MapKey leaf converts them.",
             "Declare '@MapKey(\""
                 + name
                 + "\") default ValidatedPrism<"
-                + wireKey
+                + ProcessorUtils.qualifiedTypeName(wireKey)
                 + ", "
-                + domainKey
+                + ProcessorUtils.qualifiedTypeName(domainKey)
                 + "> "
                 + name
                 + "Key()' on the spec, or align the key types.");
@@ -6919,12 +6934,10 @@ public class MappingProcessor extends AbstractProcessor {
             + ProcessorUtils.simpleTypeName(element)
             + ", dropping the Optional"
             + dropped
-            // Spelt without type-use annotations, which a leaf's isSameType match ignores: a bean's
-            // wire type is its getter's, often @Nullable, and the leaf encodes absence as a value.
             + "; or add 'default ValidatedPrism<"
-            + TypeName.get(wireType)
+            + ProcessorUtils.qualifiedTypeName(wireType)
             + ", "
-            + TypeName.get(domainType)
+            + ProcessorUtils.qualifiedTypeName(domainType)
             + "> "
             + name
             + "()' to the spec"
@@ -6964,22 +6977,22 @@ public class MappingProcessor extends AbstractProcessor {
             + "."
             + name
             + "' is Optional<"
-            + bridged
+            + ProcessorUtils.qualifiedTypeName(bridged)
             + ">, bridged to the "
             + (nonNull == null ? "nullable " : "")
             + wireMemberTerm(wire)
             + " '"
             + wireName
             + "' of type "
-            + wireType
+            + ProcessorUtils.qualifiedTypeName(wireType)
             + ", but "
             + (offer.lifts()
                 ? "its "
                     + offer.parts()
                     + " types differ ("
-                    + offer.wire()
+                    + ProcessorUtils.qualifiedTypeName(offer.wire())
                     + " vs "
-                    + offer.domain()
+                    + ProcessorUtils.qualifiedTypeName(offer.domain())
                     + ")"
                 : "the element types differ")
             + " and neither a leaf nor a mapping spec converts them.",
@@ -6995,9 +7008,9 @@ public class MappingProcessor extends AbstractProcessor {
                 : "element is copied when the types match, nested through a @GenerateMapping spec"
                     + " for the element pair, or mapped through a leaf")
             + " named after the domain component returning ValidatedPrism<"
-            + offer.wire()
+            + ProcessorUtils.qualifiedTypeName(offer.wire())
             + ", "
-            + offer.domain()
+            + ProcessorUtils.qualifiedTypeName(offer.domain())
             + "> (the "
             + (offer.lifts()
                 ? offer.parts() + " types, not the container"
@@ -7009,9 +7022,9 @@ public class MappingProcessor extends AbstractProcessor {
         "Declare '"
             + site.annotation()
             + "default ValidatedPrism<"
-            + offer.wire()
+            + ProcessorUtils.qualifiedTypeName(offer.wire())
             + ", "
-            + offer.domain()
+            + ProcessorUtils.qualifiedTypeName(offer.domain())
             + "> "
             + name
             + "()'"
@@ -7060,23 +7073,28 @@ public class MappingProcessor extends AbstractProcessor {
             + "."
             + name
             + "' is "
-            + domainType
+            + ProcessorUtils.qualifiedTypeName(domainType)
             + ", bridged to the "
             + wireMemberTerm(wire)
             + " '"
             + wireName
             + "', which is the primitive "
-            + wireType
+            + ProcessorUtils.qualifiedTypeName(wireType)
             + ".",
         "An empty Optional is a null on the wire, and "
-            + wireType
+            + ProcessorUtils.qualifiedTypeName(wireType)
             + " can never hold one, so the "
             + wireMemberTerm(wire)
             + " cannot carry an absent value either way; no leaf can change that, since a leaf"
             + " converts only a present value and a ValidatedPrism cannot name a primitive.",
         primitiveBridgeFix(spec, wire, name, wireName, wireType, bridged, LeafSite.PLAIN, false)
             + (processingEnv.getTypeUtils().isSameType(boxed(wireType), bridged)
-                ? ", or declare '" + domain.getSimpleName() + "." + name + "' as " + wireType
+                ? ", or declare '"
+                    + domain.getSimpleName()
+                    + "."
+                    + name
+                    + "' as "
+                    + ProcessorUtils.qualifiedTypeName(wireType)
                 : "")
             + ".");
   }
@@ -7108,7 +7126,7 @@ public class MappingProcessor extends AbstractProcessor {
         + "' on '"
         + wire.element().getSimpleName()
         + "' as "
-        + wrapper
+        + ProcessorUtils.qualifiedTypeName(wrapper)
         + (leaf != null ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts" : "")
         + (converted
             ? dropMarker ? ", and remove the annotation, which a bean wire does not need" : ""
@@ -7484,11 +7502,14 @@ public class MappingProcessor extends AbstractProcessor {
                       + whole
                       + " with the marker '"
                       + site.annotation()
-                      + processingEnv
-                          .getTypeUtils()
-                          .getDeclaredType(
-                              processingEnv.getElementUtils().getTypeElement("java.util.Optional"),
-                              domainMap)
+                      + ProcessorUtils.qualifiedTypeName(
+                          processingEnv
+                              .getTypeUtils()
+                              .getDeclaredType(
+                                  processingEnv
+                                      .getElementUtils()
+                                      .getTypeElement("java.util.Optional"),
+                                  domainMap))
                       + " "
                       + name
                       + "();'")
@@ -7504,9 +7525,9 @@ public class MappingProcessor extends AbstractProcessor {
               + " with the value leaf '"
               + site.annotation()
               + "default ValidatedPrism<"
-              + values[0]
+              + ProcessorUtils.qualifiedTypeName(values[0])
               + ", "
-              + values[1]
+              + ProcessorUtils.qualifiedTypeName(values[1])
               + "> "
               + name
               + "()', which converts the values while "
@@ -7624,11 +7645,11 @@ public class MappingProcessor extends AbstractProcessor {
         "field '"
             + name
             + "' is an array whose element type "
-            + offending
+            + ProcessorUtils.qualifiedTypeName(offending)
             + " cannot name an array constructor.",
         "Lifting an array builds a new array of the element type, and Java forbids creating an"
             + " array of a type variable or of a parameterised type, so the generated '"
-            + offending
+            + ProcessorUtils.qualifiedTypeName(offending)
             + "[]::new' would not compile.",
         "Declare the component as a List on both sides, which lifts the same way and needs no"
             + " array creation, or map the arrays whole with the leaf "
@@ -7727,22 +7748,22 @@ public class MappingProcessor extends AbstractProcessor {
     return " A default method '"
         + name
         + "()' exists but returns '"
-        + memberTypeIn(spec, method)
+        + ProcessorUtils.qualifiedTypeName(memberTypeIn(spec, method))
         + "'"
         + (method.getParameters().isEmpty() ? "" : " and declares parameters")
         + (hasPrimitive(wireType, domainType)
             ? "."
             : " — a leaf must be a zero-parameter default method returning exactly"
                 + " ValidatedPrism<"
-                + wireType
+                + ProcessorUtils.qualifiedTypeName(wireType)
                 + ", "
-                + domainType
+                + ProcessorUtils.qualifiedTypeName(domainType)
                 + "> (wire first, domain second)"
                 + (offer.lifts()
                     ? ", or ValidatedPrism<"
-                        + offer.wire()
+                        + ProcessorUtils.qualifiedTypeName(offer.wire())
                         + ", "
-                        + offer.domain()
+                        + ProcessorUtils.qualifiedTypeName(offer.domain())
                         + "> over the "
                         + offer.parts()
                         + " types"
@@ -7818,11 +7839,11 @@ public class MappingProcessor extends AbstractProcessor {
     return through == null
         ? ""
         : ", or declare the component as "
-            + domainView
+            + ProcessorUtils.qualifiedTypeName(domainView)
             + " on '"
             + member.domain().getSimpleName()
             + "' and as "
-            + wireView
+            + ProcessorUtils.qualifiedTypeName(wireView)
             + " on '"
             + member.wire().element().getSimpleName()
             + "', which then "
@@ -7909,16 +7930,23 @@ public class MappingProcessor extends AbstractProcessor {
           + ", so an absent value reads as a null wire component and a present one converts. ";
     }
     return needsNoLeaf
-        ? leafLine(spec, name, "'@OptionalBridge " + domainType + " " + name + "();'")
+        ? leafLine(
+                spec,
+                name,
+                "'@OptionalBridge "
+                    + ProcessorUtils.qualifiedTypeName(domainType)
+                    + " "
+                    + name
+                    + "();'")
             + nullable
             + ", so an absent value reads as a null wire component and back. "
         : leafLine(
                 spec,
                 name,
                 "'@OptionalBridge default ValidatedPrism<"
-                    + offer.wire()
+                    + ProcessorUtils.qualifiedTypeName(offer.wire())
                     + ", "
-                    + offer.domain()
+                    + ProcessorUtils.qualifiedTypeName(offer.domain())
                     + "> "
                     + name
                     + "()'")
@@ -8972,7 +9000,7 @@ public class MappingProcessor extends AbstractProcessor {
         spec,
         TAG,
         "permitted subtype '"
-            + subtype
+            + ProcessorUtils.qualifiedTypeName(subtype)
             + "' of '"
             + (permitted.wireSide() ? wire : domain).getSimpleName()
             + "' is "
@@ -8981,7 +9009,7 @@ public class MappingProcessor extends AbstractProcessor {
         "Dispatch delegates each subtype to the one spec mapping it, and "
             + (generic
                 ? "no spec matches '"
-                    + subtype
+                    + ProcessorUtils.qualifiedTypeName(subtype)
                     + "' for every type argument dispatch can meet: a spec over one instantiation"
                     + " covers only that one."
                 : "a spec maps only a record or a sealed interface"
@@ -9068,7 +9096,7 @@ public class MappingProcessor extends AbstractProcessor {
             spec,
             TAG,
             "permitted subtype '"
-                + domainSubtype
+                + ProcessorUtils.qualifiedTypeName(domainSubtype)
                 + "' of '"
                 + domain.getSimpleName()
                 + "' has no mapping spec.",
@@ -9078,7 +9106,7 @@ public class MappingProcessor extends AbstractProcessor {
                 + "."
                 + projectionHint,
             "Declare a @GenerateMapping spec for '"
-                + domainSubtype
+                + ProcessorUtils.qualifiedTypeName(domainSubtype)
                 + "',"
                 + declarationSites(processingEnv, spec)
                 + ".");
@@ -9092,7 +9120,7 @@ public class MappingProcessor extends AbstractProcessor {
             spec,
             TAG,
             "permitted subtype '"
-                + domainSubtype
+                + ProcessorUtils.qualifiedTypeName(domainSubtype)
                 + "' of '"
                 + domain.getSimpleName()
                 + "' matches more than one mapping spec: "
@@ -9109,7 +9137,7 @@ public class MappingProcessor extends AbstractProcessor {
           processingEnv,
           spec,
           TAG,
-          "permitted subtype '" + domainSubtype + "'",
+          "permitted subtype '" + ProcessorUtils.qualifiedTypeName(domainSubtype) + "'",
           "Keep it, or remove the spec in this compilation if the classpath spec is the one meant.",
           nearest);
       RegisteredSpec match = candidates.getFirst();
@@ -9126,7 +9154,7 @@ public class MappingProcessor extends AbstractProcessor {
             spec,
             TAG,
             "permitted subtype '"
-                + wireSubtype
+                + ProcessorUtils.qualifiedTypeName(wireSubtype)
                 + "' of '"
                 + wire.getSimpleName()
                 + "' is never produced.",
@@ -9141,7 +9169,7 @@ public class MappingProcessor extends AbstractProcessor {
             spec,
             TAG,
             "permitted subtype '"
-                + wireSubtype
+                + ProcessorUtils.qualifiedTypeName(wireSubtype)
                 + "' of '"
                 + wire.getSimpleName()
                 + "' is targeted by more than one domain subtype.",
@@ -9853,7 +9881,7 @@ public class MappingProcessor extends AbstractProcessor {
           spec,
           TAG,
           "the domain type argument '"
-              + domainArg
+              + ProcessorUtils.qualifiedTypeName(domainArg)
               + "' is a bean-shaped class, which this mapper does not support on the domain side.",
           "parse assembles the domain through its canonical constructor, so the domain must be a"
               + " record (or a sealed interface of records); only the wire may be bean-shaped.",
@@ -9878,7 +9906,9 @@ public class MappingProcessor extends AbstractProcessor {
         processingEnv.getMessager(),
         spec,
         TAG,
-        "the wire type argument '" + wireArg + "' is neither a record nor a bean-shaped class.",
+        "the wire type argument '"
+            + ProcessorUtils.qualifiedTypeName(wireArg)
+            + "' is neither a record nor a bean-shaped class.",
         "A record domain maps to a record wire (component-wise) or to a bean-shaped wire read"
             + " through getters and written through setters or a builder.",
         "Use a record, or a concrete bean class, for the wire.");

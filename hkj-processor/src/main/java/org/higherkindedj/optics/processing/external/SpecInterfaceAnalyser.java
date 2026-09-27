@@ -398,7 +398,7 @@ public class SpecInterfaceAnalyser {
               + method.getSimpleName()
               + "' must return Lens, Prism, Traversal, Affine, Iso, Getter, or Fold. "
               + "Found: "
-              + returnType,
+              + ProcessorUtils.qualifiedTypeName(returnType),
           method);
       return Optional.empty();
     }
@@ -543,12 +543,12 @@ public class SpecInterfaceAnalyser {
       if (!typeUtils.isSubtype(typeUtils.erasure(targetType), typeUtils.erasure(sourceType))) {
         error(
             "@InstanceOf target '"
-                + targetType
+                + ProcessorUtils.qualifiedTypeName(targetType)
                 + "' is not a subtype of source type '"
-                + sourceType
+                + ProcessorUtils.qualifiedTypeName(sourceType)
                 + "'. "
                 + "Only subtypes of '"
-                + sourceType
+                + ProcessorUtils.qualifiedTypeName(sourceType)
                 + "' can be used with @InstanceOf.",
             method);
         return Optional.empty();

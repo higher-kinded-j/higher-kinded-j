@@ -264,7 +264,7 @@ final class CopyStrategyChecks {
         "@ImportOptics",
         "Lens method '" + method.getSimpleName() + "' carries no copy strategy annotation.",
         "A lens has to rebuild '"
-            + sourceType
+            + ProcessorUtils.qualifiedTypeName(sourceType)
             + "' to set through it, and only the strategy says how that type is copied.",
         "Add @ViaBuilder, @Wither, @ViaConstructor, or @ViaCopyAndSet to the method.");
     return Optional.empty();
@@ -444,9 +444,12 @@ final class CopyStrategyChecks {
     TypeMirror declaredRead = ProcessorUtils.returnTypeIn(typeUtils, sourceType, getter);
     boolean sameName =
         ProcessorUtils.simpleTypeName(declaredRead).equals(ProcessorUtils.simpleTypeName(focus));
-    String focusName = sameName ? focus.toString() : ProcessorUtils.simpleTypeName(focus);
+    String focusName =
+        sameName ? ProcessorUtils.qualifiedTypeName(focus) : ProcessorUtils.simpleTypeName(focus);
     String readName =
-        sameName ? declaredRead.toString() : ProcessorUtils.simpleTypeName(declaredRead);
+        sameName
+            ? ProcessorUtils.qualifiedTypeName(declaredRead)
+            : ProcessorUtils.simpleTypeName(declaredRead);
     // A focus is a type argument, so a primitive read is declared as its wrapper.
     String readAsFocus =
         declaredRead.getKind().isPrimitive()
@@ -1695,7 +1698,7 @@ final class CopyStrategyChecks {
           "Give the copy constructor's parameter type as a fully qualified class name - a nested"
               + " class as 'com.example.Outer.Base', a generic base as the class alone - or drop"
               + " the attribute to pass '"
-              + sourceType
+              + ProcessorUtils.qualifiedTypeName(sourceType)
               + "' unchanged.");
       return Optional.empty();
     }
@@ -1790,12 +1793,14 @@ final class CopyStrategyChecks {
         "copyConstructor names '"
             + parameterElement.getQualifiedName()
             + "', which '"
-            + sourceType
+            + ProcessorUtils.qualifiedTypeName(sourceType)
             + "' does not extend or implement.",
         "The generated set function passes the source to the copy constructor as '("
             + parameterElement.getSimpleName()
             + ") source', and only a supertype of the source can be cast to there.",
-        "Name a supertype of '" + sourceType + "', or drop the attribute to pass it unchanged.");
+        "Name a supertype of '"
+            + ProcessorUtils.qualifiedTypeName(sourceType)
+            + "', or drop the attribute to pass it unchanged.");
     return Optional.empty();
   }
 

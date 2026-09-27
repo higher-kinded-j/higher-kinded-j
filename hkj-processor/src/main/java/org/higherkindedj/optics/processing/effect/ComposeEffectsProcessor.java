@@ -27,6 +27,7 @@ import org.higherkindedj.hkt.effect.annotation.ComposeEffects;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.hkt.effect.annotation.Handles;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
+import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
 
 /**
@@ -128,7 +129,7 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
     if (!(component.asType() instanceof DeclaredType declared)
         || !((TypeElement) declared.asElement()).getQualifiedName().contentEquals("java.lang.Class")
         || declared.getTypeArguments().size() != 1) {
-      error(expected + component.asType(), component);
+      error(expected + ProcessorUtils.qualifiedTypeName(component.asType()), component);
       return null;
     }
     TypeMirror argument = declared.getTypeArguments().get(0);
@@ -136,7 +137,7 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
       return null; // as above
     }
     if (!(argument instanceof DeclaredType algebraType)) {
-      error(expected + component.asType(), component);
+      error(expected + ProcessorUtils.qualifiedTypeName(component.asType()), component);
       return null;
     }
     TypeElement algebra = (TypeElement) algebraType.asElement();
@@ -148,7 +149,11 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
       // marker naming the algebra and nothing more. Spelling it Class<XOp<String>> reads as
       // though the composition were fixed to String, which it is not.
       error(
-          expected + component.asType() + "; write Class<" + algebra.getSimpleName() + "<?>>",
+          expected
+              + ProcessorUtils.qualifiedTypeName(component.asType())
+              + "; write Class<"
+              + algebra.getSimpleName()
+              + "<?>>",
           component);
       return null;
     }

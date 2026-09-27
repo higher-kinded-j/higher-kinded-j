@@ -202,7 +202,9 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     for (TypeMirror mirror : permitted) {
       Element permitElement = processingEnv.getTypeUtils().asElement(mirror);
       if (permitElement.getKind() != ElementKind.RECORD) {
-        error("Permit must be a record type: " + mirror, sealedInterface);
+        error(
+            "Permit must be a record type: " + ProcessorUtils.qualifiedTypeName(mirror),
+            sealedInterface);
         return null;
       }
       TypeElement permitType = (TypeElement) permitElement;

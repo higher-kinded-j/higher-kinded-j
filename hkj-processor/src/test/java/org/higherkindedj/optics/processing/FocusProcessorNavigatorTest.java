@@ -1372,10 +1372,15 @@ public class FocusProcessorNavigatorTest {
               package com.b;
 
               import com.a.Money;
+              import java.lang.annotation.ElementType;
+              import java.lang.annotation.Target;
               import org.higherkindedj.optics.annotations.GenerateFocus;
 
               @GenerateFocus(generateNavigators = true)
-              public record Invoice(String reference, Money total) {}
+              public record Invoice(String reference, Money total, @Invoice.Rounded Money due) {
+                @Target(ElementType.TYPE_USE)
+                public @interface Rounded {}
+              }
               """);
       JavaFileObject ledger =
           JavaFileObjects.forSourceString(
@@ -1401,6 +1406,11 @@ public class FocusProcessorNavigatorTest {
       assertThat(downstream)
           .hadNoteContaining(
               "Navigator for field 'invoice' has no 'total' method: com.b.InvoiceFocus.total()"
+                  + " names com.a.Money, which is not on this module's compile classpath");
+      // An annotated use is named as the type it annotates, package and all.
+      assertThat(downstream)
+          .hadNoteContaining(
+              "Navigator for field 'invoice' has no 'due' method: com.b.InvoiceFocus.due()"
                   + " names com.a.Money, which is not on this module's compile classpath");
     }
 

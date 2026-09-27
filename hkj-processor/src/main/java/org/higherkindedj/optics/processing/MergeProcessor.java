@@ -408,7 +408,7 @@ public class MergeProcessor extends AbstractProcessor {
         processingEnv.getMessager(),
         mergeMethod,
         TAG,
-        "merge target '" + mirror + "' is not a record.",
+        "merge target '" + ProcessorUtils.qualifiedTypeName(mirror) + "' is not a record.",
         "The merge fills the target's record components; only records declare them.",
         "Return a record type (optionally wrapped in Validated<NonEmptyList<FieldError>, ...>).");
     return null;
@@ -576,9 +576,9 @@ public class MergeProcessor extends AbstractProcessor {
                 + candidates.names()
                 + ".",
             "A nested fill resolves to the single spec mapping ("
-                + targetComponent.asType()
+                + ProcessorUtils.qualifiedTypeName(targetComponent.asType())
                 + ", "
-                + sourceComponent.asType()
+                + ProcessorUtils.qualifiedTypeName(sourceComponent.asType())
                 + "); with several, the choice would be arbitrary.",
             "Add a leaf method '"
                 + name
@@ -622,9 +622,9 @@ public class MergeProcessor extends AbstractProcessor {
                           spec,
                           name,
                           "'default ValidatedPrism<"
-                              + sourceType
+                              + ProcessorUtils.qualifiedTypeName(sourceType)
                               + ", "
-                              + targetType
+                              + ProcessorUtils.qualifiedTypeName(targetType)
                               + "> "
                               + name
                               + "()'"))
@@ -640,9 +640,9 @@ public class MergeProcessor extends AbstractProcessor {
           TAG,
           "target component '" + target.getSimpleName() + "." + name + "' has no usable fill.",
           "The types differ ("
-              + sourceType
+              + ProcessorUtils.qualifiedTypeName(sourceType)
               + " vs "
-              + targetType
+              + ProcessorUtils.qualifiedTypeName(targetType)
               + ") and no matching leaf method was found."
               + leafNearMissHint(spec, name, sourceType, targetType)
               + (primitiveInvolved ? MappingProcessor.PRIMITIVE_REASON : "")
@@ -677,17 +677,17 @@ public class MergeProcessor extends AbstractProcessor {
           + " and "
           + targetMember
           + " both "
-          + types.unboxedType(sourceBoxed)
+          + ProcessorUtils.qualifiedTypeName(types.unboxedType(sourceBoxed))
           + ", or both "
-          + sourceBoxed
+          + ProcessorUtils.qualifiedTypeName(sourceBoxed)
           + ", so that they copy.";
     }
     List<String> wrappers = new ArrayList<>();
     if (sourceType.getKind().isPrimitive()) {
-      wrappers.add(sourceMember + " as " + sourceBoxed);
+      wrappers.add(sourceMember + " as " + ProcessorUtils.qualifiedTypeName(sourceBoxed));
     }
     if (targetType.getKind().isPrimitive()) {
-      wrappers.add(targetMember + " as " + targetBoxed);
+      wrappers.add(targetMember + " as " + ProcessorUtils.qualifiedTypeName(targetBoxed));
     }
     ExecutableElement leaf = findLeaf(spec, name, sourceBoxed, targetBoxed);
     return "Align the component types, or declare "
@@ -699,9 +699,9 @@ public class MergeProcessor extends AbstractProcessor {
                     spec,
                     name,
                     "'default ValidatedPrism<"
-                        + sourceBoxed
+                        + ProcessorUtils.qualifiedTypeName(sourceBoxed)
                         + ", "
-                        + targetBoxed
+                        + ProcessorUtils.qualifiedTypeName(targetBoxed)
                         + "> "
                         + name
                         + "()'")
@@ -740,16 +740,16 @@ public class MergeProcessor extends AbstractProcessor {
     return " A default method '"
         + name
         + "()' exists but returns '"
-        + method.getReturnType()
+        + ProcessorUtils.qualifiedTypeName(method.getReturnType())
         + "'"
         + (method.getParameters().isEmpty() ? "" : " and declares parameters")
         + (sourceType.getKind().isPrimitive() || targetType.getKind().isPrimitive()
             ? "."
             : " — a leaf must be a zero-parameter default method returning exactly"
                 + " ValidatedPrism<"
-                + sourceType
+                + ProcessorUtils.qualifiedTypeName(sourceType)
                 + ", "
-                + targetType
+                + ProcessorUtils.qualifiedTypeName(targetType)
                 + "> (source first, target second).");
   }
 
