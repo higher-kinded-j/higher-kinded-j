@@ -80,11 +80,12 @@ interface Renames<T> {
 // The interface below it says what T is. The spec never repeats it, and never sees a T.
 interface TextRenames extends Renames<String> {}
 
-// Record Mapping Basics' Courier, on a contact wire that calls its name fullName.
-record CourierContactDto(String fullName, String email) {}
+// Record Mapping Basics' Courier(String name, EmailAddress email), on a carrier's roster of its
+// couriers, which calls the name fullName.
+record CourierRosterDto(String fullName, String email) {}
 
 @GenerateMapping
-interface CourierContactMapping extends TextRenames, MappingSpec<Courier, CourierContactDto> {
+interface CourierRosterMapping extends TextRenames, MappingSpec<Courier, CourierRosterDto> {
   default ValidatedPrism<String, EmailAddress> email() {
     return EmailCodecs.EMAIL;
   }

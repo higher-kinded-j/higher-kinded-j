@@ -490,7 +490,7 @@ A one-directional mapping follows these rules:
 
 | The element-mapped spec has | Each prism comes from |
 |---|---|
-| one abstract leaf | a leaf on the using spec, named after the component and typed at the **element** pair (for `record Inbox(Page<EmailAddress> entries)`, `default ValidatedPrism<String, EmailAddress> entries()`), and otherwise another registered mapping for the element pair |
+| one abstract leaf | a leaf on the using spec, named after the component and typed at the **element** pair (for `record MailingList(Page<EmailAddress> entries)`, `default ValidatedPrism<String, EmailAddress> entries()`), and otherwise another registered mapping for the element pair |
 | several abstract leaves | another registered mapping for each element pair, in this module or a dependency: one leaf on the using spec cannot say which of them it replaces |
 
 The registered mapping may itself be a composition, resolved the same way. A failure locates through the whole path, `entries.items.1: not an email address`. When nothing supplies an element pair, the processor refuses the use site:
