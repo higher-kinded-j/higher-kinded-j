@@ -701,30 +701,6 @@ class PathSourceProcessorIntegrationTest {
     }
 
     @Test
-    @DisplayName("fails with error when @PathSource is applied to enum")
-    void shouldFailForEnum() {
-      final var sourceFile =
-          JavaFileObjects.forSourceString(
-              "com.example.BadEnum",
-              """
-              package com.example;
-
-              import org.higherkindedj.hkt.effect.annotation.PathSource;
-
-              @PathSource(witness = Object.class)
-              public enum BadEnum {
-                  VALUE
-              }
-              """);
-
-      var compilation = javac().withProcessors(new PathSourceProcessor()).compile(sourceFile);
-
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining("@PathSource can only be applied to classes or interfaces");
-    }
-
-    @Test
     @DisplayName("generates peek method for all capabilities")
     void shouldGeneratePeekMethod() {
       final var witnessSource =

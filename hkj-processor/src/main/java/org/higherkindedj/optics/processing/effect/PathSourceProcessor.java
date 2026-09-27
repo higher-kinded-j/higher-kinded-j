@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing.effect;
 import com.google.auto.service.AutoService;
 import com.palantir.javapoet.*;
 import java.io.IOException;
+import java.lang.annotation.AnnotationTypeMismatchException;
 import java.util.*;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
@@ -13,10 +14,12 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.PathSource;
 import org.higherkindedj.optics.processing.util.Diagnostics;
@@ -24,6 +27,7 @@ import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
 import org.higherkindedj.optics.processing.util.Reachability.Crossing;
+import org.higherkindedj.optics.processing.util.TypeKey;
 
 /**
  * Annotation processor that generates Path wrapper classes for custom effect types.
@@ -90,19 +94,97 @@ public class PathSourceProcessor extends AbstractProcessor {
   private static final ClassName MONAD = ClassName.get("org.higherkindedj.hkt", "Monad");
   private static final ClassName MONAD_ERROR = ClassName.get("org.higherkindedj.hkt", "MonadError");
 
+  /**
+   * The annotated types whose attributes name a type or constant javac has not resolved yet.
+   * Another processor may generate it, such as the witness {@code @EffectAlgebra} writes, and javac
+   * supplies it in the round after the one that writes it.
+   */
+  private final Set<TypeKey> waiting = new LinkedHashSet<>();
+
+  /**
+   * Generates a Path for each type annotated this round, and for each one waiting on an earlier
+   * round whose attributes now resolve. A type still waiting when processing ends generates nothing
+   * and reports nothing: what it waits for is a reference javac reports as {@code cannot find
+   * symbol}.
+   */
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (TypeElement annotation : annotations) {
-      Set<? extends Element> annotatedElements = roundEnv.getElementsAnnotatedWith(annotation);
-      for (Element element : annotatedElements) {
-        if (element.getKind() != ElementKind.CLASS && element.getKind() != ElementKind.INTERFACE) {
-          error("@PathSource can only be applied to classes or interfaces.", element);
-          continue;
-        }
-        writePathClass((TypeElement) element);
+    // Nothing is written in the last round, which javac also makes of the round after an error.
+    if (roundEnv.processingOver()) {
+      waiting.clear();
+      return true;
+    }
+    Elements elements = processingEnv.getElementUtils();
+    // A waiting type is read afresh: javac attributes its annotation again each round.
+    List<TypeElement> candidates =
+        Stream.concat(
+                waiting.stream().map(key -> key.in(elements)),
+                roundEnv.getElementsAnnotatedWith(PathSource.class).stream()
+                    .filter(this::acceptedKind)
+                    .map(TypeElement.class::cast))
+            .toList();
+    waiting.clear();
+    for (TypeElement type : candidates) {
+      if (unresolved(type)) {
+        waiting.add(TypeKey.of(elements, type));
+      } else {
+        writePathClass(type);
       }
     }
     return true;
+  }
+
+  /** Whether {@code @PathSource} applies to the element's kind, having refused it where not. */
+  private boolean acceptedKind(Element element) {
+    if (element.getKind() == ElementKind.ENUM || element.getKind() == ElementKind.ANNOTATION_TYPE) {
+      refuseKind(element);
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Refuses an enum or an annotation interface, at the annotation: neither is an effect type a Path
+   * could wrap. A class, an interface and a record all are.
+   */
+  private void refuseKind(Element element) {
+    processingEnv
+        .getMessager()
+        .printMessage(
+            Diagnostic.Kind.ERROR,
+            Diagnostics.format(
+                "@PathSource",
+                "'"
+                    + element.getSimpleName()
+                    + "' is "
+                    + (element.getKind() == ElementKind.ENUM
+                        ? "an enum"
+                        : "an annotation interface"),
+                "A Path wraps the values of an effect type, and "
+                    + (element.getKind() == ElementKind.ENUM
+                        ? "an enum is a fixed set of constants."
+                        : "an annotation interface holds annotation elements."),
+                "Put @PathSource on the class, interface or record whose Kind the witness indexes,"
+                    + " or remove it."),
+            element,
+            ProcessorUtils.findAnnotation(element, PATH_SOURCE));
+  }
+
+  /**
+   * Whether an attribute names a type or a constant javac has not resolved, which a later round's
+   * generated sources may supply. A class literal whose type is unresolved reads as an error type;
+   * any other unresolved value reads as a value of the wrong type.
+   */
+  private static boolean unresolved(TypeElement type) {
+    PathSource annotation = type.getAnnotation(PathSource.class);
+    try {
+      annotation.suffix();
+      annotation.targetPackage();
+      return getWitnessType(annotation).getKind() == TypeKind.ERROR
+          || getErrorType(annotation).getKind() == TypeKind.ERROR;
+    } catch (AnnotationTypeMismatchException e) {
+      return true;
+    }
   }
 
   @ExcludeFromJacocoGeneratedReport
@@ -110,7 +192,10 @@ public class PathSourceProcessor extends AbstractProcessor {
     try {
       generatePathClass(element);
     } catch (IOException e) {
-      error("Could not generate Path class: " + e.getMessage(), element);
+      processingEnv
+          .getMessager()
+          .printMessage(
+              Diagnostic.Kind.ERROR, "Could not generate Path class: " + e.getMessage(), element);
     }
   }
 
@@ -240,7 +325,7 @@ public class PathSourceProcessor extends AbstractProcessor {
 
     // Add Composable methods: map, peek
     classBuilder.addMethod(buildMapMethod(pathClassName, witnessType, typeA, includeMonadError));
-    classBuilder.addMethod(buildPeekMethod(pathClassName, kindType, typeA));
+    classBuilder.addMethod(buildPeekMethod(pathClassName, typeA));
 
     // Add Chainable methods if applicable: via, then, flatMap
     if (isChainable(capability)) {
@@ -375,42 +460,110 @@ public class PathSourceProcessor extends AbstractProcessor {
     return false;
   }
 
-  /** Refuses a witness that is not a class, such as {@code int.class}: no Kind is indexed by it. */
+  /**
+   * Refuses a witness no generated Path can wrap a Kind of: one that is not a class, such as {@code
+   * int.class}; one a class literal names only raw; and one that is not a witness of one type
+   * parameter, since the Path takes a {@code Monad} over it.
+   */
   private boolean checkWitness(TypeElement source, AnnotationMirror mirror, TypeMirror witness) {
-    if (!notAClass(witness)) {
+    String name = ProcessorUtils.simpleTypeName(witness);
+    String what;
+    String why;
+    String fix = "Name the effect's witness marker, such as BoxKind.Witness.class.";
+    if (notAClass(witness)) {
+      what = "witness '" + name + "' is not a class";
+      why =
+          "The witness is the marker class the effect's Kind is indexed by, and the generated Path"
+              + " wraps a Kind of it.";
+    } else if (ProcessorUtils.firstRawIn(witness) != null) {
+      what = "witness " + rawProblem(witness);
+      why =
+          "The generated Path would wrap a Kind of the raw witness, which no Kind of a"
+              + " parameterised one could be passed as.";
+      fix =
+          "Name a witness without type parameters, or use GenericPath, which takes a Kind of the"
+              + " witness with its type arguments.";
+    } else if (!unaryWitness(witness)) {
+      what = "witness '" + name + "' is not a witness of one type parameter";
+      why =
+          "The generated Path wraps a Kind of it and takes a Monad over it, which both need it to"
+              + " implement WitnessArity<TypeArity.Unary>.";
+    } else {
       return true;
     }
-    report(
-        Diagnostic.Kind.ERROR,
-        source,
-        mirror,
-        "witness",
-        "witness '" + ProcessorUtils.simpleTypeName(witness) + "' is not a class",
-        "The witness is the marker class the effect's Kind is indexed by, and the generated Path"
-            + " wraps a Kind of it.",
-        "Name the effect's witness marker, such as BoxKind.Witness.class.");
+    report(Diagnostic.Kind.ERROR, source, mirror, "witness", what, why, fix);
     return false;
   }
 
   /**
-   * Refuses a primitive or {@code void} errorType on a capability that recovers: the Path takes a
-   * MonadError over it, whose error type must be a reference type.
+   * Whether the witness implements {@code WitnessArity<TypeArity.Unary>}. Without hkj-api on the
+   * classpath there is nothing to check it against, and the generated file reports the Kind it
+   * cannot find.
+   */
+  private boolean unaryWitness(TypeMirror witness) {
+    Elements elements = processingEnv.getElementUtils();
+    TypeElement arity = elements.getTypeElement("org.higherkindedj.hkt.WitnessArity");
+    if (arity == null) {
+      return true;
+    }
+    // TypeArity ships beside WitnessArity, so its Unary is present wherever WitnessArity is.
+    TypeElement unary = elements.getTypeElement("org.higherkindedj.hkt.TypeArity.Unary");
+    Types types = processingEnv.getTypeUtils();
+    return types.isSubtype(witness, types.getDeclaredType(arity, unary.asType()));
+  }
+
+  /**
+   * How a type a class literal names only raw is raw: generic itself, or naming a generic type as
+   * an array's component or an inner class's enclosing type.
+   */
+  private String rawProblem(TypeMirror type) {
+    TypeElement raw = ProcessorUtils.firstRawIn(type);
+    String name = ProcessorUtils.simpleTypeName(type);
+    return type instanceof DeclaredType declared && declared.asElement().equals(raw)
+        ? "'" + name + "' is generic, and a class literal can name only its raw type"
+        : "'"
+            + name
+            + "' names the generic '"
+            + ProcessorUtils.simpleTypeName(processingEnv.getTypeUtils().erasure(raw.asType()))
+            + "', and a class literal can name only its raw type";
+  }
+
+  /**
+   * Refuses an errorType a capability that recovers cannot take: the Path takes a MonadError over
+   * it, whose error type must be a reference type, and a class literal can name a generic type only
+   * raw, so no MonadError over a parameterised one could be passed.
    */
   private boolean checkErrorType(
       TypeElement source, AnnotationMirror mirror, TypeMirror errorType) {
     if (usableErrorType(errorType)) {
       return true;
     }
+    boolean primitive = ProcessorUtils.firstRawIn(errorType) == null;
     report(
         Diagnostic.Kind.ERROR,
         source,
         mirror,
         "errorType",
-        "errorType '" + ProcessorUtils.simpleTypeName(errorType) + "' is not a reference type",
-        "Recovery takes a MonadError over the error type, and a type argument must be a reference"
-            + " type.",
-        "Use a reference type for the error, such as a record describing it, or remove errorType.");
+        "errorType " + errorTypeProblem(errorType),
+        primitive
+            ? "Recovery takes a MonadError over the error type, and a type argument must be a"
+                + " reference type."
+            : "The generated of and pure would take a MonadError over the raw type, so a"
+                + " MonadError over a parameterised one could not be passed to them.",
+        primitive
+            ? "Use a reference type for the error, such as a record describing it, or remove"
+                + " errorType."
+            : "Use a non-generic error type, such as a record with a '"
+                + ProcessorUtils.simpleTypeName(errorType)
+                + "' component, or remove errorType.");
     return false;
+  }
+
+  /** Why an errorType no recovering Path can take is unusable. */
+  private String errorTypeProblem(TypeMirror errorType) {
+    return ProcessorUtils.firstRawIn(errorType) == null
+        ? "'" + ProcessorUtils.simpleTypeName(errorType) + "' is not a reference type"
+        : rawProblem(errorType);
   }
 
   private static boolean notAClass(TypeMirror type) {
@@ -420,7 +573,9 @@ public class PathSourceProcessor extends AbstractProcessor {
   }
 
   private static boolean usableErrorType(TypeMirror type) {
-    return !type.getKind().isPrimitive() && type.getKind() != TypeKind.VOID;
+    return !type.getKind().isPrimitive()
+        && type.getKind() != TypeKind.VOID
+        && ProcessorUtils.firstRawIn(type) == null;
   }
 
   /**
@@ -458,7 +613,9 @@ public class PathSourceProcessor extends AbstractProcessor {
                   + ", "
                   + errorName
                   + ">, so existing calls must pass one. Otherwise remove errorType."
-              : "Remove errorType.");
+              : "Remove errorType; RECOVERABLE would refuse it, since "
+                  + errorTypeProblem(errorType)
+                  + ".");
     } else if (!hasErrorType && recoverable) {
       report(
           Diagnostic.Kind.NOTE,
@@ -712,8 +869,12 @@ public class PathSourceProcessor extends AbstractProcessor {
         .build();
   }
 
-  private MethodSpec buildPeekMethod(
-      String pathClassName, ParameterizedTypeName kindType, TypeVariableName typeA) {
+  /**
+   * The generated {@code peek} maps the action over the wrapped Kind, so it runs when the effect
+   * does, as {@code GenericPath}'s does: discarding the mapped Kind would lose the action on a lazy
+   * witness.
+   */
+  private MethodSpec buildPeekMethod(String pathClassName, TypeVariableName typeA) {
     ClassName pathClass = ClassName.get("", pathClassName);
 
     return MethodSpec.methodBuilder("peek")
@@ -723,12 +884,13 @@ public class PathSourceProcessor extends AbstractProcessor {
         .addParameter(
             ParameterizedTypeName.get(CONSUMER, WildcardTypeName.supertypeOf(typeA)), "consumer")
         .addJavadoc(
-            "Performs an action on the value without transforming it.\n\n"
+            "Performs an action on the value, when the effect produces it, without transforming"
+                + " it.\n\n"
                 + "@param consumer the action to perform; must not be null\n"
-                + "@return this path unchanged\n")
+                + "@return a new $L over the same value that performs the action\n",
+            pathClassName)
         .addStatement("$T.requireNonNull(consumer, $S)", OBJECTS, "consumer must not be null")
-        .addStatement("monad.map(a -> { consumer.accept(a); return a; }, kind)")
-        .addStatement("return this")
+        .addStatement("return map(a -> { consumer.accept(a); return a; })")
         .build();
   }
 
@@ -861,12 +1023,16 @@ public class PathSourceProcessor extends AbstractProcessor {
                 WildcardTypeName.subtypeOf(typeC)),
             "combiner")
         .addJavadoc(
-            "Combines this path with another using a binary function.\n\n"
-                + "@param other the other path; must not be null\n"
+            "Combines this path with another $L using a binary function.\n\n"
+                + "@param other the other path, which must be a $L; must not be null\n"
                 + "@param combiner the combining function; must not be null\n"
                 + "@param <B> the other path's value type\n"
                 + "@param <C> the result type\n"
-                + "@return a new $L with the combined result\n",
+                + "@return a new $L with the combined result\n"
+                + "@throws IllegalArgumentException if {@code other} is not a $L\n",
+            pathClassName,
+            pathClassName,
+            pathClassName,
             pathClassName)
         .addStatement("$T.requireNonNull(other, $S)", OBJECTS, "other must not be null")
         .addStatement("$T.requireNonNull(combiner, $S)", OBJECTS, "combiner must not be null")
@@ -1012,9 +1178,5 @@ public class PathSourceProcessor extends AbstractProcessor {
         .returns(String.class)
         .addStatement("return $S + kind + $S", pathClassName + "(", ")")
         .build();
-  }
-
-  private void error(String message, Element element) {
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, message, element);
   }
 }

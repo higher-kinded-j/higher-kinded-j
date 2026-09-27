@@ -67,7 +67,8 @@ public interface Composable<A> {
    * }</pre>
    *
    * @param consumer the action to perform on the contained value; must not be null
-   * @return this path unchanged (for method chaining)
+   * @return a path over the same value, possibly this one: an eager path performs the action at the
+   *     call, a deferred one when its effect runs
    * @throws NullPointerException if consumer is null
    */
   Composable<A> peek(Consumer<? super A> consumer);

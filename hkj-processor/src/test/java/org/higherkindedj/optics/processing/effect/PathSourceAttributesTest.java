@@ -11,12 +11,26 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathW
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
+import org.higherkindedj.hkt.effect.annotation.PathSource;
 import org.higherkindedj.optics.processing.CompanionAnnotationProcessor;
+import org.higherkindedj.optics.processing.GeneratorTestHelper;
+import org.higherkindedj.optics.processing.RuntimeCompilationHelper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,8 +41,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * What each {@code @PathSource} attribute does to the generated Path: the class name its suffix
- * gives, the attributes refused at the annotation, the notes for recovery asked for by halves, and
- * the deprecated capability levels.
+ * gives, the attributes refused at the annotation, the kinds of type it applies to, the methods it
+ * generates, the attributes that wait for a later round, the notes for recovery asked for by
+ * halves, and the deprecated capability levels.
  */
 @DisplayName("@PathSource attributes")
 class PathSourceAttributesTest {
@@ -83,6 +98,31 @@ class PathSourceAttributesTest {
         .withProcessors(new PathSourceProcessor(), new CompanionAnnotationProcessor())
         .withOptions("-Xlint:all,-removal", "-Werror")
         .compile(Stream.concat(Stream.of(WITNESS, ERROR), Arrays.stream(sources)).toList());
+  }
+
+  /** Writes one source in the first round, so that javac runs a second. */
+  @SupportedAnnotationTypes("*")
+  private static final class SecondRound extends AbstractProcessor {
+    private boolean written;
+
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+      return SourceVersion.latestSupported();
+    }
+
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+      if (!written) {
+        written = true;
+        try (Writer writer =
+            processingEnv.getFiler().createSourceFile("m1/com.example.Second").openWriter()) {
+          writer.write("package com.example; class Second {}");
+        } catch (IOException e) {
+          throw new UncheckedIOException(e);
+        }
+      }
+      return false;
+    }
   }
 
   private static String generated(Compilation compilation, String className) throws IOException {
@@ -269,6 +309,120 @@ class PathSourceAttributesTest {
           .onLineContaining("errorType");
     }
 
+    @ParameterizedTest(name = "errorType = {0}.class")
+    @CsvSource(
+        delimiter = '|',
+        quoteCharacter = '"',
+        value = {
+          "java.util.List | List | 'List' is generic",
+          "java.util.List[] | List[] | 'List[]' names the generic 'List'",
+          "java.util.Map.Entry | Map.Entry | 'Map.Entry' is generic"
+        })
+    @DisplayName("a generic errorType on RECOVERABLE, which a class literal names only raw")
+    void genericErrorTypeOnRecoverable(String errorType, String name, String what) {
+      final JavaFileObject box =
+          box(
+              "errorType = " + errorType + ".class",
+              "capability = PathSource.Capability.RECOVERABLE");
+
+      assertThat(compile(box))
+          .hadErrorContaining(
+              "@PathSource: errorType "
+                  + what
+                  + ", and a class literal can name only its raw type. The generated of and pure"
+                  + " would take a MonadError over the raw type, so a MonadError over a"
+                  + " parameterised one could not be passed to them. Use a non-generic error type,"
+                  + " such as a record with a '"
+                  + name
+                  + "' component, or remove errorType.")
+          .inFile(box)
+          .onLineContaining("errorType");
+    }
+
+    @ParameterizedTest(name = "witness = {0}.class")
+    @CsvSource(
+        delimiter = '|',
+        quoteCharacter = '"',
+        value = {
+          "org.higherkindedj.hkt.either.EitherKind.Witness | 'EitherKind.Witness' is generic, and a"
+              + " class literal can name only its raw type. The generated Path would wrap a Kind of"
+              + " the raw witness, which no Kind of a parameterised one could be passed as. Name a"
+              + " witness without type parameters, or use GenericPath, which takes a Kind of the"
+              + " witness with its type arguments.",
+          "String | 'String' is not a witness of one type parameter. The generated Path wraps a"
+              + " Kind of it and takes a Monad over it, which both need it to implement"
+              + " WitnessArity<TypeArity.Unary>. Name the effect's witness marker, such as"
+              + " BoxKind.Witness.class."
+        })
+    @DisplayName("a generic witness, or a class that is no witness of one type parameter")
+    void witnessNoPathCanWrap(String witness, String message) {
+      final JavaFileObject box =
+          JavaFileObjects.forSourceString(
+              "com.example.Box",
+              "package com.example;\n\n"
+                  + "import org.higherkindedj.hkt.effect.annotation.PathSource;\n\n"
+                  + "@PathSource(\n"
+                  + "    witness = "
+                  + witness
+                  + ".class)\n"
+                  + "public interface Box<A> {}\n");
+
+      assertThat(compile(box))
+          .hadErrorContaining("@PathSource: witness " + message)
+          .inFile(box)
+          .onLineContaining("witness");
+    }
+
+    @Test
+    @DisplayName("an inner class of a generic class, which a class literal names only raw")
+    void innerClassOfAGenericClass() {
+      final JavaFileObject box =
+          box("errorType = Outer.Inner.class", "capability = PathSource.Capability.RECOVERABLE");
+      final JavaFileObject outer =
+          JavaFileObjects.forSourceString(
+              "com.example.Outer",
+              """
+              package com.example;
+
+              public class Outer<T> {
+                public class Inner {}
+              }
+              """);
+
+      assertThat(compile(box, outer))
+          .hadErrorContaining(
+              "@PathSource: errorType 'Outer.Inner' names the generic 'Outer', and a class literal"
+                  + " can name only its raw type.")
+          .inFile(box)
+          .onLineContaining("errorType");
+    }
+
+    @Test
+    @DisplayName("without hkj-api on the classpath, a witness is not checked for its arity")
+    void witnessArityUncheckedWithoutHkjApi() {
+      final Compilation compilation =
+          javac()
+              .withProcessors(new PathSourceProcessor())
+              .withClasspath(List.of(GeneratorTestHelper.locationOf(PathSource.class).toFile()))
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.Box",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+                      @PathSource(witness = Box.Witness.class)
+                      public interface Box<A> {
+                        final class Witness {}
+                      }
+                      """));
+
+      assertThat(compilation.errors().stream().map(error -> error.getMessage(null)))
+          .isNotEmpty()
+          .noneMatch(message -> message.startsWith("@PathSource"));
+    }
+
     @Test
     @DisplayName("several at once, each reported")
     void severalReported() {
@@ -321,6 +475,250 @@ class PathSourceAttributesTest {
 
       assertThat(compilation).succeededWithoutWarnings();
       assertThat(compilation.generatedSourceFile("com.example.Inner")).isPresent();
+    }
+  }
+
+  @Nested
+  @DisplayName("Annotated kinds")
+  class AnnotatedKinds {
+
+    @Test
+    @DisplayName("a record generates its Path")
+    void recordGeneratesItsPath() {
+      final Compilation compilation = compile(declared("public record Box<A>(A value) {}"));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation.generatedSourceFile("com.example.BoxPath")).isPresent();
+    }
+
+    @ParameterizedTest(name = "{1}")
+    @CsvSource(
+        delimiter = '|',
+        quoteCharacter = '"',
+        value = {
+          "public enum Box { ONE } | an enum | an enum is a fixed set of constants.",
+          "public @interface Box {} | an annotation interface | an annotation interface holds"
+              + " annotation elements."
+        })
+    @DisplayName("an enum or an annotation interface is refused")
+    void enumOrAnnotationInterfaceRefused(String declaration, String kind, String why) {
+      final JavaFileObject box = declared(declaration);
+
+      assertThat(compile(box))
+          .hadErrorContaining(
+              "@PathSource: 'Box' is "
+                  + kind
+                  + ". A Path wraps the values of an effect type, and "
+                  + why
+                  + " Put @PathSource on the class, interface or record whose Kind the witness"
+                  + " indexes, or remove it.")
+          .inFile(box)
+          .onLineContaining("@PathSource");
+    }
+
+    /** {@code Box} declared as given, annotated with the witness alone. */
+    private static JavaFileObject declared(String declaration) {
+      return JavaFileObjects.forSourceString(
+          "com.example.Box",
+          """
+          package com.example;
+
+          import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+          @PathSource(witness = BoxKind.Witness.class)
+          """
+              + declaration
+              + "\n");
+    }
+  }
+
+  @Nested
+  @DisplayName("Generated methods")
+  class GeneratedMethods {
+
+    @Test
+    @DisplayName("peek runs its action when a lazy effect runs, each time it runs")
+    void peekRunsWithTheEffect() throws ReflectiveOperationException {
+      final JavaFileObject lazy =
+          JavaFileObjects.forSourceString(
+              "com.example.Lazy",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.annotation.PathSource;
+              import org.higherkindedj.hkt.io.IOKind;
+
+              @PathSource(witness = IOKind.Witness.class)
+              public interface Lazy<A> {}
+              """);
+      final JavaFileObject harness =
+          JavaFileObjects.forSourceString(
+              "com.example.PeekRuns",
+              """
+              package com.example;
+
+              import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+
+              import java.util.concurrent.atomic.AtomicInteger;
+              import org.higherkindedj.hkt.io.IO;
+              import org.higherkindedj.hkt.io.IOMonad;
+
+              public final class PeekRuns {
+                /** The actions seen before running, the result, and the actions after two runs. */
+                public static int[] run() {
+                  AtomicInteger seen = new AtomicInteger();
+                  IO<Integer> io =
+                      IO_OP.narrow(
+                          LazyPath.of(IO_OP.widen(IO.delay(() -> 41)), IOMonad.INSTANCE)
+                              .peek(a -> seen.incrementAndGet())
+                              .map(a -> a + 1)
+                              .run());
+                  int before = seen.get();
+                  int result = io.unsafeRunSync();
+                  io.unsafeRunSync();
+                  return new int[] {before, result, seen.get()};
+                }
+              }
+              """);
+
+      final Object seen =
+          RuntimeCompilationHelper.compileWith(new PathSourceProcessor(), lazy, harness)
+              .loadClass("com.example.PeekRuns")
+              .getMethod("run")
+              .invoke(null);
+
+      assertThat((int[]) seen).containsExactly(0, 42, 2);
+    }
+
+    @Test
+    @DisplayName("peek and zipWith say what they return and take")
+    void peekAndZipWithSayWhatTheyReturnAndTake() throws IOException {
+      assertThat(generated(compile(box()), "BoxPath"))
+          .contains(
+              "@return a new BoxPath over the same value that performs the action",
+              "@param other the other path, which must be a BoxPath; must not be null",
+              "@throws IllegalArgumentException if {@code other} is not a BoxPath");
+    }
+  }
+
+  @Nested
+  @DisplayName("Unresolved attributes")
+  class Unresolved {
+
+    @Test
+    @DisplayName("a witness another processor generates waits for the round that writes it")
+    void witnessFromALaterRound() {
+      final Compilation compilation =
+          javac()
+              .withProcessors(
+                  new EffectAlgebraProcessor(),
+                  new PathSourceProcessor(),
+                  new CompanionAnnotationProcessor())
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.example.ConsoleOp",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+                      import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+                      @EffectAlgebra
+                      @PathSource(witness = ConsoleOpKind.Witness.class)
+                      public sealed interface ConsoleOp<A> permits ConsoleOp.PrintLine {
+                        record PrintLine<A>(String message) implements ConsoleOp<A> {}
+                      }
+                      """));
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation.generatedSourceFile("com.example.ConsoleOpPath")).isPresent();
+    }
+
+    @Test
+    @DisplayName(
+        "nothing is written in the last round, which javac makes of the round after an error")
+    void nothingWrittenInTheLastRound() {
+      final Compilation compilation =
+          javac()
+              .withProcessors(
+                  new EffectAlgebraProcessor(),
+                  new PathSourceProcessor(),
+                  new CompanionAnnotationProcessor())
+              .withOptions("-Xlint:all,-removal")
+              .compile(
+                  WITNESS,
+                  box("suffix = \"-x\""),
+                  JavaFileObjects.forSourceString(
+                      "com.example.ConsoleOp",
+                      """
+                      package com.example;
+
+                      import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+                      import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+                      @EffectAlgebra
+                      @PathSource(witness = ConsoleOpKind.Witness.class)
+                      public sealed interface ConsoleOp<A> permits ConsoleOp.PrintLine {
+                        record PrintLine<A>(String message) implements ConsoleOp<A> {}
+                      }
+                      """));
+
+      assertThat(compilation).hadErrorCount(1);
+      assertThat(compilation).hadErrorContaining("suffix \"-x\"");
+      assertThat(compilation.warnings().stream().map(warning -> warning.getMessage(null)))
+          .noneMatch(message -> message.contains("last round"));
+    }
+
+    @Test
+    @DisplayName("waiting types two modules declare under one name each wait in their own module")
+    void waitingAcrossModules(@TempDir Path dir) throws IOException {
+      final JavaFileObject box =
+          JavaFileObjects.forSourceString(
+              "com.example.Box",
+              """
+              package com.example;
+
+              import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+              @PathSource(witness = Missing.class)
+              public interface Box<A> {}
+              """);
+
+      final List<Diagnostic<? extends JavaFileObject>> diagnostics =
+          GeneratorTestHelper.compileModules(
+              dir,
+              // First: javac offers a round to no later processor once every annotation is claimed.
+              List.of(new SecondRound(), new PathSourceProcessor()),
+              Map.of("m1", List.of(box), "m2", List.of(box)));
+
+      assertThat(diagnostics.stream().map(diagnostic -> diagnostic.getMessage(null)))
+          .filteredOn(message -> message.contains("cannot find symbol"))
+          .hasSize(2);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(
+        strings = {
+          "witness = Missing.class",
+          "witness = MISSING",
+          "witness = BoxKind.Witness.class, errorType = Missing.class",
+          "witness = BoxKind.Witness.class, suffix = Missing.SUFFIX"
+        })
+    @DisplayName("one that never resolves generates nothing, and leaves the report to javac")
+    void neverResolved(String attributes) {
+      final Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Box",
+                  "package com.example;\n\n"
+                      + "import org.higherkindedj.hkt.effect.annotation.PathSource;\n\n"
+                      + "@PathSource("
+                      + attributes
+                      + ")\n"
+                      + "public interface Box<A> {}\n"));
+
+      assertThat(compilation).hadErrorCount(1);
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
     }
   }
 
@@ -395,9 +793,26 @@ class PathSourceAttributesTest {
           .hadNoteContaining(
               "@PathSource: errorType 'int' has no effect on the generated 'BoxPath'. The default"
                   + " capability, CHAINABLE, generates no recovery methods; recover, recoverWith"
-                  + " and mapError are generated only for RECOVERABLE. Remove errorType.")
+                  + " and mapError are generated only for RECOVERABLE. Remove errorType;"
+                  + " RECOVERABLE would refuse it, since 'int' is not a reference type.")
           .inFile(box)
           .onLineContaining("errorType");
+    }
+
+    @Test
+    @DisplayName("a generic errorType with the default capability is noted, offering its removal")
+    void genericErrorTypeWithDefaultCapability() {
+      final JavaFileObject box = box("errorType = java.util.List.class");
+
+      final Compilation compilation = compile(box);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation)
+          .hadNoteContaining(
+              "errorType 'List' has no effect on the generated 'BoxPath'. The default capability,"
+                  + " CHAINABLE, generates no recovery methods; recover, recoverWith and mapError"
+                  + " are generated only for RECOVERABLE. Remove errorType; RECOVERABLE would refuse"
+                  + " it, since 'List' is generic, and a class literal can name only its raw type.");
     }
 
     @Test

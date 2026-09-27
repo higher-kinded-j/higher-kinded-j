@@ -336,30 +336,4 @@ class PathProcessorCoverageTest {
           compilation, "com.example.MixedServicePaths", "OptionalPath<String> findItem()");
     }
   }
-
-  @Nested
-  @DisplayName("PathSourceProcessor coverage")
-  class PathSourceCoverage {
-
-    @Test
-    @DisplayName("should report error for @PathSource on enum")
-    void shouldReportErrorOnEnum() {
-      final var sourceFile =
-          JavaFileObjects.forSourceString(
-              "com.example.BadEnum",
-              """
-              package com.example;
-
-              import org.higherkindedj.hkt.effect.annotation.PathSource;
-
-              @PathSource(witness = Void.class)
-              public enum BadEnum { A, B }
-              """);
-
-      var compilation = javac().withProcessors(new PathSourceProcessor()).compile(sourceFile);
-
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("can only be applied to classes or interfaces");
-    }
-  }
 }

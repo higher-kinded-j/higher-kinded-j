@@ -27,6 +27,7 @@ import javax.lang.model.type.WildcardType;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
+import org.higherkindedj.optics.processing.util.TypeKey;
 
 /**
  * The mapping and merge specs that wait for a later annotation-processing round.
@@ -69,26 +70,6 @@ final class WaitingSpecs {
   private static final Map<Elements, Set<TypeKey>> MAPPING_SPECS = new WeakHashMap<>();
 
   private WaitingSpecs() {}
-
-  /**
-   * A type as the rounds hold it: by module and canonical name, since two modules compiled together
-   * may declare the same canonical name. A spec is looked up afresh by it each round.
-   */
-  record TypeKey(String module, String name) {
-
-    static TypeKey of(Elements elements, Element type) {
-      return new TypeKey(
-          elements.getModuleOf(type).getQualifiedName().toString(),
-          ((TypeElement) type).getQualifiedName().toString());
-    }
-
-    TypeElement in(Elements elements) {
-      return elements.getAllTypeElements(name).stream()
-          .filter(type -> elements.getModuleOf(type).getQualifiedName().contentEquals(module))
-          .findFirst()
-          .orElseThrow();
-    }
-  }
 
   /**
    * A generated Impl, by the module and package it is written into and its simple name: the parts

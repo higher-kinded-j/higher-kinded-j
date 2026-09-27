@@ -75,6 +75,7 @@ import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
 import org.higherkindedj.optics.processing.util.Reachability;
 import org.higherkindedj.optics.processing.util.Reachability.Crossing;
+import org.higherkindedj.optics.processing.util.TypeKey;
 
 /**
  * Annotation processor for {@code @GenerateMapping}: the bidirectional record↔DTO mapper.
@@ -220,7 +221,7 @@ public class MappingProcessor extends AbstractProcessor {
   private static final Set<String> SCAN_SCOPE = Set.of("wire", "domain", "v");
 
   /** The interfaces met but not processed yet: arriving this round, or waiting for a later one. */
-  private final Set<WaitingSpecs.TypeKey> unprocessed = new LinkedHashSet<>();
+  private final Set<TypeKey> unprocessed = new LinkedHashSet<>();
 
   /** Creates a new MappingProcessor. */
   public MappingProcessor() {}
@@ -249,10 +250,10 @@ public class MappingProcessor extends AbstractProcessor {
     if (roundEnv.processingOver() || unprocessed.isEmpty()) {
       return true;
     }
-    Set<WaitingSpecs.TypeKey> waiting = WaitingSpecs.among(elements, specs, List.of());
+    Set<TypeKey> waiting = WaitingSpecs.among(elements, specs, List.of());
     List<RegisteredSpec> registry =
         scanRegistry(processingEnv, specs, unprocessed.iterator().next().in(elements), waiting);
-    for (WaitingSpecs.TypeKey spec : List.copyOf(unprocessed)) {
+    for (TypeKey spec : List.copyOf(unprocessed)) {
       if (!waiting.contains(spec)) {
         unprocessed.remove(spec);
         processSpec(spec.in(elements), registry);
@@ -285,27 +286,22 @@ public class MappingProcessor extends AbstractProcessor {
    * @param waiting the specs waiting for a later round, which do not register
    */
   static List<RegisteredSpec> scanRegistry(
-      ProcessingEnvironment env,
-      List<TypeElement> specs,
-      Element compiled,
-      Set<WaitingSpecs.TypeKey> waiting) {
+      ProcessingEnvironment env, List<TypeElement> specs, Element compiled, Set<TypeKey> waiting) {
     List<RegisteredSpec> registry = new ArrayList<>();
     BeanPropertyAnalyser beanAnalyser = new BeanPropertyAnalyser(env);
     Elements elements = env.getElementUtils();
     for (TypeElement spec : specs) {
-      if (!waiting.contains(WaitingSpecs.TypeKey.of(elements, spec))) {
+      if (!waiting.contains(TypeKey.of(elements, spec))) {
         register(env, beanAnalyser, spec, Origin.THIS_COMPILATION, registry);
       }
     }
     if (!(MappingIndexes.indexUse(env, compiled) instanceof MappingIndexes.IndexUse.Usable)) {
       return List.copyOf(registry);
     }
-    Set<WaitingSpecs.TypeKey> met =
-        specs.stream()
-            .map(spec -> WaitingSpecs.TypeKey.of(elements, spec))
-            .collect(Collectors.toSet());
+    Set<TypeKey> met =
+        specs.stream().map(spec -> TypeKey.of(elements, spec)).collect(Collectors.toSet());
     for (TypeElement spec : MappingIndexes.classpathSpecs(elements)) {
-      if (met.contains(WaitingSpecs.TypeKey.of(elements, spec))
+      if (met.contains(TypeKey.of(elements, spec))
           || ProcessorUtils.compiledFromSource(elements, spec)) {
         continue;
       }
