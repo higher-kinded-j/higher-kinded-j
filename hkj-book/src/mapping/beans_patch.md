@@ -133,7 +133,7 @@ The processor accepts this spec without a warning:
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/SparsePatchBook.java:defaults_trap}}
 ```
 
-An article is tagged `java` and `patch`. A client sends `{"title": "Sparse PATCH"}`. What are its tags afterwards? And would an identity-law test whose sample article has no tags catch it?
+A help-centre article is tagged `refunds` and `returns`. A client sends `{"title": "Refunds and returns"}`. What are its tags afterwards? And would an identity-law test whose sample article has no tags catch it?
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-patch-defaults-answer"
@@ -146,14 +146,14 @@ An article is tagged `java` and `patch`. A client sends `{"title": "Sparse PATCH
 Your build reports it as:
 
 ```
-Sparse identity law: updateFrom(allAbsentWire).apply(Article[title=Draft, tags=[java, patch]]) == Valid(it); got Valid(Article[title=Draft, tags=[]])
+Sparse identity law: updateFrom(allAbsentWire).apply(HelpArticle[title=Refund policy, tags=[refunds, returns]]) == Valid(it); got Valid(HelpArticle[title=Refund policy, tags=[]])
 ```
 
 Where this lives: [A PATCH getter must answer `null` until set](#patch-getters-answer-null) and [Check a PATCH bean in your build](#check-a-patch-in-your-build).
 ~~~
 
 ~~~admonish question title="Checkpoint: clear a nickname" id="check-patch-json-states"
-An author's nickname is `Countess`, and the PATCH bean declares `Optional<String> nickname`. What does each body leave it as: `{}`, `{"nickname": null}`, and `{"nickname": "Lady Lovelace"}`? And what would `{"name": null}` do to the author's plain `String name`?
+A customer profile's nickname is `Countess`, and the PATCH bean declares `Optional<String> nickname`. What does each body leave it as: `{}`, `{"nickname": null}`, and `{"nickname": "Lady Lovelace"}`? And what would `{"name": null}` do to the profile's plain `String name`?
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-patch-json-states-answer"
