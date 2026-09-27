@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.processing.external;
 
 import java.util.*;
+import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -1058,8 +1059,8 @@ public class SpecInterfaceAnalyser {
     // and it is the lens the traversal composes with.
     LensMember lens = declaredLens(specInterface, fieldName);
     // A raw lens is declared but has no focus, so there is nothing for the container traversal to
-    // compose onto, and a lens with a body, static or private, stays on the spec, so the generated
-    // class has no lens to call; each is refused where a missing one is, and told apart.
+    // compose onto, and a lens with a body stays on the spec, so the generated class has no lens to
+    // call; each is refused where a missing one is, and told apart.
     boolean hasBody = lens != null && !lens.method().getModifiers().contains(Modifier.ABSTRACT);
     boolean raw = lens != null && lens.type().getTypeArguments().size() != 2;
     if (lens == null || hasBody || raw) {
@@ -1069,8 +1070,14 @@ public class SpecInterfaceAnalyser {
               + " container traversal after it, so the lens has to say what it focuses on";
       String fix;
       if (hasBody) {
+        // An interface method with a body is static, private or default (JLS 9.4), and the one it
+        // is gets named, whichever reaches here.
         String declaredAs =
-            lens.method().getModifiers().contains(Modifier.STATIC) ? "static" : "private";
+            Stream.of(Modifier.STATIC, Modifier.PRIVATE, Modifier.DEFAULT)
+                .filter(lens.method().getModifiers()::contains)
+                .findFirst()
+                .orElseThrow()
+                .toString();
         problem = "', which the spec declares " + declaredAs;
         why =
             "The generated traversal composes through the generated class's lens for the field,"
