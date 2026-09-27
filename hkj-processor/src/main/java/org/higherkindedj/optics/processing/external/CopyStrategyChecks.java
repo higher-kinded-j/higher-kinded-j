@@ -2,8 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing.external;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -102,9 +105,9 @@ final class CopyStrategyChecks {
       TypeElement sourceTypeElement,
       TypeMirror focusType,
       String targetPackage) {
-    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
-    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
-    // makes the cast total; 'is a declared type' on its own would not.
+    // analyse() admits a source type only when asElement gives a TypeElement, and the processor
+    // holds a spec back until its source type resolves, which leaves DECLARED alone. That is what
+    // makes the cast total.
     DeclaredType declaredSource = (DeclaredType) sourceType;
     // Every strategy reads through an accessor, and names it by the lens method where the
     // annotation does not.
@@ -404,9 +407,6 @@ final class CopyStrategyChecks {
       String getterName,
       TypeMirror focusType,
       String targetPackage) {
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     ExecutableElement getter =
         accessorNamed(callableMembers(sourceTypeElement, targetPackage), getterName);
     String ownerName = ProcessorUtils.simpleTypeName(sourceType);
@@ -507,9 +507,6 @@ final class CopyStrategyChecks {
       String setterName,
       TypeMirror focusType,
       String targetPackage) {
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     return boundSetter(
             method,
             tag,
@@ -779,9 +776,6 @@ final class CopyStrategyChecks {
       String buildName,
       TypeMirror focusType,
       String targetPackage) {
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     ExecutableElement toBuilder =
         accessorNamed(callableMembers(sourceTypeElement, targetPackage), toBuilderName);
     if (toBuilder == null) {
@@ -801,6 +795,8 @@ final class CopyStrategyChecks {
     }
     TypeMirror builderType =
         stepType(ProcessorUtils.returnTypeIn(typeUtils, sourceType, toBuilder));
+    // A source type read from a class file can name a type missing from the classpath; one
+    // declared in source is waited for until it resolves.
     if (builderType == null || builderType.getKind() == TypeKind.ERROR) {
       return false;
     }
@@ -812,6 +808,12 @@ final class CopyStrategyChecks {
     if (reportsUnnameableStep(
         method, builderElement, toBuilderName + "()", sourceType, targetPackage)) {
       return true;
+    }
+    // A builder extending a type another processor writes, as a hand-written builder over a
+    // generated one does, inherits members this round cannot read; the chain is written out as it
+    // stands, and javac checks it once the type exists.
+    if (hierarchyUnresolved(builderType)) {
+      return false;
     }
     SetterCall setter =
         boundSetter(
@@ -830,6 +832,8 @@ final class CopyStrategyChecks {
     }
     TypeMirror setType =
         stepType(ProcessorUtils.returnTypeIn(typeUtils, (DeclaredType) builderType, bound));
+    // A builder the processor does not wait on, one nested in the source type or read from a class
+    // file, can hand back a type that does not resolve.
     if (setType == null || setType.getKind() == TypeKind.ERROR) {
       return false;
     }
@@ -963,9 +967,6 @@ final class CopyStrategyChecks {
       TypeElement sourceTypeElement,
       String[] parameterOrder,
       String targetPackage) {
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     String fieldName = method.getSimpleName().toString();
     if (parameterOrder.length > 0
         && Arrays.stream(parameterOrder).noneMatch(parameter -> parameter.equals(fieldName))) {
@@ -1028,8 +1029,7 @@ final class CopyStrategyChecks {
    * @param focusType the lens's focus type, which the wither is called with
    * @param witherName the method the annotation names
    * @param targetPackage the package the optics class is generated into
-   * @return true when the call binds no such method, and an error was reported; a source type that
-   *     did not resolve is left to javac
+   * @return true when the call binds no such method, and an error was reported
    */
   private boolean rebuildsThroughUnusableWither(
       ExecutableElement method,
@@ -1038,11 +1038,6 @@ final class CopyStrategyChecks {
       TypeMirror focusType,
       String witherName,
       String targetPackage) {
-    // A source type that did not resolve has no members to read, and javac's own error names the
-    // type that is missing, which is the one worth reading.
-    if (sourceType.getKind() == TypeKind.ERROR) {
-      return false;
-    }
     List<ExecutableElement> members =
         ElementFilter.methodsIn(elementUtils.getAllMembers(sourceTypeElement));
     List<ExecutableElement> callable =
@@ -1760,13 +1755,32 @@ final class CopyStrategyChecks {
   }
 
   /**
+   * Whether a type's hierarchy holds a supertype that does not resolve, so the members it inherits
+   * cannot all be read this round. Each supertype is walked once.
+   */
+  private boolean hierarchyUnresolved(TypeMirror type) {
+    Deque<TypeMirror> pending = new ArrayDeque<>(List.of(type));
+    Set<Element> walked = new HashSet<>();
+    while (!pending.isEmpty()) {
+      List<? extends TypeMirror> supertypes = typeUtils.directSupertypes(pending.pop());
+      if (supertypes.stream().anyMatch(supertype -> supertype.getKind() == TypeKind.ERROR)) {
+        return true;
+      }
+      supertypes.stream()
+          .filter(supertype -> walked.add(typeUtils.asElement(supertype)))
+          .forEach(pending::add);
+    }
+    return false;
+  }
+
+  /**
    * Finds the supertype relation the cast depends on, reporting when it does not hold.
    *
-   * <p>A hierarchy containing a type this round cannot resolve - one another processor has yet to
-   * generate, say - reads as having no supertypes at all, which would make every name look wrong.
-   * The compiler is asked directly before any name is rejected, so an unreadable hierarchy costs
-   * the instantiation rather than drawing an error that blames the attribute for a missing type
-   * javac is already reporting.
+   * <p>A hierarchy javac cannot read, as a class file whose supertype is missing from the classpath
+   * has, reads as having no supertypes at all, which would make every name look wrong. The compiler
+   * is asked directly before any name is rejected, so an unreadable hierarchy costs the
+   * instantiation rather than drawing an error that blames the attribute for a missing type javac
+   * is already reporting.
    *
    * @param method the annotated optic method, for error reporting
    * @param sourceType the source type {@code S}

@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.processing.external;
 
 import java.util.*;
+import java.util.stream.Stream;
 import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -93,27 +94,42 @@ public class SpecInterfaceAnalyser {
   /**
    * Analyses a spec interface to determine what optics to generate.
    *
-   * @param specInterface the interface extending {@code OpticsSpec<S>}
+   * @param specInterface the type carrying {@code @ImportOptics} that reaches {@code
+   *     OpticsSpec<S>}; one that is not an interface is refused. Its clause, supertypes and
+   *     abstract methods resolve, and so does its source type's declaration where it is in source:
+   *     the processor holds an importer back until they do
    * @param targetPackage the package the optics class is generated into, which decides what the
    *     generated code is allowed to name
    * @return the analysis result, or empty if the interface is invalid
    */
   public Optional<SpecAnalysis> analyse(TypeElement specInterface, String targetPackage) {
     if (specInterface.getKind() != ElementKind.INTERFACE) {
+      String clause = pinnedClause(opticsSpecReachedFrom(typeUtils, specInterface.asType()));
       Diagnostics.error(
           messager,
           specInterface,
           "@ImportOptics",
           "'" + specInterface.getSimpleName() + "' implements OpticsSpec but is not an interface.",
-          "A spec is read for its abstract methods, one per optic to generate, which is a shape"
-              + " only an interface has.",
-          "Declare it as an interface.");
+          "A spec is an interface: its abstract methods are the optics to generate, and the"
+              + " generated class stands in for it rather than extending it.",
+          clause == null
+              ? "Declare it as an interface extending OpticsSpec<S>, naming the type its optics are"
+                  + " for, in place of the class."
+              : "Declare it as an interface extending " + clause + ", in place of the class.");
       return Optional.empty();
     }
 
-    // The processor only routes a type here when OpticsSpec is one of its direct super-interfaces,
-    // so the one way to reach this is to have named it raw.
-    TypeMirror sourceType = extractSourceType(specInterface);
+    DeclaredType clause = declaredOpticsSpec(specInterface);
+    if (clause == null) {
+      // Reported together, so moving everything onto the spec takes one round.
+      reportIndirectSpec(specInterface);
+      reportInheritedOptics(specInterface);
+      return Optional.empty();
+    }
+
+    // A raw clause names no source type.
+    TypeMirror sourceType =
+        clause.getTypeArguments().isEmpty() ? null : clause.getTypeArguments().getFirst();
     if (sourceType == null) {
       Diagnostics.error(
           messager,
@@ -158,6 +174,9 @@ public class SpecInterfaceAnalyser {
         rejected = true;
       }
     }
+    if (reportInheritedOptics(specInterface)) {
+      rejected = true;
+    }
     if (rejected) {
       return Optional.empty();
     }
@@ -180,6 +199,215 @@ public class SpecInterfaceAnalyser {
 
     return Optional.of(
         new SpecAnalysis(specInterface, sourceType, sourceTypeElement, opticMethods));
+  }
+
+  /**
+   * The {@code OpticsSpec} clause an interface declares among its own super-interfaces, or null
+   * where it declares none.
+   *
+   * @param type the type to read
+   * @return the clause as written, or null
+   */
+  public static DeclaredType declaredOpticsSpec(TypeElement type) {
+    for (TypeMirror superInterface : type.getInterfaces()) {
+      // Super-interfaces returned by getInterfaces() are always declared types.
+      DeclaredType declared = (DeclaredType) superInterface;
+      if (((TypeElement) declared.asElement()).getQualifiedName().contentEquals(OPTICS_SPEC_FQN)) {
+        return declared;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Whether a type is a spec interface: an interface declaring {@code OpticsSpec<S>} among its own
+   * super-interfaces.
+   *
+   * @param type the type to ask about
+   * @return true for a spec interface
+   */
+  public static boolean isSpecInterface(TypeElement type) {
+    return type.getKind() == ElementKind.INTERFACE && declaredOpticsSpec(type) != null;
+  }
+
+  /**
+   * Whether a type reaches {@code OpticsSpec} through its supertypes, and so is read as a spec:
+   * analysed where it declares {@code OpticsSpec<S>} itself, and refused where it cannot be one.
+   *
+   * @param typeUtils the type utilities from the processing environment
+   * @param type the type to ask about
+   * @return true where a supertype of the type is {@code OpticsSpec}
+   */
+  public static boolean reachesOpticsSpec(Types typeUtils, TypeElement type) {
+    return opticsSpecReachedFrom(typeUtils, type.asType()) != null;
+  }
+
+  /**
+   * The {@code OpticsSpec} a type reaches through its supertypes, under the type arguments it is
+   * reached with, or null where it reaches none. The type itself is not asked, and each supertype
+   * is walked once however many paths lead to it.
+   */
+  private static DeclaredType opticsSpecReachedFrom(Types typeUtils, TypeMirror type) {
+    Deque<TypeMirror> pending = new ArrayDeque<>(List.of(type));
+    Set<Element> walked = new HashSet<>();
+    while (!pending.isEmpty()) {
+      for (TypeMirror supertype : typeUtils.directSupertypes(pending.pop())) {
+        // The supertypes of a class or interface are classes or interfaces.
+        DeclaredType declared = (DeclaredType) supertype;
+        TypeElement element = (TypeElement) declared.asElement();
+        if (element.getQualifiedName().contentEquals(OPTICS_SPEC_FQN)) {
+          return declared;
+        }
+        if (walked.add(element)) {
+          pending.add(declared);
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * {@code OpticsSpec<X>} for the clause a type reaches, where it names a class or interface as the
+   * source type, or null where it names none: a raw clause, a type variable, or no clause at all.
+   */
+  private static String pinnedClause(DeclaredType reached) {
+    List<? extends TypeMirror> arguments = reached == null ? List.of() : reached.getTypeArguments();
+    return arguments.size() == 1 && arguments.getFirst().getKind() == TypeKind.DECLARED
+        ? ProcessorUtils.simpleTypeName(reached)
+        : null;
+  }
+
+  /**
+   * Reports an interface declaring no {@code OpticsSpec} clause of its own. One reaching it through
+   * another interface is told which, and the fix names the clause to declare where the interface in
+   * between names the source type, and otherwise asks for one in place of that interface, since the
+   * two clauses would disagree. The processor sends an interface here only when it reaches {@code
+   * OpticsSpec}, so one reaching none comes from a direct caller of the analyser.
+   */
+  private void reportIndirectSpec(TypeElement specInterface) {
+    String name = specInterface.getSimpleName().toString();
+    record Path(TypeMirror through, DeclaredType reached) {}
+    Optional<Path> found =
+        specInterface.getInterfaces().stream()
+            .map(
+                superInterface ->
+                    new Path(superInterface, opticsSpecReachedFrom(typeUtils, superInterface)))
+            .filter(candidate -> candidate.reached() != null)
+            .findFirst();
+    if (found.isEmpty()) {
+      Diagnostics.error(
+          messager,
+          specInterface,
+          "@ImportOptics",
+          "'" + name + "' does not extend OpticsSpec.",
+          "A spec interface is read from the OpticsSpec<S> it declares, whose argument names the"
+              + " type its optics are for.",
+          "Declare OpticsSpec<S> on '" + name + "', naming the type its optics are for.");
+      return;
+    }
+    Path path = found.get();
+    String through = ProcessorUtils.simpleTypeName(path.through());
+    String clause = pinnedClause(path.reached());
+    Diagnostics.error(
+        messager,
+        specInterface,
+        "@ImportOptics",
+        "'" + name + "' extends OpticsSpec only through '" + through + "'.",
+        "A spec interface is read from the OpticsSpec<S> it declares itself, and reaching it"
+            + " through another interface is not supported yet, so it is not read as a spec.",
+        clause == null
+            ? "Declare OpticsSpec on '"
+                + name
+                + "' itself, naming the type its optics are for, in place of '"
+                + through
+                + "'."
+            : "Declare " + clause + " on '" + name + "' itself, beside '" + through + "'.");
+  }
+
+  /**
+   * Reports each optic method a spec inherits, and returns whether there was one. A member counts
+   * as the spec sees it: an abstract or {@code default} method another interface declares, taking
+   * no arguments and declaring no type parameters, whose return type, under the spec's own type
+   * arguments, is an optic. A method with arguments or type parameters could not be an optic the
+   * spec declares either, so it is left alone. The generated class carries only what the spec
+   * declares, so an inherited optic would be missing from it, and a {@code ThroughField} traversal
+   * composing through one would call a method that is not there.
+   */
+  private boolean reportInheritedOptics(TypeElement specInterface) {
+    DeclaredType specType = (DeclaredType) specInterface.asType();
+    boolean reported = false;
+    for (ExecutableElement member :
+        ElementFilter.methodsIn(elementUtils.getAllMembers(specInterface))) {
+      // An interface's static methods are not members of the interfaces extending it, so every
+      // member declared elsewhere is inherited.
+      if (!member.getEnclosingElement().equals(specInterface)
+          && member.getParameters().isEmpty()
+          && member.getTypeParameters().isEmpty()
+          && ((ExecutableType) typeUtils.asMemberOf(specType, member)).getReturnType()
+              instanceof DeclaredType returned
+          && determineOpticKind(returned) != null) {
+        reportInheritedOptic(specInterface, member, returned);
+        reported = true;
+      }
+    }
+    return reported;
+  }
+
+  /**
+   * Reports one optic method a spec inherits, asking for it on the spec under the spec's own type
+   * arguments where the spec's view of it has them.
+   *
+   * @param specInterface the spec interface inheriting the method
+   * @param method the inherited optic method
+   * @param returned its return type as the spec sees it
+   */
+  private void reportInheritedOptic(
+      TypeElement specInterface, ExecutableElement method, DeclaredType returned) {
+    String spec = specInterface.getSimpleName().toString();
+    String name = method.getSimpleName().toString();
+    String from = method.getEnclosingElement().getSimpleName().toString();
+    // A raw clause on the way erases what the spec sees; the declaration still has it, and serves
+    // where it names none of its interface's own type parameters, which the spec cannot see.
+    TypeMirror declared = method.getReturnType();
+    TypeMirror written =
+        ProcessorUtils.firstRawIn(returned) != null
+                && ProcessorUtils.firstRawIn(declared) == null
+                // A method's enclosing element is the class or interface declaring it.
+                && ((TypeElement) method.getEnclosingElement())
+                    .getTypeParameters().stream()
+                        .noneMatch(parameter -> ProcessorUtils.mentions(declared, parameter))
+            ? declared
+            : returned;
+    // A raw view has no type arguments to paste, so the fix asks for them instead.
+    String declaration =
+        ProcessorUtils.firstRawIn(written) == null
+            ? "'" + ProcessorUtils.simpleTypeName(written) + " " + name + "()'"
+            : "'" + name + "' with its type arguments";
+    Diagnostics.error(
+        messager,
+        specInterface,
+        "@ImportOptics",
+        "'" + spec + "' inherits the optic method '" + name + "' from '" + from + "'.",
+        "A spec generates optics from the methods it declares itself, and reading them from"
+            + " another interface is not supported yet, so '"
+            + name
+            + "' would be missing from the generated class.",
+        method.isDefault()
+            ? "Declare "
+                + declaration
+                + " on '"
+                + spec
+                + "' itself as an abstract method carrying a copy strategy or hint annotation, or"
+                + " move the default out of '"
+                + from
+                + "' into a static method that calls the generated statics."
+            : "Declare "
+                + declaration
+                + " on '"
+                + spec
+                + "' itself, annotated as it is on '"
+                + from
+                + "'.");
   }
 
   /**
@@ -255,9 +483,9 @@ public class SpecInterfaceAnalyser {
    */
   private void reportUnusableSourceType(TypeElement specInterface, TypeMirror sourceType) {
     // A type variable and an array are the only two kinds that reach here. OpticsSpec takes a
-    // reference type, so a wildcard or primitive argument never compiles; an unresolvable one
-    // resolves to an element that is still a TypeElement, and javac reports it first; and an
-    // intersection cannot be written as a type argument at all.
+    // reference type, so a wildcard or primitive argument never compiles; an unresolvable one never
+    // arrives, since the processor holds the spec back until it resolves; and an intersection
+    // cannot be written as a type argument at all.
     String kind = sourceType.getKind() == TypeKind.TYPEVAR ? "a type variable" : "an array type";
     Diagnostics.error(
         messager,
@@ -297,8 +525,6 @@ public class SpecInterfaceAnalyser {
     if (sourceType instanceof TypeVariable typeVariable
         && typeVariable.getUpperBound() instanceof DeclaredType bound
         && bound.getKind() == TypeKind.DECLARED
-        // isSameType, not a name comparison: it also answers true for an unresolvable bound, whose
-        // own 'cannot find symbol' is the error worth reading.
         && !typeUtils.isSameType(bound, elementUtils.getTypeElement(OBJECT_FQN).asType())
         && !ProcessorUtils.mentions(bound, typeVariable.asElement())
         // A hint naming a raw bound would steer straight into the raw-source refusal.
@@ -306,28 +532,6 @@ public class SpecInterfaceAnalyser {
       return ": 'OpticsSpec<" + ProcessorUtils.simpleTypeName(bound) + ">'";
     }
     return "";
-  }
-
-  /**
-   * Extracts the source type {@code S} from {@code OpticsSpec<S>}.
-   *
-   * @param specInterface the interface to analyse
-   * @return the source type, or null if not found
-   */
-  private TypeMirror extractSourceType(TypeElement specInterface) {
-    for (TypeMirror superInterface : specInterface.getInterfaces()) {
-      // Super-interfaces returned by getInterfaces() are always declared types.
-      DeclaredType declaredType = (DeclaredType) superInterface;
-
-      TypeElement interfaceElement = (TypeElement) declaredType.asElement();
-      if (interfaceElement.getQualifiedName().contentEquals(OPTICS_SPEC_FQN)) {
-        List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-        if (!typeArgs.isEmpty()) {
-          return typeArgs.get(0);
-        }
-      }
-    }
-    return null;
   }
 
   /**
@@ -855,24 +1059,36 @@ public class SpecInterfaceAnalyser {
     // and it is the lens the traversal composes with.
     LensMember lens = declaredLens(specInterface, fieldName);
     // A raw lens is declared but has no focus, so there is nothing for the container traversal to
-    // compose onto; it is refused where a missing one is, and told apart in the message. What is
-    // raw may be the lens method or a clause on the way to it: reading a member under a raw
-    // supertype erases it, wherever on that path the raw clause sits. The declaration is what
-    // tells the two apart, so asking for the method's type arguments never sends the author to a
-    // declaration that already has them.
+    // compose onto, and a lens with a body stays on the spec, so the generated class has no lens to
+    // call; each is refused where a missing one is, and told apart.
+    boolean hasBody = lens != null && !lens.method().getModifiers().contains(Modifier.ABSTRACT);
     boolean raw = lens != null && lens.type().getTypeArguments().size() != 2;
-    boolean rawClause = raw && ProcessorUtils.firstRawIn(lens.declared()) == null;
-    if (lens == null || raw) {
+    if (lens == null || hasBody || raw) {
       String problem;
+      String why =
+          "The generated traversal calls the spec's own lens for the field and composes the"
+              + " container traversal after it, so the lens has to say what it focuses on";
       String fix;
-      if (rawClause) {
-        problem = "', which the spec reads raw through a supertype clause";
+      if (hasBody) {
+        // An interface method with a body is static, private or default (JLS 9.4), and the one it
+        // is gets named, whichever reaches here.
+        String declaredAs =
+            Stream.of(Modifier.STATIC, Modifier.PRIVATE, Modifier.DEFAULT)
+                .filter(lens.method().getModifiers()::contains)
+                .findFirst()
+                .orElseThrow()
+                .toString();
+        problem = "', which the spec declares " + declaredAs;
+        why =
+            "The generated traversal composes through the generated class's lens for the field,"
+                + " and a "
+                + declaredAs
+                + " method stays on the spec, so the generated class has none to call";
         fix =
-            "Give the clause that brings '"
+            "Declare '"
                 + fieldName
-                + "' in its type arguments, or declare '"
-                + fieldName
-                + "' on the spec itself with its copy strategy";
+                + "' as an abstract Lens method with its copy strategy, which the generated class"
+                + " carries, or use @TraverseWith for a traversal that stands on its own";
       } else if (raw) {
         problem = "', which the spec declares raw";
         fix =
@@ -899,8 +1115,7 @@ public class SpecInterfaceAnalyser {
               + "' composes through a lens named '"
               + fieldName
               + problem,
-          "The generated traversal calls the spec's own lens for the field and composes the"
-              + " container traversal after it, so the lens has to say what it focuses on",
+          why,
           fix);
       return Optional.empty();
     }
@@ -1074,24 +1289,30 @@ public class SpecInterfaceAnalyser {
    *
    * @param type the lens type under the spec's instantiation
    * @param declared the lens type as its method declares it
+   * @param method the lens method, abstract when the generated class carries it
    */
-  private record LensMember(DeclaredType type, TypeMirror declared) {}
+  private record LensMember(DeclaredType type, TypeMirror declared, ExecutableElement method) {}
 
   /**
    * The spec's own lens for {@code fieldName}, or null when the spec declares no lens by that name.
-   * A raw one is answered as it is declared; it has no focus, and the caller says so.
+   * A raw one is answered as it is declared; it has no focus, and the caller says so. Inherited
+   * optics are refused before this is asked, so the lens found is the spec's own: generated when
+   * abstract, and left on the spec when it has a body. A method taking arguments or declaring type
+   * parameters is not a lens for a field, whatever it returns.
    */
   private LensMember declaredLens(TypeElement specInterface, String fieldName) {
     DeclaredType specType = (DeclaredType) specInterface.asType();
     for (ExecutableElement member :
         ElementFilter.methodsIn(elementUtils.getAllMembers(specInterface))) {
-      if (!member.getSimpleName().contentEquals(fieldName)) {
+      if (!member.getSimpleName().contentEquals(fieldName)
+          || !member.getParameters().isEmpty()
+          || !member.getTypeParameters().isEmpty()) {
         continue;
       }
       TypeMirror returned =
           ((ExecutableType) typeUtils.asMemberOf(specType, member)).getReturnType();
       if (returned instanceof DeclaredType optic && determineOpticKind(optic) == OpticKind.LENS) {
-        return new LensMember(optic, member.getReturnType());
+        return new LensMember(optic, member.getReturnType(), member);
       }
     }
     return null;
@@ -1142,8 +1363,8 @@ public class SpecInterfaceAnalyser {
    * @return the field's type under that instantiation, or null if not found
    */
   private TypeMirror findFieldType(TypeMirror sourceType, String fieldName) {
-    // analyse() admits a source type only when asElement gives a TypeElement, which on javac
-    // leaves DECLARED, ERROR and INTERSECTION - every one of them a DeclaredType. That is what
+    // analyse() admits a source type only when asElement gives a TypeElement, and the processor
+    // holds a spec back until its source type resolves, which leaves DECLARED alone. That is what
     // makes the cast total, the same reasoning parseCopyStrategy's spells out.
     DeclaredType declaredSource = (DeclaredType) sourceType;
     TypeElement typeElement = (TypeElement) declaredSource.asElement();

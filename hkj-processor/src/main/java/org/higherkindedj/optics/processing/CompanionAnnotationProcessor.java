@@ -114,14 +114,17 @@ public class CompanionAnnotationProcessor extends AbstractProcessor {
     AnnotationMirror pathConfig = ProcessorUtils.findAnnotation(pkg, PATH_CONFIG);
     String suffix =
         ProcessorUtils.getAnnotationString(pathConfig, "pathSuffix", DEFAULT_PATH_SUFFIX);
-    String message =
-        Diagnostics.format(
-            "@PathConfig",
-            "it has no effect on package '" + pkg.getQualifiedName() + "'",
-            "No processor reads it, so every Path generated in the package comes out as it would"
-                + " without it, and it is deprecated for removal.",
-            "Remove it; nothing generated changes." + suffixFix(suffix));
-    processingEnv.getMessager().printMessage(Diagnostic.Kind.NOTE, message, pkg, pathConfig);
+    Diagnostics.reportAt(
+        processingEnv.getMessager(),
+        Diagnostic.Kind.NOTE,
+        pkg,
+        pathConfig,
+        null,
+        "@PathConfig",
+        "it has no effect on package '" + pkg.getQualifiedName() + "'",
+        "No processor reads it, so every Path generated in the package comes out as it would"
+            + " without it, and it is deprecated for removal.",
+        "Remove it; nothing generated changes." + suffixFix(suffix));
   }
 
   /**

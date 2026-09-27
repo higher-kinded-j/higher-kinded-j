@@ -348,6 +348,28 @@ class SpecInterfaceAnalyserTest {
       assertThat(result.get().sourceType().toString()).isEqualTo("com.test.Person");
       assertThat(result.get().sourceTypeElement().getSimpleName().toString()).isEqualTo("Person");
     }
+
+    @Test
+    @DisplayName("a class that reaches no OpticsSpec is refused with a fix naming no source type")
+    void classReachingNoOpticsSpecIsRefused() {
+      var notASpec =
+          JavaFileObjects.forSourceString(
+              "com.test.NotASpec",
+              """
+              package com.test;
+              public abstract class NotASpec {}
+              """);
+
+      AnalyserTestProcessor processor = new AnalyserTestProcessor("com.test.NotASpec");
+      Compilation compilation =
+          javac().withProcessors(processor).compile(OPTICS_SPEC, LENS, PRISM, TRAVERSAL, notASpec);
+
+      assertThat(processor.getResult()).isEmpty();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare it as an interface extending OpticsSpec<S>, naming the type its optics are"
+                  + " for, in place of the class.");
+    }
   }
 
   @Nested

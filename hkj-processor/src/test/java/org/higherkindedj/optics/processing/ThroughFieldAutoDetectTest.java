@@ -322,12 +322,8 @@ class ThroughFieldAutoDetectTest {
     }
 
     @Test
-    @DisplayName("should refuse a lens read raw through a clause above it, and ask for the clause")
-    void shouldRefuseWhenTheLensIsReadRawThroughAMixIn() {
-      // The lens method declares both its type arguments; a clause on the way to it drops them,
-      // and reading the member under a raw supertype erases it. The raw clause is not the spec's
-      // own, so the answer cannot come from reading its extends list: it comes from the lens
-      // declaration, which has what the read has lost.
+    @DisplayName("should refuse a private lens for the field, since the generated class lacks it")
+    void shouldRefuseAPrivateLensForTheField() {
       var container =
           JavaFileObjects.forSourceString(
               "com.external.Sack",
@@ -338,29 +334,51 @@ class ThroughFieldAutoDetectTest {
                   public Sack withItems(List<String> items) { return new Sack(items); }
               }
               """);
-      var bits =
+      var spec =
           JavaFileObjects.forSourceString(
-              "com.test.Bits",
+              "com.test.SackSpec",
               """
               package com.test;
               import com.external.Sack;
               import java.util.List;
               import org.higherkindedj.optics.Lens;
-              import org.higherkindedj.optics.annotations.Wither;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
 
-              public interface Bits<T> {
-                  @Wither("withItems")
-                  Lens<Sack, List<String>> items();
+              @ImportOptics
+              public interface SackSpec extends OpticsSpec<Sack> {
+                  @ThroughField(field = "items")
+                  Traversal<Sack, String> eachItem();
+
+                  private Lens<Sack, List<String>> items() {
+                      return Lens.of(Sack::items, (sack, items) -> sack.withItems(items));
+                  }
               }
               """);
-      var mid =
-          JavaFileObjects.forSourceString(
-              "com.test.Mid",
-              """
-              package com.test;
 
-              @SuppressWarnings("rawtypes")
-              public interface Mid extends Bits {}
+      Compilation compilation = compile(container, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ThroughField: 'SackSpec.eachItem' composes through a lens named 'items', which the"
+                  + " spec declares private. The generated traversal composes through the generated"
+                  + " class's lens for the field, and a private method stays on the spec, so the"
+                  + " generated class has none to call.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should not take a traversal named like the field for the field's lens")
+    void shouldNotTakeATraversalNamedLikeTheFieldForItsLens() {
+      var container =
+          JavaFileObjects.forSourceString(
+              "com.external.Sack",
+              """
+              package com.external;
+              import java.util.List;
+              public record Sack(List<String> items) {}
               """);
       var spec =
           JavaFileObjects.forSourceString(
@@ -374,21 +392,133 @@ class ThroughFieldAutoDetectTest {
               import org.higherkindedj.optics.annotations.ThroughField;
 
               @ImportOptics
-              public interface SackSpec extends OpticsSpec<Sack>, Mid {
+              public interface SackSpec extends OpticsSpec<Sack> {
+                  @ThroughField(field = "items")
+                  Traversal<Sack, String> items();
+              }
+
+              @ImportOptics
+              interface SackCountSpec extends OpticsSpec<Sack> {
+                  @ThroughField(field = "items")
+                  Traversal<Sack, String> eachItem();
+
+                  static int items() {
+                      return 0;
+                  }
+              }
+              """);
+
+      Compilation compilation = compile(container, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'SackSpec.items' composes through a lens named 'items', which the spec does not"
+                  + " declare.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'SackCountSpec.eachItem' composes through a lens named 'items', which the spec"
+                  + " does not declare.");
+      assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    @DisplayName("should not take a method with an argument for the field's lens")
+    void shouldNotTakeAMethodWithAnArgumentForTheFieldsLens() {
+      // A lens for a field takes no arguments, so an inherited one that does is neither the
+      // field's lens nor an optic the spec could declare.
+      var container =
+          JavaFileObjects.forSourceString(
+              "com.external.Sack",
+              """
+              package com.external;
+              import java.util.List;
+              public record Sack(List<String> items) {}
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.SackSpec",
+              """
+              package com.test;
+              import com.external.Sack;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+
+              interface Keyed {
+                  Lens<Sack, List<String>> items(String key);
+
+                  <T> Lens<Sack, T> items();
+              }
+
+              @ImportOptics
+              public interface SackSpec extends OpticsSpec<Sack>, Keyed {
                   @ThroughField(field = "items")
                   Traversal<Sack, String> eachItem();
               }
               """);
 
-      Compilation compilation = compile(container, bits, mid, spec);
+      Compilation compilation = compile(container, spec);
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
-              "composes through a lens named 'items', which the spec reads raw through a supertype"
-                  + " clause. The generated traversal calls the spec's own lens for the field and"
-                  + " composes the container traversal after it, so the lens has to say what it"
-                  + " focuses on. Give the clause that brings 'items' in its type arguments, or"
-                  + " declare 'items' on the spec itself with its copy strategy.");
+              "composes through a lens named 'items', which the spec does not declare.");
+      assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    @DisplayName("should refuse a static lens for the field, since the generated class lacks it")
+    void shouldRefuseAStaticLensForTheField() {
+      // A static method stays on the spec, and the generated traversal composes through the
+      // generated class's lens, which a static one never becomes.
+      var container =
+          JavaFileObjects.forSourceString(
+              "com.external.Sack",
+              """
+              package com.external;
+              import java.util.List;
+              public record Sack(List<String> items) {
+                  public Sack withItems(List<String> items) { return new Sack(items); }
+              }
+              """);
+      var spec =
+          JavaFileObjects.forSourceString(
+              "com.test.SackSpec",
+              """
+              package com.test;
+              import com.external.Sack;
+              import java.util.List;
+              import org.higherkindedj.optics.Lens;
+              import org.higherkindedj.optics.Traversal;
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              import org.higherkindedj.optics.annotations.OpticsSpec;
+              import org.higherkindedj.optics.annotations.ThroughField;
+
+              @ImportOptics
+              public interface SackSpec extends OpticsSpec<Sack> {
+                  @ThroughField(field = "items")
+                  Traversal<Sack, String> eachItem();
+
+                  static Lens<Sack, List<String>> items() {
+                      return Lens.of(Sack::items, (sack, items) -> sack.withItems(items));
+                  }
+              }
+              """);
+
+      Compilation compilation = compile(container, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ThroughField: 'SackSpec.eachItem' composes through a lens named 'items', which the"
+                  + " spec declares static.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'items' as an abstract Lens method with its copy strategy, which the"
+                  + " generated class carries, or use @TraverseWith for a traversal that stands on"
+                  + " its own.");
+      assertThat(compilation).hadErrorCount(1);
     }
 
     @Test

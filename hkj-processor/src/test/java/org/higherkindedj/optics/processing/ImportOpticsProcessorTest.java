@@ -12,8 +12,6 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathW
 import com.google.testing.compile.JavaFileObjects;
 import java.io.IOException;
 import java.nio.file.Path;
-import javax.annotation.processing.AbstractProcessor;
-import javax.annotation.processing.RoundEnvironment;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -1146,6 +1144,8 @@ class ImportOpticsProcessorTest {
                   + " 'isN()' and is left out.");
       assertThat(compilation)
           .hadNoteContaining("importing the type there rather than by class literal.");
+      // The two left-out withers are all the processor has to say.
+      assertThat(compilation).hadNoteCount(2);
       // 'isActive()' is declared first and 'getActive()' still wins, which is the rule rather
       // than the declaration order speaking.
       assertGeneratedCodeContains(compilation, generated, "Spelt::getActive");
@@ -1494,9 +1494,47 @@ class ImportOpticsProcessorTest {
       var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(enumSource);
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("@ImportOptics: cannot be applied to 'Colour'");
       assertThat(compilation)
-          .hadErrorContaining("Move the annotation to a package-info.java or a type declaration");
+          .hadErrorContaining("@ImportOptics: cannot be applied to enum 'Colour'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Move the annotation to a package-info.java, or to a class or interface that is not"
+                  + " a record, an enum or an annotation interface.");
+    }
+
+    @Test
+    @DisplayName("should name a record or an annotation interface it cannot be applied to")
+    void shouldNameTheKindItCannotBeAppliedTo() {
+      final var sources =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Placements",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics({java.lang.String.class})
+              record Named(String name) {}
+
+              @ImportOptics({java.lang.String.class})
+              @interface Marker {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(sources);
+
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ImportOptics: cannot be applied to record 'Named'. It is read on a"
+                  + " package-info.java, on a class or interface listing the types to import, or"
+                  + " on an interface extending OpticsSpec<S>, and not on a record.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ImportOptics: cannot be applied to annotation interface 'Marker'. It is read on a"
+                  + " package-info.java, on a class or interface listing the types to import, or"
+                  + " on an interface extending OpticsSpec<S>, and not on an annotation"
+                  + " interface.");
+      assertThat(compilation).hadErrorCount(2);
     }
 
     @Test
@@ -1534,6 +1572,122 @@ class ImportOpticsProcessorTest {
           .hadErrorContaining("is a mutable class without wither methods")
           .inFile(packageInfo);
       assertThat(compilation).hadErrorContaining("Define an OpticsSpec interface");
+    }
+  }
+
+  @Nested
+  @DisplayName("Nothing Imported")
+  class NothingImported {
+
+    @Test
+    @DisplayName("a package that lists no classes warns that nothing is imported")
+    void packageListingNoClassesWarns() {
+      final var packageInfo =
+          JavaFileObjects.forSourceString(
+              "com.myapp.optics.package-info",
+              """
+              @ImportOptics
+              package com.myapp.optics;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(packageInfo);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ImportOptics: package 'com.myapp.optics' lists no classes to import, so nothing is"
+                  + " generated.")
+          .inFile(packageInfo);
+      Assertions.assertThat(compilation.generatedSourceFiles()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a class that lists no classes warns that nothing is imported")
+    void classListingNoClassesWarns() {
+      // Only targetPackage is written, so the annotation has no class list at all
+      final var importerClass =
+          JavaFileObjects.forSourceString(
+              "com.myapp.NoValueImporter",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics(targetPackage = "com.gen2")
+              public class NoValueImporter {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(importerClass);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ImportOptics: 'NoValueImporter' lists no classes to import, so nothing is"
+                  + " generated. Optics are generated for each class the annotation lists. List"
+                  + " the classes to import, as @ImportOptics({Order.class}), or remove the"
+                  + " annotation.")
+          .inFile(importerClass)
+          .onLineContaining("@ImportOptics(targetPackage");
+      assertThat(compilation).hadWarningCount(1);
+      Assertions.assertThat(compilation.generatedSourceFiles()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an interface that lists no classes and is not a spec is told how to make it one")
+    void interfaceListingNoClassesWarns() {
+      final var importer =
+          JavaFileObjects.forSourceString(
+              "com.myapp.PointOptics",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics
+              public interface PointOptics extends java.io.Serializable {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(importer);
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation)
+          .hadWarningContaining(
+              "@ImportOptics: 'PointOptics' lists no classes to import, so nothing is generated."
+                  + " Optics are generated for each class the annotation lists, and for the source"
+                  + " type of an interface extending OpticsSpec<S>. List the classes to import, as"
+                  + " @ImportOptics({Order.class}), extend OpticsSpec<S> to make it a spec"
+                  + " interface, or remove the annotation.")
+          .inFile(importer)
+          .onLineContaining("@ImportOptics");
+    }
+
+    @Test
+    @DisplayName("a type whose supertype does not resolve yet draws no warning")
+    void unresolvedSupertypeDrawsNoWarning() {
+      // The supertype may be generated later and bring OpticsSpec with it; javac reports it if it
+      // never resolves, and a warning here would be fatal under -Werror.
+      final var importers =
+          JavaFileObjects.forSourceString(
+              "com.myapp.Importers",
+              """
+              package com.myapp;
+
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics
+              interface PendingOptics extends NotYetGenerated {}
+
+              @ImportOptics
+              abstract class PendingImports extends AlsoNotYetGenerated {}
+              """);
+
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(importers);
+
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      assertThat(compilation).hadWarningCount(0);
     }
   }
 
@@ -1703,6 +1857,7 @@ class ImportOpticsProcessorTest {
 
       assertThat(compilation).succeeded();
       assertThat(compilation).generatedSourceFile("com.myapp.WidgetLenses").isNotNull();
+      assertThat(compilation).hadNoteCount(0);
     }
 
     @Test
@@ -1849,30 +2004,16 @@ class ImportOpticsProcessorTest {
     }
 
     @Test
-    @DisplayName("should generate nothing when the class list is absent")
-    void shouldGenerateNothingWhenClassListAbsent() {
-      // Only targetPackage is written, so the element-values loop never finds "value"
-      final var importerClass =
+    @DisplayName("a primitive, array or void class literal is refused where it is listed")
+    void classLiteralNamingNoTypeIsRefused() {
+      final var customer =
           JavaFileObjects.forSourceString(
-              "com.myapp.NoValueImporter",
+              "com.external.Customer",
               """
-              package com.myapp;
+              package com.external;
 
-              import org.higherkindedj.optics.annotations.ImportOptics;
-
-              @ImportOptics(targetPackage = "com.gen2")
-              public class NoValueImporter {}
+              public record Customer(String name) {}
               """);
-
-      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(importerClass);
-
-      assertThat(compilation).succeeded();
-      Assertions.assertThat(compilation.generatedSourceFiles()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("should ignore class-list entries whose type has no element (primitives)")
-    void shouldIgnorePrimitiveClassListEntries() {
       final var importerClass =
           JavaFileObjects.forSourceString(
               "com.myapp.PrimitiveImporter",
@@ -1881,64 +2022,63 @@ class ImportOpticsProcessorTest {
 
               import org.higherkindedj.optics.annotations.ImportOptics;
 
-              @ImportOptics({int.class})
+              @ImportOptics({
+                  int.class,
+                  String[].class,
+                  void.class,
+                  com.external.Customer.class
+              })
               public class PrimitiveImporter {}
               """);
 
-      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(importerClass);
+      var compilation =
+          javac().withProcessors(new ImportOpticsProcessor()).compile(customer, importerClass);
 
-      assertThat(compilation).succeeded();
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@ImportOptics: 'int.class' names a primitive type, which has no optics to import."
+                  + " Optics are generated from the declaration of a class, interface, record or"
+                  + " enum. Remove 'int.class' from the list.")
+          .inFile(importerClass)
+          .onLineContaining("int.class");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'String[].class' names an array type, which has no optics to import.")
+          .inFile(importerClass)
+          .onLineContaining("String[].class");
+      assertThat(compilation)
+          .hadErrorContaining("'void.class' names void, which has no optics to import.")
+          .inFile(importerClass)
+          .onLineContaining("void.class");
+      assertThat(compilation).hadErrorCount(3);
     }
 
     @Test
-    @DisplayName("should return empty class list for element without @ImportOptics")
-    void shouldReturnEmptyClassListWithoutImportOptics() {
-      final var plainClass =
+    @DisplayName("a class literal that does not resolve is left to javac to report")
+    void unresolvedClassLiteralIsLeftToJavac() {
+      final var importerClass =
           JavaFileObjects.forSourceString(
-              "com.myapp.Plain",
+              "com.myapp.TypoImporter",
               """
               package com.myapp;
 
-              public class Plain {}
+              import org.higherkindedj.optics.annotations.ImportOptics;
+
+              @ImportOptics(value = {Custmer.class}, targetPackage = "com.myapp.gen")
+              public class TypoImporter {}
               """);
 
-      final class HarnessProcessor extends AbstractProcessor {
-        private java.util.List<javax.lang.model.element.TypeElement> classList;
+      // Reading the annotation reflectively would throw on the unresolved literal, and javac
+      // would report the processor's exception in place of the typo.
+      var compilation = javac().withProcessors(new ImportOpticsProcessor()).compile(importerClass);
 
-        @Override
-        public java.util.Set<String> getSupportedAnnotationTypes() {
-          return java.util.Set.of("*");
-        }
-
-        @Override
-        public javax.lang.model.SourceVersion getSupportedSourceVersion() {
-          return javax.lang.model.SourceVersion.RELEASE_25;
-        }
-
-        @Override
-        public boolean process(
-            java.util.Set<? extends javax.lang.model.element.TypeElement> annotations,
-            RoundEnvironment roundEnv) {
-          if (roundEnv.processingOver() || classList != null) {
-            return false;
-          }
-
-          var plain = processingEnv.getElementUtils().getTypeElement("com.myapp.Plain");
-          if (plain != null) {
-            ImportOpticsProcessor target = new ImportOpticsProcessor();
-            target.init(processingEnv);
-            classList = target.getClassArrayFromAnnotation(plain);
-          }
-
-          return false;
-        }
-      }
-
-      HarnessProcessor harness = new HarnessProcessor();
-      var compilation = javac().withProcessors(harness).compile(plainClass);
-
-      assertThat(compilation).succeeded();
-      Assertions.assertThat(harness.classList).isEmpty();
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("cannot find symbol")
+          .inFile(importerClass)
+          .onLineContaining("Custmer.class");
+      assertThat(compilation).hadErrorCount(1);
     }
   }
 }

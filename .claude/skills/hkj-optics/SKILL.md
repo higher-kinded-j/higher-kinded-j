@@ -33,7 +33,7 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 | `@GenerateFolds` | `record` | `{Record}Folds` class with `Fold<S, A>` for each field |
 | `@GenerateForComprehensions` | `record` | For-comprehension-aware traversals |
 | `@ImportOptics` | `package-info.java` or `interface extends OpticsSpec<S>` | Lenses for external types (JDK, Jackson, etc.) via auto-detection |
-| `OpticsSpec<S>` | Marker interface on type with `@ImportOptics` | Fine-grained optics for external types with custom copy strategies |
+| `OpticsSpec<S>` | Interface an `@ImportOptics` spec interface extends directly | Fine-grained optics for external types with custom copy strategies |
 
 ### Copy Strategy Annotations (for `OpticsSpec`)
 
@@ -323,7 +323,7 @@ Generates `LocalDateLenses` with `year()`, `dayOfMonth()` and `dayOfYear()` by a
 
 ### Full Control: `OpticsSpec`
 
-`OpticsSpec<S>` is a marker interface. Declare an interface that extends it, annotate the interface with `@ImportOptics`, and declare the optics you want via abstract methods with `@InstanceOf` prisms:
+`OpticsSpec<S>` is a marker interface. Declare an interface that extends it directly, annotate the interface with `@ImportOptics`, and declare the optics you want via abstract methods with `@InstanceOf` prisms:
 
 <!-- verify -->
 ```java

@@ -81,6 +81,26 @@ public final class GeneratorTestHelper {
   }
 
   /**
+   * Lays a compilation's class files out under {@code dir}, as {@link #classDirectory} does, then
+   * deletes the named classes: the shape of a dependency whose own dependency is missing from the
+   * classpath, so its class files name types that do not resolve.
+   *
+   * @param compilation the upstream compilation, already asserted to have succeeded
+   * @param dir the directory to lay the class files out under
+   * @param removed the binary names of the classes to delete, such as {@code com.external.Gone}
+   * @return {@code dir}, for chaining into {@link #classpathWith}
+   * @throws IOException if a class file cannot be read, written or deleted
+   */
+  public static Path classDirectoryWithout(
+      final Compilation compilation, final Path dir, final String... removed) throws IOException {
+    classDirectory(compilation, dir);
+    for (final String name : removed) {
+      Files.delete(dir.resolve(name.replace('.', '/') + ".class"));
+    }
+    return dir;
+  }
+
+  /**
    * The test classpath plus the given class directories, for compiling against a laid-out module.
    *
    * @param classDirs directories holding a module's class files

@@ -10,7 +10,7 @@ package org.higherkindedj.optics.processing.external;
  * <ul>
  *   <li>Records use their canonical constructor
  *   <li>Wither-based classes use {@code withX()} methods
- *   <li>Builder-based classes use a builder pattern (Phase 2)
+ *   <li>Builder-based classes use a builder pattern
  * </ul>
  */
 public enum CopyStrategy {
@@ -31,7 +31,7 @@ public enum CopyStrategy {
   WITHER,
 
   /**
-   * Use a builder pattern to create copies (Phase 2).
+   * Use a builder pattern to create copies.
    *
    * <p>This strategy requires a {@code toBuilder()} method or similar mechanism to create a builder
    * pre-populated with the current values.

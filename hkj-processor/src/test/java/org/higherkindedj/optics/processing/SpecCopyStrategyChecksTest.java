@@ -8,11 +8,15 @@ import static org.higherkindedj.optics.processing.GeneratorTestHelper.assertGene
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * What a spec's copy strategy is held to: which method a generated call binds, and whether every
@@ -45,12 +49,29 @@ class SpecCopyStrategyChecksTest {
             + body);
   }
 
+  private static final List<String> LINT = List.of("-Xlint:unchecked,rawtypes,static", "-Werror");
+
   /** Compiles under the lint a call bound to the wrong method would trip, as an error. */
   private static Compilation compile(JavaFileObject... sources) {
+    return javac().withProcessors(new ImportOpticsProcessor()).withOptions(LINT).compile(sources);
+  }
+
+  /**
+   * Compiles {@code spec} against {@code source} read from a class file that names {@code
+   * com.external.Gone}, which is missing from the classpath: a type the processor does not wait
+   * for, since it would never come.
+   */
+  private static Compilation compileAgainstAClassFileNamingAMissingType(
+      Path dir, JavaFileObject source, JavaFileObject spec) throws IOException {
+    Compilation upstream = javac().compile(source, external("Gone", "public final class Gone {}"));
+    assertThat(upstream).succeeded();
     return javac()
         .withProcessors(new ImportOpticsProcessor())
-        .withOptions("-Xlint:unchecked,rawtypes,static", "-Werror")
-        .compile(sources);
+        .withOptions(LINT)
+        .withClasspath(
+            GeneratorTestHelper.classpathWith(
+                GeneratorTestHelper.classDirectoryWithout(upstream, dir, "com.external.Gone")))
+        .compile(spec);
   }
 
   @Nested
@@ -589,7 +610,8 @@ class SpecCopyStrategyChecksTest {
                   """));
 
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("cannot find symbol");
+      // The spec waits for the type, and javac reports the missing package at the spec itself.
+      assertThat(compilation).hadErrorContaining("package com.external does not exist");
       Assertions.assertThat(compilation.errors())
           .noneMatch(error -> error.getMessage(null).contains("@Wither:"));
     }
@@ -1828,9 +1850,10 @@ class SpecCopyStrategyChecksTest {
 
     @Test
     @DisplayName("a setter whose own type does not resolve is left to javac")
-    void setterWhoseOwnTypeDoesNotResolveIsLeftToJavac() {
+    void setterWhoseOwnTypeDoesNotResolveIsLeftToJavac(@TempDir Path dir) throws IOException {
       var compilation =
-          compile(
+          compileAgainstAClassFileNamingAMissingType(
+              dir,
               external(
                   "Vanish",
                   """
@@ -1913,9 +1936,10 @@ class SpecCopyStrategyChecksTest {
 
     @Test
     @DisplayName("a builder type that does not resolve is left to javac")
-    void builderTypeThatDoesNotResolveIsLeftToJavac() {
+    void builderTypeThatDoesNotResolveIsLeftToJavac(@TempDir Path dir) throws IOException {
       var compilation =
-          compile(
+          compileAgainstAClassFileNamingAMissingType(
+              dir,
               external(
                   "Absent",
                   """
