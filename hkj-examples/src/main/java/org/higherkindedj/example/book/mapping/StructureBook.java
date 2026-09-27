@@ -86,48 +86,49 @@ public final class StructureBook {
     System.out.println(badReferrer);
 
     // ANCHOR: bridge_container_usage
-    GuestlistMappingImpl guestlistMapping = GuestlistMappingImpl.INSTANCE;
+    PromotionMappingImpl promotionMapping = PromotionMappingImpl.INSTANCE;
 
-    Validated<NonEmptyList<FieldError>, Guestlist> absentGuests =
-        guestlistMapping.parse(new GuestlistDto("Launch", null));
-    // Valid(Guestlist[event=Launch, guests=Optional.empty])
+    Validated<NonEmptyList<FieldError>, Promotion> noInvitees =
+        promotionMapping.parse(new PromotionDto("Spring launch", null));
+    // Valid(Promotion[name=Spring launch, invitees=Optional.empty])
 
-    Validated<NonEmptyList<FieldError>, Guestlist> badGuest =
-        guestlistMapping.parse(
-            new GuestlistDto(
-                "Launch",
+    Validated<NonEmptyList<FieldError>, Promotion> badInvitee =
+        promotionMapping.parse(
+            new PromotionDto(
+                "Spring launch",
                 List.of(
                     new CustomerDto("Ada", "ada@example.org"), new CustomerDto("Bob", "nope"))));
-    // Invalid(NonEmptyList[guests.1.email: not an email address])
+    // Invalid(NonEmptyList[invitees.1.email: not an email address])
     // ANCHOR_END: bridge_container_usage
-    System.out.println(absentGuests);
-    System.out.println(badGuest);
+    System.out.println(noInvitees);
+    System.out.println(badInvitee);
 
     // ANCHOR: flatten_usage
-    VendorMappingImpl vendorMapping = VendorMappingImpl.INSTANCE;
+    PickupPointMappingImpl pickupMapping = PickupPointMappingImpl.INSTANCE;
 
-    VendorDto flat =
-        vendorMapping.build(new Vendor("Acme", new Address("1 High Street", "Leeds", "LS1 4AP")));
-    // VendorDto[name=Acme, street=1 High Street, city=Leeds, postcode=LS1 4AP]
-    Validated<NonEmptyList<FieldError>, Vendor> missing =
-        vendorMapping.parse(new VendorDto("Acme", null, "Leeds", null));
+    PickupPointDto flat =
+        pickupMapping.build(
+            new PickupPoint("Kirkstall", new Address("1 High Street", "Leeds", "LS1 4AP")));
+    // PickupPointDto[name=Kirkstall, street=1 High Street, city=Leeds, postcode=LS1 4AP]
+    Validated<NonEmptyList<FieldError>, PickupPoint> missing =
+        pickupMapping.parse(new PickupPointDto("Kirkstall", null, "Leeds", null));
     // Invalid(NonEmptyList[address.street: must not be null, address.postcode: must not be null])
     // ANCHOR_END: flatten_usage
     System.out.println(flat + " / " + missing);
 
     // ANCHOR: widened_usage
-    Validated<NonEmptyList<FieldError>, Crew> crew =
-        CrewMappingImpl.INSTANCE.parse(
-            new CrewDto(
+    Validated<NonEmptyList<FieldError>, SupportDesk> desk =
+        SupportDeskMappingImpl.INSTANCE.parse(
+            new SupportDeskDto(
                 Set.of("nope"),
                 new String[] {"ada@example.org", "also-nope"},
                 Map.of("bad-key", "a note")));
     // Invalid(NonEmptyList[
-    //   members.nope: not an email address,   <- a Set locates by the element itself
-    //   reserves.1: not an email address,     <- an array locates by index
+    //   agents.nope: not an email address,    <- a Set locates by the element itself
+    //   standby.1: not an email address,      <- an array locates by index
     //   notes.bad-key: not an email address]) <- a key locates by the key it was sent as
     // ANCHOR_END: widened_usage
-    System.out.println(crew);
+    System.out.println(desk);
   }
 }
 
@@ -178,28 +179,30 @@ interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {
 // ANCHOR_END: bridge_nesting_spec
 
 // ANCHOR: bridge_container_spec
-// An absent guest list is not an empty one, so the domain keeps the difference.
-record Guestlist(String event, Optional<List<Customer>> guests) {}
+// A promotion open to everyone comes with no invitee list, which is not an empty one: an empty
+// list invites no one. So the domain keeps the difference.
+record Promotion(String name, Optional<List<Customer>> invitees) {}
 
 // A client that sends no list leaves the array out, which the JSON binder reads as null.
-record GuestlistDto(String event, @Nullable List<CustomerDto> guests) {}
+record PromotionDto(String name, @Nullable List<CustomerDto> invitees) {}
 
 @GenerateMapping
-interface GuestlistMapping extends MappingSpec<Guestlist, GuestlistDto> {
+interface PromotionMapping extends MappingSpec<Promotion, PromotionDto> {
   // CustomerMapping maps the elements, so the marker is all the list needs.
   @OptionalBridge
-  Optional<List<Customer>> guests();
+  Optional<List<Customer>> invitees();
 }
 
 // ANCHOR_END: bridge_container_spec
 
 // ANCHOR: flatten_spec
-record Vendor(String name, Address address) {} // Address as on Record Mapping Basics
+// A courier's pickup point, whose API lists its address as plain fields.
+record PickupPoint(String name, Address address) {} // Address as on Record Mapping Basics
 
-record VendorDto(String name, String street, String city, String postcode) {} // fixed, flat
+record PickupPointDto(String name, String street, String city, String postcode) {} // flat
 
 @GenerateMapping
-interface VendorMapping extends MappingSpec<Vendor, VendorDto> {
+interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointDto> {
   @Flatten
   Address address(); // spread by name: street, city and postcode
 }
@@ -207,20 +210,21 @@ interface VendorMapping extends MappingSpec<Vendor, VendorDto> {
 // ANCHOR_END: flatten_spec
 
 // ANCHOR: widened_spec
-record Crew(
-    Set<EmailAddress> members, // a Set lifts like a List
-    EmailAddress[] reserves, // so does an array
+// The support desk: its agents, those on standby in turn, and a note per agent.
+record SupportDesk(
+    Set<EmailAddress> agents, // a Set lifts like a List
+    EmailAddress[] standby, // so does an array
     Map<EmailAddress, String> notes) {} // and a Map's KEYS, with @MapKey
 
-record CrewDto(Set<String> members, String[] reserves, Map<String, String> notes) {}
+record SupportDeskDto(Set<String> agents, String[] standby, Map<String, String> notes) {}
 
 @GenerateMapping
-interface CrewMapping extends MappingSpec<Crew, CrewDto> {
-  default ValidatedPrism<String, EmailAddress> members() {
+interface SupportDeskMapping extends MappingSpec<SupportDesk, SupportDeskDto> {
+  default ValidatedPrism<String, EmailAddress> agents() {
     return EmailCodecs.EMAIL;
   }
 
-  default ValidatedPrism<String, EmailAddress> reserves() {
+  default ValidatedPrism<String, EmailAddress> standby() {
     return EmailCodecs.EMAIL;
   }
 
@@ -271,12 +275,12 @@ interface CheckoutMapping extends MappingSpec<Checkout, CheckoutDto> {}
 
 // ANCHOR_END: checkout_spec
 
-// ANCHOR: memo_spec
-record Memo(String text, List<String> tags) {}
+// ANCHOR: order_note_spec
+record OrderNote(String text, List<String> tags) {}
 
-record MemoDto(String text, List<String> tags) {}
+record OrderNoteDto(String text, List<String> tags) {}
 
 @GenerateMapping
-interface MemoMapping extends MappingSpec<Memo, MemoDto> {}
+interface OrderNoteMapping extends MappingSpec<OrderNote, OrderNoteDto> {}
 
-// ANCHOR_END: memo_spec
+// ANCHOR_END: order_note_spec

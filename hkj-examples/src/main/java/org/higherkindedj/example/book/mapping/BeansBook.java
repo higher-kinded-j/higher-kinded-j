@@ -85,14 +85,16 @@ public final class BeansBook {
     System.out.println(request.describe());
 
     // ANCHOR: unmapped_usage
-    TenantPatchBean tenantPatch = new TenantPatchBean();
-    tenantPatch.setName("Ada Lovelace");
+    MerchantPatchBean merchantPatch = new MerchantPatchBean();
+    merchantPatch.setName("Brightside Homeware");
 
-    Validated<NonEmptyList<FieldError>, Tenant> tenantPatched =
-        TenantPatchMappingImpl.INSTANCE.updateFrom(tenantPatch).apply(new Tenant("t-1", "Ada"));
-    // Valid(Tenant[id=t-1, name=Ada Lovelace]) - the t-9 the bean reads is never applied
+    Validated<NonEmptyList<FieldError>, Merchant> merchantPatched =
+        MerchantPatchMappingImpl.INSTANCE
+            .updateFrom(merchantPatch)
+            .apply(new Merchant("m-1", "Brightside"));
+    // Valid(Merchant[id=m-1, name=Brightside Homeware]) - the m-9 the bean reads is never applied
     // ANCHOR_END: unmapped_usage
-    System.out.println(tenantPatched);
+    System.out.println(merchantPatched);
   }
 }
 
@@ -208,15 +210,15 @@ interface CustomerRequestMapping extends MappingSpec<Customer, CustomerRequest> 
 // ANCHOR_END: one_way_spec
 
 // ANCHOR: unmapped_spec
-// A tenant record whose id the server assigns, and a PATCH body shared with the GET response: it
-// reads the id and has no setter for it, so the client cannot change it.
-record Tenant(String id, String name) {}
+// A marketplace merchant whose id the server assigns, and a PATCH body shared with the GET
+// response: it reads the id and has no setter for it, so the client cannot change it.
+record Merchant(String id, String name) {}
 
-class TenantPatchBean {
+class MerchantPatchBean {
   private String name;
 
   public String getId() {
-    return "t-9"; // whatever the body carries, the update never applies it
+    return "m-9"; // whatever the body carries, the update never applies it
   }
 
   public String getName() {
@@ -229,9 +231,9 @@ class TenantPatchBean {
 }
 
 @GenerateMapping
-interface TenantPatchMapping extends UpdateSpec<Tenant, TenantPatchBean> {
+interface MerchantPatchMapping extends UpdateSpec<Merchant, MerchantPatchBean> {
   // getId() has no setter, so it is no property of the mapping, and 'id' names a component of
-  // Tenant: without the marker the mapping is refused, in case the accessor is a misspelt pair.
+  // Merchant: without the marker the mapping is refused, in case the accessor is a misspelt pair.
   // The marker says the omission is deliberate. It withholds the refusal and nothing else: the
   // update folds 'name' and never reads getId().
   @Unmapped

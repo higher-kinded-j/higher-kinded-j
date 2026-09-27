@@ -30,9 +30,9 @@ class StructureBookTest {
   @Test
   @DisplayName("each container locates a failure by whatever identifies an element in it")
   void everyContainerLocatesItsOwnWay() {
-    Validated<NonEmptyList<FieldError>, Crew> parsed =
-        CrewMappingImpl.INSTANCE.parse(
-            new CrewDto(
+    Validated<NonEmptyList<FieldError>, SupportDesk> parsed =
+        SupportDeskMappingImpl.INSTANCE.parse(
+            new SupportDeskDto(
                 Set.of("nope"), // a set has no index
                 new String[] {"ada@example.org", "also-nope"}, // an array does
                 Map.of("bad-key", "a note"))); // a map has the key as sent
@@ -40,8 +40,8 @@ class StructureBookTest {
     assertThatValidated(parsed)
         .isInvalid()
         .hasFieldErrors(
-            "members.nope: not an email address",
-            "reserves.1: not an email address",
+            "agents.nope: not an email address",
+            "standby.1: not an email address",
             "notes.bad-key: not an email address");
   }
 
@@ -67,11 +67,12 @@ class StructureBookTest {
   void aSameTypedListParsesToAnUnmodifiableCopy() {
     // ANCHOR: check_copy
     List<String> requestTags = new ArrayList<>(List.of("vip")); // what Jackson bound
-    Memo memo = MemoMappingImpl.INSTANCE.parse(new MemoDto("Call back", requestTags)).get();
+    OrderNote note =
+        OrderNoteMappingImpl.INSTANCE.parse(new OrderNoteDto("Call back", requestTags)).get();
     requestTags.clear(); // a later filter clears the request's list
 
-    assertThat(memo.tags()).containsExactly("vip"); // a copy: still there
-    assertThatThrownBy(() -> memo.tags().add("urgent"))
+    assertThat(note.tags()).containsExactly("vip"); // a copy: still there
+    assertThatThrownBy(() -> note.tags().add("urgent"))
         .isInstanceOf(UnsupportedOperationException.class); // and unmodifiable
     // ANCHOR_END: check_copy
   }

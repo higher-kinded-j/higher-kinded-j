@@ -1,5 +1,5 @@
 // Fixture for hkj-book/src/mapping/self_check.md (see hkj-examples/BOOK-SNIPPETS.md).
-// The email leaf and the Customer pair that checkpoints 3 and 6 build on, as the chapter's own
+// The email leaf and the Customer pair that checkpoints 2 and 6 build on, as the chapter's own
 // BasicsBook declares them. No spec: each checkpoint declares the one it asks about.
 import java.util.Optional;
 import java.util.UUID;

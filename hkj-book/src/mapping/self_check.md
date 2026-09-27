@@ -23,7 +23,7 @@ Every spec whose records carry an email repeats the same `default ValidatedPrism
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-self-mixin-answer"
-**In a mix-in**: a plain interface holding the leaf, which each spec extends alongside `MappingSpec`. An inherited leaf counts as if the spec declared it wherever a component matches it, and stays inert where none does, so `TagMapping` is accepted too:
+**In a mix-in**: a plain interface holding the leaf, which each spec extends alongside `MappingSpec`. An inherited leaf counts as if the spec declared it wherever a component matches it, and stays inert where none does, so `WarehouseMapping` is accepted too:
 
 <!-- verify -->
 ```java
@@ -33,19 +33,19 @@ interface EmailVocabulary {
   }
 }
 
-record Lead(String name, EmailAddress email) {}
+record Courier(String name, EmailAddress email) {} // as on Record Mapping Basics
 
-record LeadDto(String name, String email) {}
+record CourierDto(String name, String email) {}
 
-record Tag(String label) {}
+record Warehouse(String code, int bays) {} // as on Record Mapping Basics
 
-record TagDto(String label) {}
-
-@GenerateMapping
-interface LeadMapping extends EmailVocabulary, MappingSpec<Lead, LeadDto> {}
+record WarehouseDto(String code, int bays) {}
 
 @GenerateMapping
-interface TagMapping extends EmailVocabulary, MappingSpec<Tag, TagDto> {}
+interface CourierMapping extends EmailVocabulary, MappingSpec<Courier, CourierDto> {}
+
+@GenerateMapping
+interface WarehouseMapping extends EmailVocabulary, MappingSpec<Warehouse, WarehouseDto> {}
 ```
 
 Where this lives: [Shared vocabulary: mix-in interfaces](codecs.md#shared-vocabulary-mix-in-interfaces).
@@ -56,12 +56,12 @@ Does `@GenerateMapping` accept this pair as written? Say what happens to a `null
 
 <!-- verify:rejects "Add '@OptionalBridge java.util.Optional<java.lang.String> phone();' to the spec" -->
 ```java
-record Guest(String name, Optional<String> phone) {}
+record Driver(String name, Optional<String> phone) {} // drives for a courier firm
 
-record GuestDto(String name, String phone) {}
+record DriverDto(String name, String phone) {}
 
 @GenerateMapping
-interface GuestMapping extends MappingSpec<Guest, GuestDto> {}
+interface DriverMapping extends MappingSpec<Driver, DriverDto> {}
 ```
 ~~~
 
@@ -84,7 +84,7 @@ The processor refuses this spec. Write what it needs, using `StandardCodecs`.
 ```java
 enum Priority { LOW, HIGH }
 
-record Ticket(UUID id, Priority priority) {}
+record Ticket(UUID id, Priority priority) {} // a support desk ticket
 
 record TicketDto(String id, String priority) {}
 
@@ -238,17 +238,17 @@ Where this lives: [Sealed hierarchies](structure.md#sealed-hierarchies).
 ~~~
 
 ~~~admonish question title="Checkpoint 9: would you approve it?" id="check-self-trap"
-A teammate used to MapStruct binds the mapper on the spec itself, so every caller can write `VisitorMapping.MAPPER`:
+A teammate used to MapStruct binds the mapper on the spec itself, so every caller can write `CustomerSummaryMapping.MAPPER`:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/SelfCheckBook.java:trap_spec}}
 ```
 
-It compiles, and the teammate's test, which calls `VisitorMapping.MAPPER.parse(...)`, passes. Would you approve it? If not, say what fails, and when.
+It compiles, and the teammate's test, which calls `CustomerSummaryMapping.MAPPER.parse(...)`, passes. Would you approve it? If not, say what fails, and when.
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-self-trap-answer"
-**No.** The Impl implements the spec, and the spec declares an instance method with a body (its email leaf). So initialising the Impl initialises the spec first. A program that reads `VisitorMapping.MAPPER` first is fine, which is why the test passes. A program that uses `VisitorMappingImpl.INSTANCE` first evaluates the constant while the Impl's `INSTANCE` is still `null`, and the constant keeps that `null` for good:
+**No.** The Impl implements the spec, and the spec declares an instance method with a body (its email leaf). So initialising the Impl initialises the spec first. A program that reads `CustomerSummaryMapping.MAPPER` first is fine, which is why the test passes. A program that uses `CustomerSummaryMappingImpl.INSTANCE` first evaluates the constant while the Impl's `INSTANCE` is still `null`, and the constant keeps that `null` for good:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/SelfCheckBookTest.java:trap_proof}}

@@ -154,7 +154,7 @@ Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPr
 
 ## Shared vocabulary: mix-in interfaces {#shared-vocabulary-mix-in-interfaces}
 
-The same rename or leaf tends to recur across an API's specs: every wire calls it `fullName`, and every email parses the same way. Move the shared members onto a **plain interface**, and extend it alongside `MappingSpec`. Like a Jackson mix-in, it holds mapping declarations apart from the types they describe. Unlike one, a spec extends it, so Java's inheritance decides which declaration wins:
+The same rename or leaf tends to recur across an API's specs: every wire calls it `fullName`, and every email parses the same way. Record Mapping Basics' `PartnerCustomerMapping` declared that rename and the email leaf by hand, and every other spec whose wire spells them the same way would repeat both. Move the shared members onto a **plain interface**, and extend it alongside `MappingSpec`. Like a Jackson mix-in, it holds mapping declarations apart from the types they describe. Unlike one, a spec extends it, so Java's inheritance decides which declaration wins:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:mixin_spec}}
@@ -162,7 +162,7 @@ The same rename or leaf tends to recur across an API's specs: every wire calls i
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StandardCodecsBook.java:mixin_usage}}
 ```
 
-An inherited member binds exactly as if it were declared on the spec. One that binds to nothing, like `phone()` on `ClientMapping`, stays **inert**, so one vocabulary serves specs whose records differ. The processor refuses the same member declared on the spec itself, which is what catches a typo there. The flip side: a misspelt leaf in the mix-in stays inert everywhere, so test each spec's rejections once. [What an inherited member binds against](rules.md#what-an-inherited-member-binds-against) says what "nothing" means for each kind of member. [How a spec collects its vocabulary](rules.md#how-a-spec-collects-its-vocabulary) covers precedence, generic specs and PATCH specs, and [Mix-in shapes the processor refuses](rules.md#refused-mix-in-shapes) names the two it will not take.
+An inherited member binds exactly as if it were declared on the spec. One that binds to nothing, like `phone()` on `CustomerContactMapping`, stays **inert**, so one vocabulary serves specs whose records differ. The processor refuses the same member declared on the spec itself, which is what catches a typo there. The flip side: a misspelt leaf in the mix-in stays inert everywhere, so test each spec's rejections once. [What an inherited member binds against](rules.md#what-an-inherited-member-binds-against) says what "nothing" means for each kind of member. [How a spec collects its vocabulary](rules.md#how-a-spec-collects-its-vocabulary) covers precedence, generic specs and PATCH specs, and [Mix-in shapes the processor refuses](rules.md#refused-mix-in-shapes) names the two it will not take.
 
 A vocabulary also crosses a **module boundary**. The API module that publishes it needs the HKJ libraries its members use, not the annotation processor, and a service module's spec extends it from the jar as if it were local. One API module can therefore own the house vocabulary every service's specs extend, as long as it is on each consumer's compile classpath ([Multi-module builds](../tooling/manual_setup.md#multi-module-builds)).
 

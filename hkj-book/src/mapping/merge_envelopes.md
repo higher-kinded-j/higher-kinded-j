@@ -26,10 +26,10 @@ A merge is declared entirely by a method's signature: two or more record sources
 ```mermaid
 flowchart LR
     accTitle: How a merge fills
-    accDescr: Dashboard's name fills from User's name, its iban from Account's iban, and its darkMode from Settings' darkMode. User's email and Account's balance are not read.
+    accDescr: Dashboard's name fills from Customer's name, its iban from Account's iban, and its darkMode from Settings' darkMode. Customer's email and Account's balance are not read.
     subgraph S["the sources"]
-        UN["User.name"]
-        UE["User.email (not read)"]
+        CN["Customer.name"]
+        CE["Customer.email (not read)"]
         AI["Account.iban"]
         AB["Account.balance (not read)"]
         SD["Settings.darkMode"]
@@ -39,19 +39,19 @@ flowchart LR
         TI["iban"]
         TD["darkMode"]
     end
-    UN --> TN
+    CN --> TN
     AI --> TI
     SD --> TD
 
     classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef domain fill:#a6d189,stroke:#40a02b,color:#232634
-    class UN,UE,AI,AB,SD wire
+    class CN,CE,AI,AB,SD wire
     class TN,TI,TD domain
 ```
 
 In words: each of `Dashboard`'s components comes from the one source that names it, and a source component the target lacks is not read.
 
-A fill copies when the types match, and a same-typed container [crosses as a copy](rules.md#same-typed-containers-cross-as-copies). Otherwise it converts through a leaf, a `default` method on the merge interface named after the target component. Or it parses through a `@GenerateMapping` spec whose wire is the source component and whose domain is the target component. Here `customer` parses through `CustomerMappingImpl`, and a failure locates as a dotted path:
+A fill copies when the types match, and a same-typed container [crosses as a copy](rules.md#same-typed-containers-cross-as-copies). Otherwise it converts through a leaf, a `default` method on the merge interface named after the target component. Or it parses through a `@GenerateMapping` spec whose wire is the source component and whose domain is the target component. Here a support desk ticket takes its agent's department and parses its `customer` through `CustomerMappingImpl`, and a failure locates as a dotted path:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/MergeBook.java:nested_merge_spec}}
@@ -131,7 +131,7 @@ You can now assemble a domain value from several sources with a return type that
 ~~~
 
 ~~~admonish question title="Checkpoint: what does a plain-return merge do with a null?" id="check-merge-null"
-`DashboardAssembly`, from the start of the page, returns the plain `Dashboard`. What does it return for the same `Account` and `Settings` and a `User` whose name is `null`, `new User(null, "ada@corp.example")`?
+`DashboardAssembly`, from the start of the page, returns the plain `Dashboard`. What does it return for the same `Account` and `Settings` and a `Customer` loaded from a legacy row whose name is `null`, `new Customer(null, new EmailAddress("ada@corp.example"))`?
 
 1. It throws a `NullPointerException`
 2. `Invalid(NonEmptyList[name: must not be null])`

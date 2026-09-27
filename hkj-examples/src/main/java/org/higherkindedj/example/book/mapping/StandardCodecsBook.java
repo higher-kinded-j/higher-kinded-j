@@ -44,15 +44,16 @@ public final class StandardCodecsBook {
   public static void main(String[] args) {
     // ANCHOR: mixin_usage
     // One vocabulary, two mappings: the rename and email leaf apply to both, phone to Supplier.
-    Validated<NonEmptyList<FieldError>, Client> client =
-        ClientMappingImpl.INSTANCE.parse(new ClientDto("Ada Lovelace", "not-an-email"));
+    Validated<NonEmptyList<FieldError>, Customer> customer =
+        CustomerContactMappingImpl.INSTANCE.parse(
+            new CustomerContactDto("Ada Lovelace", "not-an-email"));
     // Invalid(NonEmptyList[email: not an email address])
     Validated<NonEmptyList<FieldError>, Supplier> supplier =
         SupplierMappingImpl.INSTANCE.parse(
             new SupplierDto("Acme Ltd", "sales@acme.example", "call us"));
     // Invalid(NonEmptyList[phone: not a phone number])
     // ANCHOR_END: mixin_usage
-    System.out.println(client);
+    System.out.println(customer);
     System.out.println(supplier);
   }
 }
@@ -133,15 +134,15 @@ final class WireFormats {
 // ANCHOR_END: codecs_formatters
 
 // ANCHOR: canonical_leaf
-record Asset(UUID id, String label) {}
+// A pallet from the warehouse's feed, which writes UUIDs in upper case, as SQL Server does.
+record Pallet(UUID id, String label) {}
 
-record AssetDto(String id, String label) {}
+record PalletDto(String id, String label) {}
 
 @GenerateMapping
-interface AssetMapping extends MappingSpec<Asset, AssetDto> {
-  // An uppercase-UUID wire (SQL Server): the lenient, throwing parse is fine,
-  // because the render defines the canon and the per-value guard rejects
-  // every spelling it cannot reproduce.
+interface PalletMapping extends MappingSpec<Pallet, PalletDto> {
+  // The lenient, throwing parse is fine: the render defines the canon, and the per-value guard
+  // rejects every spelling it cannot reproduce.
   default ValidatedPrism<String, UUID> id() {
     return ValidatedPrism.canonical(
         "not an uppercase UUID",
@@ -152,24 +153,22 @@ interface AssetMapping extends MappingSpec<Asset, AssetDto> {
 
 // ANCHOR_END: canonical_leaf
 
-// ANCHOR: instant_spec
-record Reading(UUID id, Instant takenAt) {}
+// A scan from the warehouse's handheld readers, stamped with an ISO-8601 instant.
+record Scan(UUID id, Instant scannedAt) {}
 
-record ReadingDto(String id, String takenAt) {}
+record ScanDto(String id, String scannedAt) {}
 
 @GenerateMapping
-interface ReadingMapping extends MappingSpec<Reading, ReadingDto> {
+interface ScanMapping extends MappingSpec<Scan, ScanDto> {
   default ValidatedPrism<String, UUID> id() {
     return uuid();
   }
 
   // instant() renders as Instant.toString() does, and accepts exactly that.
-  default ValidatedPrism<String, Instant> takenAt() {
+  default ValidatedPrism<String, Instant> scannedAt() {
     return instant();
   }
 }
-
-// ANCHOR_END: instant_spec
 
 // ANCHOR: mixin_spec
 // Plain vocabulary - not a spec itself. Any spec whose records share these
@@ -182,7 +181,7 @@ interface ContactVocabulary {
     return EmailCodecs.EMAIL;
   }
 
-  // Client has no phone, so this leaf stays inert there; only Supplier binds it.
+  // Customer has no phone, so this leaf stays inert there; only Supplier binds it.
   default ValidatedPrism<String, String> phone() {
     return ValidatedPrism.of(
         raw ->
@@ -193,12 +192,12 @@ interface ContactVocabulary {
   }
 }
 
-record Client(String name, EmailAddress email) {}
-
-record ClientDto(String fullName, String email) {}
+// A CRM's contact export: the Customer from Record Mapping Basics, calling its name fullName.
+record CustomerContactDto(String fullName, String email) {}
 
 @GenerateMapping
-interface ClientMapping extends ContactVocabulary, MappingSpec<Client, ClientDto> {}
+interface CustomerContactMapping
+    extends ContactVocabulary, MappingSpec<Customer, CustomerContactDto> {}
 
 record Supplier(String name, EmailAddress email, String phone) {}
 

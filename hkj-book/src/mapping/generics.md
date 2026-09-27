@@ -55,7 +55,7 @@ A chained call such as `PageMappingImpl.<String>instance().build(tags)` gives Ja
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:threaded_inferred}}
 ```
 
-Multi-parameter and bounded specs thread too (`ResultMapping<E, A>`, `RankedMapping<T extends Number>`), and a same-typed `default` leaf (`ValidatedPrism<T, T>`) is applied to each element. A threaded spec nests as well. The processor matches `Page<String>` against `Page<T>`, so `Report(Page<String> results)` uses `PageMappingImpl.<String>instance()`, and a generic outer spec passes its own variable straight through, as `PageMappingImpl.<T>instance()`.
+Multi-parameter and bounded specs thread too (`ResultMapping<E, A>`, `RankedMapping<T extends Number>`), and a same-typed `default` leaf (`ValidatedPrism<T, T>`) is applied to each element. A threaded spec nests as well. The processor matches `Page<String>` against `Page<T>`, so `TagSearch(Page<String> results)` uses `PageMappingImpl.<String>instance()`, and a generic outer spec passes its own variable straight through, as `PageMappingImpl.<T>instance()`.
 
 ---
 
@@ -75,7 +75,7 @@ A prism can be another mapping's `asValidatedPrism()`, so `CodecPageMappingImpl.
 `of(...)` takes one prism per abstract leaf, in the order the spec declares the leaves. Two leaves of the same type swap without a compile error, and each value then parses through the other's leaf, perhaps to a wrong value with no error at all. The generated `of(opens, closes)` names each parameter after its leaf, so your IDE's parameter hints show the order.
 ~~~
 
-Where a record nests an element-mapped spec, the processor composes it, so a `Catalogue(Page<EmailAddress> entries)` reports `entries.items.1: not an email address`. [How an element-mapped spec nests](rules.md#element-mapped-nesting) says what supplies each prism.
+Where a record nests an element-mapped spec, the processor composes it, so a `MailingList(Page<EmailAddress> entries)` reports `entries.items.1: not an email address`. [How an element-mapped spec nests](rules.md#element-mapped-nesting) says what supplies each prism.
 
 ~~~admonish note title="Declare one form for each pair a record nests"
 A generic spec covers every instantiation it matches, so it competes with a concrete spec for the same pair: `CodecPageMapping<T, TDto>` covers `Page<Customer>` against `PageDto<CustomerDto>` too. Declared side by side, as on this page, a record nesting `Page<Customer>` stops with [`matches more than one mapping spec`](compiler_errors.md#more-than-one-spec) until a leaf picks one. Declare one form for each pair a record nests.
@@ -113,13 +113,13 @@ Where this lives: [One rule, three access shapes](#one-rule-three-access-shapes)
 ~~~
 
 ~~~admonish question title="Checkpoint: what does a swapped `of(...)` do?" id="check-generics-swap"
-A booking window's two dates come from two partner systems, `opens` as a UK date (`dd/MM/uuuu`) and `closes` as a US one (`MM/dd/uuuu`):
+A partner marketplace sends a sale period assembled by two of its systems, `opens` as a UK date (`dd/MM/uuuu`) and `closes` as a US one (`MM/dd/uuuu`):
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:window_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:sale_period_spec}}
 ```
 
-The caller writes `WindowMappingImpl.of(us, uk)`, and parses `new WindowDto<>("03/04/2026", "05/04/2026")`. What happens?
+The caller writes `SalePeriodMappingImpl.of(us, uk)`, and parses `new SalePeriodDto<>("03/04/2026", "05/04/2026")`. What happens?
 
 1. A compile error: the prisms are in the wrong order
 2. It compiles, and `parse` reports both dates, located

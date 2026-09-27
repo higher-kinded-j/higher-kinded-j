@@ -58,8 +58,8 @@ class SelfCheckBookTest {
   void instanceBoundOnTheSpecDependsOnWhatRunsFirst() throws Exception {
     // ANCHOR: trap_proof
     // Two programs, each loading this package afresh, so neither sees what the other ran:
-    assertThat(mapperAfterFirstUsing("VisitorMapping")).isNotNull(); // the spec first
-    assertThat(mapperAfterFirstUsing("VisitorMappingImpl")).isNull(); // the Impl first
+    assertThat(mapperAfterFirstUsing("CustomerSummaryMapping")).isNotNull(); // the spec first
+    assertThat(mapperAfterFirstUsing("CustomerSummaryMappingImpl")).isNull(); // the Impl first
     // ANCHOR_END: trap_proof
   }
 
@@ -100,6 +100,6 @@ class SelfCheckBookTest {
 
   /** The trap spec's constant, after a fresh program's first use of {@code first}. */
   private static @Nullable Object mapperAfterFirstUsing(String first) throws Exception {
-    return FreshPackage.mapperAfterFirstUsing(first, "VisitorMapping");
+    return FreshPackage.mapperAfterFirstUsing(first, "CustomerSummaryMapping");
   }
 }
