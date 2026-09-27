@@ -175,7 +175,7 @@ A `Set`, an array, an `Optional` and a `Map` lift like a `List`. Each locates a 
 
 | Component | Lifts through the element's leaf or spec | A failure locates by |
 | --- | --- | --- |
-| `List<E>` | ✅ | its **index**: `lines.1`, or `invitees.1.email` through a nested spec |
+| `List<E>` | ✅ | its **index**: `lines.1.price` through a nested spec |
 | `E[]` | ✅ | its **index**, exactly as a list: `standby.1` |
 | `Set<E>` | ✅ | the **element's own rendering** (`agents.nope`), since a set has no index |
 | `Optional<E>` on both sides | ✅ | the component itself, since there is only one element |
@@ -191,23 +191,23 @@ A domain `Optional` against a plain nullable wire component is the [bridge](#opt
 
 An array that needs no conversion crosses as a clone. A record compares an array by reference, so a record with an array and no `equals` of its own is not equal to its own round trip.
 
-The generated Impl calls a nested spec as it would a leaf, through its `asValidatedPrism()`, so recursion needs nothing special: a self-referential product `Category(String name, List<Category> children)` maps with an empty spec. A [one-directional bean mapping](beans.md#one-directional-beans) nests for the direction it has.
+The generated Impl calls a nested spec as it would a leaf, through its `asValidatedPrism()`, so recursion needs nothing special: a catalogue's `Category(String name, List<Category> children)` maps with an empty spec. A [one-directional bean mapping](beans.md#one-directional-beans) nests for the direction it has.
 
 ### Converting Map keys {#converting-map-keys}
 
-A `Map` component's value leaf takes the component's name, so a key leaf carries `@MapKey` naming its component instead, as `noteKey()` does in `SupportRotaMapping`. Keys and values convert independently. Without a key leaf the key types must match exactly, and the processor refuses a mismatch, offering the annotation.
+A `Map` component's value leaf takes the component's name, so a key leaf carries `@MapKey` naming its component instead, as `noteKey()` does in `SupportDeskMapping`. Keys and values convert independently. Without a key leaf the key types must match exactly, and the processor refuses a mismatch, offering the annotation.
 
 A failing key locates by the **source** key, the one the client sent, and an entry whose key and value both fail reports both there. A leaf over the whole `Map` wins over both: [a key leaf beside a whole-map leaf](rules.md#key-leaf-beside-a-whole-map-leaf) says when that is refused.
 
 ~~~admonish warning title="Not checked for you: a set silently drops a collapsed element"
-A leaf that parses two wire values to one domain value (`"1"` and `"01"`, say) breaks the [section law](../optics/validated_prism.md#laws): an accepted wire value must rebuild to exactly itself. [`ValidatedPrismLaws`](../tooling/test_assertions.md#optic-laws) catches such a leaf, and [`ValidatedPrism.canonical`](../optics/validated_prism.md) rules it out. Where one slips through, a `Set` drops the duplicate silently. Two collapsed `Map` keys would lose a whole entry, so they are a located failure: `attributes.ab: duplicates an earlier key`.
+A leaf that parses two wire values to one domain value (`"1"` and `"01"`, say) breaks the [section law](../optics/validated_prism.md#laws): an accepted wire value must rebuild to exactly itself. [`ValidatedPrismLaws`](../tooling/test_assertions.md#optic-laws) catches such a leaf, and [`ValidatedPrism.canonical`](../optics/validated_prism.md) rules it out. Where one slips through, a `Set` drops the duplicate silently. Two collapsed `Map` keys would lose a whole entry, so they are a located failure at the second key as it was sent, such as `notes.01: duplicates an earlier key`.
 ~~~
 
 ---
 
 ## Flattening a nested component onto a flat wire {#flattening-a-nested-component-onto-a-flat-wire}
 
-Nesting assumes the wire nests too. When a wire fixed by someone else carries an [`Address`](basics.md#your-first-mapping) as plain `street`, `city` and `postcode` fields, no single wire component holds it, so no leaf can map it. `@Flatten` on a marker named after the component spreads it instead:
+Nesting assumes the wire nests too. When a courier's API, fixed by someone else, lists a pickup point's [`Address`](basics.md#your-first-mapping) as plain `street`, `city` and `postcode` fields, no single wire component holds it, so no leaf can map it. `@Flatten` on a marker named after the component spreads it instead:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:flatten_spec}}
@@ -218,13 +218,13 @@ Nesting assumes the wire nests too. When a wire fixed by someone else carries an
 ```mermaid
 flowchart LR
     accTitle: A flattened address
-    accDescr: Each member of the domain's Address record, address.street, address.city and address.postcode, pairs by name with the flat DepotDto field of the same name.
-    subgraph D["Depot.address"]
+    accDescr: Each member of the domain's Address record, address.street, address.city and address.postcode, pairs by name with the flat PickupPointDto field of the same name.
+    subgraph D["PickupPoint.address"]
         AS["address.street"]
         AC["address.city"]
         AP["address.postcode"]
     end
-    subgraph W["DepotDto"]
+    subgraph W["PickupPointDto"]
         S["street"]
         C["city"]
         P["postcode"]
@@ -241,7 +241,7 @@ flowchart LR
 
 In words: each member of the address pairs with the flat field of the same name, so a bad `street` comes back as `address.street`.
 
-The record's components, spread this way, are the **group**. `parse` builds the `Address` from those fields, with their failures accumulating beside the depot's, at the domain path `address.street`. The flat wire never sent that name, but like a [rename](basics.md#renames-mapfield), a path always uses domain names.
+The record's components, spread this way, are the **group**. `parse` builds the `Address` from those fields, with their failures accumulating beside the pickup point's, at the domain path `address.street`. The flat wire never sent that name, but like a [rename](basics.md#renames-mapfield), a path always uses domain names.
 
 The vocabulary applies inside the group by name:
 

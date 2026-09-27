@@ -30,9 +30,9 @@ class StructureBookTest {
   @Test
   @DisplayName("each container locates a failure by whatever identifies an element in it")
   void everyContainerLocatesItsOwnWay() {
-    Validated<NonEmptyList<FieldError>, SupportRota> parsed =
-        SupportRotaMappingImpl.INSTANCE.parse(
-            new SupportRotaDto(
+    Validated<NonEmptyList<FieldError>, SupportDesk> parsed =
+        SupportDeskMappingImpl.INSTANCE.parse(
+            new SupportDeskDto(
                 Set.of("nope"), // a set has no index
                 new String[] {"ada@example.org", "also-nope"}, // an array does
                 Map.of("bad-key", "a note"))); // a map has the key as sent

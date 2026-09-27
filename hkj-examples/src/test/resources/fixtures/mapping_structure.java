@@ -1,7 +1,7 @@
 // Fixture for hkj-book/src/mapping/structure.md (see hkj-examples/BOOK-SNIPPETS.md).
-// The "Across modules" snippet declares only the downstream spec; the pair it nests, and the
-// spec mapping that pair, stand in for the dependency (in the gate they share the compilation,
-// which resolves identically).
+// The "Across modules" snippet declares only the downstream spec. The pair it nests, its
+// EmailAddress leaf and the spec mapping that pair stand in for :orders-api, and the invoice pair
+// is :billing's own (in the gate they share the compilation, which resolves identically).
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.GenerateMapping;
