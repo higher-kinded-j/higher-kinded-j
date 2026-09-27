@@ -26,10 +26,10 @@ A merge is declared entirely by a method's signature: two or more record sources
 ```mermaid
 flowchart LR
     accTitle: How a merge fills
-    accDescr: Dashboard's name fills from User's name, its iban from Account's iban, and its darkMode from Settings' darkMode. User's email and Account's balance are not read.
+    accDescr: Dashboard's name fills from Customer's name, its iban from Account's iban, and its darkMode from Settings' darkMode. Customer's email and Account's balance are not read.
     subgraph S["the sources"]
-        UN["User.name"]
-        UE["User.email (not read)"]
+        UN["Customer.name"]
+        UE["Customer.email (not read)"]
         AI["Account.iban"]
         AB["Account.balance (not read)"]
         SD["Settings.darkMode"]
@@ -131,7 +131,7 @@ You can now assemble a domain value from several sources with a return type that
 ~~~
 
 ~~~admonish question title="Checkpoint: what does a plain-return merge do with a null?" id="check-merge-null"
-`DashboardAssembly`, from the start of the page, returns the plain `Dashboard`. What does it return for the same `Account` and `Settings` and a `User` whose name is `null`, `new User(null, "ada@corp.example")`?
+`DashboardAssembly`, from the start of the page, returns the plain `Dashboard`. What does it return for the same `Account` and `Settings` and a `Customer` whose name is `null`, `new Customer(null, new EmailAddress("ada@corp.example"))`?
 
 1. It throws a `NullPointerException`
 2. `Invalid(NonEmptyList[name: must not be null])`

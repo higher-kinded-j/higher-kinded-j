@@ -31,7 +31,7 @@ public final class MergeBook {
     // ANCHOR: merge_usage
     Dashboard dashboard =
         DashboardAssemblyImpl.INSTANCE.assemble(
-            new User("Ada", "ada@corp.example"),
+            new Customer("Ada", new EmailAddress("ada@corp.example")),
             new Account("GB29-XXXX", 4200),
             new Settings(true));
     // Dashboard[name=Ada, iban=GB29-XXXX, darkMode=true]
@@ -39,9 +39,9 @@ public final class MergeBook {
     System.out.println(dashboard);
 
     // ANCHOR: nested_merge_usage
-    Validated<NonEmptyList<FieldError>, ProfileCard> card =
-        ProfileCardAssemblyImpl.INSTANCE.assemble(
-            new User("Ada", "ada@corp.example"), new ProfileForm(new CustomerDto("Bob", "nope")));
+    Validated<NonEmptyList<FieldError>, CaseCard> card =
+        CaseCardAssemblyImpl.INSTANCE.assemble(
+            new Employee("Ada", "Support", 36), new CaseForm(new CustomerDto("Bob", "nope")));
     // Invalid(NonEmptyList[customer.email: not an email address])
     // ANCHOR_END: nested_merge_usage
     System.out.println(card);
@@ -49,8 +49,7 @@ public final class MergeBook {
 }
 
 // ANCHOR: merge_spec
-record User(String name, String email) {}
-
+// the Customer is the chapter's own, from Record Mapping Basics
 record Account(String iban, int balance) {}
 
 record Settings(boolean darkMode) {}
@@ -59,19 +58,22 @@ record Dashboard(String name, String iban, boolean darkMode) {}
 
 @GenerateMerge
 interface DashboardAssembly {
-  Dashboard assemble(User user, Account account, Settings settings);
+  Dashboard assemble(Customer customer, Account account, Settings settings);
 }
 
 // ANCHOR_END: merge_spec
 
 // ANCHOR: nested_merge_spec
-record ProfileForm(CustomerDto customer) {} // the wire side
+// A support case: the agent who opens it, an Employee as on What Your Spec Generates, and the
+// customer a form describes.
+record CaseForm(CustomerDto customer) {} // the wire side
 
-record ProfileCard(String name, Customer customer) {} // the domain side
+record CaseCard(String name, Customer customer) {} // the domain side
 
 @GenerateMerge
-interface ProfileCardAssembly {
-  // ProfileCard.customer fills from ProfileForm.customer through CustomerMapping, which can fail.
-  Validated<NonEmptyList<FieldError>, ProfileCard> assemble(User user, ProfileForm form);
+interface CaseCardAssembly {
+  // CaseCard.name fills from the agent's name; CaseCard.customer from CaseForm.customer, through
+  // CustomerMapping, which can fail.
+  Validated<NonEmptyList<FieldError>, CaseCard> assemble(Employee agent, CaseForm form);
 }
 // ANCHOR_END: nested_merge_spec
