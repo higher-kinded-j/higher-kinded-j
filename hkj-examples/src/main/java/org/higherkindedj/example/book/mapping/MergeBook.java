@@ -39,9 +39,9 @@ public final class MergeBook {
     System.out.println(dashboard);
 
     // ANCHOR: nested_merge_usage
-    Validated<NonEmptyList<FieldError>, CaseCard> card =
-        CaseCardAssemblyImpl.INSTANCE.assemble(
-            new Employee("Ada", "Support", 36), new CaseForm(new CustomerDto("Bob", "nope")));
+    Validated<NonEmptyList<FieldError>, TicketCard> card =
+        TicketCardAssemblyImpl.INSTANCE.assemble(
+            new Employee("Grace", "Support", 41), new TicketForm(new CustomerDto("Bob", "nope")));
     // Invalid(NonEmptyList[customer.email: not an email address])
     // ANCHOR_END: nested_merge_usage
     System.out.println(card);
@@ -49,7 +49,8 @@ public final class MergeBook {
 }
 
 // ANCHOR: merge_spec
-// the Customer is the chapter's own, from Record Mapping Basics
+// Customer is the chapter's own, from Record Mapping Basics.
+
 record Account(String iban, int balance) {}
 
 record Settings(boolean darkMode) {}
@@ -64,16 +65,16 @@ interface DashboardAssembly {
 // ANCHOR_END: merge_spec
 
 // ANCHOR: nested_merge_spec
-// A support case: the agent who opens it, an Employee as on What Your Spec Generates, and the
-// customer a form describes.
-record CaseForm(CustomerDto customer) {} // the wire side
+// A support desk ticket: the department of the agent who opens it (an Employee, as on What Your
+// Spec Generates), and the customer a form describes.
+record TicketForm(CustomerDto customer) {} // the wire side
 
-record CaseCard(String name, Customer customer) {} // the domain side
+record TicketCard(String department, Customer customer) {} // the domain side
 
 @GenerateMerge
-interface CaseCardAssembly {
-  // CaseCard.name fills from the agent's name; CaseCard.customer from CaseForm.customer, through
-  // CustomerMapping, which can fail.
-  Validated<NonEmptyList<FieldError>, CaseCard> assemble(Employee agent, CaseForm form);
+interface TicketCardAssembly {
+  // TicketCard.department fills from the agent's; TicketCard.customer from TicketForm.customer,
+  // through CustomerMapping, which can fail.
+  Validated<NonEmptyList<FieldError>, TicketCard> assemble(Employee agent, TicketForm form);
 }
 // ANCHOR_END: nested_merge_spec
