@@ -336,7 +336,7 @@ solutions/
 │   ├── TutorialVStreamParallel_Solution.java
 │   ├── TutorialVStreamPath_Solution.java
 │   └── TutorialVStreamAdvanced_Solution.java
-├── optics/                     (26 solutions)
+├── optics/                     (27 solutions)
 │   ├── Tutorial01_LensBasics_Solution.java
 │   ├── Tutorial02_LensComposition_Solution.java
 │   ├── Tutorial03_PrismBasics_Solution.java
@@ -362,7 +362,8 @@ solutions/
 │   ├── Tutorial23_CoupledLenses_Solution.java
 │   ├── Tutorial24_MultiEdit_Solution.java
 │   ├── Tutorial25_ValidatedPrism_Solution.java
-│   └── Tutorial26_RecordMapping_Solution.java
+│   ├── Tutorial26_RecordMapping_Solution.java
+│   └── Tutorial27_BoundaryEdgeCases_Solution.java
 ├── expression/                 (4 solutions)
 │   ├── Tutorial01_ForStateBasics_Solution.java
 │   ├── Tutorial02_ForPathParallel_Solution.java

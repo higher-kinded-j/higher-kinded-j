@@ -76,7 +76,7 @@ We can take the journeys bottom-up (Foundations → Effect API → applications)
 | **Optics: Fluent & Free** | Fluent API, Free Monad DSL | ~35 min | 22 |
 | **Optics: Focus DSL** | Type-safe path navigation, container widening | ~35 min | 29 |
 | **Optics: Batching & Coupled Updates** | Request batching, plan guardrails, coupled lenses | ~40 min | 13 |
-| **Optics: Boundary Mapping** | Multi-edit, ValidatedPrism, generated record mapping | ~35 min | 13 |
+| **Optics: Boundary Mapping** | Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases | ~50 min | 19 |
 | **Expression: ForState** | Named record state, lens threading, zoom | ~25 min | 11 |
 | **Expression: ForPath Parallel** | Applicative parallel composition for Path types | ~20 min | 9 |
 | **Resilience Patterns** | Circuit Breaker, Saga, Retry, Bulkhead, Path API resilience | ~40 min | 22 |

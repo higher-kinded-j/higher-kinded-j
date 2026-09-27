@@ -397,7 +397,7 @@ Each Path wraps its underlying effect and provides `map`, `via`, `run`, `recover
 
 ## Learn by Doing
 
-The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**: seventeen journeys of hands-on exercises with immediate test feedback. Start with **[Effect API](tutorials/effect/effect_journey.md)** (~65 min) for the railway, **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** (~40 min) for immutable updates, or **[Optics: Boundary Mapping](tutorials/optics/boundary_mapping_journey.md)** (~35 min) for the 422 leg.
+The fastest way to master Higher-Kinded-J is through our **interactive tutorial series**: seventeen journeys of hands-on exercises with immediate test feedback. Start with **[Effect API](tutorials/effect/effect_journey.md)** (~65 min) for the railway, **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** (~40 min) for immutable updates, or **[Optics: Boundary Mapping](tutorials/optics/boundary_mapping_journey.md)** (~50 min) for the 422 leg.
 
 ~~~admonish note title="All seventeen journeys" collapsible=true
 | Journey | Focus | Duration | Exercises |
@@ -417,7 +417,7 @@ The fastest way to master Higher-Kinded-J is through our **interactive tutorial 
 | **[Optics: Fluent & Free](tutorials/optics/fluent_free_journey.md)** | Fluent API, Free Monad DSL | ~35 min | 22 |
 | **[Optics: Focus DSL](tutorials/optics/focus_dsl_journey.md)** | Type-safe path navigation, container widening | ~35 min | 29 |
 | **[Optics: Batching & Coupled Updates](tutorials/optics/batching_journey.md)** | Optic-driven request batching, `Edits`, coupled fields | ~40 min | 13 |
-| **[Optics: Boundary Mapping](tutorials/optics/boundary_mapping_journey.md)** | Multi-edit and sparse updates, `@GenerateMapping`, the 422 leg | ~35 min | 13 |
+| **[Optics: Boundary Mapping](tutorials/optics/boundary_mapping_journey.md)** | Multi-edit and sparse updates, `@GenerateMapping`, the 422 leg, edge cases | ~50 min | 19 |
 | **[Capstone: One Line, Six Layers](tutorials/capstone/capstone_journey.md)** | One pipeline across effects, optics, resilience and concurrency | ~30 min | 7 |
 ~~~
 

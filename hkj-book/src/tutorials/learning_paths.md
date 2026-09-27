@@ -1,7 +1,7 @@
 # Learning Paths
 
 ~~~admonish info title="Choose a Path"
-Each journey is designed to be completed in a single sitting (25–40 minutes). The paths below are recommended *sequences* of journeys for different goals.
+Each journey is designed to be completed in a single sitting (25–65 minutes). The paths below are recommended *sequences* of journeys for different goals.
 ~~~
 
 ## All Journeys at a Glance
@@ -19,7 +19,7 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min | 22 | Advanced |
 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min | 29 | Intermediate |
 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) | ~40 min | 13 | Advanced |
-| [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~35 min | 13 | Intermediate |
+| [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~50 min | 19 | Intermediate |
 | [Expression: ForState](expression/forstate_journey.md) | ~25 min | 11 | Intermediate |
 | [Resilience Patterns](resilience/resilience_journey.md) | ~45 min | 22 | Intermediate |
 
@@ -104,9 +104,9 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 | 3 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min |
 | 4 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min |
 | 5 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) | ~40 min |
-| 6 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~35 min |
+| 6 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~50 min |
 
-**Total**: 6 sessions, ~225 min across sessions
+**Total**: 6 sessions, ~240 min across sessions
 
 **Best for**: Developers working with complex immutable data structures who want to master optics, through to the generated DTO boundary.
 
@@ -131,9 +131,9 @@ Each journey is designed to be completed in a single sitting (25–40 minutes). 
 | 12 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min |
 | 13 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min |
 | 14 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) | ~40 min |
-| 15 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~35 min |
+| 15 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~50 min |
 
-**Total**: 15 sessions, ~545 min across sessions
+**Total**: 15 sessions, ~560 min across sessions
 
 **Best for**: Comprehensive mastery of Higher-Kinded-J.
 
