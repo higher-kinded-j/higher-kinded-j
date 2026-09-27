@@ -80,20 +80,20 @@ Where this lives: [Bean-shaped wire targets](#bean-shaped-wire-targets).
 ~~~
 
 ~~~admonish question title="Checkpoint: which methods does the Impl carry?" id="check-beans-direction"
-A vendor SDK builds this `InvoiceView` through its public constructor:
+A payments SDK builds this `CreditNoteView` through its public constructor:
 
 <!-- verify:reports "maps parse-only" -->
 ```java
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
 
-record Invoice(String number, String currency) {}
+record CreditNote(String number, String currency) {}
 
-final class InvoiceView {
+final class CreditNoteView {
   private final String number;
   private final String currency;
 
-  public InvoiceView(String number, String currency) {
+  public CreditNoteView(String number, String currency) {
     this.number = number;
     this.currency = currency;
   }
@@ -104,10 +104,10 @@ final class InvoiceView {
 }
 
 @GenerateMapping
-interface InvoiceViewMapping extends MappingSpec<Invoice, InvoiceView> {}
+interface CreditNoteViewMapping extends MappingSpec<CreditNote, CreditNoteView> {}
 ```
 
-What does `InvoiceViewMappingImpl` carry?
+What does `CreditNoteViewMappingImpl` carry?
 
 1. `build` and `parse`: `build` can call the public constructor
 2. `parse` only
@@ -116,12 +116,12 @@ What does `InvoiceViewMappingImpl` carry?
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-beans-direction-answer"
-**2.** `build` writes a bean through setters or a builder, never a constructor that takes arguments, and `InvoiceView` has neither. It has getters, so it maps parse-only, and the processor says so in a compiler note:
+**2.** `build` writes a bean through setters or a builder, never a constructor that takes arguments, and `CreditNoteView` has neither. It has getters, so it maps parse-only, and the processor says so in a compiler note:
 
 ```
-@GenerateMapping: 'InvoiceView' maps parse-only: the generated Impl carries parse and
-asValidatedParse(), and no build. 'InvoiceView' has getters but no setX setters and no builder that
-fills it, so nothing can write it. If 'InvoiceView' should be built too, give it a no-args
+@GenerateMapping: 'CreditNoteView' maps parse-only: the generated Impl carries parse and
+asValidatedParse(), and no build. 'CreditNoteView' has getters but no setX setters and no builder
+that fills it, so nothing can write it. If 'CreditNoteView' should be built too, give it a no-args
 constructor with setX setters matching its getters, or a builder.
 ```
 
