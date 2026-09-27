@@ -73,7 +73,7 @@ class BenchmarkAssertionsTest {
 
   private static Optional<BenchmarkResult> get(String benchmarkClass, String method) {
     String fullName = "org.higherkindedj.benchmarks." + benchmarkClass + "." + method;
-    // Try exact match first (non-parameterized benchmarks)
+    // Try exact match first (non-parameterised benchmarks)
     BenchmarkResult exact = results.get(fullName);
     if (exact != null) {
       return Optional.of(exact);
@@ -87,7 +87,7 @@ class BenchmarkAssertionsTest {
   }
 
   /**
-   * Lookup a parameterized benchmark result. JMH encodes params as {@code
+   * Lookup a parameterised benchmark result. JMH encodes params as {@code
    * ClassName.method:param=value} or with multiple params separated by commas.
    */
   private static Optional<BenchmarkResult> getParam(
@@ -1132,7 +1132,7 @@ class BenchmarkAssertionsTest {
     @SuppressWarnings("unchecked")
     static BenchmarkResult fromMap(Map<String, Object> map) {
       String name = (String) map.get("benchmark");
-      // For parameterized benchmarks, JMH stores params in a separate "params" map.
+      // For parameterised benchmarks, JMH stores params in a separate "params" map.
       // Append them to the name in the format JMH uses: "name:key=value,key2=value2"
       Map<String, String> params = (Map<String, String>) map.get("params");
       if (params != null && !params.isEmpty()) {

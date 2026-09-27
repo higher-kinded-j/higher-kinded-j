@@ -13,7 +13,7 @@ import tools.jackson.databind.ValueDeserializer;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
 /**
- * Jackson 3.x deserializer for {@link EitherOrBoth} (the inclusive-or).
+ * Jackson 3.x deserialiser for {@link EitherOrBoth} (the inclusive-or).
  *
  * <p>Reads the tag-based form produced by {@link EitherOrBothSerializer}:
  *
@@ -39,12 +39,12 @@ public class EitherOrBothDeserializer extends StdDeserializer<EitherOrBoth<?, ?>
 
   private final JavaType rightType;
 
-  /** Creates an unresolved deserializer (used for module registration). */
+  /** Creates an unresolved deserialiser (used for module registration). */
   public EitherOrBothDeserializer() {
     this(null, null);
   }
 
-  /** Creates a deserializer bound to resolved left/right types. */
+  /** Creates a deserialiser bound to resolved left/right types. */
   @SuppressWarnings("unchecked")
   public EitherOrBothDeserializer(JavaType leftType, JavaType rightType) {
     super((Class<EitherOrBoth<?, ?>>) (Class<?>) EitherOrBoth.class);

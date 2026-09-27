@@ -485,7 +485,7 @@ public EitherPath<DomainError, UserProfile> getUserProfile(@PathVariable String 
 ### Spring Boot 4.x Compatibility
 
 - Uses `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` for auto-configuration discovery
-- Jackson 3.x for JSON serialization (`tools.jackson` package)
+- Jackson 3.x for JSON serialisation (`tools.jackson` package)
 - Jakarta EE 11 / Servlet 6.1
 
 ### Conditional Configuration
@@ -497,7 +497,7 @@ Only activates when required dependencies are present:
 
 ### Non-Invasive
 
-Doesn't modify existing Spring Boot behavior. Only adds support for Effect Path return types.
+Doesn't modify existing Spring Boot behaviour. Only adds support for Effect Path return types.
 
 ## Testing
 
@@ -547,7 +547,7 @@ class UserControllerTest {
 - [Configuration Reference](CONFIGURATION.md)
 - [HTTP Client Reference](HTTP_CLIENT.md)
 - [EffectBoundary Reference](EFFECT_BOUNDARY.md)
-- [Jackson Serialization](JACKSON_SERIALIZATION.md)
+- [Jackson Serialisation](JACKSON_SERIALIZATION.md)
 - [Security Integration](SECURITY.md)
 - [Actuator Support](ACTUATOR.md)
 

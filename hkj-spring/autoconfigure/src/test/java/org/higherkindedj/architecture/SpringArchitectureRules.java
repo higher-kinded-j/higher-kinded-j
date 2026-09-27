@@ -43,7 +43,7 @@ class SpringArchitectureRules {
   /**
    * Auto-configuration classes should be in autoconfigure package.
    *
-   * <p>Spring Boot auto-configurations should be properly organized.
+   * <p>Spring Boot auto-configurations should be properly organised.
    */
   @Test
   @DisplayName("AutoConfiguration classes should be in autoconfigure package")
@@ -89,9 +89,9 @@ class SpringArchitectureRules {
         .check(classes);
   }
 
-  /** Jackson serializers should be in the json package. */
+  /** Jackson serialisers should be in the json package. */
   @Test
-  @DisplayName("Serializer classes should be in json package")
+  @DisplayName("*Serializer classes should be in json package")
   void serializers_should_be_in_json_package() {
     classes()
         .that()

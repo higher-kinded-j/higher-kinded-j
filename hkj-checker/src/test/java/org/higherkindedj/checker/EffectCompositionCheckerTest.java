@@ -13,7 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-/** Behavioral tests for {@link EffectCompositionChecker}. */
+/** Behavioural tests for {@link EffectCompositionChecker}. */
 @DisplayName("EffectCompositionChecker")
 class EffectCompositionCheckerTest {
 

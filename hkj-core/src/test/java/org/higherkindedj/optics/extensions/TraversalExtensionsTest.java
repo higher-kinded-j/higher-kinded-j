@@ -474,7 +474,7 @@ class TraversalExtensionsTest {
       List<Person> people =
           List.of(new Person("alice", 30), new Person("bob", 25), new Person("charlie", 35));
 
-      // Step 1: Capitalize names
+      // Step 1: Capitalise names
       Either<String, List<Person>> step1 =
           modifyAllEither(
               allNames,

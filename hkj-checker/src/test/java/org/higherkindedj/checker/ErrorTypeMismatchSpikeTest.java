@@ -12,7 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Spike result, frozen as a characterization test.
+ * Spike result, frozen as a characterisation test.
  *
  * <p><b>Question:</b> does the documented effect §5 / transformers §2 "error type {@code E}
  * mismatch in an Either chain" produce a javac error on JDK 25?

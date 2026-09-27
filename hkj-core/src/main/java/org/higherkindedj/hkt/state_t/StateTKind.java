@@ -58,7 +58,7 @@ public interface StateTKind<S, F, A> extends Kind<StateTKind.Witness<S, F>, A> {
    * The primary witness type for {@code StateT<S, F, A>}, representing the type constructor {@code
    * StateT<S, F, _>} (where {@code _} is the placeholder for the value type {@code A}).
    *
-   * <p>This witness is used to parameterize {@link Kind} as {@code Kind<StateTKind.Witness<S, F>,
+   * <p>This witness is used to parameterise {@link Kind} as {@code Kind<StateTKind.Witness<S, F>,
    * A>}, allowing {@code StateT} to be used as a higher-kinded type in generic abstractions like
    * {@link org.higherkindedj.hkt.Monad}, {@link org.higherkindedj.hkt.Applicative}, etc. It "fixes"
    * the state type {@code S} and the underlying monad witness {@code F}.

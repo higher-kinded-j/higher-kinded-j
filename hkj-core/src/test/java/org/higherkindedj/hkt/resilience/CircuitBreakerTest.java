@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Comprehensive test suite for {@link CircuitBreaker}.
  *
- * <p>Tests cover state transitions, failure and success thresholds, timeout behavior, metrics
+ * <p>Tests cover state transitions, failure and success thresholds, timeout behaviour, metrics
  * tracking, concurrency safety, fallback support, and generic type protection.
  */
 @DisplayName("CircuitBreaker Test Suite")

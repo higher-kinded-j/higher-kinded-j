@@ -37,7 +37,7 @@ import org.higherkindedj.hkt.tuple.Tuple2;
  *
  * <ul>
  *   <li><b>Creation:</b> {@link #fromIterable}, {@link #fromArray}, {@link #range}
- *   <li><b>Materialization:</b> {@link #toList}, {@link #toSet}
+ *   <li><b>Materialisation:</b> {@link #toList}, {@link #toSet}
  *   <li><b>Filtering:</b> {@link #filter}, {@link #take}, {@link #drop}
  *   <li><b>Combination:</b> {@link #concat}, {@link #zip}, {@link #zipWithIndex}
  *   <li><b>Effects:</b> {@link #tap}, {@link #forEach}
@@ -100,7 +100,7 @@ public final class StreamOps {
   /**
    * Creates a stream of integers in the range [start, end).
    *
-   * <p>This is a lazy operation. The range is not materialized until a terminal operation is
+   * <p>This is a lazy operation. The range is not materialised until a terminal operation is
    * performed.
    *
    * <p><b>Example:</b>
@@ -121,7 +121,7 @@ public final class StreamOps {
   /**
    * Creates a stream of integers in the range [start, end].
    *
-   * <p>This is a lazy operation. The range is not materialized until a terminal operation is
+   * <p>This is a lazy operation. The range is not materialised until a terminal operation is
    * performed.
    *
    * <p><b>Example:</b>
@@ -139,7 +139,7 @@ public final class StreamOps {
     return STREAM.widen(Stream.iterate(start, n -> n <= end, n -> n + 1));
   }
 
-  // ========== Materialization Operations ==========
+  // ========== Materialisation Operations ==========
 
   /**
    * Forces evaluation of the stream and collects elements into a {@link List}.
@@ -147,7 +147,7 @@ public final class StreamOps {
    * <p><b>Warning:</b> This is a terminal operation that consumes the stream. The stream cannot be
    * reused after this operation.
    *
-   * @param stream The stream to materialize. Must not be null.
+   * @param stream The stream to materialise. Must not be null.
    * @param <A> The element type.
    * @return A List containing all elements from the stream. Never null.
    * @throws NullPointerException if stream is null.
@@ -168,7 +168,7 @@ public final class StreamOps {
    * <p><b>Note:</b> Duplicate elements will be removed based on their {@code equals} and {@code
    * hashCode} implementations.
    *
-   * @param stream The stream to materialize. Must not be null.
+   * @param stream The stream to materialise. Must not be null.
    * @param <A> The element type.
    * @return A Set containing all unique elements from the stream. Never null.
    * @throws NullPointerException if stream is null.
@@ -216,7 +216,7 @@ public final class StreamOps {
   /**
    * Takes the first {@code n} elements from the stream.
    *
-   * <p>This is a lazy operation - elements are not materialized until a terminal operation is
+   * <p>This is a lazy operation - elements are not materialised until a terminal operation is
    * performed on the resulting stream.
    *
    * <p><b>Example:</b>

@@ -952,10 +952,10 @@ class MonoidsTest {
   }
 
   @Nested
-  @DisplayName("Parameterized Monoid Law Tests")
+  @DisplayName("Parameterised Monoid Law Tests")
   class ParameterizedMonoidLawTests {
 
-    // Parameterized test data for monoids with their test values
+    // Parameterised test data for monoids with their test values
     private static Stream<Arguments> monoidIdentityLawProvider() {
       return Stream.of(
           Arguments.of("longAddition", Monoids.longAddition(), 42L),
@@ -986,7 +986,7 @@ class MonoidsTest {
       assertThat(result).isEqualTo(testValue);
     }
 
-    // Parameterized test data for monoids that have associativity law
+    // Parameterised test data for monoids that have associativity law
     private static Stream<Arguments> monoidAssociativityLawProvider() {
       return Stream.of(
           Arguments.of("longAddition", Monoids.longAddition(), 100L, 200L, 300L, 600L),

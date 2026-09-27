@@ -55,7 +55,7 @@ class FocusEffectIntegrationTest {
 
   @BeforeEach
   void setUp() {
-    // Initialize lenses
+    // Initialise lenses
     userIdLens = Lens.of(User::id, (u, id) -> new User(id, u.name(), u.profile()));
     userNameLens = Lens.of(User::name, (u, name) -> new User(u.id(), name, u.profile()));
     userProfileLens = Lens.of(User::profile, (u, p) -> new User(u.id(), u.name(), p));
@@ -68,10 +68,10 @@ class FocusEffectIntegrationTest {
     addressStreetLens =
         Lens.of(Address::street, (a, street) -> new Address(street, a.city(), a.country()));
 
-    // Initialize affines
+    // Initialise affines
     optionalAddressSome = FocusPaths.optionalSome();
 
-    // Initialize test data
+    // Initialise test data
     Address address = new Address("123 Main St", "London", "UK");
     Profile profileWithAddress =
         new Profile("Developer", Optional.of(address), List.of("coding", "music"));

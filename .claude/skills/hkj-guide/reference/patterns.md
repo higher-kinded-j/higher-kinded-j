@@ -41,7 +41,7 @@ ValidationPath<List<String>, User> validateUser(UserInput in) {
 
 Nest by validating sub-objects independently, then combining with `zipWith3` at the top level.
 
-| Strategy | Method | Error Behavior | Best For |
+| Strategy | Method | Error Behaviour | Best For |
 |----------|--------|----------------|----------|
 | Fail-fast | `zipWith` / `zipWith3` | Stops at first | API calls, sequential deps |
 | Accumulating | `zipWithAccum` / `zipWith3Accum` | Collects all | User-facing forms |
@@ -149,7 +149,7 @@ Report r = pipeline.generateReport(req).unsafeRun(); // executes here
 `zipWith` on IOPath declares independence (currently sequential, structured for future parallelism):
 `users.zipWith3(products, orders, CombinedData::new)`
 
-| Method | Returns | Behavior |
+| Method | Returns | Behaviour |
 |--------|---------|----------|
 | `.unsafeRun()` | `A` | Executes, throws on failure |
 | `.runSafe()` | `Try<A>` | Executes, captures exceptions in `Try` |

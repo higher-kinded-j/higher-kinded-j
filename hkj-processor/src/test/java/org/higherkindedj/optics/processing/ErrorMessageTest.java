@@ -219,7 +219,7 @@ class ErrorMessageTest {
               """);
 
       // This may throw during compilation setup since NonExistent.class is invalid Java
-      // The key behavior is that invalid class references are caught - either via
+      // The key behaviour is that invalid class references are caught - either via
       // compilation failure or an exception during compilation setup
       try {
         var compilation = compile(packageInfoWithMissing);
@@ -260,7 +260,7 @@ class ErrorMessageTest {
 
       // The annotation should only be valid on package-info
       // If it doesn't fail, it should at least produce no output for the class
-      // This test verifies the expected behavior
+      // This test verifies the expected behaviour
       if (compilation.status() == Compilation.Status.SUCCESS) {
         // If it compiles, verify no optics were generated for inappropriate usage
         assertThat(compilation.generatedSourceFile("com.test.StringLenses")).isEmpty();
@@ -305,7 +305,7 @@ class ErrorMessageTest {
 
       var compilation = compile(partialWitherClass, packageInfo("com.test.PartialWither"));
 
-      // This might succeed with partial support or fail - either way the behavior
+      // This might succeed with partial support or fail - either way the behaviour
       // should be clearly documented
       if (compilation.status() == Compilation.Status.SUCCESS) {
         // If it succeeds, verify only the available wither's lens was generated

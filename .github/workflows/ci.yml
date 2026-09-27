@@ -20,18 +20,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up the specified JDK version (using Java 23 from your build file)
+      # 2. Check that the repository's prose uses British spelling, as docs/STYLE-GUIDE.md asks.
+      #    It reads only non-code text, and fails fast, before any build.
+      - name: Check British spelling in prose
+        run: node .github/scripts/british-spelling-check.cjs
+
+      # 3. Set up the specified JDK version (Java 25, which the build requires)
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: 'temurin' # Or 'zulu', 'adopt', etc.
 
-      # 3. Grant execute permissions to the Gradle wrapper script
+      # 4. Grant execute permissions to the Gradle wrapper script
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 4. Verify golden files are up to date.
+      # 5. Verify golden files are up to date.
       #    Regenerates golden files and fails if they differ from what's committed.
       #    This ensures code generator changes are always accompanied by updated golden files.
       - name: Verify golden files are up to date
@@ -42,13 +47,13 @@ jobs:
             exit 1
           fi
 
-      # 5. Run the Gradle build task.
+      # 6. Run the Gradle build task.
       #    This will compile, run tests (triggering jacocoTestReport via finalizedBy)
       #    and generate the XML report needed by Codecov.
       - name: Build with Gradle & Generate JaCoCo Report
         run: ./gradlew build -x :hkj-benchmarks:test -x :hkj-benchmarks:jmhClasses
 
-      # 5. Upload the generated JaCoCo XML report to Codecov
+      # 7. Upload the generated JaCoCo XML report to Codecov
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4 # Use the official Codecov action
         env:
@@ -56,6 +61,6 @@ jobs:
           # Optional configurations for the Codecov action:
           # with:
           # files: ./build/reports/jacoco/test/jacocoTestReport.xml # Specify report file if not default
-          # flags: unittests # Add flags to categorize coverage reports
+          # flags: unittests # Add flags to categorise coverage reports
           # fail_ci_if_error: true # Make the workflow fail if Codecov upload fails
 

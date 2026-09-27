@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
  * Test suite for {@link ResilienceBuilder} and the {@link Resilience} utility class.
  *
  * <p>Tests cover pattern ordering, combined patterns, circuit breaker interaction with retry,
- * fallback behavior, and convenience methods.
+ * fallback behaviour, and convenience methods.
  */
 @DisplayName("ResilienceBuilder and Resilience Test Suite")
 class ResilienceBuilderTest {

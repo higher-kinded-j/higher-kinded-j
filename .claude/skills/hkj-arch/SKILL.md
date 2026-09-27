@@ -268,7 +268,7 @@ public sealed interface OrderError {
 }
 ```
 
-Benefits: exhaustive `switch`, no `instanceof` chains, structured error data, JSON-serializable.
+Benefits: exhaustive `switch`, no `instanceof` chains, structured error data, JSON-serialisable.
 
 ### Domain State as Records
 

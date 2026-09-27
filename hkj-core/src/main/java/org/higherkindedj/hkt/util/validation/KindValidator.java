@@ -88,7 +88,7 @@ public enum KindValidator {
   }
 
   /**
-   * Specialized narrowing for holder-based Kind implementations.
+   * Specialised narrowing for holder-based Kind implementations.
    *
    * <p>Most KindHelpers wrap their concrete implementation in an internal record (e.g. {@code
    * OptionalHolder}, {@code LazyHolder}). Pass a method reference to the holder's accessor to
@@ -135,7 +135,7 @@ public enum KindValidator {
   }
 
   /**
-   * Specialized narrowing for holder-based Kind implementations using pattern matching.
+   * Specialised narrowing for holder-based Kind implementations using pattern matching.
    *
    * @param kind The Kind to narrow, may be null
    * @param targetType The target type class for error messaging

@@ -559,7 +559,7 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
    *
    * @param finalizer the VTask to execute on stream completion or error; must not be null
    * @return a new VStreamPath with the finaliser attached
-   * @throws NullPointerException if finalizer is null
+   * @throws NullPointerException if finaliser is null
    */
   VStreamPath<A> onFinalize(VTask<Unit> finalizer);
 

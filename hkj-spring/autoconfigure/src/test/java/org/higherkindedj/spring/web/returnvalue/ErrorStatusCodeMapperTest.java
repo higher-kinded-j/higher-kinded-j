@@ -33,7 +33,7 @@ class ErrorStatusCodeMapperTest {
 
   record DuplicateError(String msg) {}
 
-  /** Single-token name to exercise the no-uppercase-boundary branch of tokenize. */
+  /** Single-token name to exercise the no-uppercase-boundary branch of {@code tokenize}. */
   record nofound(String msg) {}
 
   /** Whole-name uppercase to exercise the "no boundary inserted" branch (HTTP, FOO). */
@@ -104,7 +104,7 @@ class ErrorStatusCodeMapperTest {
     }
 
     @Test
-    @DisplayName("Authorization token maps to 403")
+    @DisplayName("the 'authorization' token maps to 403")
     void authorization() {
       assertThat(ErrorStatusCodeMapper.heuristicStatus("AuthorizationError", 500)).isEqualTo(403);
     }

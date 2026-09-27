@@ -1157,7 +1157,7 @@ Common instances include:
 
 A `Fold<S, A>` can be thought of as a **first-class, composable lens into a Foldable structure**. More precisely:
 
-1. **Virtualization**: `Fold<S, A>` lets you "view" any structure `S` as a virtual `Foldable` container of `A` values, even if `S` is not inherently a collection
+1. **Virtualisation**: `Fold<S, A>` lets you "view" any structure `S` as a virtual `Foldable` container of `A` values, even if `S` is not inherently a collection
 2. **Composition**: Unlike `Foldable<F>`, which is fixed to a specific container type `F`, `Fold<S, A>` can be composed with other optics to create deep query paths
 3. **Reification**: A `Fold` reifies (makes concrete) the act of folding, turning it into a first-class value you can pass around, store, and combine
 

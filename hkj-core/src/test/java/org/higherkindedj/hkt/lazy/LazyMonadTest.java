@@ -111,7 +111,7 @@ class LazyMonadTest extends LazyTestBase {
   class OperationTests {
 
     @Test
-    @DisplayName("flatMap() sequences lazily and memoizes")
+    @DisplayName("flatMap() sequences lazily and memoises")
     void flatMapSequencesLazilyAndMemoizes() throws Throwable {
       Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 5);
       Function<Integer, Kind<LazyKind.Witness, String>> f =
@@ -137,7 +137,7 @@ class LazyMonadTest extends LazyTestBase {
     }
 
     @Test
-    @DisplayName("map() applies function lazily and memoizes")
+    @DisplayName("map() applies function lazily and memoises")
     void mapAppliesFunctionLazilyAndMemoizes() throws Throwable {
       Kind<LazyKind.Witness, Integer> initialKind = countingDefer("A", () -> 10);
       Function<Integer, String> mapper =

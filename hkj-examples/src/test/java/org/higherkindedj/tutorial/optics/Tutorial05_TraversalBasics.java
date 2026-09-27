@@ -70,7 +70,7 @@ public class Tutorial05_TraversalBasics {
    * What you should do in real projects:
    * ────────────────────────────────────────────────────────────────────────
    * 1. Annotate your records with @GenerateLenses and @GenerateTraversals
-   * 2. The annotation processor automatically generates optimized optics
+   * 2. The annotation processor automatically generates optimised optics
    * 3. Use the generated optics from companion classes (e.g., TeamLenses, TeamTraversals)
    *
    * Example of real-world usage:

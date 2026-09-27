@@ -8,9 +8,9 @@ import tools.jackson.databind.SerializationContext;
 import tools.jackson.databind.ser.std.StdSerializer;
 
 /**
- * Jackson 3.x serializer for {@link Validated} types.
+ * Jackson 3.x serialiser for {@link Validated} types.
  *
- * <p>Serializes Validated values as JSON objects with the following structure:
+ * <p>Serialises Validated values as JSON objects with the following structure:
  *
  * <pre>
  * // Valid value

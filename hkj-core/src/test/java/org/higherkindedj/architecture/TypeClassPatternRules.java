@@ -116,7 +116,7 @@ class TypeClassPatternRules {
    *
    * <ul>
    *   <li>Transformer monads (EitherTMonad, etc.) - require underlying monad parameter
-   *   <li>Parameterized monads (StateMonad, WriterMonad, etc.) - require type parameters
+   *   <li>Parameterised monads (StateMonad, WriterMonad, etc.) - require type parameters
    * </ul>
    */
   @Test
@@ -136,7 +136,7 @@ class TypeClassPatternRules {
    *
    * <ul>
    *   <li>Classes that also implement Monad (they follow Monad patterns)
-   *   <li>Parameterized functors (StateFunctor, etc.) - require type parameters
+   *   <li>Parameterised functors (StateFunctor, etc.) - require type parameters
    * </ul>
    */
   @Test
@@ -163,7 +163,7 @@ class TypeClassPatternRules {
    *
    * <ul>
    *   <li>Transformer monads (EitherTMonad, etc.) - need to store outer monad reference
-   *   <li>Parameterized type classes (StateMonad, etc.) - need constructor parameters
+   *   <li>Parameterised type classes (StateMonad, etc.) - need constructor parameters
    * </ul>
    */
   @Test
@@ -177,7 +177,7 @@ class TypeClassPatternRules {
   }
 
   /**
-   * Predicate for non-parameterized Monad implementations.
+   * Predicate for non-parameterised Monad implementations.
    *
    * <p>Matches classes that:
    *
@@ -186,7 +186,7 @@ class TypeClassPatternRules {
    *   <li>Are not interfaces
    *   <li>Are not anonymous classes
    *   <li>Don't end with "TMonad" (transformer monads)
-   *   <li>Are not in the parameterized monads list
+   *   <li>Are not in the parameterised monads list
    * </ul>
    */
   private static DescribedPredicate<JavaClass> isNonParameterizedMonadImplementation() {
@@ -204,7 +204,7 @@ class TypeClassPatternRules {
   }
 
   /**
-   * Predicate for non-parameterized Functor implementations (excluding Monads and Traverse).
+   * Predicate for non-parameterised Functor implementations (excluding Monads and Traverse).
    *
    * <p>Matches classes that:
    *
@@ -212,7 +212,7 @@ class TypeClassPatternRules {
    *   <li>Implement Functor but not Monad or Traverse
    *   <li>Are not interfaces
    *   <li>Are not anonymous classes
-   *   <li>Are not in the parameterized functors/applicatives list
+   *   <li>Are not in the parameterised functors/applicatives list
    * </ul>
    */
   private static DescribedPredicate<JavaClass> isNonParameterizedFunctorImplementation() {
@@ -240,7 +240,7 @@ class TypeClassPatternRules {
    *   <li>Are not interfaces
    *   <li>Are not anonymous classes
    *   <li>Don't end with "TMonad" (transformer monads store outer monad)
-   *   <li>Are not in the parameterized type classes list
+   *   <li>Are not in the parameterised type classes list
    * </ul>
    *
    * <p>Traverse implementations are excluded as they follow their own patterns and have separate

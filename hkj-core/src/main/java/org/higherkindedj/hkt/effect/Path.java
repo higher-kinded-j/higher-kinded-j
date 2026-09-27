@@ -1218,7 +1218,7 @@ public final class Path {
   /**
    * Creates a StreamPath from an existing Stream.
    *
-   * <p>Note: The stream is materialized for reusability.
+   * <p>Note: The stream is materialised for reusability.
    *
    * @param stream the stream to wrap; must not be null
    * @param <A> the element type

@@ -111,7 +111,7 @@ curl -X POST http://localhost:8080/api/users \
 }
 ```
 
-**Important:** Notice that even though there are 3 validation errors (invalid email, empty firstName, empty lastName), Either returns only the FIRST error (email). This is "fail-fast" behavior.
+**Important:** Notice that even though there are 3 validation errors (invalid email, empty firstName, empty lastName), Either returns only the FIRST error (email). This is "fail-fast" behaviour.
 
 ## Testing Validated-based Error Accumulation
 
@@ -395,12 +395,12 @@ public void handleReturnValue(Object returnValue, ...) {
    ```
    Expected: 3 errors (email, firstName, lastName)
 
-## Testing Jackson Serialization (Nested Either/Validated)
+## Testing Jackson Serialisation (Nested Either/Validated)
 
 The Spring Boot integration provides two ways of handling Either and Validated:
 
 1. **Top-level return values**: Handled by return value handlers (unwrapped, clean API)
-2. **Nested in DTOs**: Handled by Jackson serializers (wrapped with metadata)
+2. **Nested in DTOs**: Handled by Jackson serialisers (wrapped with metadata)
 
 ### Understanding Wrapped vs Unwrapped Responses
 
@@ -415,7 +415,7 @@ public Either<DomainError, User> getUser(@PathVariable String id) {
 // Error Response: {"success": false, "error": "Not found"}     ← Unwrapped!
 ```
 
-**Nested (Jackson Serializer - Wrapped):**
+**Nested (Jackson Serialiser - Wrapped):**
 ```java
 @GetMapping("/batch")
 public BatchResult getBatch() {
@@ -436,7 +436,7 @@ public BatchResult getBatch() {
 
 ### Example: Testing Nested Either/Validated
 
-To demonstrate Jackson serialization, you can add a test endpoint to your controllers:
+To demonstrate Jackson serialisation, you can add a test endpoint to your controllers:
 
 **Add to UserController.java:**
 ```java
@@ -591,7 +591,7 @@ curl -X POST http://localhost:8080/api/validation/batch \
 }
 ```
 
-### When Jackson Serializers Are Used
+### When Jackson Serialisers Are Used
 
 | Scenario | Handler | JSON Format | Example |
 |----------|---------|-------------|---------|
@@ -645,7 +645,7 @@ void verifyHkjModuleRegistered() throws Exception {
 
 ### Testing Manual ObjectMapper Usage
 
-If you use ObjectMapper directly in your code, Jackson serializers will be applied:
+If you use ObjectMapper directly in your code, Jackson serialisers will be applied:
 
 ```java
 @Service
@@ -675,16 +675,16 @@ public class ReportService {
 - [ ] Success response format is valid JSON
 - [ ] Multiple simultaneous errors are accumulated in Validated response
 
-### Jackson Serializers (Wrapped Responses)
-- [ ] Nested Either.Right serializes with `"isRight": true` and `"right"` field
-- [ ] Nested Either.Left serializes with `"isRight": false` and `"left"` field
-- [ ] Nested Validated.Valid serializes with `"valid": true` and `"value"` field
-- [ ] Nested Validated.Invalid serializes with `"valid": false` and `"errors"` field
-- [ ] List of Either values serializes correctly
-- [ ] List of Validated values serializes correctly
-- [ ] Map with Either values serializes correctly
+### Jackson Serialisers (Wrapped Responses)
+- [ ] Nested Either.Right serialises with `"isRight": true` and `"right"` field
+- [ ] Nested Either.Left serialises with `"isRight": false` and `"left"` field
+- [ ] Nested Validated.Valid serialises with `"valid": true` and `"value"` field
+- [ ] Nested Validated.Invalid serialises with `"valid": false` and `"errors"` field
+- [ ] List of Either values serialises correctly
+- [ ] List of Validated values serialises correctly
+- [ ] Map with Either values serialises correctly
 - [ ] HkjJacksonModule is registered with ObjectMapper
-- [ ] Manual ObjectMapper.writeValueAsString() uses custom serializers
+- [ ] Manual ObjectMapper.writeValueAsString() uses custom serialisers
 
 ## Testing CompletableFuturePath Async Support
 
@@ -707,7 +707,7 @@ The `CompletableFuturePath<E, A>` type enables non-blocking async operations wit
 curl -X GET http://localhost:8080/api/async/users/1
 ```
 
-**Expected Behavior:**
+**Expected Behaviour:**
 - Request returns immediately (non-blocking)
 - Operation executes on async thread pool
 - Response arrives after ~100ms delay (simulated I/O)
@@ -841,7 +841,7 @@ done
 wait
 ```
 
-**Expected Behavior:**
+**Expected Behaviour:**
 - All 10 requests execute concurrently on the async thread pool
 - Each request takes ~100ms (simulated I/O delay)
 - Total time should be ~100ms (not 1000ms), proving non-blocking execution
@@ -971,6 +971,6 @@ When disabled, controllers returning `CompletableFuturePath` will cause Spring t
 
 ### Configuration
 - [ ] Async support can be disabled via config
-- [ ] Thread pool settings can be customized
-- [ ] Async executor is properly initialized
+- [ ] Thread pool settings can be customised
+- [ ] Async executor is properly initialised
 - [ ] Graceful shutdown waits for async tasks to complete

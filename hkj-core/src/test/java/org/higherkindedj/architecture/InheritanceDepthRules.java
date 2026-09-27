@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
  * <ul>
  *   <li>Class inheritance depth is limited (prefer composition)
  *   <li>Interface hierarchies remain manageable
- *   <li>Favor sealed hierarchies over deep inheritance
+ *   <li>Favour sealed hierarchies over deep inheritance
  * </ul>
  */
 @DisplayName("Inheritance Depth Rules")
@@ -50,7 +50,7 @@ class InheritanceDepthRules {
   /**
    * Classes in HKT packages should not have deep inheritance hierarchies.
    *
-   * <p>Functional programming favors composition over inheritance. Deep hierarchies indicate
+   * <p>Functional programming favours composition over inheritance. Deep hierarchies indicate
    * potential design issues.
    */
   @Test

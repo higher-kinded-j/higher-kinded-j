@@ -111,7 +111,7 @@ class StreamOpsTest extends StreamTestBase {
   }
 
   @Nested
-  @DisplayName("Materialization Operations")
+  @DisplayName("Materialisation Operations")
   class MaterializationTests {
 
     @Test
@@ -483,7 +483,7 @@ class StreamOpsTest extends StreamTestBase {
       forEach(_ -> {}, stream);
 
       // Attempting to use original stream would throw IllegalStateException
-      // This documents the consumption behavior
+      // This documents the consumption behaviour
     }
 
     @Test

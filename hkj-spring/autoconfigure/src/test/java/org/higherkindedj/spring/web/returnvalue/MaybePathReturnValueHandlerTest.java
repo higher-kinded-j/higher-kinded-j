@@ -108,7 +108,7 @@ class MaybePathReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should serialize Just value with primitive")
+    @DisplayName("Should serialise Just value with primitive")
     void shouldSerializeJustValueWithPrimitive() throws Exception {
       MaybePath<Integer> path = Path.just(42);
 
@@ -121,7 +121,7 @@ class MaybePathReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should serialize Just value with string")
+    @DisplayName("Should serialise Just value with string")
     void shouldSerializeJustValueWithString() throws Exception {
       MaybePath<String> path = Path.just("hello world");
 
@@ -241,7 +241,7 @@ class MaybePathReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should honor @ResponseStatus(CREATED) on POST handler")
+    @DisplayName("Should honour @ResponseStatus(CREATED) on POST handler")
     void shouldHonorCreatedStatus() throws Exception {
       MethodParameter rt = methodParamFor("createUser");
       TestUser user = new TestUser("1", "a@b.com");
@@ -254,7 +254,7 @@ class MaybePathReturnValueHandlerTest {
     }
 
     @Test
-    @DisplayName("Should honor @ResponseStatus(NO_CONTENT) on DELETE handler and skip body")
+    @DisplayName("Should honour @ResponseStatus(NO_CONTENT) on DELETE handler and skip body")
     void shouldHonorNoContentStatus() throws Exception {
       MethodParameter rt = methodParamFor("deleteUser");
       MaybePath<String> path = Path.just("deleted");

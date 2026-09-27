@@ -23,7 +23,7 @@ import org.higherkindedj.optics.annotations.GenerateSetters;
  *   <li>Composing Setters for deep modifications in nested structures
  *   <li>Working with collection Setters to modify all elements
  *   <li>Effectful modifications using Applicative contexts
- *   <li>Real-world use cases in data normalization and batch updates
+ *   <li>Real-world use cases in data normalisation and batch updates
  * </ul>
  *
  * <p>Setter is ideal when you need to:
@@ -83,7 +83,7 @@ public class SetterUsageExample {
 
     // Multiple modifications
     User normalizedUser = usernameSetter.modify(String::toLowerCase, user);
-    System.out.println("Normalized username: " + normalizedUser.username() + "\n");
+    System.out.println("Normalised username: " + normalizedUser.username() + "\n");
 
     // --- SCENARIO 2: Setter Composition ---
     System.out.println("--- Scenario 2: Setter Composition ---");

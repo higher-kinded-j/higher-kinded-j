@@ -888,7 +888,7 @@ class HkjHttpClientProcessorTest {
     }
 
     @Test
-    @DisplayName("errors on a parameterized error type instead of generating uncompilable code")
+    @DisplayName("errors on a parameterised error type instead of generating uncompilable code")
     void parameterizedErrorType() {
       Compilation compilation =
           compile(

@@ -13,9 +13,9 @@ import tools.jackson.databind.ValueDeserializer;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
 /**
- * Jackson 3.x deserializer for {@link Validated} types.
+ * Jackson 3.x deserialiser for {@link Validated} types.
  *
- * <p>Deserializes JSON objects with the following structure:
+ * <p>Deserialises JSON objects with the following structure:
  *
  * <pre>
  * // Valid value
@@ -34,7 +34,7 @@ import tools.jackson.databind.deser.std.StdDeserializer;
  * <p>When the target generic type is known — a field typed {@code Validated<E, A>} or a {@code
  * TypeReference<Validated<E, A>>} — the {@code errors} and {@code value} types are resolved via
  * {@link #createContextual(DeserializationContext, BeanProperty)} and the present branch is
- * deserialized to it. For a raw {@code Validated.class} read the branch types are unknown and fall
+ * deserialised to it. For a raw {@code Validated.class} read the branch types are unknown and fall
  * back to {@code Object} (numbers/strings round-trip; JSON objects become maps).
  */
 public class ValidatedDeserializer extends StdDeserializer<Validated<?, ?>> {
@@ -48,12 +48,12 @@ public class ValidatedDeserializer extends StdDeserializer<Validated<?, ?>> {
 
   private final JavaType valueType;
 
-  /** Creates an unresolved deserializer (used for module registration). */
+  /** Creates an unresolved deserialiser (used for module registration). */
   public ValidatedDeserializer() {
     this(null, null);
   }
 
-  /** Creates a deserializer bound to resolved error/value types. */
+  /** Creates a deserialiser bound to resolved error/value types. */
   @SuppressWarnings("unchecked")
   public ValidatedDeserializer(JavaType errorType, JavaType valueType) {
     super((Class<Validated<?, ?>>) (Class<?>) Validated.class);

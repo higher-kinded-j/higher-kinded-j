@@ -21,7 +21,7 @@ import org.higherkindedj.hkt.WitnessArity;
  * alternative to {@code instanceof} checks and casting. It is defined by two core operations: a
  * failable getter (`getOptional`) and a constructor (`build`).
  *
- * <p>It extends the generic {@link Optic}, specializing it for {@code S = T} and {@code A = B}.
+ * <p>It extends the generic {@link Optic}, specialising it for {@code S = T} and {@code A = B}.
  *
  * @param <S> The source type of the whole structure (e.g., a sealed interface like {@code
  *     JsonValue}).
@@ -111,7 +111,7 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * Composes this {@code Prism<S, A>} with another {@code Prism<A, B>} to create a new {@code
    * Prism<S, B>}.
    *
-   * <p>This specialized version is kept for efficiency and to ensure the result is correctly and
+   * <p>This specialised version is kept for efficiency and to ensure the result is correctly and
    * conveniently typed as a {@code Prism}.
    *
    * @param other The {@link Prism} to compose with.
@@ -138,7 +138,7 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * B>}.
    *
    * <p>This is possible because composing a partial focus with a lossless, two-way conversion
-   * results in a new partial focus. This specialized overload ensures the result is correctly and
+   * results in a new partial focus. This specialised overload ensures the result is correctly and
    * conveniently typed as a {@link Prism}.
    *
    * <p>Example:

@@ -70,7 +70,7 @@ class ErrorStatusFixtureSliceTest {
   }
 
   @Test
-  @DisplayName("authorization → 403 via heuristic")
+  @DisplayName("'authorization' → 403 via heuristic")
   void authorization() throws Exception {
     mockMvc
         .perform(get("/api/error-status-fixture/authorization"))

@@ -25,11 +25,11 @@ class HkjJacksonModuleTest {
   }
 
   @Nested
-  @DisplayName("Either Serialization")
+  @DisplayName("Either Serialisation")
   class EitherSerializationTests {
 
     @Test
-    @DisplayName("Should serialize Either.Right to JSON")
+    @DisplayName("Should serialise Either.Right to JSON")
     void shouldSerializeEitherRight() throws Exception {
       Either<String, Integer> either = Either.right(42);
 
@@ -41,7 +41,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should serialize Either.Left to JSON")
+    @DisplayName("Should serialise Either.Left to JSON")
     void shouldSerializeEitherLeft() throws Exception {
       Either<String, Integer> either = Either.left("Error occurred");
 
@@ -53,7 +53,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should serialize Either.Right with complex object")
+    @DisplayName("Should serialise Either.Right with complex object")
     void shouldSerializeEitherRightWithComplexObject() throws Exception {
       record User(String id, String name) {}
       Either<String, User> either = Either.right(new User("1", "Alice"));
@@ -66,7 +66,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should deserialize JSON to Either.Right")
+    @DisplayName("Should deserialise JSON to Either.Right")
     void shouldDeserializeEitherRight() throws Exception {
       String json = "{\"isRight\":true,\"right\":42}";
 
@@ -77,7 +77,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should deserialize JSON to Either.Left")
+    @DisplayName("Should deserialise JSON to Either.Left")
     void shouldDeserializeEitherLeft() throws Exception {
       String json = "{\"isRight\":false,\"left\":\"Error occurred\"}";
 
@@ -89,11 +89,11 @@ class HkjJacksonModuleTest {
   }
 
   @Nested
-  @DisplayName("Validated Serialization")
+  @DisplayName("Validated Serialisation")
   class ValidatedSerializationTests {
 
     @Test
-    @DisplayName("Should serialize Validated.Valid to JSON")
+    @DisplayName("Should serialise Validated.Valid to JSON")
     void shouldSerializeValidatedValid() throws Exception {
       Validated<String, Integer> validated = Validated.valid(42);
 
@@ -105,7 +105,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should serialize Validated.Invalid to JSON")
+    @DisplayName("Should serialise Validated.Invalid to JSON")
     void shouldSerializeValidatedInvalid() throws Exception {
       Validated<String, Integer> validated = Validated.invalid("Validation failed");
 
@@ -117,7 +117,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should serialize Validated.Invalid with List of errors")
+    @DisplayName("Should serialise Validated.Invalid with List of errors")
     void shouldSerializeValidatedInvalidWithList() throws Exception {
       record ValidationError(String field, String message) {}
       Validated<List<ValidationError>, Integer> validated =
@@ -134,7 +134,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should deserialize JSON to Validated.Valid")
+    @DisplayName("Should deserialise JSON to Validated.Valid")
     void shouldDeserializeValidatedValid() throws Exception {
       String json = "{\"valid\":true,\"value\":42}";
 
@@ -145,7 +145,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should deserialize JSON to Validated.Invalid")
+    @DisplayName("Should deserialise JSON to Validated.Invalid")
     void shouldDeserializeValidatedInvalid() throws Exception {
       String json = "{\"valid\":false,\"errors\":\"Validation failed\"}";
 
@@ -157,11 +157,11 @@ class HkjJacksonModuleTest {
   }
 
   @Nested
-  @DisplayName("Nested Serialization")
+  @DisplayName("Nested Serialisation")
   class NestedSerializationTests {
 
     @Test
-    @DisplayName("Should serialize DTO with nested Either")
+    @DisplayName("Should serialise DTO with nested Either")
     void shouldSerializeDtoWithNestedEither() throws Exception {
       record Response(String status, Either<String, Integer> result) {}
       Response response = new Response("success", Either.right(42));
@@ -174,7 +174,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should serialize DTO with nested Validated")
+    @DisplayName("Should serialise DTO with nested Validated")
     void shouldSerializeDtoWithNestedValidated() throws Exception {
       record Response(String id, Validated<String, Integer> data) {}
       Response response = new Response("123", Validated.valid(42));
@@ -187,7 +187,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should serialize Map containing Either values")
+    @DisplayName("Should serialise Map containing Either values")
     void shouldSerializeMapWithEitherValues() throws Exception {
       Map<String, Either<String, Integer>> map =
           Map.of(
@@ -203,7 +203,7 @@ class HkjJacksonModuleTest {
     }
 
     @Test
-    @DisplayName("Should serialize List of Validated values")
+    @DisplayName("Should serialise List of Validated values")
     void shouldSerializeListOfValidated() throws Exception {
       List<Validated<String, Integer>> list =
           List.of(Validated.valid(1), Validated.invalid("error"), Validated.valid(3));
@@ -219,7 +219,7 @@ class HkjJacksonModuleTest {
   }
 
   @Nested
-  @DisplayName("Round-trip Serialization")
+  @DisplayName("Round-trip Serialisation")
   class RoundTripTests {
 
     @Test

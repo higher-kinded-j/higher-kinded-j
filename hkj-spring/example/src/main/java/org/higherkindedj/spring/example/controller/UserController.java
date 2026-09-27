@@ -166,11 +166,11 @@ public class UserController {
   }
 
   /**
-   * Get batch of users demonstrating Jackson serialization of nested Either values.
+   * Get batch of users demonstrating Jackson serialisation of nested Either values.
    *
    * <p>This endpoint returns a DTO containing a List of Either values. Unlike the top-level Either
    * endpoints above (which are unwrapped by EitherReturnValueHandler), the nested Either values in
-   * the list are serialized by Jackson using the custom EitherSerializer.
+   * the list are serialised by Jackson using the custom EitherSerializer.
    *
    * <p>Example response:
    *
@@ -232,7 +232,7 @@ public class UserController {
   }
 
   /**
-   * Response DTO demonstrating nested Either values. The List of Either values will be serialized
+   * Response DTO demonstrating nested Either values. The List of Either values will be serialised
    * using Jackson's EitherSerializer, producing wrapped JSON with isRight/left/right structure.
    *
    * @param batchId the batch identifier

@@ -9,15 +9,15 @@ import org.higherkindedj.hkt.validated.Validated;
 import tools.jackson.databind.module.SimpleModule;
 
 /**
- * Jackson 3.x module that registers custom serializers and deserializers for higher-kinded-j types.
+ * Jackson 3.x module that registers custom serialisers and deserialisers for higher-kinded-j types.
  *
- * <p>This module provides JSON serialization support for:
+ * <p>This module provides JSON serialisation support for:
  *
  * <ul>
- *   <li>{@link Either} - Serialized as {"isRight": boolean, "left"|"right": value}
- *   <li>{@link Validated} - Serialized as {"valid": boolean, "value"|"errors": value}
- *   <li>{@link EitherOrBoth} - Serialized as {"kind": "left"|"right"|"both", "left"?, "right"?}
- *   <li>{@link NonEmptyList} - Serialized as a JSON array; an empty array is rejected on read
+ *   <li>{@link Either} - Serialised as {"isRight": boolean, "left"|"right": value}
+ *   <li>{@link Validated} - Serialised as {"valid": boolean, "value"|"errors": value}
+ *   <li>{@link EitherOrBoth} - Serialised as {"kind": "left"|"right"|"both", "left"?, "right"?}
+ *   <li>{@link NonEmptyList} - Serialised as a JSON array; an empty array is rejected on read
  * </ul>
  *
  * <p>The module is automatically registered when using Spring Boot's auto-configuration. For manual
@@ -31,34 +31,34 @@ import tools.jackson.databind.module.SimpleModule;
  *
  * <p><b>Note on Return Value Handlers:</b> When Effect Path types (EitherPath, ValidationPath,
  * etc.) are returned directly from Spring controllers, the Path-based return value handlers take
- * precedence and provide unwrapped responses for cleaner APIs. These Jackson serializers are
+ * precedence and provide unwrapped responses for cleaner APIs. These Jackson serialisers are
  * primarily useful when Either or Validated appear nested within other response objects.
  */
 public class HkjJacksonModule extends SimpleModule {
 
   private static final long serialVersionUID = 1L;
 
-  /** Creates a new HkjJacksonModule and registers serializers for HKJ types. */
+  /** Creates a new HkjJacksonModule and registers serialisers for HKJ types. */
   @SuppressWarnings({"unchecked", "rawtypes"})
   public HkjJacksonModule() {
     super("HkjJacksonModule");
 
-    // Either serialization/deserialization
+    // Either serialisation/deserialisation
     // Raw type cast needed because Either<?, ?> is generic
     addSerializer((Class) Either.class, new EitherSerializer());
     addDeserializer((Class) Either.class, new EitherDeserializer());
 
-    // Validated serialization/deserialization
+    // Validated serialisation/deserialisation
     // Raw type cast needed because Validated<?, ?> is generic
     addSerializer((Class) Validated.class, new ValidatedSerializer());
     addDeserializer((Class) Validated.class, new ValidatedDeserializer());
 
-    // EitherOrBoth (inclusive-or) serialization/deserialization
+    // EitherOrBoth (inclusive-or) serialisation/deserialisation
     // Raw type cast needed because EitherOrBoth<?, ?> is generic
     addSerializer((Class) EitherOrBoth.class, new EitherOrBothSerializer());
     addDeserializer((Class) EitherOrBoth.class, new EitherOrBothDeserializer());
 
-    // NonEmptyList serialization/deserialization
+    // NonEmptyList serialisation/deserialisation
     // Raw type cast needed because NonEmptyList<?> is generic
     addSerializer((Class) NonEmptyList.class, new NonEmptyListSerializer());
     addDeserializer((Class) NonEmptyList.class, new NonEmptyListDeserializer());

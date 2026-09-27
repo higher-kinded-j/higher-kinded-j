@@ -562,7 +562,7 @@ class IndexedLensTest {
 
       User user = new User("Alice", 30, "alice@example.com");
 
-      // Process all string fields the same way but with field-specific labeling
+      // Process all string fields the same way but with field-specific labelling
       User updated = nameLens.imodify((field, value) -> "[" + field + "=" + value + "]", user);
       updated = emailLens.imodify((field, value) -> "[" + field + "=" + value + "]", updated);
 

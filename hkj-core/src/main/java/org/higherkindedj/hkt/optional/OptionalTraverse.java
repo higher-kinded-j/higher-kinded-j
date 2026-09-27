@@ -89,7 +89,7 @@ public enum OptionalTraverse implements Traverse<OptionalKind.Witness> {
    * Optional} within the {@code G} context. If the {@code Optional} is empty, the result is a
    * {@code G} containing {@code Optional.empty()}.
    *
-   * <p><b>Behavior:</b>
+   * <p><b>Behaviour:</b>
    *
    * <ul>
    *   <li><b>Present value</b>: {@code f(a)} produces {@code G<B>}, result is {@code

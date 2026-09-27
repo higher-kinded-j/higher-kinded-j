@@ -71,7 +71,7 @@ public class Tutorial07_GeneratedOptics {
    * ────────────────────────────────────────────────────────────────────────
    * - Use @GenerateLenses, @GeneratePrisms, and @GenerateTraversals
    * - The annotation processor generates all optics at compile time
-   * - Generated optics are type-safe, optimized, and zero-cost abstractions
+   * - Generated optics are type-safe, optimised, and zero-cost abstractions
    * - No manual optic writing needed!
    *
    * The manual helpers below are ONLY used to support exercises where

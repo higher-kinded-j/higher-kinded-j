@@ -132,7 +132,7 @@ public interface Getter<S, A> extends Fold<S, A> {
    * Creates a Getter from a function.
    *
    * <p>This is an alias for {@link #of(Function)} that provides a more descriptive name,
-   * emphasizing the "extraction" aspect of a Getter.
+   * emphasising the "extraction" aspect of a Getter.
    *
    * <p>Example:
    *

@@ -24,7 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <ul>
  *   <li>EitherReturnValueHandler for Either return types
- *   <li>Jackson serialization for nested Either values
+ *   <li>Jackson serialisation for nested Either values
  *   <li>HTTP status code mapping
  * </ul>
  */
@@ -108,7 +108,7 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should serialize successful Either values in batch with TAGGED format")
+    @DisplayName("Should serialise successful Either values in batch with TAGGED format")
     void shouldSerializeSuccessfulEitherValues() throws Exception {
       mockMvc
           .perform(get("/api/users/batch"))
@@ -120,7 +120,7 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should serialize error Either values in batch with TAGGED format")
+    @DisplayName("Should serialise error Either values in batch with TAGGED format")
     void shouldSerializeErrorEitherValues() throws Exception {
       mockMvc
           .perform(get("/api/users/batch"))
@@ -232,7 +232,7 @@ class UserControllerIntegrationTest {
       mockMvc
           .perform(get("/api/users/batch"))
           .andExpect(status().isOk())
-          // Nested Either values are serialized by Jackson with wrappers
+          // Nested Either values are serialised by Jackson with wrappers
           .andExpect(jsonPath("$.results[0].isRight").exists())
           .andExpect(jsonPath("$.results[0].right").exists())
           .andExpect(jsonPath("$.results[1].isRight").exists())
@@ -275,7 +275,7 @@ class UserControllerIntegrationTest {
   class JacksonIntegrationTests {
 
     @Test
-    @DisplayName("Should use custom Jackson serializers for nested Either")
+    @DisplayName("Should use custom Jackson serialisers for nested Either")
     void shouldUseCustomSerializersForNestedEither() throws Exception {
       String response =
           mockMvc
@@ -296,7 +296,7 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should correctly serialize User objects")
+    @DisplayName("Should correctly serialise User objects")
     void shouldCorrectlySerializeUserObjects() throws Exception {
       mockMvc
           .perform(get("/api/users/{id}", "1"))
@@ -308,7 +308,7 @@ class UserControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("Should correctly serialize error objects")
+    @DisplayName("Should correctly serialise error objects")
     void shouldCorrectlySerializeErrorObjects() throws Exception {
       mockMvc
           .perform(get("/api/users/{id}", "999"))

@@ -218,7 +218,7 @@ See [One Line, Six Layers](../hkts/one_line_six_layers.md) for the wider picture
 ~~~admonish important title="Key Points"
 - `OptionalMonad` implements `MonadError<OptionalKind.Witness, Unit>`, treating `Optional.empty()` as the error state with `Unit` as the phantom error type.
 - `of(value)` uses `Optional.ofNullable` internally: null values silently become empty rather than throwing.
-- `map` returns empty if the mapping function returns null (standard `Optional.map` behavior).
+- `map` returns empty if the mapping function returns null (standard `Optional.map` behaviour).
 - `handleErrorWith` is the recovery mechanism: the handler is invoked only when the value is empty.
 - Use `OPTIONAL.widen()` and `OPTIONAL.narrow()` to move between `java.util.Optional` and `Kind<OptionalKind.Witness, A>` at system boundaries.
 ~~~

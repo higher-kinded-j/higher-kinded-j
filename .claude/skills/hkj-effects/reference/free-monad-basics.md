@@ -272,7 +272,7 @@ The sealed interface guarantees:
 |--------------|----------------|
 | Same logic needs multiple interpreters (prod/test/audit) | Single interpretation, no testing benefit |
 | Testing complex workflows without real side effects | Simple operations (read file, call API) |
-| Need to inspect/analyze programs before execution | Performance-critical hot paths |
+| Need to inspect/analyse programs before execution | Performance-critical hot paths |
 | Building a domain-specific language | Overhead not justified |
 
 Performance: Free has ~2-10x interpretation overhead vs direct code. Real workloads involve I/O that dominates compute time, making this negligible.
@@ -281,7 +281,7 @@ Performance: Free has ~2-10x interpretation overhead vs direct code. Real worklo
 
 ## Warning: Monad Transformer Limitation
 
-`foldMap` uses an eager optimization that discards monadic context for strict target monads. `WriterT<Id, W, A>` will silently lose accumulated log entries.
+`foldMap` uses an eager optimisation that discards monadic context for strict target monads. `WriterT<Id, W, A>` will silently lose accumulated log entries.
 
 **Workarounds**:
 - Use lazy outer monad: `WriterT<IO, W, A>`

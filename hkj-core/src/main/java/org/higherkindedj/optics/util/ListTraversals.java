@@ -23,7 +23,7 @@ import org.jspecify.annotations.NullMarked;
  * <p>All methods follow consistent edge-case handling:
  *
  * <ul>
- *   <li>Negative indices are treated as 0 (identity behavior)
+ *   <li>Negative indices are treated as 0 (identity behaviour)
  *   <li>Indices beyond list size are clamped to list bounds
  *   <li>Empty lists always return identity (no modification)
  * </ul>

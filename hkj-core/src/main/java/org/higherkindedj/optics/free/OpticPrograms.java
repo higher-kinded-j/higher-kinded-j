@@ -32,7 +32,7 @@ import org.jspecify.annotations.NullMarked;
  *   <li><b>Direct execution</b> - Normal optic operations
  *   <li><b>Logging</b> - Record all operations for audit trails
  *   <li><b>Validation</b> - Check constraints before executing
- *   <li><b>Optimization</b> - Fuse multiple operations for efficiency
+ *   <li><b>Optimisation</b> - Fuse multiple operations for efficiency
  *   <li><b>Testing</b> - Mock operations without real data
  * </ul>
  *
@@ -69,7 +69,7 @@ import org.jspecify.annotations.NullMarked;
  *   <li>Complex multi-step optic workflows
  *   <li>Audit trails of what changed
  *   <li>Validation before modification
- *   <li>Performance optimization (batch/fuse operations)
+ *   <li>Performance optimisation (batch/fuse operations)
  *   <li>Multiple execution strategies
  * </ul>
  *

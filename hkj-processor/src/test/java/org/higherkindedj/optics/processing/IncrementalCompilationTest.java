@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests for incremental compilation behavior.
+ * Tests for incremental compilation behaviour.
  *
  * <p>These tests verify that the processor correctly handles changes to source files during
  * development, ensuring:

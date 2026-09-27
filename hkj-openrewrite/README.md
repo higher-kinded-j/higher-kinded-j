@@ -73,7 +73,7 @@ mvn rewrite:run      # apply changes
 
 ---
 
-## Recipe Catalog
+## Recipe Catalogue
 
 ### Arity migration (0.2.x → 0.3.0)
 

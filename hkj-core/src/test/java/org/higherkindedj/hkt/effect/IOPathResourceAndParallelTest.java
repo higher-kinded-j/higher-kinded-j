@@ -282,7 +282,7 @@ class IOPathResourceAndParallelTest {
   class GuaranteeTests {
 
     @Test
-    @DisplayName("guarantee() runs finalizer after successful computation")
+    @DisplayName("guarantee() runs finaliser after successful computation")
     void guaranteeRunsFinalizerAfterSuccess() {
       AtomicBoolean finalized = new AtomicBoolean(false);
 
@@ -295,7 +295,7 @@ class IOPathResourceAndParallelTest {
     }
 
     @Test
-    @DisplayName("guarantee() runs finalizer after failure")
+    @DisplayName("guarantee() runs finaliser after failure")
     void guaranteeRunsFinalizerAfterFailure() {
       AtomicBoolean finalized = new AtomicBoolean(false);
 
@@ -312,7 +312,7 @@ class IOPathResourceAndParallelTest {
     }
 
     @Test
-    @DisplayName("guarantee() validates null finalizer")
+    @DisplayName("guarantee() validates null finaliser")
     void guaranteeValidatesNullFinalizer() {
       IOPath<String> path = Path.ioPure("value");
 
@@ -327,7 +327,7 @@ class IOPathResourceAndParallelTest {
   class GuaranteeIOTests {
 
     @Test
-    @DisplayName("guaranteeIO() runs IOPath finalizer")
+    @DisplayName("guaranteeIO() runs IOPath finaliser")
     void guaranteeIORunsIOPathFinalizer() {
       AtomicBoolean finalized = new AtomicBoolean(false);
       IOPath<?> finalizer = Path.ioRunnable(() -> finalized.set(true));

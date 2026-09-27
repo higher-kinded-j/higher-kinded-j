@@ -88,7 +88,7 @@ public class EffectfulPolymorphismExample {
     System.out.println("handleErrorWithAcceptsCrossImplementationRecovery: ok");
   }
 
-  /** {@code guarantee} runs the finalizer whether the effect succeeds or fails. */
+  /** {@code guarantee} runs the finaliser whether the effect succeeds or fails. */
   public void guaranteeRunsFinalizerWhetherEffectSucceedsOrFails() {
     // Success path.
     AtomicBoolean successFinalizerRan = new AtomicBoolean(false);
@@ -111,7 +111,7 @@ public class EffectfulPolymorphismExample {
       fails.unsafeRun();
       throw new AssertionError("expected RuntimeException");
     } catch (RuntimeException expected) {
-      // Finalizer must still have run.
+      // Finaliser must still have run.
       require(failureFinalizerRan.get(), "finalizer ran after failure");
     }
 

@@ -804,7 +804,7 @@ The connection is acquired once; the query is retried within that connection.
 | Monadic DSLs | `FreePath` | Interpretable sequential programs |
 | Applicative DSLs | `FreeApPath` | Static analysis, parallel-friendly programs |
 | Resource safety | `bracket`, `withResource` | Files, connections, cleanup |
-| Cleanup guarantee | `guarantee` | Ensure finalizers run |
+| Cleanup guarantee | `guarantee` | Ensure finalisers run |
 | Parallel binary | `parZipWith` | Two independent computations |
 | Parallel n-ary | `parZip3`, `parZip4` | 3-4 independent computations |
 | Parallel list | `parSequenceIO` | Dynamic number of computations |

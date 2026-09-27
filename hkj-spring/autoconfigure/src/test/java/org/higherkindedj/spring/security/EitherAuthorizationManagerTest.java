@@ -152,7 +152,7 @@ class EitherAuthorizationManagerTest {
   }
 
   @Nested
-  @DisplayName("Path Authorization Tests")
+  @DisplayName("Path Authorisation Tests")
   class PathAuthorizationTests {
 
     @Test

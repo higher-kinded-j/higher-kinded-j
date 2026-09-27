@@ -69,7 +69,7 @@ public class CompletableFuturePathReturnValueHandler
   /**
    * Creates a new CompletableFuturePathReturnValueHandler with the specified settings.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param failureStatus the HTTP status code for failures (default 500)
    * @param includeExceptionDetails whether to include exception details in error responses
    * @param timeoutMillis timeout for async operations in milliseconds (0 = no timeout)

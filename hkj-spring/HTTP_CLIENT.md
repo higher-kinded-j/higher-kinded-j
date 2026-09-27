@@ -125,7 +125,7 @@ The default bean is `JsonResponseErrorDecoderFactory`, backed by the application
 `JsonMapper`. It expects the server envelope `{"success": false, "error": <E>}` and deserialises
 `<E>`. A concrete error type decodes with no annotations; a sealed `DomainError` hierarchy needs a
 closed `@JsonTypeInfo`/`@JsonSubTypes` discriminator (see
-[Jackson Serialization](JACKSON_SERIALIZATION.md#client-side-deserialization-hkjhttpclient)).
+[Jackson Serialisation](JACKSON_SERIALIZATION.md#client-side-deserialisation-hkjhttpclient)).
 
 **Talking to non-HKJ servers.** Against a server that does not emit the envelope (or returns an empty
 or foreign body) the default decoder raises `ResponseErrorDecodeException`. Register a custom
@@ -236,6 +236,6 @@ Scope any outbound credentials to the trust boundary you are crossing. See
 
 - [Declarative HTTP Clients (hkj-book guide)](https://higher-kinded-j.github.io/spring/declarative_http_clients.html) - narrative walkthrough
 - [Configuration Reference](CONFIGURATION.md#client-http-configuration) - `hkj.client.*` and `spring.http.serviceclient.*` keys
-- [Jackson Serialization](JACKSON_SERIALIZATION.md#client-side-deserialization-hkjhttpclient) - decoding error bodies
+- [Jackson Serialisation](JACKSON_SERIALIZATION.md#client-side-deserialisation-hkjhttpclient) - decoding error bodies
 - [Security Integration](SECURITY.md#outbound-calls-hkjhttpclient) - trust boundaries for outbound calls
 - [hkj-spring README](README.md) - module overview

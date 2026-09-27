@@ -44,7 +44,7 @@ import org.higherkindedj.hkt.function.Function3;
  * <p>Accumulating is parallel to (not extending) Combinable because:
  *
  * <ul>
- *   <li>Semantic clarity: the operation names clearly indicate behavior
+ *   <li>Semantic clarity: the operation names clearly indicate behaviour
  *   <li>Types implementing both can choose the appropriate method
  *   <li>Avoids confusion about which operation does what
  *   <li>Consistent with the separate capability responsibilities pattern

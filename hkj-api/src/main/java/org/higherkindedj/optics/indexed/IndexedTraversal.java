@@ -63,7 +63,7 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
    * Composes this {@code IndexedTraversal<I, S, A>} with another {@code IndexedTraversal<J, A, B>}
    * to create a new {@code IndexedTraversal<Pair<I, J>, S, B>} with paired indices.
    *
-   * <p>This specialized overload ensures the result is correctly typed as an {@code
+   * <p>This specialised overload ensures the result is correctly typed as an {@code
    * IndexedTraversal} with paired indices.
    *
    * @param other The {@link IndexedTraversal} to compose with

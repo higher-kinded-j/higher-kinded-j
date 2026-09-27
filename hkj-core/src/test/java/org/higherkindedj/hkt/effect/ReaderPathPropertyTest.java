@@ -15,7 +15,8 @@ import org.higherkindedj.optics.focus.FocusPath;
  * Property-based tests for ReaderPath using jQwik.
  *
  * <p>Verifies Functor and Monad laws hold across a wide range of inputs. ReaderPath represents
- * computations that depend on an environment, so tests verify behavior with different environments.
+ * computations that depend on an environment, so tests verify behaviour with different
+ * environments.
  */
 @Label("ReaderPath Property-Based Tests")
 class ReaderPathPropertyTest {

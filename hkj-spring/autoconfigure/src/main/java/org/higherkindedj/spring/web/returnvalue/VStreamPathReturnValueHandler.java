@@ -90,7 +90,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
   /**
    * Creates a new VStreamPathReturnValueHandler with the specified settings.
    *
-   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialization
+   * @param jsonMapper the Jackson 3.x JsonMapper for JSON serialisation
    * @param failureStatus the HTTP status code for stream failures (default 500)
    * @param includeExceptionDetails whether to include exception details in error events
    * @param timeoutMillis timeout for the entire stream in milliseconds (0 = no timeout)
@@ -322,7 +322,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
           try {
             json = objectWriter.writeValueAsString(emit.value());
           } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize stream element", e);
+            throw new RuntimeException("Failed to serialise stream element", e);
           }
           writer.write("data: " + json + "\n\n");
           // PrintWriter swallows IOExceptions; checkError() (which also flushes) is the only

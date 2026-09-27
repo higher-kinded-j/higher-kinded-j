@@ -210,7 +210,7 @@ class VTaskArchitectureRules {
   /**
    * Core VTask classes should reside in the vtask package.
    *
-   * <p>Ensures core VTask-related classes are properly organized. Effect Path API classes
+   * <p>Ensures core VTask-related classes are properly organised. Effect Path API classes
    * (VTaskPath, DefaultVTaskPath, VTaskContext, VTaskPathSteps*) are excluded as they correctly
    * reside in the effect package following the same pattern as IOPath.
    */

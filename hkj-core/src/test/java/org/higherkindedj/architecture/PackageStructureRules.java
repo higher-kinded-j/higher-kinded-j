@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Architecture rules enforcing package structure conventions.
  *
- * <p>These rules ensure consistent organization:
+ * <p>These rules ensure consistent organisation:
  *
  * <ul>
  *   <li>Each HKT type resides in its own package

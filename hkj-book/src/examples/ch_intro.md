@@ -98,7 +98,7 @@ Thread-safe context propagation with Java's ScopedValue API.
 | [ContextBasicExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextBasicExample.java) | Basic Context with ask, asks, map, flatMap |
 | [ContextScopeExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/ContextScopeExample.java) | Context with Scope for structured concurrency |
 | [RequestContextExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/RequestContextExample.java) | Request context propagation across layers |
-| [SecurityContextExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/SecurityContextExample.java) | Authentication and authorization patterns |
+| [SecurityContextExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/SecurityContextExample.java) | Authentication and authorisation patterns |
 | [DistributedTracingExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/context/DistributedTracingExample.java) | Tracing across microservice boundaries |
 
 ---

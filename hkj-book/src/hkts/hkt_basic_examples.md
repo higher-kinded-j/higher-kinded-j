@@ -7,7 +7,7 @@ These examples showcase how to use various monads and monad transformers to hand
 ~~~admonish info title="What We'll Learn"
 - Practical examples of core monads including Either, Maybe, Optional, IO, and State
 - How to use monad transformers like EitherT, MaybeT, and StateT to combine effects
-- Working with specialized monads like Reader for dependency injection and Writer for logging
+- Working with specialised monads like Reader for dependency injection and Writer for logging
 - Using For comprehensions to compose complex monadic workflows
 - Writing generic functions that work across different Functor and Monad instances
 - Handling errors and exceptions functionally with Try, Either, and MonadError
@@ -130,13 +130,13 @@ String name = IO_OP.unsafeRunSync(readLine);
 
 ### [LazyExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/basic/lazy/LazyExample.java)
 
-This example covers the **Lazy monad**. It's used to defer a computation until its result is explicitly requested. The result is then memoized (cached) so the computation is only executed once.
+This example covers the **Lazy monad**. It's used to defer a computation until its result is explicitly requested. The result is then memoised (cached) so the computation is only executed once.
 
 * **Key Concept**: A `Lazy` computation is not executed when it is created, but only when `force()` is called. The result (or exception) is then stored for subsequent calls.
 * **Demonstrates**:
   * Creating a deferred computation with `LAZY.defer()`.
   * Forcing evaluation with `LAZY.force()`.
-  * How results are memoized, preventing re-computation.
+  * How results are memoised, preventing re-computation.
   * Using `map` and `flatMap` to build chains of lazy operations.
 
 <!-- verify -->

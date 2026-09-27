@@ -15,7 +15,7 @@ import tools.jackson.databind.ValueDeserializer;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
 /**
- * Jackson 3.x deserializer for {@link NonEmptyList} types.
+ * Jackson 3.x deserialiser for {@link NonEmptyList} types.
  *
  * <p>Reads a JSON array into a {@code NonEmptyList}. An <b>empty array</b> is rejected — a {@code
  * NonEmptyList} cannot be empty, so {@code []} is a structural error rather than something silently
@@ -23,7 +23,7 @@ import tools.jackson.databind.deser.std.StdDeserializer;
  *
  * <p>When the target generic type is known — a field typed {@code NonEmptyList<Foo>} or a {@code
  * TypeReference<NonEmptyList<Foo>>} — the element type is resolved via {@link
- * #createContextual(DeserializationContext, BeanProperty)} and elements are deserialized to {@code
+ * #createContextual(DeserializationContext, BeanProperty)} and elements are deserialised to {@code
  * Foo}. For a raw {@code NonEmptyList.class} read the element type is unknown and elements fall
  * back to {@code Object} (numbers/strings round-trip; JSON objects become maps).
  *
@@ -36,12 +36,12 @@ public class NonEmptyListDeserializer extends StdDeserializer<NonEmptyList<?>> {
   /** Element type resolved from the contextual/property type, or {@code null} for a raw read. */
   private final JavaType elementType;
 
-  /** Creates an unresolved deserializer (used for module registration). */
+  /** Creates an unresolved deserialiser (used for module registration). */
   public NonEmptyListDeserializer() {
     this(null);
   }
 
-  /** Creates a deserializer bound to a resolved element type. */
+  /** Creates a deserialiser bound to a resolved element type. */
   @SuppressWarnings("unchecked")
   public NonEmptyListDeserializer(JavaType elementType) {
     super((Class<NonEmptyList<?>>) (Class<?>) NonEmptyList.class);

@@ -62,7 +62,7 @@ public class EitherBenchmark {
   /**
    * Baseline: simple map operation on Left.
    *
-   * <p>Should be very fast due to instance reuse optimization.
+   * <p>Should be very fast due to instance reuse optimisation.
    */
   @Benchmark
   public Either<String, Integer> leftMap(Blackhole blackhole) {

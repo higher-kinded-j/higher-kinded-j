@@ -123,7 +123,7 @@ class LazyPathTest {
   class LazyEvaluationSemanticsTests {
 
     @Test
-    @DisplayName("Supplier is called at most once (memoization)")
+    @DisplayName("Supplier is called at most once (memoisation)")
     void supplierCalledAtMostOnce() {
       AtomicInteger callCount = new AtomicInteger(0);
 

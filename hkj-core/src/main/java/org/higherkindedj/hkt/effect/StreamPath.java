@@ -32,7 +32,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
  *
  * <h2>Important</h2>
  *
- * <p>StreamPath materializes the stream supplier into a list for reusability. For very large or
+ * <p>StreamPath materialises the stream supplier into a list for reusability. For very large or
  * infinite streams, use terminal operations carefully or use {@link #take(long)} first.
  *
  * <h2>Use Cases</h2>
@@ -89,7 +89,7 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Creates a StreamPath from a stream.
    *
-   * <p>Note: The stream is materialized to a list to allow multiple terminal operations.
+   * <p>Note: The stream is materialised to a list to allow multiple terminal operations.
    *
    * @param stream the stream to wrap; must not be null
    * @param <A> the element type
@@ -98,7 +98,7 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
    */
   public static <A> StreamPath<A> of(Stream<A> stream) {
     Objects.requireNonNull(stream, "stream must not be null");
-    // Materialize to allow multiple uses
+    // Materialise to allow multiple uses
     List<A> materialized = stream.collect(Collectors.toList());
     return new StreamPath<>(materialized::stream);
   }
@@ -263,7 +263,7 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
     @SuppressWarnings("unchecked")
     StreamPath<B> typedOther = (StreamPath<B>) otherStream;
 
-    // Cartesian product - all combinations (materializes streams)
+    // Cartesian product - all combinations (materialises streams)
     return new StreamPath<>(
         () -> {
           List<A> thisElements = this.toList();
@@ -427,7 +427,7 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   /**
    * Folds the stream from the right.
    *
-   * <p>This materializes the stream into a list, then folds from the last element towards the
+   * <p>This materialises the stream into a list, then folds from the last element towards the
    * first. Provided for parity with {@code ListPath.foldRight}.
    *
    * @param initial the initial accumulator value
@@ -492,7 +492,7 @@ public final class StreamPath<A> implements Chainable<A>, Deferred<A> {
   // ===== Conversions =====
 
   /**
-   * Converts to NonDetPath (materializes the stream).
+   * Converts to NonDetPath (materialises the stream).
    *
    * @return a NonDetPath containing the same elements
    */

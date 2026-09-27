@@ -12,7 +12,7 @@
  *   <li>Higher-kinded type patterns (witness types, Kind implementations)
  *   <li>Type class instance patterns (singleton, stateless)
  *   <li>Immutability requirements for functional types
- *   <li>Package structure organization
+ *   <li>Package structure organisation
  * </ul>
  *
  * <p>These rules help maintain consistency and quality as the codebase grows.

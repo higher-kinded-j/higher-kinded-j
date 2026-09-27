@@ -56,7 +56,7 @@ public class MaybeBenchmark {
   /**
    * Baseline: simple map operation on Nothing.
    *
-   * <p>Should be very fast due to instance reuse optimization.
+   * <p>Should be very fast due to instance reuse optimisation.
    */
   @Benchmark
   public Maybe<Integer> nothingMap(Blackhole blackhole) {
@@ -120,7 +120,7 @@ public class MaybeBenchmark {
   /**
    * Pattern matching with map and orElse.
    *
-   * <p>Simulates fold-like behavior.
+   * <p>Simulates fold-like behaviour.
    */
   @Benchmark
   public String justPatternMatch() {

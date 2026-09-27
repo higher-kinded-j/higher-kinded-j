@@ -46,10 +46,10 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * <h2>Key Benefits</h2>
  *
  * <ul>
- *   <li><b>Parallel execution:</b> Interpreters can safely parallelize independent computations
- *   <li><b>Static analysis:</b> The structure can be analyzed before interpretation
+ *   <li><b>Parallel execution:</b> Interpreters can safely parallelise independent computations
+ *   <li><b>Static analysis:</b> The structure can be analysed before interpretation
  *   <li><b>Batching:</b> Similar operations can be batched (e.g., multiple DB queries)
- *   <li><b>Optimization:</b> Independent computations can be reordered for efficiency
+ *   <li><b>Optimisation:</b> Independent computations can be reordered for efficiency
  *   <li><b>Validation:</b> Collect all errors rather than failing on first (with Validated)
  * </ul>
  *
@@ -60,7 +60,7 @@ import org.higherkindedj.hkt.util.validation.Validation;
  * <tr><td>Sequential/dependent</td><td>Independent/parallel</td></tr>
  * <tr><td>flatMap: A → Free[F, B]</td><td>ap: FreeAp[F, A→B] × FreeAp[F, A]</td></tr>
  * <tr><td>Next step depends on previous result</td><td>Steps are independent</td></tr>
- * <tr><td>Cannot analyze structure ahead of time</td><td>Full structure visible before interpretation</td></tr>
+ * <tr><td>Cannot analyse structure ahead of time</td><td>Full structure visible before interpretation</td></tr>
  * </table>
  *
  * <h2>Example Usage</h2>

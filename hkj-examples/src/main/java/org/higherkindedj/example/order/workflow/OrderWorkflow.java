@@ -253,7 +253,7 @@ public class OrderWorkflow {
   }
 
   // @Nullable so the null guard is a real check, not dead code: validation is the boundary where
-  // untrusted input (e.g. a deserialized request) can still defeat the @NullMarked contract.
+  // untrusted input (e.g. a deserialised request) can still defeat the @NullMarked contract.
   private ValidationPath<List<OrderError.FieldError>, String> validateCustomerId(
       @Nullable String customerId) {
     if (customerId == null || customerId.isBlank()) {

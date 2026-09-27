@@ -671,7 +671,7 @@ public class HkjHttpClientProcessor extends AbstractProcessor {
       return null;
     }
     // The decoder binds the error via E.class, so the error type must be a concrete, non-generic
-    // class — not an array, wildcard, or parameterized type (which would crash rawClass or emit an
+    // class — not an array, wildcard, or parameterised type (which would crash rawClass or emit an
     // uncompilable create(Raw.class) call).
     if (!isConcreteClass(error)) {
       error(

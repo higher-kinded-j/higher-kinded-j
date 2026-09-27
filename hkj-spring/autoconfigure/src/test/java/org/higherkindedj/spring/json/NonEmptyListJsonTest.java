@@ -30,21 +30,21 @@ class NonEmptyListJsonTest {
   class Serialization {
 
     @Test
-    @DisplayName("serializes as a plain JSON array, in order")
+    @DisplayName("serialises as a plain JSON array, in order")
     void serializesAsArray() {
       String json = objectMapper.writeValueAsString(NonEmptyList.of(1, 2, 3));
       assertThat(json).isEqualTo("[1,2,3]");
     }
 
     @Test
-    @DisplayName("serializes a single-element list as a one-element array")
+    @DisplayName("serialises a single-element list as a one-element array")
     void serializesSingle() {
       String json = objectMapper.writeValueAsString(NonEmptyList.single("a"));
       assertThat(json).isEqualTo("[\"a\"]");
     }
 
     @Test
-    @DisplayName("serializes as the Validated error channel")
+    @DisplayName("serialises as the Validated error channel")
     void serializesAsValidatedErrorChannel() {
       Validated<NonEmptyList<String>, Integer> invalid = Validated.invalidNel("bad");
       String json = objectMapper.writeValueAsString(invalid);

@@ -25,7 +25,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 /**
  * Tests for {@link HkjWebMvcAutoConfiguration}.
  *
- * <p>Uses Spring Boot's WebApplicationContextRunner to test web MVC auto-configuration behavior
+ * <p>Uses Spring Boot's WebApplicationContextRunner to test web MVC auto-configuration behaviour
  * with different property combinations.
  */
 @DisplayName("HkjWebMvcAutoConfiguration Tests")

@@ -351,7 +351,7 @@ public class VTaskPathVsIOPathBenchmark {
   /**
    * Measures repeated execution of the same toIOPath result.
    *
-   * <p>Tests that toIOPath creates a reusable, non-memoized IOPath.
+   * <p>Tests that toIOPath creates a reusable, non-memoised IOPath.
    */
   @Benchmark
   public Integer vtaskPath_toIOPath_repeatedExecution() {

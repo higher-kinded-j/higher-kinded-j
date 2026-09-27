@@ -772,7 +772,7 @@ class IOPathTest {
     }
 
     @Test
-    @DisplayName("guarantee() runs finalizer on success")
+    @DisplayName("guarantee() runs finaliser on success")
     void guaranteeRunsFinalizerOnSuccess() {
       AtomicBoolean finalized = new AtomicBoolean(false);
 
@@ -785,7 +785,7 @@ class IOPathTest {
     }
 
     @Test
-    @DisplayName("guarantee() runs finalizer on failure")
+    @DisplayName("guarantee() runs finaliser on failure")
     void guaranteeRunsFinalizerOnFailure() {
       AtomicBoolean finalized = new AtomicBoolean(false);
 
@@ -801,7 +801,7 @@ class IOPathTest {
     }
 
     @Test
-    @DisplayName("guarantee() validates non-null finalizer")
+    @DisplayName("guarantee() validates non-null finaliser")
     void guaranteeValidatesNonNullFinalizer() {
       IOPath<String> path = Path.ioPure("result");
 
@@ -811,7 +811,7 @@ class IOPathTest {
     }
 
     @Test
-    @DisplayName("guaranteeIO() runs IOPath finalizer on success")
+    @DisplayName("guaranteeIO() runs IOPath finaliser on success")
     void guaranteeIORunsFinalizerOnSuccess() {
       AtomicBoolean finalized = new AtomicBoolean(false);
 
@@ -825,7 +825,7 @@ class IOPathTest {
     }
 
     @Test
-    @DisplayName("guaranteeIO() runs IOPath finalizer on failure")
+    @DisplayName("guaranteeIO() runs IOPath finaliser on failure")
     void guaranteeIORunsFinalizerOnFailure() {
       AtomicBoolean finalized = new AtomicBoolean(false);
 
@@ -1186,7 +1186,7 @@ class IOPathTest {
       Integer result1 = computation.unsafeRun();
       assertThat(result1).isEqualTo(4); // (1 * 2) + 2
 
-      // Second run - executes again (IO is not memoized)
+      // Second run - executes again (IO is not memoised)
       Integer result2 = computation.unsafeRun();
       assertThat(result2).isEqualTo(10); // (3 * 2) + 4
     }

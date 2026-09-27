@@ -18,7 +18,7 @@ import org.jspecify.annotations.Nullable;
  *
  * <ul>
  *   <li><b>Lazy Evaluation:</b> The computation is not executed until {@link #force()} is called.
- *   <li><b>Memoization:</b> Once evaluated, the result (or exception) is cached for subsequent
+ *   <li><b>Memoisation:</b> Once evaluated, the result (or exception) is cached for subsequent
  *       calls.
  *   <li><b>Thread-Safe:</b> Evaluation is synchronised to ensure only one execution occurs even in
  *       concurrent scenarios.

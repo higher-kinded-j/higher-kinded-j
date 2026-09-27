@@ -15,7 +15,7 @@ import tools.jackson.databind.JacksonModule;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Auto-configuration for Jackson serialization of higher-kinded-j types.
+ * Auto-configuration for Jackson serialisation of higher-kinded-j types.
  *
  * <p>This configuration is activated when:
  *
@@ -25,7 +25,7 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>hkj.json.custom-serializers-enabled is true (default)
  * </ul>
  *
- * <p>Registers {@link HkjJacksonModule} which provides custom serializers and deserializers for:
+ * <p>Registers {@link HkjJacksonModule} which provides custom serialisers and deserialisers for:
  *
  * <ul>
  *   <li>{@link org.higherkindedj.hkt.either.Either}
@@ -35,7 +35,7 @@ import tools.jackson.databind.json.JsonMapper;
  * <p>The module is automatically picked up by Spring Boot's JsonMapper auto-configuration and
  * applied to all Jackson JsonMapper instances in the application.
  *
- * <p>To disable custom serializers:
+ * <p>To disable custom serialisers:
  *
  * <pre>
  * hkj:

@@ -32,7 +32,7 @@ import org.higherkindedj.hkt.WitnessArity;
  * structure. However, any {@link Lens}, {@link Prism}, {@link Iso}, or {@link Traversal} can be
  * viewed as a Fold using their respective {@code asFold()} methods.
  *
- * <p>It extends the generic {@link Optic}, specializing it for {@code S = T} and {@code A = B}.
+ * <p>It extends the generic {@link Optic}, specialising it for {@code S = T} and {@code A = B}.
  *
  * <p><b>Example usage:</b>
  *

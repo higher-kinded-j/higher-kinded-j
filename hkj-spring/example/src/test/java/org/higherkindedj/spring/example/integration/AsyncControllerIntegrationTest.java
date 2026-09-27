@@ -43,7 +43,7 @@ class AsyncControllerIntegrationTest {
    * <ul>
    *   <li>Completes asynchronously on thread pool
    *   <li>Returns HTTP 200 with user JSON
-   *   <li>Serializes User record correctly
+   *   <li>Serialises User record correctly
    * </ul>
    */
   @Test

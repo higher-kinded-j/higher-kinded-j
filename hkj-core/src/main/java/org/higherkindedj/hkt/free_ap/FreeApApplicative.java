@@ -29,7 +29,7 @@ import org.jspecify.annotations.Nullable;
  * <ul>
  *   <li>Parallel execution (with appropriate interpreters)
  *   <li>Static analysis of the computation structure
- *   <li>Batching and optimization of operations
+ *   <li>Batching and optimisation of operations
  * </ul>
  *
  * <h2>Applicative Laws</h2>

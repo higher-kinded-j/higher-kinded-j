@@ -13,9 +13,9 @@ import tools.jackson.databind.ValueDeserializer;
 import tools.jackson.databind.deser.std.StdDeserializer;
 
 /**
- * Jackson 3.x deserializer for {@link Either} types.
+ * Jackson 3.x deserialiser for {@link Either} types.
  *
- * <p>Deserializes JSON objects with the following structure:
+ * <p>Deserialises JSON objects with the following structure:
  *
  * <pre>
  * // Right value
@@ -33,7 +33,7 @@ import tools.jackson.databind.deser.std.StdDeserializer;
  *
  * <p>When the target generic type is known — a field typed {@code Either<L, R>} or a {@code
  * TypeReference<Either<L, R>>} — the {@code left} and {@code right} types are resolved via {@link
- * #createContextual(DeserializationContext, BeanProperty)} and the present branch is deserialized
+ * #createContextual(DeserializationContext, BeanProperty)} and the present branch is deserialised
  * to it. For a raw {@code Either.class} read the branch types are unknown and fall back to {@code
  * Object} (numbers/strings round-trip; JSON objects become maps).
  */
@@ -48,12 +48,12 @@ public class EitherDeserializer extends StdDeserializer<Either<?, ?>> {
 
   private final JavaType rightType;
 
-  /** Creates an unresolved deserializer (used for module registration). */
+  /** Creates an unresolved deserialiser (used for module registration). */
   public EitherDeserializer() {
     this(null, null);
   }
 
-  /** Creates a deserializer bound to resolved left/right types. */
+  /** Creates a deserialiser bound to resolved left/right types. */
   @SuppressWarnings("unchecked")
   public EitherDeserializer(JavaType leftType, JavaType rightType) {
     super((Class<Either<?, ?>>) (Class<?>) Either.class);

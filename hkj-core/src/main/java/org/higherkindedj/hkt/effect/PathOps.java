@@ -1311,13 +1311,13 @@ public final class PathOps {
   // 1. First pass: Collect all elements from the structure into an intermediate List
   // 2. Second pass: Apply the effectful function to each element with fail-fast semantics
   //
-  // This approach was chosen to provide fail-fast behavior for Maybe/Either/Try - once a
+  // This approach was chosen to provide fail-fast behaviour for Maybe/Either/Try - once a
   // failure is encountered, processing stops immediately without evaluating remaining elements.
   // However, the intermediate List allocation may be inefficient for very large structures.
   //
   // For traverseEachValidated, which accumulates all errors rather than failing fast, a
   // single-pass foldMap-based approach could avoid the intermediate allocation. This
-  // optimization may be added in a future version.
+  // optimisation may be added in a future version.
 
   /**
    * Traverses a structure using an {@link org.higherkindedj.optics.Each} instance, applying a
@@ -1328,7 +1328,7 @@ public final class PathOps {
    * the entire result is Nothing (fail-fast semantics).
    *
    * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
-   * list, then processes them. The fail-fast behavior means processing stops at the first Nothing,
+   * list, then processes them. The fail-fast behaviour means processing stops at the first Nothing,
    * but the initial element collection traverses the entire structure. For very large structures
    * where early failure is likely, consider streaming approaches or lazy evaluation patterns.
    *
@@ -1368,9 +1368,9 @@ public final class PathOps {
    * semantics).
    *
    * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
-   * list, then processes them. The fail-fast behavior means processing stops at the first Left, but
-   * the initial element collection traverses the entire structure. For very large structures where
-   * early failure is likely, consider streaming approaches or lazy evaluation patterns.
+   * list, then processes them. The fail-fast behaviour means processing stops at the first Left,
+   * but the initial element collection traverses the entire structure. For very large structures
+   * where early failure is likely, consider streaming approaches or lazy evaluation patterns.
    *
    * <pre>{@code
    * Each<List<Order>, Order> listEach = EachInstances.listEach();
@@ -1410,7 +1410,7 @@ public final class PathOps {
    *
    * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
    * list, then processes them. Since error accumulation requires processing all elements anyway, a
-   * future optimization could use a single-pass foldMap approach with a suitable Monoid to avoid
+   * future optimisation could use a single-pass foldMap approach with a suitable Monoid to avoid
    * the intermediate list allocation for very large structures.
    *
    * <pre>{@code
@@ -1454,7 +1454,7 @@ public final class PathOps {
    * <p>If any element throws an exception, the entire result is that failure (fail-fast semantics).
    *
    * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
-   * list, then processes them. The fail-fast behavior means processing stops at the first failure,
+   * list, then processes them. The fail-fast behaviour means processing stops at the first failure,
    * but the initial element collection traverses the entire structure. For very large structures
    * where early failure is likely, consider streaming approaches or lazy evaluation patterns.
    *

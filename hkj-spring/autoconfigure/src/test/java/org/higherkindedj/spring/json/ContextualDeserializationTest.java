@@ -20,7 +20,7 @@ import tools.jackson.databind.DatabindException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Verifies that the HKJ deserializers resolve their generic element types from a {@code
+ * Verifies that the HKJ deserialisers resolve their generic element types from a {@code
  * TypeReference} (or field type), so nested custom types round-trip to the real type rather than a
  * {@code LinkedHashMap}.
  */

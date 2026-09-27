@@ -67,7 +67,7 @@ public final class EitherSelective<L> extends EitherMonad<L>
    *
    * <p>Since Either already implements Choice, we can work with it directly without conversion.
    *
-   * <p>Behavior:
+   * <p>Behaviour:
    *
    * <ul>
    *   <li>If {@code fab} is {@code Right(b)}: Returns {@code Right(b)}, {@code ff} is not

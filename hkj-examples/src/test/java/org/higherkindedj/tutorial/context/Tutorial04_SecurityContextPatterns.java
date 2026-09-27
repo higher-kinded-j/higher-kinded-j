@@ -347,7 +347,7 @@ public class Tutorial04_SecurityContextPatterns {
     /**
      * Exercise 10: Combine authentication and authorisation
      *
-     * <p>Note: Since authentication uses Context&lt;Principal, ?&gt; and authorization uses
+     * <p>Note: Since authentication uses Context&lt;Principal, ?&gt; and authorisation uses
      * Context&lt;Set&lt;String&gt;, ?&gt;, they have different R types and cannot be composed
      * directly with flatMap. Instead, run both checks sequentially in the same scope.
      *
@@ -360,7 +360,7 @@ public class Tutorial04_SecurityContextPatterns {
       Set<String> adminRoles = Set.of("user", "admin");
 
       // Note: This test requires both PRINCIPAL and ROLES to be bound
-      // Authentication and authorization have different Context types,
+      // Authentication and authorisation have different Context types,
       // so we run both checks in the same scope
       String result =
           ScopedValue.where(SecurityContext.PRINCIPAL, admin)

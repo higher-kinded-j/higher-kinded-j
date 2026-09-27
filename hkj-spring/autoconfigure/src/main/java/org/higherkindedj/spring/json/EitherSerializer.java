@@ -8,9 +8,9 @@ import tools.jackson.databind.SerializationContext;
 import tools.jackson.databind.ser.std.StdSerializer;
 
 /**
- * Jackson serializer for {@link Either} types.
+ * Jackson serialiser for {@link Either} types.
  *
- * <p>Serializes Either values as JSON objects with the following structure:
+ * <p>Serialises Either values as JSON objects with the following structure:
  *
  * <pre>
  * // Right value
@@ -26,7 +26,7 @@ import tools.jackson.databind.ser.std.StdSerializer;
  * }
  * </pre>
  *
- * <p>This serializer is useful when Either values appear nested within other objects. For top-level
+ * <p>This serialiser is useful when Either values appear nested within other objects. For top-level
  * controller return values, the {@link
  * org.higherkindedj.spring.web.returnvalue.EitherPathReturnValueHandler} provides a cleaner
  * unwrapped format using the Effect Path API.

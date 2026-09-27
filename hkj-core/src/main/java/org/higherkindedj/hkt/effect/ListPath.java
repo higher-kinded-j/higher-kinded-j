@@ -24,7 +24,7 @@ import org.higherkindedj.hkt.maybe.Maybe;
 /**
  * A fluent path wrapper for {@link List} with standard list monad semantics.
  *
- * <p>{@code ListPath} wraps a list and provides fluent composition with list monad behavior. The
+ * <p>{@code ListPath} wraps a list and provides fluent composition with list monad behaviour. The
  * {@code via} operation performs flatMap, concatenating all results. The {@code zipWith} operation
  * pairs elements positionally (shortest list wins).
  *

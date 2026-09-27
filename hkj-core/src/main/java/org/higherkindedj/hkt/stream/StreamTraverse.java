@@ -115,7 +115,7 @@ import org.jspecify.annotations.NullMarked;
  *   </tr>
  *   <tr>
  *     <td>Input</td>
- *     <td>Already materialized</td>
+ *     <td>Already materialised</td>
  *     <td>Can be lazy pipeline</td>
  *   </tr>
  *   <tr>

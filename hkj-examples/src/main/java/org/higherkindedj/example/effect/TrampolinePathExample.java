@@ -247,7 +247,7 @@ public class TrampolinePathExample {
     var ioPath = trampoline.toIOPath();
     System.out.println("As IOPath: " + ioPath.unsafeRun());
 
-    // Convert to LazyPath for memoization
+    // Convert to LazyPath for memoisation
     var lazyPath = trampoline.toLazyPath();
     System.out.println("As LazyPath: " + lazyPath.get());
 

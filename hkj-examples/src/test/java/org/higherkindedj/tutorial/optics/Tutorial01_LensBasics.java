@@ -64,7 +64,7 @@ public class Tutorial01_LensBasics {
    * What you should do in real projects:
    * ────────────────────────────────────────────────────────────────────────
    * 1. Annotate your records with @GenerateLenses
-   * 2. The annotation processor automatically generates optimized lenses
+   * 2. The annotation processor automatically generates optimised lenses
    * 3. Use the generated lenses from companion classes (e.g., PersonLenses.name())
    *
    * Example of real-world usage:

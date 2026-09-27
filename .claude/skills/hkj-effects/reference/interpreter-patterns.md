@@ -172,7 +172,7 @@ public final class AuditGatewayInterpreter
 2. Create log entry: `AuditLog.of(operation, details)`
 3. Wrap in `WriterT.writer(innerMonad, value, log)`
 
-**Warning**: `foldMap` has an eager optimization that discards monadic context for strict target monads. `WriterT<Id, ...>` will silently lose accumulated log entries. Use `WriterT<IO, ...>` or mutable recording interpreters instead.
+**Warning**: `foldMap` has an eager optimisation that discards monadic context for strict target monads. `WriterT<Id, ...>` will silently lose accumulated log entries. Use `WriterT<IO, ...>` or mutable recording interpreters instead.
 
 ---
 

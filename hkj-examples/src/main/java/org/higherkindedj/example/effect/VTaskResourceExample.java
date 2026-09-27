@@ -251,11 +251,11 @@ public class VTaskResourceExample {
   }
 
   // ============================================================
-  // Finalizer Example
+  // Finaliser Example
   // ============================================================
 
   private static void finalizerExample() {
-    System.out.println("--- Resource with Finalizers ---\n");
+    System.out.println("--- Resource with Finalisers ---\n");
 
     AtomicInteger cleanupOrder = new AtomicInteger(0);
 
@@ -272,17 +272,17 @@ public class VTaskResourceExample {
             .withFinalizer(
                 () -> {
                   int order = cleanupOrder.incrementAndGet();
-                  System.out.println("  [Finalizer #" + order + "] Logging cleanup");
+                  System.out.println("  [Finaliser #" + order + "] Logging cleanup");
                 })
             .withFinalizer(
                 () -> {
                   int order = cleanupOrder.incrementAndGet();
-                  System.out.println("  [Finalizer #" + order + "] Metrics recording");
+                  System.out.println("  [Finaliser #" + order + "] Metrics recording");
                 });
 
     VTask<String> task = conn.use(c -> VTask.succeed("Used " + c.id));
     task.runSafe();
-    System.out.println("(Finalizers run in reverse order of addition)\n");
+    System.out.println("(Finalisers run in reverse order of addition)\n");
   }
 
   // ============================================================

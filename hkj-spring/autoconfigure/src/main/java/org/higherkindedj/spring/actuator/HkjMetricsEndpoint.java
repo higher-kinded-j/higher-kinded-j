@@ -20,7 +20,7 @@ import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
  *   <li>HKJ configuration (enabled features, settings)
  *   <li>Handler invocation counts (Either, Validated, EitherT, VTask, VStream)
  *   <li>Success/error ratios
- *   <li>Jackson serialization settings
+ *   <li>Jackson serialisation settings
  * </ul>
  *
  * <p>Example response:

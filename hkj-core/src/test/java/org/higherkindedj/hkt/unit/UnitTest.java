@@ -12,7 +12,7 @@ class UnitTest {
 
   @Test
   void testUnitInstanceAndToString() {
-    // Access the enum instance to cover its initialization
+    // Access the enum instance to cover its initialisation
     Unit unitInstance = Unit.INSTANCE;
     assertNotNull(unitInstance, "Unit.INSTANCE should not be null");
 

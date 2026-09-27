@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
  * (Monad, Functor, etc.) are accessed via their static factory methods (e.g.,
  * EitherMonad.instance()) rather than being provided as beans.
  *
- * <p>Enables configuration properties via {@link HkjProperties} which can be customized in
+ * <p>Enables configuration properties via {@link HkjProperties} which can be customised in
  * application.yml/properties with the "hkj" prefix.
  */
 @AutoConfiguration

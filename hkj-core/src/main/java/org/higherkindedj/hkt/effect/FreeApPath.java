@@ -40,8 +40,8 @@ import org.higherkindedj.hkt.function.Function3;
  *
  * <ul>
  *   <li>All operations are independent - no operation depends on another's result
- *   <li>The structure can be fully analyzed before interpretation
- *   <li>Interpreters can safely parallelize independent operations
+ *   <li>The structure can be fully analysed before interpretation
+ *   <li>Interpreters can safely parallelise independent operations
  *   <li>Multiple validation errors can be collected rather than failing on the first
  * </ul>
  *

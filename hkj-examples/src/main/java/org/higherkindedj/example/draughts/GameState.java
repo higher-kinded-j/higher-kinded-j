@@ -70,7 +70,7 @@ record MoveResult(MoveOutcome outcome, String message) {}
  * <p>This record uses the {@code @GenerateFocus} annotation to generate type-safe optics for
  * navigating and updating the game state using the Focus DSL.
  *
- * <h2>Functional Initialization</h2>
+ * <h2>Functional Initialisation</h2>
  *
  * <p>The initial board setup uses streams for a declarative, functional approach:
  *
@@ -96,7 +96,7 @@ public record GameState(
   /**
    * Creates the initial game state with pieces in starting positions.
    *
-   * <p>Uses stream-based board initialization for a functional, declarative approach.
+   * <p>Uses stream-based board initialisation for a functional, declarative approach.
    *
    * @return the initial game state
    */

@@ -1179,7 +1179,7 @@ class MutationKillingTest {
   class EmptyNullCaseTests {
 
     @Test
-    @DisplayName("record with no components should still be analyzed")
+    @DisplayName("record with no components should still be analysed")
     void recordWithNoComponents() {
       var source =
           JavaFileObjects.forSourceString(
@@ -1198,7 +1198,7 @@ class MutationKillingTest {
     }
 
     @Test
-    @DisplayName("enum with single constant should be analyzed")
+    @DisplayName("enum with single constant should be analysed")
     void enumWithSingleConstant() {
       var source =
           JavaFileObjects.forSourceString(
@@ -1216,7 +1216,7 @@ class MutationKillingTest {
     }
 
     @Test
-    @DisplayName("sealed interface with single permitted subtype should be analyzed")
+    @DisplayName("sealed interface with single permitted subtype should be analysed")
     void sealedInterfaceWithSingleSubtype() {
       var sealedInterface =
           JavaFileObjects.forSourceString(
@@ -1397,7 +1397,7 @@ class MutationKillingTest {
   class MultipleFieldTests {
 
     @Test
-    @DisplayName("record with many components should have all fields analyzed")
+    @DisplayName("record with many components should have all fields analysed")
     void recordWithManyComponents() {
       var source =
           JavaFileObjects.forSourceString(
@@ -1443,7 +1443,7 @@ class MutationKillingTest {
     }
 
     @Test
-    @DisplayName("enum with many constants should have all constants analyzed")
+    @DisplayName("enum with many constants should have all constants analysed")
     void enumWithManyConstants() {
       var source =
           JavaFileObjects.forSourceString(
@@ -1468,7 +1468,7 @@ class MutationKillingTest {
     }
 
     @Test
-    @DisplayName("class with many withers should have all withers analyzed")
+    @DisplayName("class with many withers should have all withers analysed")
     void classWithManyWithers() {
       var source =
           JavaFileObjects.forSourceString(
@@ -3424,7 +3424,7 @@ class MutationKillingTest {
   class EnumEdgeCases {
 
     @Test
-    @DisplayName("enum with methods should still be analyzed as enum")
+    @DisplayName("enum with methods should still be analysed as enum")
     void enumWithMethods() {
       var source =
           JavaFileObjects.forSourceString(
@@ -3448,7 +3448,7 @@ class MutationKillingTest {
     }
 
     @Test
-    @DisplayName("enum with fields should still be analyzed as enum")
+    @DisplayName("enum with fields should still be analysed as enum")
     void enumWithFields() {
       var source =
           JavaFileObjects.forSourceString(
@@ -3621,7 +3621,7 @@ class MutationKillingTest {
       TypeAnalysis analysis = analyseType("com.test.ManyComponents", source);
 
       assertThat(analysis.fields()).hasSize(7);
-      // Verify each field is correctly categorized
+      // Verify each field is correctly categorised
       assertThat(analysis.fields().get(0).hasTraversal()).isFalse(); // String
       assertThat(analysis.fields().get(1).hasTraversal()).isFalse(); // int
       assertThat(analysis.fields().get(2).hasTraversal()).isTrue(); // List
@@ -5420,7 +5420,7 @@ class MutationKillingTest {
     }
 
     @Test
-    @DisplayName("Record with parameterized List should generate traversal")
+    @DisplayName("Record with parameterised List should generate traversal")
     void parameterizedListGeneratesTraversal() throws IOException {
       var source =
           JavaFileObjects.forSourceString(

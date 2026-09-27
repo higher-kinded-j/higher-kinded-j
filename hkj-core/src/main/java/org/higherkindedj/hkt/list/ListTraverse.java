@@ -75,7 +75,7 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    * </ul>
    *
    * <p><b>Performance Note:</b> This implementation creates a new {@code LinkedList} on each
-   * iteration to ensure correct behavior for all {@code Applicative} types, including those that
+   * iteration to ensure correct behaviour for all {@code Applicative} types, including those that
    * create multiple branches (like {@code List}). For large lists, consider using more efficient
    * data structures or the stack-safe alternative in {@code TrampolineUtils}.
    *

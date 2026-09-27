@@ -772,7 +772,7 @@ ForState.withState(maybeMonad, MAYBE.just(engineering))
 ## Tips for Using These Solutions
 
 1. **Try first, then check** - Attempt each exercise before looking at the solution
-2. **Understand, don't memorize** - Focus on understanding the patterns
+2. **Understand, don't memorise** - Focus on understanding the patterns
 3. **Experiment** - Try variations to deepen your understanding
 4. **Compare approaches** - Your solution might be different but equally valid
 

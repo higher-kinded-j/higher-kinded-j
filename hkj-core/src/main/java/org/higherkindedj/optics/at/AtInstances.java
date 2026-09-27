@@ -110,7 +110,7 @@ public final class AtInstances {
    *
    * <p><strong>Bounds Checking:</strong> Setting a value at an out-of-bounds index will throw an
    * {@link IndexOutOfBoundsException}. Use {@link #listAtWithPadding(Object)} for auto-expanding
-   * behavior.
+   * behaviour.
    *
    * <p><strong>Immutability:</strong> All operations return new {@link List} instances, leaving the
    * original unchanged.
@@ -155,12 +155,12 @@ public final class AtInstances {
    *   <li>Useful for sparse list representations
    * </ul>
    *
-   * <p><strong>Warning:</strong> This behavior can lead to unexpected nulls in your list. Use with
+   * <p><strong>Warning:</strong> This behaviour can lead to unexpected nulls in your list. Use with
    * caution.
    *
    * @param <A> The element type of the list
    * @param defaultValue The value to use for padding (typically null)
-   * @return An {@code At} instance for lists with padding behavior
+   * @return An {@code At} instance for lists with padding behaviour
    */
   public static <A> At<List<A>, Integer, A> listAtWithPadding(@Nullable A defaultValue) {
     return index ->

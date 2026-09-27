@@ -60,7 +60,7 @@ class SpecInterfaceProcessingTest {
   class BasicSpecInterface {
 
     @Test
-    @DisplayName("should recognize spec interface and generate file")
+    @DisplayName("should recognise spec interface and generate file")
     void shouldRecognizeSpecInterfaceAndGenerateFile() {
       // Minimal test to verify spec interface detection works
       final var externalRecord =

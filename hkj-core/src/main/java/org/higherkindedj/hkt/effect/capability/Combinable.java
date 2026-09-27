@@ -20,7 +20,7 @@ import java.util.function.BiFunction;
  *
  * <p>Unlike {@link Chainable#via(java.util.function.Function)} where the second computation depends
  * on the first's result, {@code zipWith} combines <em>independent</em> computations. This
- * distinction enables certain optimizations (like parallel execution) in some implementations.
+ * distinction enables certain optimisations (like parallel execution) in some implementations.
  *
  * @param <A> the type of the contained value
  */
@@ -30,7 +30,7 @@ public interface Combinable<A> extends Composable<A> {
    * Combines this path with another using the provided function.
    *
    * <p>If both paths contain values, the function is applied to combine them. If either path
-   * represents an error or absence, the result reflects that error/absence (the exact behavior
+   * represents an error or absence, the result reflects that error/absence (the exact behaviour
    * depends on the specific path type).
    *
    * <p>Example:

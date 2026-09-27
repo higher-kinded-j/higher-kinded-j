@@ -10,7 +10,7 @@ The hkj-spring security integration brings functional programming patterns to Sp
 
 - **`ValidatedUserDetailsService`** - User authentication with error accumulation
 - **`EitherAuthenticationConverter`** - JWT conversion with Either error handling
-- **`EitherAuthorizationManager`** - Functional authorization decisions
+- **`EitherAuthorizationManager`** - Functional authorisation decisions
 
 ### Key Benefits
 
@@ -198,14 +198,14 @@ always rejected regardless of this flag.
 
 ### EitherAuthorizationManager
 
-Functional authorization decisions using Either composition.
+Functional authorisation decisions using Either composition.
 
 #### Features
 
-- Composes authorization checks with flatMap
+- Composes authorisation checks with flatMap
 - Type-safe error tracking
 - Explicit success/failure states
-- Path-based authorization rules
+- Path-based authorisation rules
 
 #### Example
 
@@ -223,7 +223,7 @@ public SecurityFilterChain filterChain(
 }
 ```
 
-#### Authorization Flow
+#### Authorisation Flow
 
 ```java
 // Rules are chained with flatMap: the first Left denies access
@@ -332,7 +332,7 @@ public class DatabaseUserDetailsService extends ValidatedUserDetailsService {
 }
 ```
 
-### Example 2: Custom Authorization Rules
+### Example 2: Custom Authorisation Rules
 
 ```java
 @Component
@@ -531,7 +531,7 @@ hkj:
     enabled: true
 ```
 
-### 2. Customize Error Messages
+### 2. Customise Error Messages
 
 ```java
 public record UserValidationError(String field, String message) {}
@@ -599,7 +599,7 @@ hkj:
     jwt-authority-prefix: "ROLE_"   # or "" for no prefix
 ```
 
-### Issue: Authorization always fails
+### Issue: Authorisation always fails
 
 **Solution:** Ensure authentication has required role:
 
@@ -634,7 +634,7 @@ Never use `JsonTypeInfo.Id.CLASS` / `Id.MINIMAL_CLASS` or enable default typing 
 from a remote response: an attacker who controls the upstream (or sits on the path) could name an
 arbitrary class and turn deserialisation into a gadget chain. With `Id.NAME` the decoder can only
 construct the subtypes you enumerated. See
-[Jackson Serialization](JACKSON_SERIALIZATION.md#client-side-deserialization-hkjhttpclient) for the
+[Jackson Serialisation](JACKSON_SERIALIZATION.md#client-side-deserialisation-hkjhttpclient) for the
 round-trip details.
 
 **Streams are bounded.** The SSE translator caps each frame line at 1 MiB and raises

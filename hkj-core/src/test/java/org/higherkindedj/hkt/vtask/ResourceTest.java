@@ -960,7 +960,7 @@ class ResourceTest {
   }
 
   @Nested
-  @DisplayName("Finalizer Support")
+  @DisplayName("Finaliser Support")
   class FinalizerSupportTests {
 
     @Test
@@ -995,7 +995,7 @@ class ResourceTest {
     }
 
     @Test
-    @DisplayName("withFinalizer() validates non-null finalizer")
+    @DisplayName("withFinalizer() validates non-null finaliser")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void withFinalizerValidatesNonNull() {
       Resource<String> resource = Resource.make(() -> "test", _ -> {});

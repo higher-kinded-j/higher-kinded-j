@@ -892,7 +892,7 @@ class EachInstancesTest {
   @DisplayName("Instance Creation Verification")
   class InstanceCreationTests {
 
-    // Note: Due to Java's type erasure limitations with parameterized types and wildcard types,
+    // Note: Due to Java's type erasure limitations with parameterised types and wildcard types,
     // EachInstances factory methods create new instances on each call rather than caching.
     // This is because you cannot safely cast from Each<List<?>, ?> to Each<List<A>, A>.
 

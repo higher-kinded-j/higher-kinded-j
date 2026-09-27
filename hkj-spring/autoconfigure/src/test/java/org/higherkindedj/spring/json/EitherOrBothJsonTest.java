@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.exc.MismatchedInputException;
 import tools.jackson.databind.json.JsonMapper;
 
-@DisplayName("EitherOrBoth JSON (de)serialization")
+@DisplayName("EitherOrBoth JSON (de)serialisation")
 class EitherOrBothJsonTest {
 
   private JsonMapper mapper;
@@ -60,7 +60,7 @@ class EitherOrBothJsonTest {
   }
 
   @Nested
-  @DisplayName("Deserialization (raw)")
+  @DisplayName("Deserialisation (raw)")
   class RawDeserialization {
 
     @Test
@@ -109,7 +109,7 @@ class EitherOrBothJsonTest {
   }
 
   @Nested
-  @DisplayName("Deserialization (typed via createContextual)")
+  @DisplayName("Deserialisation (typed via createContextual)")
   class TypedDeserialization {
 
     @Test

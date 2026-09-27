@@ -771,7 +771,7 @@ class VTaskPathTest {
     }
 
     @Test
-    @DisplayName("toIOPath() can be run multiple times (not memoized)")
+    @DisplayName("toIOPath() can be run multiple times (not memoised)")
     void toIOPathCanBeRunMultipleTimes() {
       AtomicInteger counter = new AtomicInteger(0);
 
@@ -800,7 +800,7 @@ class VTaskPathTest {
     }
 
     @Test
-    @DisplayName("toIOPath() preserves runSafe behavior via asTry")
+    @DisplayName("toIOPath() preserves runSafe behaviour via asTry")
     void toIOPathPreservesRunSafeBehaviorViaTry() {
       VTaskPath<Integer> failingPath =
           Path.vtask(
@@ -872,7 +872,7 @@ class VTaskPathTest {
       Integer result1 = computation.unsafeRun();
       assertThat(result1).isEqualTo(4); // (1 * 2) + 2
 
-      // Second run - executes again (VTask is not memoized)
+      // Second run - executes again (VTask is not memoised)
       Integer result2 = computation.unsafeRun();
       assertThat(result2).isEqualTo(10); // (3 * 2) + 4
     }

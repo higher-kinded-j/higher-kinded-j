@@ -19,7 +19,7 @@ import org.jspecify.annotations.NullMarked;
  * phantom type (second parameter) unchanged at runtime. When mapping the second parameter, only the
  * type signature changes; the constant value remains the same.
  *
- * <p>This behavior makes {@code Const} particularly useful for implementing efficient folds and
+ * <p>This behaviour makes {@code Const} particularly useful for implementing efficient folds and
  * traversals where you want to accumulate a value while abstracting over a type parameter.
  *
  * <p>Examples:

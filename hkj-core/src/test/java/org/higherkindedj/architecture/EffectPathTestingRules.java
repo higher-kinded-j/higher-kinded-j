@@ -22,16 +22,16 @@ import org.junit.jupiter.api.Test;
  * three-layer testing strategy:
  *
  * <ul>
- *   <li>Unit Tests (*PathTest.java): Comprehensive behavior testing
+ *   <li>Unit Tests (*PathTest.java): Comprehensive behaviour testing
  *   <li>Property Tests (*PathPropertyTest.java): Functor and Monad laws via jQwik
  *   <li>Laws Tests (*PathLawsTest.java): Explicit law verification with DynamicTests
  * </ul>
  *
- * <p>The rules also enforce consistent test organization patterns including:
+ * <p>The rules also enforce consistent test organisation patterns including:
  *
  * <ul>
  *   <li>@DisplayName annotations on test classes
- *   <li>@Nested class organization for logical grouping
+ *   <li>@Nested class organisation for logical grouping
  *   <li>Proper null validation tests
  * </ul>
  */
@@ -200,13 +200,13 @@ class EffectPathTestingRules {
   }
 
   /**
-   * Verifies that Effect Path unit test classes use @Nested classes for organization.
+   * Verifies that Effect Path unit test classes use @Nested classes for organisation.
    *
-   * <p>Unit tests should be organized into nested classes for logical grouping (Factory Methods,
+   * <p>Unit tests should be organised into nested classes for logical grouping (Factory Methods,
    * Composable Operations, etc.).
    */
   @Test
-  @DisplayName("Effect Path unit tests should use @Nested classes for organization")
+  @DisplayName("Effect Path unit tests should use @Nested classes for organisation")
   void effect_path_tests_should_use_nested_classes() {
     Set<String> testsWithoutNestedClasses = new HashSet<>();
 

@@ -28,7 +28,7 @@ public interface ConstKind<M, A> extends Kind<ConstKind.Witness<M>, A> {
    * The phantom type marker (witness type) for the partially-applied {@code Const<M, ?>} type
    * constructor.
    *
-   * <p>This witness type is parameterized by {@code M} to represent different partial applications
+   * <p>This witness type is parameterised by {@code M} to represent different partial applications
    * of {@code Const}. For example:
    *
    * <ul>

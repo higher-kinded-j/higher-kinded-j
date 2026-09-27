@@ -549,7 +549,7 @@ class MutationKillingPhase2Test {
     }
 
     @Test
-    @DisplayName("Lens parameterized type should use ParameterizedTypeName")
+    @DisplayName("Lens parameterised type should use ParameterizedTypeName")
     void lensParameterizedType() throws IOException {
       var source =
           JavaFileObjects.forSourceString(

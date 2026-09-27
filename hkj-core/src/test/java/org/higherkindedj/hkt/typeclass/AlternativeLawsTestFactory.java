@@ -112,7 +112,7 @@ class AlternativeLawsTestFactory {
   /**
    * Provides test data for all Alternative implementations.
    *
-   * <p>This is a centralized source of test data. Adding a new Alternative implementation requires
+   * <p>This is a centralised source of test data. Adding a new Alternative implementation requires
    * only adding one line here, and all law tests will automatically cover it.
    *
    * <p>Note: Stream is excluded because Java Streams can only be consumed once, making them
@@ -291,7 +291,7 @@ class AlternativeLawsTestFactory {
   /**
    * Dynamically generates tests verifying that empty is the zero element.
    *
-   * <p>This verifies basic empty() behavior across all implementations.
+   * <p>This verifies basic empty() behaviour across all implementations.
    */
   @TestFactory
   @DisplayName("empty() creates the zero/identity element")
