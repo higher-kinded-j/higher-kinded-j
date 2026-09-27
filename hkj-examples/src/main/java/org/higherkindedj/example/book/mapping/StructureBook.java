@@ -89,13 +89,13 @@ public final class StructureBook {
     PromotionMappingImpl promotionMapping = PromotionMappingImpl.INSTANCE;
 
     Validated<NonEmptyList<FieldError>, Promotion> noInvitees =
-        promotionMapping.parse(new PromotionDto("LAUNCH", null));
-    // Valid(Promotion[code=LAUNCH, invitees=Optional.empty])
+        promotionMapping.parse(new PromotionDto("Spring launch", null));
+    // Valid(Promotion[name=Spring launch, invitees=Optional.empty])
 
     Validated<NonEmptyList<FieldError>, Promotion> badInvitee =
         promotionMapping.parse(
             new PromotionDto(
-                "LAUNCH",
+                "Spring launch",
                 List.of(
                     new CustomerDto("Ada", "ada@example.org"), new CustomerDto("Bob", "nope"))));
     // Invalid(NonEmptyList[invitees.1.email: not an email address])
@@ -104,21 +104,22 @@ public final class StructureBook {
     System.out.println(badInvitee);
 
     // ANCHOR: flatten_usage
-    DepotMappingImpl depotMapping = DepotMappingImpl.INSTANCE;
+    PickupPointMappingImpl pickupMapping = PickupPointMappingImpl.INSTANCE;
 
-    DepotDto flat =
-        depotMapping.build(new Depot("Leeds", new Address("1 High Street", "Leeds", "LS1 4AP")));
-    // DepotDto[name=Leeds, street=1 High Street, city=Leeds, postcode=LS1 4AP]
-    Validated<NonEmptyList<FieldError>, Depot> missing =
-        depotMapping.parse(new DepotDto("Leeds", null, "Leeds", null));
+    PickupPointDto flat =
+        pickupMapping.build(
+            new PickupPoint("Kirkstall", new Address("1 High Street", "Leeds", "LS1 4AP")));
+    // PickupPointDto[name=Kirkstall, street=1 High Street, city=Leeds, postcode=LS1 4AP]
+    Validated<NonEmptyList<FieldError>, PickupPoint> missing =
+        pickupMapping.parse(new PickupPointDto("Kirkstall", null, "Leeds", null));
     // Invalid(NonEmptyList[address.street: must not be null, address.postcode: must not be null])
     // ANCHOR_END: flatten_usage
     System.out.println(flat + " / " + missing);
 
     // ANCHOR: widened_usage
-    Validated<NonEmptyList<FieldError>, SupportRota> rota =
-        SupportRotaMappingImpl.INSTANCE.parse(
-            new SupportRotaDto(
+    Validated<NonEmptyList<FieldError>, SupportDesk> desk =
+        SupportDeskMappingImpl.INSTANCE.parse(
+            new SupportDeskDto(
                 Set.of("nope"),
                 new String[] {"ada@example.org", "also-nope"},
                 Map.of("bad-key", "a note")));
@@ -127,7 +128,7 @@ public final class StructureBook {
     //   standby.1: not an email address,      <- an array locates by index
     //   notes.bad-key: not an email address]) <- a key locates by the key it was sent as
     // ANCHOR_END: widened_usage
-    System.out.println(rota);
+    System.out.println(desk);
   }
 }
 
@@ -178,12 +179,12 @@ interface ReferralMapping extends MappingSpec<Referral, ReferralDto> {
 // ANCHOR_END: bridge_nesting_spec
 
 // ANCHOR: bridge_container_spec
-// A promotion open to everyone sends no invitee list, and that is not an empty one, so the
-// domain keeps the difference.
-record Promotion(String code, Optional<List<Customer>> invitees) {}
+// A promotion open to everyone comes with no invitee list, which is not an empty one: an empty
+// list invites no one. So the domain keeps the difference.
+record Promotion(String name, Optional<List<Customer>> invitees) {}
 
 // A client that sends no list leaves the array out, which the JSON binder reads as null.
-record PromotionDto(String code, @Nullable List<CustomerDto> invitees) {}
+record PromotionDto(String name, @Nullable List<CustomerDto> invitees) {}
 
 @GenerateMapping
 interface PromotionMapping extends MappingSpec<Promotion, PromotionDto> {
@@ -195,12 +196,13 @@ interface PromotionMapping extends MappingSpec<Promotion, PromotionDto> {
 // ANCHOR_END: bridge_container_spec
 
 // ANCHOR: flatten_spec
-record Depot(String name, Address address) {} // Address as on Record Mapping Basics
+// A courier's pickup point, whose API lists its address as plain fields.
+record PickupPoint(String name, Address address) {} // Address as on Record Mapping Basics
 
-record DepotDto(String name, String street, String city, String postcode) {} // a courier's, flat
+record PickupPointDto(String name, String street, String city, String postcode) {} // flat
 
 @GenerateMapping
-interface DepotMapping extends MappingSpec<Depot, DepotDto> {
+interface PickupPointMapping extends MappingSpec<PickupPoint, PickupPointDto> {
   @Flatten
   Address address(); // spread by name: street, city and postcode
 }
@@ -208,16 +210,16 @@ interface DepotMapping extends MappingSpec<Depot, DepotDto> {
 // ANCHOR_END: flatten_spec
 
 // ANCHOR: widened_spec
-// The support desk's rota: its agents, who stands by, and a note per agent.
-record SupportRota(
+// The support desk: its agents, those on standby in turn, and a note per agent.
+record SupportDesk(
     Set<EmailAddress> agents, // a Set lifts like a List
     EmailAddress[] standby, // so does an array
     Map<EmailAddress, String> notes) {} // and a Map's KEYS, with @MapKey
 
-record SupportRotaDto(Set<String> agents, String[] standby, Map<String, String> notes) {}
+record SupportDeskDto(Set<String> agents, String[] standby, Map<String, String> notes) {}
 
 @GenerateMapping
-interface SupportRotaMapping extends MappingSpec<SupportRota, SupportRotaDto> {
+interface SupportDeskMapping extends MappingSpec<SupportDesk, SupportDeskDto> {
   default ValidatedPrism<String, EmailAddress> agents() {
     return EmailCodecs.EMAIL;
   }
