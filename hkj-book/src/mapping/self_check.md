@@ -5,11 +5,11 @@ _Ten questions on the Quickstart through the Capstone, each answer proved by the
 These questions cover the pages from the [Quickstart](quickstart.md) to [the Capstone](capstone.md). They start with recall and end with writing specs of your own, and they do not follow page order, on purpose. Answer each question before you open its answer, in your head or on paper. Each answer ends with a link to the section that teaches it, and [Where to go next](#where-to-go-next) turns your score into a plan.
 
 ~~~admonish question title="Checkpoint 1: which direction can fail?" id="check-self-directions"
-`PersonMappingImpl` has two methods, `build` and `parse`. Which of them can fail, and what does it hand back when it does?
+`AddressMappingImpl` has two methods, `build` and `parse`. Which of them can fail, and what does it hand back when it does?
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-self-directions-answer"
-**`parse`.** It returns a `Validated<NonEmptyList<FieldError>, Person>`: the domain value, or every bad field at once, each located by its path. `build` is total, so it returns the wire directly. The types say so:
+**`parse`.** It returns a `Validated<NonEmptyList<FieldError>, Address>`: the domain value, or every bad field at once, each located by its path. `build` is total, so it returns the wire directly. The types say so:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:basics_usage}}

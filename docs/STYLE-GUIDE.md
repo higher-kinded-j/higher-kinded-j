@@ -630,6 +630,10 @@ and traps for Claude Code sessions go in the `book-authoring` skill, as a
 
 A chapter keeps **one running cast** of example types, so a reader's attention goes to the feature rather than to a new pair of records in every section. Introducing a new pair needs a reason: the feature needs a shape the cast does not have. A chapter whose examples accumulate one-off types (a new domain record per section) reads as a series of unrelated notes, and nothing accumulates towards its capstone.
 
+- **Reuse a cast member where its shape fits the feature**, including the tier it lands in: a type that turns a plain copy into a validated one changes what the page teaches.
+- **A new shape comes from the cast's world.** Name a supporting type for its role there (a courier beside a customer), and never clone a cast member under a new name for the same role.
+- **A guest star from outside that world needs a stated reason.** First ask whether the cast's world could hold a type with those components. If it could not, say why in a comment above the type. A width proof with placeholder components needs no role.
+
 ## Problem-First Structure for Advanced Topics
 
 Pages in advanced topic chapters should lead with a concrete problem before introducing the abstraction:

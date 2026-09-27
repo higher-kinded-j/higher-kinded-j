@@ -207,7 +207,7 @@ A leaf that parses two wire values to one domain value (`"1"` and `"01"`, say) b
 
 ## Flattening a nested component onto a flat wire {#flattening-a-nested-component-onto-a-flat-wire}
 
-Nesting assumes the wire nests too. When a wire fixed by someone else carries an address as plain `street`, `city` and `postcode` fields, no single wire component holds it, so no leaf can map it. `@Flatten` on a marker named after the component spreads it instead:
+Nesting assumes the wire nests too. When a wire fixed by someone else carries an [`Address`](basics.md#your-first-mapping) as plain `street`, `city` and `postcode` fields, no single wire component holds it, so no leaf can map it. `@Flatten` on a marker named after the component spreads it instead:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/StructureBook.java:flatten_spec}}

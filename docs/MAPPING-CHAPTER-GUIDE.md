@@ -73,9 +73,34 @@ MapStruct, and the `hkj-mapping` skill in `.claude/skills/`, which ships to user
 - **On a teaching page, every runnable block is an include** from those files. A refused shape is a `verify:rejects`
   fence, and a shape that cannot run is a `verify` fence, as the Style Guide's [Java code in
   hkj-book must be verified](STYLE-GUIDE.md#java-code-in-hkj-book-must-be-verified) rule says.
-- **The chapter's running cast is the order service**: `Customer`, `Address`, `Order`, `LineItem`, a
-  sealed `Payment` and an `OrderStatus` enum. A new example joins it wherever the feature fits, as
-  [One Cast per Chapter](STYLE-GUIDE.md#one-cast-per-chapter) asks.
+- **The chapter's running cast is the order service**: `Customer` (with a checked `EmailAddress`),
+  `Address`, `Order`, `LineItem`, a sealed `Payment` and an `OrderStatus` enum. The Style Guide's
+  [One Cast per Chapter](STYLE-GUIDE.md#one-cast-per-chapter) says when a page may add a type; these
+  rules say how, in this chapter's one package.
+  - **A name keeps one shape across the chapter.** Never grow a cast member for a later page: a
+    field one page needs goes on a supporting type named for its role, such as a `Courier` or a
+    `Recipient`.
+  - **A new wire for a cast member is named for its view**, such as `PartnerCustomerDto` or
+    `CustomerView`. Basics' rename maps `Customer`'s `name` to a partner feed's `fullName` this way.
+  - **Give each domain and wire pair one spec.** A nested component resolves through the only spec
+    for its pair, and the processor refuses a second. A feature that needs a spec of its own, such
+    as the constant trap, takes a new wire or a supporting type.
+  - **A fence or a fixture declares a package name with the package's components**: the same names,
+    types and order. The gate compiles each marked fence on its own, beside only its page's
+    fixture, so nothing else holds it to the package. A fence that needs another shape takes
+    another name.
+  - **Three kinds of fence may reshape a package name.** A `verify:rejects` or `verify:reports`
+    reproducer may change the one thing its diagnostic is about. The "before" half of a
+    before-and-after pair shows the shape it replaces. The intro's hand-written mapper takes the
+    capstone's shapes.
+  - **Reference pages keep their own reproducers.** Compiler Messages and Rules and Limits name
+    each reproducer for its refusal, and code included from another module, such as the Spring
+    example app's `User` or a processor golden file, keeps its own names.
+  - **A checkpoint's fresh instance is a fresh case, not a fresh type**: it may reuse the page's
+    cast with new values.
+  - **The capstone's package holds a larger cast of its own.** Its `Order` carries a customer,
+    lines, a currency and a status, and its `CustomerDto` names the wire's `fullName`. The main
+    package's `Order` is a smaller record for the Codecs page.
 
 ## Checks
 

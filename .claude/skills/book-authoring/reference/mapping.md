@@ -66,3 +66,13 @@ the claim, since the processor or a library can change under it.
 - **The mermaid check only parses.** It cannot see a missing `classDef` or a diagram wider than the
   page. A sequence diagram with four participants needs an `actorMargin` init directive and short
   labels to fit.
+- **A renamed cast type moves in more places than its declaration.**
+  - Output comments print its `toString`, and prose quotes printed values (`tiers.md`'s
+    `Employee[...]`, a fallback such as `not a valid DeliveryWindow`).
+  - `BasicsBookTest` and `SelfCheckBookTest` pass spec names to `FreshPackage` as strings, so a
+    missed one fails only when that test runs.
+  - A `verify:rejects` marker and its visible copy quote type names; capture the new message by
+    compiling the fence, since the processor's wording changes.
+  - The page fixtures `hkj-examples/src/test/resources/fixtures/mapping_*.java` declare their own
+    copies. `mapping_compiler_errors.java` is generated: change `messages.py` and rerun the tool.
+  - A hand-drawn ASCII diagram that names the type needs its columns re-aligned.
