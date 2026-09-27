@@ -133,11 +133,11 @@ The processor accepts this spec without a warning:
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/SparsePatchBook.java:defaults_trap}}
 ```
 
-An article is tagged `java` and `patch`. A client sends `{"title": "Sparse PATCH"}`. What are its tags afterwards? And would an identity-law test whose sample article has no tags catch it?
+A product page is tagged `kitchen` and `sale`. A client sends `{"title": "Stovetop kettle"}`. What are its tags afterwards? And would an identity-law test whose sample page has no tags catch it?
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-patch-defaults-answer"
-**An empty list, and no.** The field initialiser makes `getTags()` answer an empty list on every request that omits `tags`. An empty list is not `null`, so `updateFrom` reads it as sent and writes it over the article's tags. A tagless sample hides it, since `[]` written over `[]` changes nothing, just as the marketing tests did. With the tagged article, the identity law fails:
+**An empty list, and no.** The field initialiser makes `getTags()` answer an empty list on every request that omits `tags`. An empty list is not `null`, so `updateFrom` reads it as sent and writes it over the page's tags. A tagless sample hides it, since `[]` written over `[]` changes nothing, just as the marketing tests did. With the tagged page, the identity law fails:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/SparsePatchBookTest.java:defaults_trap_proof}}
@@ -146,14 +146,14 @@ An article is tagged `java` and `patch`. A client sends `{"title": "Sparse PATCH
 Your build reports it as:
 
 ```
-Sparse identity law: updateFrom(allAbsentWire).apply(Article[title=Draft, tags=[java, patch]]) == Valid(it); got Valid(Article[title=Draft, tags=[]])
+Sparse identity law: updateFrom(allAbsentWire).apply(ProductPage[title=Kettle, tags=[kitchen, sale]]) == Valid(it); got Valid(ProductPage[title=Kettle, tags=[]])
 ```
 
 Where this lives: [A PATCH getter must answer `null` until set](#patch-getters-answer-null) and [Check a PATCH bean in your build](#check-a-patch-in-your-build).
 ~~~
 
 ~~~admonish question title="Checkpoint: clear a nickname" id="check-patch-json-states"
-An author's nickname is `Countess`, and the PATCH bean declares `Optional<String> nickname`. What does each body leave it as: `{}`, `{"nickname": null}`, and `{"nickname": "Lady Lovelace"}`? And what would `{"name": null}` do to the author's plain `String name`?
+A shopper's nickname is `Countess`, and the PATCH bean declares `Optional<String> nickname`. What does each body leave it as: `{}`, `{"nickname": null}`, and `{"nickname": "Lady Lovelace"}`? And what would `{"name": null}` do to the shopper's plain `String name`?
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-patch-json-states-answer"

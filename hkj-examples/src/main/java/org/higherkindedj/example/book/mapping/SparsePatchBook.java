@@ -73,17 +73,17 @@ public final class SparsePatchBook {
     System.out.println(raised + " / " + refused);
 
     // ANCHOR: update_container_usage
-    Roster roster = new Roster("core", List.of(new PhoneNumber("+44")));
+    Store store = new Store("Leeds", List.of(new PhoneNumber("+44")));
 
-    RosterPatchBean rosterPatch = new RosterPatchBean();
-    rosterPatch.setPhones(List.of("+1", "nope")); // a present list replaces wholesale...
+    StorePatchBean storePatch = new StorePatchBean();
+    storePatch.setPhones(List.of("+1", "nope")); // a present list replaces wholesale...
 
-    Validated<NonEmptyList<FieldError>, Roster> rosterPatched =
-        RosterPatchMappingImpl.INSTANCE.updateFrom(rosterPatch).apply(roster);
+    Validated<NonEmptyList<FieldError>, Store> storePatched =
+        StorePatchMappingImpl.INSTANCE.updateFrom(storePatch).apply(store);
     // ...but each element parses through the phones() leaf, located:
     // Invalid(NonEmptyList[phones.1: not a phone number])
     // ANCHOR_END: update_container_usage
-    System.out.println(rosterPatched);
+    System.out.println(storePatched);
   }
 }
 
@@ -163,21 +163,21 @@ interface PriceBandPatchMapping extends UpdateSpec<PriceBand, PriceBandPatch> {}
 // ANCHOR: update_container
 record PhoneNumber(String value) {}
 
-record Roster(String team, List<PhoneNumber> phones) {}
+record Store(String name, List<PhoneNumber> phones) {}
 
-record RosterDto(String team, List<String> phones) {} // the full tier's wire
+record StoreDto(String name, List<String> phones) {} // the full tier's wire
 
 // A PATCH bean whose phones property is a whole-list replacement, absent when null.
-class RosterPatchBean {
-  private String team;
+class StorePatchBean {
+  private String name;
   private List<String> phones;
 
-  public String getTeam() {
-    return team;
+  public String getName() {
+    return name;
   }
 
-  public void setTeam(String team) {
-    this.team = team;
+  public void setName(String name) {
+    this.name = name;
   }
 
   public List<String> getPhones() {
@@ -202,12 +202,12 @@ interface PhoneVocabulary {
 }
 
 @GenerateMapping
-interface RosterMapping extends PhoneVocabulary, MappingSpec<Roster, RosterDto> {}
+interface StoreMapping extends PhoneVocabulary, MappingSpec<Store, StoreDto> {}
 
 // The full tier lifts the leaf elementwise: a bad element parses as phones.1.
 
 @GenerateMapping
-interface RosterPatchMapping extends PhoneVocabulary, UpdateSpec<Roster, RosterPatchBean> {}
+interface StorePatchMapping extends PhoneVocabulary, UpdateSpec<Store, StorePatchBean> {}
 
 // The sparse tier lifts the SAME leaf: a present list replaces wholesale, each element parsed,
 // failures located phones.1 - one vocabulary, both tiers.
@@ -218,9 +218,9 @@ interface RosterPatchMapping extends PhoneVocabulary, UpdateSpec<Roster, RosterP
 // container; the page asks what that does, so the answer stays outside the region, in
 // SparsePatchBookTest.aPatchBeanDefaultIsWrittenOverTheDomain.
 // ANCHOR: defaults_trap
-record Article(String title, List<String> tags) {}
+record ProductPage(String title, List<String> tags) {}
 
-class ArticlePatchBean {
+class ProductPagePatchBean {
   private String title;
   private List<String> tags = new ArrayList<>();
 
@@ -242,7 +242,7 @@ class ArticlePatchBean {
 }
 
 @GenerateMapping
-interface ArticlePatchMapping extends UpdateSpec<Article, ArticlePatchBean> {}
+interface ProductPagePatchMapping extends UpdateSpec<ProductPage, ProductPagePatchBean> {}
 
 // ANCHOR_END: defaults_trap
 
@@ -266,9 +266,9 @@ class PreferencesPatchBean {
 
 // The JSON-states checkpoint's pair: an Optional-typed PATCH property, the one shape where an
 // explicit null differs from an omitted field. SparsePatchBookTest binds real JSON into it.
-record Author(String name, Optional<String> nickname) {}
+record Shopper(String name, Optional<String> nickname) {}
 
-class AuthorPatchBean {
+class ShopperPatchBean {
   private String name;
   private Optional<String> nickname;
 
@@ -290,4 +290,4 @@ class AuthorPatchBean {
 }
 
 @GenerateMapping
-interface AuthorPatchMapping extends UpdateSpec<Author, AuthorPatchBean> {}
+interface ShopperPatchMapping extends UpdateSpec<Shopper, ShopperPatchBean> {}
