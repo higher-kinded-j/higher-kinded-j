@@ -27,7 +27,7 @@ Unlike a MapStruct mapper, the spec interface is never the bean. Nothing registe
 | a build-only bean mapping's `build` | `ValidatedBuild<CustomerRequest, Customer>` | `CustomerRequestMappingImpl.INSTANCE.asValidatedBuild()` |
 | a projection's `set`, over plain copies | `Lens<Employee, EmployeeCardDto>` | `EmployeeCardMappingImpl.INSTANCE.asLens()` |
 | a validated `patch` | `BiFunction<Subscriber, SubscriberDetailsDto, Validated<NonEmptyList<FieldError>, Subscriber>>` | `SubscriberDetailsMappingImpl.INSTANCE::patch` |
-| a sparse `updateFrom` | `Function<UserPatchDto, Edits.Accumulated<User>>` | `UserPatchMappingImpl.INSTANCE::updateFrom` |
+| a sparse `updateFrom` | `Function<UserPatchRequest, Edits.Accumulated<User>>` | `UserPatchMappingImpl.INSTANCE::updateFrom` |
 
 A `ValidatedPrism` is both a `ValidatedParse` and a `ValidatedBuild`, so one registered prism serves a consumer that asks for either. For a boundary, register `asValidatedPrism()` rather than `asIso()`, which a spec with a leaf does not have anyway. [`reverseGet` has no guard](tiers.md#a-bound-request-goes-to-parse), and neither does a lens's `set`. This is the hkj-spring example app's real configuration, included from source:
 

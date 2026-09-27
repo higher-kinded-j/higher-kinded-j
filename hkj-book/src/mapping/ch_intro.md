@@ -54,6 +54,10 @@ This chapter replaces that mapper with one interface you own and one annotation.
 
 The bad email is *inside a nested record*; the bad price is on the *second element of a list*. The client fixes all five and resubmits once. Nobody wrote a line of error-handling code to produce this: it falls out of the declarations. The [Capstone](capstone.md) builds it end to end, and a test the build runs proves its five errors. This copy leaves out the `segments` array the full response carries beside each `path`.
 
+~~~admonish note title="The running example"
+From Record Mapping Basics on, the examples come from the order service behind that request, wherever its shapes fit. A `Customer` carries a checked `EmailAddress`, there is an `Address` to deliver to, an `Order` has its `LineItem`s and its `OrderStatus`, and a sealed `Payment` pays for it. A page whose feature needs another shape adds a piece from the same service, such as a courier or a delivery window. Your attention stays on the feature rather than on a new pair of records. The [Capstone](capstone.md) puts the pieces together at full size.
+~~~
+
 The shape of the machinery is a railway with two directions:
 
 ```mermaid
