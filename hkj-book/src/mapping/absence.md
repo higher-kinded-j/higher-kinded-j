@@ -46,29 +46,37 @@ Use one placement or the other: Java cannot declare both, since they share a nam
 `build` writes `null` into the bridged wire component for an absent value, so declare it to take one: `@Nullable String nickname`. [A bridged component must take `null`](rules.md#bridged-component-nullable) lists the declarations the processor refuses.
 ~~~
 
-~~~admonish example title="The nickname without its marker, refused"
-`Shopper` keeps only a name and a nickname, and its spec leaves the marker off:
+~~~admonish example title="The same pair without the marker, refused"
+The same `CustomerProfile`, with the `nickname` marker left off, so its wire component is a plain `String`:
 
 <!-- verify:rejects "Add '@OptionalBridge java.util.Optional<java.lang.String> nickname();' to the spec" -->
 ```java
 import java.util.Optional;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.annotations.OptionalBridge;
+import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
 
-record Shopper(String name, Optional<String> nickname) {}
+record CustomerProfile(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
 
-record ShopperDto(String name, String nickname) {}
+record CustomerProfileDto(String name, String nickname, @Nullable String altEmail) {}
 
 @GenerateMapping
-interface ShopperMapping extends MappingSpec<Shopper, ShopperDto> {}
+interface CustomerProfileMapping extends MappingSpec<CustomerProfile, CustomerProfileDto> {
+  @OptionalBridge
+  default ValidatedPrism<String, EmailAddress> altEmail() {
+    return EmailCodecs.EMAIL;
+  }
+}
 ```
 
 The processor says:
 
 ```
-@GenerateMapping: target field 'ShopperDto.nickname' has no usable source. The types differ
-(java.lang.String vs java.util.Optional<java.lang.String>) and no matching leaf method was
-found. Found on Shopper: [name, nickname]. Add '@OptionalBridge
+@GenerateMapping: target field 'CustomerProfileDto.nickname' has no usable source. The types
+differ (java.lang.String vs java.util.Optional<java.lang.String>) and no matching leaf method
+was found. Found on CustomerProfile: [name, nickname, altEmail]. Add '@OptionalBridge
 java.util.Optional<java.lang.String> nickname();' to the spec, so an absent value reads as a
 null wire component and back. Or add 'default ValidatedPrism<java.lang.String,
 java.util.Optional<java.lang.String>> nickname()' to the spec.
