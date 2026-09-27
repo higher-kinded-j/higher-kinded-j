@@ -27,8 +27,8 @@ class GenericsBookTest {
   @DisplayName("a spec that names its type arguments is concrete, generic records or not")
   void aSpecNamingItsTypeArgumentsIsConcrete() {
     // ANCHOR: check_access
-    PageDto<String> wire = TagPageMappingImpl.INSTANCE.build(new Page<>(List.of("fp"), 1));
-    assertThat(wire).isEqualTo(new PageDto<>(List.of("fp"), 1));
+    PageDto<String> wire = TagPageMappingImpl.INSTANCE.build(new Page<>(List.of("kitchen"), 1));
+    assertThat(wire).isEqualTo(new PageDto<>(List.of("kitchen"), 1));
 
     assertThatThrownBy(() -> TagPageMappingImpl.class.getMethod("instance"))
         .isInstanceOf(NoSuchMethodException.class); // no generic accessor
@@ -43,12 +43,12 @@ class GenericsBookTest {
         StandardCodecs.localDate(DateTimeFormatter.ofPattern("dd/MM/uuuu"));
     ValidatedPrism<String, LocalDate> us = // 05/04/2026 is 4 May
         StandardCodecs.localDate(DateTimeFormatter.ofPattern("MM/dd/uuuu"));
-    WindowDto<String> request = new WindowDto<>("03/04/2026", "05/04/2026");
+    SalePeriodDto<String> request = new SalePeriodDto<>("03/04/2026", "05/04/2026");
 
-    assertThatValidated(WindowMappingImpl.of(uk, us).parse(request)) // opens, then closes
-        .hasValue(new Window<>(LocalDate.of(2026, 4, 3), LocalDate.of(2026, 5, 4)));
-    assertThatValidated(WindowMappingImpl.of(us, uk).parse(request)) // swapped: it compiles
-        .hasValue(new Window<>(LocalDate.of(2026, 3, 4), LocalDate.of(2026, 4, 5))); // no error
+    assertThatValidated(SalePeriodMappingImpl.of(uk, us).parse(request)) // opens, then closes
+        .hasValue(new SalePeriod<>(LocalDate.of(2026, 4, 3), LocalDate.of(2026, 5, 4)));
+    assertThatValidated(SalePeriodMappingImpl.of(us, uk).parse(request)) // swapped: it compiles
+        .hasValue(new SalePeriod<>(LocalDate.of(2026, 3, 4), LocalDate.of(2026, 4, 5))); // no error
     // ANCHOR_END: check_swap
   }
 }

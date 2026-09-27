@@ -113,13 +113,13 @@ Where this lives: [One rule, three access shapes](#one-rule-three-access-shapes)
 ~~~
 
 ~~~admonish question title="Checkpoint: what does a swapped `of(...)` do?" id="check-generics-swap"
-A booking window's two dates come from two partner systems, `opens` as a UK date (`dd/MM/uuuu`) and `closes` as a US one (`MM/dd/uuuu`):
+A sale period's two dates come from two partner systems, `opens` as a UK date (`dd/MM/uuuu`) and `closes` as a US one (`MM/dd/uuuu`):
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:window_spec}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/GenericsBook.java:sale_period_spec}}
 ```
 
-The caller writes `WindowMappingImpl.of(us, uk)`, and parses `new WindowDto<>("03/04/2026", "05/04/2026")`. What happens?
+The caller writes `SalePeriodMappingImpl.of(us, uk)`, and parses `new SalePeriodDto<>("03/04/2026", "05/04/2026")`. What happens?
 
 1. A compile error: the prisms are in the wrong order
 2. It compiles, and `parse` reports both dates, located

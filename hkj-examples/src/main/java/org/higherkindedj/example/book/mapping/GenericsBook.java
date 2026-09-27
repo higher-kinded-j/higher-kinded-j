@@ -43,9 +43,9 @@ public final class GenericsBook {
 
     // ANCHOR: threaded_usage
     // One generic Impl serves every instantiation, and the elements copy as they are.
-    Page<String> tags = new Page<>(List.of("fp", "hkt"), 2);
+    Page<String> tags = new Page<>(List.of("kitchen", "sale"), 2);
     PageDto<String> tagsDto = PageMappingImpl.<String>instance().build(tags);
-    // PageDto[items=[fp, hkt], total=2]
+    // PageDto[items=[kitchen, sale], total=2]
     Validated<NonEmptyList<FieldError>, Page<Integer>> counts =
         PageMappingImpl.<Integer>instance().parse(new PageDto<>(List.of(1, 2, 3), 3));
     // Valid(Page[items=[1, 2, 3], total=3])
@@ -80,12 +80,11 @@ interface Renames<T> {
 // The interface below it says what T is. The spec never repeats it, and never sees a T.
 interface TextRenames extends Renames<String> {}
 
-record Contractor(String name, EmailAddress email) {}
-
-record ContractorDto(String fullName, String email) {}
+// Record Mapping Basics' Courier, on a contact wire that calls its name fullName.
+record CourierContactDto(String fullName, String email) {}
 
 @GenerateMapping
-interface ContractorMapping extends TextRenames, MappingSpec<Contractor, ContractorDto> {
+interface CourierContactMapping extends TextRenames, MappingSpec<Courier, CourierContactDto> {
   default ValidatedPrism<String, EmailAddress> email() {
     return EmailCodecs.EMAIL;
   }
@@ -126,16 +125,16 @@ interface TagPageMapping extends MappingSpec<Page<String>, PageDto<String>> {}
 
 // ANCHOR_END: tag_page_spec
 
-// ANCHOR: window_spec
-record Window<T>(T opens, T closes) {}
+// ANCHOR: sale_period_spec
+record SalePeriod<T>(T opens, T closes) {}
 
-record WindowDto<TDto>(TDto opens, TDto closes) {}
+record SalePeriodDto<TDto>(TDto opens, TDto closes) {}
 
 @GenerateMapping
-interface WindowMapping<T, TDto> extends MappingSpec<Window<T>, WindowDto<TDto>> {
+interface SalePeriodMapping<T, TDto> extends MappingSpec<SalePeriod<T>, SalePeriodDto<TDto>> {
   ValidatedPrism<TDto, T> opens();
 
   ValidatedPrism<TDto, T> closes();
 }
 
-// ANCHOR_END: window_spec
+// ANCHOR_END: sale_period_spec
