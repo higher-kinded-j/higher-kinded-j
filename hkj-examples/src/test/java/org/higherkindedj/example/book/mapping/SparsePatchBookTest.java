@@ -101,29 +101,30 @@ class SparsePatchBookTest {
   @DisplayName("a PATCH bean's default is written over the domain, and the identity law catches it")
   void aPatchBeanDefaultIsWrittenOverTheDomain() {
     // ANCHOR: defaults_trap_proof
-    ProductPage tagged = new ProductPage("Kettle", List.of("kitchen", "sale"));
-    ProductPagePatchBean rename = new ProductPagePatchBean();
-    rename.setTitle("Stovetop kettle");
+    HelpArticle tagged = new HelpArticle("Refund policy", List.of("refunds", "returns"));
+    HelpArticlePatchBean rename = new HelpArticlePatchBean();
+    rename.setTitle("Refunds and returns");
 
-    assertThatValidated(ProductPagePatchMappingImpl.INSTANCE.updateFrom(rename).apply(tagged))
-        .hasValue(new ProductPage("Stovetop kettle", List.of())); // the tags are gone
+    assertThatValidated(HelpArticlePatchMappingImpl.INSTANCE.updateFrom(rename).apply(tagged))
+        .hasValue(new HelpArticle("Refunds and returns", List.of())); // the tags are gone
 
-    // On a product page with no tags the identity law passes: [] written over [] changes nothing...
+    // On an article with no tags the identity law passes: [] written over [] changes nothing...
     MappingLaws.assertSparseIdentity(
-        ProductPagePatchMappingImpl.INSTANCE::updateFrom,
-        new ProductPage("Kettle", List.of()),
-        new ProductPagePatchBean());
+        HelpArticlePatchMappingImpl.INSTANCE::updateFrom,
+        new HelpArticle("Refund policy", List.of()),
+        new HelpArticlePatchBean());
 
     // ...and on one with tags it fails, with the message your build would report:
     assertThatThrownBy(
             () ->
                 MappingLaws.assertSparseIdentity(
-                    ProductPagePatchMappingImpl.INSTANCE::updateFrom,
+                    HelpArticlePatchMappingImpl.INSTANCE::updateFrom,
                     tagged,
-                    new ProductPagePatchBean()))
+                    new HelpArticlePatchBean()))
         .hasMessageContaining(
-            "Sparse identity law: updateFrom(allAbsentWire).apply(ProductPage[title=Kettle, tags=[kitchen,"
-                + " sale]]) == Valid(it); got Valid(ProductPage[title=Kettle, tags=[]])");
+            "Sparse identity law: updateFrom(allAbsentWire).apply(HelpArticle[title=Refund policy,"
+                + " tags=[refunds, returns]]) == Valid(it); got Valid(HelpArticle[title=Refund"
+                + " policy, tags=[]])");
     // ANCHOR_END: defaults_trap_proof
   }
 
@@ -131,24 +132,25 @@ class SparsePatchBookTest {
   @DisplayName("each JSON state does what the page's table says, bound by Jackson")
   void eachJsonStateDoesWhatTheTableSays() {
     // ANCHOR: json_states
-    Shopper ada = new Shopper("Ada", Optional.of("Countess"));
+    CustomerProfile ada = new CustomerProfile("Ada", Optional.of("Countess"), Optional.empty());
 
     assertThatValidated(applyJson(ada, "{}")).hasValue(ada); // omitted: kept
     assertThatValidated(applyJson(ada, "{\"nickname\": null}"))
-        .hasValue(new Shopper("Ada", Optional.empty())); // an Optional's null: cleared
+        .hasValue(new CustomerProfile("Ada", Optional.empty(), Optional.empty())); // cleared
     assertThatValidated(applyJson(ada, "{\"nickname\": \"Lady Lovelace\"}"))
-        .hasValue(new Shopper("Ada", Optional.of("Lady Lovelace"))); // a value: set
+        .hasValue(
+            new CustomerProfile("Ada", Optional.of("Lady Lovelace"), Optional.empty())); // set
     assertThatValidated(applyJson(ada, "{\"name\": null}")).hasValue(ada); // a plain null: kept
     // ANCHOR_END: json_states
   }
 
   private static final JsonMapper JSON = JsonMapper.builder().build();
 
-  /** Binds a PATCH body as a Spring controller would, then applies it to the current shopper. */
-  private static Validated<NonEmptyList<FieldError>, Shopper> applyJson(
-      Shopper current, String body) {
-    return ShopperPatchMappingImpl.INSTANCE
-        .updateFrom(JSON.readValue(body, ShopperPatchBean.class))
+  /** Binds a PATCH body as a Spring controller would, then applies it to the current profile. */
+  private static Validated<NonEmptyList<FieldError>, CustomerProfile> applyJson(
+      CustomerProfile current, String body) {
+    return CustomerProfilePatchMappingImpl.INSTANCE
+        .updateFrom(JSON.readValue(body, CustomerProfilePatchBean.class))
         .apply(current);
   }
 }

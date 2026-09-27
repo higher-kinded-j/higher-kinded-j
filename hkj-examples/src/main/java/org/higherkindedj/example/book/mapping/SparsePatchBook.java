@@ -163,6 +163,7 @@ interface PriceBandPatchMapping extends UpdateSpec<PriceBand, PriceBandPatch> {}
 // ANCHOR: update_container
 record PhoneNumber(String value) {}
 
+// A high-street store's phone lines: a PATCH that sends the list replaces it whole.
 record Store(String name, List<PhoneNumber> phones) {}
 
 record StoreDto(String name, List<String> phones) {} // the full tier's wire
@@ -218,9 +219,10 @@ interface StorePatchMapping extends PhoneVocabulary, UpdateSpec<Store, StorePatc
 // container; the page asks what that does, so the answer stays outside the region, in
 // SparsePatchBookTest.aPatchBeanDefaultIsWrittenOverTheDomain.
 // ANCHOR: defaults_trap
-record ProductPage(String title, List<String> tags) {}
+// A help-centre article, which a PATCH may retitle.
+record HelpArticle(String title, List<String> tags) {}
 
-class ProductPagePatchBean {
+class HelpArticlePatchBean {
   private String title;
   private List<String> tags = new ArrayList<>();
 
@@ -242,7 +244,7 @@ class ProductPagePatchBean {
 }
 
 @GenerateMapping
-interface ProductPagePatchMapping extends UpdateSpec<ProductPage, ProductPagePatchBean> {}
+interface HelpArticlePatchMapping extends UpdateSpec<HelpArticle, HelpArticlePatchBean> {}
 
 // ANCHOR_END: defaults_trap
 
@@ -264,11 +266,10 @@ class PreferencesPatchBean {
 
 // ANCHOR_END: defaults_fix
 
-// The JSON-states checkpoint's pair: an Optional-typed PATCH property, the one shape where an
-// explicit null differs from an omitted field. SparsePatchBookTest binds real JSON into it.
-record Shopper(String name, Optional<String> nickname) {}
-
-class ShopperPatchBean {
+// The JSON-states checkpoint's pair: the Absent Fields page's CustomerProfile, patched through an
+// Optional-typed property, the one shape where an explicit null differs from an omitted field. The
+// bean has no altEmail, so a PATCH never changes it. SparsePatchBookTest binds real JSON into it.
+class CustomerProfilePatchBean {
   private String name;
   private Optional<String> nickname;
 
@@ -290,4 +291,5 @@ class ShopperPatchBean {
 }
 
 @GenerateMapping
-interface ShopperPatchMapping extends UpdateSpec<Shopper, ShopperPatchBean> {}
+interface CustomerProfilePatchMapping
+    extends UpdateSpec<CustomerProfile, CustomerProfilePatchBean> {}
