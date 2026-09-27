@@ -23,7 +23,9 @@ class MergeBookTest {
     // ANCHOR: check_plain_null
     Dashboard dashboard =
         DashboardAssemblyImpl.INSTANCE.assemble(
-            new User(null, "ada@corp.example"), new Account("GB29-XXXX", 4200), new Settings(true));
+            new Customer(null, new EmailAddress("ada@corp.example")),
+            new Account("GB29-XXXX", 4200),
+            new Settings(true));
 
     assertThat(dashboard).isEqualTo(new Dashboard(null, "GB29-XXXX", true)); // no check, no error
     // ANCHOR_END: check_plain_null
