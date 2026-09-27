@@ -86,13 +86,13 @@ public final class BeansBook {
 
     // ANCHOR: unmapped_usage
     MerchantPatchBean merchantPatch = new MerchantPatchBean();
-    merchantPatch.setName("Acme Kitchenware");
+    merchantPatch.setName("Brightside Homeware");
 
     Validated<NonEmptyList<FieldError>, Merchant> merchantPatched =
         MerchantPatchMappingImpl.INSTANCE
             .updateFrom(merchantPatch)
-            .apply(new Merchant("m-1", "Acme"));
-    // Valid(Merchant[id=m-1, name=Acme Kitchenware]) - the m-9 the bean reads is never applied
+            .apply(new Merchant("m-1", "Brightside"));
+    // Valid(Merchant[id=m-1, name=Brightside Homeware]) - the m-9 the bean reads is never applied
     // ANCHOR_END: unmapped_usage
     System.out.println(merchantPatched);
   }
