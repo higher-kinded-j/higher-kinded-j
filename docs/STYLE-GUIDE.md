@@ -4,7 +4,7 @@ This document defines the house style for Higher-Kinded-J documentation. Follow 
 
 ## General Principles
 
-- Use **British English** spelling and punctuation (e.g., "colour", "behaviour", "optimisation")
+- Use **British English** spelling and punctuation (e.g. "colour", "behaviour", "optimisation") in all non-code text: book pages, docs, skills, READMEs, Javadoc and comments, test display names, diagnostics and example output. Code keeps its own spelling: identifiers, keywords, Javadoc `@param` names, configuration keys, CSS and HTML names, string literals that are data, wire values, and third-party names and text, such as a product, an API, an idiom or an epigraph. `.github/scripts/british-spelling-check.cjs` checks the Markdown, comments, Javadoc and display names in CI (run it with `--fix` to correct what it finds); diagnostics and example output are string literals, so a reviewer checks those. A heading that changes spelling changes its anchor: in the book, pin the old one with an explicit `{#id}`; in a GitHub-rendered doc, update the links to it
 - Do not use em dashes (—); use commas or semicolons instead. The one sanctioned em dash is the attribution line under an epigraph ("— Niklaus Wirth")
 - Avoid double-hyphen separators (` -- `) too, since they render as en-dashes and read like em-dashes. Prefer:
   - A **colon** (`: `) to introduce an expansion after a label (e.g. "`SafeFetch`: Total runner that captures..."). This is the standard form for label-and-description bullets and for "See Also" link descriptions
