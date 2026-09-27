@@ -33,11 +33,11 @@ interface EmailVocabulary {
   }
 }
 
-record Courier(String name, EmailAddress email) {}
+record Courier(String name, EmailAddress email) {} // as on Record Mapping Basics
 
 record CourierDto(String name, String email) {}
 
-record Warehouse(String code, int bays) {}
+record Warehouse(String code, int bays) {} // as on Record Mapping Basics
 
 record WarehouseDto(String code, int bays) {}
 
@@ -56,7 +56,7 @@ Does `@GenerateMapping` accept this pair as written? Say what happens to a `null
 
 <!-- verify:rejects "Add '@OptionalBridge java.util.Optional<java.lang.String> phone();' to the spec" -->
 ```java
-record Driver(String name, Optional<String> phone) {} // a courier's driver
+record Driver(String name, Optional<String> phone) {} // drives for a courier firm
 
 record DriverDto(String name, String phone) {}
 
@@ -84,7 +84,7 @@ The processor refuses this spec. Write what it needs, using `StandardCodecs`.
 ```java
 enum Priority { LOW, HIGH }
 
-record Ticket(UUID id, Priority priority) {}
+record Ticket(UUID id, Priority priority) {} // a support desk ticket
 
 record TicketDto(String id, String priority) {}
 
@@ -238,17 +238,17 @@ Where this lives: [Sealed hierarchies](structure.md#sealed-hierarchies).
 ~~~
 
 ~~~admonish question title="Checkpoint 9: would you approve it?" id="check-self-trap"
-A teammate used to MapStruct binds the mapper on the spec itself, so every caller can write `ReviewerMapping.MAPPER`:
+A teammate used to MapStruct binds the mapper on the spec itself, so every caller can write `CustomerSummaryMapping.MAPPER`:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/SelfCheckBook.java:trap_spec}}
 ```
 
-It compiles, and the teammate's test, which calls `ReviewerMapping.MAPPER.parse(...)`, passes. Would you approve it? If not, say what fails, and when.
+It compiles, and the teammate's test, which calls `CustomerSummaryMapping.MAPPER.parse(...)`, passes. Would you approve it? If not, say what fails, and when.
 ~~~
 
 ~~~admonish success title="Answer and why" collapsible=true id="check-self-trap-answer"
-**No.** The Impl implements the spec, and the spec declares an instance method with a body (its email leaf). So initialising the Impl initialises the spec first. A program that reads `ReviewerMapping.MAPPER` first is fine, which is why the test passes. A program that uses `ReviewerMappingImpl.INSTANCE` first evaluates the constant while the Impl's `INSTANCE` is still `null`, and the constant keeps that `null` for good:
+**No.** The Impl implements the spec, and the spec declares an instance method with a body (its email leaf). So initialising the Impl initialises the spec first. A program that reads `CustomerSummaryMapping.MAPPER` first is fine, which is why the test passes. A program that uses `CustomerSummaryMappingImpl.INSTANCE` first evaluates the constant while the Impl's `INSTANCE` is still `null`, and the constant keeps that `null` for good:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/SelfCheckBookTest.java:trap_proof}}
