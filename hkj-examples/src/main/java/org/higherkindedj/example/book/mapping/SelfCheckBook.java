@@ -28,14 +28,12 @@ public final class SelfCheckBook {
 // instance bound on the spec itself. Never do this; bind the Impl in the calling code.
 // SelfCheckBookTest.instanceBoundOnTheSpecDependsOnWhatRunsFirst proves why.
 // ANCHOR: trap_spec
-// A customer who reviews a product, contactable by email.
-record Reviewer(String name, EmailAddress email) {}
-
-record ReviewerDto(String name, String email) {}
+// The chapter's Customer, on the wire an order summary shows it on.
+record CustomerSummaryDto(String name, String email) {}
 
 @GenerateMapping
-interface ReviewerMapping extends MappingSpec<Reviewer, ReviewerDto> {
-  ReviewerMappingImpl MAPPER = ReviewerMappingImpl.INSTANCE;
+interface CustomerSummaryMapping extends MappingSpec<Customer, CustomerSummaryDto> {
+  CustomerSummaryMappingImpl MAPPER = CustomerSummaryMappingImpl.INSTANCE;
 
   default ValidatedPrism<String, EmailAddress> email() {
     return EmailCodecs.EMAIL;
