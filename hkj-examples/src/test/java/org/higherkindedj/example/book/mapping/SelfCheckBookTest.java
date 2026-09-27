@@ -37,18 +37,18 @@ class SelfCheckBookTest {
   @DisplayName("a record's constructor runs only once every component has parsed")
   void constructorRunsLast() {
     // ANCHOR: constructor_last
-    ReservationDto request =
-        new ReservationDto(
-            null, // no guest
+    DeliveryDto request =
+        new DeliveryDto(
+            null, // no order id
             List.of(
-                new StayDto("2026-03-01", "2026-03-04"),
-                new StayDto("2026-03-09", "07/03/2026"))); // meant to leave before it arrives
+                new DeliveryWindowDto("2026-03-01", "2026-03-04"),
+                new DeliveryWindowDto("2026-03-09", "07/03/2026"))); // 7 March, before earliest
 
-    assertThatValidated(ReservationMappingImpl.INSTANCE.parse(request))
+    assertThatValidated(DeliveryMappingImpl.INSTANCE.parse(request))
         .isInvalid()
         .hasFieldErrors(
-            "guest: must not be null",
-            "stays.1.checkOut: not an ISO-8601 date (expected e.g. 2026-07-28)");
+            "orderId: must not be null",
+            "windows.1.latest: not an ISO-8601 date (expected e.g. 2026-07-28)");
     // ANCHOR_END: constructor_last
   }
 

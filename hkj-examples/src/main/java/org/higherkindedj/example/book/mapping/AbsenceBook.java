@@ -37,18 +37,19 @@ public final class AbsenceBook {
 
   public static void main(String[] args) {
     // ANCHOR: bridge_usage
-    MemberMappingImpl memberMapping = MemberMappingImpl.INSTANCE;
+    CustomerProfileMappingImpl profileMapping = CustomerProfileMappingImpl.INSTANCE;
 
     // Absence travels as null in both directions; a present value still validates.
-    MemberDto wire = memberMapping.build(new Member("Ada", Optional.empty(), Optional.empty()));
-    // MemberDto[name=Ada, nickname=null, altEmail=null]
+    CustomerProfileDto wire =
+        profileMapping.build(new CustomerProfile("Ada", Optional.empty(), Optional.empty()));
+    // CustomerProfileDto[name=Ada, nickname=null, altEmail=null]
 
-    Validated<NonEmptyList<FieldError>, Member> absent =
-        memberMapping.parse(new MemberDto("Ada", null, null));
-    // Valid(Member[name=Ada, nickname=Optional.empty, altEmail=Optional.empty])
+    Validated<NonEmptyList<FieldError>, CustomerProfile> absent =
+        profileMapping.parse(new CustomerProfileDto("Ada", null, null));
+    // Valid(CustomerProfile[name=Ada, nickname=Optional.empty, altEmail=Optional.empty])
 
-    Validated<NonEmptyList<FieldError>, Member> badAltEmail =
-        memberMapping.parse(new MemberDto("Ada", "countess", "not-an-email"));
+    Validated<NonEmptyList<FieldError>, CustomerProfile> badAltEmail =
+        profileMapping.parse(new CustomerProfileDto("Ada", "countess", "not-an-email"));
     // Invalid(NonEmptyList[altEmail: not an email address])
     // ANCHOR_END: bridge_usage
     System.out.println(wire);
@@ -56,27 +57,29 @@ public final class AbsenceBook {
     System.out.println(badAltEmail);
 
     // ANCHOR: invariant_usage
-    Validated<NonEmptyList<FieldError>, Reservation> reservation =
-        ReservationMappingImpl.INSTANCE.parse(
-            new ReservationDto(
+    Validated<NonEmptyList<FieldError>, Delivery> delivery =
+        DeliveryMappingImpl.INSTANCE.parse(
+            new DeliveryDto(
                 null,
                 List.of(
-                    new StayDto("2026-03-01", "2026-03-04"),
-                    new StayDto("2026-03-09", "2026-03-07"))));
-    // Invalid(NonEmptyList[guest: must not be null, stays.1: checkOut must be after checkIn])
+                    new DeliveryWindowDto("2026-03-01", "2026-03-04"),
+                    new DeliveryWindowDto("2026-03-09", "2026-03-07"))));
+    // Invalid(NonEmptyList[orderId: must not be null, windows.1: latest must not be before
+    // earliest])
     // ANCHOR_END: invariant_usage
-    System.out.println(reservation);
+    System.out.println(delivery);
   }
 }
 
 // ANCHOR: bridge_spec
-record Member(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
+// the profile a customer fills in, apart from the Customer record: every detail is optional
+record CustomerProfile(String name, Optional<String> nickname, Optional<EmailAddress> altEmail) {}
 
 // The wire carries optional data the way a JSON binder does: a nullable component.
-record MemberDto(String name, @Nullable String nickname, @Nullable String altEmail) {}
+record CustomerProfileDto(String name, @Nullable String nickname, @Nullable String altEmail) {}
 
 @GenerateMapping
-interface MemberMapping extends MappingSpec<Member, MemberDto> {
+interface CustomerProfileMapping extends MappingSpec<CustomerProfile, CustomerProfileDto> {
   // No conversion: the marker restates the component and the value is copied.
   @OptionalBridge
   Optional<String> nickname();
@@ -91,57 +94,57 @@ interface MemberMapping extends MappingSpec<Member, MemberDto> {
 // ANCHOR_END: bridge_spec
 
 // ANCHOR: invariant_spec
-// The domain guards itself: a stay must end after it starts. The wire carries no such rule.
-record Stay(LocalDate checkIn, LocalDate checkOut) {
-  Stay {
-    if (!checkOut.isAfter(checkIn)) {
-      throw new IllegalArgumentException("checkOut must be after checkIn");
+// The domain guards itself: a window cannot end before it starts. The wire carries no such rule.
+record DeliveryWindow(LocalDate earliest, LocalDate latest) {
+  DeliveryWindow {
+    if (latest.isBefore(earliest)) {
+      throw new IllegalArgumentException("latest must not be before earliest");
     }
   }
 }
 
-record StayDto(String checkIn, String checkOut) {}
+record DeliveryWindowDto(String earliest, String latest) {}
 
-record Reservation(String guest, List<Stay> stays) {}
+record Delivery(String orderId, List<DeliveryWindow> windows) {} // first choice first
 
-record ReservationDto(String guest, List<StayDto> stays) {}
+record DeliveryDto(String orderId, List<DeliveryWindowDto> windows) {}
 
 @GenerateMapping
-interface StayMapping extends MappingSpec<Stay, StayDto> {
-  default ValidatedPrism<String, LocalDate> checkIn() {
+interface DeliveryWindowMapping extends MappingSpec<DeliveryWindow, DeliveryWindowDto> {
+  default ValidatedPrism<String, LocalDate> earliest() {
     return StandardCodecs.localDate();
   }
 
-  default ValidatedPrism<String, LocalDate> checkOut() {
+  default ValidatedPrism<String, LocalDate> latest() {
     return StandardCodecs.localDate();
   }
 }
 
 @GenerateMapping
-interface ReservationMapping extends MappingSpec<Reservation, ReservationDto> {}
+interface DeliveryMapping extends MappingSpec<Delivery, DeliveryDto> {}
 
 // ANCHOR_END: invariant_spec
 
-// ANCHOR: patron_pair
-record Patron(String name, Optional<LocalDate> birthday) {}
+// ANCHOR: gift_card_pair
+record GiftCard(String code, Optional<LocalDate> expiry) {}
 
-record PatronDto(String name, @Nullable String birthday) {}
+record GiftCardDto(String code, @Nullable String expiry) {}
 
-// ANCHOR_END: patron_pair
+// ANCHOR_END: gift_card_pair
 
-// ANCHOR: patron_spec
+// ANCHOR: gift_card_spec
 @GenerateMapping
-interface PatronMapping extends MappingSpec<Patron, PatronDto> {
+interface GiftCardMapping extends MappingSpec<GiftCard, GiftCardDto> {
   @OptionalBridge
-  default ValidatedPrism<String, LocalDate> birthday() {
+  default ValidatedPrism<String, LocalDate> expiry() {
     return StandardCodecs.localDate();
   }
 }
 
-// ANCHOR_END: patron_spec
+// ANCHOR_END: gift_card_spec
 
 // ANCHOR: discount_spec
-// A basket's discount, spread over its items: at most 500p off each.
+// A quote's discount, spread over its items: at most 500p off each.
 record BulkDiscount(int totalPence, int items) {
   BulkDiscount {
     if (Math.ceilDiv(totalPence, items) > 500) { // rounds up, so 1001p over 2 items is 501p
@@ -152,14 +155,14 @@ record BulkDiscount(int totalPence, int items) {
 
 record BulkDiscountDto(int totalPence, int items) {}
 
-record Basket(String id, BulkDiscount discount) {}
+record Quote(String id, BulkDiscount discount) {}
 
-record BasketDto(String id, BulkDiscountDto discount) {}
+record QuoteDto(String id, BulkDiscountDto discount) {}
 
 @GenerateMapping
 interface BulkDiscountMapping extends MappingSpec<BulkDiscount, BulkDiscountDto> {}
 
 @GenerateMapping
-interface BasketMapping extends MappingSpec<Basket, BasketDto> {}
+interface QuoteMapping extends MappingSpec<Quote, QuoteDto> {}
 
 // ANCHOR_END: discount_spec
