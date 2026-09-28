@@ -3,6 +3,7 @@
 package org.higherkindedj.example.book.mapping;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.example.book.mapping.FreshPackage.failuresUsingTwice;
 import static org.higherkindedj.example.book.mapping.FreshPackage.mapperAfterFirstUsing;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
@@ -28,6 +29,21 @@ class BasicsBookTest {
     assertThat(mapperAfterFirstUsing("CourierMappingImpl", "CourierMapping")) // a leaf
         .isNull();
     // ANCHOR_END: constant_proof
+  }
+
+  @Test
+  @DisplayName(
+      "a surface of the Impl held on the spec fails the Impl's initialisation, and every use after")
+  void aSurfaceOnTheSpecFailsTheImplsInitialisation() {
+    // A program loading this package afresh uses the Impl before the spec's PRISM, twice:
+    assertThat(failuresUsingTwice("LockerMappingImpl"))
+        .satisfiesExactly(
+            first ->
+                assertThat(first)
+                    .isInstanceOf(ExceptionInInitializerError.class)
+                    .cause()
+                    .isInstanceOf(NullPointerException.class),
+            second -> assertThat(second).isInstanceOf(NoClassDefFoundError.class));
   }
 
   @Test

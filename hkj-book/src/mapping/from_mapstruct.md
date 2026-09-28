@@ -43,8 +43,8 @@ The shapes are close enough that a first spec usually reads like the mapper it r
 2. **Error paths are domain-named.** A renamed field reports at the domain's name, not the wire's.
    Clients that map errors onto their own payload keys need the rename applied in reverse.
 3. **`Mappers.getMapper` has no equivalent on the interface.** Declaring
-   `M MAPPER = MImpl.INSTANCE;` on the spec compiles and then reads `null`, intermittently, because
-   of the class-initialisation cycle: [bind it in the caller](basics.md#bind-in-the-caller).
+   `M MAPPER = MImpl.INSTANCE;` on the spec compiles, with a warning, and then reads `null`,
+   intermittently, because of the class-initialisation cycle: [bind it in the caller](basics.md#bind-in-the-caller).
 
 ### Migrating one pair
 

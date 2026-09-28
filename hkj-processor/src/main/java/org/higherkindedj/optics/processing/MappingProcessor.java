@@ -249,6 +249,9 @@ public class MappingProcessor extends AbstractProcessor {
   /** The leaves each spec's Impl calls, so the Impl reads each one once. */
   private final LeafCache leafCache = new LeafCache();
 
+  /** The Impl constants reported, each once however many specs reach it. */
+  private final ImplConstants implConstants = new ImplConstants();
+
   /** Creates a new MappingProcessor. */
   public MappingProcessor() {}
 
@@ -282,6 +285,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (TypeKey spec : List.copyOf(unprocessed)) {
       if (!waiting.contains(spec)) {
         unprocessed.remove(spec);
+        implConstants.check(processingEnv, spec.in(elements), specs);
         processSpec(spec.in(elements), registry);
       }
     }

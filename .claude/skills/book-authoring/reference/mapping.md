@@ -43,8 +43,10 @@ the claim, since the processor or a library can change under it.
   six fractional digits or none. A stock codec accepts only its own spelling, so the chooser table
   gives a leaf for each producer. (`codecs.md#canonical-forms-only`)
 - **The Impl is bound in the caller, never on the spec.** A constant on the spec initialised from
-  `XImpl.INSTANCE` can read `null`, depending on which class the program touches first.
-  (`basics.md#bind-in-the-caller`)
+  `XImpl.INSTANCE` can read `null`, depending on which class the program touches first. The
+  processor warns at an Impl-typed one, so the chapter's trap examples carry
+  `@SuppressWarnings("impl-constant")`; a surface-typed one draws no warning and fails with
+  `ExceptionInInitializerError`. (`rules.md#impl-constant-on-a-spec`, `basics.md#bind-in-the-caller`)
 - **A class-initialisation trap needs a fresh class loader to test.** Static initialisation is
   global to the JVM, so an earlier test can hide the trap. The mapping tests' `FreshPackage` helper
   loads a package afresh.

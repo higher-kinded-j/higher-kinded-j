@@ -52,6 +52,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`declares type parameters of its own`](#own-type-parameters) | A leaf, rename or marker declares its own `<R>` |
 | [`method '…' names '…', which cannot be reached from`](#cannot-be-reached) | A member names a type its package cannot see |
 | [`record component '…' of '…' names '…', which cannot be reached from`](#component-cannot-be-reached) | A mapped type is hidden from the spec's package |
+| [`holds the generated`](#impl-constant-on-a-spec) | A spec or mix-in holds its Impl in a constant |
 
 **[Optional fields](#optional-fields)**
 
@@ -734,6 +735,37 @@ class Shop {
 
   @GenerateMapping
   interface ItemMapping extends MappingSpec<Item, ItemDto> {}
+}
+```
+~~~
+
+### `'X.y' holds the generated Z in a constant, which can read null` (a warning) {#impl-constant-on-a-spec}
+
+A spec, or a mix-in it extends, keeps its generated Impl in a constant, MapStruct-style. The constant can read `null`, depending on which class a program uses first.
+
+**Fix.** Keep the Impl in the calling code: a local, or a `private static final` field on the class that calls it. Annotate a constant you keep on purpose `@SuppressWarnings("impl-constant")`.
+
+```
+@GenerateMapping: 'CustomerMapping.MAPPER' holds the generated CustomerMappingImpl in a
+constant, which can read null. Initialising CustomerMappingImpl first initialises
+'CustomerMapping' once it declares a default or private method, such as a leaf, so a program
+that uses the Impl first leaves the constant null for good. Keep the Impl in the calling code: a
+local, or a private static final field on the class that calls it. To keep this constant anyway,
+annotate it @SuppressWarnings("impl-constant").
+```
+
+The rule: [A spec never holds its Impl in a constant](rules.md#impl-constant-on-a-spec).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:reports "holds the generated" -->
+```java
+record Customer(String name) {}
+
+record CustomerDto(String name) {}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+  CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;
 }
 ```
 ~~~

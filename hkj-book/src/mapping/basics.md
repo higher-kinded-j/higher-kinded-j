@@ -51,12 +51,16 @@ Code that calls a mapping more than once keeps the Impl in a variable, as `addre
 
 [Injecting and testing generated mappings](testing.md#injecting-and-testing-generated-mappings) lists the surface to register for each kind of mapping.
 
-~~~admonish warning title="Not checked for you: never bind the Impl on the spec"
-MapStruct's idiom puts the mapper's instance on its own interface. Here that would be `CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;`, declared on `CustomerMapping`, the spec with an email leaf in [Validated leaves](#validated-leaves). It compiles, and it can read `null`. If any code uses `CustomerMappingImpl.INSTANCE` before the first read of `CustomerMapping.MAPPER`, the constant stays `null` for good, and the next `MAPPER.parse(...)` throws a `NullPointerException`. Which class a program reaches first depends on its code paths, so the failure comes and goes. A spec with no leaf or derived field is safe, so the constant can work for months and break the day someone adds one. Keep the Impl in the calling code instead.
-~~~
+Never keep the Impl in a constant on the spec, MapStruct's habit. It can read `null`, depending on which class a program uses first, and the processor warns at one ([A spec never holds its Impl in a constant](rules.md#impl-constant-on-a-spec)).
 
-~~~admonish note title="Why the constant reads `null`" collapsible=true
-The Impl implements the spec. Initialising a class first initialises every interface it implements that declares an instance method with a body: every `default` leaf and derived field, and any `private` instance helper. Using `CustomerMappingImpl.INSTANCE` first starts the Impl's initialisation, which initialises `CustomerMapping` before `INSTANCE` is assigned. `MAPPER` is evaluated then, and keeps the `null` it read. Two threads making those first uses at the same moment can deadlock instead. A constant on a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) that declares a leaf fails the same way. The processor sees a field's type but not its initialiser, so it cannot tell this constant from a harmless one, and does not refuse it.
+~~~admonish warning title="Not checked for you: a surface of the Impl held on the spec"
+The processor reads a constant's type, never its initialiser, so a constant typed as a surface of the Impl draws no warning:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:surface_constant}}
+```
+
+It fails harder than a `null`. A program that uses `LockerMappingImpl.INSTANCE` first evaluates `PRISM` while `INSTANCE` is still `null`, so the Impl fails to initialise with an `ExceptionInInitializerError`, and every later use throws `NoClassDefFoundError`. Keep the Impl and its surfaces in the calling code.
 ~~~
 
 ---
@@ -128,7 +132,7 @@ You can now map a record DTO to a domain record and back, check each field as it
 ~~~
 
 ~~~admonish question title="Checkpoint: which `MAPPER` can read `null`?" id="check-basics-constant"
-Both of these specs carry the MapStruct-style constant. In each program, some code uses the Impl's `INSTANCE` before anything reads the spec's `MAPPER`. Afterwards, which `MAPPER` can read `null`?
+Both of these specs carry the MapStruct-style constant, with the processor's warning on it suppressed. In each program, some code uses the Impl's `INSTANCE` before anything reads the spec's `MAPPER`. Afterwards, which `MAPPER` can read `null`?
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:mapper_constants}}
@@ -147,7 +151,7 @@ Both of these specs carry the MapStruct-style constant. In each program, some co
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/BasicsBookTest.java:constant_proof}}
 ```
 
-The day someone adds a leaf to `WarehouseMapping`, its constant breaks too. Delete both constants, and keep each Impl in the calling code.
+The day someone adds a leaf to `WarehouseMapping`, its constant breaks too, which is why the processor warns on both. Delete both constants, and keep each Impl in the calling code.
 
 Where this lives: [Bind in the caller, not on the spec](#bind-in-the-caller).
 ~~~

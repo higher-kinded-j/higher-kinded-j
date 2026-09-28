@@ -73,6 +73,7 @@ SHORT = {
     "derived-field-names-no-component": "A derived field names nothing on the wire",
     "both-map-to-one-wire-component": "A rename targets a component already filled",
     "unmapped-names-a-mapped-property": "An `@Unmapped` marker names a paired property",
+    "impl-constant-on-a-spec": "A spec or mix-in holds its Impl in a constant",
     "unmapped-marker-on-a-one-way-bean": "An `@Unmapped` marker sits on a bean crossed one way",
     "add-optional-bridge": "A domain `Optional` faces a plain wire component",
     "bridges-to-a-primitive": "The bridged wire component is a primitive",
@@ -205,8 +206,8 @@ def wrap(text, width=96):
 
 
 def entry_md(e, message):
-    kind = "verify:reports" if e.get("kind") == "note" else "verify:rejects"
-    note = " (a note)" if e.get("kind") == "note" else ""
+    kind = "verify:reports" if e.get("kind") in ("note", "warning") else "verify:rejects"
+    note = f" (a {e['kind']})" if e.get("kind") in ("note", "warning") else ""
     text, target = e["rule"]
     return f"""### `{e['heading']}`{note} {{#{e['id']}}}
 
@@ -243,14 +244,17 @@ def main():
                 sys.exit(f"{e['id']}: the marker must be at least 10 characters, with no double quote")
             code, stderr = probe(e)
             kind, msg = message_of(e, stderr)
-            # The gate's own test: a refusal is an error the compile fails on; a note leaves the
-            # compile clean.
+            # The gate's own test: a refusal is an error the compile fails on; a note or a warning
+            # leaves the compile clean.
             if e.get("kind") == "note":
                 held = msg is not None and code == 0
+            elif e.get("kind") == "warning":
+                held = msg is not None and kind == "warning" and code == 0
             else:
                 held = msg is not None and kind == "error" and code != 0
             if not held:
-                expected = ("a clean compile with a note quoting" if e.get("kind") == "note"
+                expected = (f"a clean compile with a {e['kind']} quoting"
+                            if e.get("kind") in ("note", "warning")
                             else "a failed compile with an error quoting")
                 failures.append((e["id"], code, f"expected {expected} '{marker}'\n" + stderr[-1500:]))
                 continue
