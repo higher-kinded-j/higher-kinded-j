@@ -18,6 +18,10 @@ include(
     "hkj-test",
     "hkj-processor",
     "hkj-examples",
+    // The estate capstone: three modules, the shape of a multi-service estate
+    "hkj-examples:estate-api",
+    "hkj-examples:estate-clients",
+    "hkj-examples:estate-service",
     "hkj-annotations", "hkj-api",
     "hkj-processor-plugins",
     "hkj-benchmarks",
