@@ -51,16 +51,16 @@ Code that calls a mapping more than once keeps the Impl in a variable, as `addre
 
 [Injecting and testing generated mappings](testing.md#injecting-and-testing-generated-mappings) lists the surface to register for each kind of mapping.
 
-Never keep the Impl in a constant on the spec, MapStruct's habit. It can read `null`, depending on which class a program uses first, and the processor warns at one ([A spec never holds its Impl in a constant](rules.md#impl-constant-on-a-spec)).
+Never keep the Impl in a constant on the spec, MapStruct's habit. Once the spec declares a leaf, the constant can read `null`, depending on which class a program uses first. The processor warns at one ([A spec never holds its Impl in a constant](rules.md#impl-constant-on-a-spec)).
 
 ~~~admonish warning title="Not checked for you: a surface of the Impl held on the spec"
-The processor reads a constant's type, never its initialiser, so a constant typed as a surface of the Impl draws no warning:
+A constant on the spec holding something built from the Impl, such as its `ValidatedPrism`, draws no warning, because the processor reads a constant's type, not its initialiser. The `contact()` leaf arms it, as before:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:surface_constant}}
 ```
 
-It fails harder than a `null`. A program that uses `LockerMappingImpl.INSTANCE` first evaluates `PRISM` while `INSTANCE` is still `null`, so the Impl fails to initialise with an `ExceptionInInitializerError`, and every later use throws `NoClassDefFoundError`. Keep the Impl and its surfaces in the calling code.
+This one fails harder than a `null`. A program that uses `LockerMappingImpl.INSTANCE` first evaluates `PRISM` while `INSTANCE` is still `null`, so the Impl fails to initialise with an `ExceptionInInitializerError`, and every later use throws `NoClassDefFoundError`. Keep the Impl and its surfaces in the calling code.
 ~~~
 
 ---

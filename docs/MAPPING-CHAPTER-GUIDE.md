@@ -32,7 +32,7 @@ elsewhere.
 
 | The rule is | Its home |
 |---|---|
-| Enforced by the processor | One heading on [Rules and Limits](../hkj-book/src/mapping/rules.md), and a row in its "Find your limit" table. A rule short enough to state in one sentence may stay on its teaching page instead; its "Find your limit" row still links to it. |
+| Enforced by the processor, by a refusal or a warning | One heading on [Rules and Limits](../hkj-book/src/mapping/rules.md), and a row in its "Find your limit" table. A rule short enough to state in one sentence may stay on its teaching page instead; its "Find your limit" row still links to it. |
 | Something the processor cannot check | The teaching page, as a warning titled "Not checked for you: …" with an example the build proves, and a row in Rules and Limits' "Find your symptom" table linking to it. |
 | A capability that does not exist, and that the processor does not diagnose | One sentence on the teaching page, and a "Find your limit" row whose status is *not supported yet*, as [Documenting What Does Not Exist](STYLE-GUIDE.md#documenting-what-does-not-exist) says. A shape the processor refuses as not supported yet is an enforced rule: it takes the first row, with that status. |
 

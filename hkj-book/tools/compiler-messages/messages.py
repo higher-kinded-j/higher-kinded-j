@@ -349,7 +349,7 @@ interface PageMapping extends MappingSpec<Page, PageDto> {
   interface ItemMapping extends MappingSpec<Item, ItemDto> {}
 }"""),
         dict(id="impl-constant-on-a-spec", kind="warning",
-             heading="'X.y' holds the generated Z in a constant, which can read null",
+             heading="'X.y' holds the generated XImpl in a constant, which can read null",
              fragment="holds the generated",
              meaning="A spec, or a mix-in it extends, keeps its generated Impl in a constant, MapStruct-style. The constant can read `null`, depending on which class a program uses first.",
              fix="Keep the Impl in the calling code: a local, or a `private static final` field on the class that calls it. Annotate a constant you keep on purpose `@SuppressWarnings(\"impl-constant\")`.",

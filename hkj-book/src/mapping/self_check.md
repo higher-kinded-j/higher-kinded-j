@@ -256,7 +256,7 @@ The processor warned at the constant, so the teammate suppressed the warning. It
 
 Which class a program reaches first depends on its code paths, so the failure comes and goes. Bind the Impl in the calling code instead: a local, a field of the calling class, or an injected `ValidatedPrism`.
 
-Where this lives: [Bind in the caller, not on the spec](basics.md#bind-in-the-caller).
+Where this lives: [A spec never holds its Impl in a constant](rules.md#impl-constant-on-a-spec).
 ~~~
 
 ~~~admonish question title="Checkpoint 10: map the shipment" id="check-self-create"

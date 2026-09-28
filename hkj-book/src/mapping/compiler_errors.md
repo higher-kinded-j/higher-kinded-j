@@ -11,7 +11,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 ~~~admonish info title="Reading an entry"
 - **Headings** quote the message with its names replaced: `X` and `Y` for types, `x` and `y` for components or methods, `T` for a type argument, `p` for a package. The `@GenerateMapping:` prefix is left off.
 - **The words:** the *domain* is your record, the *wire* the DTO, the *spec* the `@GenerateMapping` interface, and a *leaf* a `default ValidatedPrism` method that converts one field.
-- **Errors and notes:** an error stops the build; a note stops nothing. One entry is a note, and says so. The processor prints a few other notes, each saying how it read a declaration, such as a bean it maps one way only.
+- **Errors, warnings and notes:** an error stops the build, a warning stops only a `-Werror` build, and a note stops nothing. One entry is a warning and one a note, and each says so. The processor prints a few other notes, each saying how it read a declaration, such as a bean it maps one way only.
 - **The full messages** are printed for declarations compiled in a package `com.example`.
 ~~~
 
@@ -52,7 +52,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`declares type parameters of its own`](#own-type-parameters) | A leaf, rename or marker declares its own `<R>` |
 | [`method '…' names '…', which cannot be reached from`](#cannot-be-reached) | A member names a type its package cannot see |
 | [`record component '…' of '…' names '…', which cannot be reached from`](#component-cannot-be-reached) | A mapped type is hidden from the spec's package |
-| [`holds the generated`](#impl-constant-on-a-spec) | A spec or mix-in holds its Impl in a constant |
+| [`holds the generated`](#impl-constant-on-a-spec) | **Warning.** A spec or mix-in holds its Impl in a constant |
 
 **[Optional fields](#optional-fields)**
 
@@ -739,7 +739,7 @@ class Shop {
 ```
 ~~~
 
-### `'X.y' holds the generated Z in a constant, which can read null` (a warning) {#impl-constant-on-a-spec}
+### `'X.y' holds the generated XImpl in a constant, which can read null` (a warning) {#impl-constant-on-a-spec}
 
 A spec, or a mix-in it extends, keeps its generated Impl in a constant, MapStruct-style. The constant can read `null`, depending on which class a program uses first.
 
@@ -747,11 +747,11 @@ A spec, or a mix-in it extends, keeps its generated Impl in a constant, MapStruc
 
 ```
 @GenerateMapping: 'CustomerMapping.MAPPER' holds the generated CustomerMappingImpl in a
-constant, which can read null. Initialising CustomerMappingImpl first initialises
-'CustomerMapping' once it declares a default or private method, such as a leaf, so a program
-that uses the Impl first leaves the constant null for good. Keep the Impl in the calling code: a
-local, or a private static final field on the class that calls it. To keep this constant anyway,
-annotate it @SuppressWarnings("impl-constant").
+constant, which can read null. CustomerMappingImpl implements 'CustomerMapping', so once
+'CustomerMapping' declares a default method, such as a leaf, or a private instance method, a
+program that uses CustomerMappingImpl.INSTANCE before reading the constant leaves it null for
+good. Keep the Impl in the calling code: a local, or a private static final field on the class
+that calls it. To keep this constant anyway, annotate it @SuppressWarnings("impl-constant").
 ```
 
 The rule: [A spec never holds its Impl in a constant](rules.md#impl-constant-on-a-spec).

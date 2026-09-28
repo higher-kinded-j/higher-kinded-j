@@ -67,7 +67,7 @@ mapping nests inside another.
 | Sparse PATCH is opt-in, bean-only and wrapper-typed | A primitive can never be absent, and a record component is always present | [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) with `Integer`, `Boolean` and friends |
 | A PATCH replaces a nested object wholesale | Deep merge is out of scope | Patch the nested record through its own spec |
 | A spec-carrying module on the **module path** neither writes nor reads the cross-module index | The index is one package, and a package belongs to one module | Delegate with a leaf calling the other Impl, or pass `-Ahkj.mapping.index=false` |
-| The generated Impl is bound in the caller, never as a constant on the spec | Class initialisation can leave that constant `null`, intermittently | `XImpl.INSTANCE` at the call site, or an injected surface: [why](basics.md#bind-in-the-caller) |
+| The generated Impl is bound in the caller, never as a constant on the spec | Class initialisation can leave that constant `null`, intermittently; the processor warns at one typed as the Impl | `XImpl.INSTANCE` at the call site, or an injected surface: [why](rules.md#impl-constant-on-a-spec) |
 
 Everything the processor refuses says so at compile time, with what is wrong, why it matters and
 the code to write. The complete set is in [Rules and Limits](rules.md), and the messages you are most likely to meet

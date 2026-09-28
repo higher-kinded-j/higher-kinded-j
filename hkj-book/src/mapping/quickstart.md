@@ -85,7 +85,7 @@ will offer the wrong import. And the spec interface is not the thing you call. I
 this endpoint calls (`ValidatedParse<UserDto, User>`, satisfied by the bean registered in
 [Injecting and testing](testing.md#injecting-and-testing-generated-mappings)) or call
 `UserMappingImpl.INSTANCE` in the caller. Never declare that constant on the spec itself:
-[it can read null](basics.md#bind-in-the-caller).
+[it can read null](rules.md#impl-constant-on-a-spec).
 ~~~
 
 ## 4. Read the 422 {#4-read-the-422}

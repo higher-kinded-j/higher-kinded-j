@@ -4,6 +4,7 @@ package org.higherkindedj.optics.processing;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static org.higherkindedj.optics.processing.GeneratorTestHelper.classDirectory;
 import static org.higherkindedj.optics.processing.GeneratorTestHelper.classpathWith;
 
 import com.google.testing.compile.Compilation;
@@ -22,14 +23,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * A spec, or an interface a spec extends, that holds a generated Impl in a constant draws a warning
- * at the constant, since the constant can read {@code null} once the interface declares a method
- * with a body. The Impl's name is matched unresolved, in the round that writes it, and resolved,
- * when it is compiled into a dependency. {@code @SuppressWarnings("impl-constant")} on the field or
- * an enclosing declaration keeps a deliberate constant quiet, and the warning never stops the Impl
- * being written.
+ * A spec, or an interface a spec extends, that holds the spec's own generated Impl in a constant
+ * draws a warning at the constant, since the Impl's initialisation initialises that interface
+ * first, and the constant can read {@code null}. The Impl's name is matched unresolved, in the
+ * round that writes it, and resolved, where an earlier build's Impl is on the classpath. Another
+ * spec's Impl is initialised on its own, and draws nothing.
+ * {@code @SuppressWarnings("impl-constant")} on the field or an enclosing declaration keeps a
+ * deliberate constant quiet, and the warning never stops the Impl being written.
  */
-@DisplayName("MappingProcessor - a generated Impl held in a constant on a spec")
+@DisplayName("A spec's generated Impl held in a constant on the spec")
 class ImplConstantWarningTest {
 
   private static final String PKG = "com.example.constants";
@@ -43,6 +45,7 @@ class ImplConstantWarningTest {
         import java.util.ArrayList;
         import org.higherkindedj.hkt.validated.Validated;
         import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.GenerateMerge;
         import org.higherkindedj.optics.annotations.MappingSpec;
         import org.higherkindedj.optics.annotations.UpdateSpec;
         import org.higherkindedj.optics.validated.ValidatedPrism;
@@ -60,19 +63,28 @@ class ImplConstantWarningTest {
   }
 
   /** The warning's full text for {@code constant} holding {@code impl}, declared on {@code on}. */
-  private static String warning(String constant, String impl, String on) {
-    return "@GenerateMapping: '"
+  private static String warning(String tag, String constant, String impl, String on) {
+    return tag
+        + ": '"
         + constant
         + "' holds the generated "
         + impl
-        + " in a constant, which can read null. Initialising "
+        + " in a constant, which can read null. "
         + impl
-        + " first initialises '"
+        + " implements '"
         + on
-        + "' once it declares a default or private method, such as a leaf, so a program that uses"
-        + " the Impl first leaves the constant null for good. Keep the Impl in the calling code: a"
-        + " local, or a private static final field on the class that calls it. To keep this"
-        + " constant anyway, annotate it @SuppressWarnings(\"impl-constant\").";
+        + "', so once '"
+        + on
+        + "' declares a default method, such as a leaf, or a private instance method, a program"
+        + " that uses "
+        + impl
+        + ".INSTANCE before reading the constant leaves it null for good. Keep the Impl in the"
+        + " calling code: a local, or a private static final field on the class that calls it. To"
+        + " keep this constant anyway, annotate it @SuppressWarnings(\"impl-constant\").";
+  }
+
+  private static String mapping(String constant, String impl, String on) {
+    return warning("@GenerateMapping", constant, impl, on);
   }
 
   @Nested
@@ -114,6 +126,8 @@ class ImplConstantWarningTest {
                   public String getName() { return name; }
                   public void setName(String name) { this.name = name; }
                 }
+
+                public record Receipt(String name, String code) {}
               }
               """);
       JavaFileObject customer =
@@ -125,11 +139,19 @@ class ImplConstantWarningTest {
                   extends MappingSpec<Records.Customer, Records.CustomerDto> {
                 CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;
 
+                CustomerMappingImpl[] ARRAY = {CustomerMappingImpl.INSTANCE};
+
                 @SuppressWarnings("unchecked")
                 CustomerMappingImpl UNRELATED_SUPPRESSION = CustomerMappingImpl.INSTANCE;
 
                 @SuppressWarnings("all")
                 CustomerMappingImpl ALL = CustomerMappingImpl.INSTANCE;
+
+                // Another spec's Impl is initialised on its own, and is set when this is read.
+                WarehouseMappingImpl WAREHOUSES = WarehouseMappingImpl.INSTANCE;
+
+                // Typed as the spec: the same trap, and not read by the check.
+                CustomerMapping SELF = CustomerMappingImpl.INSTANCE;
 
                 String NAME = "customers";
 
@@ -137,18 +159,12 @@ class ImplConstantWarningTest {
 
                 ArrayList<String> TAGS = new ArrayList<>();
 
-                ValidatedPrism<Records.CustomerDto, Records.Customer> PRISM = null;
-
-                Stub STUB = new Stub();
-
                 default ValidatedPrism<String, String> email() {
                   return ValidatedPrism.of(Validated::validNel, raw -> raw);
                 }
-
-                final class Stub implements CustomerMapping {}
               }
               """);
-      // No leaf: safe today, armed by the first leaf, so warned all the same.
+      // No leaf: safe until the first one is added, so warned all the same.
       JavaFileObject warehouse =
           source(
               "WarehouseMapping",
@@ -162,7 +178,8 @@ class ImplConstantWarningTest {
                 WarehouseMappingImpl MAPPER = WarehouseMappingImpl.INSTANCE;
               }
               """);
-      // A mix-in two specs extend, one of them through two routes, is reported once.
+      // A mix-in reached by two routes, which ParcelMapping extends too: only RouteMapping's Impl
+      // implements it through RouteMapping.
       JavaFileObject mixins =
           source(
               "Vocabulary",
@@ -199,7 +216,7 @@ class ImplConstantWarningTest {
 
                 @SuppressWarnings("impl-constant")
                 public interface Quiet {
-                  CustomerMappingImpl QUIET = CustomerMappingImpl.INSTANCE;
+                  ContactPatchMappingImpl QUIET = ContactPatchMappingImpl.INSTANCE;
                 }
               }
               """);
@@ -211,6 +228,17 @@ class ImplConstantWarningTest {
               public interface ContactPatchMapping
                   extends UpdateSpec<Records.Contact, Records.ContactPatch>, Outer.Quiet {
                 ContactPatchMappingImpl MAPPER = ContactPatchMappingImpl.INSTANCE;
+              }
+              """);
+      JavaFileObject merge =
+          source(
+              "ReceiptMerge",
+              """
+              @GenerateMerge
+              public interface ReceiptMerge {
+                ReceiptMergeImpl MERGER = ReceiptMergeImpl.INSTANCE;
+
+                Records.Receipt merge(Records.Customer customer, Records.Warehouse warehouse);
               }
               """);
       // Held by the code that calls it: the recommended place, and no warning.
@@ -226,27 +254,31 @@ class ImplConstantWarningTest {
               """);
       compilation =
           javac()
-              .withProcessors(new MappingProcessor())
-              .compile(records, customer, warehouse, mixins, route, parcel, contact, caller);
+              .withProcessors(new MappingProcessor(), new MergeProcessor())
+              .compile(records, customer, warehouse, mixins, route, parcel, contact, merge, caller);
     }
 
     @Test
-    @DisplayName("each Impl constant warns once, leaf or not, on a spec, a mix-in or an UpdateSpec")
-    void eachImplConstantWarnsOnce() {
+    @DisplayName(
+        "each constant holding its own spec's Impl warns, leaf or not, on a spec, a mix-in, an"
+            + " UpdateSpec or a merge")
+    void eachOwnImplConstantWarns() {
       assertThat(compilation).succeeded();
       Assertions.assertThat(warnings(compilation))
           .containsExactlyInAnyOrder(
-              warning("CustomerMapping.MAPPER", "CustomerMappingImpl", "CustomerMapping"),
-              warning(
+              mapping("CustomerMapping.MAPPER", "CustomerMappingImpl", "CustomerMapping"),
+              mapping("CustomerMapping.ARRAY", "CustomerMappingImpl", "CustomerMapping"),
+              mapping(
                   "CustomerMapping.UNRELATED_SUPPRESSION",
                   "CustomerMappingImpl",
                   "CustomerMapping"),
-              warning("CustomerMapping.ALL", "CustomerMappingImpl", "CustomerMapping"),
-              warning("WarehouseMapping.MAPPER", "WarehouseMappingImpl", "WarehouseMapping"),
-              warning("Vocabulary.ROUTES", "RouteMappingImpl", "Vocabulary"),
-              warning("ParcelMapping.MAPPER", "OuterParcelMappingImpl", "ParcelMapping"),
-              warning(
-                  "ContactPatchMapping.MAPPER", "ContactPatchMappingImpl", "ContactPatchMapping"));
+              mapping("CustomerMapping.ALL", "CustomerMappingImpl", "CustomerMapping"),
+              mapping("WarehouseMapping.MAPPER", "WarehouseMappingImpl", "WarehouseMapping"),
+              mapping("Vocabulary.ROUTES", "RouteMappingImpl", "Vocabulary"),
+              mapping("ParcelMapping.MAPPER", "OuterParcelMappingImpl", "ParcelMapping"),
+              mapping(
+                  "ContactPatchMapping.MAPPER", "ContactPatchMappingImpl", "ContactPatchMapping"),
+              warning("@GenerateMerge", "ReceiptMerge.MERGER", "ReceiptMergeImpl", "ReceiptMerge"));
     }
 
     @Test
@@ -258,7 +290,8 @@ class ImplConstantWarningTest {
               "WarehouseMappingImpl",
               "RouteMappingImpl",
               "OuterParcelMappingImpl",
-              "ContactPatchMappingImpl")) {
+              "ContactPatchMappingImpl",
+              "ReceiptMergeImpl")) {
         Assertions.assertThat(compilation.generatedSourceFile(PKG + "." + impl))
             .as(impl)
             .isPresent();
@@ -267,64 +300,74 @@ class ImplConstantWarningTest {
   }
 
   @Nested
-  @DisplayName("against an Impl compiled into a dependency")
-  class Dependency {
+  @DisplayName("against an Impl already compiled")
+  class Compiled {
 
     @TempDir Path tmp;
 
     @Test
-    @DisplayName("a resolved Impl warns, for a MappingSpec's and an UpdateSpec's alike")
-    void resolvedImplWarns() throws IOException {
-      JavaFileObject upstream =
+    @DisplayName(
+        "a spec rebuilt against its earlier Impl warns, and another spec's compiled Impl does not")
+    void resolvedOwnImplWarns() throws IOException {
+      JavaFileObject records =
           JavaFileObjects.forSourceString(
-              "com.upstream.Upstream",
+              "com.upstream.Records",
+              """
+              package com.upstream;
+
+              public final class Records {
+                private Records() {}
+
+                public record Account(String id) {}
+
+                public record AccountDto(String id) {}
+              }
+              """);
+      JavaFileObject account =
+          JavaFileObjects.forSourceString(
+              "com.upstream.AccountMapping",
               """
               package com.upstream;
 
               import org.higherkindedj.optics.annotations.GenerateMapping;
               import org.higherkindedj.optics.annotations.MappingSpec;
-              import org.higherkindedj.optics.annotations.UpdateSpec;
 
-              public final class Upstream {
-                private Upstream() {}
+              @GenerateMapping
+              public interface AccountMapping
+                  extends MappingSpec<Records.Account, Records.AccountDto> {}
+              """);
+      Compilation earlier =
+          javac().withProcessors(new MappingProcessor()).compile(records, account);
+      assertThat(earlier).succeeded();
+      Path classes = classDirectory(earlier, tmp.resolve("earlier"));
 
-                public record Account(String id) {}
+      // The same spec, edited to hold its Impl, rebuilt with the earlier build's classes on the
+      // classpath, as an incremental build leaves them.
+      JavaFileObject edited =
+          JavaFileObjects.forSourceString(
+              "com.upstream.AccountMapping",
+              """
+              package com.upstream;
 
-                public record AccountDto(String id) {}
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
 
-                public record Profile(String name) {}
-
-                public static class ProfilePatch {
-                  private String name;
-
-                  public String getName() { return name; }
-                  public void setName(String name) { this.name = name; }
-                }
-
-                @GenerateMapping
-                public interface AccountMapping extends MappingSpec<Account, AccountDto> {}
-
-                @GenerateMapping
-                public interface ProfileUpdate extends UpdateSpec<Profile, ProfilePatch> {}
+              @GenerateMapping
+              public interface AccountMapping
+                  extends MappingSpec<Records.Account, Records.AccountDto> {
+                AccountMappingImpl MAPPER = AccountMappingImpl.INSTANCE;
               }
               """);
-      Compilation dependency = javac().withProcessors(new MappingProcessor()).compile(upstream);
-      assertThat(dependency).succeeded();
-      Path classes = GeneratorTestHelper.classDirectory(dependency, tmp.resolve("upstream"));
-
-      JavaFileObject downstream =
+      JavaFileObject ledger =
           source(
               "LedgerMapping",
               """
-              import com.upstream.UpstreamAccountMappingImpl;
-              import com.upstream.UpstreamProfileUpdateImpl;
+              import com.upstream.AccountMappingImpl;
 
               @GenerateMapping
               public interface LedgerMapping
                   extends MappingSpec<LedgerMapping.Ledger, LedgerMapping.LedgerDto> {
-                UpstreamAccountMappingImpl ACCOUNTS = UpstreamAccountMappingImpl.INSTANCE;
-
-                UpstreamProfileUpdateImpl PROFILES = UpstreamProfileUpdateImpl.INSTANCE;
+                AccountMappingImpl ACCOUNTS = AccountMappingImpl.INSTANCE;
 
                 record Ledger(String code) {}
 
@@ -335,13 +378,12 @@ class ImplConstantWarningTest {
           javac()
               .withProcessors(new MappingProcessor())
               .withClasspath(classpathWith(classes))
-              .compile(downstream);
+              .compile(edited, ledger);
 
       assertThat(compilation).succeeded();
       Assertions.assertThat(warnings(compilation))
-          .containsExactlyInAnyOrder(
-              warning("LedgerMapping.ACCOUNTS", "UpstreamAccountMappingImpl", "LedgerMapping"),
-              warning("LedgerMapping.PROFILES", "UpstreamProfileUpdateImpl", "LedgerMapping"));
+          .containsExactly(
+              mapping("AccountMapping.MAPPER", "AccountMappingImpl", "AccountMapping"));
     }
   }
 }
