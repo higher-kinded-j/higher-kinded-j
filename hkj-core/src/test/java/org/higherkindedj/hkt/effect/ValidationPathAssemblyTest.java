@@ -63,6 +63,79 @@ class ValidationPathAssemblyTest {
     return Path.validNel(value);
   }
 
+  /** A record with no components: its assembly has no fields. */
+  private record Deleted() {}
+
+  @Nested
+  @DisplayName("an assembly of no fields")
+  class NoFields {
+
+    @Test
+    @DisplayName("accumulate() and fields() complete with apply, and the result is valid")
+    void applyIsValid() {
+      assertThatValidated(Path.accumulate().<String, Deleted>apply(Deleted::new).run())
+          .isValid()
+          .hasValue(new Deleted());
+      assertThatValidated(Path.fields().apply(Deleted::new).run())
+          .isValid()
+          .hasValue(new Deleted());
+    }
+
+    @Test
+    @DisplayName("construct returns the value, or a refusal with its message or the fallback")
+    void constructGuardsTheSupplier() {
+      assertThatValidated(Path.fields().construct(Deleted::new, "not a valid Deleted").run())
+          .isValid()
+          .hasValue(new Deleted());
+      assertThatValidated(
+              Path.fields()
+                  .<Deleted>construct(
+                      () -> {
+                        throw new IllegalStateException("gone");
+                      },
+                      "not a valid Deleted")
+                  .run())
+          .isInvalid()
+          .hasFieldErrors("gone");
+      assertThatValidated(
+              Path.fields()
+                  .<Deleted>construct(
+                      () -> {
+                        throw new IllegalStateException();
+                      },
+                      "not a valid Deleted")
+                  .run())
+          .isInvalid()
+          .hasFieldErrors("not a valid Deleted");
+      assertThatValidated(
+              Path.fields()
+                  .<Deleted>construct(
+                      () -> {
+                        throw new IllegalStateException(" ");
+                      },
+                      "not a valid Deleted")
+                  .run())
+          .isInvalid()
+          .hasFieldErrors("not a valid Deleted");
+    }
+
+    @Test
+    @DisplayName("apply and construct reject a null supplier, and a null or blank fallback")
+    void rejectsNulls() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.accumulate().apply(null))
+          .withMessage("f must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.fields().apply(null))
+          .withMessage("f must not be null");
+      assertThatNullPointerException().isThrownBy(() -> Path.fields().construct(null, "fallback"));
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.fields().construct(Deleted::new, null));
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> Path.fields().construct(Deleted::new, " "));
+    }
+  }
+
   @Nested
   @DisplayName("accumulate(): generic error payload, and() chains")
   class Accumulate {

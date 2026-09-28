@@ -81,6 +81,76 @@ class EitherOrBothAssemblyTest {
     return errors.map(FieldError::toString).toJavaList();
   }
 
+  /** A record with no components: its assembly has no fields. */
+  private record Deleted() {}
+
+  @Nested
+  @DisplayName("an assembly of no fields")
+  class NoFields {
+
+    @Test
+    @DisplayName("accumulate() and fields() complete with apply, as a Right")
+    void applyIsARight() {
+      assertThatEitherOrBoth(EitherOrBoth.accumulate().<String, Deleted>apply(Deleted::new))
+          .isRight()
+          .hasRight(new Deleted());
+      assertThatEitherOrBoth(EitherOrBoth.fields().apply(Deleted::new))
+          .isRight()
+          .hasRight(new Deleted());
+    }
+
+    @Test
+    @DisplayName(
+        "construct returns a Right, or a refusal as a Left with its message or the fallback")
+    void constructGuardsTheSupplier() {
+      assertThatEitherOrBoth(EitherOrBoth.fields().construct(Deleted::new, "not a valid Deleted"))
+          .hasRight(new Deleted());
+      assertThatEitherOrBoth(
+              EitherOrBoth.fields()
+                  .<Deleted>construct(
+                      () -> {
+                        throw new IllegalStateException("gone");
+                      },
+                      "not a valid Deleted"))
+          .hasLeftSatisfying(left -> assertThat(rendered(left)).containsExactly("gone"));
+      assertThatEitherOrBoth(
+              EitherOrBoth.fields()
+                  .<Deleted>construct(
+                      () -> {
+                        throw new IllegalStateException();
+                      },
+                      "not a valid Deleted"))
+          .hasLeftSatisfying(
+              left -> assertThat(rendered(left)).containsExactly("not a valid Deleted"));
+      assertThatEitherOrBoth(
+              EitherOrBoth.fields()
+                  .<Deleted>construct(
+                      () -> {
+                        throw new IllegalStateException(" ");
+                      },
+                      "not a valid Deleted"))
+          .hasLeftSatisfying(
+              left -> assertThat(rendered(left)).containsExactly("not a valid Deleted"));
+    }
+
+    @Test
+    @DisplayName("apply and construct reject a null supplier, and a null or blank fallback")
+    void rejectsNulls() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherOrBoth.accumulate().apply(null))
+          .withMessage("f must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherOrBoth.fields().apply(null))
+          .withMessage("f must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherOrBoth.fields().construct(null, "fallback"));
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherOrBoth.fields().construct(Deleted::new, null));
+      assertThatIllegalArgumentException()
+          .isThrownBy(() -> EitherOrBoth.fields().construct(Deleted::new, " "));
+    }
+  }
+
   @Nested
   @DisplayName("accumulate(): generic warning payload, and() chains")
   class Accumulate {
