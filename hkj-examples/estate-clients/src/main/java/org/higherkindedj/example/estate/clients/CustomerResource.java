@@ -10,12 +10,16 @@ import org.jspecify.annotations.Nullable;
  * constructor, a getter and a setter per property, a nullable property for an optional field, and
  * value equality.
  */
+// ANCHOR: resource_bean
 public class CustomerResource {
   private @Nullable String id;
   private @Nullable String fullName;
   private @Nullable String email;
   private @Nullable String nickname;
   private @Nullable AddressBean address;
+
+  // ...a getter and a setter for each, value equality, as a generator writes them
+  // ANCHOR_END: resource_bean
 
   public @Nullable String getId() {
     return id;

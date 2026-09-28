@@ -65,8 +65,10 @@ MapStruct, and the `hkj-mapping` skill in `.claude/skills/`, which ships to user
 
 - **The chapter's examples share one package**, `org.higherkindedj.example.book.mapping` in
   `hkj-examples`, rather than one package per page, because they share one cast. A new top-level
-  type must therefore not reuse a name already in the package. The capstone has a package of its
-  own. A page's "See Example Code" box names its own example files, and a test beside each proves
+  type must therefore not reuse a name already in the package. The boundary capstone has a package
+  of its own, and the estate capstone's code is three Gradle modules of its own,
+  `hkj-examples/estate-api`, `estate-clients` and `estate-service`, because the module boundary is
+  its subject. A page's "See Example Code" box names its own example files, and a test beside each proves
   what the page claims. Basics, the Quickstart and the testing page also include from the Spring
   example app, `hkj-spring/example`. A new page gets its own `<Topic>Book.java` and
   `<Topic>BookTest.java`.
@@ -92,15 +94,19 @@ MapStruct, and the `hkj-mapping` skill in `.claude/skills/`, which ships to user
   - **Three kinds of fence may reshape a package name.** A `verify:rejects` or `verify:reports`
     reproducer may change the one thing its diagnostic is about. The "before" half of a
     before-and-after pair shows the shape it replaces. The intro's hand-written mapper takes the
-    capstone's shapes.
+    boundary capstone's shapes.
   - **Reference pages keep their own reproducers.** Compiler Messages and Rules and Limits name
     each reproducer for its refusal, and code included from another module, such as the Spring
     example app's `User` or a processor golden file, keeps its own names.
   - **A checkpoint's fresh instance is a fresh case, not a fresh type**: it may reuse the page's
     cast with new values.
-  - **The capstone's package holds a larger cast of its own.** Its `Order` carries a customer,
-    lines, a currency and a status, and its `CustomerDto` names the wire's `fullName`. The main
-    package's `Order` is a smaller record for the Codecs page.
+  - **The boundary capstone's package holds a larger cast of its own.** Its `Order` carries a
+    customer, lines, a currency and a status, and its `CustomerDto` names the wire's `fullName`. The
+    main package's `Order` is a smaller record for the Codecs page.
+  - **The estate capstone's modules hold a larger `Customer` of their own**, with an id, a nickname
+    and an address beside the name and the checked email, because a service keeps its customer at
+    that size. Its specs, `AddressMapping` among them, map that module's pairs, and its client beans
+    keep the names a partner's jar would give them.
 
 ## Checks
 

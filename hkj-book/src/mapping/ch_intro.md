@@ -170,9 +170,9 @@ Start from what you came for.
 | A working endpoint that answers with a located 422 | [Quickstart](quickstart.md), five steps |
 | To understand the model before writing any of it | [Record Mapping Basics](basics.md), then each page through to [the Capstone](capstone.md) and [Check Your Understanding](self_check.md) |
 | To judge whether it fits your services | [Mapper at a Glance](at_a_glance.md) |
-| To see it across modules, with client jars, Lombok beans and a PATCH | [the Estate capstone](estate.md) |
 | To bring a MapStruct or Bean Validation habit across | [Coming from MapStruct and Bean Validation](from_mapstruct.md) |
 | To see it working on one boundary | [the Capstone](capstone.md) |
+| To see it across modules, with a client jar, a Lombok bean and a PATCH | [the estate capstone](estate.md) |
 
 Those pages teach the model and put it behind an endpoint. For a particular task, go straight to its page:
 
@@ -213,7 +213,7 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 11. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
 12. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
 13. [Injecting, Testing, and Diagnostics](testing.md): Spring beans, test fakes, and record width
-14. [Capstone: An Estate in Three Modules](estate.md): A vocabulary, client jars, Lombok, and PATCH across modules
+14. [Capstone: An Estate in Three Modules](estate.md): A vocabulary, a client jar, Lombok, and PATCH across modules
 
 **Look it up**, when you hold a question:
 

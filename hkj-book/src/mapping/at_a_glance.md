@@ -128,8 +128,8 @@ blocker. Each ❌ means keep what you have for that case.
 | Clients that need error paths in **wire** names | ⚠ paths are domain-named |
 | Spec-carrying libraries on the module path | ⚠ no cross-module index there |
 
-The [estate capstone](estate.md) builds the generated-client, Lombok and PATCH rows across three
-modules.
+The [estate capstone](estate.md) works a generated-client bean, a Lombok `@Data` bean and a
+clearing PATCH across three modules.
 ~~~
 
 ---

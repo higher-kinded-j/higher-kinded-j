@@ -4,7 +4,7 @@ The book's code is kept honest in three ways. **Prefer the first.**
 
 | | How | Guarantee |
 |---|---|---|
-| **1. Include** (preferred) | The page `{{#include}}`s an anchored region of a compiled example in this module | Drift is **impossible**: the page renders the code the build compiles and runs |
+| **1. Include** (preferred) | The page `{{#include}}`s an anchored region of a compiled example in this module, or in one of the estate capstone's modules beside it | Drift is **impossible**: the page renders the code the build compiles and runs |
 | **2. Verify marker** | The page marks a fence `<!-- verify -->`; the gate compiles a copy of it | Drift is **caught**: the build fails if the code stops compiling |
 | **3. Diagnostic marker** | The page marks a fence `<!-- verify:rejects "…" -->` or `<!-- verify:reports "…" -->`; the gate compiles it and holds the compiler to what the page quotes | Drift is **caught** for code the page shows in order to say it is *refused*, which neither of the others can express |
 

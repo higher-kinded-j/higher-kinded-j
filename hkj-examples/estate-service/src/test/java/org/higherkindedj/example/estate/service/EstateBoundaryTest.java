@@ -8,7 +8,6 @@ import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidat
 import java.util.Optional;
 import java.util.UUID;
 import org.higherkindedj.example.estate.api.EmailAddress;
-import org.higherkindedj.example.estate.clients.AddressBean;
 import org.higherkindedj.example.estate.clients.CustomerPatch;
 import org.higherkindedj.example.estate.clients.CustomerResource;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -26,6 +25,7 @@ import tools.jackson.databind.json.JsonMapper;
 @DisplayName("the estate boundary: three modules, a Lombok wire, a PATCH that clears, and the laws")
 class EstateBoundaryTest {
 
+  // ANCHOR: fixtures
   // The generated Impls, bound once for the class.
   private static final CustomerResourceMappingImpl RESOURCE = CustomerResourceMappingImpl.INSTANCE;
   private static final CustomerPatchMappingImpl PATCH = CustomerPatchMappingImpl.INSTANCE;
@@ -45,16 +45,18 @@ class EstateBoundaryTest {
     return PATCH.updateFrom(JSON.readValue(body, CustomerPatch.class)).apply(ADA);
   }
 
+  // ANCHOR_END: fixtures
+
   @Test
-  @DisplayName("the resource round-trips through the vocabulary, the Lombok bean and the bridge")
+  @DisplayName("the resource round-trips through the vocabulary, the Lombok bean and the nickname")
   void resourceRoundTrips() {
     // ANCHOR: round_trip
     CustomerResource wire = RESOURCE.build(ADA);
 
     assertThat(wire.getFullName()).isEqualTo("Ada Lovelace"); // the api module's rename
-    assertThat(wire.getNickname()).isEqualTo("Countess"); // the bean bridges the Optional
-    assertThat(wire.getAddress().getCity()).isEqualTo("Leeds"); // Lombok's accessors, from a jar
-    assertThatValidated(RESOURCE.parse(wire)).isValid().hasValue(ADA);
+    assertThat(wire.getNickname()).isEqualTo("Countess"); // an empty Optional would be null
+    assertThat(wire.getAddress().getCity()).isEqualTo("Leeds"); // Lombok's compiled accessors
+    assertThatValidated(RESOURCE.parse(wire)).hasValue(ADA);
     // ANCHOR_END: round_trip
   }
 
@@ -124,14 +126,5 @@ class EstateBoundaryTest {
     badEmail.setEmail("nope");
     MappingLaws.assertMappingLaws(PATCH::updateFrom, ADA, new CustomerPatch(), rename, badEmail);
     // ANCHOR_END: laws
-  }
-
-  @Test
-  @DisplayName(
-      "the Lombok bean is a plain bean to the mapper: a no-args constructor, getters, setters")
-  void theLombokBeanIsAPlainBean() {
-    AddressBean bean = new AddressBean();
-    bean.setStreet("1 High Street");
-    assertThat(bean.getStreet()).isEqualTo("1 High Street");
   }
 }
