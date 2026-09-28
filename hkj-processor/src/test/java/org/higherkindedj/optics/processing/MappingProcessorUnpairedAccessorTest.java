@@ -759,6 +759,69 @@ class MappingProcessorUnpairedAccessorTest {
     }
 
     @Test
+    @DisplayName(
+        "on a bean that is only read or only written, every accessor is a property of its own, so"
+            + " a marker has nothing to leave out")
+    void oneWayBeanLeavesNothingUnpaired() {
+      JavaFileObject view =
+          source(
+              "ContactView",
+              """
+              public class ContactView {
+                public String getName() { return "ada"; }
+                public String getEmail() { return "ada@corp"; }
+                public String getPhone() { return "01"; }
+                public String getNickname() { return "a"; }
+              }
+              """);
+      JavaFileObject viewSpec =
+          source(
+              "ContactViewMapping",
+              """
+              @GenerateMapping
+              public interface ContactViewMapping extends MappingSpec<Contact, ContactView> {
+                @Unmapped
+                String nickname();
+              }
+              """);
+      JavaFileObject out =
+          source(
+              "ContactOut",
+              """
+              public class ContactOut {
+                public void setName(String name) {}
+                public void setEmail(String email) {}
+                public void setPhone(String phone) {}
+              }
+              """);
+      JavaFileObject outSpec =
+          source(
+              "ContactOutMapping",
+              """
+              @GenerateMapping
+              public interface ContactOutMapping extends MappingSpec<Contact, ContactOut> {
+                @Unmapped
+                String phone();
+              }
+              """);
+      Compilation compilation = compile(CONTACT, view, viewSpec, out, outSpec);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Unmapped method 'nickname' names a property of 'ContactView', which is only read."
+                  + " The marker reads an accessor with no partner as deliberate, and every getter"
+                  + " of a bean that is only read is a property of its own: parse reads those the"
+                  + " domain needs and never calls the rest. Remove the marker.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@Unmapped method 'phone' names a property of 'ContactOut', which is only written."
+                  + " The marker reads an accessor with no partner as deliberate, and every setter"
+                  + " of a bean that is only written is a property of its own: build fills each"
+                  + " one, so none can be left out. Remove the marker.");
+      Assertions.assertThat(errors(compilation)).hasSize(2);
+    }
+
+    @Test
     @DisplayName("inherited from a mix-in, it binds where it can and is otherwise inert")
     void inheritedMarkerIsInert() {
       JavaFileObject vocabulary =

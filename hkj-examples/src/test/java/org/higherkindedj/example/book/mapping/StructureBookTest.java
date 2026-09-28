@@ -95,6 +95,24 @@ class StructureBookTest {
         .isInstanceOf(InvalidDefinitionException.class);
   }
 
+  @Test
+  @DisplayName(
+      "an empty subtype maps through an empty spec, and Jackson deduces it from an empty object")
+  void anEmptySubtypeMapsAndIsDeducedFromAnEmptyObject() {
+    JsonMapper json = JsonMapper.builder().build();
+
+    FulfilmentDto collected = json.readValue("{}", FulfilmentDto.class);
+    assertThat(collected).isEqualTo(new CollectedDto());
+    assertThat(json.readValue("{\"tracking\": \"T-1\"}", FulfilmentDto.class))
+        .isEqualTo(new ShippedDto("T-1"));
+    assertThat(json.writeValueAsString(new CollectedDto())).isEqualTo("{}");
+
+    assertThatValidated(FulfilmentMappingImpl.INSTANCE.parse(collected))
+        .isValid()
+        .hasValue(new Collected());
+    assertThat(FulfilmentMappingImpl.INSTANCE.build(new Collected())).isEqualTo(new CollectedDto());
+  }
+
   /** A sealed wire with no type information, which Jackson cannot construct. */
   sealed interface BarePaymentDto permits BareCardDto {}
 

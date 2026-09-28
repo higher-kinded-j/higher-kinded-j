@@ -265,6 +265,32 @@ interface PaymentMapping extends MappingSpec<Payment, PaymentDto> {}
 
 // ANCHOR_END: sealed_spec
 
+// ANCHOR: empty_subtype_spec
+sealed interface Fulfilment permits Shipped, Collected {}
+
+record Shipped(String tracking) implements Fulfilment {}
+
+record Collected() implements Fulfilment {} // collected in store: nothing more to say
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION) // {} is the subtype with no properties
+@JsonSubTypes({@JsonSubTypes.Type(ShippedDto.class), @JsonSubTypes.Type(CollectedDto.class)})
+sealed interface FulfilmentDto permits ShippedDto, CollectedDto {}
+
+record ShippedDto(String tracking) implements FulfilmentDto {}
+
+record CollectedDto() implements FulfilmentDto {}
+
+@GenerateMapping
+interface ShippedMapping extends MappingSpec<Shipped, ShippedDto> {}
+
+@GenerateMapping
+interface CollectedMapping extends MappingSpec<Collected, CollectedDto> {}
+
+@GenerateMapping
+interface FulfilmentMapping extends MappingSpec<Fulfilment, FulfilmentDto> {}
+
+// ANCHOR_END: empty_subtype_spec
+
 // ANCHOR: checkout_spec
 record Checkout(String id, List<Payment> payments) {}
 

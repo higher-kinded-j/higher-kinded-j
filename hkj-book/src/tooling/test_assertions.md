@@ -369,6 +369,8 @@ void personMappingIsLawful() {
 
 Three samples need care. The lossless overload's coherence check needs a wire whose reference components are non-null, and whose values the domain accepts. A mapping with a derived field *and* a fallible leaf takes the fallible overload, which keeps the rejection check: give it a parseable wire whose derived components match what `build` produces. For the patch and parse-only overloads, the non-parsing wire must fail on a field, since a refusal by the domain's constructor alone is unlabelled at the top level.
 
+A pair of records with no components has one value on each side, so the lossless overload's guard, which asks for a wire sample independent of the domain sample, can never be met. Check such a pair with `IsoLaws.assertIsoLaws(iso, domainSample, wireSample)` and the one-sample `assertMappingLaws(mapping, domainSample)`, which between them cover the same laws.
+
 For asserting on the located failures themselves, `assertThatValidated(...).hasFieldErrors(...)` takes the whole accumulation as rendered lines; `assertThatFieldError` takes one error apart, matching its path (`hasPath("address.zip")`) and message (`hasMessage`, `hasMessageContaining`).
 
 ~~~admonish tip title="See Also"

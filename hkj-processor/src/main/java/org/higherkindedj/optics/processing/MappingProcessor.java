@@ -1125,6 +1125,32 @@ public class MappingProcessor extends AbstractProcessor {
         continue;
       }
       boolean carried = wire.componentNamed(name).isPresent();
+      if (carried && wire.direction() != WireShape.Direction.BIDIRECTIONAL) {
+        // A one-way bean pairs nothing, so each of its accessors is a property of its own and none
+        // is ever left unpaired: parse ignores a getter the domain has no use for, and build fills
+        // every setter.
+        boolean read = wire.direction() == WireShape.Direction.PARSE_ONLY;
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@Unmapped method '"
+                + name
+                + "' names a property of '"
+                + wire.element().getSimpleName()
+                + "', which is only "
+                + (read ? "read." : "written."),
+            "The marker reads an accessor with no partner as deliberate, and every "
+                + (read ? "getter" : "setter")
+                + " of a bean that is only "
+                + (read ? "read" : "written")
+                + " is a property of its own: "
+                + (read
+                    ? "parse reads those the domain needs and never calls the rest."
+                    : "build fills each one, so none can be left out."),
+            componentFix(wire, sparse, "Remove the marker."));
+        return null;
+      }
       Diagnostics.error(
           processingEnv.getMessager(),
           method,
