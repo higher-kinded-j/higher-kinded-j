@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -688,6 +689,25 @@ class ValidatedPrismTest {
               });
       assertThatValidated(fussyRender.parse("")).isInvalid();
       assertThatValidated(fussyRender.parse("ok")).isValid().hasValue("ok");
+    }
+
+    @Test
+    @DisplayName("a parse answering null is rejected before the render runs, with no exception")
+    void nullParseIsRejectedBeforeTheRender() {
+      AtomicInteger renders = new AtomicInteger();
+      ValidatedPrism<String, UUID> screened =
+          ValidatedPrism.canonical(
+              "not a UUID",
+              source -> source.length() == 36 ? UUID.fromString(source) : null,
+              uuid -> {
+                renders.incrementAndGet();
+                return uuid.toString();
+              });
+
+      assertThatValidated(screened.parse("NOPE")).hasFieldErrors("not a UUID");
+      assertThat(renders).hasValue(0);
+      assertThatValidated(screened.parse("123e4567-e89b-12d3-a456-426614174000")).isValid();
+      assertThat(renders).hasValue(1);
     }
 
     @Test

@@ -163,16 +163,16 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     NonEmptyList<FieldError> failures = null;
     for (int i = 0; i < sources.length; i++) {
       S source = sources[i];
-      String index = String.valueOf(i);
       NonEmptyList<FieldError> located;
       if (source == null) {
-        located = NonEmptyList.of(FieldError.of("must not be null").at(index));
+        located = NonEmptyList.of(FieldError.of("must not be null").at(String.valueOf(i)));
       } else {
         Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
         if (parsed.isValid()) {
           values[i] = parsed.get();
           continue;
         }
+        String index = String.valueOf(i);
         located = parsed.getError().map(err -> err.at(index));
       }
       failures = accumulate(failures, located);

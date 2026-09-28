@@ -21,6 +21,10 @@ package org.higherkindedj.optics.annotations;
  * //   Validated<NonEmptyList<FieldError>, User> parse(UserDto)   (accumulating, located)
  * }</pre>
  *
+ * <p>The generated Impl reads each {@code default} leaf once, on its first use, and keeps what it
+ * answers, so a leaf that builds its codec, such as a date codec over a {@code DateTimeFormatter},
+ * builds it once rather than on every call. A leaf should answer the same codec each time.
+ *
  * <p>The wire type {@code W} may be a record or a bean-shaped class: a mutable class with a no-args
  * constructor and getters/setters, or an immutable one with a builder. The bean is read through
  * getters and written through setters or a builder, and one offering only one of the two maps that

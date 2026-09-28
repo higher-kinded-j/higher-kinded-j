@@ -51,7 +51,7 @@ public sealed interface ValidatedBuild<S, A> permits ValidatedPrism, ValidatedBu
     List<S> built = new ArrayList<>(values.size());
     int i = 0;
     for (A value : values) {
-      built.add(build(Objects.requireNonNull(value, "values[" + i + "] must not be null")));
+      built.add(build(requireElement(value, i)));
       i++;
     }
     return List.copyOf(built);
@@ -90,7 +90,7 @@ public sealed interface ValidatedBuild<S, A> permits ValidatedPrism, ValidatedBu
     Objects.requireNonNull(newArray, "newArray must not be null");
     S[] built = newArray.apply(values.length);
     for (int i = 0; i < values.length; i++) {
-      built[i] = build(Objects.requireNonNull(values[i], "values[" + i + "] must not be null"));
+      built[i] = build(requireElement(values[i], i));
     }
     return built;
   }
@@ -110,9 +110,7 @@ public sealed interface ValidatedBuild<S, A> permits ValidatedPrism, ValidatedBu
     Map<K, S> built = LinkedHashMap.newLinkedHashMap(values.size());
     for (Map.Entry<K, ? extends A> entry : values.entrySet()) {
       K key = Objects.requireNonNull(entry.getKey(), "values must not contain a null key");
-      built.put(
-          key,
-          build(Objects.requireNonNull(entry.getValue(), "values[" + key + "] must not be null")));
+      built.put(key, build(requireValue(entry.getValue(), key)));
     }
     // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
     return Collections.unmodifiableMap(built);
@@ -136,9 +134,7 @@ public sealed interface ValidatedBuild<S, A> permits ValidatedPrism, ValidatedBu
     Map<S, V> built = LinkedHashMap.newLinkedHashMap(values.size());
     for (Map.Entry<? extends A, V> entry : values.entrySet()) {
       A key = Objects.requireNonNull(entry.getKey(), "values must not contain a null key");
-      built.put(
-          build(key),
-          Objects.requireNonNull(entry.getValue(), "values[" + key + "] must not be null"));
+      built.put(build(key), requireValue(entry.getValue(), key));
     }
     // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
     return Collections.unmodifiableMap(built);
@@ -165,10 +161,7 @@ public sealed interface ValidatedBuild<S, A> permits ValidatedPrism, ValidatedBu
     Map<S, SV> built = LinkedHashMap.newLinkedHashMap(values.size());
     for (Map.Entry<? extends A, ? extends V> entry : values.entrySet()) {
       A key = Objects.requireNonNull(entry.getKey(), "values must not contain a null key");
-      built.put(
-          build(key),
-          valueBuild.build(
-              Objects.requireNonNull(entry.getValue(), "values[" + key + "] must not be null")));
+      built.put(build(key), valueBuild.build(requireValue(entry.getValue(), key)));
     }
     // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
     return Collections.unmodifiableMap(built);
@@ -214,5 +207,24 @@ public sealed interface ValidatedBuild<S, A> permits ValidatedPrism, ValidatedBu
       Objects.requireNonNull(value, "value must not be null");
       return Objects.requireNonNull(buildFn.apply(value), "build must not return null");
     }
+  }
+
+  /**
+   * Returns an element that is not null, or throws naming its index. The message is built only on
+   * the null, so a loop over valid elements concatenates nothing.
+   */
+  private static <T> T requireElement(T value, int index) {
+    if (value == null) {
+      throw new NullPointerException("values[" + index + "] must not be null");
+    }
+    return value;
+  }
+
+  /** Returns a map value that is not null, or throws naming its key; the message as above. */
+  private static <T> T requireValue(T value, Object key) {
+    if (value == null) {
+      throw new NullPointerException("values[" + key + "] must not be null");
+    }
+    return value;
   }
 }

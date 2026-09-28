@@ -45,11 +45,11 @@ import org.openjdk.jmh.annotations.TearDown;
  * <p>Three things shape the numbers:
  *
  * <ul>
- *   <li>The generated mapper calls each leaf method on every {@code build} and {@code parse}, as a
- *       spec written the way the book teaches does, so a leaf that builds its codec per call is
- *       part of the cost.
+ *   <li>The generated mapper reads each leaf once and keeps it, so a leaf that builds its codec, as
+ *       {@code enumByName} does, pays for that once rather than on every call.
  *   <li>A rejection that throws inside a codec pays for a stack trace, which grows with the
- *       caller's stack. The bad-wire benchmarks therefore run at two depths ({@link Caller}).
+ *       caller's stack. The stock codecs screen a malformed value before a JDK parser can throw,
+ *       and a custom leaf may not, so the bad-wire benchmarks run at two depths ({@link Caller}).
  *   <li>Bean Validation runs with {@link ParameterMessageInterpolator}, lighter than the
  *       expression-language interpolator a default Spring Boot set-up uses, so its figures are
  *       favourable to it. Its patterns check each field's shape, where a codec also checks the
