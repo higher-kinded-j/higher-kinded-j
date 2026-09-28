@@ -35,11 +35,11 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>An assembly whose legs are still parsing ends in a constructor <em>thunk</em> ({@code () ->
  * new Range(lo, hi)}) rather than the constructed value, and the emitted {@code hkj$construct}
  * helper runs it, so only the constructor runs inside the guard and a leaf's own exception still
- * escapes. The same helper serves a {@code fields()} ladder and a chunked ladder alike, and the
- * thunk is target-typed by the helper's parameter wherever the chain ends. The staged {@code
- * assemble()} holds values already validated, so its curried chain runs nothing but the
- * constructor, and a plain {@code try} around it is exact without deepening the curried lambda
- * javac must type.
+ * escapes. The same helper serves a {@code fields()} ladder, a chunked ladder and the bare thunk of
+ * a record with no components alike, and the thunk is target-typed by the helper's parameter
+ * wherever the chain ends. The staged {@code assemble()} holds values already validated, so its
+ * curried chain runs nothing but the constructor, and a plain {@code try} around it is exact
+ * without deepening the curried lambda javac must type.
  *
  * <p>Every assembly hands its values on boxed, so the constructor call names each argument through
  * {@link #canonicalArguments}: a primitive component beside a same-arity overload is unboxed by a
@@ -127,7 +127,7 @@ final class GuardedConstruction {
    * terminal to apply, so its assembly is the thunk itself, valid as it stands: {@code
    * Validated.validNel(() -> new Deleted())}.
    */
-  static CodeBlock thunkLadder(
+  static CodeBlock assembly(
       List<CodeBlock> legs, List<String> params, TypeElement record, TypeName type) {
     if (legs.isEmpty()) {
       return CodeBlock.of(

@@ -892,7 +892,7 @@ public class MergeProcessor extends AbstractProcessor {
       if (legs.size() <= ArityCeilings.ASSEMBLY) {
         method.addCode(
             GuardedConstruction.returning(
-                GuardedConstruction.thunkLadder(
+                GuardedConstruction.assembly(
                     legs,
                     GuardedConstruction.parameterNames(
                         fills.stream().map(Fill::component).toList(), reserved),

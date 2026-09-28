@@ -5506,8 +5506,8 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' spreads "
                 + record.getSimpleName()
                 + ", which has no components.",
-            "A flattened component is spread by its record's components, and a record with none"
-                + " would leave the domain component with nothing to assemble it from.",
+            "A flattened component is spread over its record's components, and a record with none"
+                + " has nothing to spread onto the wire.",
             "Give the record a component, or map the component through a leaf.");
         return null;
       }
@@ -8335,7 +8335,7 @@ public class MappingProcessor extends AbstractProcessor {
           GuardedConstruction.parameterNames(
               run.stream().map(Correspondence::name).toList(), Set.of("wire"));
       CodeBlock inner =
-          GuardedConstruction.thunkLadder(
+          GuardedConstruction.assembly(
               run.stream()
                   .map(
                       member ->
@@ -8676,7 +8676,7 @@ public class MappingProcessor extends AbstractProcessor {
     List<CodeBlock> code = legs.stream().map(Leg::code).toList();
     if (legs.size() <= ArityCeilings.ASSEMBLY) {
       return GuardedConstruction.returning(
-          GuardedConstruction.thunkLadder(
+          GuardedConstruction.assembly(
               code,
               GuardedConstruction.parameterNames(
                   legs.stream().map(Leg::name).toList(), Set.of("wire")),
@@ -8920,6 +8920,8 @@ public class MappingProcessor extends AbstractProcessor {
             .map(name -> CodeBlock.of("var $L = domain.$L()", nameFor.get(name), name))
             .toList();
     CodeBlock patchBody;
+    // Never empty: a projection carrying no component reads nothing that can fail, so it maps as
+    // a lens.
     if (patchLegs.size() <= ArityCeilings.ASSEMBLY) {
       patchBody =
           GuardedConstruction.returning(

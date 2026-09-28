@@ -44,6 +44,7 @@ class EmptyRecordMappingTest {
         """
         package com.example.empty;
 
+        import java.util.Arrays;
         import java.util.List;
         import org.higherkindedj.optics.Getter;
         import org.higherkindedj.optics.annotations.GenerateMapping;
@@ -87,6 +88,12 @@ class EmptyRecordMappingTest {
 
                 public void setKind(String kind) {
                   this.kind = kind;
+                }
+              }
+
+              public static final class PongView {
+                public String getKind() {
+                  return "sent";
                 }
               }
 
@@ -142,6 +149,10 @@ class EmptyRecordMappingTest {
                   return Getter.of(pong -> "pong");
                 }
               }
+
+              @GenerateMapping
+              public interface PongViewMapping
+                  extends MappingSpec<Records.Pong, Records.PongView> {}
 
               @GenerateMapping
               public interface HolderMapping extends MappingSpec<Records.Holder, Records.HolderDto> {}
@@ -201,6 +212,10 @@ class EmptyRecordMappingTest {
                 return SpecsPongMappingImpl.INSTANCE.build(new Records.Pong());
               }
 
+              public static Object pongDto() {
+                return new Records.PongDto("pong");
+              }
+
               public static Object derivedPrism() {
                 return SpecsPongMappingImpl.INSTANCE.asValidatedPrism();
               }
@@ -217,6 +232,12 @@ class EmptyRecordMappingTest {
                 return SpecsPongBeanMappingImpl.INSTANCE.build(new Records.Pong()).getKind();
               }
 
+              public static Object parseOnly() {
+                return SpecsPongViewMappingImpl.INSTANCE
+                    .asValidatedParse()
+                    .parse(new Records.PongView());
+              }
+
               public static Object nested() {
                 return SpecsHolderMappingImpl.INSTANCE.parse(
                     new Records.HolderDto(
@@ -230,7 +251,7 @@ class EmptyRecordMappingTest {
 
               public static Object nestedNulls() {
                 return SpecsHolderMappingImpl.INSTANCE.parse(
-                    new Records.HolderDto(null, null, java.util.Arrays.asList(null, null)));
+                    new Records.HolderDto(null, null, Arrays.asList(null, null)));
               }
 
               public static Object refused() {
@@ -278,7 +299,7 @@ class EmptyRecordMappingTest {
 
   @Test
   @DisplayName(
-      "an empty pair parses, builds, and keeps the iso, round-trip and coherence laws of the"
+      "an empty pair parses, builds and obeys the iso, round-trip and coherence laws of the"
           + " lossless tier")
   @SuppressWarnings("unchecked") // the probe returns the generated Iso as Object
   void emptyPairIsLossless() throws ReflectiveOperationException {
@@ -311,10 +332,17 @@ class EmptyRecordMappingTest {
           + " value, on a record wire and a bean wire")
   void derivedOnlyWireMaps() throws ReflectiveOperationException {
     assertThatValidated(parsed("derivedParse")).isValid().hasValue(probe("pong"));
-    assertThat(probe("derivedBuild")).hasToString("PongDto[kind=pong]");
+    assertThat(probe("derivedBuild")).isEqualTo(probe("pongDto"));
     MappingLaws.assertMappingLaws(prism("derivedPrism"), probe("pong"));
     assertThatValidated(parsed("beanParse")).isValid().hasValue(probe("pong"));
     assertThat(probe("beanBuild")).isEqualTo("pong");
+  }
+
+  @Test
+  @DisplayName(
+      "a parse-only bean over an empty domain parses, ignoring the getter it has no use for")
+  void parseOnlyBeanMaps() throws ReflectiveOperationException {
+    assertThatValidated(parsed("parseOnly")).isValid().hasValue(probe("pong"));
   }
 
   @Test
@@ -333,7 +361,8 @@ class EmptyRecordMappingTest {
 
   @Test
   @DisplayName(
-      "an empty record's constructor still refuses through parse, at its own path when nested")
+      "an empty record's constructor refusal comes back from parse as an error, at its own path"
+          + " when nested")
   void constructorRefusalIsLocated() throws ReflectiveOperationException {
     assertThatValidated(parsed("refused")).isInvalid().hasFieldErrors("retired");
     assertThatValidated(parsed("refusedNested"))
