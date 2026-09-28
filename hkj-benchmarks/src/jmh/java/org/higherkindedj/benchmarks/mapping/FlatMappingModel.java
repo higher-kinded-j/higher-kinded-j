@@ -9,15 +9,20 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Currency;
 import java.util.UUID;
+import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.validated.StandardCodecs;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 /**
- * The flat pair the mapping benchmarks measure: ten fields and no nesting, nine of them converted.
- * It is a second data point beside the nested order pair, with no nesting and no list.
+ * The flat pair the mapping benchmarks measure: ten fields and no nesting, nine of them converted,
+ * one renamed on the wire, and a derived wire field. It is a second data point beside the nested
+ * order pair, with no nesting and no list, and it carries the two kinds of field the order pair
+ * does not, so each approach's model shows what every kind of field costs it.
  */
 final class FlatMappingModel {
 
@@ -40,7 +45,7 @@ record FlatRecord(
 
 record FlatDto(
     String id,
-    String name,
+    String fullName,
     String email,
     String quantity,
     String price,
@@ -48,11 +53,12 @@ record FlatDto(
     String currency,
     String status,
     String dueDate,
-    String active) {}
+    String active,
+    String display) {}
 
 record ValidatedFlatDto(
     @NotNull @Pattern(regexp = OrderMappingModel.UUID_PATTERN) String id,
-    @NotNull String name,
+    @NotNull String fullName,
     @NotNull @Pattern(regexp = ".*@.*") String email,
     @NotNull @Pattern(regexp = OrderMappingModel.INTEGER_PATTERN) String quantity,
     @NotNull @Pattern(regexp = OrderMappingModel.PLAIN_DECIMAL_PATTERN) String price,
@@ -60,10 +66,14 @@ record ValidatedFlatDto(
     @NotNull @Pattern(regexp = "[A-Z]{3}") String currency,
     @NotNull @Pattern(regexp = "NEW|PAID|SHIPPED") String status,
     @NotNull @Pattern(regexp = FlatMappingModel.LOCAL_DATE_PATTERN) String dueDate,
-    @NotNull @Pattern(regexp = "true|false") String active) {}
+    @NotNull @Pattern(regexp = "true|false") String active,
+    String display) {}
 
 @GenerateMapping
 interface FlatMapping extends MappingSpec<FlatRecord, FlatDto> {
+  @MapField(to = "fullName")
+  String name();
+
   default ValidatedPrism<String, UUID> id() {
     return StandardCodecs.uuid();
   }
@@ -99,14 +109,24 @@ interface FlatMapping extends MappingSpec<FlatRecord, FlatDto> {
   default ValidatedPrism<String, Boolean> active() {
     return StandardCodecs.booleanStrict();
   }
+
+  default Getter<FlatRecord, String> display() {
+    return Getter.of(flat -> flat.name() + " <" + flat.email().value() + ">");
+  }
 }
 
 @Mapper
 interface FlatMapstruct {
+  @Mapping(target = "fullName", source = "name")
+  @Mapping(
+      target = "display",
+      expression = "java(flat.name() + \" <\" + flat.email().value() + \">\")")
   FlatDto toDto(FlatRecord flat);
 
+  @Mapping(target = "name", source = "fullName")
   FlatRecord toDomain(FlatDto dto);
 
+  @Mapping(target = "name", source = "fullName")
   FlatRecord toDomain(ValidatedFlatDto dto);
 
   default EmailAddress email(String value) {
@@ -115,22 +135,6 @@ interface FlatMapstruct {
 
   default String email(EmailAddress email) {
     return email.value();
-  }
-
-  default Instant instant(String value) {
-    return Instant.parse(value);
-  }
-
-  default String instant(Instant value) {
-    return value.toString();
-  }
-
-  default LocalDate localDate(String value) {
-    return LocalDate.parse(value);
-  }
-
-  default String localDate(LocalDate value) {
-    return value.toString();
   }
 
   default String price(BigDecimal value) {
@@ -154,7 +158,8 @@ final class HandWrittenFlatMapper {
         flat.currency().getCurrencyCode(),
         flat.status().name(),
         flat.dueDate().toString(),
-        flat.active().toString());
+        flat.active().toString(),
+        flat.name() + " <" + flat.email().value() + ">");
   }
 
   static FlatRecord toDomain(FlatDto dto) {
@@ -166,7 +171,7 @@ final class HandWrittenFlatMapper {
     }
     return new FlatRecord(
         UUID.fromString(dto.id()),
-        dto.name(),
+        dto.fullName(),
         new EmailAddress(dto.email()),
         Integer.parseInt(dto.quantity()),
         new BigDecimal(dto.price()),

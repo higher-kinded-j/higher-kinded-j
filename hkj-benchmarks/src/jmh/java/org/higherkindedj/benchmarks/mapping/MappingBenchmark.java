@@ -36,11 +36,11 @@ import org.openjdk.jmh.annotations.TearDown;
  * mapper that throws on the first problem, MapStruct, and MapStruct behind Bean Validation.
  *
  * <p>Two pairs: a nested order (a customer, a list of line items, an enum, several converted
- * values) and a flat record of ten fields. Each is measured for {@code build}, a {@code parse} of a
- * valid wire, and a {@code parse} of a wire with five bad fields. On the bad wire the approaches do
- * different work, and the benchmark measures that difference: the generated mapper and Bean
- * Validation report all five problems; the hand-written mapper and plain MapStruct stop at the
- * first exception.
+ * values) and a flat record of ten fields, one renamed and one derived on the wire. Each is
+ * measured for {@code build}, a {@code parse} of a valid wire, and a {@code parse} of a wire with
+ * five bad fields. On the bad wire the approaches do different work, and the benchmark measures
+ * that difference: the generated mapper and Bean Validation report all five problems; the
+ * hand-written mapper and plain MapStruct stop at the first exception.
  *
  * <p>Three things shape the numbers:
  *
@@ -151,7 +151,8 @@ public class MappingBenchmark {
             "GBP",
             "PAID",
             "2026-08-01",
-            "yes");
+            "yes",
+            "Ada Lovelace <not-an-email>");
     validFlatForValidation = forValidation(validFlat);
     badFlatForValidation = forValidation(badFlat);
 
@@ -350,7 +351,7 @@ public class MappingBenchmark {
   private static ValidatedFlatDto forValidation(FlatDto dto) {
     return new ValidatedFlatDto(
         dto.id(),
-        dto.name(),
+        dto.fullName(),
         dto.email(),
         dto.quantity(),
         dto.price(),
@@ -358,7 +359,8 @@ public class MappingBenchmark {
         dto.currency(),
         dto.status(),
         dto.dueDate(),
-        dto.active());
+        dto.active(),
+        dto.display());
   }
 
   /**
@@ -380,6 +382,20 @@ public class MappingBenchmark {
     require(violationCount(parseBadOrderMapstructBeanValidation()) == BAD_FIELDS, "five BV");
     require(parseBadOrderHandWritten() instanceof RuntimeException, "hand-written throws");
     require(parseBadOrderMapstruct() instanceof RuntimeException, "MapStruct throws");
+    require(
+        orderMapstruct
+                .toDomain(
+                    new OrderDto(
+                        validOrder.id(),
+                        new CustomerDto(null, validOrder.customer().email()),
+                        validOrder.lines(),
+                        validOrder.placedAt(),
+                        validOrder.currency(),
+                        validOrder.status()))
+                .customer()
+                .name()
+            == null,
+        "MapStruct passes a missing field through as null, checking nothing");
 
     require(
         flatParseValidHkj().fold(errors -> false, flat::equals),
