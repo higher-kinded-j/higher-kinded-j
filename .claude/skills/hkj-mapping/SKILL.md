@@ -74,6 +74,7 @@ says what is *not* obvious.
 | Need | Declare on the spec |
 |------|---------------------|
 | Rename a field on the wire | an **abstract** method named after the domain component, annotated `@MapField(to = "fullName")` |
+| Rename a field that is also **parsed** (`emailAddress: String` -> `email: EmailAddress`) | `@MapField(to = "emailAddress")` on the component's leaf: the leaf is the one method named after it, so a separate marker would not compile |
 | A component that must be **parsed** (`String` -> `EmailAddress`) | a zero-arg `default` method named after the domain component, returning `ValidatedPrism<Wire, Domain>` |
 | A wire-only field **derived** from the domain | a zero-arg `default` method returning `Getter<Domain, WireType>` |
 | A domain `Optional<T>` against a **nullable record** wire component `T` | `@OptionalBridge` on an abstract marker named after the domain component, or on that component's leaf |
@@ -155,6 +156,24 @@ public interface PersonMapping extends MappingSpec<Person, PersonDto> {
 public interface ProfileMapping extends MappingSpec<Profile, ProfileDto> {
   default Getter<Profile, String> displayName() {         // filled on build, ignored on parse
     return Getter.of(p -> p.first() + " " + p.last());
+  }
+}
+```
+
+A field that is renamed **and** converted carries the rename on its leaf, the one method named
+after the component; a separate marker beside it would be a second `email()`, which Java refuses:
+
+<!-- verify -->
+```java
+@GenerateMapping
+public interface SubscriberMapping extends MappingSpec<Subscriber, SubscriberDto> {
+  @MapField(to = "emailAddress")       // Subscriber.email <-> SubscriberDto.emailAddress
+  default ValidatedPrism<String, EmailAddress> email() {
+    return ValidatedPrism.of(
+        raw -> raw.contains("@")
+            ? Validated.validNel(new EmailAddress(raw))
+            : Validated.invalidNel(FieldError.of("not an email address")),
+        EmailAddress::value);
   }
 }
 ```

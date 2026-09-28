@@ -3182,7 +3182,7 @@ class MappingProcessorUpdateTest {
     }
 
     @Test
-    @DisplayName("a malformed @MapField (with a body) is rejected on the update path")
+    @DisplayName("a malformed @MapField (a body that is no leaf) is rejected on the update path")
     void malformedMapField() {
       JavaFileObject spec =
           JavaFileObjects.forSourceString(
@@ -3202,7 +3202,7 @@ class MappingProcessorUpdateTest {
               """);
       Compilation compilation = compile(EMAIL, USER, USER_PATCH_DTO, spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("must be abstract");
+      assertThat(compilation).hadErrorContaining("is neither a marker nor a leaf");
     }
 
     @Test

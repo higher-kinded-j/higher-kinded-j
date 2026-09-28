@@ -446,7 +446,7 @@ MappingLaws.assertMappingLaws(
 
 ## MappingSpec
 
-**Definition:** The marker interface a mapping spec extends to name its pair: `interface UserMapping extends MappingSpec<Domain, Wire> {}`. The interface deliberately declares nothing callable (the generated `UserMappingImpl` carries the surface); the spec's members are the *declaration vocabulary*: `default` `ValidatedPrism` methods are leaves, `@MapField` abstracts are renames, `default` `Getter` methods are derived wire fields, `@OptionalBridge` marks a component whose `null` means absent, `@MapKey` names the `Map` component whose keys a leaf converts, `@Flatten` marks a nested record component spread across the wire's flat components. Its sparse sibling is [UpdateSpec](#updatespec), which swaps the whole generated surface for a single `updateFrom`.
+**Definition:** The marker interface a mapping spec extends to name its pair: `interface UserMapping extends MappingSpec<Domain, Wire> {}`. The interface deliberately declares nothing callable (the generated `UserMappingImpl` carries the surface); the spec's members are the *declaration vocabulary*: `default` `ValidatedPrism` methods are leaves, `@MapField` methods are renames (an abstract marker, or the component's leaf when it also converts), `default` `Getter` methods are derived wire fields, `@OptionalBridge` marks a component whose `null` means absent, `@MapKey` names the `Map` component whose keys a leaf converts, `@Flatten` marks a nested record component spread across the wire's flat components. Its sparse sibling is [UpdateSpec](#updatespec), which swaps the whole generated surface for a single `updateFrom`.
 
 **Example:**
 <!-- verify -->

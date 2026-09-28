@@ -203,6 +203,8 @@ The generated Impl calls a nested spec as it would a leaf, through its `asValida
 
 A `Map` component's value leaf takes the component's name, so a key leaf carries `@MapKey` naming its component instead, as `noteKey()` does in `SupportDeskMapping`. Keys and values convert independently. Without a key leaf the key types must match exactly, and the processor refuses a mismatch, offering the annotation.
 
+A key leaf may carry the component's [`@MapField`](basics.md#renamed-and-converted) rename only when it is named after the component it keys, since a rename renames the component its method is named after.
+
 A failing key locates by the **source** key, the one the client sent, and an entry whose key and value both fail reports both there. A leaf over the whole `Map` wins over both: [a key leaf beside a whole-map leaf](rules.md#key-leaf-beside-a-whole-map-leaf) says when that is refused.
 
 ~~~admonish warning title="Not checked for you: a set silently drops a collapsed element"

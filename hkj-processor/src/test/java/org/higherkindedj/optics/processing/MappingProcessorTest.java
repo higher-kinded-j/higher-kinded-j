@@ -178,6 +178,432 @@ class MappingProcessorTest {
     }
   }
 
+  /**
+   * A component the wire names differently and converts too carries the rename on its leaf, the one
+   * method named after it, so {@code @MapField} on a leaf means the rename and the conversion
+   * together, on every tier the leaf reaches and in every placement a leaf has.
+   */
+  @Nested
+  @DisplayName("A renamed and converted component (@MapField on its leaf)")
+  class RenamedAndConverted {
+
+    private static final String MODEL =
+        """
+        package com.example;
+
+        import java.util.*;
+        import org.higherkindedj.hkt.validated.*;
+        import org.higherkindedj.optics.annotations.*;
+        import org.higherkindedj.optics.validated.*;
+
+        record Email(String value) {}
+
+        final class Emails {
+          static final ValidatedPrism<String, Email> EMAIL =
+              ValidatedPrism.of(
+                  raw ->
+                      raw.contains("@")
+                          ? Validated.validNel(new Email(raw))
+                          : Validated.invalidNel(FieldError.of("not an email address")),
+                  Email::value);
+
+          private Emails() {}
+        }
+
+        """;
+
+    private static final String EMAIL_ERROR = "not an email address";
+
+    private static JavaFileObject model(String body) {
+      return JavaFileObjects.forSourceString("com.example.Model", MODEL + body);
+    }
+
+    private static RuntimeCompilationHelper.CompiledResult compileRunnable(String body) {
+      return RuntimeCompilationHelper.compileWith(new MappingProcessor(), model(body));
+    }
+
+    @SuppressWarnings("unchecked") // reflective call into the generated Impl
+    private static Validated<NonEmptyList<FieldError>, Object> probe(
+        RuntimeCompilationHelper.CompiledResult result, String method)
+        throws ReflectiveOperationException {
+      return (Validated<NonEmptyList<FieldError>, Object>)
+          result.invokeStatic("com.example.Probe", method);
+    }
+
+    @Test
+    @DisplayName(
+        "renames and converts on every tier and placement: full, projection, sparse PATCH,"
+            + " flattened, mix-in, bridged and generic")
+    void everyTierAndPlacement() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileRunnable(
+              """
+              record Customer(String name, Email email) {}
+              record CustomerDto(String name, String emailAddress) {}
+              @GenerateMapping
+              interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+                @MapField(to = "emailAddress")
+                default ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+              }
+
+              record Account(String name, Email email, int tier) {}
+              record AccountView(String emailAddress) {}
+              @GenerateMapping
+              interface AccountViewMapping extends MappingSpec<Account, AccountView> {
+                @MapField(to = "emailAddress")
+                default ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+              }
+
+              class AccountPatch {
+                private String emailAddress;
+                public String getEmailAddress() { return emailAddress; }
+                public void setEmailAddress(String emailAddress) { this.emailAddress = emailAddress; }
+              }
+              @GenerateMapping
+              interface AccountUpdate extends UpdateSpec<Account, AccountPatch> {
+                @MapField(to = "emailAddress")
+                default ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+              }
+
+              record Contact(String phone, Email email) {}
+              record Member(String name, Contact contact) {}
+              record MemberDto(String name, String phone, String emailAddress) {}
+              @GenerateMapping
+              interface MemberMapping extends MappingSpec<Member, MemberDto> {
+                @Flatten
+                Contact contact();
+
+                @MapField(to = "emailAddress")
+                default ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+              }
+
+              interface EmailVocabulary {
+                @MapField(to = "emailAddress")
+                default ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+              }
+              record Guest(String name, Email email) {}
+              record GuestDto(String name, String emailAddress) {}
+              @GenerateMapping
+              interface GuestMapping extends MappingSpec<Guest, GuestDto>, EmailVocabulary {}
+
+              // a wire calling it by the component's own name: the rename is inert, the leaf binds
+              record LegacyGuestDto(String name, String email) {}
+              @GenerateMapping
+              interface LegacyGuestMapping
+                  extends MappingSpec<Guest, LegacyGuestDto>, EmailVocabulary {}
+
+              record Subscriber(String name, Optional<Email> email) {}
+              record SubscriberDto(String name, String emailAddress) {}
+              @GenerateMapping
+              interface SubscriberMapping extends MappingSpec<Subscriber, SubscriberDto> {
+                @OptionalBridge
+                @MapField(to = "emailAddress")
+                default ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+              }
+
+              record Page<T>(List<T> items, int total) {}
+              record PageDto<T>(List<T> entries, int total) {}
+              @GenerateMapping
+              interface CodecPageMapping<T, TDto> extends MappingSpec<Page<T>, PageDto<TDto>> {
+                @MapField(to = "entries")
+                ValidatedPrism<TDto, T> items();
+              }
+
+              // a key leaf named after the component it keys is that component's one method too
+              record Stock(Map<Locale, String> levels) {}
+              record StockDto(Map<String, String> byLocale) {}
+              @GenerateMapping
+              interface StockMapping extends MappingSpec<Stock, StockDto> {
+                @MapKey("levels")
+                @MapField(to = "byLocale")
+                default ValidatedPrism<String, Locale> levels() { return StandardCodecs.locale(); }
+              }
+
+              final class Probe {
+                static Object built() {
+                  return Validated.validNel(
+                      CustomerMappingImpl.INSTANCE.build(
+                          new Customer("Ada", new Email("ada@example.org"))));
+                }
+
+                static Object parsed() {
+                  return CustomerMappingImpl.INSTANCE.parse(
+                      new CustomerDto("Ada", "ada@example.org"));
+                }
+
+                static Object refused() {
+                  return CustomerMappingImpl.INSTANCE.parse(new CustomerDto("Ada", "nope"));
+                }
+
+                static Object patched() {
+                  return AccountViewMappingImpl.INSTANCE.patch(
+                      new Account("Ada", new Email("ada@example.org"), 2),
+                      new AccountView("nope"));
+                }
+
+                static Object updated() {
+                  AccountPatch patch = new AccountPatch();
+                  patch.setEmailAddress("nope");
+                  return AccountUpdateImpl.INSTANCE
+                      .updateFrom(patch)
+                      .apply(new Account("Ada", new Email("ada@example.org"), 2));
+                }
+
+                static Object spread() {
+                  return MemberMappingImpl.INSTANCE.parse(new MemberDto("Ada", "0113", "nope"));
+                }
+
+                static Object guest() {
+                  return GuestMappingImpl.INSTANCE.parse(new GuestDto("Ada", "nope"));
+                }
+
+                static Object legacyGuest() {
+                  return LegacyGuestMappingImpl.INSTANCE.parse(new LegacyGuestDto("Ada", "nope"));
+                }
+
+                static Object absent() {
+                  return SubscriberMappingImpl.INSTANCE.parse(new SubscriberDto("Ada", null));
+                }
+
+                static Object absentBuilt() {
+                  return Validated.validNel(
+                      SubscriberMappingImpl.INSTANCE.build(new Subscriber("Ada", Optional.empty())));
+                }
+
+                static Object present() {
+                  return SubscriberMappingImpl.INSTANCE.parse(new SubscriberDto("Ada", "nope"));
+                }
+
+                static Object page() {
+                  return CodecPageMappingImpl.of(Emails.EMAIL)
+                      .parse(new PageDto<>(List.of("ada@example.org", "nope"), 2));
+                }
+
+                static Object stock() {
+                  return StockMappingImpl.INSTANCE
+                      .parse(new StockDto(Map.of("en", "low")))
+                      .map(stock -> stock.levels().get(Locale.ENGLISH));
+                }
+              }
+              """);
+      assertThatValidated(probe(result, "built"))
+          .hasValueSatisfying(
+              dto -> dto.toString().equals("CustomerDto[name=Ada, emailAddress=ada@example.org]"),
+              "the wire written under the renamed component");
+      assertThatValidated(probe(result, "parsed"))
+          .hasValueSatisfying(
+              customer ->
+                  customer
+                      .toString()
+                      .equals("Customer[name=Ada, email=Email[value=ada@example.org]]"),
+              "the domain read from the renamed component");
+      assertThatValidated(probe(result, "refused")).hasFieldErrors("email: " + EMAIL_ERROR);
+      assertThatValidated(probe(result, "patched")).hasFieldErrors("email: " + EMAIL_ERROR);
+      assertThatValidated(probe(result, "updated")).hasFieldErrors("email: " + EMAIL_ERROR);
+      assertThatValidated(probe(result, "spread")).hasFieldErrors("contact.email: " + EMAIL_ERROR);
+      assertThatValidated(probe(result, "guest")).hasFieldErrors("email: " + EMAIL_ERROR);
+      assertThatValidated(probe(result, "legacyGuest")).hasFieldErrors("email: " + EMAIL_ERROR);
+      assertThatValidated(probe(result, "absent"))
+          .hasValueSatisfying(
+              subscriber ->
+                  subscriber.toString().equals("Subscriber[name=Ada, email=Optional.empty]"),
+              "an absent wire component read as empty");
+      assertThatValidated(probe(result, "absentBuilt"))
+          .hasValueSatisfying(
+              dto -> dto.toString().equals("SubscriberDto[name=Ada, emailAddress=null]"),
+              "an empty Optional written as null under the renamed component");
+      assertThatValidated(probe(result, "present")).hasFieldErrors("email: " + EMAIL_ERROR);
+      assertThatValidated(probe(result, "page")).hasFieldErrors("items.1: " + EMAIL_ERROR);
+      assertThatValidated(probe(result, "stock")).hasValue("low");
+      // a leaf is no plain copy, so the renamed pair loses the Iso a rename alone keeps
+      Assertions.assertThat(
+              generatedSource(result.compilation(), "com.example.CustomerMappingImpl"))
+          .doesNotContain("asIso() {");
+    }
+
+    @Test
+    @DisplayName("is refused where its leaf would be, and on a body that is neither shape")
+    void refusedShapes() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .compile(
+                  model(
+                      """
+                      record Customer(String name, Email email) {}
+                      record CustomerDto(String name, String emailAddress) {}
+                      @GenerateMapping
+                      interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+                        @MapField(to = "emailAddress")
+                        ValidatedPrism<String, Email> email();
+                      }
+
+                      sealed interface Party permits Person {}
+                      record Person(Email email) implements Party {}
+                      sealed interface PartyDto permits PersonDto {}
+                      record PersonDto(String emailAddress) implements PartyDto {}
+                      @GenerateMapping
+                      interface PersonMapping extends MappingSpec<Person, PersonDto> {
+                        @MapField(to = "emailAddress")
+                        default ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+                      }
+                      @GenerateMapping
+                      interface PartyMapping extends MappingSpec<Party, PartyDto> {
+                        @MapField(to = "emailAddress")
+                        default ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+                      }
+
+                      sealed interface Shape permits Circle {}
+                      record Circle(Email email) implements Shape {}
+                      sealed interface ShapeDto permits CircleDto {}
+                      record CircleDto(String emailAddress) implements ShapeDto {}
+                      @GenerateMapping
+                      interface CircleMapping extends MappingSpec<Circle, CircleDto> {
+                        @MapField(to = "emailAddress")
+                        default ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+                      }
+                      @GenerateMapping
+                      interface ShapeMapping extends MappingSpec<Shape, ShapeDto> {
+                        @MapField(to = "emailAddress")
+                        ValidatedPrism<String, Email> email();
+                      }
+
+                      record Recipient(String first, String last) {}
+                      record RecipientDto(String first, String last, String display) {}
+                      @GenerateMapping
+                      interface RecipientMapping extends MappingSpec<Recipient, RecipientDto> {
+                        @MapField(to = "display")
+                        default org.higherkindedj.optics.Getter<Recipient, String> displayName() {
+                          return org.higherkindedj.optics.Getter.of(r -> r.first() + " " + r.last());
+                        }
+                      }
+
+                      record Buyer(Email email) {}
+                      record BuyerDto(String emailAddress) {}
+                      @GenerateMapping
+                      interface BuyerMapping extends MappingSpec<Buyer, BuyerDto> {
+                        @MapField(to = "emailAddress")
+                        static ValidatedPrism<String, Email> email() { return Emails.EMAIL; }
+                      }
+
+                      record Seller(Email email) {}
+                      record SellerDto(String emailAddress) {}
+                      @GenerateMapping
+                      interface SellerMapping extends MappingSpec<Seller, SellerDto> {
+                        @MapField(to = "emailAddress")
+                        default Email email(String raw) { return new Email(raw); }
+                      }
+
+                      record Clerk(String name) {}
+                      record ClerkDto(String fullName) {}
+                      @GenerateMapping
+                      interface ClerkMapping extends MappingSpec<Clerk, ClerkDto> {
+                        @MapField(to = "fullName")
+                        default String name() { return "not a rename"; }
+                      }
+
+                      record Notes(Map<Locale, String> ids, String notes) {}
+                      record NotesDto(Map<String, String> ids, String remarks) {}
+                      @GenerateMapping
+                      interface NotesMapping extends MappingSpec<Notes, NotesDto> {
+                        @MapKey("ids")
+                        @MapField(to = "remarks")
+                        default ValidatedPrism<String, Locale> notes() {
+                          return StandardCodecs.locale();
+                        }
+                      }
+
+                      record Box<T>(List<T> items) {}
+                      record BoxDto<T>(List<T> entries) {}
+                      @GenerateMapping
+                      interface BoxMapping<T, TDto> extends MappingSpec<Box<T>, BoxDto<TDto>> {
+                        @MapField(to = "entries")
+                        <R> ValidatedPrism<R, R> items();
+                      }
+
+                      record Crate<T>(List<T> items) {}
+                      record CrateDto<T>(List<T> entries) {}
+                      interface CrateRenames<T, TDto> {
+                        @MapField(to = "entries")
+                        ValidatedPrism.Of<TDto, T> items();
+                      }
+                      interface CrateLeaves<T, TDto> {
+                        ValidatedPrism<TDto, T> items();
+                      }
+                      @GenerateMapping
+                      interface CrateMapping<T, TDto>
+                          extends MappingSpec<Crate<T>, CrateDto<TDto>>,
+                              CrateRenames<T, TDto>,
+                              CrateLeaves<T, TDto> {}
+                      """));
+      assertThat(compilation).failed();
+      // an abstract ValidatedPrism method is the component's leaf, so its placement is a leaf's
+      assertThat(compilation)
+          .hadErrorContaining(
+              "abstract leaf 'email' needs a generic spec. A concrete pair's leaf carries its own"
+                  + " parser as a 'default' body; only a generic spec defers the element mapping to"
+                  + " the generated 'of(...)' factory. A @MapField method returning ValidatedPrism"
+                  + " is the component's leaf, not a rename marker. Give the method a body"
+                  + " ('default'), or make the spec generic in the element types; if it only"
+                  + " renames, give it a return type other than ValidatedPrism, such as the"
+                  + " component's own.");
+      assertThat(compilation)
+          .hadErrorContaining("leaf 'email' has no meaning on a sealed mapping.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "abstract leaf 'email' has no meaning on a sealed mapping. A leaf converts a"
+                  + " component of one pair; a sealed mapping dispatches over its permitted"
+                  + " subtypes and has no components. Move the method onto the subtype pair's own"
+                  + " spec.");
+      // a body that is neither a marker nor a leaf is told the fix its shape needs
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@MapField method 'displayName' is neither a marker nor a leaf. A rename is"
+                  + " declared on an abstract marker named after the domain component, or, where"
+                  + " the component also converts, on its zero-parameter 'default' leaf returning"
+                  + " ValidatedPrism<WireComponent, DomainComponent>; a body of any other shape is"
+                  + " neither. A derived field fills the wire component it is named after and needs"
+                  + " no rename: remove @MapField, and name the method after that component.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Make it a 'default' method returning ValidatedPrism<WireComponent,"
+                  + " DomainComponent> to convert the component, or remove the body and the"
+                  + " modifier to leave a rename marker.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Remove the parameters and return ValidatedPrism<WireComponent, DomainComponent> to"
+                  + " make it the component's leaf, or remove the body to leave a rename marker.");
+      assertThat(compilation)
+          .hadErrorContaining("@MapField method 'name' is neither a marker nor a leaf.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Return ValidatedPrism<WireComponent, DomainComponent> to make it the component's"
+                  + " leaf, or remove the body to leave a rename marker.");
+      // a key leaf is named freely, so a rename on it has to name the component it keys
+      assertThat(compilation)
+          .hadErrorContaining(
+              "@MapField method 'notes' is a key leaf for 'ids'. A key leaf's name is free, and it"
+                  + " converts the keys of the component its @MapKey names, while a rename renames"
+                  + " the component its method is named after; here those are two components. Name"
+                  + " the key leaf 'ids()' to rename that component, or move @MapField to a marker"
+                  + " or leaf named after the component it renames.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "abstract method 'items' declares type parameters of its own. The generated Impl"
+                  + " carries a leaf as a constructor-supplied field and a rename as a stub, and"
+                  + " neither has anywhere to declare the method's own type parameters, so the"
+                  + " generated file would name a variable nothing brings into scope. Declare the"
+                  + " element types among the type parameters of 'BoxMapping'");
+      // the Impl implements an abstract leaf as the leaf, which a narrower marker cannot accept
+      assertThat(compilation)
+          .hadErrorContaining(
+              "same-named members 'items' pair an abstract leaf with a marker whose return is"
+                  + " narrower ('ValidatedPrism.Of<TDto, T>' from 'CrateRenames',"
+                  + " 'ValidatedPrism<TDto, T>' from 'CrateLeaves').");
+      Assertions.assertThat(compilation.errors()).hasSize(10);
+    }
+  }
+
   @Nested
   @DisplayName("Container lifting")
   class ContainerLifting {
@@ -3252,7 +3678,8 @@ class MappingProcessorTest {
               BANK_MAPPING,
               spec);
       assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("abstract leaf 'number' needs a generic spec");
+      assertThat(compilation)
+          .hadErrorContaining("abstract leaf 'number' has no meaning on a sealed mapping");
     }
 
     @Test
@@ -5352,43 +5779,6 @@ class MappingProcessorTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining("abstract method 'helper' is neither a rename, a leaf, nor a bridge");
-    }
-
-    @Test
-    @DisplayName("a @MapField method with a body is rejected")
-    void mapFieldOnDefaultMethodRejected() {
-      JavaFileObject spec =
-          JavaFileObjects.forSourceString(
-              "com.example.DefaultRenameMapping",
-              """
-              package com.example;
-
-              import org.higherkindedj.optics.annotations.GenerateMapping;
-              import org.higherkindedj.optics.annotations.MapField;
-              import org.higherkindedj.optics.annotations.MappingSpec;
-
-              @GenerateMapping
-              public interface DefaultRenameMapping extends MappingSpec<Records.D, Records.W> {
-                @MapField(to = "b")
-                default String a() {
-                  return "not a rename";
-                }
-              }
-              """);
-      Compilation compilation =
-          compile(
-              records(
-                  """
-                  public final class Records {
-                    public record D(String a) {}
-
-                    public record W(String b) {}
-                  }
-                  """),
-              spec);
-      assertThat(compilation).failed();
-      assertThat(compilation).hadErrorContaining("@MapField method 'a' must be abstract");
-      assertThat(compilation).hadErrorContaining("Remove the body, or remove the @MapField");
     }
 
     @Test
@@ -12832,8 +13222,8 @@ class MappingProcessorTest {
       assertThat(refused).failed();
       assertThat(refused)
           .hadErrorContaining(
-              "Declare '@OptionalBridge default ValidatedPrism<com.example.MemberDto,"
-                  + " com.example.Member> entries()', as the component's only spec method, on this"
+              "Replace 'entries()' with '@OptionalBridge default"
+                  + " ValidatedPrism<com.example.MemberDto, com.example.Member> entries()' on this"
                   + " spec, or map com.example.MemberDto to com.example.Member with its own"
                   + " @GenerateMapping spec.");
 

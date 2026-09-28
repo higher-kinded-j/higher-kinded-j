@@ -58,6 +58,7 @@ SHORT = {
     "leaf-names-no-component": "A leaf's name matches no component, usually a typo",
     "rename-already-claimed": "Two renames point at one wire component",
     "neither-rename-leaf-bridge": "An abstract method says nothing about what it is",
+    "mapfield-neither-marker-nor-leaf": "A @MapField method has a body that is no leaf",
     "getter-named-after-domain": "A derived field carries a domain component's name",
     "projection-with-derived-fields": "A smaller wire also declares a derived field",
     "own-type-parameters": "A leaf, rename or marker declares its own `<R>`",

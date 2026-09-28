@@ -130,7 +130,7 @@ class BookExampleOutputTest {
   private static final Map<String, Integer> MINIMUM_CLAIMS =
       Map.ofEntries(
           Map.entry("AbsenceBook", 4),
-          Map.entry("BasicsBook", 4),
+          Map.entry("BasicsBook", 5),
           Map.entry("BeansBook", 6),
           Map.entry("BoundaryCapstoneBook", 4),
           Map.entry("EitherOrBothBook", 1),

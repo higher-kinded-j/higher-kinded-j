@@ -70,6 +70,14 @@ public final class BasicsBook {
     // RecipientDto[first=Ada, last=Lovelace, displayName=Ada Lovelace]
     // ANCHOR_END: derived_usage
     System.out.println(built);
+
+    // ANCHOR: rename_leaf_usage
+    Validated<NonEmptyList<FieldError>, Customer> subscribed =
+        MailingListCustomerMappingImpl.INSTANCE.parse(
+            new MailingListCustomerDto("Ada", "not-an-email"));
+    // Invalid(NonEmptyList[email: not an email address])
+    // ANCHOR_END: rename_leaf_usage
+    System.out.println(subscribed);
   }
 }
 
@@ -128,6 +136,19 @@ interface PartnerCustomerMapping extends MappingSpec<Customer, PartnerCustomerDt
 }
 
 // ANCHOR_END: rename_spec
+
+// ANCHOR: rename_leaf_spec
+record MailingListCustomerDto(String name, String emailAddress) {} // a mailing list's export
+
+@GenerateMapping
+interface MailingListCustomerMapping extends MappingSpec<Customer, MailingListCustomerDto> {
+  @MapField(to = "emailAddress") // Customer.email <-> MailingListCustomerDto.emailAddress
+  default ValidatedPrism<String, EmailAddress> email() { // renamed, and converted
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: rename_leaf_spec
 
 // ANCHOR: derived_spec
 record Recipient(String first, String last) {}
