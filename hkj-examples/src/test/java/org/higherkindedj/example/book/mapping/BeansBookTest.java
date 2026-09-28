@@ -117,6 +117,7 @@ class BeansBookTest {
     JsonMapper json = JsonMapper.builder().addModule(new JsonNullableJackson3Module()).build();
     Listing lamp = new Listing("Lamp", Optional.empty());
 
+    // ANCHOR: json_nullable_null
     // build writes the empty subtitle through setSubtitle(null), which the model sends as null,
     ListingModel built = ListingModelMappingImpl.INSTANCE.build(lamp);
     assertThat(json.writeValueAsString(built)).isEqualTo("{\"title\":\"Lamp\",\"subtitle\":null}");
@@ -131,6 +132,7 @@ class BeansBookTest {
         json.readValue("{\"title\":\"Lamp\",\"subtitle\":null}", ListingModel.class);
     assertThatValidated(ListingModelMappingImpl.INSTANCE.parse(omitted)).hasValue(lamp);
     assertThatValidated(ListingModelMappingImpl.INSTANCE.parse(sentNull)).hasValue(lamp);
+    // ANCHOR_END: json_nullable_null
 
     // So a parsing sample for the laws sets the subtitle: an omitted one comes back set.
     ListingModel untitled = json.readValue("{\"subtitle\":\"Brass\"}", ListingModel.class);

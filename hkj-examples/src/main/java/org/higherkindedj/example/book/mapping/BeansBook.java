@@ -358,10 +358,11 @@ interface ListingMapping extends MappingSpec<Listing, ListingBean> {} // subtitl
 
 // ANCHOR_END: default_trap
 
-// A Listing as openapi-generator writes its model by default (openApiNullable=true), the doc
-// comments and toString left out: the nullable subtitle is held in a JsonNullable, and exposed
-// both through getSubtitle()/setSubtitle(String) and through a companion pair, which Jackson binds.
-// Rules and Limits' "An openapi-generator JsonNullable companion" rests on BeansBookTest's proof.
+// A Listing as openapi-generator's java client writes its model by default (openApiNullable=true),
+// its doc comments, fluent setters and toString left out: the nullable subtitle is held in a
+// JsonNullable, and exposed both through getSubtitle()/setSubtitle(String) and through a companion
+// pair, which Jackson binds. BeansBookTest proves what Rules and Limits' "An openapi-generator
+// JsonNullable companion" and this page's null warning say of it.
 @JsonPropertyOrder({ListingModel.JSON_PROPERTY_TITLE, ListingModel.JSON_PROPERTY_SUBTITLE})
 class ListingModel {
   public static final String JSON_PROPERTY_TITLE = "title";
@@ -417,8 +418,14 @@ class ListingModel {
         && equalsNullable(this.subtitle, listingModel.subtitle);
   }
 
-  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
-    return a == b || (a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
+  private static <T> boolean equalsNullable(
+      @Nullable JsonNullable<T> a, @Nullable JsonNullable<T> b) {
+    return a == b
+        || (a != null
+            && b != null
+            && a.isPresent()
+            && b.isPresent()
+            && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
@@ -426,7 +433,10 @@ class ListingModel {
     return Objects.hash(title, hashCodeNullable(subtitle));
   }
 
-  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+  private static <T> int hashCodeNullable(@Nullable JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
     return a.isPresent() ? Arrays.deepHashCode(new @Nullable Object[] {a.get()}) : 31;
   }
 }

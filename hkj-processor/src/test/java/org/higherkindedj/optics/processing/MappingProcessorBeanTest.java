@@ -4466,7 +4466,7 @@ class MappingProcessorBeanTest {
       Assertions.assertThat(generatedSource(compilation, "com.example.PetMappingImpl"))
           .contains("wire.setNickname(domain.nickname().orElse(null));")
           .contains("Optional.ofNullable(wire.getNickname())")
-          .contains("wire.getTags()")
+          .contains("hkj$copyOf(wire.getTags())")
           .doesNotContain("_JsonNullable");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
@@ -4541,73 +4541,128 @@ class MappingProcessorBeanTest {
             public String getNickname() { return null; }
             public void setNickname(String nickname) {}
           """;
-      // Each wire, and the extras the refusal names: only the recognised companion is left out.
-      Map<String, String> unfilled =
-          Map.of(
+      // Each wire's accessors, and the extras its refusal names: only a recognised companion is
+      // left out.
+      List<Map.Entry<String, String>> cases =
+          List.of(
               // The companion pair alone, with no plain accessors.
-              """
-                public JsonNullable<String> getNickname_JsonNullable() { return null; }
-                public void setNickname_JsonNullable(JsonNullable<String> nickname) {}
-              """,
-              "[nickname_JsonNullable]",
-              // A companion holding another type than the plain property's.
-              plainPair
-                  + """
-                    public JsonNullable<Integer> getNickname_JsonNullable() { return null; }
-                    public void setNickname_JsonNullable(JsonNullable<Integer> nickname) {}
-                  """,
-              "[nickname, nickname_JsonNullable]",
-              // The suffix on a property that is no JsonNullable.
-              plainPair
-                  + """
-                    public String getNickname_JsonNullable() { return null; }
-                    public void setNickname_JsonNullable(String nickname) {}
-                  """,
-              "[nickname, nickname_JsonNullable]",
-              // A raw JsonNullable, which holds no type to match.
-              plainPair
-                  + """
-                    @SuppressWarnings("rawtypes")
-                    public JsonNullable getNickname_JsonNullable() { return null; }
-                    @SuppressWarnings("rawtypes")
-                    public void setNickname_JsonNullable(JsonNullable nickname) {}
-                  """,
-              "[nickname, nickname_JsonNullable]",
-              // The recognised shape, for contrast: the plain property is the only extra.
-              plainPair
-                  + """
+              Map.entry(
+                  """
                     public JsonNullable<String> getNickname_JsonNullable() { return null; }
                     public void setNickname_JsonNullable(JsonNullable<String> nickname) {}
                   """,
-              "[nickname]");
-      unfilled.forEach(
-          (accessors, extras) -> {
-            Compilation compilation =
-                compile(
-                    JSON_NULLABLE,
-                    source("Named", "public record Named(String name) {}"),
-                    source(
-                        "NamedModel",
-                        """
-                        public class NamedModel {
-                          public String getName() { return null; }
-                          public void setName(String name) {}
-                        %s}
-                        """
-                            .formatted(accessors)),
-                    source(
-                        "NamedMapping",
-                        """
-                        @GenerateMapping
-                        public interface NamedMapping extends MappingSpec<Named, NamedModel> {}
-                        """));
-            assertThat(compilation).failed();
-            assertThat(compilation)
-                .hadErrorContaining(
-                    "'NamedModel' has more components than 'Named', leaving "
-                        + extras
-                        + " unfilled.");
-          });
+                  "[nickname_JsonNullable]"),
+              // A companion holding another type than the plain property's.
+              Map.entry(
+                  plainPair
+                      + """
+                        public JsonNullable<Integer> getNickname_JsonNullable() { return null; }
+                        public void setNickname_JsonNullable(JsonNullable<Integer> nickname) {}
+                      """,
+                  "[nickname, nickname_JsonNullable]"),
+              // The suffix on a property that is no JsonNullable.
+              Map.entry(
+                  plainPair
+                      + """
+                        public String getNickname_JsonNullable() { return null; }
+                        public void setNickname_JsonNullable(String nickname) {}
+                      """,
+                  "[nickname, nickname_JsonNullable]"),
+              // A raw JsonNullable, which holds no type to match.
+              Map.entry(
+                  plainPair
+                      + """
+                        @SuppressWarnings("rawtypes")
+                        public JsonNullable getNickname_JsonNullable() { return null; }
+                        @SuppressWarnings("rawtypes")
+                        public void setNickname_JsonNullable(JsonNullable nickname) {}
+                      """,
+                  "[nickname, nickname_JsonNullable]"),
+              // A getter-only List, which the companion's setter alone would write.
+              Map.entry(
+                  """
+                    public List<String> getNickname() { return null; }
+                    public JsonNullable<List<String>> getNickname_JsonNullable() { return null; }
+                    public void setNickname_JsonNullable(JsonNullable<List<String>> nickname) {}
+                  """,
+                  "[nickname, nickname_JsonNullable]"),
+              // The recognised shape, for contrast: the plain property is the only extra.
+              Map.entry(
+                  plainPair
+                      + """
+                        public JsonNullable<String> getNickname_JsonNullable() { return null; }
+                        public void setNickname_JsonNullable(JsonNullable<String> nickname) {}
+                      """,
+                  "[nickname]"));
+      Stream<JavaFileObject> wires =
+          IntStream.range(0, cases.size())
+              .boxed()
+              .flatMap(
+                  index ->
+                      Stream.of(
+                          source(
+                              "NamedModel" + index,
+                              """
+                              public class NamedModel%d {
+                                public String getName() { return null; }
+                                public void setName(String name) {}
+                              %s}
+                              """
+                                  .formatted(index, cases.get(index).getKey())),
+                          source(
+                              "NamedMapping" + index,
+                              """
+                              @GenerateMapping
+                              public interface NamedMapping%d
+                                  extends MappingSpec<Named, NamedModel%d> {}
+                              """
+                                  .formatted(index, index))));
+      Compilation compilation =
+          compile(
+              Stream.concat(
+                      Stream.of(
+                          JSON_NULLABLE, source("Named", "public record Named(String name) {}")),
+                      wires)
+                  .toArray(JavaFileObject[]::new));
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors()).hasSize(cases.size());
+      IntStream.range(0, cases.size())
+          .forEach(
+              index ->
+                  assertThat(compilation)
+                      .hadErrorContaining(
+                          "'NamedModel"
+                              + index
+                              + "' has more components than 'Named', leaving "
+                              + cases.get(index).getValue()
+                              + " unfilled."));
+    }
+
+    @Test
+    @DisplayName("a bean that is only read leaves its companion getter out too")
+    void parseOnlyLeavesTheCompanionOut() {
+      Compilation compilation =
+          compile(
+              JSON_NULLABLE,
+              source("Aliased", "public record Aliased(String name, String alias) {}"),
+              source(
+                  "AliasedView",
+                  """
+                  public class AliasedView {
+                    public String getName() { return null; }
+                    public String getNickname() { return null; }
+                    public JsonNullable<String> getNickname_JsonNullable() { return null; }
+                  }
+                  """),
+              source(
+                  "AliasedMapping",
+                  """
+                  @GenerateMapping
+                  public interface AliasedMapping extends MappingSpec<Aliased, AliasedView> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadNoteContaining("'AliasedView' maps parse-only");
+      assertThat(compilation).hadErrorContaining("Found on AliasedView: [name, nickname].");
     }
 
     @Test
@@ -4640,7 +4695,7 @@ class MappingProcessorBeanTest {
     }
 
     @Test
-    @DisplayName("a derived field for a companion, once the workaround, now names no component")
+    @DisplayName("a derived field named after a companion names no component")
     void derivedFieldForACompanionNamesNoComponent() {
       Compilation compilation =
           compile(

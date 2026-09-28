@@ -149,7 +149,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * <p>{@code unpaired} lists the accessors a two-way bean declares outside its properties: a
    * getter nothing writes, or a writer nothing reads. The mapping leaves them out, and the
    * processor refuses one wherever leaving it out would lose a value. A one-directional bean has
-   * none, every accessor it declares being a property.
+   * none, every accessor it declares being a property. An openapi-generator {@code JsonNullable}
+   * companion is in neither list: the analyser leaves it out, since the plain property beside it
+   * carries its value.
    *
    * <p>A two-way bean may also carry read-only properties, named in {@code readOnlyNames} ({@link
    * #readingAlso}): getters a {@code @ReadOnly} marker reads as properties, each with no write

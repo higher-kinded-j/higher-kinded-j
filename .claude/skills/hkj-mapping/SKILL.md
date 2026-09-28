@@ -549,12 +549,15 @@ matter: it maps build-only whatever its width, derived fields included.
   is meant to be read (an OpenAPI `readOnly` property), `@ReadOnly` makes it a read-only property:
   `parse` reads it and `build` leaves it out. It is refused on an `UpdateSpec`, a one-way bean, a
   record, and a bean still narrower than the domain; an inherited one binds where it can.
-- **openapi-generator's `JsonNullable` companions are left out.** With its default
-  `openApiNullable=true`, each nullable property has a `getX_JsonNullable()` /
-  `setX_JsonNullable(JsonNullable<T>)` pair beside `getX()` / `setX(T)`. The processor maps `x`
-  through the plain pair and ignores the companion, so the model needs no derived field and no
-  `openApiNullable=false`. An unset or explicit-`null` property reads `null` (on an `UpdateSpec`,
-  left unchanged), and `build` writes an empty `Optional` as an explicit JSON `null`.
+- **openapi-generator's `JsonNullable` companions are left out.** In a `-g java` client model
+  (Jackson libraries such as `native`, `resttemplate`) with the default `openApiNullable=true`, each
+  nullable, non-required property has a `getX_JsonNullable()` / `setX_JsonNullable(JsonNullable<T>)`
+  pair beside `getX()` / `setX(T)`. The processor maps `x` through the plain pair and ignores the
+  companion, so the model needs no derived field and no `openApiNullable=false`. An unset or
+  explicit-`null` property reads `null` (on an `UpdateSpec`, left unchanged, and a domain `Optional`
+  component is refused there, since the plain getter cannot express *clear*), and `build` writes an
+  empty `Optional` as an explicit JSON `null`, so a wire sample for `MappingLaws` must set each
+  nullable property. A `-g spring` model has no plain pair: its property is a `JsonNullable<T>`.
 - **A type another processor generates is waited for.** A wire or domain type, or a component,
   bean property, builder or mix-in method read from one, that another annotation processor writes
   in the same compilation (an Immutables value, a schema-generated DTO) does not exist until the
