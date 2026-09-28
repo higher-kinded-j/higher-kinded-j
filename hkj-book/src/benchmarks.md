@@ -114,7 +114,7 @@ Runs with `chainDepth=10000` and `recursionDepth=10000` for thorough stack-safet
 ./gradlew :hkj-benchmarks:longBenchmark
 ```
 
-### The Mapping Benchmark
+### The Mapping Benchmark {#the-mapping-benchmark}
 
 A quick run goes through Gradle:
 
@@ -122,12 +122,12 @@ A quick run goes through Gradle:
 ./gradlew :hkj-benchmarks:jmh -Pincludes=".*MappingBenchmark.*"
 ```
 
-For figures worth quoting, run the benchmark jar directly: more iterations, two forks, time per operation, and the allocation per operation:
+For figures worth quoting, run the benchmark jar directly: more iterations, four forks, time per operation, and the allocation per operation. Two forks can settle into different compiled code and disagree; four show which figure is typical:
 
 ```bash
 ./gradlew :hkj-benchmarks:jmhJar
 java --enable-preview -jar hkj-benchmarks/build/libs/hkj-benchmarks-<version>-jmh.jar MappingBenchmark \
-  -wi 3 -w 1s -i 5 -r 1s -f 2 -bm avgt -tu ns -jvmArgs "--enable-preview" -prof gc
+  -wi 3 -w 1s -i 5 -r 1s -f 4 -bm avgt -tu ns -jvmArgs "--enable-preview" -prof gc
 ```
 
 Run it on a quiet machine. Another build running at the same time shows up as forks that disagree with each other. A filtered Gradle run overwrites `build/reports/jmh/results.json`, and a later local build then runs the assertion tests against it and fails, because they expect every benchmark class. Delete the file, or run the whole suite, before building.

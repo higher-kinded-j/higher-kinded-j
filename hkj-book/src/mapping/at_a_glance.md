@@ -96,14 +96,78 @@ unset property is an ordinary state. [What Your Spec Generates](tiers.md) explai
 
 ## What it costs
 
-- **Compile time**, not run time: the Impl is generated once, per build.
+- **Generated at compile time**: the Impl is written once per build.
 - **No reflection and no startup scan.** A concrete Impl is a singleton that keeps each leaf after
   its first use; an element-mapped one carries its leaf prisms and is built by `of(...)`.
 - **One `Validated` per field read** on the parse side, which is the price of accumulating errors
   rather than throwing on the first.
-- **Lines of spec per field**: nothing for an identical field, one for a rename, one for a stock
-  codec (none, where a mix-in already carries it), one for a derived field.
+- **Lines of spec per field**: [counted field by field](#what-you-write-field-by-field), against
+  MapStruct and Bean Validation.
 - **No component ceiling**: a flat 30-field wire maps like a narrow one.
+
+### What you write, field by field {#what-you-write-field-by-field}
+
+The project's mapping benchmark maps two pairs, a nested order and a flat record, four ways, so each
+row is counted from code that compiles. The generated mapper's specs, a MapStruct mapper and the
+same wire annotated for Bean Validation sit side by side in
+[`OrderMappingModel`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-benchmarks/src/jmh/java/org/higherkindedj/benchmarks/mapping/OrderMappingModel.java)
+and
+[`FlatMappingModel`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-benchmarks/src/jmh/java/org/higherkindedj/benchmarks/mapping/FlatMappingModel.java),
+and the benchmark checks each claim the last row makes. The last column is what the wire record
+carries for Bean Validation.
+
+| A field that | `@GenerateMapping` | MapStruct 1.6 | Bean Validation, on the wire |
+|---|---|---|---|
+| keeps its name and type | nothing | nothing | `@NotNull` |
+| is renamed on the wire | `@MapField(to = "fullName") String name();` | `@Mapping(target = "fullName", source = "name")`, and its inverse or `@InheritInverseConfiguration` | `@NotNull` |
+| needs a stock conversion: a `UUID`, an enum, an `Instant` | a [leaf](basics.md#validated-leaves) returning `StandardCodecs.uuid()` and friends | nothing: built in | `@NotNull @Pattern(regexp = …)` |
+| is a `String` on the wire and a number in the domain | a leaf, with the domain component `Integer`, not `int`: a codec cannot name a primitive | nothing: built in | `@NotNull @Pattern(regexp = …)` |
+| has a type of your own, such as an email address | one leaf, a parse and a render | a method each way | `@NotNull @Pattern(regexp = …)` |
+| is a nested record, or a list of them | a spec for the nested pair | nothing | `@NotNull @Valid`, or `@NotNull List<@NotNull @Valid …>` |
+| is derived on the wire | a `default` method returning a `Getter` | `@Mapping(target = …, expression = "java(…)")` | nothing |
+| must be checked, every failure located | nothing more: the leaf is the check, and a `null` is refused, located | not available: a bad value throws or passes silently, and a `null` passes on | a check of each field's shape: a well-shaped bad value still fails in the conversion, located nowhere |
+
+A leaf declared once on a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) serves every
+spec that extends it, as a MapStruct `uses =` class serves every mapper that names it. What each
+approach asks of a whole mapper, from `Mappers.getMapper` to a `@ControllerAdvice` for violations,
+is in [Coming from MapStruct and Bean Validation](from_mapstruct.md).
+
+### What a call costs {#what-a-call-costs}
+
+The order pair is a customer, a list of two line items, a UUID, an `Instant`, a currency and a
+status. Its bad wire has five bad fields: a malformed id, email, timestamp and status, and a price
+in exponent form, `1E+3`.
+
+`build` checks nothing in any approach. On `parse`, only the generated mapper and Bean Validation
+check the wire, so each is the other's comparison. The hand-written mapper and plain MapStruct stop
+at the first problem with an exception that locates nothing, and let other bad values through, so
+their figures are a floor rather than a rival.
+
+| Order pair | `@GenerateMapping` | Hand-written | MapStruct | MapStruct and Bean Validation |
+|---|---|---|---|---|
+| `build` | 112 ns | 100 ns | 88 ns | 88 ns, as MapStruct |
+| `parse`, a valid wire | 2,610 ns | 394 ns | 386 ns | 2,110 ns |
+| memory that valid `parse` allocates | 13.6 KB | 1.8 KB | 1.8 KB | 6.7 KB |
+| `parse`, five bad fields | 4,670 ns, all five located | 477 ns, the first thrown | 534 ns, the first thrown | 5,600 ns, all five located |
+| the same, 100 frames deeper | 4,810 ns | 2,240 ns | 2,250 ns | 5,710 ns |
+
+Against Bean Validation, a valid `parse` costs 24 per cent more, and a wire with five bad fields
+16 to 17 per cent less. Where nothing validates today, a valid `parse` adds about 2,200 ns a
+request, the price of checking and locating every field. A thrown exception's stack trace grows
+with the caller's depth. So the two mappers that throw cost more than four times as much 100 frames
+down, the benchmark's stand-in for a web framework's stack. The generated mapper rejects these five
+fields without an exception: its stock codecs check a value's shape before a parser can throw, and
+[your own leaf](codecs.md#your-own-canon) can too. The ten-field flat pair tells the same story,
+with a valid `parse` 29 per cent over Bean Validation's and five bad fields 21 to 23 per cent under.
+
+Two things favour Bean Validation here. It formats its messages with `ParameterMessageInterpolator`,
+which evaluates no expression language, and its patterns check only a field's shape, so a value
+that passes can still fail in the conversion after it.
+
+Measured on 0.4.11 with MapStruct 1.6.3 and Hibernate Validator 9.1.0.Final, on an AMD Ryzen 9
+7950X under Temurin 25.0.1. Each figure is the mean of four forks of five one-second iterations
+after three of warm-up, and JMH's error margin is under 4 per cent of each. [The Mapping
+Benchmark](../benchmarks.md#the-mapping-benchmark) says how to run it on your own hardware.
 
 ---
 
