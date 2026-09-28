@@ -41,8 +41,12 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * spec holding {@code MAPPER = XImpl.INSTANCE} constructs the Impl part-way through its own
  * initialisation, when a later constant a leaf reads is still null. Laziness covers an Impl
  * constructed during that initialisation, not one used during it: a {@code build} run from a spec
- * constant's initialiser reads the leaf then, and keeps what it read. A race reads the leaf twice,
- * which a leaf that answers the same codec each time cannot tell apart.
+ * constant's initialiser reads the leaf then, and keeps what it read.
+ *
+ * <p>No lock is taken. A race reads the leaf twice, which a leaf that answers the same codec each
+ * time cannot tell apart, and never more often than a read per call did. A lock would hold a
+ * monitor across the leaf's own code, which may initialise a class or reach another Impl's leaf,
+ * and two threads taking those in opposite orders would deadlock.
  */
 final class LeafCache {
 
