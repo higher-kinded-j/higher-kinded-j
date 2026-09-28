@@ -46,6 +46,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`both map to wire component`](#both-map-to-one-wire-component) | A rename targets a component already filled |
 | [`targets a wire component another rename already claims`](#rename-already-claimed) | Two renames point at one wire component |
 | [`is neither a rename, a leaf, nor a bridge`](#neither-rename-leaf-bridge) | An abstract method says nothing about what it is |
+| [`@MapField method '…' is neither a marker nor a leaf`](#mapfield-neither-marker-nor-leaf) | A @MapField method has a body that is no leaf |
 | [`returns a Getter but is named after a domain component`](#getter-named-after-domain) | A derived field carries a domain component's name |
 | [`combines a projection with derived fields`](#projection-with-derived-fields) | A smaller wire also declares a derived field |
 | [`declares type parameters of its own`](#own-type-parameters) | A leaf, rename or marker declares its own `<R>` |
@@ -184,7 +185,7 @@ Most messages come from the first branch: the processor reads your spec, finds a
 
 A domain component has no wire component of the same name, and no rename points it at one.
 
-**Fix.** Rename one side so the names match, or add a rename to the spec, such as `@MapField(to = "fullName") String name();`.
+**Fix.** Rename one side so the names match, or add a rename to the spec, such as `@MapField(to = "fullName") String name();`. Where the component already has a leaf, put the `@MapField` on the leaf instead, as [Renamed and converted](basics.md#renamed-and-converted) shows.
 
 ```
 @GenerateMapping: domain field 'Customer.name' has no wire counterpart named 'name'. Found on
@@ -210,7 +211,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
 
 A wire component's type differs from its domain counterpart's, and nothing converts between them.
 
-**Fix.** Add the method the message spells out, a `default ValidatedPrism` that parses the field: a [standard codec](codecs.md#standard-codecs) such as `StandardCodecs.uuid()`, or your own. Where one side is a primitive, the message asks for its wrapper type first. A `List` against a `Set` lands here too, because elements map only when both sides declare the same container.
+**Fix.** Add the method the message spells out, or put it in place of the one the message names, a `default ValidatedPrism` that parses the field: a [standard codec](codecs.md#standard-codecs) such as `StandardCodecs.uuid()`, or your own. Where one side is a primitive, the message asks for its wrapper type first. A `List` against a `Set` lands here too, because elements map only when both sides declare the same container.
 
 ```
 @GenerateMapping: target field 'CustomerDto.email' has no usable source. The types differ
@@ -362,13 +363,13 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
 
 A wire with fewer components than the domain maps as a projection, and one of its components is named after nothing the domain has.
 
-**Fix.** Align the component names, or add a `@MapField` rename.
+**Fix.** Align the component names, or add a `@MapField` rename, on the component's leaf where it has one.
 
 ```
 @GenerateMapping: projection field 'CustomerDto.nmae' has no domain source. 'CustomerDto' is
 smaller than 'Customer', so it maps as a projection: every wire component must name a domain
 component. Found on Customer: [name, email]. Align the component names, or add a @MapField
-rename.
+rename, on the component's leaf where it has one.
 ```
 
 The rule: [Renames](basics.md#renames-mapfield).
@@ -531,6 +532,40 @@ record CustomerDto(String name) {}
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
   String displayName();
+}
+```
+~~~
+
+### `@MapField method 'x' is neither a marker nor a leaf` {#mapfield-neither-marker-nor-leaf}
+
+A `@MapField` method has a body, and is not the component's leaf, so it is neither shape a rename takes.
+
+**Fix.** Make it the component's leaf, a zero-parameter `default` method returning `ValidatedPrism<Wire, Domain>`, or remove the body to leave a rename marker. The message names the change the method's shape needs.
+
+```
+@GenerateMapping: @MapField method 'email' is neither a marker nor a leaf. A rename is declared
+on an abstract marker named after the domain component, or, where the component also converts,
+on its zero-parameter 'default' leaf returning ValidatedPrism<WireComponent, DomainComponent>; a
+body of any other shape is neither. Remove the parameters and return
+ValidatedPrism<WireComponent, DomainComponent> to make it the component's leaf, or remove the
+body to leave a rename marker.
+```
+
+The rule: [Renamed and converted](basics.md#renamed-and-converted).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "where the component also converts" -->
+```java
+record Customer(EmailAddress email) {}
+
+record CustomerDto(String emailAddress) {}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+  @MapField(to = "emailAddress")
+  default EmailAddress email(String raw) {
+    return new EmailAddress(raw);
+  }
 }
 ```
 ~~~

@@ -80,6 +80,11 @@ record Person(String name) {}
 
 record PersonDto(String fullName) {}
 
+// A field renamed and converted at once.
+record Subscriber(String name, EmailAddress email) {}
+
+record SubscriberDto(String name, String emailAddress) {}
+
 record Profile(String first, String last) {}
 
 record ProfileDto(String first, String last, String displayName) {}

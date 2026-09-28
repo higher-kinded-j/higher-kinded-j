@@ -68,7 +68,7 @@ GROUPS = [
              heading="domain field 'X.y' has no wire counterpart named 'y'",
              fragment="has no wire counterpart named",
              meaning="A domain component has no wire component of the same name, and no rename points it at one.",
-             fix="Rename one side so the names match, or add a rename to the spec, such as `@MapField(to = \"fullName\") String name();`.",
+             fix="Rename one side so the names match, or add a rename to the spec, such as `@MapField(to = \"fullName\") String name();`. Where the component already has a leaf, put the `@MapField` on the leaf instead, as [Renamed and converted](basics.md#renamed-and-converted) shows.",
              rule=("Renames", "basics.md#renames-mapfield"),
              code="""record Customer(String name) {}
 
@@ -80,7 +80,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
              heading="target field 'XDto.y' has no usable source",
              fragment="has no usable source",
              meaning="A wire component's type differs from its domain counterpart's, and nothing converts between them.",
-             fix="Add the method the message spells out, a `default ValidatedPrism` that parses the field: a [standard codec](codecs.md#standard-codecs) such as `StandardCodecs.uuid()`, or your own. Where one side is a primitive, the message asks for its wrapper type first. A `List` against a `Set` lands here too, because elements map only when both sides declare the same container.",
+             fix="Add the method the message spells out, or put it in place of the one the message names, a `default ValidatedPrism` that parses the field: a [standard codec](codecs.md#standard-codecs) such as `StandardCodecs.uuid()`, or your own. Where one side is a primitive, the message asks for its wrapper type first. A `List` against a `Set` lands here too, because elements map only when both sides declare the same container.",
              rule=("Validated leaves", "basics.md#validated-leaves"),
              code="""record Customer(EmailAddress email) {}
 
@@ -152,7 +152,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
              heading="projection field 'XDto.y' has no domain source",
              fragment="has no domain source",
              meaning="A wire with fewer components than the domain maps as a projection, and one of its components is named after nothing the domain has.",
-             fix="Align the component names, or add a `@MapField` rename.",
+             fix="Align the component names, or add a `@MapField` rename, on the component's leaf where it has one.",
              rule=("Renames", "basics.md#renames-mapfield"),
              code="""record Customer(String name, String email) {}
 
@@ -241,6 +241,25 @@ record CustomerDto(String name) {}
 @GenerateMapping
 interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
   String displayName();
+}"""),
+        dict(id="mapfield-neither-marker-nor-leaf",
+             heading="@MapField method 'x' is neither a marker nor a leaf",
+             fragment="is neither a marker nor a leaf",
+             marker="where the component also converts",
+             display="@MapField method '…' is neither a marker nor a leaf",
+             meaning="A `@MapField` method has a body, and is not the component's leaf, so it is neither shape a rename takes.",
+             fix="Make it the component's leaf, a zero-parameter `default` method returning `ValidatedPrism<Wire, Domain>`, or remove the body to leave a rename marker. The message names the change the method's shape needs.",
+             rule=("Renamed and converted", "basics.md#renamed-and-converted"),
+             code="""record Customer(EmailAddress email) {}
+
+record CustomerDto(String emailAddress) {}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+  @MapField(to = "emailAddress")
+  default EmailAddress email(String raw) {
+    return new EmailAddress(raw);
+  }
 }"""),
         dict(id="getter-named-after-domain",
              heading="default method 'x' returns a Getter but is named after a domain component",

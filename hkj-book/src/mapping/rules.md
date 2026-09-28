@@ -14,6 +14,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [What if a leaf's name matches no component?](#how-the-two-default-families-are-told-apart) | A declared leaf is a compile error, naming the components; an inherited one stays inert. | by design |
 | [Can a getter-shaped helper live on a spec?](#how-the-two-default-families-are-told-apart) | Yes, if `private`, `static` or given a parameter; a `default` one is a derived field. | by design |
 | [Can a sealed spec declare its own leaves, renames or markers?](#how-the-two-default-families-are-told-apart) | No: a dispatch has no components to bind them to. | by design |
+| [Can a field be renamed and converted at once?](basics.md#renamed-and-converted) | Yes: `@MapField` goes on its leaf, the one method named after it. | by design |
 | [Can a projection carry a derived field?](#derived-fields-and-the-emission-tiers) | No: `build` recomputes what the write-back would set. | by design |
 | [Can a mapped type be one the spec's package cannot see?](#visible-from-the-spec-package) | No: the Impl is generated in that package and names it. | by design |
 | **Optional fields** | | |
@@ -35,6 +36,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a raw or wildcard `Map` have its keys or values converted?](#what-lifts) | No: name its type arguments. | by design |
 | [Can a `Map`'s keys be converted?](structure.md#converting-map-keys) | Yes, with a `@MapKey` leaf; otherwise the key types must match. | by design |
 | [Can a key leaf sit beside a whole-map leaf?](#key-leaf-beside-a-whole-map-leaf) | A declared one is refused; an inherited one stays inert. | by design |
+| [Can a key leaf carry a `@MapField` rename?](structure.md#converting-map-keys) | Only one named after the component it keys. | by design |
 | [Is a `null` inside a `Stream`, `Iterable`, `Maybe` or `NonEmptyList` located?](#the-null-contract-precisely) | No: the component is guarded, its contents are not scanned. | not supported yet |
 | [Can a sealed pair's subtype be an enum, or generic?](structure.md#sealed-hierarchies) | No: records and sealed interfaces, or beans on the wire side. | not supported yet |
 | **Flattening** | | |
@@ -259,6 +261,8 @@ An inherited member that binds to nothing stays inert, so one vocabulary can ser
 
 So a projection or a PATCH bean that deliberately carries a subset extends the same vocabulary as the full spec, and simply maps fewer of its members; a sealed dispatch, which has no components at all, inherits the same vocabulary and binds none of it. Nothing is silently mismapped by an inert member, because every wire component still has to name a source: a wire that does carry a rename's target and has no other source for it is reported against that component. The cost is that a `to` typed wrongly *in the mix-in* is now caught only where some spec's wire happens to carry the intended name, which is the same trade the other inherited kinds already make.
 
+A leaf carrying [`@MapField`](basics.md#renamed-and-converted) is both members at once, and an inherited one binds each half on its own terms. On a wire that calls the component by its own name, the rename is inert and the leaf still converts it.
+
 ### Mix-in shapes the processor refuses {#refused-mix-in-shapes}
 
 Two mix-in shapes are rejected, each naming the offender:
@@ -480,7 +484,7 @@ A one-directional mapping follows these rules:
 
 ### Every wire property names a component {#patch-wire-property-names-a-component}
 
-**A wire property that names no domain component is rejected.** The client could send it and nothing would read it. Add a `@MapField` rename to the domain component it stands for, or remove the property. Coverage is one-sided: a domain component with no wire property is simply never changed, since a PATCH DTO covers a subset on purpose.
+**A wire property that names no domain component is rejected.** The client could send it and nothing would read it. Add a `@MapField` rename to the domain component it stands for, on the component's leaf where it has one, or remove the property. Coverage is one-sided: a domain component with no wire property is simply never changed, since a PATCH DTO covers a subset on purpose.
 
 ### No `JsonNullable` property {#no-jsonnullable-patch-property}
 

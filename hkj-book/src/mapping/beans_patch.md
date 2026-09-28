@@ -226,7 +226,7 @@ The processor refuses a PATCH spec it cannot honour, and names the fix. The last
 | [A record wire](rules.md#no-record-patch-wire) | refused | a bean |
 | [A bean with only getters, or only setters](rules.md#patch-bean-read-and-written) | refused | a bean both read and written |
 | [A setter with no getter](rules.md#every-patch-setter-has-a-getter) | refused | a getter, or [`@Unmapped`](beans.md#accessors-meant-to-stay-out) on the spec |
-| [A wire property that names no domain component](rules.md#patch-wire-property-names-a-component) | refused | a `@MapField` rename, or drop the property |
+| [A wire property that names no domain component](rules.md#patch-wire-property-names-a-component) | refused | a `@MapField` rename, on the component's leaf where it has one, or drop the property |
 | [A sealed hierarchy](rules.md#no-sealed-patch), on either side | refused | one `UpdateSpec` per concrete record pair |
 | [A `JsonNullable` property](rules.md#no-jsonnullable-patch-property) | not supported yet | an `Optional`-typed property |
 | [An inherited derived field or `@OptionalBridge` marker](rules.md#inherited-vocabulary-on-a-patch) | inert | nothing: one mix-in serves both tiers |

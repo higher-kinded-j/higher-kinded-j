@@ -21,6 +21,19 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
+ * <p>A component that is renamed <em>and</em> converted carries the rename on its leaf, the one
+ * method named after it, meaning both at once:
+ *
+ * <pre>{@code
+ * @MapField(to = "emailAddress")
+ * default ValidatedPrism<String, EmailAddress> email() { // Person.email <-> PersonDto.emailAddress
+ *   return EMAIL;
+ * }
+ * }</pre>
+ *
+ * <p>The same holds for a generic spec's abstract leaf, supplied through the generated {@code
+ * of(...)} factory, and for a leaf that also carries {@link OptionalBridge}.
+ *
  * <p>Each wire component takes exactly one domain source; colliding renames are compile errors.
  *
  * <p>A rename may also be named after a component of a record that a {@link Flatten} marker spreads

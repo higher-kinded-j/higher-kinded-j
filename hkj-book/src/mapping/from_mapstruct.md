@@ -19,6 +19,7 @@ The shapes are close enough that a first spec usually reads like the mapper it r
 | Built-in `String` to `UUID`, enum or date conversion | a `default` leaf returning `StandardCodecs.uuid()` and friends | never implicit: a conversion exists where a spec declares it |
 | `uses = UuidMapper.class` | the same leaf, shared through a [mix-in vocabulary](codecs.md#shared-vocabulary-mix-in-interfaces) | shared by name |
 | `@Named` plus `qualifiedByName` | the leaf **is** the named method | |
+| `@Mapping(target = "email", source = "emailAddress", qualifiedByName = ...)`, renamed and converted | `@MapField(to = "emailAddress")` on the `email()` leaf | [one method](basics.md#renamed-and-converted) carries both |
 | `expression = "java(...)"`, or `@AfterMapping` filling a target field | a `default` method returning `Getter<Domain, T>` | [a derived field](basics.md#derived-wire-fields), build-side only |
 | `uses = CustomerMapper.class` for a nested type | nothing: a spec for the pair nests automatically | failures gain the outer component's path |
 | `@Mapping(target = "a.b", source = ...)`, deep target paths | [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire), one level | deeper flattening stays MapStruct's |

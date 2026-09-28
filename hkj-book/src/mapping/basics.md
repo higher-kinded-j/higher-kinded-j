@@ -189,6 +189,20 @@ The `email` leaf comes along because this spec maps the whole `Customer`, and ea
 A client that sent `fullName` gets its errors at `name`. The same holds for a Jackson rename: under `@JsonProperty("first_name")` on a `firstName` component, or a snake_case naming strategy, the path stays `firstName`. Every path in the system is domain-named, so paths stay consistent, and stable when the wire is refactored. A client that maps errors back onto its own payload keys applies the renames in reverse.
 ~~~
 
+### Renamed and converted {#renamed-and-converted}
+
+A mailing list's export calls the email `emailAddress`, and its string still has to be checked into an `EmailAddress`. The leaf is already the component's one method named `email()`, and a rename marker beside it would be a second `email()`, which Java refuses. So `@MapField` goes on the leaf, and means both:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:rename_leaf_spec}}
+```
+
+The error still names the domain component:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:rename_leaf_usage}}
+```
+
 ---
 
 ## Derived wire fields {#derived-wire-fields}

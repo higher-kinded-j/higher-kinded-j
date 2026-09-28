@@ -814,6 +814,18 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * A bare {@code @MapField} marker: the abstract placement, named after a domain component that is
+   * renamed and copies (or nests), and one the Impl owes a stub. A component that is renamed and
+   * converted carries the annotation on its own leaf instead, which is matched as a leaf, as {@link
+   * #isBridgeMarker}'s two placements are. Asked only after {@link #validateSpecMethods}.
+   */
+  private boolean isRenameMarker(TypeElement owner, ExecutableElement method) {
+    return method.getAnnotation(MapField.class) != null
+        && method.getModifiers().contains(Modifier.ABSTRACT)
+        && !isAbstractLeaf(owner, method);
+  }
+
+  /**
    * The element a bridged {@code Optional}'s type argument stands for: the argument itself, or the
    * bound of an {@code ? extends} wildcard. A wildcard argument can never be matched by a leaf (no
    * method may declare one as a type argument) and can never be {@code isSameType} with the wire
@@ -1700,7 +1712,6 @@ public class MappingProcessor extends AbstractProcessor {
   /** Zero-parameter, {@code ValidatedPrism}-returning and bodiless: an element-mapped leaf. */
   private boolean isAbstractLeaf(TypeElement owner, ExecutableElement method) {
     return method.getModifiers().contains(Modifier.ABSTRACT)
-        && method.getAnnotation(MapField.class) == null
         && method.getAnnotation(Flatten.class) == null
         && method.getParameters().isEmpty()
         && memberTypeIn(owner, method) instanceof DeclaredType returnType
@@ -2370,6 +2381,7 @@ public class MappingProcessor extends AbstractProcessor {
           spec,
           method,
           name,
+          domainType,
           bridgeElement(containerElement(domainType, "java.util.Optional")),
           wire,
           wireComponent,
@@ -2599,12 +2611,14 @@ public class MappingProcessor extends AbstractProcessor {
    * no bridge at all is merely redundant, and says so as a note. A primitive is refused here, where
    * the marker is declared; a reference member declared non-null is refused when the bridge is
    * resolved ({@link #reportNonNullBridge}), since a bean's is a setter parameter and a bean needs
-   * no marker.
+   * no marker. {@code component} is the domain's Optional as declared, and {@code element} what it
+   * carries.
    */
   private boolean checkBridgeWireSide(
       TypeElement spec,
       ExecutableElement method,
       String name,
+      TypeMirror component,
       TypeMirror element,
       WireShape wire,
       WireShape.WireComponent wireComponent,
@@ -2638,7 +2652,8 @@ public class MappingProcessor extends AbstractProcessor {
                   wireComponent.name(),
                   wireComponent.type(),
                   element,
-                  LeafSite.bridged(true, wire),
+                  leafSite(
+                      LeafSite.bridged(true, wire), spec, name, wireComponent.name(), component),
                   local && wire instanceof WireShape.BeanShape)
               + ".");
       return false;
@@ -2748,6 +2763,32 @@ public class MappingProcessor extends AbstractProcessor {
       OptionalBridge bridge = method.getAnnotation(OptionalBridge.class);
       Flatten flatten = method.getAnnotation(Flatten.class);
       Unmapped unmapped = method.getAnnotation(Unmapped.class);
+      MapKey mapKey = method.getAnnotation(MapKey.class);
+      // A key leaf is named freely and keys the component its @MapKey names, while a rename renames
+      // the component its method is named after, so on one method the two have to agree.
+      if (mapField != null
+          && mapKey != null
+          && !mapKey.value().contentEquals(method.getSimpleName())) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@MapField method '"
+                + method.getSimpleName()
+                + "'"
+                + inheritedNote(method, spec)
+                + " is a key leaf for '"
+                + mapKey.value()
+                + "'.",
+            "A key leaf's name is free, and it converts the keys of the component its @MapKey"
+                + " names, while a rename renames the component its method is named after; here"
+                + " those are two components.",
+            "Name the key leaf '"
+                + mapKey.value()
+                + "()' to rename that component, or move @MapField to a marker or leaf named"
+                + " after the component it renames.");
+        return false;
+      }
       if (!method.getModifiers().contains(Modifier.ABSTRACT)) {
         if (bridge != null && !isLeafShaped(spec, method)) {
           Diagnostics.error(
@@ -2765,7 +2806,9 @@ public class MappingProcessor extends AbstractProcessor {
               "Remove the body to make it a marker, or give the method the leaf's return type.");
           return false;
         }
-        if (mapField != null) {
+        // A component renamed and converted carries the rename on its own leaf, the placement
+        // @OptionalBridge has too: the leaf is the one method named after the component.
+        if (mapField != null && !isLeafShaped(spec, method)) {
           Diagnostics.error(
               processingEnv.getMessager(),
               method,
@@ -2774,10 +2817,12 @@ public class MappingProcessor extends AbstractProcessor {
                   + method.getSimpleName()
                   + "'"
                   + inheritedNote(method, spec)
-                  + " must be abstract.",
-              "A rename is a marker method the generated Impl stubs out; a method with a body"
-                  + " (default, static or private) would double as callable code.",
-              "Remove the body, or remove the @MapField annotation.");
+                  + " is neither a marker nor a leaf.",
+              "A rename is declared on an abstract marker named after the domain component, or,"
+                  + " where the component also converts, on its zero-parameter 'default' leaf"
+                  + " returning ValidatedPrism<WireComponent, DomainComponent>; a body of any other"
+                  + " shape is neither.",
+              renameShapeFix(spec, method));
           return false;
         }
         if (unmapped != null) {
@@ -2827,7 +2872,7 @@ public class MappingProcessor extends AbstractProcessor {
             "The generated Impl carries a leaf as a constructor-supplied field and a rename as a"
                 + " stub, and neither has anywhere to declare the method's own type parameters, so"
                 + " the generated file would name a variable nothing brings into scope.",
-            mapField != null || bridge != null
+            (mapField != null || bridge != null) && !isAbstractLeaf(spec, method)
                 ? "Give '"
                     + method.getSimpleName()
                     + "' a concrete return type; a marker method declares a correspondence and the"
@@ -2965,26 +3010,10 @@ public class MappingProcessor extends AbstractProcessor {
           return false;
         }
         if (isAbstractLeaf(spec, method)) {
-          if (!sealedPair && !spec.getTypeParameters().isEmpty()) {
-            if (!checkMemberTypeReachable(spec, method, "abstract leaf")) {
-              return false;
-            }
-            continue;
+          if (!checkAbstractLeafPlacement(spec, method, sealedPair)) {
+            return false;
           }
-          Diagnostics.error(
-              processingEnv.getMessager(),
-              method,
-              TAG,
-              "abstract leaf '"
-                  + method.getSimpleName()
-                  + "'"
-                  + inheritedNote(method, spec)
-                  + " needs a generic spec.",
-              "A concrete pair's leaf carries its own parser as a 'default' body; only a generic"
-                  + " spec defers the element mapping to the generated 'of(...)' factory.",
-              "Give the method a body ('default'), or make the spec generic in the element"
-                  + " types.");
-          return false;
+          continue;
         }
         // A bare @OptionalBridge marker: implementable as a stub, exactly like a rename, so the
         // Impl can hold it and the neither-rename-nor-leaf refusal below does not apply.
@@ -3025,6 +3054,14 @@ public class MappingProcessor extends AbstractProcessor {
             "Keep one of the two annotations; rename the group's inner components individually.");
         return false;
       }
+      // A rename on a generic spec's abstract leaf renames the component the leaf converts; where
+      // it sits is the leaf's question, so the leaf's rule answers it.
+      if (isAbstractLeaf(spec, method)) {
+        if (!checkAbstractLeafPlacement(spec, method, sealedPair)) {
+          return false;
+        }
+        continue;
+      }
       if (sealedPair) {
         // A dispatch has no components, so an inherited rename binds to nothing here and stays
         // inert, as an inherited leaf or bridge on the same spec already does: a sealed spec and
@@ -3062,18 +3099,86 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * An abstract leaf is supplied through the generated {@code of(...)} factory, which only a
+   * generic spec over a record pair has, so it is refused anywhere else; the one rule holds whether
+   * or not the leaf also carries a rename. One that does may have been meant as a rename marker, so
+   * its fix says how a marker is written.
+   */
+  private boolean checkAbstractLeafPlacement(
+      TypeElement spec, ExecutableElement method, boolean sealedPair) {
+    if (!sealedPair && !spec.getTypeParameters().isEmpty()) {
+      return checkMemberTypeReachable(spec, method, "abstract leaf");
+    }
+    String leaf = "abstract leaf '" + method.getSimpleName() + "'" + inheritedNote(method, spec);
+    if (sealedPair) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          leaf + " has no meaning on a sealed mapping.",
+          "A leaf converts a component of one pair; a sealed mapping dispatches over its permitted"
+              + " subtypes and has no components.",
+          "Move the method onto the subtype pair's own spec.");
+      return false;
+    }
+    boolean renames = method.getAnnotation(MapField.class) != null;
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        method,
+        TAG,
+        leaf + " needs a generic spec.",
+        "A concrete pair's leaf carries its own parser as a 'default' body; only a generic spec"
+            + " defers the element mapping to the generated 'of(...)' factory."
+            + (renames
+                ? " A @MapField method returning ValidatedPrism is the component's leaf, not a"
+                    + " rename marker."
+                : ""),
+        "Give the method a body ('default'), or make the spec generic in the element types"
+            + (renames
+                ? "; if it only renames, give it a return type other than ValidatedPrism, such as"
+                    + " the component's own."
+                : "."));
+    return false;
+  }
+
+  /**
+   * The fix for a {@code @MapField} method whose body makes it no leaf, by the shape it has: a
+   * derived field, which fills the wire component it is named after and needs no rename; a static
+   * or private helper, which only {@code default} makes a leaf; one taking the raw value as a
+   * parameter, as a hand-written conversion would; or one returning anything else.
+   */
+  private String renameShapeFix(TypeElement spec, ExecutableElement method) {
+    String prism = "ValidatedPrism<WireComponent, DomainComponent>";
+    if (isExactly(memberTypeIn(spec, method), GETTER)) {
+      return "A derived field fills the wire component it is named after and needs no rename:"
+          + " remove @MapField, and name the method after that component.";
+    }
+    if (!method.isDefault()) {
+      return "Make it a 'default' method returning "
+          + prism
+          + " to convert the component, or remove the body and the modifier to leave a rename"
+          + " marker.";
+    }
+    return (method.getParameters().isEmpty() ? "Return " : "Remove the parameters and return ")
+        + prism
+        + " to make it the component's leaf, or remove the body to leave a rename marker.";
+  }
+
+  /**
    * Unrelated mix-ins may declare a same-named rename or leaf with covariantly differing returns
    * (override-equivalent abstracts may coexist, JLS 9.4.1.3), and the Impl emits one member for the
    * group, which must be return-type-substitutable for every declaration (JLS 8.4.8.3). For the
    * non-generic, identically-signatured members that survive validation, substitutability is
    * subtyping, with one exception the language admits through unchecked conversion: a raw return
    * beside incomparable parameterised ones has no subtype-narrowest, and is refused here rather
-   * than emitting a member javac rejects inside the generated file.
+   * than emitting a member javac rejects inside the generated file. A group holding an abstract
+   * leaf is implemented by the leaf's accessor, typed as the leaf, so its narrowest member has to
+   * be a leaf, not a marker asking for more.
    */
   private boolean checkGroupsHaveNarrowestReturns(TypeElement spec) {
     Map<String, List<ExecutableElement>> groups = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
-      if (method.getAnnotation(MapField.class) != null
+      if (isRenameMarker(spec, method)
           || method.getAnnotation(Unmapped.class) != null
           || isBridgeMarker(spec, method)
           || isFlattenMarker(method)
@@ -3085,7 +3190,8 @@ public class MappingProcessor extends AbstractProcessor {
     }
     Types types = processingEnv.getTypeUtils();
     for (Map.Entry<String, List<ExecutableElement>> group : groups.entrySet()) {
-      TypeMirror narrowest = memberTypeIn(spec, narrowestMember(spec, group.getValue()));
+      ExecutableElement narrowestMember = narrowestMember(spec, group.getValue());
+      TypeMirror narrowest = memberTypeIn(spec, narrowestMember);
       for (ExecutableElement method : group.getValue()) {
         if (!types.isSubtype(narrowest, memberTypeIn(spec, method))) {
           Diagnostics.error(
@@ -3102,6 +3208,23 @@ public class MappingProcessor extends AbstractProcessor {
               "Align the returns, or give the methods different names.");
           return false;
         }
+      }
+      if (group.getValue().stream().anyMatch(method -> isAbstractLeaf(spec, method))
+          && !isAbstractLeaf(spec, narrowestMember)) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "same-named members '"
+                + group.getKey()
+                + "' pair an abstract leaf with a marker whose return is narrower ("
+                + describeGroup(spec, group.getValue())
+                + ").",
+            "The generated Impl implements an abstract leaf with the prism its of(...) factory is"
+                + " given, typed as the leaf, so a marker of the same name cannot ask for a"
+                + " narrower type.",
+            "Declare the marker's return as the leaf's, or give the methods different names.");
+        return false;
       }
     }
     return true;
@@ -3942,13 +4065,14 @@ public class MappingProcessor extends AbstractProcessor {
       }
       TypeMirror wireType = property.type();
       TypeMirror domainType = domainComp.asType();
+      LeafSite site = leafSite(LeafSite.PLAIN, spec, domainName, property.name(), domainType);
 
       // An explicit whole-component leaf wins even over a same-typed match, so it can validate or
       // normalise a copied field; on a container pair it also beats the element interpretation,
       // as the more specific declaration.
       ExecutableElement leaf = findLeaf(spec, domainName, wireType, domainType);
       if (leaf != null) {
-        if (!checkKeyLeafReached(spec, domainName, leaf, wireType, domainType, LeafSite.PLAIN)) {
+        if (!checkKeyLeafReached(spec, domainName, leaf, wireType, domainType, site)) {
           return null;
         }
         edits.add(
@@ -3963,7 +4087,7 @@ public class MappingProcessor extends AbstractProcessor {
       // container; replacement stays wholesale, only element validation and location improve.
       Correspondence containerLeaf =
           containerLeafCorrespondence(
-              spec, domainName, property.name(), wireType, domainType, LeafSite.PLAIN);
+              spec, domainName, property.name(), wireType, domainType, site);
       if (containerLeaf != null) {
         edits.add(UpdateEdit.lifted(domainName, containerLeaf));
         continue;
@@ -3993,7 +4117,14 @@ public class MappingProcessor extends AbstractProcessor {
       // A nested record patched wholesale through its own full mapping spec's asValidatedPrism().
       PrismResolution nested =
           resolveNestedSpec(
-              spec, registry, domainName, wireType, domainType, WireShape.Direction.PARSE_ONLY);
+              spec,
+              registry,
+              domainName,
+              wireType,
+              domainType,
+              WireShape.Direction.PARSE_ONLY,
+              site,
+              List.of());
       if (nested.ambiguous()) {
         return null;
       }
@@ -4190,7 +4321,10 @@ public class MappingProcessor extends AbstractProcessor {
             + wireNames(domain.getRecordComponents())
             + ".",
         componentFix(
-            wire, true, "Add a @MapField rename to a domain component, or remove the property."));
+            wire,
+            true,
+            "Add a @MapField rename to a domain component, on its leaf where it has one, or remove"
+                + " the property."));
   }
 
   /**
@@ -4319,6 +4453,16 @@ public class MappingProcessor extends AbstractProcessor {
     String name = domainComp.getSimpleName().toString();
     TypeMirror wrapper = boxed(domainComp.asType());
     ExecutableElement leaf = findLeaf(spec, name, property.type(), wrapper);
+    String leafDeclaration =
+        "a leaf '"
+            + renameAnnotation(spec, name, property.name())
+            + "default ValidatedPrism<"
+            + ProcessorUtils.qualifiedTypeName(property.type())
+            + ", "
+            + ProcessorUtils.qualifiedTypeName(wrapper)
+            + "> "
+            + name
+            + "()'";
     return "Declare '"
         + property.name()
         + "' on '"
@@ -4335,13 +4479,11 @@ public class MappingProcessor extends AbstractProcessor {
         + ProcessorUtils.qualifiedTypeName(wrapper)
         + (leaf != null
             ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts."
-            : " and add a leaf 'default ValidatedPrism<"
-                + ProcessorUtils.qualifiedTypeName(property.type())
-                + ", "
-                + ProcessorUtils.qualifiedTypeName(wrapper)
-                + "> "
-                + name
-                + "()'.");
+            : sameNamedMember(spec, name)
+                    .map(existing -> " and replace " + placeOf(existing, spec) + " with ")
+                    .orElse(" and add ")
+                + leafDeclaration
+                + ".");
   }
 
   /**
@@ -4356,19 +4498,27 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror domainType = domainComp.asType();
     String name = domainComp.getSimpleName().toString();
     TypeMirror[] lifted = liftedPair(spec, name, wireType, domainType);
-    // A same-named default method is the near miss the why names, which a leaf replaces.
+    // A same-named default method is the near miss the why names, which a leaf replaces; so is a
+    // rename marker, whose rename the leaf then carries.
     String declare =
-        sameNamedDefault(spec, name) == null ? "Declare " : "Replace '" + name + "()' with ";
+        sameNamedMember(spec, name)
+            .map(existing -> "Replace " + placeOf(existing, spec) + " with ")
+            .orElse("Declare ");
+    String rename = renameAnnotation(spec, name, property.name());
     if (lifted != null) {
       return declare
-          + "an element leaf 'default ValidatedPrism<"
+          + "an element leaf '"
+          + rename
+          + "default ValidatedPrism<"
           + ProcessorUtils.qualifiedTypeName(lifted[0])
           + ", "
           + ProcessorUtils.qualifiedTypeName(lifted[1])
           + "> "
           + name
           + "()' (lifted over the container; it may delegate to a nested Impl's"
-          + " asValidatedPrism()), a whole-container leaf 'default ValidatedPrism<"
+          + " asValidatedPrism()), a whole-container leaf '"
+          + rename
+          + "default ValidatedPrism<"
           + ProcessorUtils.qualifiedTypeName(wireType)
           + ", "
           + ProcessorUtils.qualifiedTypeName(domainType)
@@ -4377,7 +4527,9 @@ public class MappingProcessor extends AbstractProcessor {
           + "()', or align the types.";
     }
     return declare
-        + "a leaf 'default ValidatedPrism<"
+        + "a leaf '"
+        + rename
+        + "default ValidatedPrism<"
         + ProcessorUtils.qualifiedTypeName(wireType)
         + ", "
         + ProcessorUtils.qualifiedTypeName(domainType)
@@ -4814,35 +4966,42 @@ public class MappingProcessor extends AbstractProcessor {
    * the component, over the pair being resolved. A component carrying an {@code @OptionalBridge}
    * marker needs the leaf to be its only spec method, since a marker and a same-named leaf are one
    * method with incompatible return types; on a record wire the leaf carries the annotation too, as
-   * the bridge needs it there, and on a bean wire, which bridges without it, the leaf is bare.
-   * Every other site declares a bare leaf.
+   * the bridge needs it there, and on a bean wire, which bridges without it, the leaf is bare. A
+   * renamed component's leaf carries the rename, in place of the method that declares it ({@link
+   * #leafSite}). Every other site declares a bare leaf. {@code marked} says the leaf replaces a
+   * method the spec has for the component, and {@code inherited} names that method with its mix-in
+   * where it is inherited ({@link #placeOf}), empty where the spec declares it. {@code component}
+   * is the component's type as the domain declares it, which a marker standing for the component
+   * restates: on a bridged site it is the Optional whose present value the pair is. The constants
+   * are the kinds of site, each made a component's by {@link #leafSite}.
    */
-  private record LeafSite(String annotation, String placement) {
-    static final LeafSite PLAIN = new LeafSite("", "");
-    static final LeafSite BRIDGE_MARKER =
-        new LeafSite("@OptionalBridge ", ", as the component's only spec method,");
-    static final LeafSite BEAN_MARKER = new LeafSite("", ", as the component's only spec method,");
+  private record LeafSite(
+      String annotation, boolean marked, String inherited, TypeMirror component) {
+    static final LeafSite PLAIN = new LeafSite("", false, "", null);
+    static final LeafSite BRIDGE_MARKER = new LeafSite("@OptionalBridge ", true, "", null);
+    static final LeafSite BEAN_MARKER = new LeafSite("", true, "", null);
 
     /** The site for a bridged component: where it carries the marker, and on which wire. */
     static LeafSite bridged(boolean marked, WireShape wire) {
       return !marked ? PLAIN : wire instanceof WireShape.BeanShape ? BEAN_MARKER : BRIDGE_MARKER;
     }
 
-    boolean marked() {
-      return !equals(PLAIN);
+    /** Where the leaf goes: beside nothing, in the place of the spec's method, or of a mix-in's. */
+    String placement() {
+      return !marked
+          ? ""
+          : inherited.isEmpty()
+              ? ", as the component's only spec method,"
+              : ", in place of " + inherited + ",";
     }
 
     String declaration(String name, TypeMirror wireType, TypeMirror domainType) {
-      return "'"
-          + annotation
-          + "default ValidatedPrism<"
-          + ProcessorUtils.qualifiedTypeName(wireType)
-          + ", "
-          + ProcessorUtils.qualifiedTypeName(domainType)
-          + "> "
-          + name
-          + "()'"
-          + placement;
+      return leaf(name, wireType, domainType) + placement();
+    }
+
+    /** The leaf alone, quoted, for a line that says itself where it goes. */
+    String leaf(String name, TypeMirror wireType, TypeMirror domainType) {
+      return leafSpelling(annotation, wireType, domainType, name);
     }
   }
 
@@ -4874,21 +5033,9 @@ public class MappingProcessor extends AbstractProcessor {
    * container ELEMENT/VALUE leaves through {@link #containerLeafCorrespondence} — so by the time a
    * nested spec is consulted no leaf exists for the pair. More than one candidate spec is reported
    * as an error.
-   */
-  private PrismResolution resolveNestedSpec(
-      TypeElement spec,
-      List<RegisteredSpec> registry,
-      String name,
-      TypeMirror wireType,
-      TypeMirror domainType,
-      WireShape.Direction need) {
-    return resolveNestedSpec(
-        spec, registry, name, wireType, domainType, need, LeafSite.PLAIN, List.of());
-  }
-
-  /**
-   * The full overload: {@code site} is how a fix line declares the leaf that would stand in for the
-   * spec, and {@code active} carries the (domain, wire) pairs already being composed on the current
+   *
+   * <p>{@code site} is how a fix line declares the leaf that would stand in for the spec, and
+   * {@code active} carries the (domain, wire) pairs already being composed on the current
    * element-mapped recursion, so a spec whose leaf pair covers itself is caught instead of
    * overflowing the stack.
    */
@@ -5143,8 +5290,17 @@ public class MappingProcessor extends AbstractProcessor {
       boolean single = leaves.size() == 1;
       boolean records =
           single && Stream.of(elementWire, elementDomain).allMatch(type -> asRecord(type) != null);
+      // The leaf replaces any method the spec has for the component, a marker included, and one
+      // taking the place of an inherited method goes in that method's mix-in, not on this spec.
+      Optional<ExecutableElement> replaced = sameNamedMember(spec, name);
       String declare =
-          sameNamedDefault(spec, name) == null ? "Declare " : "Replace '" + name + "()' with ";
+          replaced
+              .map(existing -> "Replace " + placeOf(existing, spec) + " with ")
+              .orElse("Declare ");
+      String onThisSpec =
+          replaced.filter(existing -> !declaredLocally(existing, spec)).isPresent()
+              ? ""
+              : " on this spec";
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -5175,10 +5331,11 @@ public class MappingProcessor extends AbstractProcessor {
               + unusableSpecHint(
                   spec, registry, elementWire, elementDomain, WireShape.Direction.BIDIRECTIONAL),
           (single
-                  ? declare + site.declaration(name, elementWire, elementDomain) + " on this spec"
+                  ? declare + site.leaf(name, elementWire, elementDomain) + onThisSpec
                   : declare
-                      + site.declaration(name, wireType, domainType)
-                      + " on this spec, returning "
+                      + site.leaf(name, wireType, domainType)
+                      + onThisSpec
+                      + ", returning "
                       + match.impl().canonicalName()
                       + ".of(...).asValidatedPrism() with one ValidatedPrism per leaf, in the order "
                       + leaves.stream()
@@ -5325,8 +5482,8 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' does not name a component of "
                 + domain.getSimpleName()
                 + ".",
-            "Renames are declared as an abstract method named after the DOMAIN component (or an"
-                + " inner component of a flattened one). Found on "
+            "Renames are declared on a method named after the DOMAIN component (or an inner"
+                + " component of a flattened one): a marker, or its leaf. Found on "
                 + domain.getSimpleName()
                 + ": "
                 + Stream.concat(
@@ -6286,10 +6443,16 @@ public class MappingProcessor extends AbstractProcessor {
     TypeMirror domainType = componentType(ownerDeclared, component);
     WireShape.WireComponent wireComponent = wire.componentNamed(wireName).orElse(null);
     if (wireComponent == null) {
+      // A component with a method of its own, such as a leaf or a bridge marker, cannot take a
+      // rename marker beside it, so the rename goes on that method. One overriding a rename
+      // declared on a supertype has dropped it, since an override does not carry its annotations.
+      ExecutableElement existing = sameNamedMember(spec, name).orElse(null);
+      ExecutableElement dropped = existing == null ? null : overriddenRename(spec, existing);
       // A record component with no counterpart may be a nested record the wire carries flat:
-      // the shape @Flatten exists for, so the fix names it where it could apply.
+      // the shape @Flatten exists for, so the fix names it where it could apply, which is not
+      // where a method of the component's, such as a leaf converting it whole, is in the way.
       String flattenOffer =
-          group == null && asRecord(domainType) != null
+          group == null && existing == null && asRecord(domainType) != null
               ? " Or, if the wire carries the components of "
                   + ProcessorUtils.simpleTypeName(domainType)
                   + " as flat fields, spread it with '@Flatten "
@@ -6311,11 +6474,23 @@ public class MappingProcessor extends AbstractProcessor {
               + " has no wire counterpart named '"
               + wireName
               + "'.",
-          "Found on " + wire.element().getSimpleName() + ": " + wire.componentNames() + ".",
+          "Found on "
+              + wire.element().getSimpleName()
+              + ": "
+              + wire.componentNames()
+              + "."
+              + (dropped == null
+                  ? ""
+                  : " '"
+                      + name
+                      + "()' overrides the @MapField rename in '"
+                      + dropped.getEnclosingElement().getSimpleName()
+                      + "', and an override does not carry the annotation over."),
           componentFix(
               wire,
               false,
-              "Align the component names, or add a '@MapField(to = ...)' rename on the spec."
+              "Align the component names, or "
+                  + renameFix(spec, existing, dropped)
                   + flattenOffer));
       return null;
     }
@@ -6349,6 +6524,49 @@ public class MappingProcessor extends AbstractProcessor {
         ownerNames,
         need,
         false);
+  }
+
+  /**
+   * How a component with no wire counterpart is renamed: by a marker, or, where it has a method of
+   * its own ({@link #sameNamedMember}), on that method, with the target of a rename the method
+   * dropped by overriding it where there is one. A method that already renames to a component this
+   * wire lacks is inherited, since a declared one would have been refused, so the spec overrides it
+   * with a rename of its own, leaving the mix-in to the specs whose wire it names.
+   */
+  private static String renameFix(
+      TypeElement spec, ExecutableElement existing, ExecutableElement dropped) {
+    if (existing == null) {
+      return "add a '@MapField(to = ...)' rename on the spec.";
+    }
+    return existing.getAnnotation(MapField.class) == null
+        ? "annotate "
+            + memberIn(existing, spec)
+            + " with '@MapField(to = "
+            + (dropped == null ? "..." : "\"" + dropped.getAnnotation(MapField.class).to() + "\"")
+            + ")'."
+        : "override "
+            + memberIn(existing, spec)
+            + " on the spec, with a '@MapField(to = ...)' of its own.";
+  }
+
+  /**
+   * A {@code @MapField} declaration on one of the spec's supertypes that {@code method} overrides,
+   * or null. The spec reads its members as they stand after overriding, so a rename declared on a
+   * marker the leaf overrides is never seen, and the diagnostic that follows names why.
+   */
+  private ExecutableElement overriddenRename(TypeElement spec, ExecutableElement method) {
+    Deque<TypeMirror> pending = new ArrayDeque<>(spec.getInterfaces());
+    while (!pending.isEmpty()) {
+      TypeElement type = (TypeElement) ((DeclaredType) pending.pop()).asElement();
+      for (ExecutableElement candidate : ElementFilter.methodsIn(type.getEnclosedElements())) {
+        if (candidate.getAnnotation(MapField.class) != null
+            && processingEnv.getElementUtils().overrides(method, candidate, spec)) {
+          return candidate;
+        }
+      }
+      pending.addAll(type.getInterfaces());
+    }
+    return null;
   }
 
   /**
@@ -6411,7 +6629,15 @@ public class MappingProcessor extends AbstractProcessor {
           need);
     }
     PairResolution resolved =
-        resolvePair(spec, registry, name, wireName, wireType, domainType, need, LeafSite.PLAIN);
+        resolvePair(
+            spec,
+            registry,
+            name,
+            wireName,
+            wireType,
+            domainType,
+            need,
+            leafSite(LeafSite.PLAIN, spec, name, wireName, domainType));
     if (resolved.reported()) {
       return null;
     }
@@ -6495,6 +6721,7 @@ public class MappingProcessor extends AbstractProcessor {
             member.spec(),
             member.registry(),
             member.name(),
+            member.wireName(),
             wireType,
             domainType,
             member.need(),
@@ -6503,13 +6730,11 @@ public class MappingProcessor extends AbstractProcessor {
         leafLine(
             member.spec(),
             member.name(),
-            "'default ValidatedPrism<"
-                + ProcessorUtils.qualifiedTypeName(offer.wire())
-                + ", "
-                + ProcessorUtils.qualifiedTypeName(offer.domain())
-                + "> "
-                + member.name()
-                + "()'");
+            leafSpelling(
+                renameAnnotation(member.spec(), member.name(), member.wireName()),
+                offer.wire(),
+                offer.domain(),
+                member.name()));
     return bridge
         + (bridge.isEmpty() ? leaf : "Or " + lowerFirst(leaf))
         + (offer.lifts() ? ", a leaf over the " + offer.parts() + " types" : "")
@@ -6524,13 +6749,129 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * How a fix line introduces a leaf named after the component: added to the spec, or, where the
-   * spec already has a same-named default method that is not the leaf the pair needs, in its place,
-   * since the spec cannot declare both.
+   * spec already has a method of that name it cannot declare beside the leaf ({@link
+   * #sameNamedMember}), in that method's place ({@link #placeOf}).
    */
   private String leafLine(TypeElement spec, String name, String declaration) {
-    return sameNamedDefault(spec, name) instanceof ExecutableElement existing
-        ? "Replace '" + existing.getSimpleName() + "()' with " + declaration
-        : "Add " + declaration + " to the spec";
+    return sameNamedMember(spec, name)
+        .map(existing -> "Replace " + placeOf(existing, spec) + " with " + declaration)
+        .orElseGet(() -> "Add " + declaration + " to the spec");
+  }
+
+  /**
+   * The spec method a declaration named after the component would collide with: a same-named
+   * default or abstract member, whether a leaf over another pair, a rename or bridge marker, or any
+   * other marker. A static or private one is a helper the declaration can sit beside.
+   */
+  private Optional<ExecutableElement> sameNamedMember(TypeElement spec, String name) {
+    return specMembers(spec).stream()
+        .filter(
+            method ->
+                method.getSimpleName().contentEquals(name)
+                    && (method.isDefault() || method.getModifiers().contains(Modifier.ABSTRACT)))
+        .findFirst();
+  }
+
+  /**
+   * Where a declaration replacing {@code existing} goes: in its place on the spec, or in the mix-in
+   * that declares it, since the spec cannot override a method with a leaf of another type. A
+   * generic mix-in is written in its own type parameters, which a line spelling the spec's pair
+   * cannot know.
+   */
+  private static String placeOf(ExecutableElement existing, TypeElement spec) {
+    return memberIn(existing, spec)
+        + (!declaredLocally(existing, spec)
+                && !((TypeElement) existing.getEnclosingElement()).getTypeParameters().isEmpty()
+            ? " (in its own type parameters)"
+            : "");
+  }
+
+  /** A spec method as a fix line names it: {@code 'x()'}, and its mix-in where it is inherited. */
+  private static String memberIn(ExecutableElement method, TypeElement spec) {
+    return "'"
+        + method.getSimpleName()
+        + "()'"
+        + (declaredLocally(method, spec)
+            ? ""
+            : " in '" + method.getEnclosingElement().getSimpleName() + "'");
+  }
+
+  /** The place of the inherited method a leaf for the component replaces, or empty. */
+  private String inheritedPlace(TypeElement spec, String name) {
+    return sameNamedMember(spec, name)
+        .filter(existing -> !declaredLocally(existing, spec))
+        .map(existing -> placeOf(existing, spec))
+        .orElse("");
+  }
+
+  /**
+   * The site a leaf for the component is offered at, of the kind {@code base} is, for the component
+   * the domain declares as {@code component}. A component the wire renames already has a method
+   * named after it that declares the rename, and a marked site a bridge marker: the leaf carries
+   * the rename and takes that method's place, named with its mix-in where it is inherited. A
+   * component the wire calls by its own name, on an unmarked site, is placed without a look at the
+   * spec's members, since every component that maps asks for its site.
+   */
+  private LeafSite leafSite(
+      LeafSite base, TypeElement spec, String name, String wireName, TypeMirror component) {
+    boolean renamed = !name.equals(wireName);
+    boolean marked = renamed || base.marked();
+    return new LeafSite(
+        base.annotation() + (renamed ? renameTo(wireName) : ""),
+        marked,
+        marked ? inheritedPlace(spec, name) : "",
+        component);
+  }
+
+  /**
+   * The {@code @MapField} a declaration named after a component carries, so a leaf offered in place
+   * of the method that declares a rename keeps it: the wire's name where it differs, or else the
+   * target of a rename inherited for the component that this wire leaves inert, which the leaf
+   * keeps for the specs whose wire it names.
+   */
+  private String renameAnnotation(TypeElement spec, String name, String wireName) {
+    return !name.equals(wireName)
+        ? renameTo(wireName)
+        : sameNamedMember(spec, name)
+            .map(method -> method.getAnnotation(MapField.class))
+            .map(mapField -> renameTo(mapField.to()))
+            .orElse("");
+  }
+
+  /**
+   * A leaf as a fix line spells it, after its annotations: a {@code default} method, or, over a
+   * pair that names a type variable, the abstract leaf a generic spec's {@code of(...)} factory is
+   * given, since no body can convert a type it does not know.
+   */
+  private static String leafSpelling(
+      String annotations, TypeMirror wireType, TypeMirror domainType, String name) {
+    boolean open = mentionsTypeVariable(wireType) || mentionsTypeVariable(domainType);
+    return "'"
+        + annotations
+        + (open ? "" : "default ")
+        + "ValidatedPrism<"
+        + ProcessorUtils.qualifiedTypeName(wireType)
+        + ", "
+        + ProcessorUtils.qualifiedTypeName(domainType)
+        + "> "
+        + name
+        + (open ? "();'" : "()'");
+  }
+
+  /** Whether a type is, or is built from, a type variable: an element, component or argument. */
+  private static boolean mentionsTypeVariable(TypeMirror type) {
+    if (type instanceof TypeVariable) {
+      return true;
+    }
+    if (type instanceof ArrayType array) {
+      return mentionsTypeVariable(array.getComponentType());
+    }
+    return type instanceof DeclaredType declared
+        && declared.getTypeArguments().stream().anyMatch(MappingProcessor::mentionsTypeVariable);
+  }
+
+  private static String renameTo(String wireName) {
+    return "@MapField(to = \"" + wireName + "\") ";
   }
 
   /** A default method named after the component, which a leaf for it would have to replace. */
@@ -6588,6 +6929,7 @@ public class MappingProcessor extends AbstractProcessor {
                     member.spec(),
                     member.registry(),
                     member.name(),
+                    member.wireName(),
                     wireBoxed,
                     domainBoxed,
                     member.need(),
@@ -6836,8 +7178,10 @@ public class MappingProcessor extends AbstractProcessor {
     // wildcard, so refusing here would leave the author a diagnostic with no reachable fix.
     TypeMirror bridged = bridgeElement(optionalElement);
     // A component carrying the marker needs any leaf a fix line offers in a spec's place to
-    // replace it, carrying the annotation on a record wire.
-    LeafSite site = LeafSite.bridged(declaresBridge(spec, name), wire);
+    // replace it, carrying the annotation on a record wire, and the rename where there is one.
+    LeafSite site =
+        leafSite(
+            LeafSite.bridged(declaresBridge(spec, name), wire), spec, name, wireName, domainType);
     // An empty Optional is a null on the wire, which a primitive can never hold, so no conversion
     // of the present value could make the pair map. Only a bean without a marker reaches here with
     // one: a marker on a primitive member is refused where the marker is checked.
@@ -6873,7 +7217,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     // Nor can a site declared non-null, which build would hand the empty Optional's null.
     if (nonNull != null) {
-      reportNonNullBridge(spec, domain, name, wireType, domainType, bridged, nonNull);
+      reportNonNullBridge(spec, domain, name, wireName, wireType, domainType, bridged, nonNull);
       return null;
     }
     return bridgedCorrespondence(present.correspondence(), bridged, implPackage(spec));
@@ -7008,14 +7352,16 @@ public class MappingProcessor extends AbstractProcessor {
    * The fixes each give the pair an honest encoding: a nullable site ({@link #nullableFix}), a
    * domain component without the {@code Optional}, or a leaf over the whole {@code Optional} that
    * encodes absence the way the wire does. A marker or bridged leaf the spec declares is named in
-   * the last two, since each replaces it. The primitive half of the same contract is refused where
-   * a marker is declared ({@link #checkBridgeWireSide}); this half needs the bean's write sites,
-   * which only classification knows.
+   * the last two, since each replaces it, and the leaf carries the component's rename ({@link
+   * #renameAnnotation}). The primitive half of the same contract is refused where a marker is
+   * declared ({@link #checkBridgeWireSide}); this half needs the bean's write sites, which only
+   * classification knows.
    */
   private void reportNonNullBridge(
       TypeElement spec,
       TypeElement domain,
       String name,
+      String wireName,
       TypeMirror wireType,
       TypeMirror domainType,
       TypeMirror element,
@@ -7036,15 +7382,19 @@ public class MappingProcessor extends AbstractProcessor {
                   + "'";
         };
     Optional<ExecutableElement> bridge = bridgeDeclaration(spec, name);
+    // A marker that also renames stays, as the rename's marker, once the bridge leaves it.
     String dropped =
         bridge
             .map(
                 method ->
-                    (isBridgeMarker(spec, method)
-                            ? " and its @OptionalBridge marker"
-                            : " and the @OptionalBridge on its leaf")
+                    (!isBridgeMarker(spec, method)
+                            ? " and the @OptionalBridge on its leaf"
+                            : method.getAnnotation(MapField.class) != null
+                                ? " and the @OptionalBridge on its marker"
+                                : " and its @OptionalBridge marker")
                         + inheritedNote(method, spec))
             .orElse("");
+    // A bean bridges without an annotation, so the method in the way may be a rename marker.
     String replaced =
         bridge
             .map(
@@ -7053,6 +7403,10 @@ public class MappingProcessor extends AbstractProcessor {
                             ? " in place of the marker"
                             : " in place of that leaf")
                         + inheritedNote(method, spec))
+            .or(
+                () ->
+                    sameNamedMember(spec, name)
+                        .map(method -> " in place of " + placeOf(method, spec)))
             .orElse("");
     String nullable = nullableFix(site);
     Diagnostics.error(
@@ -7084,13 +7438,9 @@ public class MappingProcessor extends AbstractProcessor {
             + ProcessorUtils.simpleTypeName(element)
             + ", dropping the Optional"
             + dropped
-            + "; or add 'default ValidatedPrism<"
-            + ProcessorUtils.qualifiedTypeName(wireType)
-            + ", "
-            + ProcessorUtils.qualifiedTypeName(domainType)
-            + "> "
-            + name
-            + "()' to the spec"
+            + "; or add "
+            + leafSpelling(renameAnnotation(spec, name, wireName), wireType, domainType, name)
+            + " to the spec"
             + replaced
             + ", a leaf over the whole Optional that encodes absence the way the wire does.");
   }
@@ -7169,18 +7519,13 @@ public class MappingProcessor extends AbstractProcessor {
             + unusableSpecHint(spec, registry, offer.wire(), offer.domain(), need),
         // A bean bridges without the annotation, so its leaf is bare, and replaces the marker
         // only where the spec carries one.
-        "Declare '"
-            + site.annotation()
-            + "default ValidatedPrism<"
-            + ProcessorUtils.qualifiedTypeName(offer.wire())
-            + ", "
-            + ProcessorUtils.qualifiedTypeName(offer.domain())
-            + "> "
-            + name
-            + "()'"
-            + (site.marked()
-                ? " as the component's only spec method, replacing any marker for it"
-                : " on the spec")
+        "Declare "
+            + site.leaf(name, offer.wire(), offer.domain())
+            + (!site.marked()
+                ? " on the spec"
+                : site.inherited().isEmpty()
+                    ? " as the component's only spec method, replacing any marker for it"
+                    : " in place of " + site.inherited())
             // A spec is offered only for a record pair: the commonest refusal is a value type
             // against a String, which no spec can map, and every pair reads the spec in the why.
             + (offer.records()
@@ -7237,7 +7582,15 @@ public class MappingProcessor extends AbstractProcessor {
             + wireMemberTerm(wire)
             + " cannot carry an absent value either way; no leaf can change that, since a leaf"
             + " converts only a present value and a ValidatedPrism cannot name a primitive.",
-        primitiveBridgeFix(spec, wire, name, wireName, wireType, bridged, LeafSite.PLAIN, false)
+        primitiveBridgeFix(
+                spec,
+                wire,
+                name,
+                wireName,
+                wireType,
+                bridged,
+                leafSite(LeafSite.PLAIN, spec, name, wireName, domainType),
+                false)
             + (processingEnv.getTypeUtils().isSameType(boxed(wireType), bridged)
                 ? ", or declare '"
                     + domain.getSimpleName()
@@ -7280,7 +7633,9 @@ public class MappingProcessor extends AbstractProcessor {
         + (leaf != null ? ", which the leaf '" + leaf.getSimpleName() + "()' then converts" : "")
         + (converted
             ? dropMarker ? ", and remove the annotation, which a bean wire does not need" : ""
-            : " and add " + site.declaration(name, wrapper, element) + " to the spec")
+            : site.inherited().isEmpty()
+                ? " and add " + site.declaration(name, wrapper, element) + " to the spec"
+                : " and replace " + site.inherited() + " with " + site.leaf(name, wrapper, element))
         + (nonNull == null ? "" : ", and " + nullableFix(nonNull));
   }
 
@@ -7423,15 +7778,16 @@ public class MappingProcessor extends AbstractProcessor {
                 wire,
                 false,
                 built && !wireComponent.type().getKind().isPrimitive()
-                    ? "Align the component names, add a @MapField rename, or declare a derived"
-                        + " field 'default Getter<"
+                    ? "Align the component names, add a @MapField rename (on the component's leaf"
+                        + " where it has one), or declare a derived field 'default Getter<"
                         + domain.getSimpleName()
                         + ", "
                         + ProcessorUtils.simpleTypeName(wireComponent.type())
                         + "> "
                         + wireName
                         + "()' that computes it."
-                    : "Align the component names, or add a @MapField rename."));
+                    : "Align the component names, or add a @MapField rename, on the component's"
+                        + " leaf where it has one."));
         return null;
       }
       if (!usedDomain.add(name)) {
@@ -7680,8 +8036,9 @@ public class MappingProcessor extends AbstractProcessor {
     if (values == null) {
       fix = ProcessorUtils.capitalise(keepWhole) + ".";
     } else if (processingEnv.getTypeUtils().isSameType(values[0], values[1])) {
-      // A record wire's bridge is declared by the annotation, so the whole leaf gives way to the
-      // bare marker rather than to nothing.
+      // A record wire's bridge and a rename are declared by annotation, so the whole leaf gives
+      // way to the bare marker carrying them rather than to nothing, restating the component as
+      // the domain declares it, which a bridge marker is held to.
       fix =
           (site.annotation().isEmpty()
                   ? "Remove " + whole
@@ -7689,14 +8046,7 @@ public class MappingProcessor extends AbstractProcessor {
                       + whole
                       + " with the marker '"
                       + site.annotation()
-                      + ProcessorUtils.qualifiedTypeName(
-                          processingEnv
-                              .getTypeUtils()
-                              .getDeclaredType(
-                                  processingEnv
-                                      .getElementUtils()
-                                      .getTypeElement("java.util.Optional"),
-                                  domainMap))
+                      + ProcessorUtils.qualifiedTypeName(site.component())
                       + " "
                       + name
                       + "();'")
@@ -7709,15 +8059,9 @@ public class MappingProcessor extends AbstractProcessor {
       fix =
           "Replace "
               + whole
-              + " with the value leaf '"
-              + site.annotation()
-              + "default ValidatedPrism<"
-              + ProcessorUtils.qualifiedTypeName(values[0])
-              + ", "
-              + ProcessorUtils.qualifiedTypeName(values[1])
-              + "> "
-              + name
-              + "()', which converts the values while "
+              + " with the value leaf "
+              + site.leaf(name, values[0], values[1])
+              + ", which converts the values while "
               + key
               + " converts the keys, or "
               + keepWhole
@@ -7880,9 +8224,9 @@ public class MappingProcessor extends AbstractProcessor {
       TypeElement spec, String name, TypeMirror wireType, TypeMirror domainType) {
     for (ExecutableElement method : specMembers(spec)) {
       // A @MapKey leaf converts the KEY side of the component its annotation names, never the
-      // component its own name would suggest, so it is never a value leaf.
+      // component its own name would suggest, so it is never a value leaf. A @MapField leaf is
+      // one: the rename it also carries only moves the wire component it reads.
       if (!method.getSimpleName().contentEquals(name)
-          || method.getAnnotation(MapField.class) != null
           || method.getAnnotation(MapKey.class) != null) {
         continue;
       }
@@ -8081,17 +8425,19 @@ public class MappingProcessor extends AbstractProcessor {
    * no leaf: it copies, or a single mapping serving the site covers the element pair, which the
    * bridge nests through. With two, the element leaf that chooses between them is offered instead.
    * A leaf the spec already has over the elements is offered the annotation alone, and any other
-   * same-named default is offered for replacement, since the spec cannot declare both ({@link
-   * #leafLine}). Empty when the shape cannot bridge. Never asked of a primitive wire member, which
-   * cannot hold the {@code null} and is offered its wrapper first ({@link #primitiveFix}). A
-   * component declared non-null ({@code nonNull}) is told to take a {@code @Nullable} as well, so
-   * the offer does not lead to the refusal a bridge onto it would draw ({@link
-   * #reportNonNullBridge}).
+   * same-named default, or the rename marker, is offered for replacement, since the spec cannot
+   * declare both ({@link #leafLine}); the offer carries the component's rename ({@link
+   * #renameAnnotation}). Empty when the shape cannot bridge. Never asked of a primitive wire
+   * member, which cannot hold the {@code null} and is offered its wrapper first ({@link
+   * #primitiveFix}). A component declared non-null ({@code nonNull}) is told to take a
+   * {@code @Nullable} as well, so the offer does not lead to the refusal a bridge onto it would
+   * draw ({@link #reportNonNullBridge}).
    */
   private String bridgeOffer(
       TypeElement spec,
       List<RegisteredSpec> registry,
       String name,
+      String wireName,
       TypeMirror wireType,
       TypeMirror domainType,
       WireShape.Direction need,
@@ -8116,11 +8462,13 @@ public class MappingProcessor extends AbstractProcessor {
           + nullable
           + ", so an absent value reads as a null wire component and a present one converts. ";
     }
+    String rename = renameAnnotation(spec, name, wireName);
     return needsNoLeaf
         ? leafLine(
                 spec,
                 name,
                 "'@OptionalBridge "
+                    + rename
                     + ProcessorUtils.qualifiedTypeName(domainType)
                     + " "
                     + name
@@ -8130,13 +8478,7 @@ public class MappingProcessor extends AbstractProcessor {
         : leafLine(
                 spec,
                 name,
-                "'@OptionalBridge default ValidatedPrism<"
-                    + ProcessorUtils.qualifiedTypeName(offer.wire())
-                    + ", "
-                    + ProcessorUtils.qualifiedTypeName(offer.domain())
-                    + "> "
-                    + name
-                    + "()'")
+                leafSpelling("@OptionalBridge " + rename, offer.wire(), offer.domain(), name))
             + ", a leaf over the ELEMENT types"
             + nullable
             + ", so an absent value reads as a null wire component and a present one converts. ";
@@ -9760,15 +10102,16 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   private void addMarkerStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
-    // Only abstract zero-parameter @MapField, @OptionalBridge and @Flatten methods survive
-    // validateSpecMethods. Unrelated mix-ins agreeing on a marker contribute one stub, whose
-    // return has to be return-type-substitutable for every declaration (JLS 8.4.8.3): the
-    // subtype-narrowest of the group, which checkGroupsHaveNarrowestReturns has verified exists. A
-    // name an abstract leaf shares gets no stub at all: the leaf accessor elementMappedSkeleton
-    // emits already implements the member, and the group guard has proven its return satisfies the
-    // marker declaration too; the rename's to-mapping is read from collectRenames and the bridge
-    // from bridgeRequested either way. One method carrying both annotations is one stub, named
-    // for the rename it also declares.
+    // The markers are the abstract zero-parameter @MapField, @OptionalBridge and @Flatten methods
+    // validateSpecMethods lets through; the same annotation on a leaf belongs to the leaf, which
+    // a default body or the of(...) factory implements. Unrelated mix-ins agreeing on a marker
+    // contribute one stub, whose return has to be return-type-substitutable for every declaration
+    // (JLS 8.4.8.3): the subtype-narrowest of the group, which checkGroupsHaveNarrowestReturns
+    // has verified exists. A name an abstract leaf shares gets no stub at all: the leaf accessor
+    // elementMappedSkeleton emits already implements the member, and the group guard has proven
+    // its return satisfies the marker declaration too; the rename's to-mapping is read from
+    // collectRenames and the bridge from bridgeRequested either way. One method carrying both
+    // annotations is one stub, named for the rename it also declares.
     Set<String> leafNames =
         abstractLeaves(spec).stream()
             .map(leaf -> leaf.getSimpleName().toString())
@@ -9776,7 +10119,7 @@ public class MappingProcessor extends AbstractProcessor {
     Map<String, List<ExecutableElement>> markers = new LinkedHashMap<>();
     for (ExecutableElement method : specMembers(spec)) {
       boolean marker =
-          method.getAnnotation(MapField.class) != null
+          isRenameMarker(spec, method)
               || isBridgeMarker(spec, method)
               || isFlattenMarker(method)
               || method.getAnnotation(Unmapped.class) != null;

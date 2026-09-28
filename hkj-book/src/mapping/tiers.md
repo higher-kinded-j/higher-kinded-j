@@ -69,7 +69,7 @@ A two-way mapping's methods turn on two independent questions: does the wire car
 | **The wire carries every component** | *lossless*: `build`, `parse`, `asIso()`, `asValidatedPrism()` | `build`, `parse`, `asValidatedPrism()` |
 | **The wire carries fewer** (a *projection*) | `build`, `asLens()` | `build`, `patch(domain, wire)`: the *validated patch* |
 
-- **A plain copy carries a value across unchanged.** A rename or a flattened group still copies. A leaf does not, and nor does a nested spec, lifted over a container or not. Neither does an `@OptionalBridge` component, or a reference property on a bean wire, which can be left unset.
+- **A plain copy carries a value across unchanged.** A rename alone, or a flattened group, still copies. A leaf does not, and nor does a nested spec, lifted over a container or not. Neither does an `@OptionalBridge` component, or a reference property on a bean wire, which can be left unset.
 - **A derived field is not a plain copy either.** On the bottom row the processor refuses it, since the write-back could never honour a component that `build` recomputes. A flattened group on the bottom row is not supported yet.
 - **A sealed pair dispatches to each subtype's own spec.** It gets `build`, `parse` and `asValidatedPrism()`, never `asIso()`: [Sealed hierarchies](structure.md#sealed-hierarchies).
 
