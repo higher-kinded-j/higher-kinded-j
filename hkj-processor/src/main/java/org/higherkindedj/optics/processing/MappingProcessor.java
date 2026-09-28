@@ -1124,33 +1124,11 @@ public class MappingProcessor extends AbstractProcessor {
       if (!declaredLocally(method, spec)) {
         continue;
       }
-      boolean carried = wire.componentNamed(name).isPresent();
-      if (carried && wire.direction() != WireShape.Direction.BIDIRECTIONAL) {
-        // A one-way bean pairs nothing, so each of its accessors is a property of its own and none
-        // is ever left unpaired: parse ignores a getter the domain has no use for, and build fills
-        // every setter.
-        boolean read = wire.direction() == WireShape.Direction.PARSE_ONLY;
-        Diagnostics.error(
-            processingEnv.getMessager(),
-            method,
-            TAG,
-            "@Unmapped method '"
-                + name
-                + "' names a property of '"
-                + wire.element().getSimpleName()
-                + "', which is only "
-                + (read ? "read." : "written."),
-            "The marker reads an accessor with no partner as deliberate, and every "
-                + (read ? "getter" : "setter")
-                + " of a bean that is only "
-                + (read ? "read" : "written")
-                + " is a property of its own: "
-                + (read
-                    ? "parse reads those the domain needs and never calls the rest."
-                    : "build fills each one, so none can be left out."),
-            componentFix(wire, sparse, "Remove the marker."));
+      if (wire.direction() != WireShape.Direction.BIDIRECTIONAL) {
+        reportOneWayMarker(method, name, wire);
         return null;
       }
+      boolean carried = wire.componentNamed(name).isPresent();
       Diagnostics.error(
           processingEnv.getMessager(),
           method,
@@ -1165,11 +1143,14 @@ public class MappingProcessor extends AbstractProcessor {
               ? "The marker reads an accessor with no partner as deliberate, and '"
                   + name
                   + "' is read and written, so the mapping carries it like any other property."
-              : "The marker reads an accessor with no partner as deliberate. Left unpaired on '"
-                  + wire.element().getSimpleName()
-                  + "': "
-                  + unpaired
-                  + ".",
+              : "The marker reads an accessor with no partner as deliberate. "
+                  + (unpaired.isEmpty()
+                      ? "'" + wire.element().getSimpleName() + "' leaves no accessor unpaired."
+                      : "Left unpaired on '"
+                          + wire.element().getSimpleName()
+                          + "': "
+                          + unpaired
+                          + "."),
           carried
               ? componentFix(
                   wire,
@@ -1178,11 +1159,53 @@ public class MappingProcessor extends AbstractProcessor {
                       + " accessors from '"
                       + wire.element().getSimpleName()
                       + "'.")
-              : "Name the marker after the accessor's property, or remove it."
-                  + didYouMean(name, List.copyOf(unpaired)));
+              : unpaired.isEmpty()
+                  ? "Remove the marker."
+                  : "Name the marker after the accessor's property, or remove it."
+                      + didYouMean(name, List.copyOf(unpaired)));
       return null;
     }
     return Set.copyOf(marked);
+  }
+
+  /**
+   * Refuses a marker the spec declares on a bean crossed one way. Such a bean pairs nothing, so
+   * each of its accessors is a property of its own and none is left unpaired for a marker to name.
+   */
+  private void reportOneWayMarker(ExecutableElement method, String name, WireShape wire) {
+    String bean = wire.element().getSimpleName().toString();
+    boolean read = wire.direction() == WireShape.Direction.PARSE_ONLY;
+    String way = read ? "read" : "written";
+    String accessor = read ? "getter" : "writer";
+    String because =
+        read
+            ? "parse reads those the domain needs and never calls the rest."
+            : "build fills each one.";
+    String fix =
+        read
+            ? "Remove the marker."
+            : "Remove the marker, and fill a writer no domain component names with a derived field,"
+                + " or remove that writer from '"
+                + bean
+                + "'.";
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        method,
+        TAG,
+        "@Unmapped method '"
+            + name
+            + "' has nothing to leave out: '"
+            + bean
+            + "' is only "
+            + way
+            + ".",
+        "The marker reads an accessor with no partner as deliberate, and each "
+            + accessor
+            + " of a bean that is only "
+            + way
+            + " is a property of its own, so none is left unpaired: "
+            + because,
+        fix);
   }
 
   private Optional<WireShape.UnpairedAccessor> nearestPartner(

@@ -79,7 +79,7 @@ says what is *not* obvious.
 | A domain `Optional<T>` against a **nullable record** wire component `T` | `@OptionalBridge` on an abstract marker named after the domain component, or on that component's leaf |
 | A `Map` whose **keys** differ on the two sides | a zero-arg `default` method returning `ValidatedPrism<WireKey, DomainKey>`, annotated `@MapKey("component")` - the method's own name is free |
 | A nested domain record against a **flat** wire (`Address` vs `street`, `city`, `postcode`) | `@Flatten` on an abstract marker named after the domain component; the record's components then map by name |
-| A **bean accessor with no partner** that is meant to stay out (a read-only `getId()`, a computed getter, a setter the domain does not model) | `@Unmapped` on an abstract marker named after the **accessor's property**; it withholds the refusal and changes nothing else |
+| A **bean accessor with no partner** that is meant to stay out, on a bean both read and written (a read-only `getId()`, a computed getter, a setter the domain does not model) | `@Unmapped` on an abstract marker named after the **accessor's property**; it withholds the refusal and changes nothing else. A bean crossed one way needs none, and refuses one |
 
 <!-- verify -->
 ```java

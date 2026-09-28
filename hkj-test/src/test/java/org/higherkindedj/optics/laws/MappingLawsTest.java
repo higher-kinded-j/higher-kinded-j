@@ -415,29 +415,6 @@ class MappingLawsTest {
     }
 
     @Test
-    @DisplayName(
-        "a type with one value has no independent sample, and the guard names the laws that take"
-            + " one")
-    void oneValuedTypeIsPointedAtTheOneSampleLaws() {
-      record Marker() {}
-      record MarkerDto() {}
-      Iso<Marker, MarkerDto> iso = Iso.of(m -> new MarkerDto(), w -> new Marker());
-      ValidatedPrism<MarkerDto, Marker> mapping =
-          ValidatedPrism.of(w -> Validated.validNel(new Marker()), m -> new MarkerDto());
-
-      assertThatThrownBy(
-              () -> MappingLaws.assertMappingLaws(iso, mapping, new Marker(), new MarkerDto()))
-          .isInstanceOf(AssertionError.class)
-          .hasMessageContaining("INDEPENDENT")
-          .hasMessageContaining(
-              "A type with one value, such as a record with no components, has no such sample:"
-                  + " check it with IsoLaws.assertIsoLaws(iso, domainSample, wireSample) and"
-                  + " assertMappingLaws(mapping, domainSample)");
-      IsoLaws.assertIsoLaws(iso, new Marker(), new MarkerDto());
-      MappingLaws.assertMappingLaws(mapping, new Marker());
-    }
-
-    @Test
     @DisplayName("the lossless tier rejects a domain sample that is just the parsed wire sample")
     void losslessTierRejectsDependentDomainSample() {
       // The mirror of the guard above: independence must hold in both directions. On a lawful
@@ -456,6 +433,34 @@ class MappingLawsTest {
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("INDEPENDENT")
           .hasMessageContaining("asIso().reverseGet(wireSample)");
+    }
+
+    @Test
+    @DisplayName(
+        "a type with one value has no independent sample, and the guard names the laws to check"
+            + " one by one")
+    void oneValuedTypeIsPointedAtEachLaw() {
+      record Marker() {}
+      record MarkerDto() {}
+      Iso<Marker, MarkerDto> iso = Iso.of(m -> new MarkerDto(), w -> new Marker());
+      ValidatedPrism<MarkerDto, Marker> mapping =
+          ValidatedPrism.of(w -> Validated.validNel(new Marker()), m -> new MarkerDto());
+      Marker domain = new Marker();
+      MarkerDto wire = new MarkerDto();
+
+      assertThatThrownBy(() -> MappingLaws.assertMappingLaws(iso, mapping, domain, wire))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("INDEPENDENT")
+          .hasMessageContaining(
+              "A type with one value, such as a record with no components, has no such sample:"
+                  + " check each law this combines on its own, with IsoLaws.assertIsoLaws,"
+                  + " assertBuildAgreesWithIso, assertParseAgreesWithIso, and"
+                  + " ValidatedPrismLaws.assertParseBuild and assertBuildParse");
+      IsoLaws.assertIsoLaws(iso, domain, wire);
+      MappingLaws.assertBuildAgreesWithIso(iso, mapping, domain);
+      MappingLaws.assertParseAgreesWithIso(iso, mapping, wire);
+      ValidatedPrismLaws.assertParseBuild(mapping, domain);
+      ValidatedPrismLaws.assertBuildParse(mapping, wire);
     }
 
     @Test

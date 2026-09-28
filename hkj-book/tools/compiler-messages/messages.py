@@ -850,6 +850,24 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
   @Unmapped
   String id();
 }"""),
+        dict(id="unmapped-marker-on-a-one-way-bean",
+             heading="@Unmapped method 'x' has nothing to leave out: 'Y' is only read",
+             fragment="has nothing to leave out",
+             meaning="An `@Unmapped` marker sits on a bean that is only read, or only written, whose accessors are each a property of their own, so none is left unpaired.",
+             fix="Remove the marker. On a bean that is only written, fill a writer no domain component names with a derived field, or remove that writer.",
+             rule=("What `@Unmapped` withholds", "rules.md#what-unmapped-withholds"),
+             code="""record Customer(String name) {}
+
+class CustomerView {
+  public String getName() { return "Ada"; }
+  public String getNickname() { return "A"; }
+}
+
+@GenerateMapping
+interface CustomerViewMapping extends MappingSpec<Customer, CustomerView> {
+  @Unmapped
+  String nickname();
+}"""),
         dict(id="getter-only-list-build",
              heading="bean property 'x' on 'Y' is a getter-only List, which a build cannot fill (not supported yet)",
              fragment="which a build cannot fill",

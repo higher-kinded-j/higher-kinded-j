@@ -360,8 +360,12 @@ A generated mapper emits a different optic per tier, so pick the overload matchi
 // lossless tier -> asIso()
 MappingLaws.assertMappingLaws(spec.asIso(), spec.asValidatedPrism(), domainSample, wireSample);
 // ...except a pair of records with no components, which has no independent wire sample:
+// check each law the overload combines on its own
 IsoLaws.assertIsoLaws(spec.asIso(), domainSample, wireSample);
-MappingLaws.assertMappingLaws(spec.asValidatedPrism(), domainSample);
+MappingLaws.assertBuildAgreesWithIso(spec.asIso(), spec.asValidatedPrism(), domainSample);
+MappingLaws.assertParseAgreesWithIso(spec.asIso(), spec.asValidatedPrism(), wireSample);
+ValidatedPrismLaws.assertParseBuild(spec.asValidatedPrism(), domainSample);
+ValidatedPrismLaws.assertBuildParse(spec.asValidatedPrism(), wireSample);
 
 // lossy projection tier -> asLens() (delegates to the lens laws, distinct-values guard included)
 MappingLaws.assertMappingLaws(spec.asLens(), domainSample, wireSample1, wireSample2);

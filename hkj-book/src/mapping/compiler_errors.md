@@ -101,6 +101,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`is read and written at different types`](#read-and-written-at-different-types) | A getter and its writer disagree on type |
 | [`names no accessor`](#unmapped-names-no-accessor) | An `@Unmapped` marker names nothing left out |
 | [`names a property`](#unmapped-names-a-mapped-property) | An `@Unmapped` marker names a paired property |
+| [`has nothing to leave out`](#unmapped-marker-on-a-one-way-bean) | An `@Unmapped` marker sits on a bean crossed one way |
 | [`which a build cannot fill`](#getter-only-list-build) | A getter-only `List` is raw or a wildcard |
 | [`bridged to the getter-only bean property`](#bridged-to-a-getter-only-list) | A domain `Optional` faces a getter-only `List` |
 | [`bridged to the @Singular bean property`](#bridged-to-a-singular-collection) | A domain `Optional` faces a Lombok `@Singular` collection |
@@ -1607,6 +1608,39 @@ class CustomerBean {
 interface CustomerMapping extends MappingSpec<Customer, CustomerBean> {
   @Unmapped
   String id();
+}
+```
+~~~
+
+### `@Unmapped method 'x' has nothing to leave out: 'Y' is only read` {#unmapped-marker-on-a-one-way-bean}
+
+An `@Unmapped` marker sits on a bean that is only read, or only written, whose accessors are each a property of their own, so none is left unpaired.
+
+**Fix.** Remove the marker. On a bean that is only written, fill a writer no domain component names with a derived field, or remove that writer.
+
+```
+@GenerateMapping: @Unmapped method 'nickname' has nothing to leave out: 'CustomerView' is only
+read. The marker reads an accessor with no partner as deliberate, and each getter of a bean that
+is only read is a property of its own, so none is left unpaired: parse reads those the domain
+needs and never calls the rest. Remove the marker.
+```
+
+The rule: [What `@Unmapped` withholds](rules.md#what-unmapped-withholds).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "has nothing to leave out" -->
+```java
+record Customer(String name) {}
+
+class CustomerView {
+  public String getName() { return "Ada"; }
+  public String getNickname() { return "A"; }
+}
+
+@GenerateMapping
+interface CustomerViewMapping extends MappingSpec<Customer, CustomerView> {
+  @Unmapped
+  String nickname();
 }
 ```
 ~~~

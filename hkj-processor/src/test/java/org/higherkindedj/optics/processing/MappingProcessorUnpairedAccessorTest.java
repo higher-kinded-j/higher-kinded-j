@@ -760,9 +760,9 @@ class MappingProcessorUnpairedAccessorTest {
 
     @Test
     @DisplayName(
-        "on a bean that is only read or only written, every accessor is a property of its own, so"
-            + " a marker has nothing to leave out")
-    void oneWayBeanLeavesNothingUnpaired() {
+        "a bean crossed one way, or one that pairs every accessor, leaves a marker nothing to"
+            + " leave out")
+    void markerWithNothingToLeaveOut() {
       JavaFileObject view =
           source(
               "ContactView",
@@ -782,6 +782,16 @@ class MappingProcessorUnpairedAccessorTest {
               public interface ContactViewMapping extends MappingSpec<Contact, ContactView> {
                 @Unmapped
                 String nickname();
+              }
+              """);
+      JavaFileObject viewTypo =
+          source(
+              "ContactViewTypoMapping",
+              """
+              @GenerateMapping
+              public interface ContactViewTypoMapping extends MappingSpec<Contact, ContactView> {
+                @Unmapped
+                String nicknmae();
               }
               """);
       JavaFileObject out =
@@ -804,21 +814,57 @@ class MappingProcessorUnpairedAccessorTest {
                 String phone();
               }
               """);
-      Compilation compilation = compile(CONTACT, view, viewSpec, out, outSpec);
+      JavaFileObject paired =
+          source(
+              "ContactBean",
+              """
+              public class ContactBean {
+                private String name;
+                private String email;
+                private String phone;
+
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getEmail() { return email; }
+                public void setEmail(String email) { this.email = email; }
+                public String getPhone() { return phone; }
+                public void setPhone(String phone) { this.phone = phone; }
+              }
+              """);
+      JavaFileObject pairedTypo =
+          source(
+              "ContactBeanMapping",
+              """
+              @GenerateMapping
+              public interface ContactBeanMapping extends MappingSpec<Contact, ContactBean> {
+                @Unmapped
+                String phnoe();
+              }
+              """);
+      Compilation compilation =
+          compile(CONTACT, view, viewSpec, viewTypo, out, outSpec, paired, pairedTypo);
       assertThat(compilation).failed();
+      String read =
+          "has nothing to leave out: 'ContactView' is only read. The marker reads an accessor with"
+              + " no partner as deliberate, and each getter of a bean that is only read is a"
+              + " property of its own, so none is left unpaired: parse reads those the domain"
+              + " needs and never calls the rest. Remove the marker.";
+      assertThat(compilation).hadErrorContaining("@Unmapped method 'nickname' " + read);
+      assertThat(compilation).hadErrorContaining("@Unmapped method 'nicknmae' " + read);
       assertThat(compilation)
           .hadErrorContaining(
-              "@Unmapped method 'nickname' names a property of 'ContactView', which is only read."
-                  + " The marker reads an accessor with no partner as deliberate, and every getter"
-                  + " of a bean that is only read is a property of its own: parse reads those the"
-                  + " domain needs and never calls the rest. Remove the marker.");
+              "@Unmapped method 'phone' has nothing to leave out: 'ContactOut' is only written."
+                  + " The marker reads an accessor with no partner as deliberate, and each writer"
+                  + " of a bean that is only written is a property of its own, so none is left"
+                  + " unpaired: build fills each one. Remove the marker, and fill a writer no"
+                  + " domain component names with a derived field, or remove that writer from"
+                  + " 'ContactOut'.");
       assertThat(compilation)
           .hadErrorContaining(
-              "@Unmapped method 'phone' names a property of 'ContactOut', which is only written."
-                  + " The marker reads an accessor with no partner as deliberate, and every setter"
-                  + " of a bean that is only written is a property of its own: build fills each"
-                  + " one, so none can be left out. Remove the marker.");
-      Assertions.assertThat(errors(compilation)).hasSize(2);
+              "@Unmapped method 'phnoe' names no accessor 'ContactBean' leaves out. The marker"
+                  + " reads an accessor with no partner as deliberate. 'ContactBean' leaves no"
+                  + " accessor unpaired. Remove the marker.");
+      Assertions.assertThat(errors(compilation)).hasSize(4);
     }
 
     @Test

@@ -270,9 +270,9 @@ sealed interface Fulfilment permits Shipped, Collected {}
 
 record Shipped(String tracking) implements Fulfilment {}
 
-record Collected() implements Fulfilment {} // collected in store: nothing more to say
+record Collected() implements Fulfilment {} // collected in store: nothing to carry
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION) // {} is the subtype with no properties
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION) // by their fields, and {} is CollectedDto
 @JsonSubTypes({@JsonSubTypes.Type(ShippedDto.class), @JsonSubTypes.Type(CollectedDto.class)})
 sealed interface FulfilmentDto permits ShippedDto, CollectedDto {}
 

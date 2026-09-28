@@ -27,6 +27,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a generic mix-in be extended raw?](#a-generic-mix-in-reached-raw) | Not if it contributes a member: raw erases what it declares. | by design |
 | [Can two mix-ins declare the same rename?](#inheriting-one-member-twice) | Yes, when the targets agree; conflicting targets are refused. | by design |
 | [Can an `@Unmapped` marker name an accessor that pairs?](#what-unmapped-withholds) | Not one the spec declares; an inherited one stays inert. | by design |
+| [Can an `@Unmapped` marker go on a bean crossed one way?](#what-unmapped-withholds) | Not one the spec declares: such a bean leaves no accessor unpaired. | by design |
 | **Containers** | | |
 | [Is a same-typed container shared with the wire?](#same-typed-containers-cross-as-copies) | Not when declared exactly `List`, `Set`, `Collection`, `Map`, `Optional` or array. | by design |
 | [Does a `List` lift against a `Set`, or an `ArrayList`?](#what-lifts) | No: the same exact container on both sides, one level deep. | by design |
@@ -93,6 +94,7 @@ Nothing refuses these at compile time. Each is a runtime surprise, linked to the
 | [A browser's timestamps are rejected some of the time, or Python's every time](codecs.md#canonical-forms-only) | The stock date-time codecs accept only their own render: declare the producer's canon. |
 | [A bad date or enum got Jackson's 400, with no field path](basics.md#validated-leaves) | Jackson rejected a typed wire field before `parse` ran: keep a converted wire field a `String`. |
 | [A sealed request body got a 500, with no field path](structure.md#sealed-hierarchies) | Jackson cannot pick a subtype without type information: annotate the wire interface with `@JsonTypeInfo`. |
+| [A request missing a field parsed as the empty subtype](structure.md#sealed-hierarchies) | `DEDUCTION` binds `{}` as the subtype with no properties: name subtypes with `Id.NAME` where that must fail. |
 | [A field the client left out reports `must not be null`](absence.md#optional-bridge) | Only `@OptionalBridge` lets a field be left out; a whole-`Optional` leaf still rejects `null`. |
 | [A PATCH that omits a field overwrote the stored value](beans_patch.md#patch-getters-answer-null) | A default the bean gives itself reads as sent: leave PATCH bean fields uninitialised. |
 | [A leaf's codec never changes after the first call, or misreads under load](codecs.md#your-own-canon) | The Impl reads each leaf once and shares its answer: choose inside the codec's parse, and build over thread-safe parts. |
@@ -384,7 +386,7 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 **The [`@Unmapped`](beans.md#accessors-meant-to-stay-out) marker withholds a refusal and nothing else.** The accessor it names was never a property, so the component stays unmapped, a wire narrower than the domain is still a projection, and nothing else about the generated Impl changes. It answers both refusals it is named for, [an accessor named after a domain component](#unpaired-accessors) and [a `setX` setter a PATCH bean cannot read](#every-patch-setter-has-a-getter), on a `MappingSpec` and a sparse `UpdateSpec` alike. On a `MappingSpec` the component then stays out, so a bean left narrower than the domain is a projection, with no `parse`. The return type is not read, so it may restate the accessor's own type, and the Impl stubs the marker out like a rename.
 
 - **A marker the spec declares must name an unpaired accessor.** The processor refuses one naming a property the mapping carries, or naming nothing at all, as the misspelling it usually is.
-- **A bean crossed [one way](#how-a-beans-direction-is-read) leaves nothing unpaired**, since each of its accessors is a property of its own: a parse-only mapping ignores a getter no component names, and a build-only one fills every writer. A marker the spec declares on one is refused.
+- **A marker the spec declares on a bean crossed [one way](#how-a-beans-direction-is-read) is refused.** Each of its accessors is a property of its own, so none is left unpaired: a parse-only mapping ignores a getter no component names, and a build-only one fills every writer.
 - **An inherited marker binds where it can, and is otherwise inert**, like every other member inherited from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces), so one mix-in serves specs whose wires differ.
 
 ### When an unpaired accessor is refused {#unpaired-accessors}
