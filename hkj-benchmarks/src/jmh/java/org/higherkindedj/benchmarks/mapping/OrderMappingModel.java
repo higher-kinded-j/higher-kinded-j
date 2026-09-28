@@ -141,9 +141,9 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {
 
 // MapStruct: one mapper for both wires. Built-in conversions cover UUID, Instant, Currency, Integer
 // and the enum; the email, a type of the domain's own, needs a method each way. The price renders
-// in plain notation, as the other two approaches do: MapStruct's built-in BigDecimal.toString would
-// write 1E+3 for a thousand, and read the per-instance string cache, which a benchmark reusing one
-// domain value hits on every call.
+// in plain notation, as the other two approaches do: MapStruct's built-in BigDecimal.toString can
+// write 1E+3 where toPlainString writes 1000, for a value with a negative scale, and reads the
+// per-instance string cache, which a benchmark reusing one domain value hits on every call.
 
 @Mapper
 interface OrderMapstruct {

@@ -19,10 +19,11 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 /**
- * The flat pair the mapping benchmarks measure: ten fields and no nesting, nine of them converted,
- * one renamed on the wire, and a derived wire field. It is a second data point beside the nested
- * order pair, with no nesting and no list, and it carries the two kinds of field the order pair
- * does not, so each approach's model shows what every kind of field costs it.
+ * The flat pair the mapping benchmarks measure: ten fields with no nesting and no list, nine of
+ * them converted and one renamed on the wire, which also carries a derived field. It is a second
+ * data point beside the nested order pair. The rename and the derived field are the two kinds of
+ * field the order pair lacks, so between them the two models show what each kind costs every
+ * approach.
  */
 final class FlatMappingModel {
 

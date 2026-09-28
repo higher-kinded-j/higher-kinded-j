@@ -36,11 +36,11 @@ import org.openjdk.jmh.annotations.TearDown;
  * mapper that throws on the first problem, MapStruct, and MapStruct behind Bean Validation.
  *
  * <p>Two pairs: a nested order (a customer, a list of line items, an enum, several converted
- * values) and a flat record of ten fields, one renamed and one derived on the wire. Each is
- * measured for {@code build}, a {@code parse} of a valid wire, and a {@code parse} of a wire with
- * five bad fields. On the bad wire the approaches do different work, and the benchmark measures
- * that difference: the generated mapper and Bean Validation report all five problems; the
- * hand-written mapper and plain MapStruct stop at the first exception.
+ * values) and a flat record of ten fields, one of them renamed on the wire, which also carries a
+ * derived field. Each is measured for {@code build}, a {@code parse} of a valid wire, and a {@code
+ * parse} of a wire with five bad fields. On the bad wire the approaches do different work, and the
+ * benchmark measures that difference: the generated mapper and Bean Validation report all five
+ * problems; the hand-written mapper and plain MapStruct stop at the first exception.
  *
  * <p>Three things shape the numbers:
  *
@@ -58,7 +58,7 @@ import org.openjdk.jmh.annotations.TearDown;
  * </ul>
  *
  * <p>Run with: {@code ./gradlew :hkj-benchmarks:jmh -Pincludes=".*MappingBenchmark.*"}. For figures
- * worth quoting, run the benchmark jar with more iterations, two forks and {@code -prof gc}, as
+ * worth quoting, run the benchmark jar with more iterations, four forks and {@code -prof gc}, as
  * {@code hkj-book/src/benchmarks.md} shows.
  */
 @BenchmarkMode(Mode.Throughput)
@@ -367,7 +367,8 @@ public class MappingBenchmark {
    * Holds each fixture to the work the benchmark claims it does, so a broken fixture fails the run
    * rather than measuring the wrong thing: every approach maps the valid wires back to the same
    * domain value, the generated mapper and Bean Validation each find five problems on the bad
-   * wires, and the other two stop at an exception.
+   * wires, and the other two stop at an exception. It also holds what the book's comparison says of
+   * each approach, beyond the timings: see {@link #checkWhatEachApproachChecks}.
    */
   private void checkFixtures() {
     require(
@@ -382,20 +383,6 @@ public class MappingBenchmark {
     require(violationCount(parseBadOrderMapstructBeanValidation()) == BAD_FIELDS, "five BV");
     require(parseBadOrderHandWritten() instanceof RuntimeException, "hand-written throws");
     require(parseBadOrderMapstruct() instanceof RuntimeException, "MapStruct throws");
-    require(
-        orderMapstruct
-                .toDomain(
-                    new OrderDto(
-                        validOrder.id(),
-                        new CustomerDto(null, validOrder.customer().email()),
-                        validOrder.lines(),
-                        validOrder.placedAt(),
-                        validOrder.currency(),
-                        validOrder.status()))
-                .customer()
-                .name()
-            == null,
-        "MapStruct passes a missing field through as null, checking nothing");
 
     require(
         flatParseValidHkj().fold(errors -> false, flat::equals),
@@ -409,6 +396,93 @@ public class MappingBenchmark {
     require(violationCount(parseBadFlatMapstructBeanValidation()) == BAD_FIELDS, "five BV");
     require(parseBadFlatHandWritten() instanceof RuntimeException, "hand-written throws");
     require(parseBadFlatMapstruct() instanceof RuntimeException, "MapStruct throws");
+
+    checkWhatEachApproachChecks();
+  }
+
+  /**
+   * What each approach checks, one field at a time, as the book's comparison says: the generated
+   * mapper refuses a missing field and locates it; plain MapStruct passes it on as null, and passes
+   * a bad value its parsers accept; Bean Validation checks a field's shape, so a value in the right
+   * shape can still fail in MapStruct's conversion after it, located nowhere.
+   */
+  private void checkWhatEachApproachChecks() {
+    OrderDto noName = withCustomer(new CustomerDto(null, validOrder.customer().email()));
+    require(
+        orderMapstruct.toDomain(noName).customer().name() == null,
+        "MapStruct passes a missing field on as null");
+    require(
+        OrderMappingImpl.INSTANCE
+            .parse(noName)
+            .fold(
+                errors -> errors.head().toString().equals("customer.name: must not be null"),
+                value -> false),
+        "the generated mapper refuses the same missing field, located");
+
+    Order silent =
+        orderMapstruct.toDomain(
+            new OrderDto(
+                validOrder.id(),
+                new CustomerDto(validOrder.customer().name(), "not-an-email"),
+                List.of(new LineItemDto("SKU-1", "1", "1E+3")),
+                validOrder.placedAt(),
+                validOrder.currency(),
+                validOrder.status()));
+    require(
+        silent.customer().email().value().equals("not-an-email")
+            && silent.lines().getFirst().price().equals(new BigDecimal("1E+3")),
+        "MapStruct passes a bad email and an exponent-form price through");
+    require(
+        !flatMapstruct.toDomain(withActive("yes")).active(),
+        "MapStruct maps a boolean it cannot read to false");
+
+    OrderDto tooBig =
+        new OrderDto(
+            validOrder.id(),
+            validOrder.customer(),
+            List.of(new LineItemDto("SKU-1", "9999999999", "9.99")),
+            validOrder.placedAt(),
+            validOrder.currency(),
+            validOrder.status());
+    ValidatedOrderDto shaped = forValidation(tooBig);
+    require(validator.validate(shaped).isEmpty(), "Bean Validation passes a well-shaped value");
+    require(
+        throwsOnConversion(() -> orderMapstruct.toDomain(shaped)),
+        "MapStruct then throws on it, with no field located");
+  }
+
+  private OrderDto withCustomer(CustomerDto customer) {
+    return new OrderDto(
+        validOrder.id(),
+        customer,
+        validOrder.lines(),
+        validOrder.placedAt(),
+        validOrder.currency(),
+        validOrder.status());
+  }
+
+  private FlatDto withActive(String active) {
+    return new FlatDto(
+        validFlat.id(),
+        validFlat.fullName(),
+        validFlat.email(),
+        validFlat.quantity(),
+        validFlat.price(),
+        validFlat.createdAt(),
+        validFlat.currency(),
+        validFlat.status(),
+        validFlat.dueDate(),
+        active,
+        validFlat.display());
+  }
+
+  private static boolean throwsOnConversion(Runnable conversion) {
+    try {
+      conversion.run();
+      return false;
+    } catch (NumberFormatException expected) {
+      return true;
+    }
   }
 
   /** Calls {@code call} with {@code depth} more frames on the stack than the caller has. */
