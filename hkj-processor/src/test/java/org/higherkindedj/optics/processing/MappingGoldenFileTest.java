@@ -121,7 +121,11 @@ class MappingGoldenFileTest {
         new GoldenTestCase(
             "build-only bean (setters only: build and asValidatedBuild, no parse)",
             "com.example.oneway.CustomerRequestMappingImpl",
-            "BuildOnlyCustomerRequestMappingImpl.java.golden"));
+            "BuildOnlyCustomerRequestMappingImpl.java.golden"),
+        new GoldenTestCase(
+            "read-only bean property (parse reads it, build leaves it out: both halves, no prism)",
+            "com.example.readonly.PetMappingImpl",
+            "ReadOnlyPetMappingImpl.java.golden"));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -181,7 +185,80 @@ class MappingGoldenFileTest {
             wideRecord(),
             wideBean(),
             widePatch(),
-            oneWay());
+            oneWay(),
+            readOnly());
+  }
+
+  // ---- read-only properties: getters with no setter, read by parse and left out of build ----
+  private static JavaFileObject readOnly() {
+    return JavaFileObjects.forSourceString(
+        "com.example.readonly.Fixtures",
+        """
+        package com.example.readonly;
+
+        import java.util.List;
+        import java.util.Optional;
+        import org.higherkindedj.hkt.validated.FieldError;
+        import org.higherkindedj.hkt.validated.Validated;
+        import org.higherkindedj.optics.annotations.GenerateMapping;
+        import org.higherkindedj.optics.annotations.MappingSpec;
+        import org.higherkindedj.optics.annotations.ReadOnly;
+        import org.higherkindedj.optics.validated.ValidatedPrism;
+
+        record PetId(String value) {}
+
+        record Pet(PetId id, String name, List<String> tags, Optional<String> status) {}
+
+        // An OpenAPI model: 'id', 'tags' and 'status' are readOnly, set by the constructor Jackson
+        // calls; 'name' is read and written.
+        class PetModel {
+          private String id;
+          private String name;
+          private List<String> tags;
+          private String status;
+
+          public PetModel() {}
+
+          public String getId() {
+            return id;
+          }
+
+          public String getName() {
+            return name;
+          }
+
+          public void setName(String name) {
+            this.name = name;
+          }
+
+          public List<String> getTags() {
+            return tags;
+          }
+
+          public String getStatus() {
+            return status;
+          }
+        }
+
+        @GenerateMapping
+        interface PetMapping extends MappingSpec<Pet, PetModel> {
+          @ReadOnly
+          default ValidatedPrism<String, PetId> id() {
+            return ValidatedPrism.of(
+                raw ->
+                    raw.isBlank()
+                        ? Validated.invalidNel(FieldError.of("must not be blank"))
+                        : Validated.validNel(new PetId(raw)),
+                PetId::value);
+          }
+
+          @ReadOnly
+          List<String> tags();
+
+          @ReadOnly
+          String status();
+        }
+        """);
   }
 
   // ---- one-directional beans: a read model parsed only, a write model built only ----

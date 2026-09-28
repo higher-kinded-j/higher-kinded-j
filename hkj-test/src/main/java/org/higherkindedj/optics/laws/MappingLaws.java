@@ -59,6 +59,10 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *       no {@code build} there is no round trip to state.
  *   <li>build-only tier ({@code asValidatedBuild()} on a bean that is only written): pass a domain
  *       sample - build totality. With no {@code parse} there is nothing to round-trip against.
+ *   <li>read-only tier ({@code asValidatedParse()} and {@code asValidatedBuild()} on a bean with a
+ *       {@code @ReadOnly} property): check each half with its overload above. {@code build} leaves
+ *       the read-only property out, so {@code parse} cannot read a built wire back whole, and there
+ *       is no round trip to state.
  * </ul>
  *
  * <p>The derived-field reality: {@code build} recomputes a derived wire component and {@code parse}
@@ -417,8 +421,9 @@ public final class MappingLaws {
   }
 
   /**
-   * All laws of the parse-only tier ({@code asValidatedParse()} on a bean that is only read). With
-   * no {@code build} there is no round trip, so what remains is the parse contract itself.
+   * All laws of the parse-only tier ({@code asValidatedParse()} on a bean that is only read, or the
+   * parse half of a mapping with a {@code @ReadOnly} property). With no {@code build} there is no
+   * round trip, so what remains is the parse contract itself.
    *
    * <ul>
    *   <li><b>Acceptance</b> - {@code parse(parseableWire)} is {@code Valid}.
@@ -463,9 +468,10 @@ public final class MappingLaws {
   }
 
   /**
-   * The law of the build-only tier ({@code asValidatedBuild()} on a bean that is only written):
-   * {@code build} is total, rendering the sample without failing. There is no {@code parse} to
-   * round-trip against, and a bean's equality is its own affair, so totality is what can be stated.
+   * The law of the build-only tier ({@code asValidatedBuild()} on a bean that is only written, or
+   * the build half of a mapping with a {@code @ReadOnly} property): {@code build} is total,
+   * rendering the sample without failing. There is no {@code parse} to round-trip against, and a
+   * bean's equality is its own affair, so totality is what can be stated.
    *
    * @param mapping the generated {@code Impl.INSTANCE.asValidatedBuild()}
    * @param domainSample a domain value to render

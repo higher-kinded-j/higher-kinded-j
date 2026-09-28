@@ -2,9 +2,11 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import java.lang.reflect.Method;
 import java.util.Optional;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +52,38 @@ class BeansBookTest {
         CustomerRequestMappingImpl.INSTANCE.asValidatedBuild(),
         new Customer("Ada", new EmailAddress("ada@example.org"))); // renders without failing
     // ANCHOR_END: one_way_laws
+  }
+
+  @Test
+  @DisplayName(
+      "a read-only property is read by parse and left unset by build, and each half is lawful")
+  void readOnlyPropertyHalvesObeyTheirLaws() {
+    // ANCHOR: read_only_laws
+    MappingLaws.assertMappingLaws(
+        MerchantModelMappingImpl.INSTANCE.asValidatedParse(),
+        merchantModel("m-1", "Brightside"), // parses
+        merchantModel(null, "Brightside")); // located failure: no id to read
+
+    MappingLaws.assertMappingLaws(
+        MerchantModelMappingImpl.INSTANCE.asValidatedBuild(),
+        new Merchant("m-1", "Brightside")); // renders without failing
+    // ANCHOR_END: read_only_laws
+
+    // parse cannot read back a wire build wrote: the id it never wrote is missing.
+    MerchantModel sent = MerchantModelMappingImpl.INSTANCE.build(new Merchant("m-1", "Brightside"));
+    assertThatValidated(MerchantModelMappingImpl.INSTANCE.parse(sent))
+        .isInvalid()
+        .hasFieldErrors("id: must not be null");
+    assertThat(MerchantModelMappingImpl.class.getMethods())
+        .extracting(Method::getName)
+        .contains("asValidatedParse", "asValidatedBuild")
+        .doesNotContain("asValidatedPrism", "asIso");
+  }
+
+  private static MerchantModel merchantModel(String id, String name) {
+    MerchantModel model = new MerchantModel(id);
+    model.setName(name);
+    return model;
   }
 
   @Test

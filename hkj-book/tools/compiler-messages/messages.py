@@ -22,6 +22,7 @@ import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MapKey;
 import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.OptionalBridge;
+import org.higherkindedj.optics.annotations.ReadOnly;
 import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.validated.StandardCodecs;
@@ -791,7 +792,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}"""),
              heading="bean property 'x' on 'Y' has a setter but no getter, or a getter but no setter, so the mapping leaves it out",
              fragment="so the mapping leaves it out",
              meaning="An accessor has no partner, and leaving it out would drop a domain component, or on a PATCH bean ignore a value the client sends.",
-             fix="Add the missing accessor, or correct the misspelt one the message names. An accessor meant to stay out takes an `@Unmapped` marker.",
+             fix="Add the missing accessor, or correct the misspelt one the message names. A getter `parse` should read and `build` leave out takes a `@ReadOnly` marker, and an accessor meant to stay out an `@Unmapped` one.",
              rule=("When an unpaired accessor is refused", "rules.md#unpaired-accessors"),
              code="""record Customer(String name, String email) {}
 
@@ -886,6 +887,140 @@ class CustomerView {
 interface CustomerViewMapping extends MappingSpec<Customer, CustomerView> {
   @Unmapped
   String nickname();
+}"""),
+        dict(id="read-only-names-no-getter",
+             heading="@ReadOnly method 'x' names no getter 'Y' leaves unpaired",
+             fragment="names no getter",
+             meaning="A `@ReadOnly` marker names no getter the bean declares without a setter, which is usually a misspelling.",
+             fix="Name the marker after the getter's property, which the message lists, or remove it.",
+             rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
+             code="""record Customer(String id, String name) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String idd();
+}"""),
+        dict(id="read-only-names-a-mapped-property",
+             heading="@ReadOnly method 'x' names a property 'Y' maps",
+             fragment="names a property",
+             display="@ReadOnly method '…' names a property",
+             meaning="A `@ReadOnly` marker names a property the bean both reads and writes, so the mapping writes it anyway.",
+             fix="Remove the marker. To leave the property unwritten, remove its setter from the bean.",
+             rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
+             code="""record Customer(String id, String name) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public void setId(String id) { this.id = id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String id();
+}"""),
+        dict(id="read-only-on-a-record",
+             heading="@ReadOnly method 'x' has nothing to mark read-only: 'Y' is a record",
+             fragment="has nothing to mark read-only",
+             meaning="A `@ReadOnly` marker sits on a record wire, or a bean crossed one way, which has no getter without a setter for it to read.",
+             fix="Remove the marker. On a record, `build` writes every component, and `parse` reads it.",
+             rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
+             code="""record Customer(String id, String name) {}
+
+record CustomerDto(String id, String name) {}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+  @ReadOnly
+  String id();
+}"""),
+        dict(id="read-only-nested-both-ways",
+             heading="... has no usable source. 'X' maps this pair but has a read-only property 'y' (no asValidatedPrism) ...",
+             fragment="has a read-only property",
+             meaning="A component nests a spec with a read-only property, in a mapping that builds and parses. That spec has no whole prism, since its `parse` cannot read back what its `build` leaves out.",
+             fix="Nest it where a mapping only parses or only builds, or where the property holding it is itself `@ReadOnly`. The message spells out a leaf joining its halves for a mapping that must nest it anyway, at the cost of its own round trip.",
+             rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
+             code="""record Customer(String id, String name) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String id();
+}
+
+record Ticket(String ref, Customer customer) {}
+
+record TicketDto(String ref, CustomerModel customer) {}
+
+@GenerateMapping
+interface TicketMapping extends MappingSpec<Ticket, TicketDto> {}"""),
+        dict(id="read-only-on-a-projection",
+             heading="'Y' maps as a projection, which has no parse to read the read-only property 'x'",
+             fragment="which has no parse to read",
+             meaning="A bean with a `@ReadOnly` property still lacks a property for some domain component, so it maps as a projection, which has no `parse`.",
+             fix="Give the bean a property for each missing component, or replace `@ReadOnly` with `@Unmapped` to map the projection.",
+             rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
+             code="""record Customer(String id, String name, String email) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String id();
+}"""),
+        dict(id="read-only-on-a-sparse-update",
+             heading="@ReadOnly method 'x' has no meaning on a sparse update",
+             fragment="has no meaning on a sparse update",
+             meaning="A `@ReadOnly` marker sits on an `UpdateSpec`, which builds nothing to leave the property out of.",
+             fix="Replace `@ReadOnly` with `@Unmapped` to leave the accessor out of the update, or remove the marker.",
+             rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
+             code="""record Customer(String id, String name) {}
+
+class CustomerPatch {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {
+  @ReadOnly
+  String id();
 }"""),
         dict(id="getter-only-list-build",
              heading="bean property 'x' on 'Y' is a getter-only List, which a build cannot fill (not supported yet)",

@@ -8,6 +8,7 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.annotations.ReadOnly;
 import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.validated.ValidatedPrism;
@@ -95,6 +96,21 @@ public final class BeansBook {
     // Valid(Merchant[id=m-1, name=Brightside Homeware]) - the m-9 the bean reads is never applied
     // ANCHOR_END: unmapped_usage
     System.out.println(merchantPatched);
+
+    // ANCHOR: read_only_usage
+    MerchantModel fetched = new MerchantModel("m-1"); // as Jackson reads a GET response
+    fetched.setName("Brightside");
+    MerchantModelMappingImpl merchantMapping = MerchantModelMappingImpl.INSTANCE;
+
+    Validated<NonEmptyList<FieldError>, Merchant> merchant = merchantMapping.parse(fetched);
+    // Valid(Merchant[id=m-1, name=Brightside])
+
+    MerchantModel sent = merchantMapping.build(new Merchant("m-1", "Brightside Homeware"));
+    boolean idSent = sent.getId() != null; // build never writes a read-only property
+    // false
+    // ANCHOR_END: read_only_usage
+    System.out.println(merchant);
+    System.out.println(idSent);
   }
 }
 
@@ -241,6 +257,45 @@ interface MerchantPatchMapping extends UpdateSpec<Merchant, MerchantPatchBean> {
 }
 
 // ANCHOR_END: unmapped_spec
+
+// ANCHOR: read_only_spec
+// The client model openapi-generator writes for the same merchant, whose schema marks the id
+// readOnly: a response carries it, and a request never sends it, so it has a getter and no setter.
+class MerchantModel {
+  private final String id;
+  private String name;
+
+  public MerchantModel() {
+    this(null);
+  }
+
+  MerchantModel(String id) { // stands in for the generated @JsonCreator constructor
+    this.id = id;
+  }
+
+  public String getId() {
+    return id;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+}
+
+@GenerateMapping
+interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
+  // parse reads getId() into Merchant.id, and build leaves it unwritten. The Impl then carries
+  // parse and build as two halves, asValidatedParse() and asValidatedBuild(), and no
+  // asValidatedPrism(): parse cannot read back an id build never wrote.
+  @ReadOnly
+  String id();
+}
+
+// ANCHOR_END: read_only_spec
 
 // ANCHOR: default_trap
 // A product listing whose subtitle is optional, and two generated beans for it.

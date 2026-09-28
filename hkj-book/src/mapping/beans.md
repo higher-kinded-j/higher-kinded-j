@@ -194,7 +194,27 @@ Some beans leave an accessor unpaired on purpose: a getter with no setter, or a 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:unmapped_usage}}
 ```
 
-The marker withholds the refusal, and nothing else: the component stays out of the mapping. On a `MappingSpec` that leaves the bean narrower than the domain, so the Impl becomes a [projection](#bean-projections), with `build` and `patch` and no `parse`. [What `@Unmapped` withholds](rules.md#what-unmapped-withholds) has the precise rule.
+The marker withholds the refusal, and nothing else: the component stays out of the mapping. On a `MappingSpec` that leaves the bean narrower than the domain, so the Impl becomes a [projection](#bean-projections), with `build` and `patch` and no `parse`. To keep `parse`, mark a getter [read-only](#read-only-properties) instead. [What `@Unmapped` withholds](rules.md#what-unmapped-withholds) has the precise rule.
+
+---
+
+## Properties you only read {#read-only-properties}
+
+An OpenAPI `readOnly` property is sent in responses and never in requests. openapi-generator gives it a getter and no setter, and sets it through the constructor Jackson calls. You want `parse` to read it, and `build` must not send it. Declare an abstract `@ReadOnly` marker named after the property, as you would `@Unmapped`:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:read_only_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:read_only_usage}}
+```
+
+`parse` cannot read back a bean that `build` wrote, because the id is missing, so the mapping is no `ValidatedPrism`. The Impl carries `parse` and `build` as two halves, `asValidatedParse()` and `asValidatedBuild()`, and no `asValidatedPrism()` or `asIso()`. Each half nests where a mapping uses that direction alone, as a [one-directional bean](#one-directional-beans) does. A mapping that builds and parses the component holding it cannot nest it. Law-check each half on its own:
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/BeansBookTest.java:read_only_laws}}
+```
+
+A component that converts takes the marker on its leaf. [What `@ReadOnly` reads](rules.md#what-readonly-reads) has the precise rule.
 
 ---
 
@@ -205,7 +225,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 | The generated shape | What happens | Instead |
 |---|---|---|
 | an openapi-generator model, with getters, setters and a no-args constructor | it maps both ways, even as a response you only read, so the processor refuses a property your domain lacks | declare a [derived field](basics.md#derived-wire-fields) for it, which `build` fills and `parse` ignores |
-| a `readOnly` property, with a getter and no setter | reading it on a two-way bean is not supported yet: `@Unmapped` lets the bean map, but the component stays out, so there is no `parse` | leave that component out of the domain you parse into |
+| a `readOnly` property, with a getter and no setter | it is refused as a likely misspelling, since `build` could never write it | declare it [`@ReadOnly`](#read-only-properties): `parse` reads it and `build` leaves it out, so the Impl has two halves and no `asValidatedPrism()` |
 | strictly typed properties: enums, `OffsetDateTime`, `UUID` | Jackson has already converted them before `parse` runs | map each to your own type with a leaf over the generated type |
 | openapi-generator's default `openApiNullable=true` | a `getX_JsonNullable()` and `setX_JsonNullable(...)` pair beside each nullable property counts as a property your domain lacks | generate with `openApiNullable=false`; a `JsonNullable` type needs a leaf, and on a PATCH bean is [not supported yet](rules.md#no-jsonnullable-patch-property) |
 | a PATCH request bean with `default:` values or container defaults | the generator renders them as initialisers, which read as sent | give the PATCH request its own schema: [A PATCH getter must answer `null` until set](beans_patch.md#patch-getters-answer-null) |

@@ -972,6 +972,347 @@ class MappingFixLineTest {
   }
 
   @Nested
+  @DisplayName("a getter with no setter, named after a component")
+  class GetterWithoutSetter {
+
+    @Test
+    @DisplayName(
+        "is offered @ReadOnly, and then a converting leaf in the marker's place, on the spec or"
+            + " the mix-in declaring it")
+    void refused() {
+      Compilation compilation =
+          compile(
+              """
+              record Pet(Long id, String name) {}
+              class PetModel {
+                private Long id;
+                private String name;
+                public Long getId() { return id; }
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              @GenerateMapping
+              interface PetMapping extends MappingSpec<Pet, PetModel> {}
+
+              record TagId(String value) {}
+              record Tag(TagId id, String label) {}
+              class TagModel {
+                private String id;
+                private String label;
+                public String getId() { return id; }
+                public String getLabel() { return label; }
+                public void setLabel(String label) { this.label = label; }
+              }
+              @GenerateMapping
+              interface TagMapping extends MappingSpec<Tag, TagModel> {
+                @ReadOnly String id();
+              }
+
+              interface TagVocabulary {
+                @ReadOnly String id();
+              }
+              @GenerateMapping
+              interface InheritedTagMapping extends MappingSpec<Tag, TagModel>, TagVocabulary {}
+
+              record BadgeId(String value) {}
+              record Badge(BadgeId id, String label) {}
+              class BadgeModel {
+                private String id;
+                private String label;
+                public String getId() { return id; }
+                public String getLabel() { return label; }
+                public void setLabel(String label) { this.label = label; }
+              }
+              @GenerateMapping
+              interface BadgeMapping extends MappingSpec<Badge, BadgeModel> {
+                default ValidatedPrism<String, BadgeId> id() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new BadgeId(raw)), BadgeId::value);
+                }
+              }
+
+              @GenerateMapping
+              interface ReadOnlyPetMapping extends MappingSpec<Pet, ReadOnlyPetModel> {
+                @ReadOnly Long id();
+              }
+              class ReadOnlyPetModel {
+                private Long id;
+                private String name;
+                public Long getId() { return id; }
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              record Keeper(String name, Pet pet) {}
+              class KeeperModel {
+                private String name;
+                private ReadOnlyPetModel pet;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public ReadOnlyPetModel getPet() { return pet; }
+                public void setPet(ReadOnlyPetModel pet) { this.pet = pet; }
+              }
+              @GenerateMapping
+              interface KeeperMapping extends MappingSpec<Keeper, KeeperModel> {}
+
+              record CardId(String value) {}
+              record Card(CardId id, String label) {}
+              class CardModel {
+                private String id;
+                private String label;
+                public String getId() { return id; }
+                public String getLabel() { return label; }
+                public void setLabel(String label) { this.label = label; }
+              }
+              interface CardVocabulary {
+                @ReadOnly
+                default ValidatedPrism<String, CardId> id() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new CardId(raw)), CardId::value);
+                }
+              }
+              @GenerateMapping
+              interface CardMapping extends MappingSpec<Card, CardModel>, CardVocabulary {}
+              @GenerateMapping
+              interface CardPatchMapping extends UpdateSpec<Card, CardModel>, CardVocabulary {}
+              """);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(6);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Or, if clients must not change 'Card.id', move 'id()' in 'CardVocabulary' onto the"
+                  + " specs that use it, and declare '@Unmapped String id();' on this spec.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add setId(String) to 'BadgeModel'. Or, if 'id' is read-only, annotate 'id()' with"
+                  + " @ReadOnly: parse reads getId(), and build leaves 'id' unwritten. Or, if"
+                  + " getId() is not meant to carry 'Badge.id', replace 'id()' with '@Unmapped"
+                  + " String id();'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "To nest it here anyway, add 'default ValidatedPrism<com.example.ReadOnlyPetModel,"
+                  + " com.example.Pet> pet() { return"
+                  + " ValidatedPrism.of(ReadOnlyPetMappingImpl.INSTANCE::parse,"
+                  + " ReadOnlyPetMappingImpl.INSTANCE::build); }' to the spec");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add setId(Long) to 'PetModel'. Or, if 'id' is read-only, declare '@ReadOnly Long"
+                  + " id();' on the spec: parse reads getId(), and build leaves 'id' unwritten.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Replace 'id()' with '@ReadOnly default ValidatedPrism<java.lang.String,"
+                  + " com.example.TagId> id()'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Replace 'id()' in 'TagVocabulary' with '@ReadOnly default"
+                  + " ValidatedPrism<java.lang.String, com.example.TagId> id()'.");
+    }
+
+    @Test
+    @DisplayName("each line it offers maps the pair, reading the property and never writing it")
+    void followed() throws ReflectiveOperationException {
+      RuntimeCompilationHelper.CompiledResult result =
+          compileFollowed(
+              """
+              record Pet(Long id, String name) {}
+              class PetModel {
+                private Long id;
+                private String name;
+                PetModel() {}
+                PetModel(Long id) { this.id = id; }
+                public Long getId() { return id; }
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              @GenerateMapping
+              interface PetMapping extends MappingSpec<Pet, PetModel> {
+                @ReadOnly Long id();
+              }
+
+              record TagId(String value) {}
+              record Tag(TagId id, String label) {}
+              class TagModel {
+                private String id;
+                private String label;
+                TagModel() {}
+                TagModel(String id) { this.id = id; }
+                public String getId() { return id; }
+                public String getLabel() { return label; }
+                public void setLabel(String label) { this.label = label; }
+              }
+              @GenerateMapping
+              interface TagMapping extends MappingSpec<Tag, TagModel> {
+                @ReadOnly
+                default ValidatedPrism<java.lang.String, com.example.TagId> id() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new TagId(raw)), TagId::value);
+                }
+              }
+
+              interface TagVocabulary {
+                @ReadOnly
+                default ValidatedPrism<java.lang.String, com.example.TagId> id() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new TagId(raw)), TagId::value);
+                }
+              }
+              @GenerateMapping
+              interface InheritedTagMapping extends MappingSpec<Tag, TagModel>, TagVocabulary {}
+
+              record BadgeId(String value) {}
+              record Badge(BadgeId id, String label) {}
+              class BadgeModel {
+                private String id;
+                private String label;
+                BadgeModel() {}
+                BadgeModel(String id) { this.id = id; }
+                public String getId() { return id; }
+                public String getLabel() { return label; }
+                public void setLabel(String label) { this.label = label; }
+              }
+              @GenerateMapping
+              interface BadgeMapping extends MappingSpec<Badge, BadgeModel> {
+                @ReadOnly
+                default ValidatedPrism<String, BadgeId> id() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new BadgeId(raw)), BadgeId::value);
+                }
+              }
+
+              record Stamp(StampId id, String label) {}
+              record StampId(String value) {}
+              class StampModel {
+                private String id;
+                private String label;
+                public String getId() { return id; }
+                public String getLabel() { return label; }
+                public void setLabel(String label) { this.label = label; }
+              }
+              @GenerateMapping
+              interface StampMapping extends MappingSpec<Stamp, StampModel> {
+                @Unmapped String id();
+              }
+
+              @GenerateMapping
+              interface ReadOnlyPetMapping extends MappingSpec<Pet, ReadOnlyPetModel> {
+                @ReadOnly Long id();
+              }
+              class ReadOnlyPetModel {
+                private Long id;
+                private String name;
+                ReadOnlyPetModel() {}
+                ReadOnlyPetModel(Long id) { this.id = id; }
+                public Long getId() { return id; }
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              record Keeper(String name, Pet pet) {}
+              class KeeperModel {
+                private String name;
+                private ReadOnlyPetModel pet;
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public ReadOnlyPetModel getPet() { return pet; }
+                public void setPet(ReadOnlyPetModel pet) { this.pet = pet; }
+              }
+              record CardId(String value) {}
+              record Card(CardId id, String label) {}
+              class CardModel {
+                private String id;
+                private String label;
+                CardModel() {}
+                CardModel(String id) { this.id = id; }
+                public String getId() { return id; }
+                public String getLabel() { return label; }
+                public void setLabel(String label) { this.label = label; }
+              }
+              @GenerateMapping
+              interface CardMapping extends MappingSpec<Card, CardModel> {
+                @ReadOnly
+                default ValidatedPrism<String, CardId> id() {
+                  return ValidatedPrism.of(raw -> Validated.validNel(new CardId(raw)), CardId::value);
+                }
+              }
+              @GenerateMapping
+              interface CardPatchMapping extends UpdateSpec<Card, CardModel> {
+                @Unmapped String id();
+              }
+
+              @GenerateMapping
+              interface KeeperMapping extends MappingSpec<Keeper, KeeperModel> {
+                default ValidatedPrism<com.example.ReadOnlyPetModel, com.example.Pet> pet() {
+                  return ValidatedPrism.of(
+                      ReadOnlyPetMappingImpl.INSTANCE::parse, ReadOnlyPetMappingImpl.INSTANCE::build);
+                }
+              }
+
+              final class Probe {
+                static Object pet() {
+                  PetModel wire = new PetModel(7L);
+                  wire.setName("Rex");
+                  return PetMappingImpl.INSTANCE.parse(wire);
+                }
+
+                static Object petBuilt() {
+                  return Validated.validNel(
+                      PetMappingImpl.INSTANCE.build(new Pet(7L, "Rex")).getId() == null);
+                }
+
+                static Object tag() {
+                  TagModel wire = new TagModel("t-1");
+                  wire.setLabel("new");
+                  return TagMappingImpl.INSTANCE.parse(wire).map(Tag::id);
+                }
+
+                static Object inheritedTag() {
+                  TagModel wire = new TagModel("t-1");
+                  wire.setLabel("new");
+                  return InheritedTagMappingImpl.INSTANCE.parse(wire).map(Tag::id);
+                }
+
+                static Object badge() {
+                  BadgeModel wire = new BadgeModel("b-1");
+                  wire.setLabel("new");
+                  return BadgeMappingImpl.INSTANCE.parse(wire).map(Badge::id);
+                }
+
+                static Object stamp() {
+                  return Validated.validNel(
+                      StampMappingImpl.INSTANCE.build(new Stamp(new StampId("s-1"), "x")).getLabel());
+                }
+
+                static Object card() {
+                  CardModel wire = new CardModel("c-9");
+                  wire.setLabel("new");
+                  return CardPatchMappingImpl.INSTANCE
+                      .updateFrom(wire)
+                      .apply(new Card(new CardId("c-1"), "old"));
+                }
+
+                static Object keeper() {
+                  ReadOnlyPetModel pet = new ReadOnlyPetModel(7L);
+                  pet.setName("Rex");
+                  KeeperModel wire = new KeeperModel();
+                  wire.setName("Ada");
+                  wire.setPet(pet);
+                  return KeeperMappingImpl.INSTANCE.parse(wire).map(Keeper::pet);
+                }
+              }
+              """);
+      assertThatValidated(probe(result, "pet"))
+          .hasValueSatisfying(pet -> pet.toString().equals("Pet[id=7, name=Rex]"), "the pet");
+      assertThatValidated(probe(result, "petBuilt")).hasValue(true);
+      assertThatValidated(probe(result, "tag"))
+          .hasValueSatisfying(id -> id.toString().equals("TagId[value=t-1]"), "the tag id");
+      assertThatValidated(probe(result, "inheritedTag"))
+          .hasValueSatisfying(id -> id.toString().equals("TagId[value=t-1]"), "the tag id");
+      assertThatValidated(probe(result, "badge"))
+          .hasValueSatisfying(id -> id.toString().equals("BadgeId[value=b-1]"), "the badge id");
+      assertThatValidated(probe(result, "stamp")).hasValue("x");
+      assertThatValidated(probe(result, "card"))
+          .hasValueSatisfying(
+              card -> card.toString().equals("Card[id=CardId[value=c-1], label=new]"),
+              "the card, its id unchanged");
+      assertThatValidated(probe(result, "keeper"))
+          .hasValueSatisfying(pet -> pet.toString().equals("Pet[id=7, name=Rex]"), "the pet");
+    }
+  }
+
+  @Nested
   @DisplayName("a domain Optional against a plain wire component")
   class OptionalAgainstPlain {
 

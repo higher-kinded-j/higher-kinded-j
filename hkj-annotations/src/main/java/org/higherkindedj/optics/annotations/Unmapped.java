@@ -38,9 +38,11 @@ import java.lang.annotation.Target;
  *
  * <p>The marker changes nothing the mapping generates: the accessor was never a property, so the
  * component it names stays unmapped, and a wire that is narrower than the domain is still a
- * projection. All it withholds is the refusal. It reaches both tiers, a {@link MappingSpec} and a
- * sparse {@link UpdateSpec}, and both refusals a stray accessor draws there: an accessor named
- * after a domain component, and a {@code setX} setter a PATCH bean cannot read.
+ * projection, with no {@code parse}. All it withholds is the refusal. It reaches both tiers, a
+ * {@link MappingSpec} and a sparse {@link UpdateSpec}, and both refusals a stray accessor draws
+ * there: an accessor named after a domain component, and a {@code setX} setter a PATCH bean cannot
+ * read. A getter that {@code parse} should read and {@code build} leave out, such as an OpenAPI
+ * {@code readOnly} property, is marked {@link ReadOnly} instead.
  *
  * <p>The return type is not read, so it may restate the accessor's own type. The marker is stubbed
  * out by the generated Impl, like a {@link MapField} rename, and is retained in the class file so
