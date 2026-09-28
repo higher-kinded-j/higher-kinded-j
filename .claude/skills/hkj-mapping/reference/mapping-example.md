@@ -213,7 +213,9 @@ component with `@OptionalBridge`. The bridge is refused onto a getter-only `List
 creates the list on first call, so it cannot hold a `null`, and an empty `Optional` would read back
 as a present empty list. Declare the component `List<T>` there, where the empty list is the natural
 encoding of nothing, or give the property both a setter and a getter that returns what the setter
-stored, since a lazily creating getter loses absence on the read even when a setter exists.
+stored, since a lazily creating getter loses absence on the read even when a setter exists. The
+bridge is refused onto a Lombok `@Singular` collection for the same reason: its builder builds an
+empty collection when nothing is added. Declare the component `List<T>`, or drop `@Singular`.
 
 ## Prove the Round-Trip
 

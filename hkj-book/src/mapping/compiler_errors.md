@@ -103,6 +103,8 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`names a property`](#unmapped-names-a-mapped-property) | An `@Unmapped` marker names a paired property |
 | [`which a build cannot fill`](#getter-only-list-build) | A getter-only `List` is raw or a wildcard |
 | [`bridged to the getter-only bean property`](#bridged-to-a-getter-only-list) | A domain `Optional` faces a getter-only `List` |
+| [`bridged to the @Singular bean property`](#bridged-to-a-singular-collection) | A domain `Optional` faces a Lombok `@Singular` collection |
+| [`cannot be told apart`](#singular-adder-not-told-apart) | A build-only builder's `@Singular` adder is ambiguous |
 | [`no property it reads is one it can write`](#reads-some-writes-others) | A bean reads some names and writes others |
 
 **[Sparse PATCH](#sparse-patch)**
@@ -113,6 +115,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`is primitive and can never be absent`](#primitive-patch-property) | A PATCH property is a primitive |
 | [`which a sparse UpdateSpec cannot map`](#record-patch-wire) | A PATCH wire is a record |
 | [`cannot carry a sparse update's absence`](#getter-only-list-patch) | A PATCH bean has a getter-only `List` |
+| [`is a @Singular collection`](#singular-collection-patch) | A PATCH bean has a Lombok `@Singular` collection |
 | [`which a sparse update cannot express`](#optional-on-a-patch) | A plain PATCH property faces a domain `Optional` |
 
 **[Generic specs](#generic-specs)**
@@ -1685,6 +1688,108 @@ interface OrderMapping extends MappingSpec<Order, OrderBean> {}
 ```
 ~~~
 
+### `domain field 'X.y' is Optional<List<T>>, bridged to the @Singular bean property 'y' (not supported yet)` {#bridged-to-a-singular-collection}
+
+A domain `Optional` faces a Lombok `@Singular` collection, which is never `null`, so absence can be neither written nor read back.
+
+**Fix.** Drop the `Optional` so the empty collection carries the meaning, or drop `@Singular` so the builder stores the collection it is given.
+
+```
+@GenerateMapping: domain field 'Order.tags' is Optional<List<String>>, bridged to the @Singular
+bean property 'tags' (not supported yet). The bridge writes an empty Optional as null, and
+'tags' is written through tags(Collection<? extends String>), which throws on a null (or skips
+it, under @Singular(ignoreNullCollections = true)), and the builder builds an empty collection
+when nothing is added, so an empty Optional can be neither written nor read back. Declare 'tags'
+as List<String>, dropping the Optional, so the empty collection encodes nothing, or drop
+@Singular from 'tags', so the builder stores the collection it is given, null included.
+```
+
+The rule: [A Lombok `@Singular` collection](rules.md#singular-collections).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "bridged to the @Singular bean property" -->
+```java
+record Order(Optional<List<String>> tags) {}
+
+// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> tags.
+final class OrderDto {
+  private final List<String> tags;
+
+  private OrderDto(List<String> tags) { this.tags = tags; }
+
+  public List<String> getTags() { return tags; }
+
+  public static Builder builder() { return new Builder(); }
+
+  public static final class Builder {
+    private final List<String> tags = new ArrayList<>();
+
+    public Builder tag(String tag) { tags.add(tag); return this; }
+    public Builder tags(Collection<? extends String> tags) { this.tags.addAll(tags); return this; }
+    public Builder clearTags() { tags.clear(); return this; }
+    public OrderDto build() { return new OrderDto(List.copyOf(tags)); }
+  }
+}
+
+@GenerateMapping
+interface OrderMapping extends MappingSpec<Order, OrderDto> {}
+```
+~~~
+
+### `the singular adder of the @Singular collection 'x' on 'Y' cannot be told apart` {#singular-adder-not-told-apart}
+
+A builder with no getters has several writers that might be a `@Singular` collection's adder, and none is named after the collection's singular.
+
+**Fix.** Drop `@Singular` from the collection, so the builder takes it whole; a class that cannot change needs a hand-written request bean.
+
+```
+@GenerateMapping: the singular adder of the @Singular collection 'people' on 'CrewRequest'
+cannot be told apart: person(String) and medium(String) each take one String. build writes
+'people' whole through people(Collection<? extends String>) and leaves its adder alone, so it
+has to know which writer the adder is: the one named after the collection's singular, or the
+only one taking its element. Drop @Singular from 'people', so the builder takes the collection
+whole; a class that cannot change needs a hand-written request bean instead.
+```
+
+The rule: [A Lombok `@Singular` collection](rules.md#singular-collections).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "cannot be told apart" -->
+```java
+record Crew(List<String> people, List<String> media) {}
+
+// A builder shaped like the one Lombok's @Builder writes for two @Singular lists, each given an
+// adder name of its own.
+final class CrewRequest {
+  private final List<String> people;
+  private final List<String> media;
+
+  private CrewRequest(List<String> people, List<String> media) {
+    this.people = people;
+    this.media = media;
+  }
+
+  public static Builder builder() { return new Builder(); }
+
+  public static final class Builder {
+    private final List<String> people = new ArrayList<>();
+    private final List<String> media = new ArrayList<>();
+
+    public Builder person(String person) { people.add(person); return this; }
+    public Builder people(Collection<? extends String> people) { this.people.addAll(people); return this; }
+    public Builder clearPeople() { people.clear(); return this; }
+    public Builder medium(String medium) { media.add(medium); return this; }
+    public Builder media(Collection<? extends String> media) { this.media.addAll(media); return this; }
+    public Builder clearMedia() { media.clear(); return this; }
+    public CrewRequest build() { return new CrewRequest(List.copyOf(people), List.copyOf(media)); }
+  }
+}
+
+@GenerateMapping
+interface CrewMapping extends MappingSpec<Crew, CrewRequest> {}
+```
+~~~
+
 ### `'X' is not a usable bean-shaped wire: no property it reads is one it can write` {#reads-some-writes-others}
 
 The bean reads some names and writes others, which fits neither a two-way nor a one-way mapping.
@@ -1852,6 +1957,54 @@ class OrderPatch {
       items = new ArrayList<>();
     }
     return items;
+  }
+}
+
+@GenerateMapping
+interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}
+```
+~~~
+
+### `bean property 'x' on 'Y' is a @Singular collection, which cannot carry a sparse update's absence (not supported yet)` {#singular-collection-patch}
+
+A Lombok `@Singular` collection is built empty when nothing is added, so a request that omits it would clear the domain value.
+
+**Fix.** Drop `@Singular`, so the builder stores the collection it is given and leaves it `null` until set.
+
+```
+@GenerateMapping: bean property 'tags' on 'OrderPatch' is a @Singular collection, which cannot
+carry a sparse update's absence (not supported yet). A sparse update reads null as 'not
+provided, leave unchanged', and a @Singular builder builds an empty collection when nothing is
+added, so 'tags' never reads null: a request that omits it would read as a present empty
+collection and clear the domain value. Drop @Singular from 'tags', so the builder stores the
+collection it is given and leaves it null until set; a generated class that cannot change needs
+a hand-written PATCH bean instead.
+```
+
+The rule: [A Lombok `@Singular` collection](rules.md#singular-collections).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "is a @Singular collection" -->
+```java
+record Order(List<String> tags) {}
+
+// A builder shaped like the one Lombok's @Value @Builder writes for a @Singular List<String> tags.
+final class OrderPatch {
+  private final List<String> tags;
+
+  private OrderPatch(List<String> tags) { this.tags = tags; }
+
+  public List<String> getTags() { return tags; }
+
+  public static Builder builder() { return new Builder(); }
+
+  public static final class Builder {
+    private final List<String> tags = new ArrayList<>();
+
+    public Builder tag(String tag) { tags.add(tag); return this; }
+    public Builder tags(Collection<? extends String> tags) { this.tags.addAll(tags); return this; }
+    public Builder clearTags() { tags.clear(); return this; }
+    public OrderPatch build() { return new OrderPatch(List.copyOf(tags)); }
   }
 }
 

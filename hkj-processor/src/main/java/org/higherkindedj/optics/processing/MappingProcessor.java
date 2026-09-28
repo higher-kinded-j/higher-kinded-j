@@ -905,9 +905,16 @@ public class MappingProcessor extends AbstractProcessor {
    * neither shows in a signature, so a setter-backed property is accepted whatever its field holds.
    * The fix line therefore names both halves of a property that reads {@code null} when omitted:
    * the setter, and a getter that answers {@code null} until it is set.
+   *
+   * <p>A Lombok {@code @Singular} collection is refused on the same ground, by {@link
+   * #reportSingularPatchProperty}: its builder builds an empty collection when nothing is added.
    */
-  private boolean checkCollectionGettersCarryAbsence(TypeElement spec, WireShape.BeanShape bean) {
+  private boolean checkCollectionsCarryAbsence(TypeElement spec, WireShape.BeanShape bean) {
     for (WireShape.BeanProperty property : bean.properties()) {
+      if (property.write().orElse(null) instanceof WireShape.WriteSite.SingularCollection) {
+        reportSingularPatchProperty(spec, bean, property);
+        return false;
+      }
       if (property.write().orElse(null) instanceof WireShape.WriteSite.CollectionAdd write) {
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -939,6 +946,36 @@ public class MappingProcessor extends AbstractProcessor {
       }
     }
     return true;
+  }
+
+  /**
+   * Refuses a Lombok {@code @Singular} collection on a PATCH bean, for the getter-only {@code
+   * List}'s reason: the builder builds an empty collection when nothing is added, so the getter
+   * never answers {@code null}, and a request that omits the property reads as a present empty
+   * collection. Without {@code @Singular}, the builder stores the collection it is given and leaves
+   * the field {@code null} until set.
+   */
+  private void reportSingularPatchProperty(
+      TypeElement spec, WireShape.BeanShape bean, WireShape.BeanProperty property) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "bean property '"
+            + property.name()
+            + "' on '"
+            + bean.element().getSimpleName()
+            + "' is a @Singular collection, which cannot carry a sparse update's absence (not"
+            + " supported yet).",
+        "A sparse update reads null as 'not provided, leave unchanged', and a @Singular builder"
+            + " builds an empty collection when nothing is added, so '"
+            + property.name()
+            + "' never reads null: a request that omits it would read as a present empty"
+            + " collection and clear the domain value.",
+        "Drop @Singular from '"
+            + property.name()
+            + "', so the builder stores the collection it is given and leaves it null until set;"
+            + " a generated class that cannot change needs a hand-written PATCH bean instead.");
   }
 
   /**
@@ -1538,6 +1575,58 @@ public class MappingProcessor extends AbstractProcessor {
             + wireName
             + "' a setter and a getter that returns what the setter stored, so absence can be"
             + " written as null and read back.");
+  }
+
+  /**
+   * Refuses an {@code Optional} bridge onto a Lombok {@code @Singular} collection. The bridge
+   * writes an empty {@code Optional} as {@code null}, which the collection setter refuses by
+   * default, and the builder builds an empty collection when nothing is added, so absence can be
+   * neither written nor read back. The fixes mirror {@link #reportGetterOnlyBridge}'s: a domain
+   * collection, where empty is nothing, or a builder setter that stores what it is given. Where the
+   * collection setter is declared non-null, as in a {@code @NullMarked} scope, the setter Lombok
+   * writes without {@code @Singular} is too, so that fix also asks for {@code @Nullable}.
+   */
+  private void reportSingularBridge(
+      TypeElement spec,
+      TypeElement domain,
+      String name,
+      String wireName,
+      TypeMirror domainType,
+      TypeMirror element,
+      WireShape.WriteSite.SingularCollection write) {
+    boolean nonNull =
+        NullableAnnotations.nonNullReason(write.method().getParameters().getFirst()).isPresent();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' is "
+            + ProcessorUtils.simpleTypeName(domainType)
+            + ", bridged to the @Singular bean property '"
+            + wireName
+            + "' (not supported yet).",
+        "The bridge writes an empty Optional as null, and '"
+            + wireName
+            + "' is written through "
+            + BeanPropertyAnalyser.writerSignature(write.method())
+            + ", which throws on a null (or skips it, under @Singular(ignoreNullCollections ="
+            + " true)), and the builder builds an empty collection when nothing is added, so an"
+            + " empty Optional can be neither written nor read back.",
+        "Declare '"
+            + name
+            + "' as "
+            + ProcessorUtils.simpleTypeName(element)
+            + ", dropping the Optional, so the empty collection encodes nothing, or drop"
+            + " @Singular from '"
+            + wireName
+            + "', so the builder stores the collection it is given, null included"
+            + (nonNull
+                ? ", and mark the field @Nullable, which Lombok copies to the setter."
+                : "."));
   }
 
   /**
@@ -3650,7 +3739,7 @@ public class MappingProcessor extends AbstractProcessor {
     Set<String> unmapped = unmappedNames(spec, wireShape, true);
     if (unmapped == null
         || !checkPatchAccessorsPair(spec, domain, wireShape, unmapped)
-        || !checkCollectionGettersCarryAbsence(spec, wireShape)) {
+        || !checkCollectionsCarryAbsence(spec, wireShape)) {
       return;
     }
     Map<String, String> renames = collectRenames(spec, domain, wireShape, List.of());
@@ -6703,6 +6792,14 @@ public class MappingProcessor extends AbstractProcessor {
       reportPrimitiveBridge(spec, domain, wire, name, wireName, wireType, domainType, bridged);
       return null;
     }
+    // Nor can a @Singular collection, which is never null to begin with, so no conversion of the
+    // present value could carry the bridge's empty either. Asked before the present value is
+    // resolved, unlike the getter-only List below: on a bean that is only written, the setter's
+    // type is not the domain's container, so the present pair would be misreported first.
+    if (writeSite(wire, wireName) instanceof WireShape.WriteSite.SingularCollection write) {
+      reportSingularBridge(spec, domain, name, wireName, domainType, bridged, write);
+      return null;
+    }
     PairResolution present =
         resolvePair(spec, registry, name, wireName, wireType, bridged, need, site);
     if (present.reported()) {
@@ -7303,6 +7400,7 @@ public class MappingProcessor extends AbstractProcessor {
                     + " component.");
         return null;
       }
+      TypeMirror domainType = componentType(domainDeclared, domainComponent);
       Correspondence resolved =
           resolveCorrespondence(
               spec,
@@ -7311,8 +7409,8 @@ public class MappingProcessor extends AbstractProcessor {
               wire,
               name,
               wireName,
-              wireComponent.type(),
-              componentType(domainDeclared, domainComponent),
+              writtenAs(wire, wireName, wireComponent.type(), domainType),
+              domainType,
               domainNames,
               need,
               !built);
@@ -7324,6 +7422,43 @@ public class MappingProcessor extends AbstractProcessor {
     // A derived field sources the wire component the loop above left to it.
     derived.stream().map(MappingProcessor::derivedCorrespondence).forEach(result::add);
     return result;
+  }
+
+  /**
+   * The type {@code build} hands the wire component named {@code wireName}, which is {@code
+   * wireType} bar one write site. A {@code @Singular} collection setter on a bean that is never
+   * read takes any collection of its element type, such as {@code Collection<? extends String>},
+   * and nothing reads a container of the setter's own back. So it takes the domain component's own
+   * type when that fits, and otherwise the domain's {@code List}, {@code Set} or {@code Map}
+   * holding the elements the setter takes, {@code List<TagDto>} for a {@code List<Tag>}, whose
+   * elements then convert as a lifted container's do. A bean that is read has a getter, whose type
+   * the property already carries.
+   */
+  private TypeMirror writtenAs(
+      WireShape wire, String wireName, TypeMirror wireType, TypeMirror domainType) {
+    if (!(writeSite(wire, wireName) instanceof WireShape.WriteSite.SingularCollection)
+        || wire.direction() != WireShape.Direction.BUILD_ONLY) {
+      return wireType;
+    }
+    Types types = processingEnv.getTypeUtils();
+    // Only a container the copy rule copies is taken as the domain declares it: a subtype such as
+    // an ArrayList is handed over as it is, and a builder may keep what it is handed.
+    if (ContainerCopy.of(domainType) != null && types.isSubtype(domainType, wireType)) {
+      return domainType;
+    }
+    TypeMirror[] elements =
+        ((DeclaredType) wireType)
+            .getTypeArguments().stream()
+                .map(ProcessorUtils::resolveWildcard)
+                .toArray(TypeMirror[]::new);
+    return LIFTABLE_CONTAINERS.stream()
+        .filter(container -> isExactly(domainType, container))
+        .map(processingEnv.getElementUtils()::getTypeElement)
+        .filter(container -> container.getTypeParameters().size() == elements.length)
+        .<TypeMirror>map(container -> types.getDeclaredType(container, elements))
+        .filter(holding -> types.isSubtype(holding, wireType))
+        .findFirst()
+        .orElse(wireType);
   }
 
   /**

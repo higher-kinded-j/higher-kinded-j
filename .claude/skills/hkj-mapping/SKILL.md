@@ -490,7 +490,8 @@ matter: it maps build-only whatever its width, derived fields included.
   the record, so third-party and library records map fine.
 - **The wire need not be a record.** A bean-shaped DTO maps too - detected in three shapes: a no-args
   constructor with `setX` setters; an immutable bean with a static `builder()`/`newBuilder()`
-  (Lombok, Immutables, AutoValue); or the JAXB convention, where a getter-only `List`
+  (Lombok's `@Builder` or `@SuperBuilder`, Immutables, AutoValue); or the JAXB convention, where a
+  getter-only `List`
   is filled with `getItems().addAll(...)` - that one must name its element type, since `addAll`
   cannot be written over a raw or wildcard receiver, so a raw or wildcard getter-only `List` is
   refused on a mapping that builds (a sparse `UpdateSpec` only reads it, and keeps working).
@@ -499,7 +500,8 @@ matter: it maps build-only whatever its width, derived fields included.
   a nullable bean property `T` with no declaration (a record wire opts in per component with
   `@OptionalBridge`; an empty one writes `null`, so the setter or builder setter must take it,
   and one declared non-null is refused),
-  except onto a getter-only `List`, which has no unset state to carry absence;
+  except onto a getter-only `List` or a `@Singular` collection, neither of which has an unset
+  state to carry absence;
   see `reference/mapping-example.md`. A bean projection with a reference
   property takes the validated `patch` (the property can be unset); an all-primitive one keeps
   `asLens()`.
@@ -512,8 +514,9 @@ matter: it maps build-only whatever its width, derived fields included.
   `UpdateSpec` refuses either as its own PATCH bean, and a bean whose getters and setters never
   share a name is refused as a likely typo.
 - **Accessors pair by name.** A property is a getter (`getX()`, or `isX()` returning `boolean` or
-  `Boolean`) and a writer with the same name. An unpaired accessor is left out, which is fine for a
-  computed getter or a builder's singular adder, but one named after a domain component the bean
+  `Boolean`) and a writer with the same name. A Lombok `@Singular` collection is written whole
+  through its collection setter, and its adder is left alone, never refused. Any other unpaired
+  accessor is left out, which is fine for a computed getter, but one named after a domain component the bean
   carries under no other name (its own, or a `@MapField` rename's) is refused on both tiers, with a
   near accessor of the other kind named as the likely misspelling. An `UpdateSpec` also refuses any
   `setX` setter with no getter, since the client's value would arrive and be ignored. Where the
@@ -593,7 +596,8 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   so it never reads `null` and an omitted field would clear the domain value. Give it a setter,
   and a getter that answers `null` until it is set (no initialiser, no list created on first call).
   (The dense tier keeps the same property - it writes every component, so absence means nothing
-  there.)
+  there.) A Lombok `@Singular` collection is rejected for the same reason: its builder builds an
+  empty collection when nothing is added. Drop `@Singular` on a PATCH bean.
 - **Every PATCH bean getter must answer `null` until its property is set**, unchecked: no
   signature shows a default. A field initialiser (`private List<String> tags = new ArrayList<>()`,
   `private String status = "ACTIVE"`), a value the constructor or builder assigns, or a getter that

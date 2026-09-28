@@ -241,8 +241,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
   /**
    * One bean property: its (decapitalised) name, type, the getter that reads it and the {@link
-   * WriteSite} that writes it (a setter, a builder setter, or a JAXB collection getter). A bean
-   * read one way only has no getter, or no write site, on any of its properties.
+   * WriteSite} that writes it (a setter, a builder setter, a {@code @Singular} collection setter,
+   * or a JAXB collection getter). A bean read one way only has no getter, or no write site, on any
+   * of its properties.
    */
   record BeanProperty(
       String name, TypeMirror type, Optional<String> getter, Optional<WriteSite> write) {
@@ -253,7 +254,8 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   }
 
   /** How a single bean property is written into a target (a bean instance or a builder). */
-  sealed interface WriteSite permits WriteSite.Setter, WriteSite.CollectionAdd {
+  sealed interface WriteSite
+      permits WriteSite.Setter, WriteSite.SingularCollection, WriteSite.CollectionAdd {
 
     /**
      * A statement writing {@code value} into {@code receiver} (the bean {@code wire} or builder).
@@ -275,6 +277,22 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
       /** The one parameter the write hands its value to. */
       VariableElement parameter() {
         return method.getParameters().getFirst();
+      }
+    }
+
+    /**
+     * {@code receiver.tags(value)} — the collection setter of a Lombok {@code @Singular} builder,
+     * which takes any collection of the element type and adds it to what the builder holds. {@code
+     * build} calls it once on a fresh builder, so the collection is written whole. The builder
+     * builds an empty collection when nothing is added, and by default refuses a {@code null}, so
+     * the property has no absent state: neither the {@code Optional} bridge nor a sparse update can
+     * use it. As with a {@link Setter}, the element is valid only within the round that analysed
+     * the bean.
+     */
+    record SingularCollection(ExecutableElement method) implements WriteSite {
+      @Override
+      public CodeBlock write(String receiver, CodeBlock value) {
+        return CodeBlock.of("$L.$L($L)", receiver, method.getSimpleName(), value);
       }
     }
 
