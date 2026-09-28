@@ -55,7 +55,8 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a getter-only `List` be raw, or a wildcard?](#getter-only-list-element-type) | Not where `build` is emitted: `addAll` needs its element type. | not supported yet |
 | [Can a getter-only `List` carry an absent `Optional`?](#getter-only-list-refuses-the-bridge) | No: its getter creates the list, so absence reads as empty. | not supported yet |
 | [Can a two-way bean map a property that has only a getter?](beans.md#generated-client-checklist) | No: `@Unmapped` accepts it, but the component then stays out. | not supported yet |
-| [Can a Lombok builder use `@Singular` on a collection?](beans.md#generated-client-checklist) | No: the processor refuses it on two-way and build-only builders alike. | not supported yet |
+| [Can a Lombok builder use `@Singular` on a collection?](#singular-collections) | Yes: `build` writes the collection whole and leaves its adder alone; a build-only adder it cannot tell apart is refused. | by design |
+| [Can a `@Singular` collection carry an absent `Optional`?](#singular-collections) | No: its builder builds an empty collection, so it is never absent. | not supported yet |
 | [Does a protobuf-java message map?](beans.md#generated-client-checklist) | No: its companion accessors pair as extra properties, and a repeated or map field has no setter. | not supported yet |
 | [Where does a one-directional bean nest?](#how-a-beans-direction-is-read) | Only where nothing needs its missing direction. | by design |
 | **Sparse PATCH** | | |
@@ -66,6 +67,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a PATCH bean have a setter with no getter?](#every-patch-setter-has-a-getter) | No, unless marked `@Unmapped`: the update would ignore it. | by design |
 | [Can a PATCH set a field to empty?](#no-optional-bridge-on-a-patch) | Through an `Optional`-typed property; a plain one bridged to `Optional` cannot. | by design |
 | [Can a PATCH bean have a getter-only `List`?](#no-getter-only-list-on-a-patch) | No: it never reads `null`, so it cannot be absent. | not supported yet |
+| [Can a PATCH bean's builder write a Lombok `@Singular` collection?](#singular-collections) | No: it never reads `null`, so it cannot be absent. | not supported yet |
 | [Can a PATCH bean carry a `JsonNullable` property?](#no-jsonnullable-patch-property) | No: use an `Optional`-typed property. | not supported yet |
 | [Does a nested spec lift through a PATCH container?](#patch-containers) | No: give the component an element leaf that delegates to it. | not supported yet |
 | [Can a PATCH spec dispatch over a sealed hierarchy?](#no-sealed-patch) | No: an absent property cannot choose a subtype. | by design |
@@ -359,12 +361,12 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 
 ### How a bean is read and written {#how-a-bean-is-read-and-written}
 
-**The processor reads a bean through getters, and writes it by one of two strategies, tried in order.** First, a no-args constructor the Impl can call, public or package-private beside the spec, with `setX` setters, and for a getter-only `List` the JAXB convention `getItems().addAll(...)`. Then, a static `builder()` or `newBuilder()` whose setters fill it and whose `build()` yields the wire. A bean with getters that fits neither is only ever read, so it maps [parse-only](beans.md#one-directional-beans), and a bean with nothing to read or write gets a what/why/fix diagnostic.
+**The processor reads a bean through getters, and writes it by one of two strategies, tried in order.** First, a no-args constructor the Impl can call, public or package-private beside the spec, with `setX` setters, and for a getter-only `List` the JAXB convention `getItems().addAll(...)`. Then, a static `builder()` or `newBuilder()` whose setters fill it, and whose `build()`, called on what the factory returns, yields the wire. That includes a self-typed builder, such as a Lombok `@SuperBuilder` whose `build()` is declared `C build()`. A bean with getters that fits neither is only ever read, so it maps [parse-only](beans.md#one-directional-beans), and a bean with nothing to read or write gets a what/why/fix diagnostic.
 
 - **A property is a getter and a writer that share a name.** Getters are `getX()`, and `isX()` returning `boolean` or `Boolean`, the shape JAXB declares for an optional boolean. Where a bean declares both for one name, `getX()` reads it.
 - **An overloaded writer pairs by the getter's type.** Beside `int getAge()`, `setAge(int)` writes the property and `setAge(String)` is passed over, whatever order the two are declared in. A builder setter pairs the same way. With no getter to match, on a bean that is only written, the first overload met decides.
 - **An overload that cannot pair is refused.** When no overload takes the getter's type, the property is read and written at different types. When a second overload would take the value as well, and is no less specific, javac could not choose between the two.
-- **An unpaired accessor is left out of the mapping.** That suits a computed getter such as `getSummary()`, or a builder's singular adder. The processor refuses one named after a domain component instead: [When an unpaired accessor is refused](#unpaired-accessors).
+- **An unpaired accessor is left out of the mapping.** That suits a computed getter such as `getSummary()`, or a [`@Singular` adder](#singular-collections), which the processor never refuses. It refuses any other unpaired accessor named after a domain component: [When an unpaired accessor is refused](#unpaired-accessors).
 - **The domain stays a record.** `parse` assembles the domain through its canonical constructor, so only the wire may be bean-shaped, and a bean domain gets a diagnostic.
 - **Nesting is unaffected.** A bean mapping that builds and parses exposes `asValidatedPrism()` like any other, so record specs nest it and containers lift it, and a one-directional one nests [where its direction is used](#how-a-beans-direction-is-read).
 
@@ -410,8 +412,19 @@ A one-directional mapping follows these rules:
 - **Sealed dispatch needs both directions** of every subtype pair.
 - **A bean whose no-args constructor the Impl cannot reach maps parse-only.** The note says the constructor is out of reach.
 - **Derived fields are build-side.** A build-only mapping takes them as a full one does. Declared on a parse-only spec, one has nothing to fill and is refused; one inherited from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) stays inert, so one vocabulary serves both directions.
-- **A build-only builder counts its one-argument methods as writers.** A method taking the bean or the builder itself (`from(Bean)`, `mergeFrom(Builder)`) is left out, but a singular adder beside its collection setter (a `@Singular` builder) needs a source like any other writer; getters on the built type make such a bean two-way, where only the properties it reads count, and an unpaired builder method named after a domain component is [refused](#unpaired-accessors).
-- **A two-way builder's collection setter must take its getter's exact type.** Lombok's `@Singular` on a `@Value @Builder`, whose setter takes a `Collection<? extends T>`, is refused as read and written at different types, which is not supported yet.
+- **A build-only builder counts its one-argument methods as writers.** A method taking the bean or the builder itself (`from(Bean)`, `mergeFrom(Builder)`) is left out, and so is a [`@Singular` collection's adder](#singular-collections). Getters on the built type make such a bean two-way, where only the properties it reads count, and an unpaired builder method named after a domain component is [refused](#unpaired-accessors).
+
+### A Lombok `@Singular` collection {#singular-collections}
+
+**The processor writes a `@Singular` collection whole through its collection setter, and leaves its adder alone.** Lombok gives such a collection three builder methods: the adder `tag(String)`, the collection setter `tags(Collection<? extends String>)`, which takes any collection of the element type, and `clearTags()`. Both the adder and the setter add to what the builder holds, so writing the two would write every element twice. `build` calls the setter once, on a fresh builder.
+
+- **The processor recognises the setter by its shape.** It takes an `Iterable` or a `Map` whose type arguments are all `? extends` wildcards, and a `clear` method is named after it.
+- **A two-way property keeps its getter's type.** The getter's `List<String>` must be a collection the setter takes; otherwise the property is read and written at different types.
+- **A build-only setter takes the domain's own collection.** With no getter, `build` hands it the domain component's `List`, `Set`, `Collection` or `Map`, converting the elements through a leaf or a spec as lifting does. A subtype such as `ArrayList` is refused, since it would be handed over uncopied.
+- **The adder takes one element, and no builder field backs it.** Lombok backs every plain property's writer with a field of the property's name and type, so `status(String)` beside the adder `status(Change)` stays a property.
+- **Among several candidates, a regular English singular wins.** That is `tag` for `tags`, or `entry` for `entries`, ahead of a writer the name only begins with. An irregular singular, such as `person` for `people`, is not recognised. Failing that, the only candidate no other collection claims is the adder.
+- **The processor refuses a build-only adder it cannot tell apart.** A derived field for it would add its value on top of the collection's. Drop `@Singular` there, so the builder takes the collection whole.
+- **A `@Singular` collection is never absent.** Its builder builds an empty collection when nothing is added, and refuses a `null`. So the processor refuses an [`Optional` bridge](#bean-optional-bridge) onto one, and a PATCH bean whose builder writes one, as it refuses a [getter-only `List`](#no-getter-only-list-on-a-patch). Neither is supported yet: drop `@Singular`, so the builder stores what it is given.
 
 ---
 
@@ -443,7 +456,7 @@ A one-directional mapping follows these rules:
 
 ### Every setter has a getter {#every-patch-setter-has-a-getter}
 
-**A setter with no getter is rejected.** A setter is how the client's value arrives, and `updateFrom` folds in only what it can read, so a `setX` setter with no getter is a field the client can send and the update would ignore. It is refused whatever it is named, unless the spec marks it [`@Unmapped`](beans.md#accessors-meant-to-stay-out); a method that only starts with `set`, such as `setup(String)`, is not one. A getter with no setter is refused when it is named after a domain component, as on the [dense tier](#unpaired-accessors), and a computed getter such as `isEmpty()` is left out without complaint. A builder's one-argument method is not a setter until a getter pairs it, so an unpaired one, such as a singular adder, is refused only when it is named after a domain component. For a primitive accessor the diagnostic offers the wrapper type, since a PATCH property has to be able to be absent.
+**A setter with no getter is rejected.** A setter is how the client's value arrives, and `updateFrom` folds in only what it can read, so a `setX` setter with no getter is a field the client can send and the update would ignore. It is refused whatever it is named, unless the spec marks it [`@Unmapped`](beans.md#accessors-meant-to-stay-out); a method that only starts with `set`, such as `setup(String)`, is not one. A getter with no setter is refused when it is named after a domain component, as on the [dense tier](#unpaired-accessors), and a computed getter such as `isEmpty()` is left out without complaint. A builder's one-argument method is not a setter until a getter pairs it, so an unpaired one is refused only when it is named after a domain component. For a primitive accessor the diagnostic offers the wrapper type, since a PATCH property has to be able to be absent.
 
 ### No sealed hierarchy {#no-sealed-patch}
 

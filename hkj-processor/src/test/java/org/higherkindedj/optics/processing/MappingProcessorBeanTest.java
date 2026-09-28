@@ -1467,6 +1467,411 @@ class MappingProcessorBeanTest {
     }
   }
 
+  /**
+   * The edges of the {@code @Singular} reading, on hand-written builders shaped as Lombok writes
+   * them. {@code LombokInteropTest} pins Lombok's own output; these are the shapes it never emits.
+   */
+  @Nested
+  @DisplayName("@Singular collection setters")
+  class SingularCollectionSetters {
+
+    @Test
+    @DisplayName(
+        "only a clear-named writer taking ? extends arguments is a collection setter, and an exact"
+            + " overload still wins")
+    void collectionSetterRecognition() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Kit",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Kit(
+                  String id, int count, String name, List<String> tags, List<String> items) {}
+              """);
+      // Each clear-named writer misses one part of the shape bar items(...), which has no adder,
+      // and tags(...) has an overload at the getter's own type.
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.KitDto",
+              """
+              package com.example;
+
+              import java.util.ArrayList;
+              import java.util.Collection;
+              import java.util.List;
+
+              public final class KitDto {
+                private final String id;
+                private final int count;
+                private final String name;
+                private final List<String> tags;
+                private final List<String> items;
+
+                private KitDto(Builder b) {
+                  id = b.id; count = b.count; name = b.name; tags = b.tags; items = b.items;
+                }
+
+                public String getId() { return id; }
+                public int getCount() { return count; }
+                public String getName() { return name; }
+                public List<String> getTags() { return tags; }
+                public List<String> getItems() { return items; }
+
+                public static Builder builder() { return new Builder(); }
+
+                public static final class Builder {
+                  private String id;
+                  private int count;
+                  private String name;
+                  private List<String> tags;
+                  private final List<String> items = new ArrayList<>();
+
+                  public Builder id(String id) { this.id = id; return this; }
+                  public Builder count(int count) { this.count = count; return this; }
+                  public Builder clearCount() { count = 0; return this; }
+                  public Builder name(String name) { this.name = name; return this; }
+                  public Builder clearName() { name = null; return this; }
+                  public Builder tags(List<String> tags) { this.tags = tags; return this; }
+                  public Builder tags(Collection<? extends String> tags) {
+                    this.tags = List.copyOf(tags);
+                    return this;
+                  }
+                  public Builder clearTags() { tags = null; return this; }
+                  public Builder items(Collection<? extends String> items) {
+                    this.items.addAll(items);
+                    return this;
+                  }
+                  public Builder clearItems() { items.clear(); return this; }
+                  public Builder codes(Collection<? super String> codes) { return this; }
+                  public Builder clearCodes() { return this; }
+                  public KitDto build() { return new KitDto(this); }
+                }
+              }
+              """);
+      JavaFileObject spec =
+          JavaFileObjects.forSourceString(
+              "com.example.KitMapping",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              @GenerateMapping
+              public interface KitMapping extends MappingSpec<Kit, KitDto> {}
+              """);
+
+      Compilation compilation = compileLinted(domain, wire, spec);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.KitMappingImpl"))
+          .contains("b.tags(hkj$copyOf(domain.tags()));")
+          .contains("b.items(hkj$copyOf(domain.items()));");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object impl = result.instance("com.example.KitMappingImpl");
+        Object kit =
+            result
+                .loadClass("com.example.Kit")
+                .getDeclaredConstructors()[0]
+                .newInstance("k1", 2, "kit", List.of("t"), List.of("i1", "i2"));
+        Object dto = invoke(impl, "build", kit);
+        Assertions.assertThat(invoke(dto, "getItems")).isEqualTo(List.of("i1", "i2"));
+        assertThatValidated(validated(invoke(impl, "parse", dto))).isValid().hasValue(kit);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    /** A two-way bean with a getter for {@code things} and a builder declaring {@code writers}. */
+    private JavaFileObject collectionBean(String name, String writers) {
+      return JavaFileObjects.forSourceString(
+          "com.example." + name,
+          """
+          package com.example;
+
+          import java.util.Collection;
+          import java.util.List;
+
+          public final class %1$s {
+            private %1$s() {}
+            public List<String> getThings() { return List.of(); }
+            public static Builder builder() { return new Builder(); }
+            public static final class Builder {
+              %2$s
+              public Builder clearThings() { return this; }
+              public %1$s build() { return new %1$s(); }
+            }
+          }
+          """
+              .formatted(name, writers));
+    }
+
+    @Test
+    @DisplayName(
+        "a collection setter the getter's value does not fit, or that a rival overload shadows, is"
+            + " refused")
+    void collectionSetterTheGetterDoesNotFit() {
+      JavaFileObject domain =
+          JavaFileObjects.forSourceString(
+              "com.example.Thing",
+              """
+              package com.example;
+
+              import java.util.List;
+
+              public record Thing(List<String> things) {}
+              """);
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.example.ThingMappings",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class ThingMappings {
+                private ThingMappings() {}
+
+                @GenerateMapping
+                public interface MismatchMapping extends MappingSpec<Thing, MismatchDto> {}
+
+                @GenerateMapping
+                public interface RivalMapping extends MappingSpec<Thing, RivalDto> {}
+              }
+              """);
+
+      Compilation compilation =
+          compile(
+              domain,
+              specs,
+              collectionBean(
+                  "MismatchDto",
+                  "public Builder things(Collection<? extends Integer> things) { return this; }"),
+              collectionBean(
+                  "RivalDto",
+                  "public Builder things(Collection<? extends String> things) { return this; }\n"
+                      + "public Builder things(Iterable<String> things) { return this; }"));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(2);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "bean property 'things' on 'MismatchDto' is read and written at different types"
+                  + " (List<String> vs Collection<? extends Integer>).");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "bean property 'things' on 'RivalDto' has two writers the generated call cannot"
+                  + " choose between: things(Collection<? extends String>) and"
+                  + " things(Iterable<String>).");
+    }
+
+    @Test
+    @DisplayName("a clear-named writer taking a wildcard that is no collection is a plain writer")
+    void wildcardNonCollectionIsNoCollectionSetter() {
+      JavaFileObject types =
+          JavaFileObjects.forSourceString(
+              "com.example.Pets",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Pets {
+                private Pets() {}
+
+                public record Animal(String name) {}
+
+                public record Pet(Class<? extends Animal> type, Animal animal) {}
+
+                public static final class PetRequest {
+                  private final Class<? extends Animal> type;
+                  private final Animal animal;
+
+                  private PetRequest(Class<? extends Animal> type, Animal animal) {
+                    this.type = type;
+                    this.animal = animal;
+                  }
+
+                  @Override
+                  public String toString() { return type.getSimpleName() + ":" + animal; }
+
+                  public static Builder builder() { return new Builder(); }
+
+                  public static final class Builder {
+                    private Class<? extends Animal> type;
+                    private Animal animal;
+
+                    public Builder type(Class<? extends Animal> type) {
+                      this.type = type;
+                      return this;
+                    }
+                    public Builder clearType() { type = null; return this; }
+                    public Builder animal(Animal animal) { this.animal = animal; return this; }
+                    public PetRequest build() { return new PetRequest(type, animal); }
+                  }
+                }
+
+                @GenerateMapping
+                public interface PetMapping extends MappingSpec<Pet, PetRequest> {}
+              }
+              """);
+
+      Compilation compilation = compile(types);
+      assertThat(compilation).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      try {
+        Object animal = result.newInstance("com.example.Pets$Animal", "rex");
+        Object pet =
+            result
+                .loadClass("com.example.Pets$Pet")
+                .getDeclaredConstructors()[0]
+                .newInstance(animal.getClass(), animal);
+        Assertions.assertThat(
+                invoke(result.instance("com.example.PetsPetMappingImpl"), "build", pet))
+            .hasToString("Animal:Animal[name=rex]");
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+    /**
+     * A build-only bean whose builder has only a {@code @Singular} collection taking {@code
+     * parameter}.
+     */
+    private JavaFileObject singularRequest(String name, String parameter) {
+      return JavaFileObjects.forSourceString(
+          "com.example." + name,
+          """
+          package com.example;
+
+          import java.util.ArrayList;
+          import java.util.Collection;
+
+          public final class %1$s {
+            private %1$s() {}
+            public static Builder builder() { return new Builder(); }
+            public static final class Builder {
+              public Builder tags(%2$s tags) { return this; }
+              public Builder tag(String tag) { return this; }
+              public Builder clearTags() { return this; }
+              public %1$s build() { return new %1$s(); }
+            }
+          }
+          """
+              .formatted(name, parameter));
+    }
+
+    @Test
+    @DisplayName(
+        "a build-only collection setter takes the domain's own container or its List, Set or Map"
+            + " of the setter's elements, and nothing else")
+    void buildOnlyCollectionSetterNeedsAContainerItHolds() {
+      JavaFileObject domains =
+          JavaFileObjects.forSourceString(
+              "com.example.Tagged",
+              """
+              package com.example;
+
+              import java.util.ArrayList;
+              import java.util.Map;
+              import java.util.Set;
+
+              public final class Tagged {
+                private Tagged() {}
+                public record Keyed(Map<String, String> tags) {}
+                public record Numbered(Set<Integer> tags) {}
+                public record Plain(String tags) {}
+                public record Listed(ArrayList<String> tags) {}
+              }
+              """);
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.example.TaggedMappings",
+              """
+              package com.example;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class TaggedMappings {
+                private TaggedMappings() {}
+
+                @GenerateMapping
+                public interface KeyedMapping extends MappingSpec<Tagged.Keyed, KeyedRequest> {}
+
+                @GenerateMapping
+                public interface NumberedMapping
+                    extends MappingSpec<Tagged.Numbered, NumberedRequest> {}
+
+                @GenerateMapping
+                public interface PlainMapping extends MappingSpec<Tagged.Plain, PlainRequest> {}
+
+                @GenerateMapping
+                public interface ListedMapping extends MappingSpec<Tagged.Listed, ListedRequest> {}
+              }
+              """);
+
+      Compilation compilation =
+          compile(
+              domains,
+              specs,
+              singularRequest("KeyedRequest", "Collection<? extends String>"),
+              singularRequest("NumberedRequest", "ArrayList<? extends String>"),
+              singularRequest("PlainRequest", "Collection<? extends String>"),
+              singularRequest("ListedRequest", "Collection<? extends String>"));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(4);
+      // A subtype of the setter's parameter would be handed over uncopied, so it is refused.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "(java.util.Collection<? extends java.lang.String> vs"
+                  + " java.util.ArrayList<java.lang.String>)");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "(java.util.Collection<? extends java.lang.String> vs"
+                  + " java.util.Map<java.lang.String, java.lang.String>)");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "(java.util.ArrayList<? extends java.lang.String> vs"
+                  + " java.util.Set<java.lang.Integer>)");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "(java.util.Collection<? extends java.lang.String> vs java.lang.String)");
+    }
+
+    @Test
+    @DisplayName("singularRank prefers an undone English ending to a bare prefix")
+    void singularRankUndoesEnglishPlurals() {
+      Assertions.assertThat(
+              Map.of(
+                  "tag", "tags",
+                  "box", "boxes",
+                  "namePart", "nameParts",
+                  "entry", "entries",
+                  "shelf", "shelves",
+                  "knife", "knives",
+                  "index", "indices",
+                  "matrix", "matrices",
+                  "analysis", "analyses"))
+          .allSatisfy(
+              (singular, plural) ->
+                  Assertions.assertThat(BeanPropertyAnalyser.singularRank(singular, plural))
+                      .as("%s of %s", singular, plural)
+                      .isEqualTo(2));
+      Assertions.assertThat(BeanPropertyAnalyser.singularRank("child", "children")).isEqualTo(1);
+      Assertions.assertThat(BeanPropertyAnalyser.singularRank("name", "nameParts")).isEqualTo(1);
+      Assertions.assertThat(BeanPropertyAnalyser.singularRank("id", "tags")).isZero();
+      Assertions.assertThat(BeanPropertyAnalyser.singularRank("label", "tags")).isZero();
+      Assertions.assertThat(BeanPropertyAnalyser.singularRank("tags", "tags")).isZero();
+      Assertions.assertThat(BeanPropertyAnalyser.singularRank("category", "entries")).isZero();
+    }
+  }
+
   @Nested
   @DisplayName("Optional bridging")
   class OptionalBridging {
@@ -3841,9 +4246,11 @@ class MappingProcessorBeanTest {
     }
 
     @Test
-    @DisplayName("a message whose builder the mapper does not find is pointed at a record too")
-    void unrecognisedBuilder() {
-      // The lite runtime's builders inherit build() from a generic base, returning its variable.
+    @DisplayName(
+        "a message whose builder inherits build() from a generic base names its companions")
+    void inheritedBuild() {
+      // The lite runtime's builders inherit build() from a generic base, returning its variable,
+      // which the builder instantiates as the message.
       JavaFileObject wire =
           JavaFileObjects.forSourceString(
               "com.example.UserMessage",
@@ -3851,6 +4258,7 @@ class MappingProcessorBeanTest {
               package com.example;
 
               public final class UserMessage implements com.google.protobuf.MessageLite {
+                public static final class Bytes {}
                 public abstract static class LiteBuilder<M> {
                   public final M build() { return make(); }
                   protected abstract M make();
@@ -3858,11 +4266,53 @@ class MappingProcessorBeanTest {
                 private final String name;
                 private UserMessage(String name) { this.name = name; }
                 public String getName() { return name; }
+                public Bytes getNameBytes() { return new Bytes(); }
                 public static Builder newBuilder() { return new Builder(); }
                 public static final class Builder extends LiteBuilder<UserMessage> {
                   private String name;
                   public Builder setName(String name) { this.name = name; return this; }
+                  public Builder setNameBytes(Bytes bytes) { return this; }
                   protected UserMessage make() { return new UserMessage(name); }
+                }
+              }
+              """);
+      Compilation compilation =
+          compile(
+              MESSAGE_LITE,
+              USER,
+              wire,
+              specs(
+                  "UserMapping",
+                  """
+                  @GenerateMapping
+                  public interface UserMapping extends MappingSpec<User, UserMessage> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'UserMessage' has more components than 'User', leaving [nameBytes] unfilled.");
+      assertThat(compilation).hadErrorContaining("Convert 'UserMessage' " + RECORD_FIX);
+    }
+
+    @Test
+    @DisplayName("a message whose builder the mapper does not find is pointed at a record too")
+    void unrecognisedBuilder() {
+      // A builder whose only terminal is buildPartial() has no build() to call.
+      JavaFileObject wire =
+          JavaFileObjects.forSourceString(
+              "com.example.UserMessage",
+              """
+              package com.example;
+
+              public final class UserMessage implements com.google.protobuf.MessageLite {
+                private final String name;
+                private UserMessage(String name) { this.name = name; }
+                public String getName() { return name; }
+                public static Builder newBuilder() { return new Builder(); }
+                public static final class Builder {
+                  private String name;
+                  public Builder setName(String name) { this.name = name; return this; }
+                  public UserMessage buildPartial() { return new UserMessage(name); }
                 }
               }
               """);

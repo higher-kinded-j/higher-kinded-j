@@ -28,7 +28,7 @@ An unset property is an ordinary state of a bean, and `parse` reports it as any 
 | The bean offers | `build` writes it with | It maps |
 |---|---|---|
 | a no-args constructor the Impl can call, and `setX` setters (Lombok `@Data` included) | `new`, then each setter | both ways |
-| a static `builder()` or `newBuilder()` whose `build()` returns it (a hand-written builder, or Lombok `@Value @Builder`) | the builder's setters, then `build()` | both ways, reading the built type's getters |
+| a static `builder()` or `newBuilder()` whose `build()` returns it (a hand-written builder, or Lombok's `@Builder` or `@SuperBuilder`) | the builder's setters, then `build()` | both ways, reading the built type's getters |
 | a getter-only `List` beside its setters, the JAXB way | `getItems().addAll(...)` for that list | both ways |
 | getters, and nothing that writes it, such as a view built through a constructor with arguments | nothing | [`parse` only](#one-directional-beans) |
 | setters or a builder, and no getters | the setters or the builder | [`build` only](#one-directional-beans) |
@@ -210,7 +210,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 | openapi-generator's default `openApiNullable=true` | a `getX_JsonNullable()` and `setX_JsonNullable(...)` pair beside each nullable property counts as a property your domain lacks | generate with `openApiNullable=false`; a `JsonNullable` type needs a leaf, and on a PATCH bean is [not supported yet](rules.md#no-jsonnullable-patch-property) |
 | a PATCH request bean with `default:` values or container defaults | the generator renders them as initialisers, which read as sent | give the PATCH request its own schema: [A PATCH getter must answer `null` until set](beans_patch.md#patch-getters-answer-null) |
 | a Lombok class | the processor sees its accessors only once Lombok has run | list Lombok's `annotationProcessor` before `hkj-processor`; the HKJ Gradle plugin adds its own after your `dependencies` block ([Lombok](../tooling/manual_setup.md#lombok)) |
-| Lombok's `@Singular` on a collection | not supported yet. On a two-way builder, its setter takes a `Collection<? extends T>`, not the getter's `List<T>`. On a build-only builder, its singular adder is one more writer, with no domain component to fill it | drop `@Singular`, so the builder takes the `List` whole |
+| Lombok's `@Singular` on a collection | it maps: `build` writes the collection whole and leaves the singular adder alone. The collection is never `null`, so it cannot carry an absent `Optional` or a PATCH's absence | for an `Optional` component, declare it a `List` or drop `@Singular`; on a PATCH request, drop `@Singular`: [A Lombok `@Singular` collection](rules.md#singular-collections) |
 | a protobuf-java message | not supported yet: protobuf's companions pair up as properties your domain lacks (`getUnknownFields()`, `getXBytes()` beside a string field, `getXValue()` beside an enum), and a repeated or map field has no setter. Each refusal it meets says it is not supported yet | convert it to a record by hand, and map the record |
 | a bean another annotation processor generates | the mapping waits for the type to exist, with nothing to configure | nothing: [Mapping over types other processors generate](../tooling/manual_setup.md#mapping-over-types-other-processors-generate) |
 

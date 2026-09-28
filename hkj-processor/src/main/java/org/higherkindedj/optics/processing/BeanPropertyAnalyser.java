@@ -35,7 +35,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  *   <li>a no-args constructor with {@code setX} setters (and, for a getter-only {@code List}, the
  *       JAXB collection convention {@code getX().addAll(...)});
  *   <li>a builder: a static {@code builder()} or {@code newBuilder()} returning a builder whose
- *       property-named or {@code setX} setters fill it and whose {@code build()} yields the wire.
+ *       property-named or {@code setX} setters fill it and whose {@code build()} yields the wire,
+ *       self-typed ones such as Lombok's {@code @SuperBuilder} included. A Lombok {@code @Singular}
+ *       collection is written whole through its collection setter, and its singular adder is left
+ *       alone.
  * </ol>
  *
  * <p>The mapped property set is the intersection of readable and writable names, so a computed
@@ -68,8 +71,30 @@ final class BeanPropertyAnalyser {
 
   private static final String BOOLEAN = "java.lang.Boolean";
 
+  private static final String ITERABLE = "java.lang.Iterable";
+
+  private static final String MAP = "java.util.Map";
+
   /** The interface every protobuf-java message implements, on the full and lite runtimes alike. */
   private static final String PROTOBUF_MESSAGE = "com.google.protobuf.MessageLite";
+
+  /**
+   * An English plural ending {@link #singularRank} undoes, with the singular endings it may stand
+   * for.
+   *
+   * @param plural the plural's ending, such as {@code ies}
+   * @param singulars the endings a singular may have in its place, such as {@code y}
+   */
+  private record PluralEnding(String plural, List<String> singulars) {}
+
+  private static final List<PluralEnding> PLURAL_ENDINGS =
+      List.of(
+          new PluralEnding("s", List.of("")),
+          new PluralEnding("es", List.of("")),
+          new PluralEnding("ies", List.of("y")),
+          new PluralEnding("ves", List.of("f", "fe")),
+          new PluralEnding("ices", List.of("ix", "ex")),
+          new PluralEnding("ses", List.of("sis")));
 
   private final ProcessingEnvironment env;
 
@@ -79,9 +104,10 @@ final class BeanPropertyAnalyser {
 
   /**
    * Analyses {@code bean} into a {@link WireShape.BeanShape}, or reports a what/why/fix diagnostic
-   * and returns null. Reports when a getter and its writer disagree on type, or when the bean fits
-   * no reading at all: nothing to read or write, or readable and writable properties that never
-   * share a name.
+   * and returns null. Reports when a getter and its writer disagree on type, when a build-only
+   * builder's {@code @Singular} adder cannot be told apart from its other writers, or when the bean
+   * fits no reading at all: nothing to read or write, or readable and writable properties that
+   * never share a name.
    */
   WireShape.BeanShape analyse(TypeElement spec, TypeElement bean, String tag) {
     return analyse(spec, bean, tag, true, false);
@@ -180,9 +206,12 @@ final class BeanPropertyAnalyser {
 
     BuilderModel builder = findBuilderModel(bean);
     Map<String, List<ExecutableElement>> builderSetters = Map.of();
+    Singulars singulars = Singulars.NONE;
     if (builder != null) {
-      builderSetters = collectBuilderSetters(bean, builder);
       DeclaredType builderType = builder.builderType();
+      Map<String, List<ExecutableElement>> writers = collectBuilderSetters(bean, builder);
+      singulars = singulars(builder, writers, getters.keySet());
+      builderSetters = singulars.withoutAdders(writers);
       List<WireShape.BeanProperty> properties = new ArrayList<>();
       List<WireShape.UnpairedAccessor> unpaired = new ArrayList<>();
       for (Map.Entry<String, ExecutableElement> entry : getters.entrySet()) {
@@ -192,6 +221,30 @@ final class BeanPropertyAnalyser {
             pairedWriter(builderSetters.get(name), builderType, getterType);
         if (builderSetter == null) {
           unpaired.add(unpairedGetter(bean, name, entry.getValue(), getterType));
+          continue;
+        }
+        ExecutableElement collection = singulars.collections().get(name);
+        if (collection != null
+            && !env.getTypeUtils().isSameType(paramType(builderType, builderSetter), getterType)
+            && env.getTypeUtils().isSubtype(getterType, paramType(builderType, collection))) {
+          if (writerAmbiguous(
+              spec,
+              bean,
+              tag,
+              name,
+              getterType,
+              collection,
+              builderSetters.get(name),
+              builderType,
+              report)) {
+            return null;
+          }
+          properties.add(
+              readWrite(
+                  name,
+                  getterType,
+                  entry.getValue().getSimpleName().toString(),
+                  new WireShape.WriteSite.SingularCollection(collection)));
           continue;
         }
         if (typesDiffer(
@@ -244,10 +297,20 @@ final class BeanPropertyAnalyser {
       return readOnly(bean, beanType, getters);
     }
     if (getters.isEmpty() && !setters.isEmpty()) {
-      return writeOnly(bean, beanType, setters, new WireShape.ConstructionStrategy.NoArgsSetters());
+      return writeOnly(
+          bean, beanType, setters, new WireShape.ConstructionStrategy.NoArgsSetters(), Map.of());
     }
     if (getters.isEmpty() && !builderSetters.isEmpty()) {
-      return writeOnly(bean, builder.builderType(), builderSetters, builder.strategy());
+      if (!singulars.unresolved().isEmpty()) {
+        if (report) {
+          singulars
+              .unresolved()
+              .forEach(unresolved -> reportUnresolvedAdder(spec, bean, tag, unresolved));
+        }
+        return null;
+      }
+      return writeOnly(
+          bean, builder.builderType(), builderSetters, builder.strategy(), singulars.collections());
     }
     if (report) {
       reportUnusable(
@@ -401,7 +464,7 @@ final class BeanPropertyAnalyser {
   }
 
   /** A writer as its declaration spells it, so the reader can find the one to change. */
-  private static String writerSignature(ExecutableElement writer) {
+  static String writerSignature(ExecutableElement writer) {
     return writer.getSimpleName()
         + "("
         + ProcessorUtils.simpleTypeName(writer.getParameters().getFirst().asType())
@@ -460,24 +523,32 @@ final class BeanPropertyAnalyser {
    * Every writer, written and never read: a bean that declares no getter maps build-only. A writer
    * speaks its owner's variables, as a getter does, so {@code owner} is the bean for a setter and
    * the builder as the factory instantiates it for a builder setter. With no getter to match, a
-   * property's {@link #representative} decides its type.
+   * property's {@link #representative} decides its type, bar a {@code @Singular} collection among
+   * {@code singulars}, which its collection setter writes.
    */
   private WireShape.BeanShape writeOnly(
       TypeElement bean,
       DeclaredType owner,
       Map<String, List<ExecutableElement>> writers,
-      WireShape.ConstructionStrategy strategy) {
+      WireShape.ConstructionStrategy strategy,
+      Map<String, ExecutableElement> singulars) {
     List<WireShape.BeanProperty> properties =
         writers.entrySet().stream()
-            .map(entry -> Map.entry(entry.getKey(), representative(entry.getValue())))
             .map(
-                entry ->
-                    new WireShape.BeanProperty(
-                        entry.getKey(),
-                        paramType(owner, entry.getValue()),
-                        Optional.<String>empty(),
-                        Optional.<WireShape.WriteSite>of(
-                            new WireShape.WriteSite.Setter(entry.getValue()))))
+                entry -> {
+                  ExecutableElement collection = singulars.get(entry.getKey());
+                  ExecutableElement writer =
+                      collection == null ? representative(entry.getValue()) : collection;
+                  WireShape.WriteSite write =
+                      collection == null
+                          ? new WireShape.WriteSite.Setter(writer)
+                          : new WireShape.WriteSite.SingularCollection(writer);
+                  return new WireShape.BeanProperty(
+                      entry.getKey(),
+                      paramType(owner, writer),
+                      Optional.<String>empty(),
+                      Optional.of(write));
+                })
             .toList();
     return new WireShape.BeanShape(
         bean, properties, Optional.of(strategy), WireShape.Direction.BUILD_ONLY, List.of());
@@ -619,6 +690,268 @@ final class BeanPropertyAnalyser {
     return merged;
   }
 
+  /**
+   * A builder's Lombok {@code @Singular} collections, as {@link #singulars} reads them: each
+   * collection setter by property, the adders {@code build} leaves alone, and each collection whose
+   * adder cannot be told apart.
+   */
+  private record Singulars(
+      Map<String, ExecutableElement> collections,
+      Set<ExecutableElement> adders,
+      List<AdderSearch> unresolved) {
+
+    /** A builder with no {@code @Singular} collection. */
+    static final Singulars NONE = new Singulars(Map.of(), Set.of(), List.of());
+
+    Singulars {
+      collections = Map.copyOf(collections);
+      adders = Set.copyOf(adders);
+      unresolved = List.copyOf(unresolved);
+    }
+
+    /**
+     * {@code writers} with each adder taken out of its property's overloads, and a property left
+     * with none dropped. An adder can share its name with a plain property's setter of another
+     * type, as {@code status(Change)} beside {@code status(String)} does, and that setter stays.
+     */
+    Map<String, List<ExecutableElement>> withoutAdders(
+        Map<String, List<ExecutableElement>> writers) {
+      Map<String, List<ExecutableElement>> kept = new LinkedHashMap<>();
+      writers.forEach(
+          (name, overloads) -> {
+            List<ExecutableElement> rest =
+                overloads.stream().filter(writer -> !adders.contains(writer)).toList();
+            if (!rest.isEmpty()) {
+              kept.put(name, rest);
+            }
+          });
+      return kept;
+    }
+  }
+
+  /**
+   * The search for one {@code @Singular} collection's adder: the collection's name, its collection
+   * setter, the element type the setter takes, and the writers that may be the adder, each with the
+   * property it is named for.
+   */
+  private record AdderSearch(
+      String collection,
+      ExecutableElement setter,
+      TypeMirror element,
+      List<Map.Entry<String, ExecutableElement>> candidates) {
+
+    AdderSearch {
+      candidates = List.copyOf(candidates);
+    }
+
+    /** The same search, left with {@code candidates}. */
+    AdderSearch leaving(List<Map.Entry<String, ExecutableElement>> candidates) {
+      return new AdderSearch(collection, setter, element, candidates);
+    }
+  }
+
+  /**
+   * The Lombok {@code @Singular} collections of a builder whose one-argument writers are {@code
+   * writers}. Lombok gives such a collection an adder taking one element, a collection setter
+   * taking any collection of it ({@code tags(Collection<? extends String>)}, or {@code Map<?
+   * extends K, ? extends V>} for a map), and {@code clearTags()}. So a writer that {@linkplain
+   * #takesAnyCollection takes any collection}, beside a no-argument {@code clear} method named
+   * after its property, is a collection setter.
+   *
+   * <p>Only a collection of one element type {@code E} has its adder among the one-argument
+   * writers, since a map's takes a key and a value. The candidates are the writers taking exactly
+   * {@code E} that no getter in {@code read} reads and {@linkplain #fieldBacked no field backs}.
+   * The one named most nearly as the collection's singular is its adder ({@link #singularRank}).
+   * Failing that, so is the only candidate no other collection claimed, since Lombok gives every
+   * such collection an adder, and a collection left with several is unresolved.
+   */
+  private Singulars singulars(
+      BuilderModel builder, Map<String, List<ExecutableElement>> writers, Set<String> read) {
+    Types types = env.getTypeUtils();
+    DeclaredType builderType = builder.builderType();
+    Set<String> resets =
+        publicInstanceMethods(builder.builderElement()).stream()
+            .filter(method -> method.getParameters().isEmpty())
+            .map(method -> method.getSimpleName().toString())
+            .collect(Collectors.toSet());
+    Map<String, ExecutableElement> collections = new LinkedHashMap<>();
+    writers.forEach(
+        (name, overloads) -> {
+          if (resets.contains("clear" + accessorSuffix(name))) {
+            overloads.stream()
+                .filter(writer -> takesAnyCollection(paramType(builderType, writer)))
+                .findFirst()
+                .ifPresent(writer -> collections.put(name, writer));
+          }
+        });
+    List<AdderSearch> searches = new ArrayList<>();
+    collections.forEach(
+        (collection, setter) -> {
+          List<? extends TypeMirror> elements =
+              ((DeclaredType) paramType(builderType, setter)).getTypeArguments();
+          if (elements.size() == 1) {
+            TypeMirror element = ProcessorUtils.resolveWildcard(elements.getFirst());
+            searches.add(
+                new AdderSearch(
+                    collection,
+                    setter,
+                    element,
+                    writers.entrySet().stream()
+                        .filter(entry -> !collections.containsKey(entry.getKey()))
+                        .filter(entry -> !read.contains(entry.getKey()))
+                        .flatMap(
+                            entry ->
+                                entry.getValue().stream()
+                                    .map(writer -> Map.entry(entry.getKey(), writer)))
+                        .filter(
+                            candidate ->
+                                types.isSameType(
+                                    paramType(builderType, candidate.getValue()), element))
+                        .filter(candidate -> !fieldBacked(candidate.getKey(), candidate.getValue()))
+                        .toList()));
+          }
+        });
+    Map<String, ExecutableElement> adderOf = new LinkedHashMap<>();
+    searches.forEach(
+        search ->
+            nearestSingular(search).ifPresent(adder -> adderOf.put(search.collection(), adder)));
+    List<AdderSearch> unresolved = new ArrayList<>();
+    for (AdderSearch search : searches) {
+      if (adderOf.containsKey(search.collection())) {
+        continue;
+      }
+      List<Map.Entry<String, ExecutableElement>> left =
+          search.candidates().stream()
+              .filter(candidate -> !adderOf.containsValue(candidate.getValue()))
+              .toList();
+      if (left.size() == 1) {
+        adderOf.put(search.collection(), left.getFirst().getValue());
+      } else if (left.size() > 1) {
+        unresolved.add(search.leaving(left));
+      }
+    }
+    return new Singulars(collections, Set.copyOf(adderOf.values()), unresolved);
+  }
+
+  /**
+   * Whether a parameter takes any collection of its elements: an {@code Iterable} or a {@code Map}
+   * whose type arguments are all {@code ? extends} wildcards.
+   */
+  private boolean takesAnyCollection(TypeMirror parameter) {
+    Types types = env.getTypeUtils();
+    return parameter.getKind() == TypeKind.DECLARED
+        && Stream.of(ITERABLE, MAP)
+            .map(name -> types.erasure(env.getElementUtils().getTypeElement(name).asType()))
+            .anyMatch(container -> types.isSubtype(types.erasure(parameter), container))
+        && ((DeclaredType) parameter)
+            .getTypeArguments().stream()
+                .allMatch(
+                    argument ->
+                        argument.getKind() == TypeKind.WILDCARD
+                            && ((WildcardType) argument).getExtendsBound() != null);
+  }
+
+  /**
+   * Whether {@code writer} sets a field of its own: the type declaring it has a field named after
+   * its {@code property}, or after it with the {@code $value} suffix Lombok gives a
+   * {@code @Builder.Default}, of the writer's parameter type. Lombok's builder backs every plain
+   * property so, and gives an adder no field of its own.
+   */
+  private boolean fieldBacked(String property, ExecutableElement writer) {
+    TypeMirror parameter = writer.getParameters().getFirst().asType();
+    return ElementFilter.fieldsIn(writer.getEnclosingElement().getEnclosedElements()).stream()
+        .filter(
+            field ->
+                field.getSimpleName().contentEquals(property)
+                    || field.getSimpleName().contentEquals(property + "$value"))
+        .anyMatch(field -> env.getTypeUtils().isSameType(field.asType(), parameter));
+  }
+
+  /** The search's candidate named most nearly as its collection's singular, when one alone is. */
+  private static Optional<ExecutableElement> nearestSingular(AdderSearch search) {
+    int nearest =
+        search.candidates().stream()
+            .mapToInt(candidate -> singularRank(candidate.getKey(), search.collection()))
+            .max()
+            .orElse(0);
+    List<ExecutableElement> named =
+        search.candidates().stream()
+            .filter(
+                candidate ->
+                    nearest > 0 && singularRank(candidate.getKey(), search.collection()) == nearest)
+            .map(Map.Entry::getValue)
+            .toList();
+    return named.size() == 1 ? Optional.of(named.getFirst()) : Optional.empty();
+  }
+
+  /**
+   * How nearly {@code singular} names one of {@code plural}: 2 when it is the plural with an
+   * English ending undone ({@code tag} for {@code tags}, {@code box} for {@code boxes}, {@code
+   * entry} for {@code entries}, {@code shelf} for {@code shelves}, {@code index} for {@code
+   * indices}, {@code analysis} for {@code analyses}), 1 when the plural only begins with it ({@code
+   * child} for {@code children}), and 0 otherwise. Lombok's own list is longer: it names irregular
+   * singulars too, such as {@code man} for {@code men}, which rank 0 here, as does an adder the
+   * author named, such as {@code person} for {@code people}. Such an adder is found only as the one
+   * candidate left.
+   */
+  static int singularRank(String singular, String plural) {
+    boolean undone =
+        PLURAL_ENDINGS.stream()
+            .filter(ending -> plural.endsWith(ending.plural()))
+            .flatMap(
+                ending ->
+                    ending.singulars().stream()
+                        .map(
+                            replaced ->
+                                plural.substring(0, plural.length() - ending.plural().length())
+                                    + replaced))
+            .anyMatch(singular::equals);
+    if (undone) {
+      return 2;
+    }
+    return singular.length() < plural.length() && plural.startsWith(singular) ? 1 : 0;
+  }
+
+  /**
+   * Refuses a build-only builder whose {@code @Singular} adder cannot be told apart from its other
+   * writers. Written as well as the collection setter, it would write each element twice, and asked
+   * for a source like any other writer, it leads there.
+   */
+  private void reportUnresolvedAdder(
+      TypeElement spec, TypeElement bean, String tag, AdderSearch search) {
+    List<String> candidates =
+        search.candidates().stream()
+            .map(candidate -> writerSignature(candidate.getValue()))
+            .toList();
+    Diagnostics.error(
+        env.getMessager(),
+        spec,
+        tag,
+        "the singular adder of the @Singular collection '"
+            + search.collection()
+            + "' on '"
+            + bean.getSimpleName()
+            + "' cannot be told apart: "
+            + String.join(", ", candidates.subList(0, candidates.size() - 1))
+            + " and "
+            + candidates.getLast()
+            + " each take one "
+            + ProcessorUtils.simpleTypeName(search.element())
+            + ".",
+        "build writes '"
+            + search.collection()
+            + "' whole through "
+            + writerSignature(search.setter())
+            + " and leaves its adder alone, so it has to know which writer the adder is: the one"
+            + " named by a regular English singular of the collection's name (tag for tags, entry"
+            + " for entries), or the only one taking its element. An irregular singular, such as"
+            + " person for people, is not recognised.",
+        "Drop @Singular from '"
+            + search.collection()
+            + "', so the builder takes the collection whole; a class that cannot change needs a"
+            + " hand-written request bean instead.");
+  }
+
   /** Whether a one-argument builder method takes the bean or the builder itself. */
   private boolean copiesWhole(ExecutableElement method, TypeElement bean, BuilderModel builder) {
     TypeMirror parameter = env.getTypeUtils().erasure(method.getParameters().getFirst().asType());
@@ -662,13 +995,21 @@ final class BeanPropertyAnalyser {
     }
     // builderFactory only returns a factory whose return kind is DECLARED, so the cast is total.
     DeclaredType builderType = (DeclaredType) factory.getReturnType();
+    // build() is read on the builder the factory hands back, captured as the generated 'var b'
+    // is, so one inherited from a generic base answers the bean the builder instantiates it at.
+    // A self-typed builder's 'C build()' (Lombok's @SuperBuilder, handed back as Builder<?, ?>)
+    // then answers a captured variable, which stands for the bean when the bean bounds it.
+    Types types = env.getTypeUtils();
+    DeclaredType handed = (DeclaredType) types.capture(builderType);
     boolean buildsWire =
         publicInstanceMethods((TypeElement) builderType.asElement()).stream()
+            .filter(m -> m.getSimpleName().contentEquals("build") && m.getParameters().isEmpty())
+            .map(m -> ProcessorUtils.returnTypeIn(types, handed, m))
             .anyMatch(
-                m ->
-                    m.getSimpleName().contentEquals("build")
-                        && m.getParameters().isEmpty()
-                        && env.getTypeUtils().isSameType(m.getReturnType(), bean.asType()));
+                built ->
+                    built.getKind() == TypeKind.TYPEVAR
+                        ? types.isSameType(types.erasure(built), types.erasure(bean.asType()))
+                        : types.isSameType(built, bean.asType()));
     return buildsWire
         ? new BuilderModel(factory.getSimpleName().toString(), "build", builderType)
         : null;

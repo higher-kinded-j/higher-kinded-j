@@ -222,6 +222,7 @@ The processor refuses a PATCH spec it cannot honour, and names the fix. The last
 | [A primitive property, `int age`](rules.md#no-primitive-patch-property) | refused | the wrapper type, `Integer age` |
 | [A plain property bridged to a domain `Optional`](rules.md#no-optional-bridge-on-a-patch), with no leaf of its own, or `@OptionalBridge` on the spec | refused | an `Optional`-typed property |
 | [A getter-only `List`](rules.md#no-getter-only-list-on-a-patch) | refused | a setter, and a getter that answers `null` until set |
+| [A Lombok `@Singular` collection its builder writes](rules.md#singular-collections) | refused | drop `@Singular`, or a hand-written PATCH bean |
 | [A record wire](rules.md#no-record-patch-wire) | refused | a bean |
 | [A bean with only getters, or only setters](rules.md#patch-bean-read-and-written) | refused | a bean both read and written |
 | [A setter with no getter](rules.md#every-patch-setter-has-a-getter) | refused | a getter, or [`@Unmapped`](beans.md#accessors-meant-to-stay-out) on the spec |
