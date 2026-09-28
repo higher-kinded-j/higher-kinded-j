@@ -35,11 +35,11 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>An assembly whose legs are still parsing ends in a constructor <em>thunk</em> ({@code () ->
  * new Range(lo, hi)}) rather than the constructed value, and the emitted {@code hkj$construct}
  * helper runs it, so only the constructor runs inside the guard and a leaf's own exception still
- * escapes. The same helper serves a {@code fields()} ladder and a chunked ladder alike, and the
- * thunk is target-typed by the helper's parameter wherever the chain ends. The staged {@code
- * assemble()} holds values already validated, so its curried chain runs nothing but the
- * constructor, and a plain {@code try} around it is exact without deepening the curried lambda
- * javac must type.
+ * escapes. The same helper serves a {@code fields()} ladder, a chunked ladder and the bare thunk of
+ * a record with no components alike, and the thunk is target-typed by the helper's parameter
+ * wherever the chain ends. The staged {@code assemble()} holds values already validated, so its
+ * curried chain runs nothing but the constructor, and a plain {@code try} around it is exact
+ * without deepening the curried lambda javac must type.
  *
  * <p>Every assembly hands its values on boxed, so the constructor call names each argument through
  * {@link #canonicalArguments}: a primitive component beside a same-arity overload is unboxed by a
@@ -120,6 +120,22 @@ final class GuardedConstruction {
     return ladder.add(terminal).add("$<$<").build();
   }
 
+  /**
+   * The assembly of {@code record} from {@code legs}, one per component in order: a {@link #ladder}
+   * ending in the constructor thunk over the legs' lambda {@code params}, {@code .apply((lo, hi) ->
+   * () -> new Range(lo, hi))}. A record with no components has no legs, and the entry stage no
+   * terminal to apply, so its assembly is the thunk itself, valid as it stands: {@code
+   * Validated.validNel(() -> new Deleted())}.
+   */
+  static CodeBlock assembly(
+      List<CodeBlock> legs, List<String> params, TypeElement record, TypeName type) {
+    if (legs.isEmpty()) {
+      return CodeBlock.of(
+          "$T.validNel($L)", VALIDATED, thunk(type, canonicalArguments(record, List.of())));
+    }
+    return ladder(legs, applyThunk(params, record, type));
+  }
+
   /** The constructor thunk {@code () -> new Range(lo, hi)}. */
   static CodeBlock thunk(TypeName type, CodeBlock args) {
     return CodeBlock.of("() -> new $T($L)", type, args);
@@ -149,7 +165,7 @@ final class GuardedConstruction {
    * {@link #apply} over a bare thunk whose arguments are exactly the parameters, one per component
    * of {@code record} in order: {@code .apply((lo, hi) -> () -> new Range(lo, hi))}.
    */
-  static CodeBlock applyThunk(List<String> params, TypeElement record, TypeName type) {
+  private static CodeBlock applyThunk(List<String> params, TypeElement record, TypeName type) {
     return apply(
         params,
         thunk(

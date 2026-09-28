@@ -1124,6 +1124,10 @@ public class MappingProcessor extends AbstractProcessor {
       if (!declaredLocally(method, spec)) {
         continue;
       }
+      if (wire.direction() != WireShape.Direction.BIDIRECTIONAL) {
+        reportOneWayMarker(method, name, wire);
+        return null;
+      }
       boolean carried = wire.componentNamed(name).isPresent();
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -1139,11 +1143,14 @@ public class MappingProcessor extends AbstractProcessor {
               ? "The marker reads an accessor with no partner as deliberate, and '"
                   + name
                   + "' is read and written, so the mapping carries it like any other property."
-              : "The marker reads an accessor with no partner as deliberate. Left unpaired on '"
-                  + wire.element().getSimpleName()
-                  + "': "
-                  + unpaired
-                  + ".",
+              : "The marker reads an accessor with no partner as deliberate. "
+                  + (unpaired.isEmpty()
+                      ? "'" + wire.element().getSimpleName() + "' leaves no accessor unpaired."
+                      : "Left unpaired on '"
+                          + wire.element().getSimpleName()
+                          + "': "
+                          + unpaired
+                          + "."),
           carried
               ? componentFix(
                   wire,
@@ -1152,11 +1159,53 @@ public class MappingProcessor extends AbstractProcessor {
                       + " accessors from '"
                       + wire.element().getSimpleName()
                       + "'.")
-              : "Name the marker after the accessor's property, or remove it."
-                  + didYouMean(name, List.copyOf(unpaired)));
+              : unpaired.isEmpty()
+                  ? "Remove the marker."
+                  : "Name the marker after the accessor's property, or remove it."
+                      + didYouMean(name, List.copyOf(unpaired)));
       return null;
     }
     return Set.copyOf(marked);
+  }
+
+  /**
+   * Refuses a marker the spec declares on a bean crossed one way. Such a bean pairs nothing, so
+   * each of its accessors is a property of its own and none is left unpaired for a marker to name.
+   */
+  private void reportOneWayMarker(ExecutableElement method, String name, WireShape wire) {
+    String bean = wire.element().getSimpleName().toString();
+    boolean read = wire.direction() == WireShape.Direction.PARSE_ONLY;
+    String way = read ? "read" : "written";
+    String accessor = read ? "getter" : "writer";
+    String because =
+        read
+            ? "parse reads those the domain needs and never calls the rest."
+            : "build fills each one.";
+    String fix =
+        read
+            ? "Remove the marker."
+            : "Remove the marker, and fill a writer no domain component names with a derived field,"
+                + " or remove that writer from '"
+                + bean
+                + "'.";
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        method,
+        TAG,
+        "@Unmapped method '"
+            + name
+            + "' has nothing to leave out: '"
+            + bean
+            + "' is only "
+            + way
+            + ".",
+        "The marker reads an accessor with no partner as deliberate, and each "
+            + accessor
+            + " of a bean that is only "
+            + way
+            + " is a property of its own, so none is left unpaired: "
+            + because,
+        fix);
   }
 
   private Optional<WireShape.UnpairedAccessor> nearestPartner(
@@ -5506,8 +5555,8 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' spreads "
                 + record.getSimpleName()
                 + ", which has no components.",
-            "A flattened component is spread by its record's components, and a record with none"
-                + " would leave the domain component with nothing to assemble it from.",
+            "A flattened component is spread over its record's components, and a record with none"
+                + " has nothing to spread onto the wire.",
             "Give the record a component, or map the component through a leaf.");
         return null;
       }
@@ -8335,7 +8384,7 @@ public class MappingProcessor extends AbstractProcessor {
           GuardedConstruction.parameterNames(
               run.stream().map(Correspondence::name).toList(), Set.of("wire"));
       CodeBlock inner =
-          GuardedConstruction.ladder(
+          GuardedConstruction.assembly(
               run.stream()
                   .map(
                       member ->
@@ -8345,7 +8394,9 @@ public class MappingProcessor extends AbstractProcessor {
                               wireRead(wire, member.wireName()),
                               guardedRead(member, wire)))
                   .toList(),
-              GuardedConstruction.applyThunk(params, first.group().record(), first.group().type()));
+              params,
+              first.group().record(),
+              first.group().type());
       // The group's guarded call is an argument of the outer ladder's field, which offers it no
       // target type, so the explicit type argument is what types the group's constructor thunk.
       legs.add(
@@ -8663,9 +8714,10 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The accumulating {@code parse} body over the correspondences' legs: one {@code
    * Validated.fields()} ladder, or chunked ladders past the arity ceiling with identical error
-   * semantics. Either ends in the {@link GuardedConstruction guarded} call of {@code domain}'s
-   * canonical constructor, so an invariant it enforces refuses at the root instead of throwing.
-   * Shared by the full and parse-only tiers, which parse alike.
+   * semantics, or, for a domain with no components, no ladder at all. Each ends in the {@link
+   * GuardedConstruction guarded} call of {@code domain}'s canonical constructor, so an invariant it
+   * enforces refuses at the root instead of throwing. Shared by the full and parse-only tiers,
+   * which parse alike.
    */
   private CodeBlock parseBody(
       WireShape wire, List<Correspondence> comps, TypeElement domain, TypeName domainName) {
@@ -8673,13 +8725,12 @@ public class MappingProcessor extends AbstractProcessor {
     List<CodeBlock> code = legs.stream().map(Leg::code).toList();
     if (legs.size() <= ArityCeilings.ASSEMBLY) {
       return GuardedConstruction.returning(
-          GuardedConstruction.ladder(
+          GuardedConstruction.assembly(
               code,
-              GuardedConstruction.applyThunk(
-                  GuardedConstruction.parameterNames(
-                      legs.stream().map(Leg::name).toList(), Set.of("wire")),
-                  domain,
-                  domainName)),
+              GuardedConstruction.parameterNames(
+                  legs.stream().map(Leg::name).toList(), Set.of("wire")),
+              domain,
+              domainName),
           domainName);
     }
     // Wider than one fields() ladder: chunked ladders, identical error semantics. A flattened
@@ -8918,6 +8969,8 @@ public class MappingProcessor extends AbstractProcessor {
             .map(name -> CodeBlock.of("var $L = domain.$L()", nameFor.get(name), name))
             .toList();
     CodeBlock patchBody;
+    // Never empty: a projection carrying no component reads nothing that can fail, so it maps as
+    // a lens.
     if (patchLegs.size() <= ArityCeilings.ASSEMBLY) {
       patchBody =
           GuardedConstruction.returning(

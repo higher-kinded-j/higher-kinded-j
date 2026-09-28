@@ -892,13 +892,12 @@ public class MergeProcessor extends AbstractProcessor {
       if (legs.size() <= ArityCeilings.ASSEMBLY) {
         method.addCode(
             GuardedConstruction.returning(
-                GuardedConstruction.ladder(
+                GuardedConstruction.assembly(
                     legs,
-                    GuardedConstruction.applyThunk(
-                        GuardedConstruction.parameterNames(
-                            fills.stream().map(Fill::component).toList(), reserved),
-                        shape.target(),
-                        targetName)),
+                    GuardedConstruction.parameterNames(
+                        fills.stream().map(Fill::component).toList(), reserved),
+                    shape.target(),
+                    targetName),
                 targetName));
       } else {
         // Wider than one fields() ladder: chunked ladders, identical error semantics.

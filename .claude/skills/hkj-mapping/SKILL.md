@@ -79,7 +79,7 @@ says what is *not* obvious.
 | A domain `Optional<T>` against a **nullable record** wire component `T` | `@OptionalBridge` on an abstract marker named after the domain component, or on that component's leaf |
 | A `Map` whose **keys** differ on the two sides | a zero-arg `default` method returning `ValidatedPrism<WireKey, DomainKey>`, annotated `@MapKey("component")` - the method's own name is free |
 | A nested domain record against a **flat** wire (`Address` vs `street`, `city`, `postcode`) | `@Flatten` on an abstract marker named after the domain component; the record's components then map by name |
-| A **bean accessor with no partner** that is meant to stay out (a read-only `getId()`, a computed getter, a setter the domain does not model) | `@Unmapped` on an abstract marker named after the **accessor's property**; it withholds the refusal and changes nothing else |
+| A **bean accessor with no partner** that is meant to stay out, on a bean both read and written (a read-only `getId()`, a computed getter, a setter the domain does not model) | `@Unmapped` on an abstract marker named after the **accessor's property**; it withholds the refusal and changes nothing else. A bean crossed one way needs none, and refuses one |
 
 <!-- verify -->
 ```java
@@ -401,7 +401,8 @@ permitted subtype pair its own spec; the parent dispatches over them:
 A domain subtype with no spec, or a wire subtype nothing produces, is a **compile error**: the
 dispatch cannot be partial. Each subtype must be one a spec can map: a record or a sealed
 interface, or on the wire side a bean. A generic subtype, an enum, or any other class is not
-supported yet.
+supported yet. A record with no components counts: `record Deleted() {}` takes an empty spec like
+any other, so an empty subtype needs no placeholder component.
 
 ### What else gets generated
 

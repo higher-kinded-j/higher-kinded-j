@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +18,7 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.exc.InvalidDefinitionException;
+import tools.jackson.databind.exc.InvalidTypeIdException;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -94,6 +97,45 @@ class StructureBookTest {
     assertThatThrownBy(() -> json.readValue("{\"pan\": \"4111\"}", BarePaymentDto.class))
         .isInstanceOf(InvalidDefinitionException.class);
   }
+
+  @Test
+  @DisplayName(
+      "an empty subtype maps through an empty spec, and DEDUCTION binds a shipment missing its"
+          + " tracking as that subtype, where a type property keeps it a shipment")
+  void anEmptySubtypeChangesWhatAnEmptyObjectMeans() {
+    JsonMapper json = JsonMapper.builder().build();
+
+    assertThat(json.readValue("{\"tracking\": \"T-1\"}", FulfilmentDto.class))
+        .isEqualTo(new ShippedDto("T-1"));
+    assertThat(json.writeValueAsString(new CollectedDto())).isEqualTo("{}");
+    assertThat(FulfilmentMappingImpl.INSTANCE.build(new Collected())).isEqualTo(new CollectedDto());
+
+    // a shipment whose client left out its tracking is {} too, and parses as Collected
+    FulfilmentDto missingTracking = json.readValue("{}", FulfilmentDto.class);
+    assertThat(missingTracking).isEqualTo(new CollectedDto());
+    assertThatValidated(FulfilmentMappingImpl.INSTANCE.parse(missingTracking))
+        .hasValue(new Collected());
+
+    // named by a type property, it stays a shipment, whose missing tracking parse refuses
+    assertThat(json.readValue("{\"type\": \"shipped\"}", NamedFulfilmentDto.class))
+        .isEqualTo(new NamedShippedDto(null));
+    assertThatThrownBy(() -> json.readValue("{}", NamedFulfilmentDto.class))
+        .isInstanceOf(InvalidTypeIdException.class);
+    assertThatValidated(FulfilmentMappingImpl.INSTANCE.parse(new ShippedDto(null)))
+        .hasFieldErrors("tracking: must not be null");
+  }
+
+  /** The fulfilment wire named by a type property, so a shipment says what it is. */
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes({
+    @JsonSubTypes.Type(value = NamedShippedDto.class, name = "shipped"),
+    @JsonSubTypes.Type(value = NamedCollectedDto.class, name = "collected")
+  })
+  sealed interface NamedFulfilmentDto permits NamedShippedDto, NamedCollectedDto {}
+
+  record NamedShippedDto(String tracking) implements NamedFulfilmentDto {}
+
+  record NamedCollectedDto() implements NamedFulfilmentDto {}
 
   /** A sealed wire with no type information, which Jackson cannot construct. */
   sealed interface BarePaymentDto permits BareCardDto {}

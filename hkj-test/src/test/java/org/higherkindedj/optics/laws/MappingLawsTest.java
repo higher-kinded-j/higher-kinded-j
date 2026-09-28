@@ -436,6 +436,34 @@ class MappingLawsTest {
     }
 
     @Test
+    @DisplayName(
+        "a type with one value has no independent sample, and the guard names the laws to check"
+            + " one by one")
+    void oneValuedTypeIsPointedAtEachLaw() {
+      record Marker() {}
+      record MarkerDto() {}
+      Iso<Marker, MarkerDto> iso = Iso.of(m -> new MarkerDto(), w -> new Marker());
+      ValidatedPrism<MarkerDto, Marker> mapping =
+          ValidatedPrism.of(w -> Validated.validNel(new Marker()), m -> new MarkerDto());
+      Marker domain = new Marker();
+      MarkerDto wire = new MarkerDto();
+
+      assertThatThrownBy(() -> MappingLaws.assertMappingLaws(iso, mapping, domain, wire))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("INDEPENDENT")
+          .hasMessageContaining(
+              "A type with one value, such as a record with no components, has no such sample:"
+                  + " check each law this combines on its own, with IsoLaws.assertIsoLaws,"
+                  + " assertBuildAgreesWithIso, assertParseAgreesWithIso, and"
+                  + " ValidatedPrismLaws.assertParseBuild and assertBuildParse");
+      IsoLaws.assertIsoLaws(iso, domain, wire);
+      MappingLaws.assertBuildAgreesWithIso(iso, mapping, domain);
+      MappingLaws.assertParseAgreesWithIso(iso, mapping, wire);
+      ValidatedPrismLaws.assertParseBuild(mapping, domain);
+      ValidatedPrismLaws.assertBuildParse(mapping, wire);
+    }
+
+    @Test
     @DisplayName("the projection tier inherits the lens distinct-values guard")
     void projectionTierInheritsLensGuard() {
       EmployeeCardDto same = new EmployeeCardDto("Grace", "Compilers");

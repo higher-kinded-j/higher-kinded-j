@@ -80,13 +80,21 @@ public final class MappingLaws {
    * <p>Guards against a vacuous fixture in both directions: {@code wireSample} must not simply be
    * {@code asIso().get(domainSample)}, and {@code domainSample} must not simply be {@code
    * asIso().reverseGet(wireSample)}, otherwise the two round-trip directions collapse into one.
+   *
+   * <p>A type with one value, such as a record with no components, has no independent sample to
+   * give. Check each law this combines on its own instead: {@link IsoLaws#assertIsoLaws}, {@link
+   * #assertBuildAgreesWithIso}, {@link #assertParseAgreesWithIso}, and {@link
+   * ValidatedPrismLaws#assertParseBuild} and {@link ValidatedPrismLaws#assertBuildParse}.
    */
   public static <D, W> void assertMappingLaws(
       Iso<D, W> iso, ValidatedPrism<W, D> mapping, D domainSample, W wireSample) {
     assertThat(wireSample)
         .as(
             "assertMappingLaws needs a wire sample INDEPENDENT of the domain sample; %s is just"
-                + " asIso().get(domainSample)",
+                + " asIso().get(domainSample). A type with one value, such as a record with no"
+                + " components, has no such sample: check each law this combines on its own, with"
+                + " IsoLaws.assertIsoLaws, assertBuildAgreesWithIso, assertParseAgreesWithIso,"
+                + " and ValidatedPrismLaws.assertParseBuild and assertBuildParse",
             wireSample)
         .isNotEqualTo(iso.get(domainSample));
     assertThat(domainSample)

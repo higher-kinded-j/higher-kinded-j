@@ -72,6 +72,7 @@ SHORT = {
     "derived-field-names-no-component": "A derived field names nothing on the wire",
     "both-map-to-one-wire-component": "A rename targets a component already filled",
     "unmapped-names-a-mapped-property": "An `@Unmapped` marker names a paired property",
+    "unmapped-marker-on-a-one-way-bean": "An `@Unmapped` marker sits on a bean crossed one way",
     "add-optional-bridge": "A domain `Optional` faces a plain wire component",
     "bridges-to-a-primitive": "The bridged wire component is a primitive",
     "declared-non-null": "The bridged wire component is declared non-null",
