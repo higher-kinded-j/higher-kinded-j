@@ -926,7 +926,7 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {}"""),
         dict(id="singular-adder-not-told-apart",
              heading="the singular adder of the @Singular collection 'x' on 'Y' cannot be told apart",
              fragment="cannot be told apart",
-             meaning="A builder with no getters has several writers that might be a `@Singular` collection's adder, and none is named after the collection's singular.",
+             meaning="A builder with no getters has several writers that might be a `@Singular` collection's adder. The processor knows an adder by a regular English singular, `tag` for `tags`, so it cannot pick out `person` for `people`.",
              fix="Drop `@Singular` from the collection, so the builder takes it whole; a class that cannot change needs a hand-written request bean.",
              rule=("A Lombok `@Singular` collection", "rules.md#singular-collections"),
              code="""record Crew(List<String> people, List<String> media) {}

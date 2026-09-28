@@ -1738,7 +1738,7 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {}
 
 ### `the singular adder of the @Singular collection 'x' on 'Y' cannot be told apart` {#singular-adder-not-told-apart}
 
-A builder with no getters has several writers that might be a `@Singular` collection's adder, and none is named after the collection's singular.
+A builder with no getters has several writers that might be a `@Singular` collection's adder. The processor knows an adder by a regular English singular, `tag` for `tags`, so it cannot pick out `person` for `people`.
 
 **Fix.** Drop `@Singular` from the collection, so the builder takes it whole; a class that cannot change needs a hand-written request bean.
 
@@ -1746,9 +1746,11 @@ A builder with no getters has several writers that might be a `@Singular` collec
 @GenerateMapping: the singular adder of the @Singular collection 'people' on 'CrewRequest'
 cannot be told apart: person(String) and medium(String) each take one String. build writes
 'people' whole through people(Collection<? extends String>) and leaves its adder alone, so it
-has to know which writer the adder is: the one named after the collection's singular, or the
-only one taking its element. Drop @Singular from 'people', so the builder takes the collection
-whole; a class that cannot change needs a hand-written request bean instead.
+has to know which writer the adder is: the one named by a regular English singular of the
+collection's name (tag for tags, entry for entries), or the only one taking its element. An
+irregular singular, such as person for people, is not recognised. Drop @Singular from 'people',
+so the builder takes the collection whole; a class that cannot change needs a hand-written
+request bean instead.
 ```
 
 The rule: [A Lombok `@Singular` collection](rules.md#singular-collections).

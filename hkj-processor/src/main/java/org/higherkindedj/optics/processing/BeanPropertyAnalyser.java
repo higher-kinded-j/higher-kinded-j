@@ -889,8 +889,10 @@ final class BeanPropertyAnalyser {
    * English ending undone ({@code tag} for {@code tags}, {@code box} for {@code boxes}, {@code
    * entry} for {@code entries}, {@code shelf} for {@code shelves}, {@code index} for {@code
    * indices}, {@code analysis} for {@code analyses}), 1 when the plural only begins with it ({@code
-   * child} for {@code children}), and 0 otherwise. Lombok's own rules are a longer list of the same
-   * kind, and an adder they do not name is one the author named.
+   * child} for {@code children}), and 0 otherwise. Lombok's own list is longer: it names irregular
+   * singulars too, such as {@code man} for {@code men}, which rank 0 here, as does an adder the
+   * author named, such as {@code person} for {@code people}. Such an adder is found only as the one
+   * candidate left.
    */
   static int singularRank(String singular, String plural) {
     boolean undone =
@@ -941,7 +943,9 @@ final class BeanPropertyAnalyser {
             + "' whole through "
             + writerSignature(search.setter())
             + " and leaves its adder alone, so it has to know which writer the adder is: the one"
-            + " named after the collection's singular, or the only one taking its element.",
+            + " named by a regular English singular of the collection's name (tag for tags, entry"
+            + " for entries), or the only one taking its element. An irregular singular, such as"
+            + " person for people, is not recognised.",
         "Drop @Singular from '"
             + search.collection()
             + "', so the builder takes the collection whole; a class that cannot change needs a"
