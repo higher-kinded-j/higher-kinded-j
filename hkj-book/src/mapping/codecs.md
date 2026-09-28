@@ -150,6 +150,16 @@ A pattern's canon is everything the pattern writes, not just what one producer s
 
 Conversions the vocabulary does not cover stay hand-written leaves: `ValidatedPrism.canonical(...)` where a throwing parser and a render exist, `ValidatedPrism.of(...)` for full control.
 
+A parse given to `canonical` may also answer `null`, which is a rejection that costs no exception. So a leaf that meets malformed input often can check the source's shape first, and answer `null` for a bad one, before a JDK parser builds a stack trace. The stock codecs do this.
+
+~~~admonish warning title="Not checked for you: a leaf answers once, for every caller"
+The generated Impl reads each leaf once, on first use, and keeps what it answers for every caller, on every thread. So a leaf that picks its codec on each call, from a flag, a system property or a field a test changes, keeps its first pick. Make a choice that must vary inside the codec's parse. A codec built over `SimpleDateFormat` or `DecimalFormat` would be shared by threads that each assume it is theirs, so build over `DateTimeFormatter` instead.
+
+```java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/StandardCodecsBookTest.java:leaf_read_once}}
+```
+~~~
+
 ---
 
 ## Shared vocabulary: mix-in interfaces {#shared-vocabulary-mix-in-interfaces}

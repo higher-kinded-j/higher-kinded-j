@@ -21,13 +21,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * A generated Impl reads each {@code default} leaf once, on first use, and keeps it: a leaf that
- * constructs its codec would otherwise construct it on every {@code build} and {@code parse}. The
- * read is lazy, so the two shapes that reach the Impl while it is still being set up, a recursive
- * spec and a spec holding its own {@code MAPPER}, see what they saw before.
+ * A generated Impl reads each {@code default} leaf it calls once, on first use, and keeps it: a
+ * leaf that constructs its codec would otherwise construct it on every call. The read is lazy, so
+ * the two shapes that reach the Impl while it is still being set up, a recursive spec and a spec
+ * holding its own {@code MAPPER}, find what their leaves need already set.
  */
-@DisplayName("@GenerateMapping reads each default leaf once, on first use")
-class MappingLeafCacheTest {
+@DisplayName("A generated Impl reads each default leaf once, on first use")
+class LeafCacheTest {
 
   private static final JavaFileObject EMAIL =
       JavaFileObjects.forSourceString(
@@ -56,7 +56,7 @@ class MappingLeafCacheTest {
           public record CustomerDto(String name, String email) {}
           """);
 
-  /** The leaf every spec here shares, counting how often an Impl asks for it. */
+  /** The leaf the specs here share, counting how often an Impl asks for it. */
   private static final JavaFileObject COUNTED =
       JavaFileObjects.forSourceString(
           "com.example.Counted",
@@ -99,6 +99,19 @@ class MappingLeafCacheTest {
     return (Validated<NonEmptyList<FieldError>, Object>) invoke(impl, "parse", wire);
   }
 
+  private static int reads(RuntimeCompilationHelper.CompiledResult result) throws Exception {
+    return ((AtomicInteger) result.loadClass("com.example.Counted").getField("READS").get(null))
+        .get();
+  }
+
+  private static Object ada(RuntimeCompilationHelper.CompiledResult result)
+      throws ReflectiveOperationException {
+    return result.newInstance(
+        "com.example.Customer",
+        "Ada",
+        result.newInstance("com.example.EmailAddress", "ada@example.org"));
+  }
+
   @Test
   @DisplayName("a leaf is read once per Impl, however many builds and parses reach it")
   void aLeafIsReadOncePerImpl() throws Exception {
@@ -119,25 +132,14 @@ class MappingLeafCacheTest {
         RuntimeCompilationHelper.compileWith(
             new MappingProcessor(), EMAIL, CUSTOMER, CUSTOMER_DTO, COUNTED, spec);
     Object impl = result.instance("com.example.CustomerMappingImpl");
-    Object ada =
-        result
-            .loadClass("com.example.Customer")
-            .getDeclaredConstructors()[0]
-            .newInstance(
-                "Ada",
-                result
-                    .loadClass("com.example.EmailAddress")
-                    .getDeclaredConstructors()[0]
-                    .newInstance("ada@example.org"));
+    Object ada = ada(result);
 
     Object wire = invoke(impl, "build", ada);
     invoke(impl, "build", ada);
     assertThatValidated(parse(impl, wire)).hasValue(ada);
     assertThatValidated(parse(impl, wire)).hasValue(ada);
 
-    AtomicInteger reads =
-        (AtomicInteger) result.loadClass("com.example.Counted").getField("READS").get(null);
-    Assertions.assertThat(reads.get()).isOne();
+    Assertions.assertThat(reads(result)).isOne();
   }
 
   @Test
@@ -179,14 +181,75 @@ class MappingLeafCacheTest {
         RuntimeCompilationHelper.compileWith(
             new MappingProcessor(), EMAIL, CUSTOMER, COUNTED, patch, spec);
     Object impl = result.instance("com.example.CustomerPatchMappingImpl");
-    Object request = result.loadClass("com.example.CustomerPatch").getConstructor().newInstance();
+    Object request = result.newInstance("com.example.CustomerPatch");
     invoke(request, "setEmail", "countess@example.org");
 
+    // updateFrom reads the leaf itself: `email()::parse` evaluates its receiver there.
     invoke(impl, "updateFrom", request);
     invoke(impl, "updateFrom", request);
 
+    Assertions.assertThat(reads(result)).isOne();
+  }
+
+  @Test
+  @DisplayName("a merge Impl reads its leaf once too")
+  void aMergeImplReadsItsLeafOnce() throws Exception {
+    JavaFileObject records =
+        JavaFileObjects.forSourceString(
+            "com.example.Records",
+            """
+            package com.example;
+
+            public final class Records {
+              public record User(String name, String email) {}
+
+              public record Account(int balance) {}
+
+              public record EmailAddress(String value) {}
+
+              public record Dashboard(String name, EmailAddress email, int balance) {}
+            }
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.DashboardAssembly",
+            """
+            package com.example;
+
+            import java.util.concurrent.atomic.AtomicInteger;
+            import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMerge;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMerge
+            public interface DashboardAssembly {
+              AtomicInteger READS = new AtomicInteger();
+
+              Validated<NonEmptyList<FieldError>, Records.Dashboard> assemble(
+                  Records.User user, Records.Account account);
+
+              default ValidatedPrism<String, Records.EmailAddress> email() {
+                READS.incrementAndGet();
+                return ValidatedPrism.of(
+                    raw -> Validated.validNel(new Records.EmailAddress(raw)),
+                    Records.EmailAddress::value);
+              }
+            }
+            """);
+
+    var result = RuntimeCompilationHelper.compileWith(new MergeProcessor(), records, spec);
+    Object impl = result.instance("com.example.DashboardAssemblyImpl");
+    Object user = result.newInstance("com.example.Records$User", "Ada", "ada@example.org");
+    Object account = result.newInstance("com.example.Records$Account", 42);
+
+    invoke(impl, "assemble", user, account);
+    invoke(impl, "assemble", user, account);
+
     AtomicInteger reads =
-        (AtomicInteger) result.loadClass("com.example.Counted").getField("READS").get(null);
+        (AtomicInteger)
+            result.loadClass("com.example.DashboardAssembly").getField("READS").get(null);
     Assertions.assertThat(reads.get()).isOne();
   }
 
@@ -237,9 +300,9 @@ class MappingLeafCacheTest {
 
     var result = RuntimeCompilationHelper.compileWith(new MappingProcessor(), tree, treeDto, spec);
     Object impl = result.instance("com.example.TreeMappingImpl");
-    var constructor = result.loadClass("com.example.Tree").getDeclaredConstructors()[0];
-    Object root =
-        constructor.newInstance("root", List.of(constructor.newInstance("leaf", List.of())));
+    // Tree's constructor takes a List, which newInstance, matching exact types, cannot pass.
+    var node = result.loadClass("com.example.Tree").getDeclaredConstructors()[0];
+    Object root = node.newInstance("root", List.of(node.newInstance("leaf", List.of())));
 
     assertThatValidated(parse(impl, invoke(impl, "build", root))).hasValue(root);
   }
@@ -281,13 +344,45 @@ class MappingLeafCacheTest {
             new MappingProcessor(), EMAIL, CUSTOMER, CUSTOMER_DTO, spec);
     // The program's first use is the spec's MAPPER, so the spec initialises first.
     Object mapper = result.loadClass("com.example.ContactMapping").getField("MAPPER").get(null);
-    Object wire =
-        result
-            .loadClass("com.example.CustomerDto")
-            .getDeclaredConstructors()[0]
-            .newInstance("Ada", "ada@example.org");
+    Object wire = result.newInstance("com.example.CustomerDto", "Ada", "ada@example.org");
 
     assertThatValidated(parse(mapper, wire)).isValid();
+  }
+
+  @Test
+  @DisplayName("a helper overloading a leaf's name is left alone, whatever it returns")
+  void aLeafNamedHelperOverloadIsLeftAlone() throws Exception {
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.CustomerMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+
+            @GenerateMapping
+            public interface CustomerMapping extends Counted, MappingSpec<Customer, CustomerDto> {
+              default EmailAddress email(String raw) {
+                return new EmailAddress(raw);
+              }
+
+              default boolean email(int length) {
+                return length > 0;
+              }
+            }
+            """);
+
+    var result =
+        RuntimeCompilationHelper.compileWith(
+            new MappingProcessor(), EMAIL, CUSTOMER, CUSTOMER_DTO, COUNTED, spec);
+    Object impl = result.instance("com.example.CustomerMappingImpl");
+    Object ada = ada(result);
+
+    assertThatValidated(parse(impl, invoke(impl, "build", ada))).hasValue(ada);
+    Assertions.assertThat(generatedSource(result.compilation(), "com.example.CustomerMappingImpl"))
+        .containsOnlyOnce("private volatile ValidatedPrism<String, EmailAddress> hkj$leaf$email;")
+        .containsOnlyOnce("public ValidatedPrism<String, EmailAddress> email() {");
   }
 
   @Test

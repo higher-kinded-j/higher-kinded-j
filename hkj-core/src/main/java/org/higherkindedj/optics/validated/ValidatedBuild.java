@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The build half of a {@link ValidatedPrism}: a total rendering of a domain value into a source,
@@ -213,7 +214,7 @@ public sealed interface ValidatedBuild<S, A> permits ValidatedPrism, ValidatedBu
    * Returns an element that is not null, or throws naming its index. The message is built only on
    * the null, so a loop over valid elements concatenates nothing.
    */
-  private static <T> T requireElement(T value, int index) {
+  private static <T> T requireElement(@Nullable T value, int index) {
     if (value == null) {
       throw new NullPointerException("values[" + index + "] must not be null");
     }
@@ -221,7 +222,7 @@ public sealed interface ValidatedBuild<S, A> permits ValidatedPrism, ValidatedBu
   }
 
   /** Returns a map value that is not null, or throws naming its key; the message as above. */
-  private static <T> T requireValue(T value, Object key) {
+  private static <T> T requireValue(@Nullable T value, Object key) {
     if (value == null) {
       throw new NullPointerException("values[" + key + "] must not be null");
     }

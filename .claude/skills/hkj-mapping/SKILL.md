@@ -378,7 +378,8 @@ its two halves: fakes are built as values with `ValidatedPrism.of(...)` (or `Val
 `ValidatedBuild.of`), never mocked
 (Mockito rejects sealed types). Spring resolves the generic type, so per-pair codecs coexist;
 same-pair duplicates need `@Qualifier`. Injection is optional: concrete and threaded Impls are
-stateless pure functions, element-mapped ones immutable values, and calling the Impl directly
+shared singletons that keep each leaf after its first use, element-mapped ones values built by
+`of(...)`, and calling the Impl directly
 (`INSTANCE`, `instance()`, or one shared `of(...)` instance) loses nothing but the substitution
 seam.
 
@@ -795,6 +796,7 @@ before rearranging the spec.
 | A PATCH bean that gives itself a default (a field initialiser such as `tags = new ArrayList<>()`, a constructor assignment, a getter that creates its value) | Not detected: the getter never answers `null`, so an omitted field reads as its default and `updateFrom` writes it over the domain. Let every getter answer `null` until set, and law-check with a freshly constructed bean as the all-absent wire and a current value unlike any default, which catches it |
 | A bridged bean property whose setter refuses `null` (`List.copyOf(v)`, an Immutables builder) | `build` writes `null` for an empty `Optional`. A setter declared non-null (`@NonNull`, or `@NullMarked` without `@Nullable`) is refused when it compiles: mark the parameter `@Nullable`. One that refuses `null` without declaring it throws from `build`: guard the copy (`v == null ? null : List.copyOf(v)`); for a generated builder, drop the `Optional` or declare a leaf over the whole `Optional` that encodes absence the builder's way |
 | Bridging a domain `Optional<List<T>>` onto a JAXB getter-only `List` | The getter creates the list on first call, so absence has nowhere to live and would read back as a present empty list. Declare the component `List<T>`, where empty *is* nothing, or give the property both a setter and a getter that returns what the setter stored (a lazily creating getter loses absence on the read even with a setter) |
+| A leaf that picks its codec on each call (from a flag, a system property, a field a test changes), or builds one over `SimpleDateFormat` or `DecimalFormat` | The Impl reads each leaf once, on first use, and every caller on every thread shares what it answered, so the first pick sticks and a non-thread-safe codec races. Make the choice inside the codec's parse, and build over thread-safe parts such as `DateTimeFormatter` |
 | Two nested specs generating the same `Impl` | Nested specs join their enclosing simple names; rename one |
 | A `private` record or component type nested beside the spec, an `@GenerateAssembly` record or an `@GenerateErrorEnvelope` hierarchy | The generated Impl or companion is a top-level class in that package, so the processor refuses it (`cannot be reached from`): leave the nested type package-private, and make a type from another package `public` |
 | Assuming sealed hierarchies are unsupported | They are supported. Give each permitted subtype pair a spec; the parent dispatches |

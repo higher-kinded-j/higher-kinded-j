@@ -39,9 +39,6 @@ package org.higherkindedj.optics.annotations;
  * Validated<NonEmptyList<FieldError>, User> patched = u.apply(current); // or applyPath / toValidated
  * }</pre>
  *
- * <p>As with {@link MappingSpec}, the generated Impl reads each {@code default} leaf once, on its
- * first use, and keeps what it answers.
- *
  * <ul>
  *   <li><b>Present and valid</b> — the field is set (or parsed through its leaf) and folded into
  *       the accumulated {@code Update}, composing with {@code Monoids.update()} and the {@code
@@ -50,6 +47,9 @@ package org.higherkindedj.optics.annotations;
  *       sparseness never weakens validation of what <em>was</em> sent.
  *   <li><b>Absent (null)</b> — skipped; the domain's current value survives.
  * </ul>
+ *
+ * <p>As with {@link MappingSpec}, the generated Impl reads each {@code default} leaf it calls once,
+ * on its first use, and keeps what it answers for every caller.
  *
  * <p>The domain record is constructed once, from the values the PATCH ends on: the present values
  * are written onto the components the PATCH can set, and the canonical constructor runs a single

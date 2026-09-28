@@ -19,7 +19,7 @@ Two questions about the spec decide its form, and so how you reach its Impl. Doe
 
 | Form | The spec | Use when | Access | Why |
 |---|---|---|---|---|
-| Concrete | names its type arguments: `MappingSpec<Page<Customer>, PageDto<CustomerDto>>` | one element type | `XImpl.INSTANCE` only | no type parameters and no state: a plain constant |
+| Concrete | names its type arguments: `MappingSpec<Page<Customer>, PageDto<CustomerDto>>` | one element type | `XImpl.INSTANCE` only | no type parameters: a plain constant |
 | Threaded | declares its own: `PageMapping<T>`, over `MappingSpec<Page<T>, PageDto<T>>` | both sides hold the same element type, copied as is | `XImpl.instance()` | a static field cannot mention `T`, so one shared instance sits behind a generic method, as with `Collections.emptyList()` |
 | Element-mapped | declares an abstract leaf, `ValidatedPrism<TDto, T> items()` | the element types differ, and the caller picks the conversion | `XImpl.of(prisms)` | it carries the caller's prisms: each `of(...)` call is a fresh, immutable instance |
 

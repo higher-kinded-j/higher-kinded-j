@@ -12,6 +12,7 @@ import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A {@link Prism} whose match accumulates reasons: the smart-constructor optic for
@@ -219,8 +220,10 @@ public sealed interface ValidatedPrism<S, A> extends ValidatedParse<S, A>, Valid
    * <p><b>Rejecting without throwing.</b> A thrown exception builds a stack trace, which costs more
    * the deeper the caller, so a codec that sees malformed input often can check the source's shape
    * first and answer null, which the guard rejects before rendering. The check may refuse only what
-   * the parse would: {@code source -> source.length() == 36 ? UUID.fromString(source) : null}. The
-   * {@link StandardCodecs} do this.
+   * the codec rejects anyway: a source the parse throws on, or one that does not render back to
+   * itself. {@code source -> source.length() == 36 ? UUID.fromString(source) : null} is such a
+   * check, since {@code UUID.toString} always writes 36 characters. Most of the {@link
+   * StandardCodecs} do this.
    *
    * <p>The outward {@link #build} direction is {@code render} itself and stays total by contract; a
    * render that throws on a domain value is the caller's error there. Both functions should be pure
@@ -240,8 +243,8 @@ public sealed interface ValidatedPrism<S, A> extends ValidatedParse<S, A>, Valid
    * <p>The stock {@link StandardCodecs} vocabulary is built on this factory.
    *
    * @param message the failure message for every rejection; must not be null
-   * @param parse the forward direction; may be lenient and may throw — the guard handles both; must
-   *     not be null
+   * @param parse the forward direction; may be lenient, and may throw or answer null to reject;
+   *     must not be null
    * @param render the total backward direction, defining the canonical form; must not be null
    * @param <S> the source type
    * @param <A> the domain type
@@ -250,7 +253,7 @@ public sealed interface ValidatedPrism<S, A> extends ValidatedParse<S, A>, Valid
    */
   static <S, A> ValidatedPrism<S, A> canonical(
       String message,
-      Function<? super S, ? extends A> parse,
+      Function<? super S, ? extends @Nullable A> parse,
       Function<? super A, ? extends S> render) {
     Objects.requireNonNull(message, "message must not be null");
     return canonical(FieldError.of(message), parse, render);
@@ -262,8 +265,8 @@ public sealed interface ValidatedPrism<S, A> extends ValidatedParse<S, A>, Valid
    * FieldError}, as {@link #fromPrism} does.
    *
    * @param reason the failure for every rejection; must not be null
-   * @param parse the forward direction; may be lenient and may throw — the guard handles both; must
-   *     not be null
+   * @param parse the forward direction; may be lenient, and may throw or answer null to reject;
+   *     must not be null
    * @param render the total backward direction, defining the canonical form; must not be null
    * @param <S> the source type
    * @param <A> the domain type
@@ -272,7 +275,7 @@ public sealed interface ValidatedPrism<S, A> extends ValidatedParse<S, A>, Valid
    */
   static <S, A> ValidatedPrism<S, A> canonical(
       FieldError reason,
-      Function<? super S, ? extends A> parse,
+      Function<? super S, ? extends @Nullable A> parse,
       Function<? super A, ? extends S> render) {
     Objects.requireNonNull(reason, "reason must not be null");
     Objects.requireNonNull(parse, "parse must not be null");
@@ -289,11 +292,11 @@ public sealed interface ValidatedPrism<S, A> extends ValidatedParse<S, A>, Valid
    */
   private static <S, A> Validated<NonEmptyList<FieldError>, A> guarded(
       S source,
-      Function<? super S, ? extends A> parse,
+      Function<? super S, ? extends @Nullable A> parse,
       Function<? super A, ? extends S> render,
       Validated<NonEmptyList<FieldError>, A> rejected) {
     try {
-      A value = parse.apply(source);
+      @Nullable A value = parse.apply(source);
       if (value == null) {
         return rejected;
       }

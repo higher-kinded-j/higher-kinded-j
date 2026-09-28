@@ -229,6 +229,9 @@ public class MappingProcessor extends AbstractProcessor {
   /** The interfaces met but not processed yet: arriving this round, or waiting for a later one. */
   private final Set<TypeKey> unprocessed = new LinkedHashSet<>();
 
+  /** The leaves each spec's Impl calls, so the Impl reads each one once. */
+  private final LeafCache leafCache = new LeafCache();
+
   /** Creates a new MappingProcessor. */
   public MappingProcessor() {}
 
@@ -4460,7 +4463,7 @@ public class MappingProcessor extends AbstractProcessor {
             .addMethod(updateFrom)
             .addType(componentsRecord(domainDeclared, written, implName.packageName()));
     addMarkerStubs(implBuilder, spec);
-    addLeafCaches(implBuilder, spec, specName);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     implBuilder.addMethods(
         NullScan.helpers(edits.stream().map(UpdateEdit::scan).filter(Objects::nonNull)));
     implBuilder.addMethods(
@@ -7536,9 +7539,9 @@ public class MappingProcessor extends AbstractProcessor {
           ? new Correspondence(name, wireName, Kind.MAP, leafCall(spec, valueLeaf.getSimpleName()))
           : null;
     }
-    CodeBlock keys = leafCall(spec, keyLeaf.getSimpleName());
     if (valueLeaf != null) {
-      return new Correspondence(name, wireName, Kind.MAP_ENTRIES, keys)
+      return new Correspondence(
+              name, wireName, Kind.MAP_ENTRIES, leafCall(spec, keyLeaf.getSimpleName()))
           .withValuePrism(leafCall(spec, valueLeaf.getSimpleName()));
     }
     if (!processingEnv.getTypeUtils().isSameType(wireValue, domainValue)) {
@@ -7550,7 +7553,8 @@ public class MappingProcessor extends AbstractProcessor {
     // is shared either: the rebuild around the keys would otherwise carry each one across as it is.
     NullScan values = nullScan(domainValue);
     ContainerCopy map = ContainerCopy.of(domainType);
-    return new Correspondence(name, wireName, Kind.MAP_KEYS, keys)
+    return new Correspondence(
+            name, wireName, Kind.MAP_KEYS, leafCall(spec, keyLeaf.getSimpleName()))
         .withIdentity(values, map.nested() ? map : null)
         .withDomainElement(values == null ? null : wildcardWitness(domainValue, implPackage(spec)));
   }
@@ -8546,7 +8550,7 @@ public class MappingProcessor extends AbstractProcessor {
             .addMethod(asValidatedPrismMethod(wireName, domainName));
 
     addMarkerStubs(implBuilder, spec);
-    addLeafCaches(implBuilder, spec, specName);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     addReadHelpers(implBuilder, comps, wire);
 
     if (lossless) {
@@ -8607,7 +8611,7 @@ public class MappingProcessor extends AbstractProcessor {
             .addField(asValidatedParseField(wireName, domainName))
             .addMethod(asValidatedParseMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
-    addLeafCaches(implBuilder, spec, specName);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     addReadHelpers(implBuilder, comps, wire);
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
@@ -8651,7 +8655,7 @@ public class MappingProcessor extends AbstractProcessor {
             .addField(asValidatedBuildField(wireName, domainName))
             .addMethod(asValidatedBuildMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
-    addLeafCaches(implBuilder, spec, specName);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     implBuilder.addMethods(copyHelpers(comps));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
@@ -8987,7 +8991,7 @@ public class MappingProcessor extends AbstractProcessor {
                     .addCode(patchBody)
                     .build());
     addMarkerStubs(implBuilder, spec);
-    addLeafCaches(implBuilder, spec, specName);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     // A patch tier need not carry a guarded read: a bridged component makes the write-back
     // partial yet reads its own null as empty, so a projection whose only partial reads are
     // bridges needs no guard emitted.
@@ -9431,7 +9435,7 @@ public class MappingProcessor extends AbstractProcessor {
     builder.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
     // A generic Impl (threaded type parameters) cannot carry a typed static
     // INSTANCE, so it follows hkj-core's generic-singleton convention (EitherMonad.instance()):
-    // one stateless cached instance behind an unchecked-but-sound cast.
+    // one cached instance behind an unchecked-but-sound cast.
     TypeName[] wildcards = new TypeName[variables.size()];
     Arrays.fill(wildcards, WildcardTypeName.subtypeOf(Object.class));
     TypeName rawInstanceType = ParameterizedTypeName.get(implName, wildcards);
@@ -9455,9 +9459,9 @@ public class MappingProcessor extends AbstractProcessor {
                         .addMember("value", "$S", "unchecked")
                         .build())
                 .addJavadoc(
-                    "The stateless singleton, shared across instantiations — the cast is sound"
-                        + " because the Impl holds no state typed by its parameters (the {@code"
-                        + " EitherMonad.instance()} convention).\n")
+                    "The singleton, shared across instantiations — the cast is sound because the"
+                        + " Impl holds only what its default leaves answer, which cannot depend on"
+                        + " its type arguments (the {@code EitherMonad.instance()} convention).\n")
                 .addStatement("return ($T) INSTANCE", typedInstanceType)
                 .build());
   }
@@ -9465,9 +9469,8 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The element-mapped skeleton: the spec's abstract leaves become constructor-supplied fields
    * behind a public {@code of(...)} factory taking one {@code ValidatedPrism} per leaf, in
-   * declaration order ({@link #abstractLeaves}). The Impl carries leaf-typed state, so unlike the
-   * stateless threaded form there is no shared singleton: every {@code of(...)} call is a fresh,
-   * immutable instance.
+   * declaration order ({@link #abstractLeaves}). The Impl carries the leaves it is given, so unlike
+   * the threaded form there is no shared singleton: every {@code of(...)} call is a fresh instance.
    */
   private static TypeSpec.Builder elementMappedSkeleton(
       TypeSpec.Builder builder,
@@ -9698,77 +9701,9 @@ public class MappingProcessor extends AbstractProcessor {
         .build();
   }
 
-  /**
-   * The leaves each spec's Impl calls, by the spec's qualified name, recorded by {@link #leafCall}
-   * where the call is emitted, so {@link #addLeafCaches} overrides exactly those. A member the Impl
-   * never calls, such as an inherited derived field this wire omits, stays inert and leaves no
-   * trace in it.
-   */
-  private final Map<String, Set<String>> leavesCalled = new HashMap<>();
-
-  /** A call to the spec's leaf, as the Impl emits it, recorded for {@link #addLeafCaches}. */
+  /** A call to the spec's leaf, as the Impl emits it, recorded for {@link LeafCache}. */
   private CodeBlock leafCall(TypeElement spec, CharSequence leaf) {
-    leavesCalled
-        .computeIfAbsent(spec.getQualifiedName().toString(), key -> new HashSet<>())
-        .add(leaf.toString());
-    return CodeBlock.of("$L()", leaf);
-  }
-
-  /**
-   * Overrides each {@code default} leaf the Impl calls, whether the spec declares it or inherits
-   * it, with one that reads it once and keeps it. The Impl calls a leaf on every {@code build} and
-   * {@code parse}, so a leaf that constructs its codec, such as {@code
-   * localDate(DateTimeFormatter.ofPattern(...))}, would otherwise construct it on every call. The
-   * call sites stay {@code email()}: the override is what they reach.
-   *
-   * <p>The read is lazy, on first use rather than in the constructor. A self-recursive spec's leaf
-   * may reach its own Impl's {@code INSTANCE}, which the constructor runs before it is set, and a
-   * spec holding {@code MAPPER = XImpl.INSTANCE} constructs the Impl part-way through its own
-   * initialisation, so a leaf read then could keep a later constant's null for good. A race reads
-   * the leaf twice, which a leaf that answers the same codec each time cannot tell apart.
-   *
-   * <p>The override writes the leaf's type out, which it always can: a called leaf converts a pair
-   * the Impl maps, and {@link Reachability} has refused any type in that pair the Impl could not
-   * name before generation starts.
-   */
-  private void addLeafCaches(TypeSpec.Builder implBuilder, TypeElement spec, ClassName specName) {
-    String implPackage = implPackage(spec);
-    Set<String> called = leavesCalled.getOrDefault(spec.getQualifiedName().toString(), Set.of());
-    for (ExecutableElement method : specMembers(spec)) {
-      // An abstract leaf is already a field of an element-mapped Impl, read once by construction.
-      if (!called.contains(method.getSimpleName().toString()) || !method.isDefault()) {
-        continue;
-      }
-      DeclaredType leafType = (DeclaredType) memberTypeIn(spec, method);
-      String name = method.getSimpleName().toString();
-      String field = "hkj$leaf$" + name;
-      TypeName typeName =
-          ProcessorUtils.typeNameOf(
-              leafType, method.getReturnType(), (DeclaredType) spec.asType(), implPackage);
-      List<AnnotationSpec> suppression = ProcessorUtils.rawTypesSuppression(List.of(leafType));
-      implBuilder
-          .addField(
-              FieldSpec.builder(typeName, field, Modifier.PRIVATE, Modifier.VOLATILE)
-                  .addAnnotations(suppression)
-                  .build())
-          .addMethod(
-              MethodSpec.methodBuilder(name)
-                  .addAnnotation(Override.class)
-                  .addAnnotations(suppression)
-                  .addModifiers(Modifier.PUBLIC)
-                  .returns(typeName)
-                  .addJavadoc(
-                      "The spec's {@code $L()}, read on first use and kept rather than read on every"
-                          + " call.\n",
-                      name)
-                  .addStatement("$T leaf = $N", typeName, field)
-                  .beginControlFlow("if (leaf == null)")
-                  .addStatement("leaf = $T.super.$N()", specName, name)
-                  .addStatement("$N = leaf", field)
-                  .endControlFlow()
-                  .addStatement("return leaf")
-                  .build());
-    }
+    return leafCache.call(processingEnv.getElementUtils(), spec, leaf);
   }
 
   private void addMarkerStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
@@ -9856,9 +9791,9 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * A generic Impl also declares its static factory — the {@code instance()} singleton accessor
-   * when stateless, the {@code of(...)} constructor when element-mapped; a spec method with that
-   * erased signature would clash with or shadow it in the generated file, so every record tier
-   * reserves it alongside its own members.
+   * when it has no abstract leaves, the {@code of(...)} constructor when element-mapped; a spec
+   * method with that erased signature would clash with or shadow it in the generated file, so every
+   * record tier reserves it alongside its own members.
    */
   private List<EmittedMember> reserveFactoryIfGeneric(TypeElement spec, List<EmittedMember> base) {
     if (spec.getTypeParameters().isEmpty()) {

@@ -79,7 +79,7 @@ Attach it to the spec as a zero-parameter `default` method named after the domai
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:leaf_usage}}
 ```
 
-The Impl reads the leaf once, on first use, and keeps it. So a leaf may build its codec, such as a date codec over a `DateTimeFormatter`, without building it again on every call. A leaf should answer the same codec each time.
+The Impl reads the leaf once, on first use, and keeps what it answers, as [Your own canon](codecs.md#your-own-canon) explains.
 
 The two type-argument orders are opposite. `ValidatedPrism<Wire, Domain>` reads the way `parse` runs, from wire to domain. `MappingSpec<Domain, Wire>` puts your domain type first.
 

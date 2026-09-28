@@ -21,6 +21,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.validated.FieldError;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The stock codec vocabulary: one {@link ValidatedPrism} factory per standard conversion family, so
@@ -51,11 +52,13 @@ import org.higherkindedj.hkt.validated.FieldError;
  * failures name the permitted constants.
  *
  * <p><b>Rejections without exceptions.</b> A codec checks a source's shape before handing it to a
- * JDK parser, so a malformed value is rejected without the exception, and the stack trace, the
- * parser would throw. A value in the right shape but out of range, such as an integer past 32 bits,
- * still reaches the parser, and the codec catches what it throws. {@link #uri()}, {@link #locale()}
- * and the formatter overloads have no such check, since neither those grammars nor a custom pattern
- * has a shape that is cheap to test.
+ * JDK parser, so most malformed values are rejected without the exception, and the stack trace, the
+ * parser would throw. The numbers, booleans and enums are checked in full. The UUID, date and time
+ * codecs check the length and punctuation, and {@link #currency()} three capital letters, so a bad
+ * digit in the right shape, trailing text after a timestamp or an unknown currency code still
+ * reaches the parser, as does an integer past its range, and the codec catches what it throws.
+ * {@link #uri()}, {@link #locale()} and the formatter overloads have no such check, since neither
+ * those grammars nor a custom pattern has a shape that is cheap to test.
  *
  * <p><b>Nulls.</b> A codec never sees {@code null}: under a mapping the null guard locates the null
  * first, and standalone {@code parse(null)} is the caller's error, per the {@code ValidatedPrism}
@@ -74,7 +77,7 @@ import org.higherkindedj.hkt.validated.FieldError;
  *
  * <p>Parameterless factories return cached instances; the parameterised ones ({@link
  * #localDate(DateTimeFormatter)}, {@link #offsetDateTime(DateTimeFormatter)}, {@link
- * #enumByName(Class)}) construct per call. Either sits in a spec's {@code default} method, since a
+ * #enumByName(Class)}) construct per call. Each sits in a spec's {@code default} method, since a
  * generated Impl reads each leaf once and keeps it. A custom formatter must render what it parses
  * (the section law is enforced per value: a value whose rendering differs from its source is
  * rejected), and must be able to format the temporal type — the factory formats a sample eagerly,
@@ -166,7 +169,8 @@ public final class StandardCodecs {
   private static final ValidatedPrism<String, Currency> CURRENCY_CODEC =
       codec(
           "not an ISO 4217 currency code (expected e.g. GBP)",
-          // Three capital letters, the shape of every code; an unknown code still throws.
+          // Three capital letters, the shape of every code; an unknown code still throws. The
+          // check also refuses a lower-case letter, which the JDK can misread as another code's.
           source -> currencyShaped(source) ? Currency.getInstance(source) : null,
           Currency::getCurrencyCode);
 
@@ -436,7 +440,7 @@ public final class StandardCodecs {
    * implementation, and a user codec gets it from the same place.
    */
   private static <A> ValidatedPrism<String, A> codec(
-      String message, Function<String, A> parse, Function<A, String> render) {
+      String message, Function<String, @Nullable A> parse, Function<A, String> render) {
     return ValidatedPrism.canonical(message, parse, render);
   }
 
