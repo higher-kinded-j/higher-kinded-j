@@ -3,4 +3,6 @@
 package org.higherkindedj.example.estate.service;
 
 /** A customer's address. */
+// ANCHOR: address
 public record Address(String street, String city, String postcode) {}
+// ANCHOR_END: address

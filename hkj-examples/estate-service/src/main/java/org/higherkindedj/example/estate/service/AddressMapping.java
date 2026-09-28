@@ -7,5 +7,7 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MappingSpec;
 
 /** The address against the clients module's Lombok bean: every component copies. */
+// ANCHOR: address_spec
 @GenerateMapping
 public interface AddressMapping extends MappingSpec<Address, AddressBean> {}
+// ANCHOR_END: address_spec

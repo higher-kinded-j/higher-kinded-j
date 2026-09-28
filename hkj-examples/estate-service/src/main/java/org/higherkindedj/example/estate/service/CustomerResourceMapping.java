@@ -15,6 +15,7 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  * {@code fullName} rename and the email leaf; the address nests through {@link AddressMapping}; a
  * bean bridges the optional nickname by itself.
  */
+// ANCHOR: resource_spec
 @GenerateMapping
 public interface CustomerResourceMapping
     extends ContactVocabulary, MappingSpec<Customer, CustomerResource> {
@@ -22,3 +23,4 @@ public interface CustomerResourceMapping
     return StandardCodecs.uuid();
   }
 }
+// ANCHOR_END: resource_spec

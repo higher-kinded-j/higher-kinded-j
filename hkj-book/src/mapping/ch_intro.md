@@ -170,6 +170,7 @@ Start from what you came for.
 | A working endpoint that answers with a located 422 | [Quickstart](quickstart.md), five steps |
 | To understand the model before writing any of it | [Record Mapping Basics](basics.md), then each page through to [the Capstone](capstone.md) and [Check Your Understanding](self_check.md) |
 | To judge whether it fits your services | [Mapper at a Glance](at_a_glance.md) |
+| To see it across modules, with client jars, Lombok beans and a PATCH | [the Estate capstone](estate.md) |
 | To bring a MapStruct or Bean Validation habit across | [Coming from MapStruct and Bean Validation](from_mapstruct.md) |
 | To see it working on one boundary | [the Capstone](capstone.md) |
 
@@ -212,13 +213,14 @@ Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/bo
 11. [Generic Specs](generics.md): Concrete, threaded, and element-mapped generics
 12. [Merge and Error Envelopes](merge_envelopes.md): Multi-source assembly and typed error context
 13. [Injecting, Testing, and Diagnostics](testing.md): Spring beans, test fakes, and record width
+14. [Capstone: An Estate in Three Modules](estate.md): A vocabulary, client jars, Lombok, and PATCH across modules
 
 **Look it up**, when you hold a question:
 
-14. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
-15. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
-16. [Rules and Limits](rules.md): Every enforced rule and limit, in one place
-17. [Compiler Messages](compiler_errors.md): The common refusals, what each means, and the fix
+15. [Mapper at a Glance](at_a_glance.md): Generated code, costs, and adoption decisions
+16. [Coming from MapStruct and Bean Validation](from_mapstruct.md): Your vocabulary, translated
+17. [Rules and Limits](rules.md): Every enforced rule and limit, in one place
+18. [Compiler Messages](compiler_errors.md): The common refusals, what each means, and the fix
 
 ---
 

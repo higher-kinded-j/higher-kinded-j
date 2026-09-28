@@ -133,6 +133,7 @@
   - [Generic Specs](mapping/generics.md)
   - [Merge and Error Envelopes](mapping/merge_envelopes.md)
   - [Injecting, Testing, and Diagnostics](mapping/testing.md)
+  - [Capstone: An Estate in Three Modules](mapping/estate.md)
   - [Mapper at a Glance](mapping/at_a_glance.md)
     - [Coming from MapStruct and Bean Validation](mapping/from_mapstruct.md)
     - [Rules and Limits](mapping/rules.md)

@@ -2,6 +2,7 @@
 # Core dependencies
 jspecify = "1.0.0"
 javapoet = "0.16.0"
+lombok = "1.18.42"
 autoservice = "1.1.1"
 palantir-java-format = "2.91.0"
 
@@ -62,6 +63,7 @@ pcollections = "5.0.0"
 # Core
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 javapoet = { module = "com.palantir.javapoet:javapoet", version.ref = "javapoet" }
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 autoservice-annotations = { module = "com.google.auto.service:auto-service-annotations", version.ref = "autoservice" }
 autoservice = { module = "com.google.auto.service:auto-service", version.ref = "autoservice" }
 palantir-java-format = { module = "com.palantir.javaformat:palantir-java-format", version.ref = "palantir-java-format" }

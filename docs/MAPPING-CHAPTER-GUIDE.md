@@ -14,11 +14,11 @@ whose reader needs it.
 | Lane | Pages | Reader and job |
 |---|---|---|
 | Ship | `ch_intro`, `quickstart`, `basics`, `codecs`, `absence`, `structure`, `capstone`, `self_check` | Reads in order, then stops and ships a boundary. |
-| On demand | `tiers`, `beans`, `beans_patch`, `generics`, `merge_envelopes`, `testing` | Reads one page when their boundary needs it. |
+| On demand | `tiers`, `beans`, `beans_patch`, `generics`, `merge_envelopes`, `testing`, `estate` | Reads one page when their boundary needs it. |
 | Look it up | `at_a_glance`, `from_mapstruct`, `rules`, `compiler_errors` | Arrives holding a question or a compiler message. |
 
 In this guide, a **teaching page** is a Ship or On demand page other than the intro, Quickstart, the
-capstone and Check Your Understanding. The Look it up pages are reference pages.
+two capstones and Check Your Understanding. The Look it up pages are reference pages.
 
 - **No page changes its URL.** Readers and other chapters link to these pages. Headings keep their
   ids as the Style Guide's [Anchors](STYLE-GUIDE.md#anchors) rules say.
@@ -53,7 +53,7 @@ MapStruct, and the `hkj-mapping` skill in `.claude/skills/`, which ships to user
   Shape](STYLE-GUIDE.md#the-8020-page-shape). On a teaching page, the "You can ship now" tip marks
   where the practical lane ends.
 - **Checkpoints** follow the Style Guide's [Checkpoints](STYLE-GUIDE.md#checkpoints) rules. Each
-  teaching page carries two. The capstone carries one, Check Your Understanding ten, and the intro
+  teaching page carries two. Each capstone carries one, Check Your Understanding ten, and the intro
   and Quickstart none. Mapper at a Glance's twelve-question fit test is a self-assessment, not a
   checkpoint.
 - **Writing modes** follow [War Stories and Dialogues](STYLE-GUIDE.md#war-stories-and-dialogues).

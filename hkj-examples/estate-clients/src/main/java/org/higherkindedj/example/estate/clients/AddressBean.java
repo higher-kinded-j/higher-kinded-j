@@ -4,10 +4,15 @@ package org.higherkindedj.example.estate.clients;
 
 import lombok.Data;
 
-/** An address on the wire, as a Lombok {@code @Data} bean: Lombok writes its getters and setters. */
+/**
+ * An address on the wire, as a Lombok {@code @Data} bean: Lombok writes its getters and setters.
+ */
+// ANCHOR: lombok_wire
 @Data
 public class AddressBean {
   private String street;
   private String city;
   private String postcode;
 }
+
+// ANCHOR_END: lombok_wire

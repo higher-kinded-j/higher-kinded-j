@@ -7,5 +7,7 @@ import java.util.UUID;
 import org.higherkindedj.example.estate.api.EmailAddress;
 
 /** The service's customer: an id, a name, a checked email, an optional nickname and an address. */
+// ANCHOR: domain
 public record Customer(
     UUID id, String name, EmailAddress email, Optional<String> nickname, Address address) {}
+// ANCHOR_END: domain

@@ -12,5 +12,8 @@ import org.higherkindedj.optics.annotations.UpdateSpec;
  * it, and a sent address replaces the old one whole. The patch has no id, so a PATCH never changes
  * it.
  */
+// ANCHOR: patch_spec
 @GenerateMapping
-public interface CustomerPatchMapping extends ContactVocabulary, UpdateSpec<Customer, CustomerPatch> {}
+public interface CustomerPatchMapping
+    extends ContactVocabulary, UpdateSpec<Customer, CustomerPatch> {}
+// ANCHOR_END: patch_spec

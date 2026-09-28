@@ -8,10 +8,11 @@ import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
- * The estate's shared mapping vocabulary: every client wire calls a name {@code fullName}, and every
- * email parses the same way. A plain interface, not a spec, so this module needs no processor; a
- * service module's specs extend it from this module's jar.
+ * The estate's shared mapping vocabulary: every client wire calls a name {@code fullName}, and
+ * every email parses the same way. A plain interface, not a spec, so this module needs no
+ * processor; a service module's specs extend it from this module's jar.
  */
+// ANCHOR: vocabulary
 public interface ContactVocabulary {
   @MapField(to = "fullName")
   String name();
@@ -25,3 +26,5 @@ public interface ContactVocabulary {
         EmailAddress::value);
   }
 }
+
+// ANCHOR_END: vocabulary

@@ -10,11 +10,15 @@ import org.jspecify.annotations.Nullable;
  * omitted field keeps its value. The nickname is an {@code Optional}: Jackson binds an explicit
  * {@code "nickname": null} to {@code Optional.empty()}, which clears it.
  */
+// ANCHOR: patch_bean
 public class CustomerPatch {
   private @Nullable String fullName;
   private @Nullable String email;
-  private @Nullable Optional<String> nickname;
+  private @Nullable Optional<String> nickname; // null: omitted; empty: "nickname": null
   private @Nullable AddressBean address;
+
+  // ...a getter and a setter for each, as a generator writes them
+  // ANCHOR_END: patch_bean
 
   public @Nullable String getFullName() {
     return fullName;
