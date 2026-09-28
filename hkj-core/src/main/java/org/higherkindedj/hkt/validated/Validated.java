@@ -418,9 +418,10 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    *         .apply(Settings::new);
    * }</pre>
    *
-   * <p>Inference note: the first {@code and(...)} fixes the error payload {@code X}, so an inline
-   * factory literal there needs a type witness (for example {@code Validated.<String,
-   * Integer>invalidNel(...)}); values with declared types need none.
+   * <p>Inference note: the first {@code and(...)} fixes the error payload {@code X} (with no
+   * fields, the place {@code apply}'s result is used does), so an inline factory literal there
+   * needs a type witness (for example {@code Validated.<String, Integer>invalidNel(...)}); values
+   * with declared types need none.
    *
    * @return the stateless entry stage
    * @see #fields()
@@ -452,8 +453,9 @@ public sealed interface Validated<E, A> extends ValidatedKind<E, A>, ValidatedKi
    * message, so an enclosing {@code field(label, ...)} locates it rather than the exception
    * escaping.
    *
-   * <p>A record with no components completes the empty assembly the same way: {@code
-   * Validated.fields().apply(Deleted::new)}.
+   * <p>A record with no components ends an assembly of no fields with {@code apply}: {@code
+   * Validated.fields().apply(Deleted::new)} is valid, as {@code Validated.validNel(new Deleted())}
+   * would be.
    *
    * <p>Inference note: an inline factory literal needs a type witness, because a chained stage
    * receives no target typing (for example {@code Validated.<FieldError, String>invalidNel(...)});

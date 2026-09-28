@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.eitherorboth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.EitherOrBothAssert.assertThatEitherOrBoth;
 
@@ -92,49 +93,30 @@ class EitherOrBothAssemblyTest {
     @DisplayName("accumulate() and fields() complete with apply, as a Right")
     void applyIsARight() {
       assertThatEitherOrBoth(EitherOrBoth.accumulate().<String, Deleted>apply(Deleted::new))
-          .isRight()
           .hasRight(new Deleted());
-      assertThatEitherOrBoth(EitherOrBoth.fields().apply(Deleted::new))
-          .isRight()
-          .hasRight(new Deleted());
+      assertThatEitherOrBoth(EitherOrBoth.fields().apply(Deleted::new)).hasRight(new Deleted());
     }
 
     @Test
     @DisplayName(
-        "construct returns a Right, or a refusal as a Left with its message or the fallback")
-    void constructGuardsTheSupplier() {
-      assertThatEitherOrBoth(EitherOrBoth.fields().construct(Deleted::new, "not a valid Deleted"))
-          .hasRight(new Deleted());
-      assertThatEitherOrBoth(
-              EitherOrBoth.fields()
-                  .<Deleted>construct(
-                      () -> {
-                        throw new IllegalStateException("gone");
-                      },
-                      "not a valid Deleted"))
-          .hasLeftSatisfying(left -> assertThat(rendered(left)).containsExactly("gone"));
-      assertThatEitherOrBoth(
-              EitherOrBoth.fields()
-                  .<Deleted>construct(
-                      () -> {
-                        throw new IllegalStateException();
-                      },
-                      "not a valid Deleted"))
-          .hasLeftSatisfying(
-              left -> assertThat(rendered(left)).containsExactly("not a valid Deleted"));
-      assertThatEitherOrBoth(
-              EitherOrBoth.fields()
-                  .<Deleted>construct(
-                      () -> {
-                        throw new IllegalStateException(" ");
-                      },
-                      "not a valid Deleted"))
-          .hasLeftSatisfying(
-              left -> assertThat(rendered(left)).containsExactly("not a valid Deleted"));
+        "the supplier runs unguarded: what it throws escapes, and a null it returns throws")
+    void theSupplierRunsUnguarded() {
+      assertThatIllegalStateException()
+          .isThrownBy(
+              () ->
+                  EitherOrBoth.fields()
+                      .<Deleted>apply(
+                          () -> {
+                            throw new IllegalStateException("gone");
+                          }))
+          .withMessage("gone");
+      assertThatNullPointerException().isThrownBy(() -> EitherOrBoth.fields().apply(() -> null));
+      assertThatNullPointerException()
+          .isThrownBy(() -> EitherOrBoth.accumulate().apply(() -> null));
     }
 
     @Test
-    @DisplayName("apply and construct reject a null supplier, and a null or blank fallback")
+    @DisplayName("apply rejects a null supplier")
     void rejectsNulls() {
       assertThatNullPointerException()
           .isThrownBy(() -> EitherOrBoth.accumulate().apply(null))
@@ -142,12 +124,6 @@ class EitherOrBothAssemblyTest {
       assertThatNullPointerException()
           .isThrownBy(() -> EitherOrBoth.fields().apply(null))
           .withMessage("f must not be null");
-      assertThatNullPointerException()
-          .isThrownBy(() -> EitherOrBoth.fields().construct(null, "fallback"));
-      assertThatNullPointerException()
-          .isThrownBy(() -> EitherOrBoth.fields().construct(Deleted::new, null));
-      assertThatIllegalArgumentException()
-          .isThrownBy(() -> EitherOrBoth.fields().construct(Deleted::new, " "));
     }
   }
 

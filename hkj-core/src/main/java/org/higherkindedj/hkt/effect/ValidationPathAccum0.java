@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.effect;
 import java.util.Objects;
 import java.util.function.Supplier;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
-import org.higherkindedj.hkt.validated.Validated;
 
 /**
  * Entry stage of an accumulating {@code ValidationPath} assembly, obtained from {@link
@@ -45,18 +44,17 @@ public final class ValidationPathAccum0 {
   }
 
   /**
-   * Completes an assembly of no fields: with nothing to fail, the result is {@code f}'s value.
-   *
-   * <p>{@code f} runs whatever it is handed, so an exception it throws escapes the assembly.
+   * Completes an assembly of no fields: with nothing to fail, the result is {@code f}'s value, as a
+   * valid result. {@code f} runs unguarded, so an exception it throws escapes the assembly.
    *
    * @param f supplies the assembled value; must not be null
-   * @param <X> the error type, fixed by where the result is used
+   * @param <X> the error payload type, fixed by where the result is used
    * @param <R> the assembled type
    * @return {@code f}'s value, as a valid result
    * @throws NullPointerException if {@code f} is null
    */
   public <X, R> ValidationPath<NonEmptyList<X>, R> apply(Supplier<? extends R> f) {
     Objects.requireNonNull(f, "f must not be null");
-    return Path.validatedNel(Validated.validNel(f.get()));
+    return Path.validNel(f.get());
   }
 }

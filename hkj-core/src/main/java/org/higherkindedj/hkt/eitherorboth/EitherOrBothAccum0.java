@@ -44,14 +44,13 @@ public final class EitherOrBothAccum0 {
   }
 
   /**
-   * Completes an assembly of no fields: with nothing to fail, the result is {@code f}'s value.
-   *
-   * <p>{@code f} runs whatever it is handed, so an exception it throws escapes the assembly.
+   * Completes an assembly of no fields: with nothing to fail, the result is {@code f}'s value, as a
+   * {@code Right}. {@code f} runs unguarded, so an exception it throws escapes the assembly.
    *
    * @param f supplies the assembled value; must not be null
-   * @param <X> the error type, fixed by where the result is used
+   * @param <X> the warning payload type, fixed by where the result is used
    * @param <R> the assembled type
-   * @return {@code f}'s value, as a valid result
+   * @return {@code f}'s value, as a {@code Right}
    * @throws NullPointerException if {@code f} is null
    */
   public <X, R> EitherOrBoth<NonEmptyList<X>, R> apply(Supplier<? extends R> f) {

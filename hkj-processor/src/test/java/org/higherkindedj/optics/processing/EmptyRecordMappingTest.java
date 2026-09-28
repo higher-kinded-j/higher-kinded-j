@@ -2,10 +2,15 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.processing;
 
+import static com.google.testing.compile.CompilationSubject.assertThat;
+import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
+import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.List;
+import java.util.stream.Stream;
 import javax.tools.JavaFileObject;
 import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -127,5 +132,52 @@ class EmptyRecordMappingTest {
     Object wire = invoke(impl, "build", pong);
     Assertions.assertThat(wire).isEqualTo(result.newInstance("com.example.PongDto", "pong"));
     assertThatValidated(parse(impl, wire)).hasValue(pong);
+  }
+
+  @Test
+  @DisplayName("the generated Impls compile with no warning under -Xlint:all -Werror")
+  void theImplsCompileWarningFree() {
+    Compilation compilation =
+        javac()
+            .withProcessors(new MappingProcessor())
+            .withOptions("-Xlint:all,-processing", "-Werror")
+            .compile(STATUS);
+
+    assertThat(compilation).succeeded();
+  }
+
+  @Test
+  @DisplayName("an empty record nested as a component, or held in a list, round-trips")
+  void aNestedOrListedEmptyRecordRoundTrips() throws Exception {
+    JavaFileObject[] sources =
+        Stream.concat(
+                Stream.of(STATUS),
+                Stream.of(
+                    source(
+                        "Order",
+                        "public record Order(String id, Deleted marker,"
+                            + " java.util.List<Deleted> history) {}"),
+                    source(
+                        "OrderDto",
+                        "public record OrderDto(String id, DeletedDto marker,"
+                            + " java.util.List<DeletedDto> history) {}"),
+                    source(
+                        "OrderMapping",
+                        "@GenerateMapping public interface OrderMapping extends MappingSpec<Order,"
+                            + " OrderDto> {}")))
+            .toArray(JavaFileObject[]::new);
+    var result = RuntimeCompilationHelper.compileWith(new MappingProcessor(), sources);
+    Object impl = result.instance("com.example.OrderMappingImpl");
+    Object deleted = result.newInstance("com.example.Deleted");
+    var orderConstructor = result.loadClass("com.example.Order").getDeclaredConstructors()[0];
+    Object order = orderConstructor.newInstance("o-1", deleted, List.of(deleted, deleted));
+
+    assertThatValidated(parse(impl, invoke(impl, "build", order))).hasValue(order);
+
+    var wireConstructor = result.loadClass("com.example.OrderDto").getDeclaredConstructors()[0];
+    Object noMarker = wireConstructor.newInstance("o-1", null, List.of());
+    assertThatValidated(parse(impl, noMarker))
+        .isInvalid()
+        .hasFieldErrors("marker: must not be null");
   }
 }

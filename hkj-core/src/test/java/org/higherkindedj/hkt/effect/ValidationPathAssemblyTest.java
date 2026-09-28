@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
@@ -82,45 +83,24 @@ class ValidationPathAssemblyTest {
     }
 
     @Test
-    @DisplayName("construct returns the value, or a refusal with its message or the fallback")
-    void constructGuardsTheSupplier() {
-      assertThatValidated(Path.fields().construct(Deleted::new, "not a valid Deleted").run())
-          .isValid()
-          .hasValue(new Deleted());
-      assertThatValidated(
-              Path.fields()
-                  .<Deleted>construct(
-                      () -> {
-                        throw new IllegalStateException("gone");
-                      },
-                      "not a valid Deleted")
-                  .run())
-          .isInvalid()
-          .hasFieldErrors("gone");
-      assertThatValidated(
-              Path.fields()
-                  .<Deleted>construct(
-                      () -> {
-                        throw new IllegalStateException();
-                      },
-                      "not a valid Deleted")
-                  .run())
-          .isInvalid()
-          .hasFieldErrors("not a valid Deleted");
-      assertThatValidated(
-              Path.fields()
-                  .<Deleted>construct(
-                      () -> {
-                        throw new IllegalStateException(" ");
-                      },
-                      "not a valid Deleted")
-                  .run())
-          .isInvalid()
-          .hasFieldErrors("not a valid Deleted");
+    @DisplayName(
+        "the supplier runs unguarded: what it throws escapes, and a null it returns throws")
+    void theSupplierRunsUnguarded() {
+      assertThatIllegalStateException()
+          .isThrownBy(
+              () ->
+                  Path.fields()
+                      .<Deleted>apply(
+                          () -> {
+                            throw new IllegalStateException("gone");
+                          }))
+          .withMessage("gone");
+      assertThatNullPointerException().isThrownBy(() -> Path.fields().apply(() -> null));
+      assertThatNullPointerException().isThrownBy(() -> Path.accumulate().apply(() -> null));
     }
 
     @Test
-    @DisplayName("apply and construct reject a null supplier, and a null or blank fallback")
+    @DisplayName("apply rejects a null supplier")
     void rejectsNulls() {
       assertThatNullPointerException()
           .isThrownBy(() -> Path.accumulate().apply(null))
@@ -128,11 +108,6 @@ class ValidationPathAssemblyTest {
       assertThatNullPointerException()
           .isThrownBy(() -> Path.fields().apply(null))
           .withMessage("f must not be null");
-      assertThatNullPointerException().isThrownBy(() -> Path.fields().construct(null, "fallback"));
-      assertThatNullPointerException()
-          .isThrownBy(() -> Path.fields().construct(Deleted::new, null));
-      assertThatIllegalArgumentException()
-          .isThrownBy(() -> Path.fields().construct(Deleted::new, " "));
     }
   }
 

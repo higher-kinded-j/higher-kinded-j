@@ -399,9 +399,9 @@ permitted subtype pair its own spec; the parent dispatches over them:
 ```
 
 A domain subtype with no spec, or a wire subtype nothing produces, is a **compile error**: the
-dispatch cannot be partial. Each subtype must be one a spec can map: a record or a sealed
-interface, or on the wire side a bean. A generic subtype, an enum, or any other class is not
-supported yet.
+dispatch cannot be partial. Each subtype must be one a spec can map: a record (an empty one,
+such as `record Deleted()`, included) or a sealed interface, or on the wire side a bean. A generic
+subtype, an enum, or any other class is not supported yet.
 
 ### What else gets generated
 

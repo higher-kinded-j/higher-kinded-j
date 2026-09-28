@@ -271,7 +271,7 @@ Validated<NonEmptyList<FieldError>, User> user =
 
 // Unlabelled: .and(...) instead of .field(label, ...)
 Validated<NonEmptyList<String>, User> u =
-    Validated.<String>accumulate()
+    Validated.accumulate()
         .and(parseName(dto.name()))
         .and(parseEmail(dto.email()))
         .apply(User::new);

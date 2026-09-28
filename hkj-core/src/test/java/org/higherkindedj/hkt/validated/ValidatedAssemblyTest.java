@@ -88,50 +88,35 @@ class ValidatedAssemblyTest {
     }
 
     @Test
-    @DisplayName("construct returns the value, or a refusal as an unlabelled error")
-    void constructGuardsTheSupplier() {
-      assertThatValidated(Validated.fields().construct(Deleted::new, "not a valid Deleted"))
-          .isValid()
-          .hasValue(new Deleted());
-      assertThatValidated(
-              Validated.fields()
-                  .<Deleted>construct(
-                      () -> {
-                        throw new IllegalStateException("gone");
-                      },
-                      "not a valid Deleted"))
-          .isInvalid()
-          .hasFieldErrors("gone");
-    }
-
-    @Test
-    @DisplayName("construct reads the fallback for a missing or blank message, located by a label")
-    void constructFallsBackAndNests() {
-      var refused =
+    @DisplayName("an empty assembly nests under a label like any other")
+    void nestsUnderALabel() {
+      var nested =
           Validated.fields()
-              .field(
-                  "status",
-                  Validated.fields()
-                      .<Deleted>construct(
-                          () -> {
-                            throw new IllegalStateException();
-                          },
-                          "not a valid Deleted"))
-              .apply(status -> status);
-      assertThatValidated(refused).isInvalid().hasFieldErrors("status: not a valid Deleted");
-      assertThatValidated(
-              Validated.fields()
-                  .<Deleted>construct(
-                      () -> {
-                        throw new IllegalStateException(" ");
-                      },
-                      "not a valid Deleted"))
-          .isInvalid()
-          .hasFieldErrors("not a valid Deleted");
+              .field("marker", Validated.fields().apply(Deleted::new))
+              .field("name", badF("must not be blank"))
+              .apply((marker, name) -> name);
+      assertThatValidated(nested).isInvalid().hasFieldErrors("name: must not be blank");
     }
 
     @Test
-    @DisplayName("apply and construct reject a null supplier, and a null or blank fallback")
+    @DisplayName(
+        "the supplier runs unguarded: what it throws escapes, and a null it returns throws")
+    void theSupplierRunsUnguarded() {
+      assertThatThrownBy(
+              () ->
+                  Validated.fields()
+                      .<Deleted>apply(
+                          () -> {
+                            throw new IllegalStateException("gone");
+                          }))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("gone");
+      assertThatNullPointerException().isThrownBy(() -> Validated.fields().apply(() -> null));
+      assertThatNullPointerException().isThrownBy(() -> Validated.accumulate().apply(() -> null));
+    }
+
+    @Test
+    @DisplayName("apply rejects a null supplier")
     void rejectsNulls() {
       assertThatNullPointerException()
           .isThrownBy(() -> Validated.accumulate().apply(null))
@@ -139,12 +124,6 @@ class ValidatedAssemblyTest {
       assertThatNullPointerException()
           .isThrownBy(() -> Validated.fields().apply(null))
           .withMessage("f must not be null");
-      assertThatNullPointerException()
-          .isThrownBy(() -> Validated.fields().construct(null, "fallback"));
-      assertThatNullPointerException()
-          .isThrownBy(() -> Validated.fields().construct(Deleted::new, null));
-      assertThatIllegalArgumentException()
-          .isThrownBy(() -> Validated.fields().construct(Deleted::new, " "));
     }
   }
 

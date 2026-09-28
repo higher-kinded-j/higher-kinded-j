@@ -76,7 +76,7 @@ Because `at()` *prepends*, assembling a sub-record under an outer label prefixes
 
 This also doubles as the escape hatch for very wide records: `apply` overloads exist up to arity 16 (matching the shipped `Function3..Function16`); a record with more fields nests a sub-record per group, which usually improves the domain model anyway.
 
-At the other end, a record with no components, such as an empty variant of a sealed hierarchy, completes an assembly of no fields: `Validated.fields().apply(Deleted::new)` is always valid.
+At the other end, a record with no components, such as an empty variant of a sealed hierarchy, completes an assembly of no fields: `Validated.fields().apply(Deleted::new)` is valid, as `Validated.validNel(new Deleted())` would be.
 
 ---
 

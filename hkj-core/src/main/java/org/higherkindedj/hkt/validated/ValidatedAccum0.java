@@ -11,7 +11,8 @@ import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
  * Validated#accumulate()}.
  *
  * <p>Generic in the error payload {@code X}, carried as {@code NonEmptyList<X>}; the first {@code
- * and(value)} fixes {@code X}. All errors accumulate, in field-declaration order.
+ * and(value)} fixes {@code X}, or, with no fields, where {@code apply}'s result is used. All errors
+ * accumulate, in field-declaration order.
  */
 public final class ValidatedAccum0 {
 
@@ -43,12 +44,11 @@ public final class ValidatedAccum0 {
   }
 
   /**
-   * Completes an assembly of no fields: with nothing to fail, the result is {@code f}'s value.
-   *
-   * <p>{@code f} runs whatever it is handed, so an exception it throws escapes the assembly.
+   * Completes an assembly of no fields: with nothing to fail, the result is {@code f}'s value, as a
+   * valid result. {@code f} runs unguarded, so an exception it throws escapes the assembly.
    *
    * @param f supplies the assembled value; must not be null
-   * @param <X> the error type, fixed by where the result is used
+   * @param <X> the error payload type, fixed by where the result is used
    * @param <R> the assembled type
    * @return {@code f}'s value, as a valid result
    * @throws NullPointerException if {@code f} is null
