@@ -191,6 +191,12 @@ public class MappingProcessor extends AbstractProcessor {
   private static final List<String> LIFTABLE_CONTAINERS =
       List.of("java.util.List", "java.util.Set", "java.util.Optional", "java.util.Map");
 
+  /**
+   * The field holding an Impl's {@code asValidatedPrism()}, {@code asValidatedParse()} or {@code
+   * asValidatedBuild()}, whichever its tier has; an Impl has at most one of the three.
+   */
+  private static final String ADAPTER_FIELD = "hkj$adapter";
+
   private static final ClassName VALIDATED_PRISM_TYPE =
       ClassName.get("org.higherkindedj.optics.validated", "ValidatedPrism");
   private static final ClassName VALIDATED_PARSE_TYPE =
@@ -222,6 +228,9 @@ public class MappingProcessor extends AbstractProcessor {
 
   /** The interfaces met but not processed yet: arriving this round, or waiting for a later one. */
   private final Set<TypeKey> unprocessed = new LinkedHashSet<>();
+
+  /** The leaves each spec's Impl calls, so the Impl reads each one once. */
+  private final LeafCache leafCache = new LeafCache();
 
   /** Creates a new MappingProcessor. */
   public MappingProcessor() {}
@@ -3895,10 +3904,7 @@ public class MappingProcessor extends AbstractProcessor {
         }
         edits.add(
             UpdateEdit.validated(
-                domainName,
-                property.name(),
-                Kind.LEAF,
-                CodeBlock.of("$L()", leaf.getSimpleName())));
+                domainName, property.name(), Kind.LEAF, leafCall(spec, leaf.getSimpleName())));
         continue;
       }
 
@@ -4457,6 +4463,7 @@ public class MappingProcessor extends AbstractProcessor {
             .addMethod(updateFrom)
             .addType(componentsRecord(domainDeclared, written, implName.packageName()));
     addMarkerStubs(implBuilder, spec);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     implBuilder.addMethods(
         NullScan.helpers(edits.stream().map(UpdateEdit::scan).filter(Objects::nonNull)));
     implBuilder.addMethods(
@@ -5057,7 +5064,7 @@ public class MappingProcessor extends AbstractProcessor {
       ExecutableElement outerLeaf =
           leaves.size() == 1 ? findLeaf(spec, name, elementWire, elementDomain) : null;
       if (outerLeaf != null) {
-        prisms.add(CodeBlock.of("$L()", outerLeaf.getSimpleName()));
+        prisms.add(leafCall(spec, outerLeaf.getSimpleName()));
         continue;
       }
       // The element prism goes into of(...), which takes a whole ValidatedPrism, so it needs both
@@ -6086,7 +6093,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (DerivedField field : derived) {
       // Diagnostics in collectDerived guarantee the derived names are disjoint from the
       // domain-sourced claims, and the count check above that together they cover the wire.
-      result.add(derivedCorrespondence(field));
+      result.add(derivedCorrespondence(spec, field));
     }
     return result;
   }
@@ -6199,9 +6206,9 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /** A derived wire field's correspondence: build fills it through the spec's getter. */
-  private static Correspondence derivedCorrespondence(DerivedField field) {
+  private Correspondence derivedCorrespondence(TypeElement spec, DerivedField field) {
     return new Correspondence(
-        field.wireName(), field.wireName(), Kind.DERIVED, CodeBlock.of("$L()", field.wireName()));
+        field.wireName(), field.wireName(), Kind.DERIVED, leafCall(spec, field.wireName()));
   }
 
   /**
@@ -6600,7 +6607,7 @@ public class MappingProcessor extends AbstractProcessor {
       }
       return PairResolution.of(
           new Correspondence(
-              name, wireName, Kind.LEAF, CodeBlock.of("$L()", directLeaf.getSimpleName())));
+              name, wireName, Kind.LEAF, leafCall(spec, directLeaf.getSimpleName())));
     }
     // The same rule lifted through containers: an ELEMENT/VALUE-typed leaf on a List, Optional
     // or Map component beats the identity copy the container types alone would take. Only
@@ -6740,10 +6747,7 @@ public class MappingProcessor extends AbstractProcessor {
             keyLeaf == null
                 ? new Correspondence(name, wireName, Kind.MAP, lifted.accessor())
                 : new Correspondence(
-                        name,
-                        wireName,
-                        Kind.MAP_ENTRIES,
-                        CodeBlock.of("$L()", keyLeaf.getSimpleName()))
+                        name, wireName, Kind.MAP_ENTRIES, leafCall(spec, keyLeaf.getSimpleName()))
                     .withValuePrism(lifted.accessor()));
       }
       // Values resolving to nothing fall through to the direct nested spec, and then to the
@@ -7420,7 +7424,7 @@ public class MappingProcessor extends AbstractProcessor {
       result.add(resolved);
     }
     // A derived field sources the wire component the loop above left to it.
-    derived.stream().map(MappingProcessor::derivedCorrespondence).forEach(result::add);
+    derived.stream().map(field -> derivedCorrespondence(spec, field)).forEach(result::add);
     return result;
   }
 
@@ -7497,8 +7501,7 @@ public class MappingProcessor extends AbstractProcessor {
       }
       return leaf == null
           ? null
-          : new Correspondence(
-                  name, wireName, Kind.ARRAY, CodeBlock.of("$L()", leaf.getSimpleName()))
+          : new Correspondence(name, wireName, Kind.ARRAY, leafCall(spec, leaf.getSimpleName()))
               .withDomainElement(ProcessorUtils.typeNameOf(arrayElements[1], implPackage(spec)));
     }
     TypeMirror wireElement = containerElement(wireType, "java.util.Optional");
@@ -7533,14 +7536,13 @@ public class MappingProcessor extends AbstractProcessor {
     ExecutableElement valueLeaf = findLeaf(spec, name, wireValue, domainValue);
     if (keyLeaf == null) {
       return valueLeaf != null && processingEnv.getTypeUtils().isSameType(wireKey, domainKey)
-          ? new Correspondence(
-              name, wireName, Kind.MAP, CodeBlock.of("$L()", valueLeaf.getSimpleName()))
+          ? new Correspondence(name, wireName, Kind.MAP, leafCall(spec, valueLeaf.getSimpleName()))
           : null;
     }
-    CodeBlock keys = CodeBlock.of("$L()", keyLeaf.getSimpleName());
     if (valueLeaf != null) {
-      return new Correspondence(name, wireName, Kind.MAP_ENTRIES, keys)
-          .withValuePrism(CodeBlock.of("$L()", valueLeaf.getSimpleName()));
+      return new Correspondence(
+              name, wireName, Kind.MAP_ENTRIES, leafCall(spec, keyLeaf.getSimpleName()))
+          .withValuePrism(leafCall(spec, valueLeaf.getSimpleName()));
     }
     if (!processingEnv.getTypeUtils().isSameType(wireValue, domainValue)) {
       return null;
@@ -7551,7 +7553,8 @@ public class MappingProcessor extends AbstractProcessor {
     // is shared either: the rebuild around the keys would otherwise carry each one across as it is.
     NullScan values = nullScan(domainValue);
     ContainerCopy map = ContainerCopy.of(domainType);
-    return new Correspondence(name, wireName, Kind.MAP_KEYS, keys)
+    return new Correspondence(
+            name, wireName, Kind.MAP_KEYS, leafCall(spec, keyLeaf.getSimpleName()))
         .withIdentity(values, map.nested() ? map : null)
         .withDomainElement(values == null ? null : wildcardWitness(domainValue, implPackage(spec)));
   }
@@ -7821,7 +7824,7 @@ public class MappingProcessor extends AbstractProcessor {
     ExecutableElement leaf = findLeaf(spec, name, wireElement, domainElement);
     return leaf == null
         ? null
-        : new Correspondence(name, wireName, kind, CodeBlock.of("$L()", leaf.getSimpleName()));
+        : new Correspondence(name, wireName, kind, leafCall(spec, leaf.getSimpleName()));
   }
 
   private ExecutableElement findLeaf(
@@ -8543,9 +8546,11 @@ public class MappingProcessor extends AbstractProcessor {
             .addMethod(
                 parseMethod(
                     domainName, wireName, suppression, parseBody(wire, comps, domain, domainName)))
+            .addField(asValidatedPrismField(wireName, domainName))
             .addMethod(asValidatedPrismMethod(wireName, domainName));
 
     addMarkerStubs(implBuilder, spec);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     addReadHelpers(implBuilder, comps, wire);
 
     if (lossless) {
@@ -8603,8 +8608,10 @@ public class MappingProcessor extends AbstractProcessor {
                     wireName,
                     pairSuppression(domainDeclared, wire, comps),
                     parseBody(wire, comps, (TypeElement) domainDeclared.asElement(), domainName)))
+            .addField(asValidatedParseField(wireName, domainName))
             .addMethod(asValidatedParseMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     addReadHelpers(implBuilder, comps, wire);
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
@@ -8645,8 +8652,10 @@ public class MappingProcessor extends AbstractProcessor {
                     wireName,
                     pairSuppression(domainDeclared, wire, comps),
                     wireBuildBody(wire, wireName, comps, implPackage(spec))))
+            .addField(asValidatedBuildField(wireName, domainName))
             .addMethod(asValidatedBuildMethod(wireName, domainName));
     addMarkerStubs(implBuilder, spec);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     implBuilder.addMethods(copyHelpers(comps));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
@@ -8982,6 +8991,7 @@ public class MappingProcessor extends AbstractProcessor {
                     .addCode(patchBody)
                     .build());
     addMarkerStubs(implBuilder, spec);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     // A patch tier need not carry a guarded read: a bridged component makes the write-back
     // partial yet reads its own null as empty, so a projection whose only partial reads are
     // bridges needs no guard emitted.
@@ -9373,6 +9383,7 @@ public class MappingProcessor extends AbstractProcessor {
                     .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
                     .addStatement("$L", parseSwitch.build())
                     .build())
+            .addField(asValidatedPrismField(wireName, domainName))
             .addMethod(asValidatedPrismMethod(wireName, domainName));
     // A sealed dispatch declares no vocabulary of its own, but it may inherit an abstract marker
     // from a mix-in it shares with the subtype specs, which stays inert here and still has to be
@@ -9424,7 +9435,7 @@ public class MappingProcessor extends AbstractProcessor {
     builder.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
     // A generic Impl (threaded type parameters) cannot carry a typed static
     // INSTANCE, so it follows hkj-core's generic-singleton convention (EitherMonad.instance()):
-    // one stateless cached instance behind an unchecked-but-sound cast.
+    // one cached instance behind an unchecked-but-sound cast.
     TypeName[] wildcards = new TypeName[variables.size()];
     Arrays.fill(wildcards, WildcardTypeName.subtypeOf(Object.class));
     TypeName rawInstanceType = ParameterizedTypeName.get(implName, wildcards);
@@ -9448,9 +9459,9 @@ public class MappingProcessor extends AbstractProcessor {
                         .addMember("value", "$S", "unchecked")
                         .build())
                 .addJavadoc(
-                    "The stateless singleton, shared across instantiations — the cast is sound"
-                        + " because the Impl holds no state typed by its parameters (the {@code"
-                        + " EitherMonad.instance()} convention).\n")
+                    "The singleton, shared across instantiations — the cast is sound because the"
+                        + " Impl holds only what its default leaves answer, which cannot depend on"
+                        + " its type arguments (the {@code EitherMonad.instance()} convention).\n")
                 .addStatement("return ($T) INSTANCE", typedInstanceType)
                 .build());
   }
@@ -9458,9 +9469,8 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The element-mapped skeleton: the spec's abstract leaves become constructor-supplied fields
    * behind a public {@code of(...)} factory taking one {@code ValidatedPrism} per leaf, in
-   * declaration order ({@link #abstractLeaves}). The Impl carries leaf-typed state, so unlike the
-   * stateless threaded form there is no shared singleton: every {@code of(...)} call is a fresh,
-   * immutable instance.
+   * declaration order ({@link #abstractLeaves}). The Impl carries the leaves it is given, so unlike
+   * the threaded form there is no shared singleton: every {@code of(...)} call is a fresh instance.
    */
   private static TypeSpec.Builder elementMappedSkeleton(
       TypeSpec.Builder builder,
@@ -9617,6 +9627,22 @@ public class MappingProcessor extends AbstractProcessor {
         .build();
   }
 
+  /**
+   * The field behind {@code asValidatedPrism()}: built once with the Impl, since every nested use
+   * reaches it on every {@code build} and {@code parse}. A field initialiser is safe even for a
+   * self-recursive spec, as it only binds {@code this::parse} and {@code this::build}; nested uses
+   * still reach it through {@code INSTANCE} at call time.
+   */
+  private static FieldSpec asValidatedPrismField(TypeName wireName, TypeName domainName) {
+    return FieldSpec.builder(
+            ParameterizedTypeName.get(VALIDATED_PRISM_TYPE, wireName, domainName),
+            ADAPTER_FIELD,
+            Modifier.PRIVATE,
+            Modifier.FINAL)
+        .initializer("$T.of(this::parse, this::build)", VALIDATED_PRISM_TYPE)
+        .build();
+  }
+
   private static MethodSpec asValidatedPrismMethod(TypeName wireName, TypeName domainName) {
     return MethodSpec.methodBuilder("asValidatedPrism")
         .addModifiers(Modifier.PUBLIC)
@@ -9625,7 +9651,29 @@ public class MappingProcessor extends AbstractProcessor {
             "This mapping as a {@link $T} leaf, so other mappings can nest it directly or lift"
                 + " it through containers.\n",
             VALIDATED_PRISM_TYPE)
-        .addStatement("return $T.of(this::parse, this::build)", VALIDATED_PRISM_TYPE)
+        .addStatement("return $N", ADAPTER_FIELD)
+        .build();
+  }
+
+  /** The field behind {@code asValidatedParse()}, built once as {@link #asValidatedPrismField}. */
+  private static FieldSpec asValidatedParseField(TypeName wireName, TypeName domainName) {
+    return FieldSpec.builder(
+            ParameterizedTypeName.get(VALIDATED_PARSE_TYPE, wireName, domainName),
+            ADAPTER_FIELD,
+            Modifier.PRIVATE,
+            Modifier.FINAL)
+        .initializer("$T.of(this::parse)", VALIDATED_PARSE_TYPE)
+        .build();
+  }
+
+  /** The field behind {@code asValidatedBuild()}, built once as {@link #asValidatedPrismField}. */
+  private static FieldSpec asValidatedBuildField(TypeName wireName, TypeName domainName) {
+    return FieldSpec.builder(
+            ParameterizedTypeName.get(VALIDATED_BUILD_TYPE, wireName, domainName),
+            ADAPTER_FIELD,
+            Modifier.PRIVATE,
+            Modifier.FINAL)
+        .initializer("$T.of(this::build)", VALIDATED_BUILD_TYPE)
         .build();
   }
 
@@ -9637,7 +9685,7 @@ public class MappingProcessor extends AbstractProcessor {
             "This parse-only mapping as a {@link $T}, so a mapping that only parses can nest it"
                 + " directly or lift it through containers.\n",
             VALIDATED_PARSE_TYPE)
-        .addStatement("return $T.of(this::parse)", VALIDATED_PARSE_TYPE)
+        .addStatement("return $N", ADAPTER_FIELD)
         .build();
   }
 
@@ -9649,8 +9697,13 @@ public class MappingProcessor extends AbstractProcessor {
             "This build-only mapping as a {@link $T}, so a mapping that only builds can nest it"
                 + " directly or lift it through containers.\n",
             VALIDATED_BUILD_TYPE)
-        .addStatement("return $T.of(this::build)", VALIDATED_BUILD_TYPE)
+        .addStatement("return $N", ADAPTER_FIELD)
         .build();
+  }
+
+  /** A call to the spec's leaf, as the Impl emits it, recorded for {@link LeafCache}. */
+  private CodeBlock leafCall(TypeElement spec, CharSequence leaf) {
+    return leafCache.call(processingEnv.getElementUtils(), spec, leaf);
   }
 
   private void addMarkerStubs(TypeSpec.Builder implBuilder, TypeElement spec) {
@@ -9738,9 +9791,9 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * A generic Impl also declares its static factory — the {@code instance()} singleton accessor
-   * when stateless, the {@code of(...)} constructor when element-mapped; a spec method with that
-   * erased signature would clash with or shadow it in the generated file, so every record tier
-   * reserves it alongside its own members.
+   * when it has no abstract leaves, the {@code of(...)} constructor when element-mapped; a spec
+   * method with that erased signature would clash with or shadow it in the generated file, so every
+   * record tier reserves it alongside its own members.
    */
   private List<EmittedMember> reserveFactoryIfGeneric(TypeElement spec, List<EmittedMember> base) {
     if (spec.getTypeParameters().isEmpty()) {

@@ -97,8 +97,8 @@ unset property is an ordinary state. [What Your Spec Generates](tiers.md) explai
 ## What it costs
 
 - **Compile time**, not run time: the Impl is generated once, per build.
-- **No reflection and no startup scan.** A concrete Impl is a stateless singleton; an
-  element-mapped one carries its leaf prisms and is built by `of(...)`.
+- **No reflection and no startup scan.** A concrete Impl is a singleton that keeps each leaf after
+  its first use; an element-mapped one carries its leaf prisms and is built by `of(...)`.
 - **One `Validated` per field read** on the parse side, which is the price of accumulating errors
   rather than throwing on the first.
 - **Lines of spec per field**: nothing for an identical field, one for a rename, one for a stock

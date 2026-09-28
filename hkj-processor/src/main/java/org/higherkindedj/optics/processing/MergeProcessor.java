@@ -94,6 +94,9 @@ public class MergeProcessor extends AbstractProcessor {
   /** The merge interfaces met but not processed yet: arriving this round, or waiting. */
   private final Set<TypeKey> unprocessed = new LinkedHashSet<>();
 
+  /** The leaves each merge's Impl calls, so the Impl reads each one once. */
+  private final LeafCache leafCache = new LeafCache();
+
   /** Creates a new MergeProcessor. */
   public MergeProcessor() {}
 
@@ -545,7 +548,7 @@ public class MergeProcessor extends AbstractProcessor {
             new Fill(
                 name,
                 holder.getSimpleName().toString(),
-                CodeBlock.of("$L()", leaf.getSimpleName()),
+                leafCache.call(processingEnv.getElementUtils(), spec, leaf.getSimpleName()),
                 true,
                 null,
                 null));
@@ -957,6 +960,13 @@ public class MergeProcessor extends AbstractProcessor {
     // Either path copies, so the target shares no container with a source.
     implBuilder.addMethods(
         ContainerCopy.helpers(fills.stream().map(Fill::copy).filter(Objects::nonNull)));
+    // A merge's leaves are its own zero-parameter default methods, as findLeaf reads them.
+    leafCache.addOverrides(
+        processingEnv,
+        implBuilder,
+        spec,
+        specName,
+        ElementFilter.methodsIn(spec.getEnclosedElements()));
     writeFile(spec, specName.packageName(), implBuilder.build());
   }
 

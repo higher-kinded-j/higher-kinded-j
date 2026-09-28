@@ -2,6 +2,7 @@
 package com.example.updatelifting;
 
 import java.lang.Object;
+import java.lang.Override;
 import java.lang.String;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -20,6 +21,7 @@ import org.higherkindedj.optics.Setter;
 import org.higherkindedj.optics.annotations.Generated;
 import org.higherkindedj.optics.edit.Edit;
 import org.higherkindedj.optics.edit.Edits;
+import org.higherkindedj.optics.validated.ValidatedPrism;
 
 /**
  * Generated sparse PATCH write-back for {@link CustomerPatchMapping}: folds the present wire fields into an {@code Edits.Accumulated<Domain>}.
@@ -27,6 +29,12 @@ import org.higherkindedj.optics.edit.Edits;
 @Generated
 public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
   public static final CustomerPatchMappingImpl INSTANCE = new CustomerPatchMappingImpl();
+
+  private volatile ValidatedPrism<String, PhoneNumber> hkj$leaf$phones;
+
+  private volatile ValidatedPrism<String, PhoneNumber> hkj$leaf$speedDial;
+
+  private volatile ValidatedPrism<String, PhoneNumber> hkj$leaf$fax;
 
   private CustomerPatchMappingImpl() {
   }
@@ -46,6 +54,51 @@ public final class CustomerPatchMappingImpl implements CustomerPatchMapping {
             Edit.parseIfPresent(Setter.fromGetSet(Components::fax, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), v, c.tags(), c.labels())), wire.getFax(), o -> o.map(v -> fax().parse(v).map(Optional::of)).orElseGet(() -> Validated.validNel(Optional.empty()))).at("fax"),
             Edit.parseIfPresent(Setter.fromGetSet(Components::tags, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), v, c.labels())), hkj$copyOf(wire.getTags()), CustomerPatchMappingImpl::hkj$allPresent).at("tags"),
             Edit.parseIfPresent(Setter.fromGetSet(Components::labels, (c, v) -> new Components(c.name(), c.phones(), c.speedDial(), c.fax(), c.tags(), v)), hkj$copyOf(wire.getLabels()), CustomerPatchMappingImpl::hkj$valuesPresent).at("labels"));
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Read on first use and kept, rather than read on every call.
+   */
+  @Override
+  public ValidatedPrism<String, PhoneNumber> phones() {
+    ValidatedPrism<String, PhoneNumber> leaf = hkj$leaf$phones;
+    if (leaf == null) {
+      leaf = CustomerPatchMapping.super.phones();
+      hkj$leaf$phones = leaf;
+    }
+    return leaf;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Read on first use and kept, rather than read on every call.
+   */
+  @Override
+  public ValidatedPrism<String, PhoneNumber> speedDial() {
+    ValidatedPrism<String, PhoneNumber> leaf = hkj$leaf$speedDial;
+    if (leaf == null) {
+      leaf = CustomerPatchMapping.super.speedDial();
+      hkj$leaf$speedDial = leaf;
+    }
+    return leaf;
+  }
+
+  /**
+   * {@inheritDoc}
+   *
+   * <p>Read on first use and kept, rather than read on every call.
+   */
+  @Override
+  public ValidatedPrism<String, PhoneNumber> fax() {
+    ValidatedPrism<String, PhoneNumber> leaf = hkj$leaf$fax;
+    if (leaf == null) {
+      leaf = CustomerPatchMapping.super.fax();
+      hkj$leaf$fax = leaf;
+    }
+    return leaf;
   }
 
   /**

@@ -13,12 +13,15 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.Arrays;
 import java.util.Currency;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.validated.FieldError;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The stock codec vocabulary: one {@link ValidatedPrism} factory per standard conversion family, so
@@ -48,6 +51,15 @@ import org.higherkindedj.hkt.validated.FieldError;
  * a mapping it arrives located by component name, so the codecs feed the 422 leg unchanged. Enum
  * failures name the permitted constants.
  *
+ * <p><b>Rejections without exceptions.</b> A codec checks a source's shape before handing it to a
+ * JDK parser, so most malformed values are rejected without the exception, and the stack trace, the
+ * parser would throw. The numbers, booleans and enums are checked in full. The UUID, date and time
+ * codecs check the length and punctuation, and {@link #currency()} three capital letters, so a bad
+ * digit in the right shape, trailing text after a timestamp or an unknown currency code still
+ * reaches the parser, as does an integer past its range, and the codec catches what it throws.
+ * {@link #uri()}, {@link #locale()} and the formatter overloads have no such check, since neither
+ * those grammars nor a custom pattern has a shape that is cheap to test.
+ *
  * <p><b>Nulls.</b> A codec never sees {@code null}: under a mapping the null guard locates the null
  * first, and standalone {@code parse(null)} is the caller's error, per the {@code ValidatedPrism}
  * contract.
@@ -65,12 +77,12 @@ import org.higherkindedj.hkt.validated.FieldError;
  *
  * <p>Parameterless factories return cached instances; the parameterised ones ({@link
  * #localDate(DateTimeFormatter)}, {@link #offsetDateTime(DateTimeFormatter)}, {@link
- * #enumByName(Class)}) construct per call and are cheap enough to sit in a spec's {@code default}
- * method. A custom formatter must render what it parses (the section law is enforced per value: a
- * value whose rendering differs from its source is rejected), and must be able to format the
- * temporal type — the factory formats a sample eagerly, so a formatter that can render nothing
- * fails at construction; one that fails only on particular values yields located rejections for
- * those values.
+ * #enumByName(Class)}) construct per call. Each sits in a spec's {@code default} method, since a
+ * generated Impl reads each leaf once and keeps it. A custom formatter must render what it parses
+ * (the section law is enforced per value: a value whose rendering differs from its source is
+ * rejected), and must be able to format the temporal type — the factory formats a sample eagerly,
+ * so a formatter that can render nothing fails at construction; one that fails only on particular
+ * values yields located rejections for those values.
  */
 public final class StandardCodecs {
 
@@ -95,7 +107,7 @@ public final class StandardCodecs {
   private static final ValidatedPrism<String, UUID> UUID_CODEC =
       codec(
           "not a UUID (expected e.g. 123e4567-e89b-12d3-a456-426614174000)",
-          UUID::fromString,
+          source -> uuidShaped(source) ? UUID.fromString(source) : null,
           UUID::toString);
 
   private static final ValidatedPrism<String, URI> URI_CODEC =
@@ -103,68 +115,63 @@ public final class StandardCodecs {
 
   private static final ValidatedPrism<String, LocalDate> LOCAL_DATE_CODEC =
       codec(
-          "not an ISO-8601 date (expected e.g. 2026-07-28)", LocalDate::parse, LocalDate::toString);
+          "not an ISO-8601 date (expected e.g. 2026-07-28)",
+          source -> isoShaped(source, "0000-00-00", true) ? LocalDate.parse(source) : null,
+          LocalDate::toString);
 
   private static final ValidatedPrism<String, Instant> INSTANT_CODEC =
       codec(
           "not an ISO-8601 instant (expected e.g. 2026-07-28T12:34:56Z)",
-          Instant::parse,
+          source -> isoShaped(source, "0000-00-00T00:00:00", false) ? Instant.parse(source) : null,
           Instant::toString);
 
   private static final ValidatedPrism<String, OffsetDateTime> OFFSET_DATE_TIME_CODEC =
       codec(
           "not an ISO-8601 date-time with offset (expected e.g. 2026-07-28T12:34:56+01:00)",
-          OffsetDateTime::parse,
+          source ->
+              isoShaped(source, "0000-00-00T00:00:00", false) ? OffsetDateTime.parse(source) : null,
           OFFSET_DATE_TIME_RENDER::format);
 
   private static final ValidatedPrism<String, BigDecimal> BIG_DECIMAL_CODEC =
       codec(
           "not a number in plain notation (expected e.g. 123.45)",
-          source -> {
-            BigDecimal value = new BigDecimal(source);
-            // Plain notation always parses to 0 <= scale <= source length, so a value outside
-            // that band cannot equal its plain rendering - and must not reach it: toPlainString
-            // materialises the full plain form, which a 14-character exponent spelling
-            // ("1E+2147483647") would grow past the maximum String size.
-            if (value.scale() < 0 || value.scale() > source.length()) {
-              throw new IllegalArgumentException(source);
-            }
-            return value;
-          },
+          // Plain notation only, so an exponent spelling never reaches the render: toPlainString
+          // materialises the full plain form, which a 14-character spelling such as
+          // "1E+2147483647" would grow past the maximum String size.
+          source -> plainDecimalShaped(source) ? new BigDecimal(source) : null,
           BigDecimal::toPlainString);
 
   private static final ValidatedPrism<String, Integer> INT_CODEC =
-      codec("not a 32-bit integer (expected e.g. 42)", Integer::parseInt, String::valueOf);
+      codec(
+          "not a 32-bit integer (expected e.g. 42)",
+          source -> integerShaped(source, 10) ? Integer.valueOf(source) : null,
+          String::valueOf);
 
   private static final ValidatedPrism<String, Long> LONG_CODEC =
-      codec("not a 64-bit integer (expected e.g. 42)", Long::parseLong, String::valueOf);
+      codec(
+          "not a 64-bit integer (expected e.g. 42)",
+          source -> integerShaped(source, 19) ? Long.valueOf(source) : null,
+          String::valueOf);
 
   private static final ValidatedPrism<String, Double> DOUBLE_CODEC =
       codec(
           "not a double in canonical form (expected e.g. 3.14)",
-          Double::parseDouble,
+          source -> doubleShaped(source) ? Double.valueOf(source) : null,
           String::valueOf);
 
   private static final ValidatedPrism<String, Boolean> BOOLEAN_CODEC =
       codec(
           "not a boolean (expected true or false)",
-          source -> {
-            // An equals chain, not a String switch: a String switch compiles to a hashCode
-            // dispatch whose hash-collision equals branches are unreachable here.
-            if (source.equals("true")) {
-              return Boolean.TRUE;
-            }
-            if (source.equals("false")) {
-              return Boolean.FALSE;
-            }
-            throw new IllegalArgumentException(source);
-          },
+          source ->
+              source.equals("true") || source.equals("false") ? Boolean.valueOf(source) : null,
           String::valueOf);
 
   private static final ValidatedPrism<String, Currency> CURRENCY_CODEC =
       codec(
           "not an ISO 4217 currency code (expected e.g. GBP)",
-          Currency::getInstance,
+          // Three capital letters, the shape of every code; an unknown code still throws. The
+          // check also refuses a lower-case letter, which the JDK can misread as another code's.
+          source -> currencyShaped(source) ? Currency.getInstance(source) : null,
           Currency::getCurrencyCode);
 
   private static final ValidatedPrism<String, Locale> LOCALE_CODEC =
@@ -174,12 +181,12 @@ public final class StandardCodecs {
           Locale::toLanguageTag);
 
   /**
-   * Each enum type's failure message, computed once. A generated mapping calls its leaf on every
-   * parse and build, so without this every call would copy the constants and join their names. An
-   * invalid type throws from here, uncached, on every attempt. It holds the message, not the codec:
-   * an entry lives on the enum's {@code Class}, and a {@code String} reaches nothing of this
-   * library, so an enum from a parent loader (a JDK enum such as {@code DayOfWeek}) cannot keep
-   * this library's loader alive.
+   * Each enum type's failure message, computed once. {@link #enumByName} constructs a codec on each
+   * call, so without this every call would copy the constants and join their names. An invalid type
+   * throws from here, uncached, on every attempt. It holds the message, not the codec: an entry
+   * lives on the enum's {@code Class}, and a {@code String} reaches nothing of this library, so an
+   * enum from a parent loader (a JDK enum such as {@code DayOfWeek}) cannot keep this library's
+   * loader alive.
    */
   private static final ClassValue<String> ENUM_MESSAGES =
       new ClassValue<>() {
@@ -198,6 +205,24 @@ public final class StandardCodecs {
                   .map(constant -> ((Enum<?>) constant).name())
                   .collect(Collectors.joining(", "));
           return "unknown " + enumType.getSimpleName() + " (expected one of " + permitted + ")";
+        }
+      };
+
+  /**
+   * Each enum type's constants by name, so a codec finds a name, or its absence, without {@code
+   * Enum.valueOf}, which throws on an unknown one. Read only after {@link #ENUM_MESSAGES} has
+   * accepted the type. Like that message, the map reaches only the enum's own constants and JDK
+   * types, never this library.
+   */
+  private static final ClassValue<Map<String, Object>> ENUM_CONSTANTS =
+      new ClassValue<>() {
+        @Override
+        protected Map<String, Object> computeValue(Class<?> enumType) {
+          Map<String, Object> byName = new HashMap<>();
+          for (Object constant : enumType.getEnumConstants()) {
+            byName.put(((Enum<?>) constant).name(), constant);
+          }
+          return Map.copyOf(byName);
         }
       };
 
@@ -327,7 +352,9 @@ public final class StandardCodecs {
    */
   public static <E extends Enum<E>> ValidatedPrism<String, E> enumByName(Class<E> enumType) {
     Objects.requireNonNull(enumType, "enumType must not be null");
-    return codec(ENUM_MESSAGES.get(enumType), source -> Enum.valueOf(enumType, source), Enum::name);
+    String message = ENUM_MESSAGES.get(enumType);
+    Map<String, Object> byName = ENUM_CONSTANTS.get(enumType);
+    return codec(message, source -> enumType.cast(byName.get(source)), Enum::name);
   }
 
   /**
@@ -413,7 +440,128 @@ public final class StandardCodecs {
    * implementation, and a user codec gets it from the same place.
    */
   private static <A> ValidatedPrism<String, A> codec(
-      String message, Function<String, A> parse, Function<A, String> render) {
+      String message, Function<String, @Nullable A> parse, Function<A, String> render) {
     return ValidatedPrism.canonical(message, parse, render);
+  }
+
+  /**
+   * The length and hyphens of the 8-4-4-4-12 form {@code UUID.toString} writes. It checks no digit,
+   * so it costs next to nothing on a valid source; a bad digit in the right shape still throws, and
+   * the guard catches it.
+   */
+  private static boolean uuidShaped(String source) {
+    return source.length() == 36
+        && source.charAt(8) == '-'
+        && source.charAt(13) == '-'
+        && source.charAt(18) == '-'
+        && source.charAt(23) == '-';
+  }
+
+  /** Three capital letters, the shape of every ISO 4217 code. */
+  private static boolean currencyShaped(String source) {
+    return source.length() == 3
+        && isCapital(source.charAt(0))
+        && isCapital(source.charAt(1))
+        && isCapital(source.charAt(2));
+  }
+
+  private static boolean isCapital(char c) {
+    return c >= 'A' && c <= 'Z';
+  }
+
+  /**
+   * An optional minus sign, then one to {@code maxDigits} ASCII digits. Leading zeros and {@code
+   * -0} pass, for the canonical check to refuse; a value past the type's range passes too, and its
+   * parse throws, which the guard catches.
+   */
+  private static boolean integerShaped(String source, int maxDigits) {
+    int start = signEnd(source, 0);
+    int digits = source.length() - start;
+    return digits >= 1 && digits <= maxDigits && digitsEnd(source, start) == source.length();
+  }
+
+  /** Plain notation: an optional minus sign, digits, and optionally a point and more digits. */
+  private static boolean plainDecimalShaped(String source) {
+    int start = signEnd(source, 0);
+    int integerEnd = digitsEnd(source, start);
+    if (integerEnd == start) {
+      return false;
+    }
+    if (integerEnd == source.length()) {
+      return true;
+    }
+    return source.charAt(integerEnd) == '.' && fractionEnds(source, integerEnd);
+  }
+
+  /**
+   * What {@code Double.toString} writes: {@code NaN}, an infinity, or digits, a point and digits,
+   * optionally followed by {@code E} and a signed exponent.
+   */
+  private static boolean doubleShaped(String source) {
+    if (source.equals("NaN") || source.equals("Infinity") || source.equals("-Infinity")) {
+      return true;
+    }
+    int start = signEnd(source, 0);
+    int integerEnd = digitsEnd(source, start);
+    if (integerEnd == start || integerEnd == source.length() || source.charAt(integerEnd) != '.') {
+      return false;
+    }
+    int fractionEnd = digitsEnd(source, integerEnd + 1);
+    if (fractionEnd == integerEnd + 1) {
+      return false;
+    }
+    if (fractionEnd == source.length()) {
+      return true;
+    }
+    if (source.charAt(fractionEnd) != 'E') {
+      return false;
+    }
+    int exponentStart = signEnd(source, fractionEnd + 1);
+    int exponentEnd = digitsEnd(source, exponentStart);
+    return exponentEnd > exponentStart && exponentEnd == source.length();
+  }
+
+  /** Whether the point at {@code point} is followed by one or more digits that end the source. */
+  private static boolean fractionEnds(String source, int point) {
+    int fractionEnd = digitsEnd(source, point + 1);
+    return fractionEnd > point + 1 && fractionEnd == source.length();
+  }
+
+  /** The index after an optional minus sign at {@code from}. */
+  private static int signEnd(String source, int from) {
+    return from < source.length() && source.charAt(from) == '-' ? from + 1 : from;
+  }
+
+  /** The index after the run of ASCII digits starting at {@code from}. */
+  private static int digitsEnd(String source, int from) {
+    int i = from;
+    while (i < source.length() && source.charAt(i) >= '0' && source.charAt(i) <= '9') {
+      i++;
+    }
+    return i;
+  }
+
+  /**
+   * The length and punctuation of an ISO form with a four-digit year, where {@code template} holds
+   * {@code 0} for a digit, which is not checked, and any other character for itself: the whole
+   * source when {@code exact}, otherwise a prefix with more to follow (a fraction, an offset, a
+   * zone). A year outside four digits is written with a sign, so a source starting {@code +} or
+   * {@code -} passes for the parse to judge.
+   */
+  private static boolean isoShaped(String source, String template, boolean exact) {
+    if (!source.isEmpty() && (source.charAt(0) == '+' || source.charAt(0) == '-')) {
+      return true;
+    }
+    int length = template.length();
+    if (exact ? source.length() != length : source.length() <= length) {
+      return false;
+    }
+    for (int i = 0; i < length; i++) {
+      char expected = template.charAt(i);
+      if (expected != '0' && source.charAt(i) != expected) {
+        return false;
+      }
+    }
+    return true;
   }
 }

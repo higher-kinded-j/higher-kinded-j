@@ -2733,7 +2733,8 @@ class MappingProcessorTest {
       String customerImpl = generatedSource(compilation, "com.example.CustomerMappingImpl");
       Assertions.assertThat(customerImpl)
           .contains("public ValidatedPrism<CustomerDto, Customer> asValidatedPrism()")
-          .contains("return ValidatedPrism.of(this::parse, this::build)");
+          .contains(
+              "hkj$adapter = ValidatedPrism.of(this::parse, this::build)", "return hkj$adapter;");
       String orderImpl = generatedSource(compilation, "com.example.OrderMappingImpl");
       Assertions.assertThat(orderImpl)
           .contains("CustomerMappingImpl.INSTANCE.asValidatedPrism().build(domain.customer())")

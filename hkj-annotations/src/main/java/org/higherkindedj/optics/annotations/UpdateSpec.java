@@ -48,6 +48,9 @@ package org.higherkindedj.optics.annotations;
  *   <li><b>Absent (null)</b> — skipped; the domain's current value survives.
  * </ul>
  *
+ * <p>As with {@link MappingSpec}, the generated Impl reads each {@code default} leaf it calls once,
+ * on its first use, and keeps what it answers for every caller.
+ *
  * <p>The domain record is constructed once, from the values the PATCH ends on: the present values
  * are written onto the components the PATCH can set, and the canonical constructor runs a single
  * time, reading every other component from the current value. A constructor that checks its fields

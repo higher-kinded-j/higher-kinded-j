@@ -21,6 +21,15 @@ package org.higherkindedj.optics.annotations;
  * //   Validated<NonEmptyList<FieldError>, User> parse(UserDto)   (accumulating, located)
  * }</pre>
  *
+ * <p>The generated Impl reads each {@code default} leaf and derived field it calls once, on its
+ * first use, and keeps what it answers, so a leaf that builds its codec, such as a date codec over
+ * a {@code DateTimeFormatter}, builds it once rather than on every call. What it keeps is shared by
+ * every caller of the Impl, on every thread, for as long as the Impl lives. A leaf that picks its
+ * codec on each call, from a flag, a system property or a field a test changes, keeps its first
+ * pick, so make a choice that must vary inside the codec's parse. Build the codec from parts that
+ * are safe to share: a {@code DateTimeFormatter}, never a {@code SimpleDateFormat} or a {@code
+ * DecimalFormat}.
+ *
  * <p>The wire type {@code W} may be a record or a bean-shaped class: a mutable class with a no-args
  * constructor and getters/setters, or an immutable one with a builder. The bean is read through
  * getters and written through setters or a builder, and one offering only one of the two maps that

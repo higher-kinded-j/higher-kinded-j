@@ -19,6 +19,8 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
 public final class PersonMappingImpl implements PersonMapping {
   public static final PersonMappingImpl INSTANCE = new PersonMappingImpl();
 
+  private final ValidatedPrism<PersonDto, Person> hkj$adapter = ValidatedPrism.of(this::parse, this::build);
+
   private PersonMappingImpl() {
   }
 
@@ -41,7 +43,7 @@ public final class PersonMappingImpl implements PersonMapping {
    * This mapping as a {@link ValidatedPrism} leaf, so other mappings can nest it directly or lift it through containers.
    */
   public ValidatedPrism<PersonDto, Person> asValidatedPrism() {
-    return ValidatedPrism.of(this::parse, this::build);
+    return hkj$adapter;
   }
 
   /**

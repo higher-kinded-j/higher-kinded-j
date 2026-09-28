@@ -284,7 +284,7 @@ class MappingProcessorOneDirectionalTest {
       Assertions.assertThat(generated)
           .contains("public Validated<NonEmptyList<FieldError>, Order> parse(VendorOrder wire)")
           .contains("public ValidatedParse<VendorOrder, Order> asValidatedParse()")
-          .contains("return ValidatedParse.of(this::parse);")
+          .contains("hkj$adapter = ValidatedParse.of(this::parse);", "return hkj$adapter;")
           .doesNotContain("build(")
           .doesNotContain("asValidatedPrism")
           .doesNotContain("getSupplierNote");
@@ -560,7 +560,7 @@ class MappingProcessorOneDirectionalTest {
           .contains("wire.setContact(contact().build(domain.contact()));")
           .contains("wire.setLabel(label().get(domain));")
           .contains("public ValidatedBuild<OrderRequest, Order> asValidatedBuild()")
-          .contains("return ValidatedBuild.of(this::build);")
+          .contains("hkj$adapter = ValidatedBuild.of(this::build);", "return hkj$adapter;")
           .doesNotContain("parse(")
           .doesNotContain("asValidatedPrism");
 

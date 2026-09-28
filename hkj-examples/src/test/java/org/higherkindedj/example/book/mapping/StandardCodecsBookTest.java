@@ -231,6 +231,18 @@ class StandardCodecsBookTest {
   }
 
   @Test
+  @DisplayName("the Impl reads a leaf once and keeps what it answered")
+  void theImplKeepsALeafAfterItsFirstRead() {
+    // ANCHOR: leaf_read_once
+    // enumByName builds a new codec on every call...
+    assertThat(StandardCodecs.enumByName(OrderStatus.class))
+        .isNotSameAs(StandardCodecs.enumByName(OrderStatus.class));
+    // ...but the Impl answers the one its status() leaf built first, every time
+    assertThat(OrderMappingImpl.INSTANCE.status()).isSameAs(OrderMappingImpl.INSTANCE.status());
+    // ANCHOR_END: leaf_read_once
+  }
+
+  @Test
   @DisplayName("intFromString() accepts exactly the spelling Integer.toString renders")
   void intFromStringAcceptsOnlyItsOwnRender() {
     // ANCHOR: check_int_canon
