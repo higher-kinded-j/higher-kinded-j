@@ -67,11 +67,11 @@ MapStruct, and the `hkj-mapping` skill in `.claude/skills/`, which ships to user
   `hkj-examples`, rather than one package per page, because they share one cast. A new top-level
   type must therefore not reuse a name already in the package. The boundary capstone has a package
   of its own, and the estate capstone's code is three Gradle modules of its own,
-  `hkj-examples/estate-api`, `estate-clients` and `estate-service`, because the module boundary is
-  its subject. A page's "See Example Code" box names its own example files, and a test beside each proves
-  what the page claims. Basics, the Quickstart and the testing page also include from the Spring
-  example app, `hkj-spring/example`. A new page gets its own `<Topic>Book.java` and
-  `<Topic>BookTest.java`.
+  `hkj-examples/estate-api`, `estate-clients` and `estate-service`, proved by `EstateBoundaryTest`,
+  because the module boundary is its subject. A page's "See Example Code" box names its own example
+  files, and a test beside each proves what the page claims. Basics, the Quickstart and the testing
+  page also include from the Spring example app, `hkj-spring/example`. A new page in the shared
+  package gets its own `<Topic>Book.java` and `<Topic>BookTest.java`.
 - **On a teaching page, every runnable block is an include** from those files. A refused shape is a `verify:rejects`
   fence, and a shape that cannot run is a `verify` fence, as the Style Guide's [Java code in
   hkj-book must be verified](STYLE-GUIDE.md#java-code-in-hkj-book-must-be-verified) rule says.

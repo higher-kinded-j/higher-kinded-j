@@ -6,7 +6,11 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 
-/** The estate's email leaf, built once and shared by every spec that extends the vocabulary. */
+/**
+ * The estate's email leaf, built once and shared by every spec that extends the vocabulary. Its
+ * rule is the chapter's deliberately small one from Record Mapping Basics, whose checkpoint quotes
+ * it: the page is about where a failing leaf's error lands, not about validating email.
+ */
 // ANCHOR: email_leaf
 public final class EmailCodecs {
   public static final ValidatedPrism<String, EmailAddress> EMAIL =
