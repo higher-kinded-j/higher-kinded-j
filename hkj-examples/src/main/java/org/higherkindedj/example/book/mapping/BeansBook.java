@@ -2,6 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.mapping;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -13,6 +19,7 @@ import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.jspecify.annotations.Nullable;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 /**
  * The code shown on the book's <a
@@ -350,3 +357,79 @@ interface DraftListingMapping extends MappingSpec<Listing, DraftListingBean> {}
 interface ListingMapping extends MappingSpec<Listing, ListingBean> {} // subtitle bridges itself
 
 // ANCHOR_END: default_trap
+
+// A Listing as openapi-generator writes its model by default (openApiNullable=true), the doc
+// comments and toString left out: the nullable subtitle is held in a JsonNullable, and exposed
+// both through getSubtitle()/setSubtitle(String) and through a companion pair, which Jackson binds.
+// Rules and Limits' "An openapi-generator JsonNullable companion" rests on BeansBookTest's proof.
+@JsonPropertyOrder({ListingModel.JSON_PROPERTY_TITLE, ListingModel.JSON_PROPERTY_SUBTITLE})
+class ListingModel {
+  public static final String JSON_PROPERTY_TITLE = "title";
+  private @Nullable String title;
+
+  public static final String JSON_PROPERTY_SUBTITLE = "subtitle";
+  private JsonNullable<String> subtitle = JsonNullable.<String>undefined();
+
+  public ListingModel() {}
+
+  @JsonProperty(value = JSON_PROPERTY_TITLE, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public @Nullable String getTitle() {
+    return title;
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_TITLE, required = true)
+  @JsonInclude(value = JsonInclude.Include.ALWAYS)
+  public void setTitle(@Nullable String title) {
+    this.title = title;
+  }
+
+  @JsonIgnore
+  public @Nullable String getSubtitle() {
+    return subtitle.orElse(null);
+  }
+
+  @JsonProperty(value = JSON_PROPERTY_SUBTITLE, required = false)
+  @JsonInclude(value = JsonInclude.Include.USE_DEFAULTS)
+  public JsonNullable<String> getSubtitle_JsonNullable() {
+    return subtitle;
+  }
+
+  @JsonProperty(JSON_PROPERTY_SUBTITLE)
+  public void setSubtitle_JsonNullable(JsonNullable<String> subtitle) {
+    this.subtitle = subtitle;
+  }
+
+  public void setSubtitle(@Nullable String subtitle) {
+    this.subtitle = JsonNullable.<String>of(subtitle);
+  }
+
+  @Override
+  public boolean equals(@Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ListingModel listingModel = (ListingModel) o;
+    return Objects.equals(this.title, listingModel.title)
+        && equalsNullable(this.subtitle, listingModel.subtitle);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(title, hashCodeNullable(subtitle));
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    return a.isPresent() ? Arrays.deepHashCode(new @Nullable Object[] {a.get()}) : 31;
+  }
+}
+
+@GenerateMapping
+interface ListingModelMapping extends MappingSpec<Listing, ListingModel> {}

@@ -11,6 +11,8 @@ import java.util.Optional;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.openapitools.jackson.nullable.JsonNullableJackson3Module;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * The law checks behind the book's <a
@@ -107,6 +109,38 @@ class BeansBookTest {
                 MappingLaws.assertMappingLaws(ListingMappingImpl.INSTANCE.asValidatedPrism(), lamp))
         .isInstanceOf(AssertionError.class);
     // ANCHOR_END: default_trap_proof
+  }
+
+  @Test
+  @DisplayName("an openapi-generator model maps through its plain pair, and sends empty as null")
+  void jsonNullableCompanionIsLeftOut() {
+    JsonMapper json = JsonMapper.builder().addModule(new JsonNullableJackson3Module()).build();
+    Listing lamp = new Listing("Lamp", Optional.empty());
+
+    // build writes the empty subtitle through setSubtitle(null), which the model sends as null,
+    ListingModel built = ListingModelMappingImpl.INSTANCE.build(lamp);
+    assertThat(json.writeValueAsString(built)).isEqualTo("{\"title\":\"Lamp\",\"subtitle\":null}");
+    // where a fresh model leaves the property out.
+    ListingModel fresh = new ListingModel();
+    fresh.setTitle("Lamp");
+    assertThat(json.writeValueAsString(fresh)).isEqualTo("{\"title\":\"Lamp\"}");
+
+    // getSubtitle() answers null for an omitted property and for an explicit null alike.
+    ListingModel omitted = json.readValue("{\"title\":\"Lamp\"}", ListingModel.class);
+    ListingModel sentNull =
+        json.readValue("{\"title\":\"Lamp\",\"subtitle\":null}", ListingModel.class);
+    assertThatValidated(ListingModelMappingImpl.INSTANCE.parse(omitted)).hasValue(lamp);
+    assertThatValidated(ListingModelMappingImpl.INSTANCE.parse(sentNull)).hasValue(lamp);
+
+    // So a parsing sample for the laws sets the subtitle: an omitted one comes back set.
+    ListingModel untitled = json.readValue("{\"subtitle\":\"Brass\"}", ListingModel.class);
+    MappingLaws.assertMappingLaws(
+        ListingModelMappingImpl.INSTANCE.asValidatedPrism(), sentNull, untitled);
+    assertThatThrownBy(
+            () ->
+                MappingLaws.assertMappingLaws(
+                    ListingModelMappingImpl.INSTANCE.asValidatedPrism(), omitted, untitled))
+        .isInstanceOf(AssertionError.class);
   }
 
   private static TransferBean transfer(String department) {

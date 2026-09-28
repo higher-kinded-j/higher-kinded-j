@@ -16,6 +16,10 @@ dependencies {
     implementation(libs.jackson.databind)
     implementation(libs.jooq)
 
+    // The JsonNullable an openapi-generator model holds a nullable property in, so the mapping
+    // chapter proves what such a model reads and writes through Jackson.
+    implementation(libs.jackson.databind.nullable)
+
     // Eclipse Collections for cross-ecosystem portfolio risk example
     implementation(libs.eclipse.collections)
 

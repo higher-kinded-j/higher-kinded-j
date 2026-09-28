@@ -64,6 +64,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a projection, or an `UpdateSpec`, read a property read-only?](#what-readonly-reads) | No: a projection has no `parse`, and an `UpdateSpec` builds nothing. | by design |
 | [Can a Lombok builder use `@Singular` on a collection?](#singular-collections) | Yes: `build` writes the collection whole and leaves its adder alone; a build-only adder it cannot tell apart is refused. | by design |
 | [Can a `@Singular` collection carry an absent `Optional`?](#singular-collections) | No: its builder builds an empty collection, so it is never absent. | not supported yet |
+| [Does openapi-generator's `getX_JsonNullable()` pair map?](#jsonnullable-companions) | No: it is left out, and `getX()` and `setX(...)` carry the property. | by design |
 | [Does a protobuf-java message map?](beans.md#generated-client-checklist) | No: its companion accessors pair as extra properties, and a repeated or map field has no setter. | not supported yet |
 | [Where does a one-directional bean nest?](#how-a-beans-direction-is-read) | Only where nothing needs its missing direction. | by design |
 | **Sparse PATCH** | | |
@@ -401,6 +402,14 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 - **What the bean does with the `null` is not checked.** A default reads back as present, and a writer that rejects it throws from `build`, as [Bean-shaped wire targets](beans.md#bean-shaped-wire-targets) warns.
 - **A leaf over the whole `Optional` wins over the bridge.** It suits a generated builder that refuses `null`: encode absence the builder's way, a `ValidatedPrism<String, Optional<String>>` mapping empty to `""`, say.
 
+### An openapi-generator `JsonNullable` companion {#jsonnullable-companions}
+
+**A `getX_JsonNullable()` and `setX_JsonNullable(...)` pair beside a property `x` is left out of the mapping.** By default (`openApiNullable=true`), openapi-generator's Java models keep each nullable property in a `JsonNullable` and expose it twice. `getX()` and `setX(T)` read and write its value, and the companion pair reads and writes the `JsonNullable<T>` that Jackson binds. The processor maps `x` through the plain pair, so the model is exactly as wide as the properties it carries.
+
+- **The processor recognises the companion by its shape.** It is a property named `x_JsonNullable` of type `org.openapitools.jackson.nullable.JsonNullable<T>`, beside a property `x` of type `T` that crosses the same way. A companion with no such property beside it, or holding another type, is a property like any other.
+- **An unset property reads `null`**, as on any bean. `getX()` answers `null` for an omitted property and for an explicit `null` alike, so on a [PATCH bean](beans_patch.md) both leave the component unchanged.
+- **`build` writes an empty `Optional` as an explicit `null`.** `setX(null)` sets the companion to a present `null`, which Jackson writes as `"x": null` where a fresh model leaves it out. So a parsing sample for [`MappingLaws`](tiers.md#law-checked-in-the-repo-and-in-your-tests) sets each nullable property, to `null` or a value, since an unset one comes back set.
+
 ### What `@Unmapped` withholds {#what-unmapped-withholds}
 
 **The [`@Unmapped`](beans.md#accessors-meant-to-stay-out) marker withholds a refusal and nothing else.** The accessor it names was never a property, so the component stays unmapped, a wire narrower than the domain is still a projection, and nothing else about the generated Impl changes. It answers both refusals it is named for, [an accessor named after a domain component](#unpaired-accessors) and [a `setX` setter a PATCH bean cannot read](#every-patch-setter-has-a-getter), on a `MappingSpec` and a sparse `UpdateSpec` alike. On a `MappingSpec` the component then stays out, so a bean left narrower than the domain is a projection, with no `parse`. The return type is not read, so it may restate the accessor's own type, and the Impl stubs the marker out like a rename.
@@ -518,7 +527,7 @@ A one-directional mapping follows these rules:
 
 ### No `JsonNullable` property {#no-jsonnullable-patch-property}
 
-**A `JsonNullable` property is not supported yet.** Declare an `Optional`-typed property instead, which keeps the *clear* state, or a plain nullable one where *clear* has no meaning.
+**A `JsonNullable` property is not supported yet.** Declare an `Optional`-typed property instead, which keeps the *clear* state, or a plain nullable one where *clear* has no meaning. openapi-generator's [companion pair](#jsonnullable-companions) is left out, so the processor reads a generated PATCH bean through `getX()`, where a sent `null` reads as an omitted property.
 
 ### A sparse update constructs the record once {#sparse-construct-once}
 

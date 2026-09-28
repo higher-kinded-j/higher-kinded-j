@@ -31,6 +31,9 @@ spring-dependency-management = "1.1.7"
 # 3.1.4 matches the tools.jackson:jackson-bom managed by Spring Boot 4.1.0
 jackson = "3.1.4"
 
+# openapi-generator's JsonNullable holder, whose 0.2.11 serialises under Jackson 3 (book proofs)
+jackson-databind-nullable = "0.2.11"
+
 # JOOQ - Database access library (for spec interface examples)
 jooq = "3.21.5"
 
@@ -123,6 +126,7 @@ jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api" }
 jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+jackson-databind-nullable = { module = "org.openapitools:jackson-databind-nullable", version.ref = "jackson-databind-nullable" }
 
 # Micrometer
 micrometer-core = { module = "io.micrometer:micrometer-core" }

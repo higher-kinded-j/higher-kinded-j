@@ -11,6 +11,7 @@ module org.higherkindedj.examples {
 
   // External libraries for spec interface examples
   requires tools.jackson.databind;
+  requires org.openapitools.jackson.nullable;
   requires org.jooq;
 
   // Eclipse Collections for cross-ecosystem portfolio risk example
