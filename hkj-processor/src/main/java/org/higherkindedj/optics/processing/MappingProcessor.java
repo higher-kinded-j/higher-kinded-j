@@ -8335,7 +8335,7 @@ public class MappingProcessor extends AbstractProcessor {
           GuardedConstruction.parameterNames(
               run.stream().map(Correspondence::name).toList(), Set.of("wire"));
       CodeBlock inner =
-          GuardedConstruction.ladder(
+          GuardedConstruction.thunkLadder(
               run.stream()
                   .map(
                       member ->
@@ -8345,7 +8345,9 @@ public class MappingProcessor extends AbstractProcessor {
                               wireRead(wire, member.wireName()),
                               guardedRead(member, wire)))
                   .toList(),
-              GuardedConstruction.applyThunk(params, first.group().record(), first.group().type()));
+              params,
+              first.group().record(),
+              first.group().type());
       // The group's guarded call is an argument of the outer ladder's field, which offers it no
       // target type, so the explicit type argument is what types the group's constructor thunk.
       legs.add(
@@ -8663,9 +8665,10 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The accumulating {@code parse} body over the correspondences' legs: one {@code
    * Validated.fields()} ladder, or chunked ladders past the arity ceiling with identical error
-   * semantics. Either ends in the {@link GuardedConstruction guarded} call of {@code domain}'s
-   * canonical constructor, so an invariant it enforces refuses at the root instead of throwing.
-   * Shared by the full and parse-only tiers, which parse alike.
+   * semantics, or, for a domain with no components, no ladder at all. Each ends in the {@link
+   * GuardedConstruction guarded} call of {@code domain}'s canonical constructor, so an invariant it
+   * enforces refuses at the root instead of throwing. Shared by the full and parse-only tiers,
+   * which parse alike.
    */
   private CodeBlock parseBody(
       WireShape wire, List<Correspondence> comps, TypeElement domain, TypeName domainName) {
@@ -8673,13 +8676,12 @@ public class MappingProcessor extends AbstractProcessor {
     List<CodeBlock> code = legs.stream().map(Leg::code).toList();
     if (legs.size() <= ArityCeilings.ASSEMBLY) {
       return GuardedConstruction.returning(
-          GuardedConstruction.ladder(
+          GuardedConstruction.thunkLadder(
               code,
-              GuardedConstruction.applyThunk(
-                  GuardedConstruction.parameterNames(
-                      legs.stream().map(Leg::name).toList(), Set.of("wire")),
-                  domain,
-                  domainName)),
+              GuardedConstruction.parameterNames(
+                  legs.stream().map(Leg::name).toList(), Set.of("wire")),
+              domain,
+              domainName),
           domainName);
     }
     // Wider than one fields() ladder: chunked ladders, identical error semantics. A flattened
