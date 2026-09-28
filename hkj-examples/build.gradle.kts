@@ -155,6 +155,20 @@ val bookVerify = tasks.register<Test>("bookVerify") {
         .withPropertyName("bookExampleTestSources")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 
+    // The estate capstone's page includes from its three modules, sources and build scripts both, so
+    // they are inputs too, and the page's claims are that service module's tests.
+    inputs
+        .files(
+            listOf("estate-api", "estate-clients", "estate-service").map { module ->
+                layout.projectDirectory.dir(module).asFileTree.matching {
+                    include("src/**", "build.gradle.kts")
+                }
+            }
+        )
+        .withPropertyName("bookEstateSources")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    dependsOn(":hkj-examples:estate-service:test")
+
     // Declared as a proper input (so a processor change re-runs the gate) and passed via an argument
     // provider (so the configuration cache can serialise it). It must be captured as a FileCollection,
     // not a NamedDomainObjectProvider: the cache cannot serialise the latter.

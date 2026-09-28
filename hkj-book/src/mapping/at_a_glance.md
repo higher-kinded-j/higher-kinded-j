@@ -127,6 +127,9 @@ blocker. Each ❌ means keep what you have for that case.
 | Nested objects patched field by field | ❌ replacement is wholesale |
 | Clients that need error paths in **wire** names | ⚠ paths are domain-named |
 | Spec-carrying libraries on the module path | ⚠ no cross-module index there |
+
+The [estate capstone](estate.md) works a generated-client bean, a Lombok `@Data` bean and a
+clearing PATCH across three modules.
 ~~~
 
 ---
@@ -140,5 +143,5 @@ blocker. Each ❌ means keep what you have for that case.
 
 ---
 
-**Previous:** [Injecting, Testing, and Diagnostics](testing.md)
+**Previous:** [Capstone: An Estate in Three Modules](estate.md)
 **Next:** [Coming from MapStruct and Bean Validation](from_mapstruct.md)

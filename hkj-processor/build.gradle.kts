@@ -31,7 +31,7 @@ dependencies {
     testRuntimeOnly(libs.junit.platform.launcher)
     // Lombok interop coverage: bean-shaped wires read Lombok-generated accessors in the same
     // javac run, so the pairing is pinned by LombokInteropTest rather than assumed.
-    testImplementation("org.projectlombok:lombok:1.18.42")
+    testImplementation(libs.lombok)
     testImplementation(libs.assertj.core)
     testImplementation(libs.archunit.junit5)
 
