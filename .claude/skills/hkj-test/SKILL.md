@@ -385,10 +385,12 @@ MappingLaws.assertMappingLaws(
 MappingLaws.assertMappingLaws(
     Impl.INSTANCE::updateFrom, current, allAbsentWire, validWire, invalidWire);
 
-// parse-only bean tier -> asValidatedParse(): the first wire parses, the second fails, every error located
+// parse-only bean tier, or the parse half of a @ReadOnly mapping -> asValidatedParse(): the first
+// wire parses, the second fails, every error located
 MappingLaws.assertMappingLaws(Impl.INSTANCE.asValidatedParse(), parseableWire, nonParseableWire);
 
-// build-only bean tier -> asValidatedBuild(): build renders the sample without failing
+// build-only bean tier, or the build half of a @ReadOnly mapping -> asValidatedBuild(): build
+// renders the sample without failing
 MappingLaws.assertMappingLaws(Impl.INSTANCE.asValidatedBuild(), domainSample);
 ```
 

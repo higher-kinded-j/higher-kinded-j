@@ -103,6 +103,12 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`names no accessor`](#unmapped-names-no-accessor) | An `@Unmapped` marker names nothing left out |
 | [`names a property`](#unmapped-names-a-mapped-property) | An `@Unmapped` marker names a paired property |
 | [`has nothing to leave out`](#unmapped-marker-on-a-one-way-bean) | An `@Unmapped` marker sits on a bean crossed one way |
+| [`names no getter`](#read-only-names-no-getter) | A `@ReadOnly` marker names no unpaired getter |
+| [`@ReadOnly method '…' names a property`](#read-only-names-a-mapped-property) | A `@ReadOnly` marker names a paired property |
+| [`has nothing to mark read-only`](#read-only-on-a-record) | A `@ReadOnly` marker sits on a record, or a one-way bean |
+| [`has a read-only property`](#read-only-nested-both-ways) | A spec with a read-only property is nested both ways |
+| [`which has no parse to read`](#read-only-on-a-projection) | A `@ReadOnly` property sits on a projection |
+| [`has no meaning on a sparse update`](#read-only-on-a-sparse-update) | A `@ReadOnly` marker sits on an `UpdateSpec` |
 | [`which a build cannot fill`](#getter-only-list-build) | A getter-only `List` is raw or a wildcard |
 | [`bridged to the getter-only bean property`](#bridged-to-a-getter-only-list) | A domain `Optional` faces a getter-only `List` |
 | [`bridged to the @Singular bean property`](#bridged-to-a-singular-collection) | A domain `Optional` faces a Lombok `@Singular` collection |
@@ -1319,9 +1325,9 @@ A sealed spec declares a leaf, derived field, rename or marker, but a dispatch h
 
 ```
 @GenerateMapping: leaf 'address' has no meaning on a sealed mapping. Leaves, derived fields,
-bridges, key leaves and unmapped accessors bind to the components and accessors of one pair; a
-sealed mapping dispatches over its permitted subtypes and has neither. Move the method onto the
-subtype pair's own spec.
+bridges, key leaves, unmapped accessors and read-only properties bind to the components and
+accessors of one pair; a sealed mapping dispatches over its permitted subtypes and has neither.
+Move the method onto the subtype pair's own spec.
 ```
 
 The rule: [Spec members on a sealed mapping](rules.md#how-the-two-default-families-are-told-apart).
@@ -1509,7 +1515,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {}
 
 An accessor has no partner, and leaving it out would drop a domain component, or on a PATCH bean ignore a value the client sends.
 
-**Fix.** Add the missing accessor, or correct the misspelt one the message names. An accessor meant to stay out takes an `@Unmapped` marker.
+**Fix.** Add the missing accessor, or correct the misspelt one the message names. A getter `parse` should read and `build` leave out takes a `@ReadOnly` marker, and an accessor meant to stay out an `@Unmapped` one.
 
 ```
 @GenerateMapping: bean property 'email' on 'CustomerBean' has a setter, setEmail(String), but no
@@ -1676,6 +1682,237 @@ class CustomerView {
 interface CustomerViewMapping extends MappingSpec<Customer, CustomerView> {
   @Unmapped
   String nickname();
+}
+```
+~~~
+
+### `@ReadOnly method 'x' names no getter 'Y' leaves unpaired` {#read-only-names-no-getter}
+
+A `@ReadOnly` marker names no getter the bean declares without a setter, which is usually a misspelling.
+
+**Fix.** Name the marker after the getter's property, which the message lists, or remove it.
+
+```
+@GenerateMapping: @ReadOnly method 'idd' names no getter 'CustomerModel' leaves unpaired. The
+marker reads a getter with no setter as a read-only property. Getters 'CustomerModel' leaves
+unpaired that a domain component maps to: [id]. Name the marker after the getter's property, or
+remove it. Did you mean 'id()'?
+```
+
+The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "names no getter" -->
+```java
+record Customer(String id, String name) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String idd();
+}
+```
+~~~
+
+### `@ReadOnly method 'x' names a property 'Y' maps` {#read-only-names-a-mapped-property}
+
+A `@ReadOnly` marker names a property the bean both reads and writes, so the mapping writes it anyway.
+
+**Fix.** Remove the marker. To leave the property unwritten, remove its setter from the bean.
+
+```
+@GenerateMapping: @ReadOnly method 'id' names a property 'CustomerModel' maps. The marker reads
+a getter with no setter as a read-only property, and 'id' is read and written, so the mapping
+carries it both ways. Remove the marker; to leave the property unwritten, remove its writer from
+'CustomerModel'.
+```
+
+The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "names a property" -->
+```java
+record Customer(String id, String name) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public void setId(String id) { this.id = id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String id();
+}
+```
+~~~
+
+### `@ReadOnly method 'x' has nothing to mark read-only: 'Y' is a record` {#read-only-on-a-record}
+
+A `@ReadOnly` marker sits on a record wire, or a bean crossed one way, which has no getter without a setter for it to read.
+
+**Fix.** Remove the marker. On a record, `build` writes every component, and `parse` reads it.
+
+```
+@GenerateMapping: @ReadOnly method 'id' has nothing to mark read-only: 'CustomerDto' is a
+record. The marker reads a getter with no setter as a read-only property, and a record's
+components are all read and written. Remove the marker.
+```
+
+The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "has nothing to mark read-only" -->
+```java
+record Customer(String id, String name) {}
+
+record CustomerDto(String id, String name) {}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
+  @ReadOnly
+  String id();
+}
+```
+~~~
+
+### `... has no usable source. 'X' maps this pair but has a read-only property 'y' (no asValidatedPrism) ...` {#read-only-nested-both-ways}
+
+A component nests a spec with a read-only property, in a mapping that builds and parses. That spec has no whole prism, since its `parse` cannot read back what its `build` leaves out.
+
+**Fix.** Nest it where a mapping only parses or only builds, or where the property holding it is itself `@ReadOnly`. The message spells out a leaf joining its halves for a mapping that must nest it anyway, at the cost of its own round trip.
+
+```
+@GenerateMapping: target field 'TicketDto.customer' has no usable source. The types differ
+(com.example.CustomerModel vs com.example.Customer) and no matching leaf method was found.
+'CustomerMapping' maps this pair but has a read-only property 'id' (no asValidatedPrism), so it
+cannot be nested in a mapping that builds and parses: its build leaves that property out, so its
+parse cannot read back what its build wrote. Found on Ticket: [ref, customer]. Nest
+'CustomerMapping' where a mapping only parses or only builds, or where the property holding it
+is itself @ReadOnly. To nest it here anyway, add 'default
+ValidatedPrism<com.example.CustomerModel, com.example.Customer> customer() { return
+ValidatedPrism.of(CustomerMappingImpl.INSTANCE::parse, CustomerMappingImpl.INSTANCE::build); }'
+to the spec: this mapping's parse then cannot read back what its build wrote either.
+```
+
+The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "has a read-only property" -->
+```java
+record Customer(String id, String name) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String id();
+}
+
+record Ticket(String ref, Customer customer) {}
+
+record TicketDto(String ref, CustomerModel customer) {}
+
+@GenerateMapping
+interface TicketMapping extends MappingSpec<Ticket, TicketDto> {}
+```
+~~~
+
+### `'Y' maps as a projection, which has no parse to read the read-only property 'x'` {#read-only-on-a-projection}
+
+A bean with a `@ReadOnly` property still lacks a property for some domain component, so it maps as a projection, which has no `parse`.
+
+**Fix.** Give the bean a property for each missing component, or replace `@ReadOnly` with `@Unmapped` to map the projection.
+
+```
+@GenerateMapping: 'CustomerModel' maps as a projection, which has no parse to read the read-only
+property 'id'. 'CustomerModel' has no property for [email] of 'Customer'. A read-only property
+is one parse reads and build leaves out, and a projection has no parse: it builds, and writes a
+wire back onto a domain value it is given. Give 'CustomerModel' a property for [email], so that
+parse can read the whole domain; or, to map the projection, replace @ReadOnly with @Unmapped on
+'id()'.
+```
+
+The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "which has no parse to read" -->
+```java
+record Customer(String id, String name, String email) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String id();
+}
+```
+~~~
+
+### `@ReadOnly method 'x' has no meaning on a sparse update` {#read-only-on-a-sparse-update}
+
+A `@ReadOnly` marker sits on an `UpdateSpec`, which builds nothing to leave the property out of.
+
+**Fix.** Replace `@ReadOnly` with `@Unmapped` to leave the accessor out of the update, or remove the marker.
+
+```
+@GenerateMapping: @ReadOnly method 'id' has no meaning on a sparse update. The marker reads a
+getter with no setter as a read-only property, which parse reads and build leaves unwritten, and
+an UpdateSpec has neither: it folds what a client sends into an update. Replace @ReadOnly with
+@Unmapped to leave the accessor out of the update, or remove the marker. A @ReadOnly marker a
+mix-in declares for a MappingSpec stays inert here.
+```
+
+The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "has no meaning on a sparse update" -->
+```java
+record Customer(String id, String name) {}
+
+class CustomerPatch {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {
+  @ReadOnly
+  String id();
 }
 ```
 ~~~

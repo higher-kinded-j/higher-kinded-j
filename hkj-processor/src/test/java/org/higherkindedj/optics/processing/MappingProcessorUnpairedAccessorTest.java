@@ -599,6 +599,52 @@ class MappingProcessorUnpairedAccessorTest {
   class UnmappedMarker {
 
     @Test
+    @DisplayName(
+        "returning ValidatedPrism reads as a leaf, and is told to take another return type")
+    void returningValidatedPrismReadsAsALeaf() {
+      JavaFileObject dto =
+          source(
+              "ContactDto",
+              """
+              public class ContactDto {
+                private String name;
+                private String email;
+                private String phone;
+
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+                public String getEmail() { return email; }
+                public void setEmail(String email) { this.email = email; }
+                public String getPhone() { return phone; }
+                public void setPhone(String phone) { this.phone = phone; }
+                public String getExtra() { return null; }
+              }
+              """);
+      JavaFileObject spec =
+          source(
+              "ContactMapping",
+              """
+              @GenerateMapping
+              public interface ContactMapping extends MappingSpec<Contact, ContactDto> {
+                @Unmapped
+                org.higherkindedj.optics.validated.ValidatedPrism<String, String> extra();
+              }
+              """);
+      Compilation compilation = compile(CONTACT, dto, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(1);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "abstract leaf 'extra' needs a generic spec. A concrete pair's leaf carries its own"
+                  + " parser as a 'default' body; only a generic spec defers the element mapping"
+                  + " to the generated 'of(...)' factory. An @Unmapped method returning"
+                  + " ValidatedPrism reads as a leaf, not a marker. Give the method a body"
+                  + " ('default'), or make the spec generic in the element types; to leave the"
+                  + " accessor out, give it a return type other than ValidatedPrism, such as the"
+                  + " accessor's own.");
+    }
+
+    @Test
     @DisplayName("reads an accessor's omission as deliberate, on both tiers")
     void silencesRefusalsOnBothTiers() throws ReflectiveOperationException {
       JavaFileObject keyed =

@@ -58,6 +58,7 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
   "org.higherkindedj.optics.annotations.OptionalBridge",
   "org.higherkindedj.optics.annotations.Flatten",
   "org.higherkindedj.optics.annotations.Unmapped",
+  "org.higherkindedj.optics.annotations.ReadOnly",
   // Read from a record optics are generated for.
   "org.higherkindedj.optics.annotations.TraverseField",
   // Read from an optics spec interface.

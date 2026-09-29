@@ -606,7 +606,7 @@ public class MergeProcessor extends AbstractProcessor {
             new Fill(
                 name,
                 holder.getSimpleName().toString(),
-                nested.getFirst().nestingPrism(),
+                nested.getFirst().nestingPrism(WireShape.Direction.PARSE_ONLY),
                 true,
                 null,
                 null));

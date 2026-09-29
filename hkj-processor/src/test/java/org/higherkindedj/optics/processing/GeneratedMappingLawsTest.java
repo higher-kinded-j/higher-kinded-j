@@ -1244,6 +1244,99 @@ class GeneratedMappingLawsTest {
   }
 
   @Test
+  @DisplayName(
+      "read-only tier: each half is lawful on its own, and there is no prism to round-trip through")
+  void readOnlyTierIsLawful() throws ReflectiveOperationException {
+    JavaFileObject domain =
+        JavaFileObjects.forSourceString(
+            "com.example.Contact",
+            """
+            package com.example;
+
+            public record Contact(Long id, String name, EmailAddress email) {}
+            """);
+    JavaFileObject wire =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactModel",
+            """
+            package com.example;
+
+            public class ContactModel {
+              private Long id;
+              private String name;
+              private String email;
+
+              public ContactModel() {}
+
+              public ContactModel(Long id, String name, String email) {
+                this.id = id;
+                this.name = name;
+                this.email = email;
+              }
+
+              public Long getId() { return id; }
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+              public String getEmail() { return email; }
+              public void setEmail(String email) { this.email = email; }
+            }
+            """);
+    JavaFileObject spec =
+        JavaFileObjects.forSourceString(
+            "com.example.ContactModelMapping",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.validated.FieldError;
+            import org.higherkindedj.hkt.validated.Validated;
+            import org.higherkindedj.optics.annotations.GenerateMapping;
+            import org.higherkindedj.optics.annotations.MappingSpec;
+            import org.higherkindedj.optics.annotations.ReadOnly;
+            import org.higherkindedj.optics.validated.ValidatedPrism;
+
+            @GenerateMapping
+            public interface ContactModelMapping extends MappingSpec<Contact, ContactModel> {
+              @ReadOnly
+              Long id();
+
+              default ValidatedPrism<String, EmailAddress> email() { return emailPrism(); }
+            """
+                + EMAIL_PRISM
+                + "}\n");
+
+    var result = compileMapping(EMAIL, domain, wire, spec);
+    Object impl = result.instance("com.example.ContactModelMappingImpl");
+    @SuppressWarnings("unchecked")
+    ValidatedParse<Object, Object> parse =
+        (ValidatedParse<Object, Object>) invoke(impl, "asValidatedParse");
+    @SuppressWarnings("unchecked")
+    ValidatedBuild<Object, Object> build =
+        (ValidatedBuild<Object, Object>) invoke(impl, "asValidatedBuild");
+
+    MappingLaws.assertMappingLaws(
+        parse,
+        result
+            .loadClass("com.example.ContactModel")
+            .getConstructor(Long.class, String.class, String.class)
+            .newInstance(7L, "Ada", "ada@corp.example"),
+        result
+            .loadClass("com.example.ContactModel")
+            .getConstructor(Long.class, String.class, String.class)
+            .newInstance(7L, "Ada", "nope"));
+    MappingLaws.assertMappingLaws(
+        build,
+        result
+            .loadClass("com.example.Contact")
+            .getDeclaredConstructors()[0]
+            .newInstance(
+                7L, "Ada", result.newInstance("com.example.EmailAddress", "ada@corp.example")));
+    Assertions.assertThat(parse).isNotInstanceOf(ValidatedPrism.class);
+    Assertions.assertThat(build).isNotInstanceOf(ValidatedPrism.class);
+    Assertions.assertThatThrownBy(() -> impl.getClass().getMethod("asValidatedPrism"))
+        .isInstanceOf(NoSuchMethodException.class);
+  }
+
+  @Test
   @DisplayName("sealed dispatch tier: the dispatching prism is lawful over both subtype arms")
   void sealedDispatchTierIsLawful() throws ReflectiveOperationException {
     JavaFileObject payment =

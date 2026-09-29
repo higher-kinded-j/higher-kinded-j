@@ -82,8 +82,9 @@ are in [Compiler Messages](compiler_errors.md).
 | Record | ✅ | ✅ | `asLens()`, or `patch` where a field validates | ❌ (records cannot express absence) |
 | Getter/setter bean | ✅ | ✅ | `patch` (any reference property), `asLens()` if all primitive | ✅ |
 | Builder bean (`builder()`/`newBuilder()`) | ✅ | ✅ | as above | ✅ |
-| Read-only bean (getters only) | ❌ | ✅ | ❌ | ❌ |
+| Getter-only bean (nothing writes it) | ❌ | ✅ | ❌ | ❌ |
 | Write-only bean (setters or builder only) | ✅ | ❌ | ❌ | ❌ |
+| A two-way bean's [`@ReadOnly`](beans.md#read-only-properties) property (a getter, no setter) | ✅ (left out) | ✅ (read) | ❌ | ❌ |
 | JAXB getter-only `List` | ✅ (through `addAll`) | ✅ | ✅ | ❌ (it can never read `null`) |
 | Sealed hierarchy against sealed hierarchy | ✅ | ✅ | ❌ | ❌ |
 | Generic record (`Page<T>`) | ✅ | ✅ | ✅ | ❌ (record-to-record only) |

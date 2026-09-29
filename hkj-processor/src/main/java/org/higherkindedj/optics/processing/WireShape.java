@@ -6,7 +6,9 @@ import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.TypeName;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -64,6 +66,15 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    */
   default List<UnpairedAccessor> unpaired() {
     return List.of();
+  }
+
+  /**
+   * Whether the component named {@code name} is read and never written, on a wire that is otherwise
+   * written both ways: a bean's read-only property ({@link BeanShape#readingAlso}). A record's
+   * components are all written.
+   */
+  default boolean readOnly(String name) {
+    return false;
   }
 
   /**
@@ -139,18 +150,35 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * getter nothing writes, or a writer nothing reads. The mapping leaves them out, and the
    * processor refuses one wherever leaving it out would lose a value. A one-directional bean has
    * none, every accessor it declares being a property.
+   *
+   * <p>A two-way bean may also carry read-only properties, named in {@code readOnlyNames} ({@link
+   * #readingAlso}): getters a {@code @ReadOnly} marker reads as properties, each with no write
+   * site. {@code parse} reads them like any other, and {@code build} writes every other property
+   * and leaves them as the bean starts them.
    */
   record BeanShape(
       TypeElement element,
       List<BeanProperty> properties,
       Optional<ConstructionStrategy> strategy,
       Direction direction,
-      List<UnpairedAccessor> unpaired)
+      List<UnpairedAccessor> unpaired,
+      Set<String> readOnlyNames)
       implements WireShape {
 
     public BeanShape {
       properties = List.copyOf(properties);
       unpaired = List.copyOf(unpaired);
+      readOnlyNames = Set.copyOf(readOnlyNames);
+    }
+
+    /** A bean as the analyser reads it, before any marker makes a property read-only. */
+    BeanShape(
+        TypeElement element,
+        List<BeanProperty> properties,
+        Optional<ConstructionStrategy> strategy,
+        Direction direction,
+        List<UnpairedAccessor> unpaired) {
+      this(element, properties, strategy, direction, unpaired, Set.of());
     }
 
     @Override
@@ -160,9 +188,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
 
     /**
      * The bean build body: the strategy's frame, and between it one write per property, each
-     * carrying its value whatever that is, a {@code null} included. No write is skipped, so a
-     * property written through a setter or a builder setter never keeps a default the bean or its
-     * builder started with.
+     * carrying its value whatever that is, a {@code null} included. So a property written through a
+     * setter or a builder setter never keeps a default the bean or its builder started with. Only a
+     * read-only property is skipped, since nothing writes it.
      */
     @Override
     public CodeBlock buildStatements(
@@ -171,10 +199,60 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
       ConstructionStrategy frame = strategy.orElseThrow();
       CodeBlock.Builder body = CodeBlock.builder().add(frame.prologue(wireType));
       for (BeanProperty property : properties) {
+        if (readOnlyNames.contains(property.name())) {
+          continue;
+        }
         CodeBlock value = valueFor.apply(property.asWireComponent());
         body.addStatement("$L", property.write().orElseThrow().write(frame.receiver(), value));
       }
       return body.add(frame.epilogue()).build();
+    }
+
+    /**
+     * This bean with the getters named in {@code names} read as read-only properties: an unpaired
+     * getter joins the properties, leaving {@link #unpaired}, and a getter-only {@code List} loses
+     * the {@code getX().addAll(...)} write the JAXB convention gave it. The names are those a
+     * {@code @ReadOnly} marker binds, each of which names one or the other, never a property with a
+     * writer of its own. A bean left with nothing to write is read parse-only, as one declaring
+     * nothing that writes it is.
+     */
+    BeanShape readingAlso(Set<String> names) {
+      List<UnpairedAccessor> getters =
+          unpaired.stream()
+              .filter(accessor -> accessor.reads() && names.contains(accessor.name()))
+              .toList();
+      List<BeanProperty> read =
+          Stream.concat(
+                  properties.stream()
+                      .map(
+                          property ->
+                              names.contains(property.name())
+                                  ? new BeanProperty(
+                                      property.name(),
+                                      property.type(),
+                                      property.getter(),
+                                      Optional.empty())
+                                  : property),
+                  getters.stream()
+                      .map(
+                          getter ->
+                              new BeanProperty(
+                                  getter.name(),
+                                  getter.type(),
+                                  Optional.of(getter.method()),
+                                  Optional.empty())))
+              .toList();
+      List<UnpairedAccessor> left =
+          unpaired.stream().filter(accessor -> !getters.contains(accessor)).toList();
+      return read.stream().allMatch(property -> property.write().isEmpty())
+          ? new BeanShape(element, read, Optional.empty(), Direction.PARSE_ONLY, List.of())
+          : new BeanShape(element, read, strategy, direction, left, names);
+    }
+
+    /** Whether the property named {@code name} is read-only: read, on a bean that is written. */
+    @Override
+    public boolean readOnly(String name) {
+      return readOnlyNames.contains(name);
     }
   }
 

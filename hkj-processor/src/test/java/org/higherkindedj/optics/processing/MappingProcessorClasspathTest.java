@@ -543,6 +543,119 @@ class MappingProcessorClasspathTest {
     }
 
     @Test
+    @DisplayName(
+        "a spec with a read-only property registers from its class file with both halves: each"
+            + " one-way site nests it, and a site that builds and parses is told why it cannot")
+    void readOnlySpecNestsFromTheClasspath() throws IOException {
+      JavaFileObject upstreamTypes =
+          JavaFileObjects.forSourceString(
+              "com.readonly.up.Types",
+              """
+              package com.readonly.up;
+
+              public final class Types {
+                public record Pet(Long id, String name) {}
+
+                public static class PetModel {
+                  private Long id;
+                  private String name;
+                  public PetModel() {}
+                  public Long getId() { return id; }
+                  public String getName() { return name; }
+                  public void setName(String name) { this.name = name; }
+                }
+              }
+              """);
+      JavaFileObject petMapping =
+          JavaFileObjects.forSourceString(
+              "com.readonly.up.PetMapping",
+              """
+              package com.readonly.up;
+
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.ReadOnly;
+
+              @GenerateMapping
+              public interface PetMapping extends MappingSpec<Types.Pet, Types.PetModel> {
+                @ReadOnly
+                Long id();
+              }
+              """);
+      Path upstream = module("readonly-upstream", List.of(), List.of(upstreamTypes, petMapping));
+
+      JavaFileObject oneWay =
+          JavaFileObjects.forSourceString(
+              "com.readonly.down.Down",
+              """
+              package com.readonly.down;
+
+              import com.readonly.up.Types;
+              import java.util.List;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Down {
+                public record Litter(List<Types.Pet> pets) {}
+
+                public static class LitterView {
+                  private final List<Types.PetModel> pets;
+                  public LitterView(List<Types.PetModel> pets) { this.pets = pets; }
+                  public List<Types.PetModel> getPets() { return pets; }
+                }
+
+                public static class LitterRequest {
+                  public void setPets(List<Types.PetModel> pets) {}
+                }
+
+                @GenerateMapping
+                public interface LitterViewMapping extends MappingSpec<Litter, LitterView> {}
+
+                @GenerateMapping
+                public interface LitterRequestMapping extends MappingSpec<Litter, LitterRequest> {}
+              }
+              """);
+      Compilation compilation = compiler(upstream).compile(oneWay);
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(
+              generatedSource(compilation, "com.readonly.down.DownLitterViewMappingImpl"))
+          .contains("PetMappingImpl.INSTANCE.asValidatedParse()::parseAll");
+      Assertions.assertThat(
+              generatedSource(compilation, "com.readonly.down.DownLitterRequestMappingImpl"))
+          .contains("PetMappingImpl.INSTANCE.asValidatedBuild().buildAll(domain.pets())");
+
+      JavaFileObject twoWay =
+          JavaFileObjects.forSourceString(
+              "com.readonly.down.Both",
+              """
+              package com.readonly.down;
+
+              import com.readonly.up.Types;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Both {
+                public record Owner(Types.Pet pet) {}
+                public record OwnerDto(Types.PetModel pet) {}
+
+                @GenerateMapping
+                public interface OwnerMapping extends MappingSpec<Owner, OwnerDto> {}
+              }
+              """);
+      Compilation refused = compiler(upstream).compile(twoWay);
+      assertThat(refused).failed();
+      assertThat(refused)
+          .hadErrorContaining(
+              "'com.readonly.up.PetMapping (classpath)' maps this pair but has a read-only"
+                  + " property 'id' (no asValidatedPrism), so it cannot be nested in a mapping that"
+                  + " builds and parses");
+      assertThat(refused)
+          .hadErrorContaining(
+              "return ValidatedPrism.of(com.readonly.up.PetMappingImpl.INSTANCE::parse,"
+                  + " com.readonly.up.PetMappingImpl.INSTANCE::build); }' to the spec");
+    }
+
+    @Test
     @DisplayName("a concrete pair nests through the dependency's Impl, and locates its failures")
     void concreteSpecNestsFromTheClasspath() throws Exception {
       Path upstream = upstream();
@@ -1696,6 +1809,85 @@ class MappingProcessorClasspathTest {
                   + " not on this module's compile classpath");
       Assertions.assertThat(compilation.errors())
           .noneMatch(error -> error.getMessage(null).contains("cannot access"));
+    }
+
+    @Test
+    @DisplayName(
+        "a dependency's spec with a read-only property, extending a missing type, is told of the"
+            + " missing type where it would otherwise nest")
+    void aReadOnlySpecExtendingAMissingTypeNamesTheType() throws IOException {
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.partialro.Specs",
+              """
+              package com.partialro;
+
+              import com.base.MissingBase;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.ReadOnly;
+
+              public final class Specs {
+                private Specs() {}
+
+                public record Pet(Long id, String name) {}
+
+                public static class PetModel {
+                  private Long id;
+                  private String name;
+                  public PetModel() {}
+                  public Long getId() { return id; }
+                  public String getName() { return name; }
+                  public void setName(String name) { this.name = name; }
+                }
+
+                public interface PetVocabulary extends MissingBase {
+                  @ReadOnly
+                  Long id();
+                }
+
+                @GenerateMapping
+                public interface PetMapping extends PetVocabulary, MappingSpec<Pet, PetModel> {}
+              }
+              """);
+      Path base = module("ro-base", List.of(), List.of(MISSING_BASE));
+      Path partial = module("ro-specs", List.of(base), List.of(specs));
+      JavaFileObject holders =
+          JavaFileObjects.forSourceString(
+              "com.roconsumer.Holders",
+              """
+              package com.roconsumer;
+
+              import com.partialro.Specs;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Holders {
+                private Holders() {}
+
+                public record Holder(Specs.Pet pet) {}
+
+                public static class HolderView {
+                  private final Specs.PetModel pet;
+                  public HolderView(Specs.PetModel pet) { this.pet = pet; }
+                  public Specs.PetModel getPet() { return pet; }
+                }
+
+                @GenerateMapping
+                public interface HolderMapping extends MappingSpec<Holder, HolderView> {}
+              }
+              """);
+
+      // A read-only spec serves a mapping that only parses, so a refusal there is the missing
+      // supertype's, never the read-only property's.
+      Compilation compilation = compiler(partial).compile(holders);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'com.partialro.Specs.PetMapping (classpath)' maps this pair, but"
+                  + " 'com.partialro.Specs.PetVocabulary' extends 'com.base.MissingBase', which is"
+                  + " not on this module's compile classpath");
+      Assertions.assertThat(compilation.errors().toString()).doesNotContain("read-only");
     }
 
     @Test

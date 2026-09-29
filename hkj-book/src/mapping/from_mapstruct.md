@@ -27,6 +27,7 @@ The shapes are close enough that a first spec usually reads like the mapper it r
 | `@MappingTarget` plus `NullValuePropertyMappingStrategy.IGNORE` | [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) and `updateFrom(wire).apply(current)` | returns `Validated`; nested objects replace wholesale |
 | `@MappingTarget` for a dense write-back | a projection's [`patch(domain, wire)`](tiers.md#leaf-carrying-projections-the-validated-patch) or `asLens()` | every projected field written, and validated |
 | `ignore = true` on a target | [`@Unmapped`](beans.md#accessors-meant-to-stay-out) on a bean accessor; a narrower wire is simply a projection | |
+| `ignore = true` on a request's target, read back from the response | [`@ReadOnly`](beans.md#read-only-properties) on a bean getter with no setter | one spec, with `parse` and `build` as two halves |
 | `unmappedTargetPolicy = ERROR` | always on | an unmapped wire component is a compile error |
 | `@InheritInverseConfiguration` | not needed | the inverse is the same declaration |
 | `componentModel = "spring"` | a `@Bean` of `ValidatedPrism<Wire, Domain>` from `asValidatedPrism()` | [Injecting and testing](testing.md#injecting-and-testing-generated-mappings) |

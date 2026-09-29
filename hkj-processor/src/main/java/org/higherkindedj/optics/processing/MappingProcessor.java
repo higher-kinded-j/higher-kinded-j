@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -32,6 +33,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -70,6 +72,7 @@ import org.higherkindedj.optics.annotations.GenerateMapping;
 import org.higherkindedj.optics.annotations.MapField;
 import org.higherkindedj.optics.annotations.MapKey;
 import org.higherkindedj.optics.annotations.OptionalBridge;
+import org.higherkindedj.optics.annotations.ReadOnly;
 import org.higherkindedj.optics.annotations.Unmapped;
 import org.higherkindedj.optics.processing.util.Diagnostics;
 import org.higherkindedj.optics.processing.util.ProcessorUtils;
@@ -136,6 +139,12 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * only its direction is used: a parse-only spec in a parse-only mapping, an {@code UpdateSpec} or a
  * merge fill, and a build-only spec in a build-only mapping.
  *
+ * <p>A two-way bean may also carry a read-only property, a getter with no setter that a {@link
+ * ReadOnly} marker names: {@code parse} reads it and {@code build} leaves it out. {@code parse}
+ * then cannot read back what {@code build} wrote, so the Impl carries both directions as halves,
+ * {@code asValidatedParse()} and {@code asValidatedBuild()}, and no {@code asValidatedPrism()} or
+ * {@code asIso()}, and nests wherever one direction is used alone.
+ *
  * <p>The same bridge reaches a <em>record</em> wire by opt-in ({@link OptionalBridge}), never
  * implicitly: a record component is null-is-an-error by default and that stays the default, so a
  * domain {@code Optional<T>} against a nullable record component {@code T} bridges only where the
@@ -193,9 +202,17 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The field holding an Impl's {@code asValidatedPrism()}, {@code asValidatedParse()} or {@code
-   * asValidatedBuild()}, whichever its tier has; an Impl has at most one of the three.
+   * asValidatedBuild()}, whichever its tier has, when it has only one of the three.
    */
   private static final String ADAPTER_FIELD = "hkj$adapter";
+
+  /**
+   * The fields holding the two halves of an Impl reading a read-only property, which has both
+   * {@code asValidatedParse()} and {@code asValidatedBuild()} and no {@code asValidatedPrism()}.
+   */
+  private static final String PARSE_ADAPTER_FIELD = "hkj$parseAdapter";
+
+  private static final String BUILD_ADAPTER_FIELD = "hkj$buildAdapter";
 
   private static final ClassName VALIDATED_PRISM_TYPE =
       ClassName.get("org.higherkindedj.optics.validated", "ValidatedPrism");
@@ -360,11 +377,11 @@ public class MappingProcessor extends AbstractProcessor {
     // Every mappable pair registers with the surface its Impl carries, projections included, so a
     // failed lookup can name them; which sites a surface serves is the registration's to say. A
     // classpath spec whose Impl is missing registers for the hint only: nothing can delegate to it.
-    Surface surface =
+    PairSurface surface =
         bothTiers
-            ? Surface.BOTH_TIERS
+            ? new PairSurface(Surface.BOTH_TIERS)
             : sealedPair
-                ? Surface.FULL
+                ? new PairSurface(Surface.FULL)
                 : pairSurface(
                     env,
                     beanAnalyser,
@@ -374,18 +391,39 @@ public class MappingProcessor extends AbstractProcessor {
                     wireRecord,
                     wireBean);
     registry.add(
-        new RegisteredSpec(domainArg, wireArg, implClassName(spec), spec, surface, origin));
+        new RegisteredSpec(
+            domainArg,
+            wireArg,
+            implClassName(spec),
+            spec,
+            surface.surface(),
+            origin,
+            surface.readOnly()));
+  }
+
+  /** A pair's surface, with the properties its wire reads read-only, which only a bean has. */
+  private record PairSurface(Surface surface, List<String> readOnly) {
+
+    PairSurface {
+      readOnly = List.copyOf(readOnly);
+    }
+
+    PairSurface(Surface surface) {
+      this(surface, List.of());
+    }
   }
 
   /**
    * The surface a record-domain spec's Impl carries, as the registry needs it before validation has
    * run. A one-directional bean carries its one direction whatever its width, since a mapping with
-   * no reverse has nothing to lose by dropping a component. Any other pair is full when the wire
+   * no reverse has nothing to lose by dropping a component. Any other pair maps whole when the wire
    * has a component for every domain slot (derived wire fields do not count against the wire, since
-   * parse ignores them) and a projection otherwise. A bean the analysis refuses reads as having no
-   * property, so it registers as a projection, which nothing nests, and its own spec says why.
+   * parse ignores them, and a bean's read-only properties do, since parse reads them) and is a
+   * projection otherwise; mapped whole, it is full unless a property is read-only. A bean the
+   * analysis refuses reads as having no property, so it registers as a projection, which nothing
+   * nests, and its own spec says why.
    */
-  private static Surface pairSurface(
+  private static PairSurface pairSurface(
       ProcessingEnvironment env,
       BeanPropertyAnalyser beanAnalyser,
       TypeElement spec,
@@ -394,26 +432,46 @@ public class MappingProcessor extends AbstractProcessor {
       TypeElement wireRecord,
       TypeElement wireBean) {
     Set<String> wireNames;
+    List<String> readOnly = List.of();
     if (wireRecord != null) {
       wireNames =
           wireRecord.getRecordComponents().stream()
               .map(c -> c.getSimpleName().toString())
               .collect(Collectors.toCollection(LinkedHashSet::new));
     } else {
-      Optional<WireShape.BeanShape> bean = beanAnalyser.surface(spec, wireBean);
+      // The bean as the mapping reads it: its read-only properties are properties, and a bean left
+      // with nothing to write reads parse-only.
+      Optional<WireShape.BeanShape> bean =
+          beanAnalyser
+              .surface(spec, wireBean)
+              .map(
+                  shape ->
+                      shape.readingAlso(
+                          readOnlyGetters(env.getElementUtils(), spec, domain, shape)));
       WireShape.Direction direction =
           bean.map(WireShape::direction).orElse(WireShape.Direction.BIDIRECTIONAL);
       if (direction != WireShape.Direction.BIDIRECTIONAL) {
-        return direction == WireShape.Direction.PARSE_ONLY
-            ? Surface.PARSE_ONLY
-            : Surface.BUILD_ONLY;
+        return new PairSurface(
+            direction == WireShape.Direction.PARSE_ONLY ? Surface.PARSE_ONLY : Surface.BUILD_ONLY);
       }
       wireNames = new LinkedHashSet<>(bean.map(WireShape::componentNames).orElse(List.of()));
+      // In the order of the domain components they are read into.
+      List<String> order =
+          wireNamesOf(env.getElementUtils(), spec, domain).values().stream()
+              .flatMap(List::stream)
+              .toList();
+      readOnly =
+          bean.map(WireShape.BeanShape::readOnlyNames)
+              .map(names -> order.stream().filter(names::contains).distinct().toList())
+              .orElse(List.of());
     }
-    return domainSlots(env, spec, domain, domainDeclared)
-            == wireNames.size() - derivedCandidateCount(env, spec, wireNames)
-        ? Surface.FULL
-        : Surface.PROJECTION;
+    if (domainSlots(env, spec, domain, domainDeclared)
+        != wireNames.size() - derivedCandidateCount(env, spec, wireNames)) {
+      return new PairSurface(Surface.PROJECTION);
+    }
+    return readOnly.isEmpty()
+        ? new PairSurface(Surface.FULL)
+        : new PairSurface(Surface.READ_ONLY, readOnly);
   }
 
   /**
@@ -513,15 +571,18 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * The surface a registered spec's Impl carries, which decides the use sites it can serve. A full
    * mapping serves every site. A one-directional bean mapping serves the sites that use only its
-   * direction, exposing itself as the half it has. A projection serves none, its write-back being
-   * no whole mapping to nest. Nor does a spec extending both {@code MappingSpec} and {@code
-   * UpdateSpec}: it belongs to the sparse tier, so its Impl carries {@code updateFrom} alone,
-   * whatever its wire, and {@link RegisteredSpec#unusable} explains it in its own words.
+   * direction, exposing itself as the half it has. A mapping reading a read-only property has both
+   * halves and no whole prism, so it serves the sites that use either direction alone, each through
+   * its own half. A projection serves none, its write-back being no whole mapping to nest. Nor does
+   * a spec extending both {@code MappingSpec} and {@code UpdateSpec}: it belongs to the sparse
+   * tier, so its Impl carries {@code updateFrom} alone, whatever its wire, and {@link
+   * RegisteredSpec#unusable} explains it in its own words.
    */
   enum Surface {
     FULL("asValidatedPrism", ""),
     PARSE_ONLY("asValidatedParse", "is parse-only (no build)"),
     BUILD_ONLY("asValidatedBuild", "is build-only (no parse)"),
+    READ_ONLY("", ""),
     PROJECTION("", "is a projection (no parse)"),
     BOTH_TIERS("", "");
 
@@ -539,8 +600,21 @@ public class MappingProcessor extends AbstractProcessor {
         case FULL -> true;
         case PARSE_ONLY -> need == WireShape.Direction.PARSE_ONLY;
         case BUILD_ONLY -> need == WireShape.Direction.BUILD_ONLY;
+        case READ_ONLY -> need != WireShape.Direction.BIDIRECTIONAL;
         case PROJECTION, BOTH_TIERS -> false;
       };
+    }
+
+    /**
+     * The method a site using {@code need} calls for this surface: its one accessor, or, where the
+     * surface has both halves, the half that site uses. Asked only of a surface that serves the
+     * site.
+     */
+    private String accessor(WireShape.Direction need) {
+      if (this != READ_ONLY) {
+        return accessor;
+      }
+      return need == WireShape.Direction.PARSE_ONLY ? "asValidatedParse" : "asValidatedBuild";
     }
 
     /**
@@ -567,7 +641,12 @@ public class MappingProcessor extends AbstractProcessor {
       ClassName impl,
       TypeElement spec,
       Surface surface,
-      Origin origin) {
+      Origin origin,
+      List<String> readOnly) {
+
+    RegisteredSpec {
+      readOnly = List.copyOf(readOnly);
+    }
 
     boolean local() {
       return origin == Origin.THIS_COMPILATION;
@@ -582,11 +661,12 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     /**
-     * The expression a nesting site calls on this spec's non-generic Impl: the surface it exposes.
-     * Asked only of a spec that {@link #serves} the site, so the surface has an accessor.
+     * The expression a site using {@code need} calls on this spec's non-generic Impl: the surface
+     * it exposes to that site. Asked only of a spec that {@link #serves} the site, so the surface
+     * has an accessor for it.
      */
-    CodeBlock nestingPrism() {
-      return CodeBlock.of("$T.INSTANCE.$L()", impl, surface.accessor);
+    CodeBlock nestingPrism(WireShape.Direction need) {
+      return CodeBlock.of("$T.INSTANCE.$L()", impl, surface.accessor(need));
     }
 
     /**
@@ -604,8 +684,9 @@ public class MappingProcessor extends AbstractProcessor {
      * build), so it cannot be nested in a mapping that builds and parses"), and the surface says
      * what it lacks for a site using {@code need}. A classpath spec whose Impl is missing, one
      * extending a type missing from the classpath, and one declaring both tiers each explain
-     * themselves whatever the site. Asked only of a spec that does not serve the site, so a full
-     * surface reaches the sentence only when the spec is not callable.
+     * themselves whatever the site. A callable spec with a read-only property, which serves every
+     * site but one that builds and parses, names its properties. Asked only of a spec that does not
+     * serve the site, so a full surface reaches the sentence only when the spec is not callable.
      */
     String unusable(String maps, String purpose, WireShape.Direction need) {
       if (surface == Surface.BOTH_TIERS) {
@@ -640,6 +721,21 @@ public class MappingProcessor extends AbstractProcessor {
             + " read and nothing can call its Impl: put the module declaring '"
             + missing.missing().getQualifiedName()
             + "' on this module's compile classpath.";
+      }
+      if (surface == Surface.READ_ONLY) {
+        return " '"
+            + describe()
+            + "' "
+            + maps
+            + " but "
+            + (readOnly.size() == 1
+                ? "has a read-only property '" + readOnly.getFirst() + "'"
+                : "has read-only properties " + readOnly)
+            + " (no asValidatedPrism), so it cannot "
+            + purpose
+            + ": its build leaves "
+            + (readOnly.size() == 1 ? "that property" : "those properties")
+            + " out, so its parse cannot read back what its build wrote.";
       }
       return " '"
           + describe()
@@ -1007,10 +1103,40 @@ public class MappingProcessor extends AbstractProcessor {
    * bean carries under no name: build would never write the component.
    */
   private boolean checkAccessorsPair(
-      TypeElement spec, TypeElement domain, WireShape.BeanShape bean, Set<String> unmapped) {
+      TypeElement spec,
+      TypeElement domain,
+      WireShape.BeanShape bean,
+      Set<String> unmapped,
+      BooleanSupplier readable) {
     List<UnpairedRefusal> refusals = uncarriedAccessors(spec, domain, bean, unmapped);
-    refusals.forEach(refusal -> reportUncarriedAccessor(spec, domain, bean, refusal, false));
+    refusals.forEach(
+        refusal -> reportUncarriedAccessor(spec, domain, bean, refusal, false, readable));
     return refusals.isEmpty();
+  }
+
+  /**
+   * Whether parse could read the whole domain were every getter the bean leaves unpaired under a
+   * name a component maps to, and no {@code @Unmapped} marker leaves out, read-only: {@link
+   * #pairSurface}'s arithmetic, so a refusal offers {@code @ReadOnly} only where following it maps,
+   * not where it meets the projection's refusal.
+   */
+  private boolean readsDomain(
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape.BeanShape bean,
+      Set<String> unmapped) {
+    Set<String> uncarried =
+        uncarriedNames(processingEnv.getElementUtils(), spec, domain, bean).keySet();
+    Set<String> wireNames = new LinkedHashSet<>(bean.componentNames());
+    bean.unpaired().stream()
+        .filter(WireShape.UnpairedAccessor::reads)
+        .map(WireShape.UnpairedAccessor::name)
+        .filter(uncarried::contains)
+        .filter(name -> !unmapped.contains(name))
+        .forEach(wireNames::add);
+    return domainSlots(processingEnv, spec, domain, domainDeclared)
+        == wireNames.size() - derivedCandidateCount(processingEnv, spec, wireNames);
   }
 
   /**
@@ -1026,7 +1152,8 @@ public class MappingProcessor extends AbstractProcessor {
   private boolean checkPatchAccessorsPair(
       TypeElement spec, TypeElement domain, WireShape.BeanShape bean, Set<String> unmapped) {
     List<UnpairedRefusal> refusals = uncarriedAccessors(spec, domain, bean, unmapped);
-    refusals.forEach(refusal -> reportUncarriedAccessor(spec, domain, bean, refusal, true));
+    refusals.forEach(
+        refusal -> reportUncarriedAccessor(spec, domain, bean, refusal, true, () -> false));
     // A setter already refused, or offered as a refusal's likely misspelling, is answered there.
     Set<String> answered =
         refusals.stream()
@@ -1063,7 +1190,8 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private List<UnpairedRefusal> uncarriedAccessors(
       TypeElement spec, TypeElement domain, WireShape.BeanShape bean, Set<String> unmapped) {
-    Map<String, String> uncarried = uncarriedNames(spec, domain, bean);
+    Map<String, String> uncarried =
+        uncarriedNames(processingEnv.getElementUtils(), spec, domain, bean);
     Set<String> offered = new HashSet<>();
     List<UnpairedRefusal> refusals = new ArrayList<>();
     for (WireShape.UnpairedAccessor accessor : bean.unpaired()) {
@@ -1080,19 +1208,41 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The names a mapping needs from a bean that the bean has no property for, each with the domain
-   * component it would carry. A component maps under the targets of the {@code @MapField} renames
-   * declared for it, and under its own name unless one of those renames is declared on the spec
-   * itself: a local rename binds or is refused, while an inherited one that finds nothing on this
-   * wire is inert, and the component then maps by its own name. Every name of a component none of
-   * whose names is a property is needed.
+   * component it would carry. Every name of a component none of whose names ({@link #wireNamesOf})
+   * is a property is needed.
    */
-  private Map<String, String> uncarriedNames(
-      TypeElement spec, TypeElement domain, WireShape.BeanShape bean) {
+  private static Map<String, String> uncarriedNames(
+      Elements elements, TypeElement spec, TypeElement domain, WireShape.BeanShape bean) {
+    return uncarriedNames(wireNamesOf(elements, spec, domain), bean);
+  }
+
+  /** {@link #uncarriedNames}, over the wire names each component maps under, already read. */
+  private static Map<String, String> uncarriedNames(
+      Map<String, List<String>> wireNames, WireShape.BeanShape bean) {
+    Map<String, String> uncarried = new LinkedHashMap<>();
+    wireNames.forEach(
+        (name, names) -> {
+          if (names.stream().noneMatch(wireName -> bean.componentNamed(wireName).isPresent())) {
+            names.forEach(wireName -> uncarried.putIfAbsent(wireName, name));
+          }
+        });
+    return uncarried;
+  }
+
+  /**
+   * The wire names each domain component maps under, by component. A component maps under the
+   * targets of the {@code @MapField} renames declared for it, and under its own name unless one of
+   * those renames is declared on the spec itself: a local rename binds or is refused, while an
+   * inherited one that finds nothing on this wire is inert, and the component then maps by its own
+   * name.
+   */
+  private static Map<String, List<String>> wireNamesOf(
+      Elements elements, TypeElement spec, TypeElement domain) {
     List<ExecutableElement> renames =
-        specMembers(spec).stream()
+        specMembers(elements, spec).stream()
             .filter(method -> method.getAnnotation(MapField.class) != null)
             .toList();
-    Map<String, String> uncarried = new LinkedHashMap<>();
+    Map<String, List<String>> wireNames = new LinkedHashMap<>();
     for (RecordComponentElement component : domain.getRecordComponents()) {
       String name = component.getSimpleName().toString();
       List<ExecutableElement> renamedBy =
@@ -1101,15 +1251,55 @@ public class MappingProcessor extends AbstractProcessor {
           renamedBy.stream().anyMatch(method -> declaredLocally(method, spec))
               ? Stream.empty()
               : Stream.of(name);
-      List<String> names =
+      wireNames.put(
+          name,
           Stream.concat(
                   own, renamedBy.stream().map(method -> method.getAnnotation(MapField.class).to()))
-              .toList();
-      if (names.stream().noneMatch(wireName -> bean.componentNamed(wireName).isPresent())) {
-        names.forEach(wireName -> uncarried.putIfAbsent(wireName, name));
-      }
+              .toList());
     }
-    return uncarried;
+    return wireNames;
+  }
+
+  /**
+   * The getters of a two-way bean that {@code @ReadOnly} markers read as read-only properties: each
+   * one a marker names, declared on the spec or inherited, that a domain component maps under, so
+   * that parse has a component to read it into. That is an unpaired getter the bean carries no
+   * component under ({@link #uncarriedNames}), or a getter-only {@code List}, which is a getter
+   * with no setter too, although build would otherwise fill it through {@code getX().addAll(...)}.
+   * Shared by the registry, which reads a spec's surface before validating it, and the spec's own
+   * processing, so the two cannot disagree on which properties the mapping reads. A marker binding
+   * nothing is left to {@link #readOnlyNames}, which refuses a declared one and leaves an inherited
+   * one inert.
+   */
+  private static Set<String> readOnlyGetters(
+      Elements elements, TypeElement spec, TypeElement domain, WireShape.BeanShape bean) {
+    if (bean.direction() != WireShape.Direction.BIDIRECTIONAL) {
+      return Set.of();
+    }
+    Map<String, List<String>> wireNames = wireNamesOf(elements, spec, domain);
+    Set<String> uncarried = uncarriedNames(wireNames, bean).keySet();
+    Set<String> mapped =
+        wireNames.values().stream().flatMap(List::stream).collect(Collectors.toSet());
+    Set<String> getters =
+        Stream.concat(
+                bean.unpaired().stream()
+                    .filter(WireShape.UnpairedAccessor::reads)
+                    .map(WireShape.UnpairedAccessor::name)
+                    .filter(uncarried::contains),
+                bean.properties().stream()
+                    .filter(
+                        property ->
+                            property.write().orElse(null)
+                                instanceof WireShape.WriteSite.CollectionAdd)
+                    .map(WireShape.BeanProperty::name)
+                    .filter(mapped::contains))
+            .collect(Collectors.toSet());
+    return Collections.unmodifiableSet(
+        specMembers(elements, spec).stream()
+            .filter(method -> method.getAnnotation(ReadOnly.class) != null)
+            .map(method -> method.getSimpleName().toString())
+            .filter(getters::contains)
+            .collect(Collectors.<String, Set<String>>toCollection(LinkedHashSet::new)));
   }
 
   /**
@@ -1181,6 +1371,222 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * The getters {@code @ReadOnly} markers read as properties, {@code bound} ({@link
+   * #readOnlyGetters}) on a mapping that builds, or null once a marker is reported. A marker the
+   * spec declares itself must bind, which is the typo guard: it must name an unpaired getter of a
+   * two-way bean that a domain component maps under, on a mapping that builds, and a sparse update
+   * builds nothing. It must not be marked {@code @Unmapped} as well. One inherited from a mix-in
+   * binds where it can and is otherwise inert, and wins over an inherited {@code @Unmapped} naming
+   * the same getter, so one mix-in can serve a {@code MappingSpec} and an {@code UpdateSpec} over
+   * one bean.
+   */
+  private Set<String> readOnlyNames(
+      TypeElement spec, TypeElement domain, WireShape wire, Set<String> bound, boolean sparse) {
+    for (ExecutableElement method : specMembers(spec)) {
+      if (method.getAnnotation(ReadOnly.class) == null || !declaredLocally(method, spec)) {
+        continue;
+      }
+      String name = method.getSimpleName().toString();
+      if (!bound.contains(name)) {
+        reportUnboundReadOnly(spec, domain, method, name, wire, sparse);
+        return null;
+      }
+      if (method.getAnnotation(Unmapped.class) != null) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            method,
+            TAG,
+            "@ReadOnly method '" + name + "' is marked @Unmapped too.",
+            "@ReadOnly reads the getter on parse, and @Unmapped leaves it out of the mapping, so"
+                + " the two contradict each other on a MappingSpec.",
+            "Keep one: @ReadOnly to read '"
+                + name
+                + "' on parse, or @Unmapped to leave it out. A mix-in that a MappingSpec and an"
+                + " UpdateSpec both extend may carry both, since @ReadOnly stays inert on the"
+                + " update.");
+        return null;
+      }
+    }
+    return bound;
+  }
+
+  /** Refuses a {@code @ReadOnly} marker the spec declares that names no getter it can read. */
+  private void reportUnboundReadOnly(
+      TypeElement spec,
+      TypeElement domain,
+      ExecutableElement method,
+      String name,
+      WireShape wire,
+      boolean sparse) {
+    String bean = wire.element().getSimpleName().toString();
+    String what = "@ReadOnly method '" + name + "' ";
+    String reads = "The marker reads a getter with no setter as a read-only property";
+    if (sparse) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          what + "has no meaning on a sparse update.",
+          reads
+              + ", which parse reads and build leaves unwritten, and an UpdateSpec has neither:"
+              + " it folds what a client sends into an update.",
+          "Replace @ReadOnly with @Unmapped to leave the accessor out of the update, or remove the"
+              + " marker. A @ReadOnly marker a mix-in declares for a MappingSpec stays inert here.");
+      return;
+    }
+    if (wire.direction() != WireShape.Direction.BIDIRECTIONAL) {
+      boolean read = wire.direction() == WireShape.Direction.PARSE_ONLY;
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          what
+              + "has nothing to mark read-only: '"
+              + bean
+              + "' is only "
+              + (read ? "read." : "written."),
+          reads
+              + (read
+                  ? ", and each getter of a bean that is only read is a property already: parse"
+                      + " reads those the domain needs."
+                  : ", and a bean that is only written has no getter, and its mapping no parse."),
+          "Remove the marker.");
+      return;
+    }
+    if (!(wire instanceof WireShape.BeanShape shape)) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          what + "has nothing to mark read-only: '" + bean + "' is a record.",
+          reads + ", and a record's components are all read and written.",
+          "Remove the marker.");
+      return;
+    }
+    List<WireShape.UnpairedAccessor> unpaired = shape.unpaired();
+    Optional<WireShape.UnpairedAccessor> accessor =
+        unpaired.stream().filter(named -> named.name().equals(name)).findFirst();
+    Map<String, String> uncarried =
+        uncarriedNames(processingEnv.getElementUtils(), spec, domain, shape);
+    List<String> readable =
+        unpaired.stream()
+            .filter(WireShape.UnpairedAccessor::reads)
+            .map(WireShape.UnpairedAccessor::name)
+            .filter(uncarried::containsKey)
+            .toList();
+    if (wire.componentNamed(name).isPresent()) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          what + "names a property '" + bean + "' maps.",
+          reads + ", and '" + name + "' is read and written, so the mapping carries it both ways.",
+          componentFix(
+              wire,
+              false,
+              "Remove the marker; to leave the property unwritten, remove its writer from '"
+                  + bean
+                  + "'."));
+    } else if (accessor.filter(found -> !found.reads()).isPresent()) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          what
+              + "names a "
+              + accessor.get().role().label()
+              + ", "
+              + accessor.get().signature()
+              + ", with no getter.",
+          reads + ", and '" + bean + "' has no getter for '" + name + "' for parse to read.",
+          "Name the marker after an unpaired getter, or remove it." + didYouMean(name, readable));
+    } else if (accessor.isPresent()) {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          what
+              + "names a getter, "
+              + accessor.get().signature()
+              + ", that no domain component maps to.",
+          reads
+              + ", and parse reads it into the domain component that maps under its name. No"
+              + " component of '"
+              + domain.getSimpleName()
+              + "' needs '"
+              + name
+              + "': none maps under it, or the one that does is carried by another property of '"
+              + bean
+              + "'. A getter no component needs is left out without a marker.",
+          "Remove the marker, or map the component it should fill to it with '@MapField(to = \""
+              + name
+              + "\")'.");
+    } else {
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          method,
+          TAG,
+          what + "names no getter '" + bean + "' leaves unpaired.",
+          reads
+              + ". "
+              + (readable.isEmpty()
+                  ? "'" + bean + "' leaves no getter unpaired that a domain component maps to."
+                  : "Getters '"
+                      + bean
+                      + "' leaves unpaired that a domain component maps to: "
+                      + readable
+                      + "."),
+          readable.isEmpty()
+              ? "Remove the marker."
+              : "Name the marker after the getter's property, or remove it."
+                  + didYouMean(name, readable));
+    }
+  }
+
+  /**
+   * Refuses a read-only property on a bean still narrower than the domain. A read-only property is
+   * one parse reads, and a projection has no parse: its write-back reads the wire into a domain it
+   * is given, which would take the value build never wrote.
+   */
+  private void reportReadOnlyOnProjection(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape wire,
+      Map<String, String> renames,
+      List<String> readOnly) {
+    String bean = wire.element().getSimpleName().toString();
+    List<String> missing =
+        componentNames(domain).stream()
+            .filter(name -> wire.componentNamed(renames.getOrDefault(name, name)).isEmpty())
+            .toList();
+    String properties =
+        readOnly.size() == 1
+            ? "the read-only property '" + readOnly.getFirst() + "'"
+            : "the read-only properties " + readOnly;
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "'" + bean + "' maps as a projection, which has no parse to read " + properties + ".",
+        "'"
+            + bean
+            + "' has no property for "
+            + missing
+            + " of '"
+            + domain.getSimpleName()
+            + "'. A read-only property is one parse reads and build leaves out, and a projection"
+            + " has no parse: it builds, and writes a wire back onto a domain value it is given.",
+        "Give '"
+            + bean
+            + "' a property for "
+            + missing
+            + ", so that parse can read the whole domain; or, to map the projection, replace"
+            + " @ReadOnly with @Unmapped on "
+            + (readOnly.size() == 1 ? "'" + readOnly.getFirst() + "()'" : readOnly)
+            + ".");
+  }
+
+  /**
    * Refuses a marker the spec declares on a bean crossed one way. Such a bean pairs nothing, so
    * each of its accessors is a property of its own and none is left unpaired for a marker to name.
    */
@@ -1235,12 +1641,18 @@ public class MappingProcessor extends AbstractProcessor {
         .map(Map.Entry::getKey);
   }
 
+  /**
+   * Reports an accessor {@link #uncarriedAccessors} names, offering its partner, then its likely
+   * misspelling, or else the markers that read it as deliberate: {@code @ReadOnly} for a getter
+   * where parse could then read the whole domain ({@code readable}), and {@code @Unmapped}.
+   */
   private void reportUncarriedAccessor(
       TypeElement spec,
       TypeElement domain,
       WireShape.BeanShape bean,
       UnpairedRefusal refusal,
-      boolean sparse) {
+      boolean sparse,
+      BooleanSupplier readable) {
     WireShape.UnpairedAccessor accessor = refusal.accessor();
     String name = accessor.name();
     String component = "'" + domain.getSimpleName() + "." + refusal.component() + "'";
@@ -1279,15 +1691,71 @@ public class MappingProcessor extends AbstractProcessor {
                                 + other.renamedFor(name)
                                 + ".")
                     .orElse(
-                        (sparse
+                        (accessor.reads() && readable.getAsBoolean()
+                                ? readOnlyOffer(spec, accessor)
+                                : "")
+                            + (sparse
                                 ? " Or, if clients must not change " + component
                                 : " Or, if "
                                     + accessor.signature()
                                     + " is not meant to carry "
                                     + component)
-                            + ", declare "
-                            + unmappedMarker(accessor)
-                            + " on the spec.")));
+                            + unmappedOffer(spec, accessor))));
+  }
+
+  /**
+   * The {@code @ReadOnly} marker offered to a getter a two-way bean leaves unpaired, where it is
+   * the one declaration that keeps {@code parse}. A method the spec already has under the getter's
+   * name, which it cannot declare a marker beside, takes the annotation where it is a marker or the
+   * leaf converting the component, and is replaced by the marker where it is neither.
+   */
+  private String readOnlyOffer(TypeElement spec, WireShape.UnpairedAccessor accessor) {
+    String name = accessor.name();
+    String marker =
+        "'@ReadOnly " + ProcessorUtils.simpleTypeName(accessor.type()) + " " + name + "();'";
+    return " Or, if '"
+        + name
+        + "' is read-only, "
+        + sameNamedMember(spec, name)
+            .map(
+                existing ->
+                    existing.isDefault() && !isLeafShaped(spec, existing)
+                        ? "replace " + memberIn(existing, spec) + " with " + marker
+                        : "annotate " + memberIn(existing, spec) + " with @ReadOnly")
+            .orElse("declare " + marker + " on the spec")
+        + ": parse reads "
+        + accessor.signature()
+        + ", and build leaves '"
+        + name
+        + "' unwritten.";
+  }
+
+  /**
+   * How the {@code @Unmapped} marker is offered, after the sentence naming the accessor it leaves
+   * out: declared on the spec, or on a method the spec already has under the accessor's name,
+   * annotated where it is a marker, and replaced where it has a body, which a marker cannot have. A
+   * method with a body that a mix-in declares may serve another spec, such as the leaf a mapping
+   * sharing the mix-in converts the component through, so it moves to the specs that use it rather
+   * than being replaced in the mix-in.
+   */
+  private String unmappedOffer(TypeElement spec, WireShape.UnpairedAccessor accessor) {
+    return sameNamedMember(spec, accessor.name())
+            .map(
+                existing ->
+                    !existing.isDefault()
+                        ? ", annotate " + memberIn(existing, spec) + " with @Unmapped"
+                        : declaredLocally(existing, spec)
+                            ? ", replace "
+                                + memberIn(existing, spec)
+                                + " with "
+                                + unmappedMarker(accessor)
+                            : ", move "
+                                + memberIn(existing, spec)
+                                + " onto the specs that use it, and declare "
+                                + unmappedMarker(accessor)
+                                + " on this spec")
+            .orElse(", declare " + unmappedMarker(accessor) + " on the spec")
+        + ".";
   }
 
   private void reportUnreadSetter(
@@ -1516,6 +1984,24 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * Says that a bean whose every property a {@code @ReadOnly} marker reads maps parse-only, since
+   * its markers leave build nothing to write: a note, as for a bean whose own shape decides.
+   */
+  private void noteEveryPropertyReadOnly(TypeElement spec, WireShape wire) {
+    String name = wire.element().getSimpleName().toString();
+    Diagnostics.note(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "'"
+            + name
+            + "' maps parse-only: the generated Impl carries parse and asValidatedParse(), and no"
+            + " build.",
+        "Every property of '" + name + "' is read-only, so build would write nothing.",
+        "If '" + name + "' should be built too, remove @ReadOnly from a property build writes.");
+  }
+
+  /**
    * Refuses a getter-only {@code List} the build could not fill. Such a property is written by the
    * JAXB convention, {@code getX().addAll(...)}, and {@code addAll(Collection<? extends E>)} needs
    * the element type the declaration withholds: over a raw receiver the call is unchecked, which
@@ -1523,8 +2009,10 @@ public class MappingProcessor extends AbstractProcessor {
    * capture separately, so no argument can satisfy it. The generated Impl is what breaks, and the
    * author cannot edit it, so the refusal lands on the declaration that can be changed.
    *
-   * <p>Asked only where a {@code build} is emitted. The sparse tier shares the bean model but reads
-   * the property and never writes it, so the same bean maps there untouched.
+   * <p>Asked only where a {@code build} is emitted, of the bean as the mapping reads it, so a list
+   * a {@code @ReadOnly} marker reads, which build never fills, is not asked about. The sparse tier
+   * shares the bean model but reads the property and never writes it, so the same bean maps there
+   * untouched.
    */
   private boolean checkCollectionGettersFillable(TypeElement spec, WireShape.BeanShape bean) {
     for (WireShape.BeanProperty property : bean.properties()) {
@@ -1707,6 +2195,17 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static boolean isFlattenMarker(ExecutableElement method) {
     return method.getAnnotation(Flatten.class) != null;
+  }
+
+  /**
+   * A bare {@code @ReadOnly} marker: the abstract placement, which the Impl owes a stub. The other
+   * placement is the leaf of the component the property fills, which is matched as a leaf, as
+   * {@link #isRenameMarker}'s two placements are. Asked only after {@link #validateSpecMethods}.
+   */
+  private boolean isReadOnlyMarker(TypeElement owner, ExecutableElement method) {
+    return method.getAnnotation(ReadOnly.class) != null
+        && method.getModifiers().contains(Modifier.ABSTRACT)
+        && !isAbstractLeaf(owner, method);
   }
 
   /** Zero-parameter, {@code ValidatedPrism}-returning and bodiless: an element-mapped leaf. */
@@ -2714,10 +3213,12 @@ public class MappingProcessor extends AbstractProcessor {
       // slip past every test here and sit inert on a spec that has no components to key.
       boolean key = method.getAnnotation(MapKey.class) != null;
       boolean unmapped = method.getAnnotation(Unmapped.class) != null;
+      boolean readOnly = method.getAnnotation(ReadOnly.class) != null;
       if (!leaf
           && !bridge
           && !key
           && !unmapped
+          && !readOnly
           && !isDerivedCandidate(processingEnv.getTypeUtils(), spec, method)) {
         continue;
       }
@@ -2729,12 +3230,14 @@ public class MappingProcessor extends AbstractProcessor {
                   ? "@MapKey on '"
                   : bridge
                       ? "@OptionalBridge on '"
-                      : unmapped ? "@Unmapped on '" : leaf ? "leaf '" : "derived field '")
+                      : unmapped
+                          ? "@Unmapped on '"
+                          : readOnly ? "@ReadOnly on '" : leaf ? "leaf '" : "derived field '")
               + method.getSimpleName()
               + "' has no meaning on a sealed mapping.",
-          "Leaves, derived fields, bridges, key leaves and unmapped accessors bind to the"
-              + " components and accessors of one pair; a sealed mapping dispatches over its"
-              + " permitted subtypes and has neither.",
+          "Leaves, derived fields, bridges, key leaves, unmapped accessors and read-only"
+              + " properties bind to the components and accessors of one pair; a sealed mapping"
+              + " dispatches over its permitted subtypes and has neither.",
           "Move the method onto the subtype pair's own spec.");
       return false;
     }
@@ -2763,6 +3266,7 @@ public class MappingProcessor extends AbstractProcessor {
       OptionalBridge bridge = method.getAnnotation(OptionalBridge.class);
       Flatten flatten = method.getAnnotation(Flatten.class);
       Unmapped unmapped = method.getAnnotation(Unmapped.class);
+      ReadOnly readOnly = method.getAnnotation(ReadOnly.class);
       MapKey mapKey = method.getAnnotation(MapKey.class);
       // A key leaf is named freely and keys the component its @MapKey names, while a rename renames
       // the component its method is named after, so on one method the two have to agree.
@@ -2790,6 +3294,23 @@ public class MappingProcessor extends AbstractProcessor {
         return false;
       }
       if (!method.getModifiers().contains(Modifier.ABSTRACT)) {
+        if (readOnly != null && !isLeafShaped(spec, method)) {
+          Diagnostics.error(
+              processingEnv.getMessager(),
+              method,
+              TAG,
+              "@ReadOnly method '"
+                  + method.getSimpleName()
+                  + "'"
+                  + inheritedNote(method, spec)
+                  + " is neither a marker nor a leaf.",
+              "A read-only property is declared on an abstract marker method named after it, or,"
+                  + " where the component it fills has that name and converts, on the component's"
+                  + " 'default' leaf returning ValidatedPrism<WireComponent, DomainComponent>; a"
+                  + " body of any other shape is neither.",
+              "Remove the body to make it a marker, or give the method the leaf's return type.");
+          return false;
+        }
         if (bridge != null && !isLeafShaped(spec, method)) {
           Diagnostics.error(
               processingEnv.getMessager(),
@@ -2882,23 +3403,31 @@ public class MappingProcessor extends AbstractProcessor {
                     + "', where the spec can thread them, or give the method a body.");
         return false;
       }
-      if (mapField == null && unmapped != null) {
+      // A marker returning ValidatedPrism reads as an abstract leaf, which the leaf rule answers.
+      if (mapField == null
+          && (unmapped != null || readOnly != null)
+          && !isAbstractLeaf(spec, method)) {
+        String marker = unmapped != null ? "@Unmapped" : "@ReadOnly";
         if (!method.getParameters().isEmpty()) {
           Diagnostics.error(
               processingEnv.getMessager(),
               method,
               TAG,
-              "@Unmapped method '"
+              marker
+                  + " method '"
                   + method.getSimpleName()
                   + "'"
                   + inheritedNote(method, spec)
                   + " must not declare parameters.",
-              "The marker is named after the accessor the mapping leaves out; the generated stub"
-                  + " implements it without parameters.",
+              "The marker is named after the accessor "
+                  + (unmapped != null
+                      ? "the mapping leaves out"
+                      : "the mapping reads and never writes")
+                  + "; the generated stub implements it without parameters.",
               "Remove the parameters.");
           return false;
         }
-        if (!checkMemberTypeReachable(spec, method, "@Unmapped marker")) {
+        if (!checkMemberTypeReachable(spec, method, marker + " marker")) {
           return false;
         }
         continue;
@@ -3122,6 +3651,7 @@ public class MappingProcessor extends AbstractProcessor {
       return false;
     }
     boolean renames = method.getAnnotation(MapField.class) != null;
+    boolean unmapped = !renames && method.getAnnotation(Unmapped.class) != null;
     Diagnostics.error(
         processingEnv.getMessager(),
         method,
@@ -3132,12 +3662,18 @@ public class MappingProcessor extends AbstractProcessor {
             + (renames
                 ? " A @MapField method returning ValidatedPrism is the component's leaf, not a"
                     + " rename marker."
-                : ""),
+                : unmapped
+                    ? " An @Unmapped method returning ValidatedPrism reads as a leaf, not a"
+                        + " marker."
+                    : ""),
         "Give the method a body ('default'), or make the spec generic in the element types"
             + (renames
                 ? "; if it only renames, give it a return type other than ValidatedPrism, such as"
                     + " the component's own."
-                : "."));
+                : unmapped
+                    ? "; to leave the accessor out, give it a return type other than"
+                        + " ValidatedPrism, such as the accessor's own."
+                    : "."));
     return false;
   }
 
@@ -3180,6 +3716,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (ExecutableElement method : specMembers(spec)) {
       if (isRenameMarker(spec, method)
           || method.getAnnotation(Unmapped.class) != null
+          || isReadOnlyMarker(spec, method)
           || isBridgeMarker(spec, method)
           || isFlattenMarker(method)
           || isAbstractLeaf(spec, method)) {
@@ -3643,6 +4180,8 @@ public class MappingProcessor extends AbstractProcessor {
     DeclaredType domainDeclared = (DeclaredType) domainArg;
 
     // The wire may be a record (component-wise) or a bean-shaped class (getters/setters).
+    // The getters @ReadOnly markers read, which only a bean has.
+    Set<String> readOnlyBound = Set.of();
     TypeElement wireRecord = asRecord(wireArg);
     WireShape wireShape;
     TypeMirror wireUsed;
@@ -3664,7 +4203,11 @@ public class MappingProcessor extends AbstractProcessor {
       }
       BeanPropertyAnalyser analyser = new BeanPropertyAnalyser(processingEnv);
       WireShape.BeanShape bean = analyser.analyse(spec, wireBean, TAG);
-      if (bean == null || !checkCollectionGettersFillable(spec, bean)) {
+      if (bean == null) {
+        return;
+      }
+      readOnlyBound = readOnlyGetters(processingEnv.getElementUtils(), spec, domain, bean);
+      if (!checkCollectionGettersFillable(spec, bean.readingAlso(readOnlyBound))) {
         return;
       }
       if (bean.direction() != WireShape.Direction.BIDIRECTIONAL) {
@@ -3692,9 +4235,26 @@ public class MappingProcessor extends AbstractProcessor {
     if (unmapped == null) {
       return;
     }
-    if (wireShape instanceof WireShape.BeanShape bean
-        && !checkAccessorsPair(spec, domain, bean, unmapped)) {
+    Set<String> readOnly = readOnlyNames(spec, domain, wireShape, readOnlyBound, false);
+    if (readOnly == null) {
       return;
+    }
+    if (wireShape instanceof WireShape.BeanShape bean
+        && !checkAccessorsPair(
+            spec,
+            domain,
+            bean,
+            Stream.concat(unmapped.stream(), readOnly.stream()).collect(Collectors.toSet()),
+            () -> readsDomain(spec, domain, domainDeclared, bean, unmapped))) {
+      return;
+    }
+    // A read-only property is read like any other, and build writes around it.
+    WireShape wire =
+        wireShape instanceof WireShape.BeanShape bean && !readOnly.isEmpty()
+            ? bean.readingAlso(readOnly)
+            : wireShape;
+    if (wire.direction() != wireShape.direction()) {
+      noteEveryPropertyReadOnly(spec, wire);
     }
     Set<String> flattenedInner =
         flattened.stream().flatMap(group -> group.inner().stream()).collect(Collectors.toSet());
@@ -3703,16 +4263,16 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    Map<String, String> renames = collectRenames(spec, domain, wireShape, flattened);
+    Map<String, String> renames = collectRenames(spec, domain, wire, flattened);
     if (renames == null) {
       return;
     }
 
-    if (!checkFlattenedNamesFree(spec, wireShape, renames, flattened)) {
+    if (!checkFlattenedNamesFree(spec, wire, renames, flattened)) {
       return;
     }
 
-    if (!checkBridgesApply(spec, domain, domainDeclared, wireShape, renames, flattened)) {
+    if (!checkBridgesApply(spec, domain, domainDeclared, wire, renames, flattened)) {
       return;
     }
 
@@ -3721,22 +4281,22 @@ public class MappingProcessor extends AbstractProcessor {
         domain,
         domainDeclared,
         flattened,
-        name -> bridgesOnWire(spec, wireShape, renames, name))) {
+        name -> bridgesOnWire(spec, wire, renames, name))) {
       return;
     }
 
     List<DerivedField> derived =
-        collectDerived(spec, domain, domainDeclared, wireShape, renames, flattened);
+        collectDerived(spec, domain, domainDeclared, wire, renames, flattened);
     if (derived == null) {
       return;
     }
 
-    boolean projects = wireShape.componentCount() - derived.size() < wireSlots(domain, flattened);
+    boolean projects = wire.componentCount() - derived.size() < wireSlots(domain, flattened);
     // A tier that parses builds the whole domain, so every domain component is crossed. Asked
     // before classification, so a leaf or spec it offers for a hidden type does not lead here next.
     boolean parsesDomain =
-        wireShape.direction() == WireShape.Direction.PARSE_ONLY
-            || (wireShape.direction() == WireShape.Direction.BIDIRECTIONAL && !projects);
+        wire.direction() == WireShape.Direction.PARSE_ONLY
+            || (wire.direction() == WireShape.Direction.BIDIRECTIONAL && !projects);
     if (parsesDomain
         && !Reachability.check(
             processingEnv,
@@ -3749,48 +4309,72 @@ public class MappingProcessor extends AbstractProcessor {
 
     // A one-way bean has no lossiness to speak of: nothing is read back after a build, and nothing
     // is written after a parse, so it maps its one direction whatever its width.
-    if (wireShape.direction() == WireShape.Direction.PARSE_ONLY) {
+    if (wire.direction() == WireShape.Direction.PARSE_ONLY) {
       List<Correspondence> parsed =
           classifyDomain(
               spec,
               registry,
               domain,
               domainDeclared,
-              wireShape,
+              wire,
               renames,
               flattened,
               WireShape.Direction.PARSE_ONLY);
-      if (parsed == null || !mapsReachably(spec, domainDeclared, wireShape, parsed, true)) {
+      if (parsed == null || !mapsReachably(spec, domainDeclared, wire, parsed, true)) {
         return;
       }
-      writeParseOnlyImpl(spec, domainDeclared, wireShape, wireUsed, parsed);
+      writeParseOnlyImpl(spec, domainDeclared, wire, wireUsed, parsed);
       return;
     }
-    if (wireShape.direction() == WireShape.Direction.BUILD_ONLY) {
+    if (wire.direction() == WireShape.Direction.BUILD_ONLY) {
       List<Correspondence> built =
           classifyWire(
               spec,
               registry,
               domain,
               domainDeclared,
-              wireShape,
+              wire,
               renames,
               derived,
               WireShape.Direction.BUILD_ONLY);
-      if (built == null || !mapsReachably(spec, domainDeclared, wireShape, built, false)) {
+      if (built == null || !mapsReachably(spec, domainDeclared, wire, built, false)) {
         return;
       }
-      writeBuildOnlyImpl(spec, domainDeclared, wireShape, wireUsed, built);
+      writeBuildOnlyImpl(spec, domainDeclared, wire, wireUsed, built);
       return;
     }
 
     if (projects) {
+      // A projection has no parse to read a property read-only: a marker the spec declares is
+      // refused, and an inherited one is inert, leaving the getter it names unpaired again.
+      List<String> declared =
+          specMembers(spec).stream()
+              .filter(method -> method.getAnnotation(ReadOnly.class) != null)
+              .filter(method -> declaredLocally(method, spec))
+              .map(method -> method.getSimpleName().toString())
+              .filter(readOnly::contains)
+              .toList();
+      if (!declared.isEmpty()) {
+        reportReadOnlyOnProjection(spec, domain, wire, renames, declared);
+        return;
+      }
+      WireShape projected = wire;
+      if (!readOnly.isEmpty()) {
+        // The bean as analysed writes a getter-only List a marker would have left alone, so it is
+        // asked about the lists the read-only view never showed the fillability check.
+        WireShape.BeanShape bean = (WireShape.BeanShape) wireShape;
+        if (!checkAccessorsPair(spec, domain, bean, unmapped, () -> false)
+            || !checkCollectionGettersFillable(spec, bean)) {
+          return;
+        }
+        projected = wireShape;
+      }
       if (!flattened.isEmpty()) {
-        reportProjectionWithFlattened(spec, domain, wireShape, flattened);
+        reportProjectionWithFlattened(spec, domain, projected, flattened);
         return;
       }
       if (!derived.isEmpty()) {
-        reportProjectionWithDerived(spec, domain, wireShape, derived);
+        reportProjectionWithDerived(spec, domain, projected, derived);
         return;
       }
       List<Correspondence> projection =
@@ -3799,32 +4383,36 @@ public class MappingProcessor extends AbstractProcessor {
               registry,
               domain,
               domainDeclared,
-              wireShape,
+              projected,
               renames,
               List.of(),
               WireShape.Direction.BIDIRECTIONAL);
       // A write-back that can fail is no lens: it maps as the validated patch tier instead, whose
       // guarded reads scan what they copy.
-      boolean lens = projection != null && totalReads(projection, wireShape);
+      boolean lens = projection != null && totalReads(projection, projected);
       if (projection == null
-          || !mapsReachably(spec, domainDeclared, wireShape, projection, !lens)) {
+          || !mapsReachably(spec, domainDeclared, projected, projection, !lens)) {
         return;
       }
       if (lens) {
-        writeLensImpl(spec, domain, domainDeclared, wireShape, wireUsed, projection);
+        writeLensImpl(spec, domain, domainDeclared, projected, wireUsed, projection);
         return;
       }
-      writePatchImpl(spec, domain, domainDeclared, wireShape, wireUsed, projection);
+      writePatchImpl(spec, domain, domainDeclared, projected, wireUsed, projection);
       return;
     }
 
     List<Correspondence> correspondences =
-        classify(spec, registry, domain, domainDeclared, wireShape, renames, derived, flattened);
+        classify(spec, registry, domain, domainDeclared, wire, renames, derived, flattened);
     if (correspondences == null
-        || !mapsReachably(spec, domainDeclared, wireShape, correspondences, true)) {
+        || !mapsReachably(spec, domainDeclared, wire, correspondences, true)) {
       return;
     }
-    writeImpl(spec, domain, domainDeclared, wireShape, wireUsed, correspondences);
+    if (!readOnly.isEmpty()) {
+      writeReadOnlyImpl(spec, domain, domainDeclared, wire, wireUsed, correspondences);
+      return;
+    }
+    writeImpl(spec, domain, domainDeclared, wire, wireUsed, correspondences);
   }
 
   /**
@@ -3919,6 +4507,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     Set<String> unmapped = unmappedNames(spec, wireShape, true);
     if (unmapped == null
+        || readOnlyNames(spec, domain, wireShape, Set.of(), true) == null
         || !checkPatchAccessorsPair(spec, domain, wireShape, unmapped)
         || !checkCollectionsCarryAbsence(spec, wireShape)) {
       return;
@@ -4455,7 +5044,7 @@ public class MappingProcessor extends AbstractProcessor {
     ExecutableElement leaf = findLeaf(spec, name, property.type(), wrapper);
     String leafDeclaration =
         "a leaf '"
-            + renameAnnotation(spec, name, property.name())
+            + keptAnnotations(spec, name, property.name())
             + "default ValidatedPrism<"
             + ProcessorUtils.qualifiedTypeName(property.type())
             + ", "
@@ -4504,7 +5093,7 @@ public class MappingProcessor extends AbstractProcessor {
         sameNamedMember(spec, name)
             .map(existing -> "Replace " + placeOf(existing, spec) + " with ")
             .orElse("Declare ");
-    String rename = renameAnnotation(spec, name, property.name());
+    String rename = keptAnnotations(spec, name, property.name());
     if (lifted != null) {
       return declare
           + "an element leaf '"
@@ -4980,6 +5569,7 @@ public class MappingProcessor extends AbstractProcessor {
     static final LeafSite PLAIN = new LeafSite("", false, "", null);
     static final LeafSite BRIDGE_MARKER = new LeafSite("@OptionalBridge ", true, "", null);
     static final LeafSite BEAN_MARKER = new LeafSite("", true, "", null);
+    static final LeafSite READ_ONLY_MARKER = new LeafSite("@ReadOnly ", true, "", null);
 
     /** The site for a bridged component: where it carries the marker, and on which wire. */
     static LeafSite bridged(boolean marked, WireShape wire) {
@@ -5082,7 +5672,7 @@ public class MappingProcessor extends AbstractProcessor {
           candidates);
       RegisteredSpec match = nested.getFirst();
       if (match.spec().getTypeParameters().isEmpty()) {
-        return new PrismResolution(match.nestingPrism(), false);
+        return new PrismResolution(match.nestingPrism(need), false);
       }
       Map<Element, TypeMirror> bindings = new LinkedHashMap<>();
       unify(match.domain(), domainType, bindings);
@@ -6512,6 +7102,7 @@ public class MappingProcessor extends AbstractProcessor {
           "Point the rename at a distinct wire component.");
       return null;
     }
+    // A read-only property is only ever parsed, so whatever nests there need only parse.
     return resolveCorrespondence(
         spec,
         registry,
@@ -6522,7 +7113,7 @@ public class MappingProcessor extends AbstractProcessor {
         wireComponent.type(),
         domainType,
         ownerNames,
-        need,
+        wire.readOnly(wireName) ? WireShape.Direction.PARSE_ONLY : need,
         false);
   }
 
@@ -6637,7 +7228,15 @@ public class MappingProcessor extends AbstractProcessor {
             wireType,
             domainType,
             need,
-            leafSite(LeafSite.PLAIN, spec, name, wireName, domainType));
+            // A read-only property under the component's own name has its marker there already.
+            leafSite(
+                wire.readOnly(wireName) && name.equals(wireName)
+                    ? LeafSite.READ_ONLY_MARKER
+                    : LeafSite.PLAIN,
+                spec,
+                name,
+                wireName,
+                domainType));
     if (resolved.reported()) {
       return null;
     }
@@ -6716,6 +7315,16 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private String referenceFix(MemberSite member, TypeMirror wireType, TypeMirror domainType) {
     LeafOffer offer = leafOffer(member.spec(), member.name(), wireType, domainType);
+    if (member.need() == WireShape.Direction.BIDIRECTIONAL) {
+      Optional<RegisteredSpec> halves =
+          member.registry().stream()
+              .filter(r -> r.surface() == Surface.READ_ONLY)
+              .filter(r -> covers(member.spec(), r, offer.domain(), offer.wire()))
+              .findFirst();
+      if (halves.isPresent()) {
+        return readOnlyNestingFix(member, offer, halves.get());
+      }
+    }
     String bridge =
         bridgeOffer(
             member.spec(),
@@ -6731,7 +7340,7 @@ public class MappingProcessor extends AbstractProcessor {
             member.spec(),
             member.name(),
             leafSpelling(
-                renameAnnotation(member.spec(), member.name(), member.wireName()),
+                keptAnnotations(member.spec(), member.name(), member.wireName()),
                 offer.wire(),
                 offer.domain(),
                 member.name()));
@@ -6745,6 +7354,41 @@ public class MappingProcessor extends AbstractProcessor {
             : "")
         + liftableOffer(member, wireType, domainType)
         + ".";
+  }
+
+  /**
+   * The fix for a pair whose spec reads a read-only property, at a site that builds and parses.
+   * Such a spec has no whole prism to nest, so the fix says where it does nest. A leaf joining its
+   * two halves would compile, and is spelt out for an author who accepts the cost, but it would
+   * make this mapping's own round trip lose what the spec's build leaves out, so the line says so
+   * rather than offering it as the fix.
+   */
+  private String readOnlyNestingFix(MemberSite member, LeafOffer offer, RegisteredSpec halves) {
+    String impl =
+        halves.impl().packageName().equals(implPackage(member.spec()))
+            ? halves.impl().simpleName()
+            : halves.impl().canonicalName();
+    String leaf =
+        "'"
+            + keptAnnotations(member.spec(), member.name(), member.wireName())
+            + "default ValidatedPrism<"
+            + ProcessorUtils.qualifiedTypeName(offer.wire())
+            + ", "
+            + ProcessorUtils.qualifiedTypeName(offer.domain())
+            + "> "
+            + member.name()
+            + "() { return ValidatedPrism.of("
+            + impl
+            + ".INSTANCE::parse, "
+            + impl
+            + ".INSTANCE::build); }'";
+    return "Nest '"
+        + halves.describe()
+        + "' where a mapping only parses or only builds, or where the property holding it is"
+        + " itself @ReadOnly. To nest it here anyway, "
+        + lowerFirst(leafLine(member.spec(), member.name(), leaf))
+        + (offer.lifts() ? ", a leaf over the " + offer.parts() + " types" : "")
+        + ": this mapping's parse then cannot read back what its build wrote either.";
   }
 
   /**
@@ -6824,18 +7468,32 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The {@code @MapField} a declaration named after a component carries, so a leaf offered in place
-   * of the method that declares a rename keeps it: the wire's name where it differs, or else the
-   * target of a rename inherited for the component that this wire leaves inert, which the leaf
-   * keeps for the specs whose wire it names.
+   * The annotations a declaration named after a component carries, so a leaf offered in place of
+   * the method of that name keeps what it declares: its {@code @ReadOnly} ({@link
+   * #readOnlyAnnotation}), and the {@code @MapField} rename, to the wire's name where it differs,
+   * or else the target of a rename inherited for the component that this wire leaves inert, which
+   * the leaf keeps for the specs whose wire it names.
    */
-  private String renameAnnotation(TypeElement spec, String name, String wireName) {
-    return !name.equals(wireName)
-        ? renameTo(wireName)
-        : sameNamedMember(spec, name)
-            .map(method -> method.getAnnotation(MapField.class))
-            .map(mapField -> renameTo(mapField.to()))
-            .orElse("");
+  private String keptAnnotations(TypeElement spec, String name, String wireName) {
+    return readOnlyAnnotation(spec, name)
+        + (!name.equals(wireName)
+            ? renameTo(wireName)
+            : sameNamedMember(spec, name)
+                .map(method -> method.getAnnotation(MapField.class))
+                .map(mapField -> renameTo(mapField.to()))
+                .orElse(""));
+  }
+
+  /**
+   * The {@code @ReadOnly} a declaration named after a component carries where the method of that
+   * name reads the component's property read-only: the leaf offered in its place keeps it, or
+   * following the offer would drop the read-only property the spec declared.
+   */
+  private String readOnlyAnnotation(TypeElement spec, String name) {
+    return sameNamedMember(spec, name)
+        .filter(method -> method.getAnnotation(ReadOnly.class) != null)
+        .map(method -> "@ReadOnly ")
+        .orElse("");
   }
 
   /**
@@ -7439,7 +8097,7 @@ public class MappingProcessor extends AbstractProcessor {
             + ", dropping the Optional"
             + dropped
             + "; or add "
-            + leafSpelling(renameAnnotation(spec, name, wireName), wireType, domainType, name)
+            + leafSpelling(keptAnnotations(spec, name, wireName), wireType, domainType, name)
             + " to the spec"
             + replaced
             + ", a leaf over the whole Optional that encodes absence the way the wire does.");
@@ -8462,7 +9120,7 @@ public class MappingProcessor extends AbstractProcessor {
           + nullable
           + ", so an absent value reads as a null wire component and a present one converts. ";
     }
-    String rename = renameAnnotation(spec, name, wireName);
+    String rename = keptAnnotations(spec, name, wireName);
     return needsNoLeaf
         ? leafLine(
                 spec,
@@ -8966,6 +9624,83 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * Emits the tier of a two-way bean with a read-only property: the full tier's {@code parse},
+   * reading every domain component, the read-only properties included, and its {@code build}, which
+   * writes around them. {@code parse} cannot read a built wire back whole, so the two are no prism,
+   * and there is no {@code asValidatedPrism()} or {@code asIso()}: each direction is exposed as its
+   * own half, for a mapping that uses that direction alone to nest.
+   */
+  private void writeReadOnlyImpl(
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      TypeMirror wireUsed,
+      List<Correspondence> comps) {
+    ClassName specName = ClassName.get(spec);
+    TypeName domainName = ProcessorUtils.typeNameOf(domainDeclared, implPackage(spec));
+    TypeName wireName = ProcessorUtils.typeNameOf(wireUsed, implPackage(spec));
+    if (!checkNoEmittedCollisions(
+        spec,
+        "a mapping with a read-only property",
+        List.of(
+            EmittedMember.of("build", domainDeclared),
+            EmittedMember.of("parse", wireUsed),
+            EmittedMember.of("asValidatedParse"),
+            EmittedMember.of("asValidatedBuild")))) {
+      return;
+    }
+    List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
+    // In the domain's order, into a javadoc format string, where a '$' in a name is doubled.
+    List<String> readOnly =
+        comps.stream()
+            .map(Correspondence::wireName)
+            .filter(wire::readOnly)
+            .map(name -> "{@code " + name.replace("$", "$$") + "}")
+            .toList();
+    String properties =
+        readOnly.size() == 1
+            ? "property " + readOnly.getFirst()
+            : "properties " + String.join(", ", readOnly);
+    String them = readOnly.size() == 1 ? "it" : "them";
+    TypeSpec.Builder implBuilder =
+        implSkeleton(
+                spec,
+                implClassName(spec),
+                specName,
+                "Generated mapping for {@link $T} over a wire with the read-only "
+                    + properties
+                    + ": total {@code build}, which leaves "
+                    + them
+                    + " unwritten, and accumulating, located {@code parse}, which reads "
+                    + them
+                    + ". {@code parse} cannot read a built wire back whole, so each is exposed as"
+                    + " its own half (truthful types).\n",
+                leafFields(spec))
+            .addMethod(
+                buildMethod(
+                    domainName,
+                    wireName,
+                    suppression,
+                    wireBuildBody(wire, wireName, comps, implPackage(spec))))
+            .addMethod(
+                parseMethod(
+                    domainName, wireName, suppression, parseBody(wire, comps, domain, domainName)))
+            .addField(asValidatedParseField(wireName, domainName, PARSE_ADAPTER_FIELD))
+            .addMethod(
+                asValidatedParseMethod(
+                    wireName, domainName, PARSE_ADAPTER_FIELD, "This mapping's {@code parse}"))
+            .addField(asValidatedBuildField(wireName, domainName, BUILD_ADAPTER_FIELD))
+            .addMethod(
+                asValidatedBuildMethod(
+                    wireName, domainName, BUILD_ADAPTER_FIELD, "This mapping's {@code build}"));
+    addMarkerStubs(implBuilder, spec);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
+    addReadHelpers(implBuilder, comps, wire);
+    writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
    * Emits the parse-only tier: a bean with getters and no way to be written. {@code parse} is the
    * full tier's, reading each domain component through its getter; there is no {@code build}, so no
    * {@code asValidatedPrism()} and no {@code asIso()}, and the mapping is exposed for nesting as
@@ -9001,8 +9736,10 @@ public class MappingProcessor extends AbstractProcessor {
                     wireName,
                     pairSuppression(domainDeclared, wire, comps),
                     parseBody(wire, comps, (TypeElement) domainDeclared.asElement(), domainName)))
-            .addField(asValidatedParseField(wireName, domainName))
-            .addMethod(asValidatedParseMethod(wireName, domainName));
+            .addField(asValidatedParseField(wireName, domainName, ADAPTER_FIELD))
+            .addMethod(
+                asValidatedParseMethod(
+                    wireName, domainName, ADAPTER_FIELD, "This parse-only mapping"));
     addMarkerStubs(implBuilder, spec);
     leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     addReadHelpers(implBuilder, comps, wire);
@@ -9045,8 +9782,10 @@ public class MappingProcessor extends AbstractProcessor {
                     wireName,
                     pairSuppression(domainDeclared, wire, comps),
                     wireBuildBody(wire, wireName, comps, implPackage(spec))))
-            .addField(asValidatedBuildField(wireName, domainName))
-            .addMethod(asValidatedBuildMethod(wireName, domainName));
+            .addField(asValidatedBuildField(wireName, domainName, ADAPTER_FIELD))
+            .addMethod(
+                asValidatedBuildMethod(
+                    wireName, domainName, ADAPTER_FIELD, "This build-only mapping"));
     addMarkerStubs(implBuilder, spec);
     leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
     implBuilder.addMethods(copyHelpers(comps));
@@ -10050,49 +10789,68 @@ public class MappingProcessor extends AbstractProcessor {
         .build();
   }
 
-  /** The field behind {@code asValidatedParse()}, built once as {@link #asValidatedPrismField}. */
-  private static FieldSpec asValidatedParseField(TypeName wireName, TypeName domainName) {
+  /**
+   * The field behind {@code asValidatedParse()}, named {@code field}, built once as {@link
+   * #asValidatedPrismField}.
+   */
+  private static FieldSpec asValidatedParseField(
+      TypeName wireName, TypeName domainName, String field) {
     return FieldSpec.builder(
             ParameterizedTypeName.get(VALIDATED_PARSE_TYPE, wireName, domainName),
-            ADAPTER_FIELD,
+            field,
             Modifier.PRIVATE,
             Modifier.FINAL)
         .initializer("$T.of(this::parse)", VALIDATED_PARSE_TYPE)
         .build();
   }
 
-  /** The field behind {@code asValidatedBuild()}, built once as {@link #asValidatedPrismField}. */
-  private static FieldSpec asValidatedBuildField(TypeName wireName, TypeName domainName) {
+  /**
+   * The field behind {@code asValidatedBuild()}, named {@code field}, built once as {@link
+   * #asValidatedPrismField}.
+   */
+  private static FieldSpec asValidatedBuildField(
+      TypeName wireName, TypeName domainName, String field) {
     return FieldSpec.builder(
             ParameterizedTypeName.get(VALIDATED_BUILD_TYPE, wireName, domainName),
-            ADAPTER_FIELD,
+            field,
             Modifier.PRIVATE,
             Modifier.FINAL)
         .initializer("$T.of(this::build)", VALIDATED_BUILD_TYPE)
         .build();
   }
 
-  private static MethodSpec asValidatedParseMethod(TypeName wireName, TypeName domainName) {
+  /**
+   * {@code asValidatedParse()}, returning {@code field}; {@code subject} is what its javadoc says
+   * the half is: the whole of a parse-only mapping, or one half of a mapping that has both.
+   */
+  private static MethodSpec asValidatedParseMethod(
+      TypeName wireName, TypeName domainName, String field, String subject) {
     return MethodSpec.methodBuilder("asValidatedParse")
         .addModifiers(Modifier.PUBLIC)
         .returns(ParameterizedTypeName.get(VALIDATED_PARSE_TYPE, wireName, domainName))
         .addJavadoc(
-            "This parse-only mapping as a {@link $T}, so a mapping that only parses can nest it"
-                + " directly or lift it through containers.\n",
+            subject
+                + " as a {@link $T}, so a mapping that only parses can nest it directly or lift it"
+                + " through containers.\n",
             VALIDATED_PARSE_TYPE)
-        .addStatement("return $N", ADAPTER_FIELD)
+        .addStatement("return $N", field)
         .build();
   }
 
-  private static MethodSpec asValidatedBuildMethod(TypeName wireName, TypeName domainName) {
+  /**
+   * {@code asValidatedBuild()}, as {@link #asValidatedParseMethod} is {@code asValidatedParse()}.
+   */
+  private static MethodSpec asValidatedBuildMethod(
+      TypeName wireName, TypeName domainName, String field, String subject) {
     return MethodSpec.methodBuilder("asValidatedBuild")
         .addModifiers(Modifier.PUBLIC)
         .returns(ParameterizedTypeName.get(VALIDATED_BUILD_TYPE, wireName, domainName))
         .addJavadoc(
-            "This build-only mapping as a {@link $T}, so a mapping that only builds can nest it"
-                + " directly or lift it through containers.\n",
+            subject
+                + " as a {@link $T}, so a mapping that only builds can nest it directly or lift it"
+                + " through containers.\n",
             VALIDATED_BUILD_TYPE)
-        .addStatement("return $N", ADAPTER_FIELD)
+        .addStatement("return $N", field)
         .build();
   }
 
@@ -10122,7 +10880,8 @@ public class MappingProcessor extends AbstractProcessor {
           isRenameMarker(spec, method)
               || isBridgeMarker(spec, method)
               || isFlattenMarker(method)
-              || method.getAnnotation(Unmapped.class) != null;
+              || method.getAnnotation(Unmapped.class) != null
+              || isReadOnlyMarker(spec, method);
       if (marker && !leafNames.contains(method.getSimpleName().toString())) {
         markers
             .computeIfAbsent(method.getSimpleName().toString(), name -> new ArrayList<>())
@@ -10133,30 +10892,7 @@ public class MappingProcessor extends AbstractProcessor {
       List<ExecutableElement> group = marker.getValue();
       ExecutableElement narrowestMember = narrowestMember(spec, group);
       TypeMirror narrowest = memberTypeIn(spec, narrowestMember);
-      boolean rename = group.stream().anyMatch(m -> m.getAnnotation(MapField.class) != null);
-      boolean bridge = group.stream().anyMatch(m -> m.getAnnotation(OptionalBridge.class) != null);
-      // A flatten marker never shares a method with a rename or a bridge (validateSpecMethods
-      // refuses the combination), so its vocabulary stands alone.
-      boolean flatten = group.stream().anyMatch(MappingProcessor::isFlattenMarker);
-      boolean unmapped = group.stream().anyMatch(m -> m.getAnnotation(Unmapped.class) != null);
-      String vocabulary =
-          flatten
-              ? "Flatten"
-              : unmapped
-                  ? "Unmapped"
-                  : rename && bridge ? "Rename and bridge" : rename ? "Rename" : "Bridge";
-      String message =
-          flatten
-              ? "@Flatten markers declare flattened components and are not invocable"
-              : unmapped
-                  ? "@Unmapped markers declare accessors the mapping leaves out and are not"
-                      + " invocable"
-                  : rename && bridge
-                      ? "@MapField and @OptionalBridge methods declare correspondences and are not"
-                          + " invocable"
-                      : rename
-                          ? "@MapField methods declare renames and are not invocable"
-                          : "@OptionalBridge markers declare bridges and are not invocable";
+      StubWording wording = stubWording(spec, group);
       // The stub restates the declared return, so a raw type the author wrote lands here verbatim.
       implBuilder.addMethod(
           MethodSpec.methodBuilder(marker.getKey())
@@ -10169,10 +10905,56 @@ public class MappingProcessor extends AbstractProcessor {
                       narrowestMember.getReturnType(),
                       (DeclaredType) spec.asType(),
                       implPackage(spec)))
-              .addJavadoc(vocabulary + " declaration only; not invocable.\n")
-              .addStatement("throw new $T($S)", UnsupportedOperationException.class, message)
+              .addJavadoc(wording.vocabulary() + " declaration only; not invocable.\n")
+              .addStatement(
+                  "throw new $T($S)", UnsupportedOperationException.class, wording.message())
               .build());
     }
+  }
+
+  /** What a marker stub says it declares: in its javadoc, and in the exception a call throws. */
+  private record StubWording(String vocabulary, String message) {}
+
+  /**
+   * The wording of the stub for a group of same-named markers, by what they declare. A flatten
+   * marker never shares a method with a rename or a bridge ({@link #validateSpecMethods} refuses
+   * the combination), so its vocabulary stands alone; a rename and a bridge on one method, and an
+   * {@code @Unmapped} and a {@code @ReadOnly} a mix-in shares between tiers, are one stub each.
+   */
+  private StubWording stubWording(TypeElement spec, List<ExecutableElement> group) {
+    boolean rename = group.stream().anyMatch(m -> m.getAnnotation(MapField.class) != null);
+    boolean bridge = group.stream().anyMatch(m -> m.getAnnotation(OptionalBridge.class) != null);
+    boolean unmapped = group.stream().anyMatch(m -> m.getAnnotation(Unmapped.class) != null);
+    boolean readOnly = group.stream().anyMatch(m -> isReadOnlyMarker(spec, m));
+    if (group.stream().anyMatch(MappingProcessor::isFlattenMarker)) {
+      return new StubWording(
+          "Flatten", "@Flatten markers declare flattened components and are not invocable");
+    }
+    if (unmapped && readOnly) {
+      return new StubWording(
+          "Unmapped and ReadOnly",
+          "@Unmapped and @ReadOnly markers declare accessors the mapping leaves out or only"
+              + " reads, and are not invocable");
+    }
+    if (unmapped) {
+      return new StubWording(
+          "Unmapped",
+          "@Unmapped markers declare accessors the mapping leaves out and are not invocable");
+    }
+    if (readOnly) {
+      return new StubWording(
+          "ReadOnly",
+          "@ReadOnly markers declare properties the mapping only reads and are not invocable");
+    }
+    if (rename && bridge) {
+      return new StubWording(
+          "Rename and bridge",
+          "@MapField and @OptionalBridge methods declare correspondences and are not invocable");
+    }
+    return rename
+        ? new StubWording("Rename", "@MapField methods declare renames and are not invocable")
+        : new StubWording(
+            "Bridge", "@OptionalBridge markers declare bridges and are not invocable");
   }
 
   /**

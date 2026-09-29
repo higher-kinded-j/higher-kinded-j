@@ -29,6 +29,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can two mix-ins declare the same rename?](#inheriting-one-member-twice) | Yes, when the targets agree; conflicting targets are refused. | by design |
 | [Can an `@Unmapped` marker name an accessor that pairs?](#what-unmapped-withholds) | Not one the spec declares; an inherited one stays inert. | by design |
 | [Can an `@Unmapped` marker go on a bean crossed one way?](#what-unmapped-withholds) | Not one the spec declares: such a bean leaves no accessor unpaired. | by design |
+| [Can a `@ReadOnly` marker name a getter the bean writes, or no getter?](#what-readonly-reads) | Not one the spec declares; an inherited one stays inert. | by design |
 | **Containers** | | |
 | [Is a same-typed container shared with the wire?](#same-typed-containers-cross-as-copies) | Not when declared exactly `List`, `Set`, `Collection`, `Map`, `Optional` or array. | by design |
 | [Does a `List` lift against a `Set`, or an `ArrayList`?](#what-lifts) | No: the same exact container on both sides, one level deep. | by design |
@@ -57,7 +58,9 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [What happens to an accessor with no partner?](#unpaired-accessors) | Left out; refused when named after a component the bean carries under no name. | by design |
 | [Can a getter-only `List` be raw, or a wildcard?](#getter-only-list-element-type) | Not where `build` is emitted: `addAll` needs its element type. | not supported yet |
 | [Can a getter-only `List` carry an absent `Optional`?](#getter-only-list-refuses-the-bridge) | No: its getter creates the list, so absence reads as empty. | not supported yet |
-| [Can a two-way bean map a property that has only a getter?](beans.md#generated-client-checklist) | No: `@Unmapped` accepts it, but the component then stays out. | not supported yet |
+| [Can a two-way bean map a property that has only a getter?](#what-readonly-reads) | Yes, marked `@ReadOnly`: `parse` reads it and `build` leaves it out, so the Impl has no `asValidatedPrism()`. | by design |
+| [Where does a mapping with a read-only property nest?](#what-readonly-reads) | Only where a mapping uses one direction: it has two halves and no whole prism. | by design |
+| [Can a projection, or an `UpdateSpec`, read a property read-only?](#what-readonly-reads) | No: a projection has no `parse`, and an `UpdateSpec` builds nothing. | by design |
 | [Can a Lombok builder use `@Singular` on a collection?](#singular-collections) | Yes: `build` writes the collection whole and leaves its adder alone; a build-only adder it cannot tell apart is refused. | by design |
 | [Can a `@Singular` collection carry an absent `Optional`?](#singular-collections) | No: its builder builds an empty collection, so it is never absent. | not supported yet |
 | [Does a protobuf-java message map?](beans.md#generated-client-checklist) | No: its companion accessors pair as extra properties, and a repeated or map field has no setter. | not supported yet |
@@ -66,7 +69,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can one spec extend `MappingSpec` and `UpdateSpec`?](#one-tier-per-spec) | No: declare a spec per tier and share a mix-in. | by design |
 | [Can a PATCH property be primitive?](#no-primitive-patch-property) | No: a primitive is never absent, so use the wrapper. | by design |
 | [Can a PATCH wire be a record?](#no-record-patch-wire) | No: a record component is always present. | by design |
-| [Can a PATCH bean be read-only, or write-only?](#patch-bean-read-and-written) | No: a PATCH bean is both read and written. | by design |
+| [Can a PATCH bean be only read, or only written?](#patch-bean-read-and-written) | No: a PATCH bean is both read and written. | by design |
 | [Can a PATCH bean have a setter with no getter?](#every-patch-setter-has-a-getter) | No, unless marked `@Unmapped`: the update would ignore it. | by design |
 | [Can a PATCH set a field to empty?](#no-optional-bridge-on-a-patch) | Through an `Optional`-typed property; a plain one bridged to `Optional` cannot. | by design |
 | [Can a PATCH bean have a getter-only `List`?](#no-getter-only-list-on-a-patch) | No: it never reads `null`, so it cannot be absent. | not supported yet |
@@ -149,7 +152,7 @@ Leaves are named after *domain* components and return `ValidatedPrism`; derived 
 - A zero-parameter `default` returning `Getter` is *always* claimed as a derived field, and validated as one. So give getter-shaped utility helpers a parameter or a different return type, or they will be mistaken for derived fields.
 - A `default` returning `ValidatedPrism` is matched by name against the domain's components (and against the members of any [flattened](structure.md#flattening-a-nested-component-onto-a-flat-wire) group), and a *locally declared* leaf **must** match: an unmatched local leaf is a compile error with a nearest-name hint (`leaf 'emial' names no component of Customer. Did you mean 'email()'?`), because a silently inert leaf would silently stop validating that field. Prism-returning helpers belong in `private` or `static` methods, which are never leaf-shaped.
 - *Inherited* [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) members that match nothing stay inert by design: a shared vocabulary may carry leaves for components only some extending specs have, and likewise derived fields and renames for wire components only some of their wires carry.
-- On a **sealed** mapping, locally declared leaves, derived fields and renames are rejected outright (a dispatch has no components), and so are an `@OptionalBridge` marker, a `@MapKey` key leaf and an `@Unmapped` marker; inherited vocabulary stays inert there too, bar a `@Flatten` marker, which is refused either way.
+- On a **sealed** mapping, locally declared leaves, derived fields and renames are rejected outright, since a dispatch has no components. So are an `@OptionalBridge` marker, a `@MapKey` key leaf, and an `@Unmapped` or `@ReadOnly` marker. Inherited vocabulary stays inert there too, bar a `@Flatten` marker, which is refused either way.
 
 Four shapes are rejected, each with a what/why/fix diagnostic: a *locally declared* `Getter` named after a *domain* component (ambiguous with a leaf); a *locally declared* `Getter` naming nothing on the wire; a `Getter` with the wrong type arguments; and a `@MapField` rename targeting a component a derived field already fills. The first two are the typo guard, so an inherited `Getter` in either position stays inert instead; the last two catch a member that does bind, and fire wherever it was declared.
 
@@ -239,7 +242,7 @@ A nested record the PATCH replaces whole parses through its own spec, guard incl
 
 ### How a spec collects its vocabulary {#how-a-spec-collects-its-vocabulary}
 
-**An inherited member binds exactly as if it were declared on the spec, and one that binds to nothing is inert instead of an error.** That holds for renames, leaves, derived fields, [`@OptionalBridge`](absence.md#optional-bridge) markers, [`@MapKey`](structure.md#converting-map-keys) key leaves, [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) markers and [`@Unmapped`](beans.md#accessors-meant-to-stay-out) markers, collected across the whole hierarchy: a mix-in may extend further mix-ins, and a diamond counts once. Precedence is Java's own, so a member re-declared on the spec, or on a nearer mix-in, overrides the one it replaces.
+**An inherited member binds exactly as if it were declared on the spec, and one that binds to nothing is inert instead of an error.** That holds for renames, leaves, derived fields, [`@OptionalBridge`](absence.md#optional-bridge) markers, [`@MapKey`](structure.md#converting-map-keys) key leaves, [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) markers, [`@Unmapped`](beans.md#accessors-meant-to-stay-out) markers and [`@ReadOnly`](beans.md#read-only-properties) markers, collected across the whole hierarchy: a mix-in may extend further mix-ins, and a diamond counts once. Precedence is Java's own, so a member re-declared on the spec, or on a nearer mix-in, overrides the one it replaces.
 
 - **A mix-in may be generic.** Its members are read under the spec's instantiation, so `Emails<T>` extended as `Emails<EmailAddress>` contributes `ValidatedPrism<String, EmailAddress>` ([Generic mix-ins](generics.md#generic-mix-ins)).
 - **A threaded generic spec extends mix-ins** at its own type parameters, generic mix-ins included ([Generic Specs](generics.md)).
@@ -257,6 +260,7 @@ An inherited member that binds to nothing stays inert, so one vocabulary can ser
 | derived field | the **wire**, by the method's name | inert |
 | `@MapField` rename | **both**: its method names a domain component, its `to` a wire one | inert when either end is missing |
 | `@Unmapped` marker | the **wire**, by the accessor it names | inert |
+| `@ReadOnly` marker | the **wire**, by the getter it names | inert |
 | `@Flatten` marker | the **domain**, by the method's name | inert; the one member also judged against the **wire**, so a sealed pair or an [`UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec) can refuse it even where it binds |
 
 So a projection or a PATCH bean that deliberately carries a subset extends the same vocabulary as the full spec, and simply maps fewer of its members; a sealed dispatch, which has no components at all, inherits the same vocabulary and binds none of it. Nothing is silently mismapped by an inert member, because every wire component still has to name a source: a wire that does carry a rename's target and has no other source for it is reported against that component. The cost is that a `to` typed wrongly *in the mix-in* is now caught only where some spec's wire happens to carry the intended name, which is the same trade the other inherited kinds already make.
@@ -375,7 +379,7 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 - **An overload that cannot pair is refused.** When no overload takes the getter's type, the property is read and written at different types. When a second overload would take the value as well, and is no less specific, javac could not choose between the two.
 - **An unpaired accessor is left out of the mapping.** That suits a computed getter such as `getSummary()`, or a [`@Singular` adder](#singular-collections), which the processor never refuses. It refuses any other unpaired accessor named after a domain component: [When an unpaired accessor is refused](#unpaired-accessors).
 - **The domain stays a record.** `parse` assembles the domain through its canonical constructor, so only the wire may be bean-shaped, and a bean domain gets a diagnostic.
-- **Nesting is unaffected.** A bean mapping that builds and parses exposes `asValidatedPrism()` like any other, so record specs nest it and containers lift it, and a one-directional one nests [where its direction is used](#how-a-beans-direction-is-read).
+- **Nesting is unaffected.** A bean mapping that builds and parses exposes `asValidatedPrism()` like any other, so record specs nest it and containers lift it, and a one-directional one nests [where its direction is used](#how-a-beans-direction-is-read). One with a [read-only property](#what-readonly-reads) has two halves instead, and nests where a mapping uses one direction.
 
 ### The automatic `Optional` bridge on a bean {#bean-optional-bridge}
 
@@ -393,9 +397,23 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 - **A marker the spec declares on a bean crossed [one way](#how-a-beans-direction-is-read) is refused.** Each of its accessors is a property of its own, so none is left unpaired: a parse-only mapping ignores a getter no component names, and a build-only one fills every writer.
 - **An inherited marker binds where it can, and is otherwise inert**, like every other member inherited from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces), so one mix-in serves specs whose wires differ.
 
+### What `@ReadOnly` reads {#what-readonly-reads}
+
+**A [`@ReadOnly`](beans.md#read-only-properties) marker makes a getter with no setter a read-only property: `parse` reads it, and `build` leaves it out.** It is named after the getter's property, like `@Unmapped`, and takes a two-way bean on a `MappingSpec`. The getter must be one the mapping reads into a domain component: an unpaired getter named after one, under its own name or a `@MapField` rename's, or a getter-only `List`, which `build` then leaves alone rather than filling through `getX().addAll(...)`.
+
+- **The Impl carries two halves and no prism.** `parse` cannot read back a bean `build` wrote, since the property is missing, so the Impl has `parse`, `build`, `asValidatedParse()` and `asValidatedBuild()`, and no `asValidatedPrism()` or `asIso()`. `MappingLaws` checks each half with its one-directional overload.
+- **A bean whose every property is read-only maps parse-only.** It has nothing left to build.
+- **Each half nests where a mapping uses its direction alone**, as a [one-directional bean](#how-a-beans-direction-is-read) does: a parse-only mapping, a [sparse `UpdateSpec`](beans_patch.md#sparse-patch-write-back-updatespec), a [`@GenerateMerge`](merge_envelopes.md) source and a build-only mapping. So does a read-only component of another mapping, which is only parsed.
+- **A mapping that builds and parses the component cannot nest it.** The failed lookup names the read-only property.
+- **A converting component takes the marker on its leaf.** A marker and a same-named leaf would be one method, so the `default` leaf carries the annotation, and the processor offers that leaf in the marker's place.
+- **The rest of the bean must cover the domain.** A bean still narrower than the domain is a projection, which has no `parse` to read the property. The processor refuses a marker the spec declares there, and leaves an inherited one inert.
+- **A marker the spec declares must read a getter.** The processor refuses one on an `UpdateSpec`, which builds nothing. It refuses one on a bean crossed [one way](#how-a-beans-direction-is-read), or on a record. And it refuses one naming a property the mapping writes, a setter, a getter no component maps to, or nothing, as well as one marked `@Unmapped` too.
+- **An inherited marker binds where it can, and is otherwise inert.** It wins over an inherited `@Unmapped` naming the same getter. So one mix-in whose bare marker carries both serves a `MappingSpec`, which reads the property, and a projection or an `UpdateSpec`, which leave it out.
+- **A leaf cannot carry `@Unmapped`**, so a converting property's marker belongs on the `MappingSpec` itself.
+
 ### When an unpaired accessor is refused {#unpaired-accessors}
 
-When an unpaired accessor is named after a domain component the bean carries under no name, the one the component maps under (its own, or the one a `@MapField` rename gives it), leaving it out would drop that component without a word, so it is refused. The diagnostic names the accessor that would pair it. When a nearby accessor of the other kind has the same type, it is offered as the likely misspelling, so `setEmail(String)` beside `getEmial()` is told to rename the getter to `getEmail()`; otherwise it offers the [`@Unmapped` marker](beans.md#accessors-meant-to-stay-out), for an accessor that is meant to stay out.
+When an unpaired accessor is named after a domain component the bean carries under no name, the one the component maps under (its own, or the one a `@MapField` rename gives it), leaving it out would drop that component without a word, so it is refused. The diagnostic names the accessor that would pair it. When a nearby accessor of the other kind has the same type, it is offered as the likely misspelling, so `setEmail(String)` beside `getEmial()` is told to rename the getter to `getEmail()`; otherwise it offers the [`@Unmapped` marker](beans.md#accessors-meant-to-stay-out), for an accessor that is meant to stay out. A getter on a mapping that builds is offered the [`@ReadOnly` marker](beans.md#read-only-properties) too, for a property `parse` should read and `build` leave out.
 
 ### A getter-only `List` must name its element type {#getter-only-list-element-type}
 
@@ -460,7 +478,7 @@ A one-directional mapping follows these rules:
 
 ### A PATCH bean is both read and written {#patch-bean-read-and-written}
 
-**A bean read one way only is rejected.** A read-only bean cannot say *not provided*: its getters may answer from its constructor or create a value on first call, and either reads as present. A write-only bean has nothing to read. The PATCH bean must be both read and written ([One-directional beans](beans.md#one-directional-beans)). Its constructor does not matter here: `updateFrom` only reads the bean, so its setters count even beside a private no-args constructor, which a deserialiser can still call. A bean with a builder keeps the builder as its writer.
+**A bean read one way only is rejected.** A bean only read cannot say *not provided*: its getters may answer from its constructor or create a value on first call, and either reads as present. A write-only bean has nothing to read. The PATCH bean must be both read and written ([One-directional beans](beans.md#one-directional-beans)). Its constructor does not matter here: `updateFrom` only reads the bean, so its setters count even beside a private no-args constructor, which a deserialiser can still call. A bean with a builder keeps the builder as its writer.
 
 ### Every setter has a getter {#every-patch-setter-has-a-getter}
 
@@ -472,7 +490,7 @@ A one-directional mapping follows these rules:
 
 ### Inherited vocabulary on a PATCH spec {#inherited-vocabulary-on-a-patch}
 
-**An inherited derived field or `@OptionalBridge` marker stays inert.** Arriving from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces), neither is ever consulted here (a derived field feeds a `build()` an `UpdateSpec` never emits, and a bridge marker reads a `null` the sparse tier has already read as *absent*), so one vocabulary serves a full spec and its PATCH sibling; declaring either on the `UpdateSpec` itself is still an error, reported where it was written. An inherited rename is inert too whenever either end is missing, whether this PATCH bean omits the property its `to` names or this domain omits the component it renames, so a bean covering a subset needs no vocabulary of its own. An inherited [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) marker is judged against this bean rather than waved through. It is inert whenever the bean carries none of the group's inner properties that nothing else fills, which covers both a bean declaring the group's own component (patched whole by identity) and one omitting the group entirely; it is refused, naming the mix-in, when the bean carries one, since a spread has no sparse edit shape yet. A `@Flatten` marker the `UpdateSpec` declares itself is refused either way, like the derived field and the bridge.
+**An inherited derived field, `@OptionalBridge` marker or `@ReadOnly` marker stays inert.** Arriving from a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces), none is ever consulted here, so one vocabulary serves a full spec and its PATCH sibling. A derived field feeds a `build()` an `UpdateSpec` never emits, a read-only marker exempts a property from that same `build()`, and a bridge marker reads a `null` the sparse tier has already read as *absent*. Declaring any of them on the `UpdateSpec` itself is still an error, reported where it was written. An inherited rename is inert too whenever either end is missing, whether this PATCH bean omits the property its `to` names or this domain omits the component it renames, so a bean covering a subset needs no vocabulary of its own. An inherited [`@Flatten`](structure.md#flattening-a-nested-component-onto-a-flat-wire) marker is judged against this bean rather than waved through. It is inert whenever the bean carries none of the group's inner properties that nothing else fills, which covers both a bean declaring the group's own component (patched whole by identity) and one omitting the group entirely; it is refused, naming the mix-in, when the bean carries one, since a spread has no sparse edit shape yet. A `@Flatten` marker the `UpdateSpec` declares itself is refused either way, like the derived field and the bridge.
 
 ### Same-typed components replace wholesale {#patch-replaces-wholesale}
 
