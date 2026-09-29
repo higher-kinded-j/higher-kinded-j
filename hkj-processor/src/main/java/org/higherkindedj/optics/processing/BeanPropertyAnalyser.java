@@ -51,7 +51,15 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * since a misspelt accessor is a likelier story than a wire meant to be crossed one way. A
  * getter-only {@code List} counts as written only on a bean that also has a setter, or whose every
  * getter is such a list: a {@code List} getter among read-only getters belongs to a read model,
- * which maps parse-only.
+ * which maps parse-only. One whose getter is declared nullable is filled only when the getter
+ * answers a list.
+ *
+ * <p>A property named {@code x_JsonNullable} of type {@code JsonNullable<T>} is no property of its
+ * own when a property {@code x} of type {@code T} crosses beside it: openapi-generator's Java
+ * client models keep a nullable property in a {@code JsonNullable} by default and expose it through
+ * both pairs, so {@code getX()} and {@code setX(T)} read and write the same value as the companion,
+ * with {@code null} for an unset one. Such a companion is left out of whichever reading the bean
+ * takes, and its accessors are not recorded as unpaired, since its value crosses as {@code x}.
  *
  * <p>A two-way bean records the accessors it leaves out, each getter nothing writes and each writer
  * nothing reads, so that the processor can refuse one whose omission would lose a value: this
@@ -77,6 +85,14 @@ final class BeanPropertyAnalyser {
 
   /** The interface every protobuf-java message implements, on the full and lite runtimes alike. */
   private static final String PROTOBUF_MESSAGE = "com.google.protobuf.MessageLite";
+
+  /** The holder openapi-generator's Java models keep a nullable property in, by default. */
+  private static final String JSON_NULLABLE = "org.openapitools.jackson.nullable.JsonNullable";
+
+  /**
+   * What openapi-generator appends to the accessors that expose a property's {@code JsonNullable}.
+   */
+  private static final String JSON_NULLABLE_SUFFIX = "_JsonNullable";
 
   /**
    * An English plural ending {@link #singularRank} undoes, with the singular endings it may stand
@@ -187,7 +203,12 @@ final class BeanPropertyAnalyser {
               readWrite(name, getterType, getter, new WireShape.WriteSite.Setter(setter)));
         } else if (collectionsWrite && isList(getterType)) {
           properties.add(
-              readWrite(name, getterType, getter, new WireShape.WriteSite.CollectionAdd(getter)));
+              readWrite(
+                  name,
+                  getterType,
+                  getter,
+                  new WireShape.WriteSite.CollectionAdd(
+                      getter, NullableAnnotations.declaresNullable(entry.getValue()))));
         } else {
           unpaired.add(unpairedGetter(bean, name, entry.getValue(), getterType));
         }
@@ -195,7 +216,7 @@ final class BeanPropertyAnalyser {
       if (!properties.isEmpty()) {
         unpaired.addAll(
             unpairedWriters(getters, setters, beanType, WireShape.UnpairedAccessor.Role.SETTER));
-        return new WireShape.BeanShape(
+        return shape(
             bean,
             properties,
             Optional.of(new WireShape.ConstructionStrategy.NoArgsSetters()),
@@ -282,7 +303,7 @@ final class BeanPropertyAnalyser {
                 builderSetters,
                 builderType,
                 WireShape.UnpairedAccessor.Role.BUILDER_SETTER));
-        return new WireShape.BeanShape(
+        return shape(
             bean,
             properties,
             Optional.of(builder.strategy()),
@@ -327,6 +348,58 @@ final class BeanPropertyAnalyser {
   private static WireShape.BeanProperty readWrite(
       String name, TypeMirror type, String getter, WireShape.WriteSite write) {
     return new WireShape.BeanProperty(name, type, Optional.of(getter), Optional.of(write));
+  }
+
+  /**
+   * The shape of a bean crossing in {@code direction} over {@code properties}, less each {@link
+   * #isJsonNullableCompanion JsonNullable companion} among them.
+   */
+  private WireShape.BeanShape shape(
+      TypeElement bean,
+      List<WireShape.BeanProperty> properties,
+      Optional<WireShape.ConstructionStrategy> strategy,
+      WireShape.Direction direction,
+      List<WireShape.UnpairedAccessor> unpaired) {
+    return new WireShape.BeanShape(
+        bean,
+        properties.stream()
+            .filter(property -> !isJsonNullableCompanion(property, properties))
+            .toList(),
+        strategy,
+        direction,
+        unpaired);
+  }
+
+  /**
+   * Whether {@code property} is openapi-generator's {@code JsonNullable} companion of another of
+   * {@code properties}: it is named {@code x_JsonNullable} and holds a {@code JsonNullable<T>}, and
+   * a property {@code x} of type {@code T} crosses beside it. The model's {@code getX()} and {@code
+   * setX(T)} read and write the value the companion holds, so the mapping carries that value once,
+   * through them. A companion with no such property beside it is a property like any other, and so
+   * is one beside a getter-only {@code List}, which it leaves as the only writer: a getter
+   * answering the unset companion's {@code null} has no list to fill.
+   */
+  private boolean isJsonNullableCompanion(
+      WireShape.BeanProperty property, List<WireShape.BeanProperty> properties) {
+    String name = property.name();
+    if (!name.endsWith(JSON_NULLABLE_SUFFIX) || !isDeclared(property.type(), JSON_NULLABLE)) {
+      return false;
+    }
+    String plain = name.substring(0, name.length() - JSON_NULLABLE_SUFFIX.length());
+    // A raw JsonNullable holds no type argument, so it accompanies nothing.
+    return ((DeclaredType) property.type())
+        .getTypeArguments().stream()
+            .anyMatch(
+                held ->
+                    properties.stream()
+                        .anyMatch(
+                            other ->
+                                other.name().equals(plain)
+                                    && other
+                                        .write()
+                                        .filter(WireShape.WriteSite.CollectionAdd.class::isInstance)
+                                        .isEmpty()
+                                    && env.getTypeUtils().isSameType(other.type(), held)));
   }
 
   private static WireShape.UnpairedAccessor unpairedGetter(
@@ -515,8 +588,7 @@ final class BeanPropertyAnalyser {
                         Optional.of(entry.getValue().getSimpleName().toString()),
                         Optional.<WireShape.WriteSite>empty()))
             .toList();
-    return new WireShape.BeanShape(
-        bean, properties, Optional.empty(), WireShape.Direction.PARSE_ONLY, List.of());
+    return shape(bean, properties, Optional.empty(), WireShape.Direction.PARSE_ONLY, List.of());
   }
 
   /**
@@ -550,7 +622,7 @@ final class BeanPropertyAnalyser {
                       Optional.of(write));
                 })
             .toList();
-    return new WireShape.BeanShape(
+    return shape(
         bean, properties, Optional.of(strategy), WireShape.Direction.BUILD_ONLY, List.of());
   }
 

@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
@@ -24,7 +25,9 @@ import javax.lang.model.util.ElementFilter;
  * various libraries, which annotation processors use to decide when to generate null-safe optics
  * ({@link #hasNullableAnnotation}). It also reads whether a site a mapping writes into is declared
  * non-null, by an annotation or by JSpecify's {@code @NullMarked} scope ({@link #nonNullReason}),
- * so a mapping that would write a {@code null} there can be refused.
+ * so a mapping that would write a {@code null} there can be refused, and whether a getter says it
+ * may answer {@code null} ({@link #declaresNullable}), so a mapping fills the list it answers only
+ * when there is one.
  */
 public final class NullableAnnotations {
 
@@ -176,6 +179,23 @@ public final class NullableAnnotations {
                 type instanceof TypeVariable variable && !hasNonNullBound(variable)
                     ? Optional.empty()
                     : nullMarkedScope(site).map(NonNullReason.Marked::new));
+  }
+
+  /**
+   * Whether a method is declared as one that may return {@code null}: an annotation on it, or on
+   * its return type, reads as nullable, by the rule {@link #declaredNonNull} applies first. A
+   * declaration annotation lands on the method and a {@code TYPE_USE} one on the return type; one
+   * on a type argument describes the elements, and does not count. The reading is lenient because a
+   * getter it misses, if it does answer {@code null}, turns a write into its result into a {@code
+   * NullPointerException}, where one it wrongly takes for nullable costs only a check.
+   *
+   * @param method the method, such as a bean getter
+   * @return whether its declaration says it may return {@code null}
+   */
+  static boolean declaresNullable(ExecutableElement method) {
+    return Stream.of(method.getAnnotationMirrors(), method.getReturnType().getAnnotationMirrors())
+        .<AnnotationMirror>flatMap(List::stream)
+        .anyMatch(NullableAnnotations::readsNullable);
   }
 
   private static boolean readsNullable(AnnotationMirror mirror) {

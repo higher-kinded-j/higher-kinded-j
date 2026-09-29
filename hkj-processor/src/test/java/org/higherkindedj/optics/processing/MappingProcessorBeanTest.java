@@ -881,6 +881,113 @@ class MappingProcessorBeanTest {
       }
     }
 
+    // openapi-generator declares every getter it does not require @Nullable, a readOnly array's
+    // included: a nullable array's answers null until Jackson sets it, and any other's a list.
+    @Test
+    @DisplayName("a getter-only List declared nullable is filled only when its getter answers one")
+    void nullableGetterOnlyListIsFilledOnlyWhenThereIsOne() throws ReflectiveOperationException {
+      Compilation compilation =
+          compileLinted(
+              JavaFileObjects.forSourceString(
+                  "com.example.jsr.Nullable",
+                  """
+                  package com.example.jsr;
+
+                  public @interface Nullable {}
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.Shelf",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+
+                  public record Shelf(String name, List<String> labels, List<String> notes) {}
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.ShelfModel",
+                  """
+                  package com.example;
+
+                  import java.util.ArrayList;
+                  import java.util.List;
+
+                  public class ShelfModel {
+                    private String name;
+                    private List<String> labels;
+                    private List<String> notes = new ArrayList<>();
+                    public String getName() { return name; }
+                    public void setName(String name) { this.name = name; }
+                    @com.example.jsr.Nullable
+                    public List<String> getLabels() { return labels; }
+                    public List<@org.jspecify.annotations.Nullable String> getNotes() {
+                      return notes;
+                    }
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.RackModel",
+                  """
+                  package com.example;
+
+                  import java.util.ArrayList;
+                  import java.util.List;
+
+                  public class RackModel {
+                    private String name;
+                    private List<String> labels = new ArrayList<>();
+                    private List<String> notes = new ArrayList<>();
+                    public String getName() { return name; }
+                    public void setName(String name) { this.name = name; }
+                    public java.util.@org.jspecify.annotations.Nullable List<String> getLabels() {
+                      return labels;
+                    }
+                    public List<String> getNotes() { return notes; }
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.ShelfMappings",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateMapping;
+                  import org.higherkindedj.optics.annotations.MappingSpec;
+
+                  @GenerateMapping
+                  interface ShelfMapping extends MappingSpec<Shelf, ShelfModel> {}
+
+                  @GenerateMapping
+                  interface RackMapping extends MappingSpec<Shelf, RackModel> {}
+                  """));
+      assertThat(compilation).succeeded();
+      // A nullable element type describes the elements, so notes is filled unguarded.
+      Assertions.assertThat(generatedSource(compilation, "com.example.ShelfMappingImpl"))
+          .contains(
+              "if (wire.getLabels() != null) wire.getLabels().addAll(hkj$copyOf(domain.labels()));")
+          .contains("\n    wire.getNotes().addAll(hkj$copyOf(domain.notes()));");
+      Assertions.assertThat(generatedSource(compilation, "com.example.RackMappingImpl"))
+          .contains(
+              "if (wire.getLabels() != null) wire.getLabels().addAll(hkj$copyOf(domain.labels()));");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object shelf =
+          result
+              .loadClass("com.example.Shelf")
+              .getDeclaredConstructor(String.class, List.class, List.class)
+              .newInstance("Oak", List.of("top"), List.of("dusty"));
+      // A model with a list is filled; one without leaves labels unwritten, where build threw, and
+      // parse reports the missing value, as a law check from a domain sample would.
+      Object rack = invoke(result.instance("com.example.RackMappingImpl"), "build", shelf);
+      Assertions.assertThat(invoke(rack, "getLabels")).isEqualTo(List.of("top"));
+      Object shelfMapping = result.instance("com.example.ShelfMappingImpl");
+      Object model = invoke(shelfMapping, "build", shelf);
+      Assertions.assertThat(invoke(model, "getLabels")).isNull();
+      Assertions.assertThat(invoke(model, "getNotes")).isEqualTo(List.of("dusty"));
+      assertThatValidated(validated(invoke(shelfMapping, "parse", model)))
+          .isInvalid()
+          .hasFieldErrors("labels: must not be null");
+    }
+
     /** A getter-only list property of the given type, with no setter. */
     private static JavaFileObject listGetterOnly(String listType) {
       return JavaFileObjects.forSourceString(
@@ -4336,6 +4443,387 @@ class MappingProcessorBeanTest {
       assertThat(compilation)
           .hadErrorContaining("'UserMessage' has getters but no way to be written");
       assertThat(compilation).hadErrorContaining("Convert 'UserMessage' " + PATCH_FIX);
+    }
+  }
+
+  @Nested
+  @DisplayName("openapi-generator JsonNullable companions")
+  class JsonNullableCompanions {
+
+    // Stands in for jackson-databind-nullable's holder, which the processor recognises by name.
+    private static final JavaFileObject JSON_NULLABLE =
+        JavaFileObjects.forSourceString(
+            "org.openapitools.jackson.nullable.JsonNullable",
+            """
+            package org.openapitools.jackson.nullable;
+
+            public final class JsonNullable<T> {
+              private static final JsonNullable<?> UNDEFINED = new JsonNullable<>(null, false);
+              private final T value;
+              private final boolean present;
+
+              private JsonNullable(T value, boolean present) {
+                this.value = value;
+                this.present = present;
+              }
+
+              @SuppressWarnings("unchecked")
+              public static <T> JsonNullable<T> undefined() {
+                return (JsonNullable<T>) UNDEFINED;
+              }
+
+              public static <T> JsonNullable<T> of(T value) {
+                return new JsonNullable<>(value, true);
+              }
+
+              public boolean isPresent() {
+                return present;
+              }
+
+              public T orElse(T other) {
+                return present ? value : other;
+              }
+            }
+            """);
+
+    // Two nullable properties as openapi-generator's Java models write them by default
+    // (openApiNullable=true), Jackson annotations aside.
+    private static final JavaFileObject PET_MODEL =
+        JavaFileObjects.forSourceString(
+            "com.example.PetModel",
+            """
+            package com.example;
+
+            import java.util.List;
+            import org.openapitools.jackson.nullable.JsonNullable;
+
+            public class PetModel {
+              private String name;
+              private JsonNullable<String> nickname = JsonNullable.<String>undefined();
+              private JsonNullable<List<String>> tags = JsonNullable.<List<String>>undefined();
+
+              public PetModel() {}
+
+              public String getName() { return name; }
+              public void setName(String name) { this.name = name; }
+
+              public String getNickname() { return nickname.orElse(null); }
+              public JsonNullable<String> getNickname_JsonNullable() { return nickname; }
+              public void setNickname_JsonNullable(JsonNullable<String> nickname) {
+                this.nickname = nickname;
+              }
+              public void setNickname(String nickname) {
+                this.nickname = JsonNullable.<String>of(nickname);
+              }
+
+              public List<String> getTags() { return tags.orElse(null); }
+              public JsonNullable<List<String>> getTags_JsonNullable() { return tags; }
+              public void setTags_JsonNullable(JsonNullable<List<String>> tags) { this.tags = tags; }
+              public void setTags(List<String> tags) {
+                this.tags = JsonNullable.<List<String>>of(tags);
+              }
+            }
+            """);
+
+    private static JavaFileObject source(String name, String body) {
+      return JavaFileObjects.forSourceString(
+          "com.example." + name,
+          """
+          package com.example;
+
+          import java.util.List;
+          import java.util.Optional;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.higherkindedj.optics.annotations.UpdateSpec;
+          import org.higherkindedj.optics.Getter;
+          import org.openapitools.jackson.nullable.JsonNullable;
+
+          """
+              + body);
+    }
+
+    /** Instantiates a compiled record through its canonical constructor. */
+    private static Object record(
+        RuntimeCompilationHelper.CompiledResult result, String name, Object... components)
+        throws ReflectiveOperationException {
+      return result
+          .loadClass("com.example." + name)
+          .getDeclaredConstructors()[0]
+          .newInstance(components);
+    }
+
+    @Test
+    @DisplayName("the plain accessors carry a nullable property, and its companion is left out")
+    void plainAccessorsCarryTheProperty() throws ReflectiveOperationException {
+      Compilation compilation =
+          compileLinted(
+              JSON_NULLABLE,
+              PET_MODEL,
+              source(
+                  "Pet",
+                  "public record Pet(String name, Optional<String> nickname, List<String> tags) {}"),
+              source(
+                  "PetMapping",
+                  """
+                  @GenerateMapping
+                  public interface PetMapping extends MappingSpec<Pet, PetModel> {}
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.PetMappingImpl"))
+          .contains("wire.setNickname(domain.nickname().orElse(null));")
+          .contains("Optional.ofNullable(wire.getNickname())")
+          .contains("hkj$copyOf(wire.getTags())")
+          .doesNotContain("_JsonNullable");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.PetMappingImpl");
+      Object named = record(result, "Pet", "Rex", Optional.of("R"), List.of("good"));
+      Object unnamed = record(result, "Pet", "Rex", Optional.empty(), List.of());
+
+      Object namedModel = invoke(impl, "build", named);
+      Assertions.assertThat(invoke(namedModel, "getNickname")).isEqualTo("R");
+      Assertions.assertThat(invoke(namedModel, "getTags")).isEqualTo(List.of("good"));
+      // The plain setter sets the companion: an empty Optional goes out as an explicit null.
+      Object unnamedModel = invoke(impl, "build", unnamed);
+      Assertions.assertThat(invoke(invoke(unnamedModel, "getNickname_JsonNullable"), "isPresent"))
+          .isEqualTo(true);
+      Assertions.assertThat(validated(invoke(impl, "parse", namedModel)).get()).isEqualTo(named);
+      Assertions.assertThat(validated(invoke(impl, "parse", unnamedModel)).get())
+          .isEqualTo(unnamed);
+
+      // A property the model never set reads null through its plain getter, as on any bean.
+      Object unset =
+          result.loadClass("com.example.PetModel").getDeclaredConstructor().newInstance();
+      invoke(unset, "setName", "Rex");
+      invoke(unset, "setTags", List.of());
+      Assertions.assertThat(validated(invoke(impl, "parse", unset)).get()).isEqualTo(unnamed);
+    }
+
+    @Test
+    @DisplayName("a PATCH bean reads the plain getter, so an unset or null property is left alone")
+    void patchReadsThePlainGetter() throws ReflectiveOperationException {
+      Compilation compilation =
+          compileLinted(
+              JSON_NULLABLE,
+              PET_MODEL,
+              source(
+                  "Profile",
+                  "public record Profile(String name, String nickname, List<String> tags) {}"),
+              source(
+                  "ProfilePatch",
+                  """
+                  @GenerateMapping
+                  public interface ProfilePatch extends UpdateSpec<Profile, PetModel> {}
+                  """));
+      assertThat(compilation).succeeded();
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.ProfilePatchImpl");
+      Object current = record(result, "Profile", "Rex", "Old", List.of("good"));
+      Object unset =
+          result.loadClass("com.example.PetModel").getDeclaredConstructor().newInstance();
+      Object sentNull =
+          result.loadClass("com.example.PetModel").getDeclaredConstructor().newInstance();
+      invoke(sentNull, "setNickname", (Object) null);
+      Object sentValue =
+          result.loadClass("com.example.PetModel").getDeclaredConstructor().newInstance();
+      invoke(sentValue, "setNickname", "New");
+
+      Assertions.assertThat(validated(invoke(invoke(impl, "updateFrom", unset), "apply", current)))
+          .isEqualTo(Validated.validNel(current));
+      Assertions.assertThat(
+              validated(invoke(invoke(impl, "updateFrom", sentNull), "apply", current)))
+          .isEqualTo(Validated.validNel(current));
+      Assertions.assertThat(
+              validated(invoke(invoke(impl, "updateFrom", sentValue), "apply", current)))
+          .isEqualTo(Validated.validNel(record(result, "Profile", "Rex", "New", List.of("good"))));
+    }
+
+    @Test
+    @DisplayName("a companion no plain property of its held type accompanies is a property")
+    void unaccompaniedCompanionIsAProperty() {
+      String plainPair =
+          """
+            public String getNickname() { return null; }
+            public void setNickname(String nickname) {}
+          """;
+      // Each wire's accessors, and the extras its refusal names: only a recognised companion is
+      // left out.
+      List<Map.Entry<String, String>> cases =
+          List.of(
+              // The companion pair alone, with no plain accessors.
+              Map.entry(
+                  """
+                    public JsonNullable<String> getNickname_JsonNullable() { return null; }
+                    public void setNickname_JsonNullable(JsonNullable<String> nickname) {}
+                  """,
+                  "[nickname_JsonNullable]"),
+              // A companion holding another type than the plain property's.
+              Map.entry(
+                  plainPair
+                      + """
+                        public JsonNullable<Integer> getNickname_JsonNullable() { return null; }
+                        public void setNickname_JsonNullable(JsonNullable<Integer> nickname) {}
+                      """,
+                  "[nickname, nickname_JsonNullable]"),
+              // The suffix on a property that is no JsonNullable.
+              Map.entry(
+                  plainPair
+                      + """
+                        public String getNickname_JsonNullable() { return null; }
+                        public void setNickname_JsonNullable(String nickname) {}
+                      """,
+                  "[nickname, nickname_JsonNullable]"),
+              // A raw JsonNullable, which holds no type to match.
+              Map.entry(
+                  plainPair
+                      + """
+                        @SuppressWarnings("rawtypes")
+                        public JsonNullable getNickname_JsonNullable() { return null; }
+                        @SuppressWarnings("rawtypes")
+                        public void setNickname_JsonNullable(JsonNullable nickname) {}
+                      """,
+                  "[nickname, nickname_JsonNullable]"),
+              // A getter-only List, which the companion's setter alone would write.
+              Map.entry(
+                  """
+                    public List<String> getNickname() { return null; }
+                    public JsonNullable<List<String>> getNickname_JsonNullable() { return null; }
+                    public void setNickname_JsonNullable(JsonNullable<List<String>> nickname) {}
+                  """,
+                  "[nickname, nickname_JsonNullable]"),
+              // The recognised shape, for contrast: the plain property is the only extra.
+              Map.entry(
+                  plainPair
+                      + """
+                        public JsonNullable<String> getNickname_JsonNullable() { return null; }
+                        public void setNickname_JsonNullable(JsonNullable<String> nickname) {}
+                      """,
+                  "[nickname]"));
+      Stream<JavaFileObject> wires =
+          IntStream.range(0, cases.size())
+              .boxed()
+              .flatMap(
+                  index ->
+                      Stream.of(
+                          source(
+                              "NamedModel" + index,
+                              """
+                              public class NamedModel%d {
+                                public String getName() { return null; }
+                                public void setName(String name) {}
+                              %s}
+                              """
+                                  .formatted(index, cases.get(index).getKey())),
+                          source(
+                              "NamedMapping" + index,
+                              """
+                              @GenerateMapping
+                              public interface NamedMapping%d
+                                  extends MappingSpec<Named, NamedModel%d> {}
+                              """
+                                  .formatted(index, index))));
+      Compilation compilation =
+          compile(
+              Stream.concat(
+                      Stream.of(
+                          JSON_NULLABLE, source("Named", "public record Named(String name) {}")),
+                      wires)
+                  .toArray(JavaFileObject[]::new));
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors()).hasSize(cases.size());
+      IntStream.range(0, cases.size())
+          .forEach(
+              index ->
+                  assertThat(compilation)
+                      .hadErrorContaining(
+                          "'NamedModel"
+                              + index
+                              + "' has more components than 'Named', leaving "
+                              + cases.get(index).getValue()
+                              + " unfilled."));
+    }
+
+    @Test
+    @DisplayName("a bean that is only read leaves its companion getter out too")
+    void parseOnlyLeavesTheCompanionOut() {
+      Compilation compilation =
+          compile(
+              JSON_NULLABLE,
+              source("Aliased", "public record Aliased(String name, String alias) {}"),
+              source(
+                  "AliasedView",
+                  """
+                  public class AliasedView {
+                    public String getName() { return null; }
+                    public String getNickname() { return null; }
+                    public JsonNullable<String> getNickname_JsonNullable() { return null; }
+                  }
+                  """),
+              source(
+                  "AliasedMapping",
+                  """
+                  @GenerateMapping
+                  public interface AliasedMapping extends MappingSpec<Aliased, AliasedView> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadNoteContaining("'AliasedView' maps parse-only");
+      assertThat(compilation).hadErrorContaining("Found on AliasedView: [name, nickname].");
+    }
+
+    @Test
+    @DisplayName("a bean that is only written leaves its companion writer out too")
+    void buildOnlyLeavesTheCompanionOut() {
+      Compilation compilation =
+          compileLinted(
+              JSON_NULLABLE,
+              source("Named", "public record Named(String name, String nickname) {}"),
+              source(
+                  "NamedCommand",
+                  """
+                  public class NamedCommand {
+                    public void setName(String name) {}
+                    public void setNickname_JsonNullable(JsonNullable<String> nickname) {}
+                    public void setNickname(String nickname) {}
+                  }
+                  """),
+              source(
+                  "NamedMapping",
+                  """
+                  @GenerateMapping
+                  public interface NamedMapping extends MappingSpec<Named, NamedCommand> {}
+                  """));
+      assertThat(compilation).succeeded();
+      assertThat(compilation).hadNoteContaining("'NamedCommand' maps build-only");
+      Assertions.assertThat(generatedSource(compilation, "com.example.NamedMappingImpl"))
+          .contains("wire.setNickname(domain.nickname());")
+          .doesNotContain("_JsonNullable");
+    }
+
+    @Test
+    @DisplayName("a derived field named after a companion names no component")
+    void derivedFieldForACompanionNamesNoComponent() {
+      Compilation compilation =
+          compile(
+              JSON_NULLABLE,
+              PET_MODEL,
+              source(
+                  "Pet", "public record Pet(String name, String nickname, List<String> tags) {}"),
+              source(
+                  "PetMapping",
+                  """
+                  @GenerateMapping
+                  public interface PetMapping extends MappingSpec<Pet, PetModel> {
+                    default Getter<Pet, JsonNullable<String>> nickname_JsonNullable() {
+                      return pet -> JsonNullable.of(pet.nickname());
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("derived field method 'nickname_JsonNullable' names no component");
+      assertThat(compilation).hadErrorContaining("Found on PetModel: [name, nickname, tags].");
     }
   }
 

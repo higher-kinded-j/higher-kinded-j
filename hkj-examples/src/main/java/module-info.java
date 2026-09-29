@@ -13,6 +13,9 @@ module org.higherkindedj.examples {
   requires tools.jackson.databind;
   requires org.jooq;
 
+  // openapi-generator's JsonNullable, for the mapping chapter's proofs about its models
+  requires org.openapitools.jackson.nullable;
+
   // Eclipse Collections for cross-ecosystem portfolio risk example
   requires org.eclipse.collections.api;
   requires org.eclipse.collections.impl;

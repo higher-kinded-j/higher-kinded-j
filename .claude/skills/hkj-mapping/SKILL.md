@@ -518,7 +518,9 @@ matter: it maps build-only whatever its width, derived fields included.
   getter-only `List`
   is filled with `getItems().addAll(...)` - that one must name its element type, since `addAll`
   cannot be written over a raw or wildcard receiver, so a raw or wildcard getter-only `List` is
-  refused on a mapping that builds (a sparse `UpdateSpec` only reads it, and keeps working).
+  refused on a mapping that builds (a sparse `UpdateSpec` only reads it, and keeps working). One
+  whose getter is declared nullable, as openapi-generator declares every non-required getter, is
+  filled only when the getter answers a list, and left unwritten otherwise.
   `build` fills through setters or the builder, `parse` reads
   through getters under the same null guard as a record wire, and a domain `Optional<T>` bridges to
   a nullable bean property `T` with no declaration (a record wire opts in per component with
@@ -549,6 +551,15 @@ matter: it maps build-only whatever its width, derived fields included.
   is meant to be read (an OpenAPI `readOnly` property), `@ReadOnly` makes it a read-only property:
   `parse` reads it and `build` leaves it out. It is refused on an `UpdateSpec`, a one-way bean, a
   record, and a bean still narrower than the domain; an inherited one binds where it can.
+- **openapi-generator's `JsonNullable` companions are left out.** In a `-g java` client model
+  (Jackson libraries such as `native`, `resttemplate`) with the default `openApiNullable=true`, each
+  nullable, non-required property has a `getX_JsonNullable()` / `setX_JsonNullable(JsonNullable<T>)`
+  pair beside `getX()` / `setX(T)`. The processor maps `x` through the plain pair and ignores the
+  companion, so the model needs no derived field and no `openApiNullable=false`. An unset or
+  explicit-`null` property reads `null` (on an `UpdateSpec`, left unchanged, and a domain `Optional`
+  component is refused there, since the plain getter cannot express *clear*), and `build` writes an
+  empty `Optional` as an explicit JSON `null`, so a wire sample for `MappingLaws` must set each
+  nullable property. A `-g spring` model has no plain pair: its property is a `JsonNullable<T>`.
 - **A type another processor generates is waited for.** A wire or domain type, or a component,
   bean property, builder or mix-in method read from one, that another annotation processor writes
   in the same compilation (an Immutables value, a schema-generated DTO) does not exist until the
