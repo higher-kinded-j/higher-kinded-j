@@ -1,5 +1,6 @@
 plugins {
     application
+    alias(libs.plugins.protobuf)
 }
 
 // Allow running any example via: ./gradlew :hkj-examples:run -PmainClass=<fully.qualified.ClassName>
@@ -25,6 +26,10 @@ dependencies {
 
     // PCollections for the persistent-collections HKT compatibility example (Phase 1)
     implementation(libs.pcollections)
+
+    // protobuf-java for the mapping chapter's gRPC example, whose messages protoc generates from
+    // src/main/proto in this build
+    implementation(libs.protobuf.java)
 
     // Testing dependencies for tutorials
     testImplementation(platform(libs.junit.bom))
@@ -72,6 +77,13 @@ dependencies {
 
 tasks.named("javadoc") {
     enabled = false
+}
+
+// protoc from Maven Central, at the release that matches the protobuf-java runtime.
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.asProvider().get()}"
+    }
 }
 
 // The processors the documentation gate hands to javac: this module's own, plus the @HkjHttpClient

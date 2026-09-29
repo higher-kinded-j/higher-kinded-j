@@ -7,7 +7,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.mapping.proto.CustomerMessage;
+import org.higherkindedj.example.book.mapping.proto.DispatchRequest;
+import org.higherkindedj.example.book.mapping.proto.Priority;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -149,5 +153,83 @@ class BeansBookTest {
     TransferBean bean = new TransferBean();
     bean.setDepartment(department);
     return bean;
+  }
+
+  @Test
+  @DisplayName(
+      "a protobuf message maps by its fields: an unset message field is missing, and an empty"
+          + " Optional leaves its field unset")
+  void protobufMessageObeysTheLaws() {
+    DispatchRequest request =
+        DispatchRequest.newBuilder()
+            .setCustomer(CustomerMessage.newBuilder().setName("Ada").setEmail("ada@corp.example"))
+            .addSkus("SKU-1")
+            .setNote("leave at the door")
+            .setPriority(Priority.PRIORITY_EXPRESS)
+            .setPickupPoint("PP-9")
+            .build();
+    MappingLaws.assertMappingLaws(
+        DispatchMappingImpl.INSTANCE.asValidatedPrism(),
+        request, // parses, and builds back equal
+        request.toBuilder().clearCustomer().build()); // an unset message field: located failure
+    MappingLaws.assertMappingLaws(
+        DispatchMappingImpl.INSTANCE.asValidatedPrism(),
+        new Dispatch(
+            new Customer("Grace", new EmailAddress("grace@corp.example")),
+            List.of(),
+            Optional.empty(),
+            DispatchPriority.STANDARD,
+            Optional.of("LK-4"),
+            Optional.empty()));
+
+    assertThatValidated(
+            DispatchMappingImpl.INSTANCE.parse(request.toBuilder().clearCustomer().build()))
+        .isInvalid()
+        .hasFieldErrors("customer: must not be null");
+  }
+
+  @Test
+  @DisplayName(
+      "an open enum reads an unknown number as UNRECOGNIZED: a leaf refuses it, and build throws"
+          + " on it where no leaf does")
+  void unrecognisedEnumNumber() {
+    // ANCHOR: protobuf_enum_trap_proof
+    DispatchRequest fromNewerClient =
+        DispatchRequest.newBuilder()
+            .setCustomer(CustomerMessage.newBuilder().setName("Ada").setEmail("ada@corp.example"))
+            .setPriorityValue(3) // a priority added to the .proto after this build
+            .build();
+
+    // Kept as the generated enum, it parses as UNRECOGNIZED, which no builder can write back.
+    DispatchRecord kept = DispatchRecordMappingImpl.INSTANCE.parse(fromNewerClient).get();
+    assertThat(kept.priority()).isEqualTo(Priority.UNRECOGNIZED);
+    assertThatThrownBy(() -> DispatchRecordMappingImpl.INSTANCE.build(kept))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Can't get the number of an unknown enum value.");
+
+    // Converted through a leaf, it is refused where it is read.
+    assertThatValidated(DispatchMappingImpl.INSTANCE.parse(fromNewerClient))
+        .isInvalid()
+        .hasFieldErrors("priority: not a priority: UNRECOGNIZED");
+    // ANCHOR_END: protobuf_enum_trap_proof
+  }
+
+  @Test
+  @DisplayName("a domain value holding two members of one oneof builds only the last one written")
+  void twoOneofMembers() {
+    // ANCHOR: protobuf_oneof_trap_proof
+    Dispatch both =
+        new Dispatch(
+            new Customer("Ada", new EmailAddress("ada@corp.example")),
+            List.of("SKU-1"),
+            Optional.empty(),
+            DispatchPriority.STANDARD,
+            Optional.of("LK-4"), // a locker
+            Optional.of("PP-9")); // and a pickup point: the record allows both
+
+    DispatchRequest built = DispatchMappingImpl.INSTANCE.build(both);
+    assertThat(built.getDestinationCase()).isEqualTo(DispatchRequest.DestinationCase.PICKUP_POINT);
+    assertThat(DispatchMappingImpl.INSTANCE.parse(built).get().locker()).isEmpty();
+    // ANCHOR_END: protobuf_oneof_trap_proof
   }
 }

@@ -183,7 +183,7 @@ blocker. Each ❌ means keep what you have for that case.
 | Domain types are records | ✅ |
 | Domain types are JPA entities or other mutable beans | ❌ keep MapStruct here |
 | Wire types are records | ✅ |
-| Wire types come from a generated client (getter/setter beans, builders) | ✅, except protobuf-java messages, not supported yet |
+| Wire types come from a generated client (getter/setter beans, builders, protobuf-java messages) | ✅ (a protobuf oneof maps as one `Optional` per member) |
 | Lombok `@Data`, `@Value`, `@Builder` or `@SuperBuilder` wires, `@Singular` included | ✅ (order Lombok before the processor; drop `@Singular` on a PATCH request) |
 | Lombok `@Accessors(fluent = true)` wires | ⚠ the accessors are not `getX`/`isX`, so they do not pair |
 | PATCH endpoints where an omitted field means *leave unchanged* | ✅ `UpdateSpec` |

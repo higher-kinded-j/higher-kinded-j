@@ -141,7 +141,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
              heading="'XDto' has more components than 'X'",
              fragment="has more components than",
              meaning="The wire has components nothing on the domain fills, so `build` cannot write them. The message names each one.",
-             fix="Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`. For a protobuf-java message, which is not supported yet, convert it to a record by hand and map the record.",
+             fix="Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`.",
              rule=("Derived wire fields", "basics.md#derived-wire-fields"),
              code="""record Customer(String name) {}
 
@@ -1109,6 +1109,33 @@ final class OrderDto {
 
 @GenerateMapping
 interface OrderMapping extends MappingSpec<Order, OrderDto> {}"""),
+        dict(id="protobuf-field-without-presence",
+             heading="domain field 'X.y' is Optional<T>, bridged to the field 'y' of the protobuf-java message 'Z', which does not track whether it is set",
+             fragment="which does not track whether it is set",
+             meaning="A domain `Optional` faces a message field with no `hasX()`: a proto3 scalar declared without `optional`, a repeated field or a map field. Unset, it reads its default, so an empty `Optional` would read back as present.",
+             fix="Drop the `Optional`, so the field's default stands for nothing, or declare the field `optional` in its `.proto` file, so protoc generates `hasX()`.",
+             rule=("A field with no `hasX()` refuses the bridge", "rules.md#protobuf-field-without-presence"),
+             code="""record Stamp(Optional<Long> seconds, int nanos) {}
+
+@GenerateMapping
+interface StampMapping extends MappingSpec<Stamp, com.google.protobuf.Timestamp> {}"""),
+        dict(id="protobuf-oneof-member",
+             heading="domain field 'X.y' is T, and fills 'y', a member of the oneof 'z' of the protobuf-java message 'Z'",
+             fragment="a member of the oneof",
+             meaning="A plain component or a derived field fills a oneof member. Setting one member clears the others, so `build` would keep only the last it wrote.",
+             fix="Declare every component that fills a member of the oneof as an `Optional`, and remove a derived field that fills one.",
+             rule=("A oneof member maps only to an `Optional`", "rules.md#protobuf-oneof-members"),
+             code="""// Value's oneof 'kind' has six members; the domain fills 'stringValue' with a plain String.
+record Json(
+    Optional<com.google.protobuf.NullValue> nullValue,
+    Optional<Double> numberValue,
+    String stringValue,
+    Optional<Boolean> boolValue,
+    Optional<com.google.protobuf.Struct> structValue,
+    Optional<com.google.protobuf.ListValue> listValue) {}
+
+@GenerateMapping
+interface JsonMapping extends MappingSpec<Json, com.google.protobuf.Value> {}"""),
         dict(id="singular-adder-not-told-apart",
              heading="the singular adder of the @Singular collection 'x' on 'Y' cannot be told apart",
              fragment="cannot be told apart",
@@ -1237,6 +1264,16 @@ class OrderPatch {
 
 @GenerateMapping
 interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}"""),
+        dict(id="protobuf-message-patch",
+             heading="the wire 'X' is a protobuf-java message, which a sparse UpdateSpec cannot read as a PATCH body (not supported yet)",
+             fragment="is a protobuf-java message",
+             meaning="A sparse update reads a `null` property as absent, and a message reads a value for every field it has not set.",
+             fix="Map the message with a `MappingSpec`, whose `parse` reads every field, and apply the fields its `FieldMask` names to the domain value yourself.",
+             rule=("No protobuf-java message", "rules.md#no-protobuf-patch"),
+             code="""record Name(String value) {}
+
+@GenerateMapping
+interface NamePatch extends UpdateSpec<Name, com.google.protobuf.StringValue> {}"""),
         dict(id="singular-collection-patch",
              heading="bean property 'x' on 'Y' is a @Singular collection, which cannot carry a sparse update's absence (not supported yet)",
              fragment="is a @Singular collection",

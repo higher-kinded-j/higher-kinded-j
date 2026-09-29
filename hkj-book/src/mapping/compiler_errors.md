@@ -113,6 +113,8 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`which a build cannot fill`](#getter-only-list-build) | A getter-only `List` is raw or a wildcard |
 | [`bridged to the getter-only bean property`](#bridged-to-a-getter-only-list) | A domain `Optional` faces a getter-only `List` |
 | [`bridged to the @Singular bean property`](#bridged-to-a-singular-collection) | A domain `Optional` faces a Lombok `@Singular` collection |
+| [`which does not track whether it is set`](#protobuf-field-without-presence) | A domain `Optional` faces a message field with no `hasX()` |
+| [`a member of the oneof`](#protobuf-oneof-member) | A oneof member is filled by something other than an `Optional` |
 | [`cannot be told apart`](#singular-adder-not-told-apart) | A build-only builder's `@Singular` adder is ambiguous |
 | [`no property it reads is one it can write`](#reads-some-writes-others) | A bean reads some names and writes others |
 
@@ -124,6 +126,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`is primitive and can never be absent`](#primitive-patch-property) | A PATCH property is a primitive |
 | [`which a sparse UpdateSpec cannot map`](#record-patch-wire) | A PATCH wire is a record |
 | [`cannot carry a sparse update's absence`](#getter-only-list-patch) | A PATCH bean has a getter-only `List` |
+| [`is a protobuf-java message`](#protobuf-message-patch) | A PATCH body is a protobuf-java message |
 | [`is a @Singular collection`](#singular-collection-patch) | A PATCH bean has a Lombok `@Singular` collection |
 | [`which a sparse update cannot express`](#optional-on-a-patch) | A plain PATCH property faces a domain `Optional` |
 
@@ -340,7 +343,7 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
 
 The wire has components nothing on the domain fills, so `build` cannot write them. The message names each one.
 
-**Fix.** Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`. For a protobuf-java message, which is not supported yet, convert it to a record by hand and map the record.
+**Fix.** Remove the extra wire components, add domain components to match, derive them with `default Getter` methods, or spread a nested domain record across them with `@Flatten`.
 
 ```
 @GenerateMapping: 'CustomerDto' has more components than 'Customer', leaving [email] unfilled.
@@ -2074,6 +2077,70 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {}
 ```
 ~~~
 
+### `domain field 'X.y' is Optional<T>, bridged to the field 'y' of the protobuf-java message 'Z', which does not track whether it is set` {#protobuf-field-without-presence}
+
+A domain `Optional` faces a message field with no `hasX()`: a proto3 scalar declared without `optional`, a repeated field or a map field. Unset, it reads its default, so an empty `Optional` would read back as present.
+
+**Fix.** Drop the `Optional`, so the field's default stands for nothing, or declare the field `optional` in its `.proto` file, so protoc generates `hasX()`.
+
+```
+@GenerateMapping: domain field 'Stamp.seconds' is Optional<Long>, bridged to the field 'seconds'
+of the protobuf-java message 'Timestamp', which does not track whether it is set. The bridge
+reads an unset field as an empty Optional, and leaves the field unset for one, which takes a
+hasSeconds() method telling whether it is set. protobuf generates one for a message field, a
+field declared optional, a oneof member and every proto2 field, but not for a repeated field, a
+map field or a proto3 scalar declared without optional, which reads its default when unset, so
+an empty Optional would read back as present. Declare 'seconds' as long, dropping the Optional,
+so the field's default encodes nothing, or declare the field optional in its .proto file, so
+protobuf generates hasSeconds().
+```
+
+The rule: [A field with no `hasX()` refuses the bridge](rules.md#protobuf-field-without-presence).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "which does not track whether it is set" -->
+```java
+record Stamp(Optional<Long> seconds, int nanos) {}
+
+@GenerateMapping
+interface StampMapping extends MappingSpec<Stamp, com.google.protobuf.Timestamp> {}
+```
+~~~
+
+### `domain field 'X.y' is T, and fills 'y', a member of the oneof 'z' of the protobuf-java message 'Z'` {#protobuf-oneof-member}
+
+A plain component or a derived field fills a oneof member. Setting one member clears the others, so `build` would keep only the last it wrote.
+
+**Fix.** Declare every component that fills a member of the oneof as an `Optional`, and remove a derived field that fills one.
+
+```
+@GenerateMapping: domain field 'Json.stringValue' is String, and fills 'stringValue', a member
+of the oneof 'kind' of the protobuf-java message 'Value'. Setting one member of a oneof clears
+the others, so build, which writes every field it fills, would keep only the last member of
+'kind' it wrote. A domain Optional reads a member that is not set as empty, and leaves an empty
+one unwritten. Declare 'stringValue' as Optional<String>, as every domain component filling a
+member of 'kind' must be.
+```
+
+The rule: [A oneof member maps only to an `Optional`](rules.md#protobuf-oneof-members).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "a member of the oneof" -->
+```java
+// Value's oneof 'kind' has six members; the domain fills 'stringValue' with a plain String.
+record Json(
+    Optional<com.google.protobuf.NullValue> nullValue,
+    Optional<Double> numberValue,
+    String stringValue,
+    Optional<Boolean> boolValue,
+    Optional<com.google.protobuf.Struct> structValue,
+    Optional<com.google.protobuf.ListValue> listValue) {}
+
+@GenerateMapping
+interface JsonMapping extends MappingSpec<Json, com.google.protobuf.Value> {}
+```
+~~~
+
 ### `the singular adder of the @Singular collection 'x' on 'Y' cannot be told apart` {#singular-adder-not-told-apart}
 
 A builder with no getters has several writers that might be a `@Singular` collection's adder. The processor knows an adder by a regular English singular, `tag` for `tags`, so it cannot pick out `person` for `people`.
@@ -2302,6 +2369,34 @@ class OrderPatch {
 
 @GenerateMapping
 interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}
+```
+~~~
+
+### `the wire 'X' is a protobuf-java message, which a sparse UpdateSpec cannot read as a PATCH body (not supported yet)` {#protobuf-message-patch}
+
+A sparse update reads a `null` property as absent, and a message reads a value for every field it has not set.
+
+**Fix.** Map the message with a `MappingSpec`, whose `parse` reads every field, and apply the fields its `FieldMask` names to the domain value yourself.
+
+```
+@GenerateMapping: the wire 'StringValue' is a protobuf-java message, which a sparse UpdateSpec
+cannot read as a PATCH body (not supported yet). A sparse update leaves a domain component
+unchanged where its wire property reads null, and a message reads a value for every field it has
+not set: its default, or an empty list or map. An update request built with protobuf names the
+fields it changes in a FieldMask instead, which the sparse update does not read. Map
+'StringValue' with a MappingSpec, whose parse reads every field, and apply the fields its
+FieldMask names to the domain value yourself.
+```
+
+The rule: [No protobuf-java message](rules.md#no-protobuf-patch).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:rejects "is a protobuf-java message" -->
+```java
+record Name(String value) {}
+
+@GenerateMapping
+interface NamePatch extends UpdateSpec<Name, com.google.protobuf.StringValue> {}
 ```
 ~~~
 

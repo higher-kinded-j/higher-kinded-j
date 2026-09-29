@@ -1,6 +1,6 @@
 ---
 name: hkj-mapping
-description: "Compile-time data assembly and mapping with Higher-Kinded-J. Use whenever the task involves: mapping a domain record to/from a wire DTO, request, response, entity or payload (@GenerateMapping, MappingSpec, @MapField); mapping a sealed domain hierarchy to a sealed DTO hierarchy; hand-written toDto()/fromDto()/toDomain()/toEntity() mapper or converter classes; replacing MapStruct/ModelMapper/Dozer or a reflective bean mapper; building one target record by merging several source records (@GenerateMerge); constructing a record from independently-validated parts, collecting every error (@GenerateAssembly, fields(), accumulate()); or giving a sealed error hierarchy a structured envelope with a typed context record (@GenerateErrorEnvelope, ErrorEnvelope, editContext). Also covers the arity rules (the hand-written fields()/accumulate() ladder stops at 16; @GenerateAssembly has no ceiling), parse/build law-checking with MappingLaws, and -parameters."
+description: "Compile-time data assembly and mapping with Higher-Kinded-J. Use whenever the task involves: mapping a domain record to/from a wire DTO, request, response, entity or payload, a protobuf-java or gRPC message included (@GenerateMapping, MappingSpec, @MapField); mapping a sealed domain hierarchy to a sealed DTO hierarchy; hand-written toDto()/fromDto()/toDomain()/toEntity() mapper or converter classes; replacing MapStruct/ModelMapper/Dozer or a reflective bean mapper; building one target record by merging several source records (@GenerateMerge); constructing a record from independently-validated parts, collecting every error (@GenerateAssembly, fields(), accumulate()); or giving a sealed error hierarchy a structured envelope with a typed context record (@GenerateErrorEnvelope, ErrorEnvelope, editContext). Also covers the arity rules (the hand-written fields()/accumulate() ladder stops at 16; @GenerateAssembly has no ceiling), parse/build law-checking with MappingLaws, and -parameters."
 ---
 
 # Higher-Kinded-J Compile-Time Mapping and Assembly
@@ -531,6 +531,14 @@ matter: it maps build-only whatever its width, derived fields included.
   see `reference/mapping-example.md`. A bean projection with a reference
   property takes the validated `patch` (the property can be unset); an all-primitive one keeps
   `asLens()`.
+- **A protobuf-java message maps both ways by its fields**, on the full and lite runtimes, with nothing
+  to configure: a field is a name its builder can `clearX()`. A singular field reads `getX()` and
+  writes the `setX` taking that type; a repeated field is a `List` (`getXList()`, `addAllX`); a map
+  field a `Map` (`getXMap()`, `putAllX`). protoc's other accessors (`getXBytes()`, `getXValue()`,
+  `getUnknownFields()`, counts, `OrBuilder` views) are no fields. A field with `hasX()` (a message
+  field, a field declared `optional`, a oneof member, any proto2 field) reads `null` when unset: a
+  domain `Optional` reads it empty and `build` leaves it unset, any other component reports
+  `must not be null`. A field with no `hasX()` reads its default.
 - **A bean crossed one way maps that way.** Getters and nothing that writes it: parse-only
   (`parse` + `asValidatedParse()`; every domain component needs a getter, extra getters are
   ignored, and a derived field declared there is refused). Writers and no getters: build-only
@@ -825,7 +833,10 @@ before rearranging the spec.
 | One spec extending both `MappingSpec` and `UpdateSpec` | Refused. One Impl carries one tier and the two emit disjoint members. Declare a spec per tier and share renames and leaves through a plain mix-in both extend |
 | Expecting `build` from a getter-only bean | Nothing can write it, so it maps parse-only, and a note says why. Give it a no-args constructor with setters, or a builder, and it maps both ways |
 | A bean only read, or only written, on an `UpdateSpec` | Refused: a sparse update reads `null` as absent, which only a bean that is written can leave unset, and a bean only written has nothing to read |
-| A protobuf-java message as the wire | Not supported yet. Its companion accessors (`getXBytes()` beside a string field, `getXValue()` beside an enum, `getUnknownFields()`) pair up as properties the domain lacks, and a repeated or map field has no setter. Each refusal it meets says it is not supported yet. Convert the message to a record by hand, and map the record (for an `UpdateSpec`, a PATCH bean whose getters answer `null` until set). Do not declare derived fields for the companions: one for `xBytes` makes `build` write the field twice |
+| A protobuf-java message whose domain component is `Optional` over a proto3 scalar with no `optional`, a repeated or a map field | Refused (`which does not track whether it is set`): unset, the field reads its default, so an empty `Optional` would read back as present. Drop the `Optional`, or declare the scalar `optional` in the `.proto` so protoc generates `hasX()` |
+| A plain component (or a derived field) for a protobuf oneof member | Refused (`a member of the oneof`): setting one member clears the others, so `build` would keep only the last. Declare every member's component `Optional`; mapping a oneof to a sealed domain type is not supported yet |
+| Keeping a generated protobuf enum in the domain | Compiles, but a number the build does not know parses as `UNRECOGNIZED`, and `build` then throws (`Can't get the number of an unknown enum value.`). Convert it through a `ValidatedPrism<GeneratedEnum, DomainEnum>` leaf that refuses `UNRECOGNIZED` |
+| A protobuf-java message as an `UpdateSpec` PATCH body | Refused, not supported yet: a message never reads `null`. Map it with a `MappingSpec` and apply its `FieldMask` yourself |
 | A misspelt accessor (`getEmial()` beside `setEmail(String)`) | The two do not pair, so neither is a property. Named after a domain component, the unpaired one is refused, and the diagnostic names the near accessor to rename. Pair every accessor the mapping uses, or mark a deliberate one `@Unmapped` |
 | Marking an OpenAPI `readOnly` getter `@Unmapped` | The component then stays out, so the bean is narrower than the domain: a projection with **no** `parse`, the very response you wanted to read. Mark it `@ReadOnly` instead: `parse` reads it and `build` leaves it out |
 | Nesting a spec with a `@ReadOnly` property in a mapping that builds and parses | Refused: it has no `asValidatedPrism()`, since its `build` drops the property. It nests only where one direction is used (a parse-only or build-only mapping, an `UpdateSpec`, a merge, or another spec's `@ReadOnly` component) |

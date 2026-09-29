@@ -40,7 +40,19 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * record's canonical constructor, or a bean's writes framed by its {@link ConstructionStrategy}.
    * Asked only of a wire that is written.
    */
-  CodeBlock buildStatements(TypeName wireType, Function<WireComponent, CodeBlock> valueFor);
+  CodeBlock buildStatements(TypeName wireType, Function<WireComponent, WireValue> valueFor);
+
+  /**
+   * The value {@code build} hands one wire component, and, for a domain {@code Optional} bridged to
+   * it, the condition under which the domain holds one: {@code value} is {@code null} when it does
+   * not. A record takes the {@code null}, and so does a bean property, except where the property
+   * {@linkplain BeanProperty#presence tracks its presence}: there the write is made only when the
+   * value is present, so the property stays unset.
+   *
+   * @param value the value written
+   * @param present the condition under which {@code value} is not {@code null}, for a bridged one
+   */
+  record WireValue(CodeBlock value, Optional<CodeBlock> present) {}
 
   /** The wire's components in declaration order. */
   List<WireComponent> components();
@@ -101,28 +113,44 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   }
 
   /**
-   * One wire component: its (decapitalised) name, its type, and the accessor that reads it. For a
-   * record the accessor is the component name; for a bean it is the getter (for example {@code
-   * getName}), absent on a bean that is only ever written.
+   * One wire component: its (decapitalised) name, its type, the accessor that reads it, and the
+   * method that tells whether it is set, for a component that {@linkplain BeanProperty#presence
+   * tracks its presence}. For a record the accessor is the component name; for a bean it is the
+   * getter (for example {@code getName}), absent on a bean that is only ever written.
    */
-  record WireComponent(String name, TypeMirror type, Optional<String> accessor) {
+  record WireComponent(
+      String name, TypeMirror type, Optional<String> accessor, Optional<String> presence) {
+
+    /** A component that is set whenever its accessor answers a value. */
+    WireComponent(String name, TypeMirror type, Optional<String> accessor) {
+      this(name, type, accessor, Optional.empty());
+    }
 
     /**
      * The read expression for this component from the given receiver variable. Asked only of a wire
-     * that is read, where every component has its accessor.
+     * that is read, where every component has its accessor. A component that tracks its presence
+     * reads {@code null} when it is unset, as an unset bean property does, so the rules for a
+     * {@code null} read apply to it: a domain {@code Optional} reads it as empty, and any other
+     * component as missing. Its type is then the boxed one when the accessor answers a primitive.
      */
     CodeBlock readFrom(String receiver) {
-      return CodeBlock.of("$L.$L()", receiver, accessor.orElseThrow());
+      CodeBlock read = CodeBlock.of("$L.$L()", receiver, accessor.orElseThrow());
+      return presence
+          .map(has -> CodeBlock.of("($L.$L() ? $L : null)", receiver, has, read))
+          .orElse(read);
     }
   }
 
   /** A record wire: positional accessors and canonical-constructor construction. */
   record RecordShape(TypeElement element, List<WireComponent> components) implements WireShape {
 
-    /** The record build body: {@code return new W(v0, v1, ...)} in component order. */
+    /**
+     * The record build body: {@code return new W(v0, v1, ...)} in component order, each value
+     * handed over whatever it is, a {@code null} included.
+     */
     @Override
     public CodeBlock buildStatements(
-        TypeName wireType, Function<WireComponent, CodeBlock> valueFor) {
+        TypeName wireType, Function<WireComponent, WireValue> valueFor) {
       CodeBlock.Builder args = CodeBlock.builder();
       boolean first = true;
       for (WireComponent component : components) {
@@ -130,7 +158,7 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
           args.add(", ");
         }
         first = false;
-        args.add(valueFor.apply(component));
+        args.add(valueFor.apply(component).value());
       }
       return CodeBlock.builder().addStatement("return new $T($L)", wireType, args.build()).build();
     }
@@ -157,6 +185,11 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * #readingAlso}): getters a {@code @ReadOnly} marker reads as properties, each with no write
    * site. {@code parse} reads them like any other, and {@code build} writes every other property
    * and leaves them as the bean starts them.
+   *
+   * <p>A protobuf-java message is a two-way builder bean whose properties are its fields, each
+   * carrying what the message says of it ({@link MessageField}). The accessors it declares beside
+   * them, such as {@code getXBytes()} or {@code getXCount()}, are none of its fields, and it
+   * records none of them as unpaired.
    */
   record BeanShape(
       TypeElement element,
@@ -192,11 +225,13 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      * The bean build body: the strategy's frame, and between it one write per property, each
      * carrying its value whatever that is, a {@code null} included. So a property written through a
      * setter or a builder setter never keeps a default the bean or its builder started with. Only a
-     * read-only property is skipped, since nothing writes it.
+     * read-only property is skipped, since nothing writes it, and so is an absent value of a
+     * property that {@linkplain BeanProperty#presence tracks its presence}: a protobuf-java builder
+     * starts every field unset, and its setters refuse a {@code null}.
      */
     @Override
     public CodeBlock buildStatements(
-        TypeName wireType, Function<WireComponent, CodeBlock> valueFor) {
+        TypeName wireType, Function<WireComponent, WireValue> valueFor) {
       // Only a bean that is written reaches a build body, so it has its strategy and write sites.
       ConstructionStrategy frame = strategy.orElseThrow();
       CodeBlock.Builder body = CodeBlock.builder().add(frame.prologue(wireType));
@@ -204,8 +239,16 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
         if (readOnlyNames.contains(property.name())) {
           continue;
         }
-        CodeBlock value = valueFor.apply(property.asWireComponent());
-        body.addStatement("$L", property.write().orElseThrow().write(frame.receiver(), value));
+        WireValue value = valueFor.apply(property.asWireComponent());
+        CodeBlock write = property.write().orElseThrow().write(frame.receiver(), value.value());
+        Optional<CodeBlock> present = value.present().filter(_ -> property.presence().isPresent());
+        if (present.isPresent()) {
+          body.beginControlFlow("if ($L)", present.get())
+              .addStatement("$L", write)
+              .endControlFlow();
+        } else {
+          body.addStatement("$L", write);
+        }
       }
       return body.add(frame.epilogue()).build();
     }
@@ -233,7 +276,8 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
                                       property.name(),
                                       property.type(),
                                       property.getter(),
-                                      Optional.empty())
+                                      Optional.empty(),
+                                      property.field())
                                   : property),
                   getters.stream()
                       .map(
@@ -323,15 +367,51 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * One bean property: its (decapitalised) name, type, the getter that reads it and the {@link
    * WriteSite} that writes it (a setter, a builder setter, a {@code @Singular} collection setter,
    * or a JAXB collection getter). A bean read one way only has no getter, or no write site, on any
-   * of its properties.
+   * of its properties. A field of a protobuf-java message also carries what the message says of it
+   * ({@code field}).
    */
   record BeanProperty(
-      String name, TypeMirror type, Optional<String> getter, Optional<WriteSite> write) {
+      String name,
+      TypeMirror type,
+      Optional<String> getter,
+      Optional<WriteSite> write,
+      Optional<MessageField> field) {
+
+    /** A property of a bean that is not a protobuf-java message. */
+    BeanProperty(String name, TypeMirror type, Optional<String> getter, Optional<WriteSite> write) {
+      this(name, type, getter, write, Optional.empty());
+    }
+
+    /**
+     * The method that tells whether this property is set, when it tracks its presence: a message
+     * field's {@code hasX()}.
+     */
+    Optional<String> presence() {
+      return field.flatMap(MessageField::presence);
+    }
 
     WireComponent asWireComponent() {
-      return new WireComponent(name, type, getter);
+      return new WireComponent(name, type, getter, presence());
     }
   }
+
+  /**
+   * What a protobuf-java message declares of one of its fields besides the accessors that read and
+   * write it.
+   *
+   * <p>{@code presence} is the {@code hasX()} method that tells whether the field is set. A message
+   * field has one, and so does a scalar declared {@code optional}, every field of a proto2 message,
+   * and every member of a oneof. A proto3 scalar declared without {@code optional} has none: unset,
+   * it reads its default, which cannot be told apart from the default set. Nor has a repeated or
+   * map field, which an empty collection leaves unset.
+   *
+   * <p>{@code oneof} is the oneof the field belongs to, as its case getter names it ({@code
+   * getKindCase()} names {@code kind}): setting one member clears the others.
+   *
+   * @param presence the {@code hasX()} method, for a field that tracks its presence
+   * @param oneof the oneof the field is a member of, if any
+   */
+  record MessageField(Optional<String> presence, Optional<String> oneof) {}
 
   /** How a single bean property is written into a target (a bean instance or a builder). */
   sealed interface WriteSite
@@ -346,7 +426,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      * {@code receiver.setX(value)} — a setter or, in a builder frame, a builder setter. It keeps
      * the method as declared, so what its parameter says about {@code null} can be read. The
      * element is valid only within the round that analysed the bean, and compares by identity, so a
-     * {@code Setter} is never compared or kept across rounds.
+     * {@code Setter} is never compared or kept across rounds. A protobuf-java message's repeated or
+     * map field is written the same way, through its builder's {@code addAllX} or {@code putAllX},
+     * which on the fresh builder {@code build} starts from sets the field whole.
      */
     record Setter(ExecutableElement method) implements WriteSite {
       @Override

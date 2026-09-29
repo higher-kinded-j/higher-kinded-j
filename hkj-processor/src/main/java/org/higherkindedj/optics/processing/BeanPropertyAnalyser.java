@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -64,6 +65,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>A two-way bean records the accessors it leaves out, each getter nothing writes and each writer
  * nothing reads, so that the processor can refuse one whose omission would lose a value: this
  * analysis knows the bean, and only the spec knows which names its mapping needs.
+ *
+ * <p>A protobuf-java message is a builder bean with more accessors than fields, so it is read by
+ * its fields instead ({@link #message}): each is a name its builder can clear, read and written
+ * through the accessors protobuf gives a field of its kind.
  *
  * <p>Getters and setters are gathered from {@link javax.lang.model.util.Elements#getAllMembers}, so
  * a bean inherits properties from its superclasses (as JAXB-generated beans do); {@link Object}
@@ -161,6 +166,11 @@ final class BeanPropertyAnalyser {
 
   private WireShape.BeanShape analyse(
       TypeElement spec, TypeElement bean, String tag, boolean report, boolean neverBuilt) {
+    BuilderModel builder = findBuilderModel(bean);
+    // A protobuf-java message is read by its fields, whatever other accessors it declares.
+    if (builder != null && isMessage(env, bean)) {
+      return message(bean, builder);
+    }
     // A bean inherits properties from its superclasses, so a member read off its declaring element
     // speaks that element's variables: 'T getId()' on BaseDto<T> is String on UserDto.
     DeclaredType beanType = (DeclaredType) bean.asType();
@@ -168,7 +178,7 @@ final class BeanPropertyAnalyser {
     // Setters write a bean the Impl can construct, and a PATCH bean without a builder, which only
     // something else constructs.
     boolean setterWritten =
-        hasUsableNoArgsConstructor(spec, bean) || (neverBuilt && findBuilderModel(bean) == null);
+        hasUsableNoArgsConstructor(spec, bean) || (neverBuilt && builder == null);
     Map<String, List<ExecutableElement>> setters = setterWritten ? collectSetters(bean) : Map.of();
 
     if (setterWritten) {
@@ -225,7 +235,6 @@ final class BeanPropertyAnalyser {
       }
     }
 
-    BuilderModel builder = findBuilderModel(bean);
     Map<String, List<ExecutableElement>> builderSetters = Map.of();
     Singulars singulars = Singulars.NONE;
     if (builder != null) {
@@ -339,10 +348,216 @@ final class BeanPropertyAnalyser {
           bean,
           tag,
           getters.keySet(),
-          setters.isEmpty() ? builderSetters.keySet() : setters.keySet(),
-          neverBuilt);
+          setters.isEmpty() ? builderSetters.keySet() : setters.keySet());
     }
     return null;
+  }
+
+  /**
+   * Whether {@code type} is a protobuf-java message: a subtype of {@code MessageLite}, which every
+   * message implements on the full and lite runtimes alike. It is looked up by name, so the
+   * processor takes no dependency on protobuf-java, and a build without it has no messages.
+   */
+  static boolean isMessage(ProcessingEnvironment env, TypeElement type) {
+    Types types = env.getTypeUtils();
+    return Optional.ofNullable(env.getElementUtils().getTypeElement(PROTOBUF_MESSAGE))
+        .filter(message -> types.isSubtype(types.erasure(type.asType()), message.asType()))
+        .isPresent();
+  }
+
+  /**
+   * A protobuf-java message, as the two-way builder bean its fields make it. protobuf generates
+   * more accessors than a message has fields: {@code getXBytes()} and {@code setXBytes(ByteString)}
+   * beside a string field, {@code getXValue()} and {@code setXValue(int)} beside an open enum,
+   * {@code getUnknownFields()} and {@code setUnknownFields(...)} on every message of the full
+   * runtime, and a count, an element getter and a builder view beside a repeated field. Paired up
+   * as properties, some of them would be properties no domain has. What tells a field apart is the
+   * {@code clearX()} its builder declares, which protobuf gives every field and every oneof, and
+   * nothing else. A field is read and written by its kind:
+   *
+   * <ul>
+   *   <li>a repeated field through {@code getXList()} and {@code addAllX(...)}, as a {@code List};
+   *   <li>a map field through {@code getXMap()} and {@code putAllX(...)}, as a {@code Map}, its
+   *       deprecated {@code getX()} left alone;
+   *   <li>any other field through {@code getX()} and the {@code setX(...)} that takes the type it
+   *       reads, so a message field's {@code setX(X.Builder)} is left alone.
+   * </ul>
+   *
+   * <p>A name with a {@code clearX()} and none of those accessors is a oneof, whose members each
+   * record their membership, as each field records the {@code hasX()} telling whether it is set
+   * ({@link WireShape.MessageField}). A message declares no accessor the mapping needs to know it
+   * leaves out, so none is recorded as unpaired.
+   */
+  private WireShape.BeanShape message(TypeElement message, BuilderModel builder) {
+    Map<String, ExecutableElement> readers = new LinkedHashMap<>();
+    publicInstanceMethods(message).stream()
+        .filter(method -> method.getParameters().isEmpty())
+        .forEach(method -> readers.putIfAbsent(method.getSimpleName().toString(), method));
+    Map<String, List<ExecutableElement>> writers =
+        publicInstanceMethods(builder.builderElement()).stream()
+            .filter(method -> method.getParameters().size() == 1)
+            .collect(Collectors.groupingBy(method -> method.getSimpleName().toString()));
+    MessageAccessors accessors =
+        new MessageAccessors(
+            (DeclaredType) message.asType(),
+            builder.builderType(),
+            readers,
+            writers,
+            oneofs(readers));
+    // In the order the builder declares its clear methods, which is the order of the fields.
+    List<WireShape.BeanProperty> fields =
+        ElementFilter.methodsIn(builder.builderElement().getEnclosedElements()).stream()
+            .filter(
+                method ->
+                    method.getParameters().isEmpty()
+                        && method.getModifiers().contains(Modifier.PUBLIC)
+                        && !method.getModifiers().contains(Modifier.STATIC))
+            .map(method -> method.getSimpleName().toString())
+            .filter(name -> name.length() > CLEAR.length() && name.startsWith(CLEAR))
+            .flatMap(name -> field(name.substring(CLEAR.length()), accessors).stream())
+            .toList();
+    return new WireShape.BeanShape(
+        message,
+        fields,
+        Optional.of(builder.strategy()),
+        WireShape.Direction.BIDIRECTIONAL,
+        List.of());
+  }
+
+  /**
+   * The accessors a protobuf-java message and its builder declare, as {@link #field} reads each
+   * field from them: the message and the builder as its factory returns it, the message's
+   * zero-argument methods and the builder's one-argument methods by name, and each oneof member's
+   * oneof by its {@linkplain #normalised normalised} name.
+   */
+  private record MessageAccessors(
+      DeclaredType message,
+      DeclaredType builder,
+      Map<String, ExecutableElement> readers,
+      Map<String, List<ExecutableElement>> writers,
+      Map<String, String> oneofs) {}
+
+  /**
+   * How a repeated or a map field is read and written: the prefix of the builder method that adds a
+   * whole collection to it ({@code addAll}), the suffix of its getter ({@code List}), and the
+   * container type the getter answers.
+   */
+  private record CollectionField(String writer, String reader, String container) {}
+
+  private static final List<CollectionField> COLLECTION_FIELDS =
+      List.of(
+          new CollectionField("addAll", "List", LIST), new CollectionField("putAll", "Map", MAP));
+
+  private static final String CLEAR = "clear";
+
+  /**
+   * The field whose builder declares {@code clear<suffix>()}, or empty for a oneof, which has no
+   * accessors of its own under that name.
+   */
+  private Optional<WireShape.BeanProperty> field(String suffix, MessageAccessors accessors) {
+    String name = decapitalise(suffix);
+    // protobuf names no other method hasX, so one is the field's presence.
+    WireShape.MessageField field =
+        new WireShape.MessageField(
+            Optional.of("has" + suffix).filter(accessors.readers()::containsKey),
+            Optional.ofNullable(accessors.oneofs().get(normalised(name))));
+    Types types = env.getTypeUtils();
+    return COLLECTION_FIELDS.stream()
+        .flatMap(
+            kind ->
+                Optional.ofNullable(accessors.writers().get(kind.writer() + suffix)).stream()
+                    .flatMap(
+                        adders ->
+                            Optional.ofNullable(
+                                accessors.readers().get("get" + suffix + kind.reader()))
+                                .flatMap(
+                                    getter ->
+                                        Optional.ofNullable(
+                                                ProcessorUtils.supertypeOf(
+                                                    types,
+                                                    getterType(accessors.message(), getter),
+                                                    env.getElementUtils()
+                                                        .getTypeElement(kind.container())))
+                                            .map(
+                                                type ->
+                                                    new WireShape.BeanProperty(
+                                                        name,
+                                                        type,
+                                                        Optional.of(
+                                                            getter.getSimpleName().toString()),
+                                                        Optional.of(
+                                                            new WireShape.WriteSite.Setter(
+                                                                adders.getFirst())),
+                                                        Optional.of(field))))
+                                .stream()))
+        .findFirst()
+        .or(
+            () ->
+                Optional.ofNullable(accessors.readers().get("get" + suffix))
+                    .flatMap(
+                        getter -> {
+                          TypeMirror type = getterType(accessors.message(), getter);
+                          return accessors
+                              .writers()
+                              .getOrDefault("set" + suffix, List.of())
+                              .stream()
+                              .filter(
+                                  setter ->
+                                      types.isSameType(
+                                          paramType(accessors.builder(), setter), type))
+                              .findFirst()
+                              .map(
+                                  setter ->
+                                      new WireShape.BeanProperty(
+                                          name,
+                                          type,
+                                          Optional.of(getter.getSimpleName().toString()),
+                                          Optional.of(new WireShape.WriteSite.Setter(setter)),
+                                          Optional.of(field)));
+                        }));
+  }
+
+  /**
+   * Each oneof member's oneof, by the member's {@linkplain #normalised normalised} name. A oneof
+   * {@code kind} has a case getter, {@code getKindCase()}, answering an enum with a constant for
+   * each member, named after it in upper case ({@code STRING_VALUE} for {@code stringValue}), and
+   * {@code KIND_NOT_SET}. So an enum a {@code getXCase()} answers is a oneof's when one of its
+   * constants reads as its oneof's name followed by {@code NOT_SET}. Any other {@code getXCase()}
+   * reads a field named {@code x_case}.
+   */
+  private Map<String, String> oneofs(Map<String, ExecutableElement> readers) {
+    Map<String, String> members = new LinkedHashMap<>();
+    readers.entrySet().stream()
+        .filter(reader -> reader.getKey().startsWith("get") && reader.getKey().endsWith("Case"))
+        .forEach(
+            reader -> {
+              String method = reader.getKey();
+              String oneof = decapitalise(method.substring(3, method.length() - 4));
+              String unset = normalised(oneof) + "notset";
+              // A primitive has no element, and a type that is no enum has no constants.
+              List<String> constants =
+                  Optional.ofNullable(
+                          env.getTypeUtils().asElement(reader.getValue().getReturnType()))
+                      .stream()
+                      .flatMap(type -> ElementFilter.fieldsIn(type.getEnclosedElements()).stream())
+                      .filter(constant -> constant.getKind() == ElementKind.ENUM_CONSTANT)
+                      .map(constant -> normalised(constant.getSimpleName().toString()))
+                      .toList();
+              if (constants.contains(unset)) {
+                constants.stream()
+                    .filter(constant -> !constant.equals(unset))
+                    .forEach(constant -> members.put(constant, oneof));
+              }
+            });
+    return members;
+  }
+
+  /**
+   * A field or constant name with its underscores dropped and in lower case, so that a oneof case
+   * constant, {@code PHONE_NUMBER}, compares equal to the field it names, {@code phoneNumber}.
+   */
+  private static String normalised(String name) {
+    return name.replace("_", "").toLowerCase(Locale.ROOT);
   }
 
   private static WireShape.BeanProperty readWrite(
@@ -1103,16 +1318,10 @@ final class BeanPropertyAnalyser {
   /**
    * Refuses a bean no reading fits. Asked only once the one-way readings are ruled out, so the two
    * name sets are either both empty, a bean with nothing to read or write, or both non-empty, a
-   * bean whose getters and writers never share a name. {@code sparse} marks a sparse update's PATCH
-   * bean, which a record cannot replace.
+   * bean whose getters and writers never share a name.
    */
   private void reportUnusable(
-      TypeElement spec,
-      TypeElement bean,
-      String tag,
-      Set<String> reads,
-      Set<String> writes,
-      boolean sparse) {
+      TypeElement spec, TypeElement bean, String tag, Set<String> reads, Set<String> writes) {
     if (reads.isEmpty() && declaresSetters(bean)) {
       Diagnostics.error(
           env.getMessager(),
@@ -1163,41 +1372,8 @@ final class BeanPropertyAnalyser {
             + ". A bean maps both ways over the properties it can read and write, and one way only"
             + " when it offers nothing at all in the other direction, so reading some names and"
             + " writing others fits neither.",
-        protobufFix(env, bean, sparse)
-            .orElse(
-                "Align each getter with its setter (or builder setter), which a misspelt accessor"
-                    + " usually explains, or remove the accessors of the direction the wire is not"
-                    + " crossed in."));
-  }
-
-  /**
-   * The fix for a refusal a protobuf-java message meets, or empty for any other wire: convert the
-   * message by hand to a record, or for a PATCH body to a bean whose getters answer {@code null}
-   * until set, and map that. A message reads as a builder bean, but the properties that reading
-   * finds are not the fields it carries: protobuf generates companion accessors that pair up like
-   * properties, and gives a repeated or map field no setter, so a refusal's own fix, which works
-   * within the mapping, cannot reach a working one.
-   *
-   * @param env the processing environment, to look protobuf-java up on the path
-   * @param wire the wire a refusal names
-   * @param sparse whether the wire is a sparse update's PATCH body, which a record cannot be
-   * @return the fix line, when {@code wire} is a protobuf-java message
-   */
-  static Optional<String> protobufFix(ProcessingEnvironment env, TypeElement wire, boolean sparse) {
-    TypeElement message = env.getElementUtils().getTypeElement(PROTOBUF_MESSAGE);
-    Types types = env.getTypeUtils();
-    if (message == null || !types.isSubtype(types.erasure(wire.asType()), message.asType())) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        "Convert '"
-            + wire.getSimpleName()
-            + "' by hand to "
-            + (sparse ? "a PATCH bean whose getters answer null until set" : "a record")
-            + ", and map that instead: a protobuf-java message is not supported yet,"
-            + " since the companion accessors protobuf generates (such as getXBytes() beside a"
-            + " string field, getXValue() beside a proto3 enum, and getUnknownFields()) pair up as"
-            + " properties, and a repeated or map field, having no setter, is no property at all.");
+        "Align each getter with its setter (or builder setter), which a misspelt accessor usually"
+            + " explains, or remove the accessors of the direction the wire is not crossed in.");
   }
 
   private List<ExecutableElement> publicInstanceMethods(TypeElement type) {

@@ -7,8 +7,12 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.higherkindedj.example.book.mapping.proto.CustomerMessage;
+import org.higherkindedj.example.book.mapping.proto.DispatchRequest;
+import org.higherkindedj.example.book.mapping.proto.Priority;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -118,6 +122,44 @@ public final class BeansBook {
     // ANCHOR_END: read_only_usage
     System.out.println(merchant);
     System.out.println(idSent);
+
+    // ANCHOR: protobuf_usage
+    DispatchRequest dispatchRequest =
+        DispatchRequest.newBuilder()
+            .setCustomer(CustomerMessage.newBuilder().setName("Ada").setEmail("ada@corp.example"))
+            .addSkus("SKU-1")
+            .setPriority(Priority.PRIORITY_EXPRESS)
+            .setLocker("LK-4")
+            .build(); // no note: hasNote() is false
+    DispatchMappingImpl dispatchMapping = DispatchMappingImpl.INSTANCE;
+
+    Validated<NonEmptyList<FieldError>, Dispatch> dispatch = dispatchMapping.parse(dispatchRequest);
+    // Valid(Dispatch[customer=Customer[name=Ada, email=EmailAddress[value=ada@corp.example]],
+    // skus=[SKU-1], note=Optional.empty, priority=EXPRESS, locker=Optional[LK-4],
+    // pickupPoint=Optional.empty])
+
+    // The customer is a message field, which tracks whether it is set: unset, it reads as null.
+    Validated<NonEmptyList<FieldError>, Dispatch> noCustomer =
+        dispatchMapping.parse(dispatchRequest.toBuilder().clearCustomer().build());
+    // Invalid(NonEmptyList[customer: must not be null])
+
+    // An empty Optional leaves the field unset, so the message built has no note either.
+    Customer grace = new Customer("Grace", new EmailAddress("grace@corp.example"));
+    DispatchRequest built =
+        dispatchMapping.build(
+            new Dispatch(
+                grace,
+                List.of("SKU-2"),
+                Optional.empty(),
+                DispatchPriority.STANDARD,
+                Optional.empty(),
+                Optional.of("PP-9")));
+    boolean noteSent = built.hasNote();
+    // false
+    // ANCHOR_END: protobuf_usage
+    System.out.println(dispatch);
+    System.out.println(noCustomer);
+    System.out.println(noteSent);
   }
 }
 
@@ -443,3 +485,65 @@ class ListingModel {
 
 @GenerateMapping
 interface ListingModelMapping extends MappingSpec<Listing, ListingModel> {}
+
+// ANCHOR: protobuf_spec
+// A dispatch as the order service keeps it. DispatchRequest and CustomerMessage are the messages
+// protoc generates from dispatch.proto, and the oneof's two members are two Optionals.
+enum DispatchPriority {
+  STANDARD,
+  EXPRESS
+}
+
+record Dispatch(
+    Customer customer,
+    List<String> skus,
+    Optional<String> note,
+    DispatchPriority priority,
+    Optional<String> locker,
+    Optional<String> pickupPoint) {}
+
+@GenerateMapping
+interface CustomerMessageMapping extends MappingSpec<Customer, CustomerMessage> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+@GenerateMapping
+interface DispatchMapping extends MappingSpec<Dispatch, DispatchRequest> {
+  // The customer nests through CustomerMessageMapping, the skus copy as a List, and the note and
+  // the oneof's members read as empty when unset. The priority converts through this leaf, which
+  // refuses the unset PRIORITY_UNSPECIFIED and the UNRECOGNIZED an unknown number reads as.
+  default ValidatedPrism<Priority, DispatchPriority> priority() {
+    return ValidatedPrism.of(
+        wire ->
+            switch (wire) {
+              case PRIORITY_STANDARD -> Validated.validNel(DispatchPriority.STANDARD);
+              case PRIORITY_EXPRESS -> Validated.validNel(DispatchPriority.EXPRESS);
+              case PRIORITY_UNSPECIFIED, UNRECOGNIZED ->
+                  Validated.invalidNel(FieldError.of("not a priority: " + wire));
+            },
+        domain ->
+            switch (domain) {
+              case STANDARD -> Priority.PRIORITY_STANDARD;
+              case EXPRESS -> Priority.PRIORITY_EXPRESS;
+            });
+  }
+}
+
+// ANCHOR_END: protobuf_spec
+
+// ANCHOR: protobuf_enum_trap
+// The same request, its priority kept as the generated enum itself: no leaf converts it.
+record DispatchRecord(
+    Customer customer,
+    List<String> skus,
+    Optional<String> note,
+    Priority priority,
+    Optional<String> locker,
+    Optional<String> pickupPoint) {}
+
+@GenerateMapping
+interface DispatchRecordMapping extends MappingSpec<DispatchRecord, DispatchRequest> {}
+
+// ANCHOR_END: protobuf_enum_trap

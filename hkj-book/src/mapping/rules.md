@@ -66,7 +66,10 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a Lombok builder use `@Singular` on a collection?](#singular-collections) | Yes: `build` writes the collection whole and leaves its adder alone; a build-only adder it cannot tell apart is refused. | by design |
 | [Can a `@Singular` collection carry an absent `Optional`?](#singular-collections) | No: its builder builds an empty collection, so it is never absent. | not supported yet |
 | [Does an openapi-generator model with `JsonNullable` companions map?](#jsonnullable-companions) | Yes: each `getX_JsonNullable()` pair is left out, and `getX()` and `setX(...)` carry the property. | by design |
-| [Does a protobuf-java message map?](beans.md#generated-client-checklist) | No: its companion accessors pair as extra properties, and a repeated or map field has no setter. | not supported yet |
+| [Does a protobuf-java message map?](#how-a-message-is-read) | Yes, both ways, by its fields: protoc's other accessors, such as `getXBytes()`, stay out. | by design |
+| [Can an `Optional` map a message field with no `hasX()`?](#protobuf-field-without-presence) | No: unset, the field reads its default, so an empty `Optional` would read back as present. | by design |
+| [Can a oneof member map to a plain component?](#protobuf-oneof-members) | No: `build` would keep only the last member it wrote, so map each member to an `Optional`. | by design |
+| [Can a oneof map to a sealed domain type?](#protobuf-oneof-members) | No: map each member to an `Optional`. | not supported yet |
 | [Where does a one-directional bean nest?](#how-a-beans-direction-is-read) | Only where nothing needs its missing direction. | by design |
 | **Sparse PATCH** | | |
 | [Can one spec extend `MappingSpec` and `UpdateSpec`?](#one-tier-per-spec) | No: declare a spec per tier and share a mix-in. | by design |
@@ -78,6 +81,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a PATCH bean have a getter-only `List`?](#no-getter-only-list-on-a-patch) | No: it never reads `null`, so it cannot be absent. | not supported yet |
 | [Can a PATCH bean's builder write a Lombok `@Singular` collection?](#singular-collections) | No: it never reads `null`, so it cannot be absent. | not supported yet |
 | [Can a PATCH bean carry a `JsonNullable` property?](#no-jsonnullable-patch-property) | No: use an `Optional`-typed property. | not supported yet |
+| [Can a PATCH body be a protobuf-java message?](#no-protobuf-patch) | No: map it with a `MappingSpec`, and apply its `FieldMask` yourself. | not supported yet |
 | [Does a nested spec lift through a PATCH container?](#patch-containers) | No: give the component an element leaf that delegates to it. | not supported yet |
 | [Can a PATCH spec dispatch over a sealed hierarchy?](#no-sealed-patch) | No: an absent property cannot choose a subtype. | by design |
 | [Does a PATCH merge a nested object field by field?](#patch-replaces-wholesale) | No: a nested record, list or map is replaced whole. | by design |
@@ -110,6 +114,8 @@ Nothing refuses these at compile time, and only the first draws a warning. Each 
 | [An explicit JSON `null` cleared an `Optional` PATCH property](beans_patch.md#what-each-json-state-does) | Jackson binds it to `Optional.empty()`, which means *clear* there: omit the field to leave it unchanged. |
 | [A built openapi-generator model sends `"x": null`, or fails a law check from wire samples](beans.md#bean-shaped-wire-targets) | Its `setX(null)` stores a sent `null`, where a fresh model leaves `x` out: set each nullable property in a parsing sample. |
 | [`build` throws on an empty `Optional`](beans.md#bean-shaped-wire-targets) | A setter, builder or record constructor rejects `null` without declaring it: drop the `Optional`, or encode absence in a leaf. |
+| [`build` throws `Can't get the number of an unknown enum value.`](beans.md#protobuf-java-messages) | A generated enum kept in the domain parsed a number the build does not know as `UNRECOGNIZED`: convert it through a leaf that refuses it. |
+| [A message built from a domain value lost one of its oneof members](beans.md#protobuf-java-messages) | The domain value held two members of one oneof, and setting one clears the other: allow one in the domain. |
 | [Adding to a built wire's list throws `UnsupportedOperationException`](structure.md#nesting-containers-and-recursion) | A same-typed container crosses as an unmodifiable copy: set a new list, or copy it first. |
 | [A record with an array is not equal to its own round trip](structure.md#other-containers) | The array crosses as a clone and compares by reference: give the record an `equals` that uses `Arrays.equals`. |
 | [Two swapped prisms passed to `of(...)` compiled](generics.md#element-mapped-specs) | Two abstract leaves of one type swap silently: pass them in declaration order. |
@@ -396,6 +402,7 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 - **An unpaired accessor is left out of the mapping.** That suits a computed getter such as `getSummary()`, or a [`@Singular` adder](#singular-collections), which the processor never refuses. It refuses any other unpaired accessor named after a domain component: [When an unpaired accessor is refused](#unpaired-accessors).
 - **The domain stays a record.** `parse` assembles the domain through its canonical constructor, so only the wire may be bean-shaped, and a bean domain gets a diagnostic.
 - **Nesting is unaffected.** A bean mapping that builds and parses exposes `asValidatedPrism()` like any other, so record specs nest it and containers lift it, and a one-directional one nests [where its direction is used](#how-a-beans-direction-is-read). One with a [read-only property](#what-readonly-reads) has two halves instead, and nests where a mapping uses one direction.
+- **A protobuf-java message is read by its fields instead**, as [How a protobuf-java message is read](#how-a-message-is-read) says.
 
 ### The automatic `Optional` bridge on a bean {#bean-optional-bridge}
 
@@ -404,6 +411,7 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 - **The processor refuses a writer declared non-null**, by a non-null annotation or by a `@NullMarked` scope with no `@Nullable` on it, as it refuses a bridged record component. Mark it `@Nullable`, and on a Lombok bean mark the field, which Lombok copies to the setter.
 - **What the bean does with the `null` is not checked.** A default reads back as present, and a writer that rejects it throws from `build`, as [Bean-shaped wire targets](beans.md#bean-shaped-wire-targets) warns.
 - **A leaf over the whole `Optional` wins over the bridge.** It suits a generated builder that refuses `null`: encode absence the builder's way, a `ValidatedPrism<String, Optional<String>>` mapping empty to `""`, say.
+- **A protobuf-java message's field is left unset instead of written `null`**, and one with no `hasX()` refuses the bridge, as [A field with no `hasX()` refuses the bridge](#protobuf-field-without-presence) says.
 
 ### An openapi-generator `JsonNullable` companion {#jsonnullable-companions}
 
@@ -478,6 +486,26 @@ A one-directional mapping follows these rules:
 - **The processor refuses a build-only adder it cannot tell apart.** A derived field for it would add its value on top of the collection's. Drop `@Singular` there, so the builder takes the collection whole.
 - **A `@Singular` collection is never absent.** Its builder builds an empty collection when nothing is added, and refuses a `null`. So the processor refuses an [`Optional` bridge](#bean-optional-bridge) onto one, and a PATCH bean whose builder writes one, as it refuses a [getter-only `List`](#no-getter-only-list-on-a-patch). Neither is supported yet: drop `@Singular`, so the builder stores what it is given.
 
+### How a protobuf-java message is read {#how-a-message-is-read}
+
+**The processor reads a [protobuf-java message](beans.md#protobuf-java-messages) by its fields, which are the names its builder can clear.** It takes any subtype of `com.google.protobuf.MessageLite` for a message, on the full runtime and the lite one, and writes it through `newBuilder()` and `build()`. protoc gives the builder a `clearX()` for every field, and for none of the other accessors it generates.
+
+- **A singular field is read by `getX()` and written by `setX(...)`.** The overload taking the type `getX()` returns writes it, so a message field's `setX(X.Builder)` is passed over.
+- **A repeated field is a `List`, and a map field a `Map`.** `parse` reads them through `getXList()` and `getXMap()`, and `build` writes each whole, through `addAllX(...)` and `putAllX(...)` on a fresh builder. A map field's deprecated `getX()` is never called.
+- **The other accessors are no fields.** `getXBytes()`, `getXValue()` beside an open enum, `getUnknownFields()`, counts, element getters and `OrBuilder` views stay out of the mapping. A domain component named after one has no wire counterpart.
+- **A field with `hasX()` reads `null` when it is unset.** A message field has one, as has a field declared `optional`, a oneof member and every proto2 field. Any component but an `Optional` then reports `must not be null`, so every message `parse` accepts builds back equal.
+- **An `Optional` over such a field reads it as empty when it is unset.** `build` leaves the field unset for an empty one, since protobuf's setters refuse `null`.
+- **A field with no `hasX()` reads its default when unset**, as protobuf's own getter does: `""`, `0`, `false`, the first enum constant, or an empty collection.
+- **A message maps both ways, and leaves no accessor unpaired.** So an [`@Unmapped`](#what-unmapped-withholds) or [`@ReadOnly`](#what-readonly-reads) marker has nothing on it to name.
+
+### A field with no `hasX()` refuses the bridge {#protobuf-field-without-presence}
+
+**The processor refuses a domain `Optional` over a message field that does not track whether it is set.** That is a proto3 scalar declared without `optional`, a repeated field or a map field. Unset, such a field reads its default or an empty collection, so an empty `Optional` would read back as a present one. Declare the component without the `Optional`, so the default stands for nothing. For a scalar, you can instead declare the field `optional` in its `.proto` file, so protoc generates `hasX()`.
+
+### A oneof member maps only to an `Optional` {#protobuf-oneof-members}
+
+**The processor refuses a oneof member filled by anything but a domain `Optional`, a derived field included.** Setting one member of a oneof clears the others, so `build`, which writes every field it fills, would keep only the last member it wrote. Every member has `hasX()`, so an `Optional` reads a member that is not set as empty, and `build` writes only the members present. The processor finds a oneof through its case getter, `getKindCase()` for a oneof named `kind`. Mapping a oneof to a sealed domain type is not supported yet.
+
 ---
 
 ## Sparse PATCH {#sparse-patch}
@@ -533,6 +561,10 @@ A one-directional mapping follows these rules:
 ### No `JsonNullable` property {#no-jsonnullable-patch-property}
 
 **A `JsonNullable` property is not supported yet.** Declare an `Optional`-typed property instead, which keeps the *clear* state, or a plain nullable one where *clear* has no meaning. openapi-generator's `spring` models declare such a property. Its `java` client models add a [companion pair](#jsonnullable-companions) instead, which is left out, so the processor reads such a PATCH bean through `getX()`, where a sent `null` reads as an omitted property.
+
+### No protobuf-java message {#no-protobuf-patch}
+
+**The processor refuses a protobuf-java message as a PATCH body.** The sparse tier leaves a component unchanged where its property reads `null`, and a message reads a value for every field it has not set. An update request built with protobuf names the fields it changes in a `FieldMask` instead, which the sparse tier does not read. Map the message with a `MappingSpec`, whose `parse` reads every field, and apply the fields the `FieldMask` names to the domain value yourself. A sparse update driven by a `FieldMask` is not supported yet.
 
 ### A sparse update constructs the record once {#sparse-construct-once}
 

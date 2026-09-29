@@ -32,6 +32,9 @@ dependencies {
     // Lombok interop coverage: bean-shaped wires read Lombok-generated accessors in the same
     // javac run, so the pairing is pinned by LombokInteropTest rather than assumed.
     testImplementation(libs.lombok)
+    // protobuf-java interop coverage: its well-known types are messages protoc generated, so a
+    // mapping over each field kind is pinned against the real accessors rather than a stand-in.
+    testImplementation(libs.protobuf.java)
     testImplementation(libs.assertj.core)
     testImplementation(libs.archunit.junit5)
 
