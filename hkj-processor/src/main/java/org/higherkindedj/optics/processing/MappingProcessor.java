@@ -684,10 +684,9 @@ public class MappingProcessor extends AbstractProcessor {
      * build), so it cannot be nested in a mapping that builds and parses"), and the surface says
      * what it lacks for a site using {@code need}. A classpath spec whose Impl is missing, one
      * extending a type missing from the classpath, and one declaring both tiers each explain
-     * themselves whatever the site, and so does one with a read-only property, which serves every
-     * site but one that builds and parses, naming its properties. Asked only of a spec that does
-     * not serve the site, so a full surface reaches the sentence only when the spec is not
-     * callable.
+     * themselves whatever the site. A callable spec with a read-only property, which serves every
+     * site but one that builds and parses, names its properties. Asked only of a spec that does not
+     * serve the site, so a full surface reaches the sentence only when the spec is not callable.
      */
     String unusable(String maps, String purpose, WireShape.Direction need) {
       if (surface == Surface.BOTH_TIERS) {
@@ -710,6 +709,19 @@ public class MappingProcessor extends AbstractProcessor {
             + " the Impl was generated and then lost (a partial build output, or a jar that dropped"
             + " it); rebuild that dependency from clean.";
       }
+      if (origin == Origin.CLASSPATH_MISSING_SUPERTYPE) {
+        MissingSupertype missing = unreadableSupertype(spec);
+        return " '"
+            + describe()
+            + "' "
+            + maps
+            + ", but "
+            + missing.describe(spec)
+            + ", which is not on this module's compile classpath, so its members cannot all be"
+            + " read and nothing can call its Impl: put the module declaring '"
+            + missing.missing().getQualifiedName()
+            + "' on this module's compile classpath.";
+      }
       if (surface == Surface.READ_ONLY) {
         return " '"
             + describe()
@@ -724,19 +736,6 @@ public class MappingProcessor extends AbstractProcessor {
             + ": its build leaves "
             + (readOnly.size() == 1 ? "that property" : "those properties")
             + " out, so its parse cannot read back what its build wrote.";
-      }
-      if (origin == Origin.CLASSPATH_MISSING_SUPERTYPE) {
-        MissingSupertype missing = unreadableSupertype(spec);
-        return " '"
-            + describe()
-            + "' "
-            + maps
-            + ", but "
-            + missing.describe(spec)
-            + ", which is not on this module's compile classpath, so its members cannot all be"
-            + " read and nothing can call its Impl: put the module declaring '"
-            + missing.missing().getQualifiedName()
-            + "' on this module's compile classpath.";
       }
       return " '"
           + describe()
@@ -4361,8 +4360,11 @@ public class MappingProcessor extends AbstractProcessor {
       }
       WireShape projected = wire;
       if (!readOnly.isEmpty()) {
-        if (!checkAccessorsPair(
-            spec, domain, (WireShape.BeanShape) wireShape, unmapped, () -> false)) {
+        // The bean as analysed writes a getter-only List a marker would have left alone, so it is
+        // asked about the lists the read-only view never showed the fillability check.
+        WireShape.BeanShape bean = (WireShape.BeanShape) wireShape;
+        if (!checkAccessorsPair(spec, domain, bean, unmapped, () -> false)
+            || !checkCollectionGettersFillable(spec, bean)) {
           return;
         }
         projected = wireShape;

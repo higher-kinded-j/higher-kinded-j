@@ -631,6 +631,52 @@ class MappingProcessorReadOnlyTest {
     }
 
     @Test
+    @DisplayName(
+        "inherited on a wildcard getter-only List of a narrower bean, stays inert, so the list"
+            + " build would fill is refused as one it cannot")
+    void inheritedOnAProjectionsUnfillableList() {
+      JavaFileObject pet =
+          source(
+              "Pet", "public record Pet(List<? extends String> tags, String name, Integer age) {}");
+      JavaFileObject model =
+          source(
+              "PetModel",
+              """
+              public class PetModel {
+                private List<? extends String> tags;
+                private String name;
+
+                public List<? extends String> getTags() { return tags; }
+                public String getName() { return name; }
+                public void setName(String name) { this.name = name; }
+              }
+              """);
+      JavaFileObject vocabulary =
+          source(
+              "PetVocabulary",
+              """
+              public interface PetVocabulary {
+                @ReadOnly
+                List<? extends String> tags();
+              }
+              """);
+      JavaFileObject spec =
+          source(
+              "PetMapping",
+              """
+              @GenerateMapping
+              public interface PetMapping extends MappingSpec<Pet, PetModel>, PetVocabulary {}
+              """);
+      Compilation compilation = compile(pet, model, vocabulary, spec);
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorCount(1);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "bean property 'tags' on 'PetModel' is a getter-only List<? extends String>, which a"
+                  + " build cannot fill (not supported yet).");
+    }
+
+    @Test
     @DisplayName("inherited where the bean already writes the property, stays inert")
     void inheritedInert() throws ReflectiveOperationException {
       JavaFileObject model =

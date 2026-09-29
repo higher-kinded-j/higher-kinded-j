@@ -1812,6 +1812,85 @@ class MappingProcessorClasspathTest {
     }
 
     @Test
+    @DisplayName(
+        "a dependency's spec with a read-only property, extending a missing type, is told of the"
+            + " missing type where it would otherwise nest")
+    void aReadOnlySpecExtendingAMissingTypeNamesTheType() throws IOException {
+      JavaFileObject specs =
+          JavaFileObjects.forSourceString(
+              "com.partialro.Specs",
+              """
+              package com.partialro;
+
+              import com.base.MissingBase;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+              import org.higherkindedj.optics.annotations.ReadOnly;
+
+              public final class Specs {
+                private Specs() {}
+
+                public record Pet(Long id, String name) {}
+
+                public static class PetModel {
+                  private Long id;
+                  private String name;
+                  public PetModel() {}
+                  public Long getId() { return id; }
+                  public String getName() { return name; }
+                  public void setName(String name) { this.name = name; }
+                }
+
+                public interface PetVocabulary extends MissingBase {
+                  @ReadOnly
+                  Long id();
+                }
+
+                @GenerateMapping
+                public interface PetMapping extends PetVocabulary, MappingSpec<Pet, PetModel> {}
+              }
+              """);
+      Path base = module("ro-base", List.of(), List.of(MISSING_BASE));
+      Path partial = module("ro-specs", List.of(base), List.of(specs));
+      JavaFileObject holders =
+          JavaFileObjects.forSourceString(
+              "com.roconsumer.Holders",
+              """
+              package com.roconsumer;
+
+              import com.partialro.Specs;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Holders {
+                private Holders() {}
+
+                public record Holder(Specs.Pet pet) {}
+
+                public static class HolderView {
+                  private final Specs.PetModel pet;
+                  public HolderView(Specs.PetModel pet) { this.pet = pet; }
+                  public Specs.PetModel getPet() { return pet; }
+                }
+
+                @GenerateMapping
+                public interface HolderMapping extends MappingSpec<Holder, HolderView> {}
+              }
+              """);
+
+      // A read-only spec serves a mapping that only parses, so a refusal there is the missing
+      // supertype's, never the read-only property's.
+      Compilation compilation = compiler(partial).compile(holders);
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'com.partialro.Specs.PetMapping (classpath)' maps this pair, but"
+                  + " 'com.partialro.Specs.PetVocabulary' extends 'com.base.MissingBase', which is"
+                  + " not on this module's compile classpath");
+      Assertions.assertThat(compilation.errors().toString()).doesNotContain("read-only");
+    }
+
+    @Test
     @DisplayName("an annotation a published mix-in wrote, off this classpath, is left off the Impl")
     void anAnnotationOffTheClasspathIsLeftOffTheImpl() throws IOException {
       // An annotation library the dependency compiled against without passing it on, as Gradle's
