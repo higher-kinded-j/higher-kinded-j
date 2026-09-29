@@ -179,7 +179,7 @@ Those pages teach the model and put it behind an endpoint. For a particular task
 - A field the client may leave out, read as an empty `Optional`, or a record whose constructor refuses bad values: [Absent Fields and Record Invariants](absence.md)
 - DTOs that nest, hold lists, or dispatch over sealed types: [Nesting, Containers, and Sealed Hierarchies](structure.md)
 - What exactly got generated for your spec, and why: [What Your Spec Generates](tiers.md)
-- A getter/setter or builder DTO: [Bean-Shaped Wires](beans.md)
+- A getter/setter, builder or protobuf DTO: [Bean-Shaped Wires](beans.md)
 - A PATCH endpoint, where an omitted field keeps its current value: [Sparse PATCH](beans_patch.md)
 - A `Page<T>` at the boundary: [Generic Specs](generics.md)
 - Combining several sources, or typing your error context: [Merge and Error Envelopes](merge_envelopes.md)

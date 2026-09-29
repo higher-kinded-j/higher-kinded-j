@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import com.google.protobuf.UninitializedMessageException;
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Optional;
@@ -215,21 +216,49 @@ class BeansBookTest {
   }
 
   @Test
-  @DisplayName("a domain value holding two members of one oneof builds only the last one written")
+  @DisplayName(
+      "a domain value holding two members of one oneof builds only the last one written, which"
+          + " Dispatch's invariant rules out")
   void twoOneofMembers() {
+    Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
     // ANCHOR: protobuf_oneof_trap_proof
-    Dispatch both =
-        new Dispatch(
-            new Customer("Ada", new EmailAddress("ada@corp.example")),
+    DispatchRecord both =
+        new DispatchRecord(
+            ada,
             List.of("SKU-1"),
             Optional.empty(),
-            DispatchPriority.STANDARD,
+            Priority.PRIORITY_STANDARD,
             Optional.of("LK-4"), // a locker
-            Optional.of("PP-9")); // and a pickup point: the record allows both
+            Optional.of("PP-9")); // and a pickup point: this record allows both
 
-    DispatchRequest built = DispatchMappingImpl.INSTANCE.build(both);
+    DispatchRequest built = DispatchRecordMappingImpl.INSTANCE.build(both);
     assertThat(built.getDestinationCase()).isEqualTo(DispatchRequest.DestinationCase.PICKUP_POINT);
-    assertThat(DispatchMappingImpl.INSTANCE.parse(built).get().locker()).isEmpty();
+    assertThat(DispatchRecordMappingImpl.INSTANCE.parse(built).get().locker()).isEmpty();
+
+    // Dispatch's own invariant refuses both, so it never holds two.
+    assertThatThrownBy(
+            () ->
+                new Dispatch(
+                    ada,
+                    List.of("SKU-1"),
+                    Optional.empty(),
+                    DispatchPriority.STANDARD,
+                    Optional.of("LK-4"),
+                    Optional.of("PP-9")))
+        .isInstanceOf(IllegalArgumentException.class);
     // ANCHOR_END: protobuf_oneof_trap_proof
+  }
+
+  @Test
+  @DisplayName("an empty Optional leaves a proto2 required field unset, and build() throws")
+  void unsetRequiredField() {
+    // ANCHOR: protobuf_required_trap_proof
+    assertThatThrownBy(
+            () ->
+                OptionNameMappingImpl.INSTANCE.build(
+                    new OptionName("deprecated", Optional.empty())))
+        .isInstanceOf(UninitializedMessageException.class)
+        .hasMessageContaining("is_extension");
+    // ANCHOR_END: protobuf_required_trap_proof
   }
 }

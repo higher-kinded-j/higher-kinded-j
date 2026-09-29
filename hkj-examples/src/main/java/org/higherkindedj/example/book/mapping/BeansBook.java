@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.google.protobuf.DescriptorProtos;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -500,7 +501,15 @@ record Dispatch(
     Optional<String> note,
     DispatchPriority priority,
     Optional<String> locker,
-    Optional<String> pickupPoint) {}
+    Optional<String> pickupPoint) {
+
+  Dispatch {
+    // A oneof holds one member, so the record holds at most one of the two.
+    if (locker.isPresent() && pickupPoint.isPresent()) {
+      throw new IllegalArgumentException("a dispatch goes to a locker or a pickup point, not both");
+    }
+  }
+}
 
 @GenerateMapping
 interface CustomerMessageMapping extends MappingSpec<Customer, CustomerMessage> {
@@ -547,3 +556,13 @@ record DispatchRecord(
 interface DispatchRecordMapping extends MappingSpec<DispatchRecord, DispatchRequest> {}
 
 // ANCHOR_END: protobuf_enum_trap
+
+// ANCHOR: protobuf_required_trap
+// descriptor.proto's NamePart, a proto2 message whose two fields are required.
+record OptionName(String namePart, Optional<Boolean> isExtension) {}
+
+@GenerateMapping
+interface OptionNameMapping
+    extends MappingSpec<OptionName, DescriptorProtos.UninterpretedOption.NamePart> {}
+
+// ANCHOR_END: protobuf_required_trap

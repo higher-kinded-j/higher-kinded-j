@@ -27,8 +27,8 @@ dependencies {
     // PCollections for the persistent-collections HKT compatibility example (Phase 1)
     implementation(libs.pcollections)
 
-    // protobuf-java for the mapping chapter's gRPC example, whose messages protoc generates from
-    // src/main/proto in this build
+    // protobuf-java for the mapping chapter's protobuf example, whose messages protoc generates
+    // from src/main/proto in this build
     implementation(libs.protobuf.java)
 
     // Testing dependencies for tutorials

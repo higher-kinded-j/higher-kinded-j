@@ -1355,10 +1355,15 @@ public class MappingProcessor extends AbstractProcessor {
                           + unpaired
                           + "."),
           carried
-              ? "Remove the marker; to leave the property out of the mapping, remove one of its"
-                  + " accessors from '"
-                  + wire.element().getSimpleName()
-                  + "'."
+              ? messageField(wire, name).isPresent()
+                  ? "Remove the marker: every field of a protobuf-java message maps both ways, so"
+                      + " fill '"
+                      + name
+                      + "' from a domain component or a derived field."
+                  : "Remove the marker; to leave the property out of the mapping, remove one of its"
+                      + " accessors from '"
+                      + wire.element().getSimpleName()
+                      + "'."
               : unpaired.isEmpty()
                   ? "Remove the marker."
                   : "Name the marker after the accessor's property, or remove it."
@@ -1479,9 +1484,11 @@ public class MappingProcessor extends AbstractProcessor {
           TAG,
           what + "names a property '" + bean + "' maps.",
           reads + ", and '" + name + "' is read and written, so the mapping carries it both ways.",
-          "Remove the marker; to leave the property unwritten, remove its writer from '"
-              + bean
-              + "'.");
+          messageField(wire, name).isPresent()
+              ? "Remove the marker: build writes every field of a protobuf-java message it maps."
+              : "Remove the marker; to leave the property unwritten, remove its writer from '"
+                  + bean
+                  + "'.");
     } else if (accessor.filter(found -> !found.reads()).isPresent()) {
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -2078,13 +2085,7 @@ public class MappingProcessor extends AbstractProcessor {
    * What a protobuf-java message says of its field named {@code wireName}: empty on any other wire.
    */
   private static Optional<WireShape.MessageField> messageField(WireShape wire, String wireName) {
-    if (!(wire instanceof WireShape.BeanShape bean)) {
-      return Optional.empty();
-    }
-    return bean.properties().stream()
-        .filter(property -> property.name().equals(wireName))
-        .findFirst()
-        .flatMap(WireShape.BeanProperty::field);
+    return wire.componentNamed(wireName).flatMap(WireShape.WireComponent::field);
   }
 
   /**
@@ -2164,10 +2165,11 @@ public class MappingProcessor extends AbstractProcessor {
    * Refuses an {@code Optional} bridge onto a field of a protobuf-java message that does not track
    * its presence: a proto3 scalar declared without {@code optional}, a repeated field or a map
    * field. Unset, such a field reads its default, an empty collection for the last two, so an empty
-   * {@code Optional} that {@code build} leaves unset would read back as present, and one {@code
-   * build} wrote as {@code null} the builder would refuse. The fix is the domain component's own
-   * type, whose default or empty collection then stands for nothing, or, for a scalar, the {@code
-   * optional} that makes protobuf generate {@code hasX()}.
+   * {@code Optional} that {@code build} leaves unset would read back as present. The fixes are the
+   * domain component's own type, whose default or empty collection then stands for nothing; for a
+   * scalar, the {@code optional} that makes protoc generate {@code hasX()}; and a leaf over the
+   * whole {@code Optional}, which reads the default as empty, for a message whose {@code .proto}
+   * file is not the author's to change.
    */
   private void reportPresencelessBridge(
       TypeElement spec,
@@ -2179,6 +2181,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeMirror domainType,
       TypeMirror element) {
     boolean collection = ContainerCopy.of(wireType) != null;
+    String has = "has" + ProcessorUtils.capitalise(wireName) + "()";
     // The element of an Optional over a primitive field is its boxed type, which pairs with the
     // field only as the primitive.
     TypeMirror declared =
@@ -2201,24 +2204,32 @@ public class MappingProcessor extends AbstractProcessor {
             + "' of the protobuf-java message '"
             + wire.element().getSimpleName()
             + "', which does not track whether it is set.",
-        "The bridge reads an unset field as an empty Optional, and leaves the field unset for one,"
-            + " which takes a has"
-            + BeanPropertyAnalyser.accessorSuffix(wireName)
-            + "() method telling whether it is set. protobuf generates one for a message field, a"
-            + " field declared optional, a oneof member and every proto2 field, but not for a"
-            + " repeated field, a map field or a proto3 scalar declared without optional, which"
-            + " reads its default when unset, so an empty Optional would read back as present.",
+        "The bridge needs "
+            + has
+            + " to tell an unset field from a set one, and protobuf generates none for "
+            + (collection
+                ? "a repeated or map field, which reads as an empty collection when unset"
+                : "a proto3 scalar declared without optional, which reads its default when unset")
+            + ", so an empty Optional would read back as present.",
         "Declare '"
             + name
             + "' as "
             + ProcessorUtils.simpleTypeName(declared)
             + ", dropping the Optional, so the field's "
             + (collection
-                ? "empty collection encodes nothing."
-                : "default encodes nothing, or declare the field optional in its .proto file, so"
-                    + " protobuf generates has"
-                    + BeanPropertyAnalyser.accessorSuffix(wireName)
-                    + "()."));
+                ? "empty collection encodes nothing"
+                : "default encodes nothing; declare the field optional in its .proto file, so"
+                    + " protoc generates "
+                    + has)
+            + "; or give '"
+            + name
+            + "' a leaf over the whole Optional, a ValidatedPrism<"
+            + ProcessorUtils.simpleTypeName(boxed(wireType))
+            + ", "
+            + ProcessorUtils.simpleTypeName(domainType)
+            + "> that reads the "
+            + (collection ? "empty collection" : "default")
+            + " as empty.");
   }
 
   /**
@@ -3255,7 +3266,9 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       WireShape.WireComponent wireComponent,
       boolean local) {
-    if (wireComponent.type().getKind().isPrimitive()) {
+    // A message field is left to the bridge itself, which reads one that tracks its presence as
+    // null when unset, and refuses one that does not for the reason that applies to it.
+    if (wireComponent.type().getKind().isPrimitive() && wireComponent.field().isEmpty()) {
       // Removing the annotation is no way out: the domain Optional still has nothing to map to,
       // and a bean wire bridges without the annotation anyway. On a bean the wrapper leaves a
       // marker declared here redundant, so the fix drops it with the primitive.
@@ -4988,9 +5001,10 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * A protobuf-java message as the wire of a sparse UpdateSpec. The sparse tier reads a {@code
-   * null} property as absent, and a message answers a value for every field it has not set, so
-   * absence reads as a present default. A message names the fields an update changes in a {@code
-   * FieldMask} beside it, which the sparse tier does not read.
+   * null} property as absent, and a message answers a value for a field with no {@code hasX()}
+   * whether it is set or not, so absence reads as a present default. An update request names the
+   * fields it changes in a {@code FieldMask} beside the message, which the sparse tier does not
+   * read.
    */
   private void reportMessagePatch(TypeElement spec, TypeElement wire) {
     Diagnostics.error(
@@ -5002,13 +5016,13 @@ public class MappingProcessor extends AbstractProcessor {
             + "' is a protobuf-java message, which a sparse UpdateSpec cannot read as a PATCH body"
             + " (not supported yet).",
         "A sparse update leaves a domain component unchanged where its wire property reads null,"
-            + " and a message reads a value for every field it has not set: its default, or an"
-            + " empty list or map. An update request built with protobuf names the fields it"
-            + " changes in a FieldMask instead, which the sparse update does not read.",
+            + " and a message's repeated and map fields, and its proto3 scalars declared without"
+            + " optional, read a value when unset. An update request built with protobuf names the"
+            + " fields it changes in a FieldMask instead, which the sparse update does not read.",
         "Map '"
             + wire.getSimpleName()
-            + "' with a MappingSpec, whose parse reads every field, and apply the fields its"
-            + " FieldMask names to the domain value yourself.");
+            + "' with a MappingSpec, whose parse reads every field, and apply the fields named by"
+            + " the FieldMask your update request carries to the domain value yourself.");
   }
 
   /**
@@ -6877,6 +6891,9 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       DeclaredType returnType = (DeclaredType) memberTypeIn(spec, method);
+      // A type argument is never primitive, so a primitive component takes its wrapper, which
+      // build unboxes into it.
+      TypeMirror derivedType = boxed(wireComponent.type());
       boolean shapeMatches =
           returnType.getTypeArguments().size() == 2
               && processingEnv
@@ -6884,7 +6901,7 @@ public class MappingProcessor extends AbstractProcessor {
                   .isSameType(returnType.getTypeArguments().getFirst(), domainDeclared)
               && processingEnv
                   .getTypeUtils()
-                  .isSameType(returnType.getTypeArguments().get(1), wireComponent.type());
+                  .isSameType(returnType.getTypeArguments().get(1), derivedType);
       if (!shapeMatches) {
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -6895,7 +6912,7 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' must return Getter<"
                 + domain.getSimpleName()
                 + ", "
-                + ProcessorUtils.qualifiedTypeName(wireComponent.type())
+                + ProcessorUtils.qualifiedTypeName(derivedType)
                 + "> but returns '"
                 + ProcessorUtils.qualifiedTypeName(memberTypeIn(spec, method))
                 + "'.",
@@ -6905,7 +6922,7 @@ public class MappingProcessor extends AbstractProcessor {
             "Declare 'default Getter<"
                 + domain.getSimpleName()
                 + ", "
-                + ProcessorUtils.qualifiedTypeName(wireComponent.type())
+                + ProcessorUtils.qualifiedTypeName(derivedType)
                 + "> "
                 + name
                 + "()'.");
@@ -7017,13 +7034,22 @@ public class MappingProcessor extends AbstractProcessor {
           "build must fill every wire component from a domain source or a derived field, and the"
               + " extras have neither. A wire with fewer components maps as a projection (Lens"
               + " tier).",
-          "Remove the extra wire components, add matching domain components (or a"
-              + " @MapField rename where a name differs), declare derived fields ('default"
-              + " Getter<"
-              + domain.getSimpleName()
-              + ", ComponentType>' methods named after the extras), or spread a nested"
-              + " domain component across the extras with an '@Flatten' marker named after"
-              + " it.");
+          // A message's fields are protoc's to declare, and a flattened group never spreads
+          // across a bean.
+          wire.components().stream().anyMatch(component -> component.field().isPresent())
+              ? "Add matching domain components, an Optional one for a member of a oneof (or a"
+                  + " @MapField rename where a name differs), or declare derived fields ('default"
+                  + " Getter<"
+                  + domain.getSimpleName()
+                  + ", ComponentType>' methods named after the extras that are members of no"
+                  + " oneof)."
+              : "Remove the extra wire components, add matching domain components (or a"
+                  + " @MapField rename where a name differs), declare derived fields ('default"
+                  + " Getter<"
+                  + domain.getSimpleName()
+                  + ", ComponentType>' methods named after the extras), or spread a nested"
+                  + " domain component across the extras with an '@Flatten' marker named after"
+                  + " it.");
       return null;
     }
 
@@ -7328,11 +7354,18 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       String name,
       String wireName,
-      TypeMirror wireType,
+      TypeMirror declared,
       TypeMirror domainType,
       List<String> domainNames,
       WireShape.Direction need,
       boolean projection) {
+    // A protobuf-java message field reads as its wrapper type where the domain holds a reference:
+    // its getter's value boxes and its setter's argument unboxes, so a leaf over the wrapper
+    // converts it, as the class protoc wrote cannot be changed to declare the wrapper.
+    TypeMirror wireType =
+        messageField(wire, wireName).isPresent() && !domainType.getKind().isPrimitive()
+            ? boxed(declared)
+            : declared;
     // Optional bridge: a domain Optional<DE> maps to a nullable wire component PE. Empty <->
     // null/absent; the present value maps as the pair (PE, DE) would unbridged.
     //
@@ -7352,7 +7385,7 @@ public class MappingProcessor extends AbstractProcessor {
           wire,
           name,
           wireName,
-          wireType,
+          declared,
           domainType,
           optionalElement,
           need);
@@ -7989,7 +8022,7 @@ public class MappingProcessor extends AbstractProcessor {
     // of the present value could make the pair map. Only a bean without a marker reaches here with
     // one: a marker on a primitive member is refused where the marker is checked. A message field
     // left is one that tracks its presence, whose read is null when it is unset, of the boxed type.
-    if (wireType.getKind().isPrimitive() && field.isEmpty()) {
+    if (!wire.componentNamed(wireName).orElseThrow().readsNull()) {
       reportPrimitiveBridge(spec, domain, wire, name, wireName, wireType, domainType, bridged);
       return null;
     }
@@ -8578,14 +8611,13 @@ public class MappingProcessor extends AbstractProcessor {
                 + ": "
                 + wireNames(domain.getRecordComponents())
                 + ".",
-            // A derived field's Getter names the component's type as a type argument, which a
-            // primitive cannot be, so only a reference component is offered one.
-            built && !wireComponent.type().getKind().isPrimitive()
+            // A derived field's Getter names a primitive component by its wrapper.
+            built
                 ? "Align the component names, add a @MapField rename (on the component's leaf"
                     + " where it has one), or declare a derived field 'default Getter<"
                     + domain.getSimpleName()
                     + ", "
-                    + ProcessorUtils.simpleTypeName(wireComponent.type())
+                    + ProcessorUtils.simpleTypeName(boxed(wireComponent.type()))
                     + "> "
                     + wireName
                     + "()' that computes it."
@@ -9644,8 +9676,7 @@ public class MappingProcessor extends AbstractProcessor {
       return false;
     }
     if (c.kind() == Kind.IDENTITY) {
-      WireShape.WireComponent read = wire.componentNamed(c.wireName()).orElseThrow();
-      return !read.type().getKind().isPrimitive() || read.presence().isPresent();
+      return wire.componentNamed(c.wireName()).orElseThrow().readsNull();
     }
     return true;
   }

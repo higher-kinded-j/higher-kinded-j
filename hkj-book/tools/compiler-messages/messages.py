@@ -1113,7 +1113,7 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {}"""),
              heading="domain field 'X.y' is Optional<T>, bridged to the field 'y' of the protobuf-java message 'Z', which does not track whether it is set",
              fragment="which does not track whether it is set",
              meaning="A domain `Optional` faces a message field with no `hasX()`: a proto3 scalar declared without `optional`, a repeated field or a map field. Unset, it reads its default, so an empty `Optional` would read back as present.",
-             fix="Drop the `Optional`, so the field's default stands for nothing, or declare the field `optional` in its `.proto` file, so protoc generates `hasX()`.",
+             fix="Drop the `Optional`, so the field's default stands for nothing, or declare the field `optional` in its `.proto` file, so protoc generates `hasX()`. Where the `.proto` file is not yours, as for `Timestamp`, give the component a leaf over the whole `Optional`, a `ValidatedPrism<Long, Optional<Long>>` that reads `0` as empty.",
              rule=("A field with no `hasX()` refuses the bridge", "rules.md#protobuf-field-without-presence"),
              code="""record Stamp(Optional<Long> seconds, int nanos) {}
 
@@ -1267,8 +1267,8 @@ interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}"""),
         dict(id="protobuf-message-patch",
              heading="the wire 'X' is a protobuf-java message, which a sparse UpdateSpec cannot read as a PATCH body (not supported yet)",
              fragment="is a protobuf-java message",
-             meaning="A sparse update reads a `null` property as absent, and a message reads a value for every field it has not set.",
-             fix="Map the message with a `MappingSpec`, whose `parse` reads every field, and apply the fields its `FieldMask` names to the domain value yourself.",
+             meaning="A sparse update reads a `null` property as absent, and a message's repeated and map fields, and its proto3 scalars declared without `optional`, read a value when unset.",
+             fix="Map the message with a `MappingSpec`, whose `parse` reads every field, and apply the fields named by the `FieldMask` your update request carries to the domain value yourself.",
              rule=("No protobuf-java message", "rules.md#no-protobuf-patch"),
              code="""record Name(String value) {}
 

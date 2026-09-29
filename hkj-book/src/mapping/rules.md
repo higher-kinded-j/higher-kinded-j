@@ -488,19 +488,21 @@ A one-directional mapping follows these rules:
 
 ### How a protobuf-java message is read {#how-a-message-is-read}
 
-**The processor reads a [protobuf-java message](beans.md#protobuf-java-messages) by its fields, which are the names its builder can clear.** It takes any subtype of `com.google.protobuf.MessageLite` for a message, on the full runtime and the lite one, and writes it through `newBuilder()` and `build()`. protoc gives the builder a `clearX()` for every field, and for none of the other accessors it generates.
+**The processor reads a [protobuf-java message](beans.md#protobuf-java-messages) by its fields, which are the names its builder can clear.** It takes any subtype of `com.google.protobuf.MessageLite` for a message, on the full runtime and the lite one, and writes it through `newBuilder()` and `build()`. protoc gives the builder a `clearX()` for every field and every oneof, and for none of the other accessors it generates.
 
 - **A singular field is read by `getX()` and written by `setX(...)`.** The overload taking the type `getX()` returns writes it, so a message field's `setX(X.Builder)` is passed over.
 - **A repeated field is a `List`, and a map field a `Map`.** `parse` reads them through `getXList()` and `getXMap()`, and `build` writes each whole, through `addAllX(...)` and `putAllX(...)` on a fresh builder. A map field's deprecated `getX()` is never called.
-- **The other accessors are no fields.** `getXBytes()`, `getXValue()` beside an open enum, `getUnknownFields()`, counts, element getters and `OrBuilder` views stay out of the mapping. A domain component named after one has no wire counterpart.
-- **A field with `hasX()` reads `null` when it is unset.** A message field has one, as has a field declared `optional`, a oneof member and every proto2 field. Any component but an `Optional` then reports `must not be null`, so every message `parse` accepts builds back equal.
+- **A field is named as protobuf names it in Java.** A field `k_int` is `kInt`, where the JavaBeans rule would read its getter `getKInt()` as `KInt`.
+- **The other accessors are not fields.** `getXBytes()`, `getXValue()` beside an open enum, `getUnknownFields()`, counts, element getters and `OrBuilder` views stay out of the mapping. A domain component named after one has no wire counterpart.
+- **A field with `hasX()` reads `null` when it is unset.** A message field has one, as has a field declared `optional`, a oneof member and every singular proto2 field. Any component but an `Optional` then reports `must not be null`, so every message `parse` accepts builds back equal, bar the unknown fields and extensions it carries, which no domain component holds.
 - **An `Optional` over such a field reads it as empty when it is unset.** `build` leaves the field unset for an empty one, since protobuf's setters refuse `null`.
 - **A field with no `hasX()` reads its default when unset**, as protobuf's own getter does: `""`, `0`, `false`, the first enum constant, or an empty collection.
+- **A primitive field reads as its wrapper where the domain holds a reference.** So a `ValidatedPrism<Long, Instant>` leaf converts an `int64` field, and an `Integer` component maps an `int32` field as it is.
 - **A message maps both ways, and leaves no accessor unpaired.** So an [`@Unmapped`](#what-unmapped-withholds) or [`@ReadOnly`](#what-readonly-reads) marker has nothing on it to name.
 
 ### A field with no `hasX()` refuses the bridge {#protobuf-field-without-presence}
 
-**The processor refuses a domain `Optional` over a message field that does not track whether it is set.** That is a proto3 scalar declared without `optional`, a repeated field or a map field. Unset, such a field reads its default or an empty collection, so an empty `Optional` would read back as a present one. Declare the component without the `Optional`, so the default stands for nothing. For a scalar, you can instead declare the field `optional` in its `.proto` file, so protoc generates `hasX()`.
+**The processor refuses a domain `Optional` over a message field that does not track whether it is set.** That is a proto3 scalar declared without `optional`, a repeated field or a map field. Unset, such a field reads its default or an empty collection, so an empty `Optional` would read back as a present one. Declare the component without the `Optional`, so the default stands for nothing. For a scalar, you can instead declare the field `optional` in its `.proto` file, so protoc generates `hasX()`. Where the `.proto` file is not yours to change, give the component a leaf over the whole `Optional`, such as a `ValidatedPrism<Long, Optional<Long>>` that reads `0` as empty.
 
 ### A oneof member maps only to an `Optional` {#protobuf-oneof-members}
 
@@ -564,7 +566,7 @@ A one-directional mapping follows these rules:
 
 ### No protobuf-java message {#no-protobuf-patch}
 
-**The processor refuses a protobuf-java message as a PATCH body.** The sparse tier leaves a component unchanged where its property reads `null`, and a message reads a value for every field it has not set. An update request built with protobuf names the fields it changes in a `FieldMask` instead, which the sparse tier does not read. Map the message with a `MappingSpec`, whose `parse` reads every field, and apply the fields the `FieldMask` names to the domain value yourself. A sparse update driven by a `FieldMask` is not supported yet.
+**The processor refuses a protobuf-java message as a PATCH body.** The sparse tier leaves a component unchanged where its property reads `null`, and a message's repeated and map fields, and its proto3 scalars declared without `optional`, read a value when unset. An update request built with protobuf names the fields it changes in a `FieldMask` instead, which the sparse tier does not read. Map the message with a `MappingSpec`, whose `parse` reads every field, and apply the fields named by the `FieldMask` your update request carries to the domain value yourself. A sparse update driven by a `FieldMask` is not supported yet.
 
 ### A sparse update constructs the record once {#sparse-construct-once}
 

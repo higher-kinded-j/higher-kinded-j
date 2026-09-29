@@ -113,7 +113,10 @@ import java.lang.annotation.Target;
  *       {@code T} (empty writes {@code null}, replacing any default the bean starts with), with no
  *       declaration, unless that property is written through its own getter, which leaves it
  *       nothing to write absence into; on a record wire the same bridge is opted into per component
- *       with {@link OptionalBridge}. The domain stays a record. A bean crossed one way only maps
+ *       with {@link OptionalBridge}. A protobuf-java message is such a builder bean, read by its
+ *       fields rather than by every accessor protoc generates: a field with {@code hasX()} reads
+ *       {@code null} when unset, an empty {@code Optional} leaves it unset, and one without {@code
+ *       hasX()} refuses the bridge. The domain stays a record. A bean crossed one way only maps
  *       that way: one with getters and nothing that writes it generates {@code parse} and {@code
  *       asValidatedParse()} and no {@code build}, and one that can be written but declares no
  *       getter generates {@code build} and {@code asValidatedBuild()} and no {@code parse}. A note

@@ -113,17 +113,34 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   }
 
   /**
-   * One wire component: its (decapitalised) name, its type, the accessor that reads it, and the
-   * method that tells whether it is set, for a component that {@linkplain BeanProperty#presence
-   * tracks its presence}. For a record the accessor is the component name; for a bean it is the
-   * getter (for example {@code getName}), absent on a bean that is only ever written.
+   * One wire component: its (decapitalised) name, its type, the accessor that reads it, and, for a
+   * field of a protobuf-java message, what the message says of it ({@code field}). For a record the
+   * accessor is the component name; for a bean it is the getter (for example {@code getName}),
+   * absent on a bean that is only ever written.
    */
   record WireComponent(
-      String name, TypeMirror type, Optional<String> accessor, Optional<String> presence) {
+      String name, TypeMirror type, Optional<String> accessor, Optional<MessageField> field) {
 
-    /** A component that is set whenever its accessor answers a value. */
+    /** A component of a record, or of a bean that is not a protobuf-java message. */
     WireComponent(String name, TypeMirror type, Optional<String> accessor) {
       this(name, type, accessor, Optional.empty());
+    }
+
+    /**
+     * The method that tells whether this component is set, when it tracks its presence: a message
+     * field's {@code hasX()}.
+     */
+    Optional<String> presence() {
+      return field.flatMap(MessageField::presence);
+    }
+
+    /**
+     * Whether the read of this component can be {@code null}: a reference always can, and a
+     * primitive can when the component tracks its presence, since {@link #readFrom} reads it as
+     * {@code null} when it is unset.
+     */
+    boolean readsNull() {
+      return !type.getKind().isPrimitive() || presence().isPresent();
     }
 
     /**
@@ -131,11 +148,12 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      * that is read, where every component has its accessor. A component that tracks its presence
      * reads {@code null} when it is unset, as an unset bean property does, so the rules for a
      * {@code null} read apply to it: a domain {@code Optional} reads it as empty, and any other
-     * component as missing. Its type is then the boxed one when the accessor answers a primitive.
+     * component as missing. The read of a primitive one is then of its boxed type, while {@link
+     * #type} stays the type its accessor declares.
      */
     CodeBlock readFrom(String receiver) {
       CodeBlock read = CodeBlock.of("$L.$L()", receiver, accessor.orElseThrow());
-      return presence
+      return presence()
           .map(has -> CodeBlock.of("($L.$L() ? $L : null)", receiver, has, read))
           .orElse(read);
     }
@@ -290,7 +308,8 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
               .toList();
       List<UnpairedAccessor> left =
           unpaired.stream().filter(accessor -> !getters.contains(accessor)).toList();
-      return read.stream().allMatch(property -> property.write().isEmpty())
+      // A protobuf-java message with no fields has nothing to write, and is written all the same.
+      return !read.isEmpty() && read.stream().allMatch(property -> property.write().isEmpty())
           ? new BeanShape(element, read, Optional.empty(), Direction.PARSE_ONLY, List.of())
           : new BeanShape(element, read, strategy, direction, left, names);
     }
@@ -391,7 +410,7 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
     }
 
     WireComponent asWireComponent() {
-      return new WireComponent(name, type, getter, presence());
+      return new WireComponent(name, type, getter, field);
     }
   }
 

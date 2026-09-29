@@ -23,14 +23,15 @@ module org.higherkindedj.examples {
   // PCollections for the persistent-collections HKT compatibility example
   requires org.pcollections;
 
-  // protobuf-java for the mapping chapter's gRPC example
+  // protobuf-java for the mapping chapter's protobuf example
   requires com.google.protobuf;
 
   // Export spec interface examples for external types
   exports org.higherkindedj.example.optics.external;
 
   // The messages protoc generates, which protobuf-java reads through reflection
-  exports org.higherkindedj.example.book.mapping.proto;
+  exports org.higherkindedj.example.book.mapping.proto to
+      com.google.protobuf;
 
   // Export Order Workflow packages for testing
   exports org.higherkindedj.example.order.audit;

@@ -7,6 +7,7 @@ Generated client models, JAXB payloads and many legacy DTOs are beans: classes w
 ~~~admonish info title="What You'll Learn"
 - Map a getter/setter or builder bean like a record, and predict what an unset property does
 - Predict which methods a bean's Impl carries, from the bean's shape
+- Map a protobuf-java message, and predict what an unset field reads
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -225,7 +226,7 @@ A component that converts takes the marker on its leaf. [What `@ReadOnly` reads]
 
 ## protobuf-java messages {#protobuf-java-messages}
 
-A protobuf-java message is a builder bean, so a gRPC boundary maps as any bean does, with nothing to configure. protoc generates more accessors than a message has fields, such as `getNameBytes()` beside a string field, so the processor reads a message by its fields. Here is the order service's dispatch request, which protoc compiles in the same build:
+A protobuf-java message is a builder bean, so a gRPC boundary maps as any bean does, with nothing to configure. protoc generates more accessors than a message has fields, such as `getNameBytes()` beside a string field, so the processor reads a message by its fields. It takes no protobuf dependency of its own, and maps the classes protoc generates wherever they come from: this build, as here, or a jar. Here is the order service's dispatch request, which protoc compiles in the same build:
 
 ``` proto
 {{#include ../../../hkj-examples/src/main/proto/book/mapping/dispatch.proto:dispatch_proto}}
@@ -243,17 +244,18 @@ A repeated field maps to a `List` and a map field to a `Map`, and `build` writes
 
 | The field | Unset, `parse` reads it as | A domain `Optional` over it |
 |---|---|---|
-| a message field, a field declared `optional`, a oneof member, or any proto2 field | `null`, so a plain component reports `must not be null` | empty, and `build` leaves the field unset |
+| a message field, a field declared `optional`, a oneof member, or a singular proto2 field | `null`, so a plain component reports `must not be null` | empty, and `build` leaves the field unset |
 | a proto3 scalar declared without `optional` | its default: `""`, `0`, `false` or the first enum constant | refused, since its default would read back as present |
 | a repeated or map field | an empty `List` or `Map` | refused, as for a scalar |
 
 A oneof member maps only to an `Optional`, since setting one member clears the others: the dispatch's `locker` and `pickupPoint` are two `Optional` components. A message as a PATCH body is not supported yet. [How a protobuf-java message is read](rules.md#how-a-message-is-read) has the precise rules.
 
 ~~~admonish warning title="Not checked for you: what a message cannot hold"
-The processor cannot see what a domain value holds, and two values it allows have no message to build:
+The processor cannot see these three, and each shows only at run time:
 
 - **An enum number the build does not know.** A newer client can send a number your generated enum lacks, which its getter reads as `UNRECOGNIZED`. A component keeping the generated enum parses it, and `build` then throws. Convert the enum through a leaf that refuses `UNRECOGNIZED`, as `priority()` does.
-- **Two members of one oneof.** A domain value holding both a `locker` and a `pickupPoint` builds a message holding only the last one written. Give the domain record an invariant that refuses both, so it never holds two.
+- **Two members of one oneof.** A domain value holding both a `locker` and a `pickupPoint` builds a message holding only the last one written. Give the domain record an invariant that refuses both, as `Dispatch` does.
+- **An unset proto2 `required` field.** An empty `Optional` leaves it unset, and the builder's `build()` then throws `UninitializedMessageException`. Map a required field to a component without the `Optional`.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_enum_trap}}
@@ -280,7 +282,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 | a PATCH request bean with `default:` values or container defaults | the generator renders them as initialisers, which read as sent | give the PATCH request its own schema: [A PATCH getter must answer `null` until set](beans_patch.md#patch-getters-answer-null) |
 | a Lombok class | the processor sees its accessors only once Lombok has run | list Lombok's `annotationProcessor` before `hkj-processor`; the HKJ Gradle plugin adds its own after your `dependencies` block ([Lombok](../tooling/manual_setup.md#lombok)) |
 | Lombok's `@Singular` on a collection | it maps: `build` writes the collection whole and leaves the singular adder alone. The collection is never `null`, so it cannot carry an absent `Optional` or a PATCH's absence | for an `Optional` component, declare it a `List` or drop `@Singular`; on a PATCH request, drop `@Singular`: [A Lombok `@Singular` collection](rules.md#singular-collections) |
-| a protobuf-java message | it maps both ways by its fields, and protoc's other accessors, such as `getXBytes()`, stay out. An unset field with `hasX()` reads as `null` | nothing: [protobuf-java messages](#protobuf-java-messages). For an `Optional` over a proto3 scalar, declare the field `optional` in the `.proto` |
+| a protobuf-java message | it maps both ways by its fields, and protoc's other accessors, such as `getXBytes()`, stay out. An unset field with `hasX()` reads as `null` | nothing, unless an `Optional` faces a proto3 scalar: declare that field `optional` in the `.proto` ([protobuf-java messages](#protobuf-java-messages)) |
 | a bean another annotation processor generates | the mapping waits for the type to exist, with nothing to configure | nothing: [Mapping over types other processors generate](../tooling/manual_setup.md#mapping-over-types-other-processors-generate) |
 
 ---

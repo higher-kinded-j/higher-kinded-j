@@ -2081,18 +2081,17 @@ interface OrderMapping extends MappingSpec<Order, OrderDto> {}
 
 A domain `Optional` faces a message field with no `hasX()`: a proto3 scalar declared without `optional`, a repeated field or a map field. Unset, it reads its default, so an empty `Optional` would read back as present.
 
-**Fix.** Drop the `Optional`, so the field's default stands for nothing, or declare the field `optional` in its `.proto` file, so protoc generates `hasX()`.
+**Fix.** Drop the `Optional`, so the field's default stands for nothing, or declare the field `optional` in its `.proto` file, so protoc generates `hasX()`. Where the `.proto` file is not yours, as for `Timestamp`, give the component a leaf over the whole `Optional`, a `ValidatedPrism<Long, Optional<Long>>` that reads `0` as empty.
 
 ```
 @GenerateMapping: domain field 'Stamp.seconds' is Optional<Long>, bridged to the field 'seconds'
 of the protobuf-java message 'Timestamp', which does not track whether it is set. The bridge
-reads an unset field as an empty Optional, and leaves the field unset for one, which takes a
-hasSeconds() method telling whether it is set. protobuf generates one for a message field, a
-field declared optional, a oneof member and every proto2 field, but not for a repeated field, a
-map field or a proto3 scalar declared without optional, which reads its default when unset, so
-an empty Optional would read back as present. Declare 'seconds' as long, dropping the Optional,
-so the field's default encodes nothing, or declare the field optional in its .proto file, so
-protobuf generates hasSeconds().
+needs hasSeconds() to tell an unset field from a set one, and protobuf generates none for a
+proto3 scalar declared without optional, which reads its default when unset, so an empty
+Optional would read back as present. Declare 'seconds' as long, dropping the Optional, so the
+field's default encodes nothing; declare the field optional in its .proto file, so protoc
+generates hasSeconds(); or give 'seconds' a leaf over the whole Optional, a ValidatedPrism<Long,
+Optional<Long>> that reads the default as empty.
 ```
 
 The rule: [A field with no `hasX()` refuses the bridge](rules.md#protobuf-field-without-presence).
@@ -2374,18 +2373,18 @@ interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}
 
 ### `the wire 'X' is a protobuf-java message, which a sparse UpdateSpec cannot read as a PATCH body (not supported yet)` {#protobuf-message-patch}
 
-A sparse update reads a `null` property as absent, and a message reads a value for every field it has not set.
+A sparse update reads a `null` property as absent, and a message's repeated and map fields, and its proto3 scalars declared without `optional`, read a value when unset.
 
-**Fix.** Map the message with a `MappingSpec`, whose `parse` reads every field, and apply the fields its `FieldMask` names to the domain value yourself.
+**Fix.** Map the message with a `MappingSpec`, whose `parse` reads every field, and apply the fields named by the `FieldMask` your update request carries to the domain value yourself.
 
 ```
 @GenerateMapping: the wire 'StringValue' is a protobuf-java message, which a sparse UpdateSpec
 cannot read as a PATCH body (not supported yet). A sparse update leaves a domain component
-unchanged where its wire property reads null, and a message reads a value for every field it has
-not set: its default, or an empty list or map. An update request built with protobuf names the
-fields it changes in a FieldMask instead, which the sparse update does not read. Map
-'StringValue' with a MappingSpec, whose parse reads every field, and apply the fields its
-FieldMask names to the domain value yourself.
+unchanged where its wire property reads null, and a message's repeated and map fields, and its
+proto3 scalars declared without optional, read a value when unset. An update request built with
+protobuf names the fields it changes in a FieldMask instead, which the sparse update does not
+read. Map 'StringValue' with a MappingSpec, whose parse reads every field, and apply the fields
+named by the FieldMask your update request carries to the domain value yourself.
 ```
 
 The rule: [No protobuf-java message](rules.md#no-protobuf-patch).

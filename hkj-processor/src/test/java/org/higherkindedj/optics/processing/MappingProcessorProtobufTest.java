@@ -205,8 +205,9 @@ class MappingProcessorProtobufTest {
                   interface MaskMapping extends MappingSpec<Mask, FieldMask> {}
                   """));
       Assertions.assertThat(generated(result.compilation(), "MaskMappingImpl"))
-          .contains("b.addAllPaths(")
-          .contains("wire.getPathsList()");
+          // Both directions copy, so neither side holds the other's list.
+          .contains("b.addAllPaths(hkj$copyOf(domain.paths()));")
+          .contains("hkj$copyOf(wire.getPathsList())");
       Object impl = result.instance("com.example.MaskMappingImpl");
       Object mask = record(result, "Mask", List.of("user.name", "user.email"));
       FieldMask wire = FieldMask.newBuilder().addPaths("user.name").addPaths("user.email").build();
@@ -231,8 +232,8 @@ class MappingProcessorProtobufTest {
                   interface DocMapping extends MappingSpec<Doc, Struct> {}
                   """));
       Assertions.assertThat(generated(result.compilation(), "DocMappingImpl"))
-          .contains("b.putAllFields(")
-          .contains("wire.getFieldsMap()")
+          .contains("b.putAllFields(hkj$copyOf(domain.fields()));")
+          .contains("hkj$copyOf(wire.getFieldsMap())")
           .doesNotContain("wire.getFields()");
       Object impl = result.instance("com.example.DocMappingImpl");
       Map<String, Value> fields =
@@ -532,9 +533,15 @@ class MappingProcessorProtobufTest {
                   + " set.");
       assertThat(compilation)
           .hadErrorContaining(
+              "The bridge needs hasSeconds() to tell an unset field from a set one, and protobuf"
+                  + " generates none for a proto3 scalar declared without optional, which reads"
+                  + " its default when unset, so an empty Optional would read back as present.");
+      assertThat(compilation)
+          .hadErrorContaining(
               "Declare 'seconds' as long, dropping the Optional, so the field's default encodes"
-                  + " nothing, or declare the field optional in its .proto file, so protobuf"
-                  + " generates hasSeconds().");
+                  + " nothing; declare the field optional in its .proto file, so protoc generates"
+                  + " hasSeconds(); or give 'seconds' a leaf over the whole Optional, a"
+                  + " ValidatedPrism<Long, Optional<Long>> that reads the default as empty.");
       assertThat(compilation)
           .hadErrorContaining(
               "Declare 'value' as String, dropping the Optional, so the field's default encodes"
@@ -563,12 +570,18 @@ class MappingProcessorProtobufTest {
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
+              "protobuf generates none for a repeated or map field, which reads as an empty"
+                  + " collection when unset");
+      assertThat(compilation)
+          .hadErrorContaining(
               "Declare 'paths' as List<String>, dropping the Optional, so the field's empty"
-                  + " collection encodes nothing.");
+                  + " collection encodes nothing; or give 'paths' a leaf over the whole Optional, a"
+                  + " ValidatedPrism<List<String>, Optional<List<String>>> that reads the empty"
+                  + " collection as empty.");
       assertThat(compilation)
           .hadErrorContaining(
               "Declare 'fields' as Map<String, Value>, dropping the Optional, so the field's empty"
-                  + " collection encodes nothing.");
+                  + " collection encodes nothing;");
     }
 
     @Test
@@ -664,7 +677,8 @@ class MappingProcessorProtobufTest {
       assertThat(compilation)
           .hadErrorContaining(
               "Map 'StringValue' with a MappingSpec, whose parse reads every field, and apply the"
-                  + " fields its FieldMask names to the domain value yourself.");
+                  + " fields named by the FieldMask your update request carries to the domain"
+                  + " value yourself.");
     }
 
     @Test
@@ -685,8 +699,225 @@ class MappingProcessorProtobufTest {
           .hadErrorContaining(
               "domain field 'Name.valueBytes' has no wire counterpart named 'valueBytes'. Found on"
                   + " StringValue: [value].");
-      Assertions.assertThat(compilation.errors())
-          .noneMatch(error -> error.getMessage(null).contains("not supported yet"));
+    }
+
+    @Test
+    @DisplayName("a domain narrower than the message is offered components, never removing fields")
+    void narrowerDomain() {
+      Compilation compilation =
+          compile(
+              source(
+                  "Stamps",
+                  """
+                  record Stamp(long seconds) {}
+
+                  @GenerateMapping
+                  interface StampMapping extends MappingSpec<Stamp, Timestamp> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add matching domain components, an Optional one for a member of a oneof (or a"
+                  + " @MapField rename where a name differs), or declare derived fields ('default"
+                  + " Getter<Stamp, ComponentType>' methods named after the extras that are members"
+                  + " of no oneof).");
+    }
+
+    @Test
+    @DisplayName("an @Unmapped or @ReadOnly marker on a message field is told every field maps")
+    void markersOnFields() {
+      Compilation compilation =
+          compile(
+              source(
+                  "Names",
+                  """
+                  record Name(String value) {}
+
+                  record Label(String value) {}
+
+                  @GenerateMapping
+                  interface NameMapping extends MappingSpec<Name, StringValue> {
+                    @org.higherkindedj.optics.annotations.Unmapped
+                    String value();
+                  }
+
+                  @GenerateMapping
+                  interface LabelMapping extends MappingSpec<Label, StringValue> {
+                    @org.higherkindedj.optics.annotations.ReadOnly
+                    String value();
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Remove the marker: every field of a protobuf-java message maps both ways, so fill"
+                  + " 'value' from a domain component or a derived field.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Remove the marker: build writes every field of a protobuf-java message it maps.");
+    }
+  }
+
+  @Nested
+  @DisplayName("A primitive field converts through its wrapper")
+  class PrimitiveFields {
+
+    @Test
+    @DisplayName("a leaf over the wrapper converts a primitive field, and a wrapper maps as it is")
+    void leafOverWrapper() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Moments",
+                  """
+                  record Moment(java.time.Instant seconds, Integer nanos) {}
+
+                  @GenerateMapping
+                  interface MomentMapping extends MappingSpec<Moment, Timestamp> {
+                    default org.higherkindedj.optics.validated.ValidatedPrism<
+                            Long, java.time.Instant>
+                        seconds() {
+                      return org.higherkindedj.optics.validated.ValidatedPrism.of(
+                          raw ->
+                              org.higherkindedj.hkt.validated.Validated.validNel(
+                                  java.time.Instant.ofEpochSecond(raw)),
+                          java.time.Instant::getEpochSecond);
+                    }
+                  }
+                  """));
+      Object impl = result.instance("com.example.MomentMappingImpl");
+      Timestamp wire = Timestamp.newBuilder().setSeconds(90).setNanos(5).build();
+      Object moment = record(result, "Moment", java.time.Instant.ofEpochSecond(90), 5);
+      assertThatValidated(parse(impl, wire)).isValid().hasValue(moment);
+      Assertions.assertThat(invoke(impl, "build", moment)).isEqualTo(wire);
+    }
+
+    @Test
+    @DisplayName("a derived field fills a primitive field through its wrapper")
+    void derivedPrimitive() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Stamps",
+                  """
+                  record Stamp(long seconds) {}
+
+                  @GenerateMapping
+                  interface StampMapping extends MappingSpec<Stamp, Timestamp> {
+                    default Getter<Stamp, Integer> nanos() {
+                      return Getter.of(stamp -> 7);
+                    }
+                  }
+                  """));
+      Object built =
+          invoke(
+              result.instance("com.example.StampMappingImpl"),
+              "build",
+              record(result, "Stamp", 90L));
+      Assertions.assertThat(built)
+          .isEqualTo(Timestamp.newBuilder().setSeconds(90).setNanos(7).build());
+    }
+
+    @Test
+    @DisplayName("a derived field over a primitive record component is declared over its wrapper")
+    void derivedPrimitiveRecordComponent() {
+      Compilation compilation =
+          compile(
+              source(
+                  "Ranks",
+                  """
+                  record Person(String name) {}
+
+                  record PersonDto(String name, int rank) {}
+
+                  @GenerateMapping
+                  interface PersonMapping extends MappingSpec<Person, PersonDto> {
+                    default Getter<Person, Long> rank() {
+                      return Getter.of(person -> 1L);
+                    }
+                  }
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "derived field 'rank' must return Getter<Person, java.lang.Integer> but returns");
+      assertThat(compilation)
+          .hadErrorContaining("Declare 'default Getter<Person, java.lang.Integer> rank()'.");
+    }
+
+    @Test
+    @DisplayName("a whole-Optional leaf reads a primitive field's default as empty")
+    void wholeOptionalLeaf() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Stamps",
+                  """
+                  record Stamp(Optional<Long> seconds, int nanos) {}
+
+                  @GenerateMapping
+                  interface StampMapping extends MappingSpec<Stamp, Timestamp> {
+                    default org.higherkindedj.optics.validated.ValidatedPrism<
+                            Long, Optional<Long>>
+                        seconds() {
+                      return org.higherkindedj.optics.validated.ValidatedPrism.of(
+                          raw ->
+                              org.higherkindedj.hkt.validated.Validated.validNel(
+                                  raw == 0 ? Optional.empty() : Optional.of(raw)),
+                          seconds -> seconds.orElse(0L));
+                    }
+                  }
+                  """));
+      Object impl = result.instance("com.example.StampMappingImpl");
+      Object unset = record(result, "Stamp", Optional.empty(), 0);
+      Assertions.assertThat(invoke(impl, "build", unset)).isEqualTo(Timestamp.getDefaultInstance());
+      assertThatValidated(parse(impl, Timestamp.getDefaultInstance())).isValid().hasValue(unset);
+    }
+
+    @Test
+    @DisplayName(
+        "an @OptionalBridge marker on a primitive message field is left to the bridge, which takes"
+            + " one with hasX() and refuses one without")
+    void bridgeMarkers() {
+      Compilation taken =
+          compile(
+              source(
+                  "Numbers",
+                  """
+                  record Reading(
+                      Optional<NullValue> nullValue,
+                      Optional<Double> numberValue,
+                      Optional<String> stringValue,
+                      Optional<Boolean> boolValue,
+                      Optional<Struct> structValue,
+                      Optional<ListValue> listValue) {}
+
+                  @GenerateMapping
+                  interface ReadingMapping extends MappingSpec<Reading, Value> {
+                    @org.higherkindedj.optics.annotations.OptionalBridge
+                    Optional<Double> numberValue();
+                  }
+                  """));
+      assertThat(taken).succeeded();
+      assertThat(taken).hadNoteContaining("@OptionalBridge on 'numberValue' is redundant");
+
+      Compilation refused =
+          compile(
+              source(
+                  "Stamps",
+                  """
+                  record Stamp(Optional<Long> seconds, int nanos) {}
+
+                  @GenerateMapping
+                  interface StampMapping extends MappingSpec<Stamp, Timestamp> {
+                    @org.higherkindedj.optics.annotations.OptionalBridge
+                    Optional<Long> seconds();
+                  }
+                  """));
+      assertThat(refused).failed();
+      assertThat(refused).hadErrorContaining("which does not track whether it is set.");
+      Assertions.assertThat(refused.errors())
+          .noneMatch(error -> error.getMessage(null).contains("can never be null"));
     }
   }
 
@@ -694,24 +925,43 @@ class MappingProcessorProtobufTest {
   @DisplayName("A class shaped like a message is read as protobuf generates one")
   class MessageShapes {
 
-    // A lite message by hand: its builder inherits build() from the runtime's generic base, and a
-    // field named brief_case gives it a getBriefCase() that answers no oneof's case.
+    // A lite message by hand, compiled and never run. Its builder inherits build() from the
+    // runtime's generic base. A field named brief_case gives it a getBriefCase() that answers no
+    // oneof's case, and so does topic_case. The oneof 'choice' has a member declared plain_text,
+    // one
+    // declared richText in camel case, and a constant naming no field, beside a field plaintext
+    // that is none of its members. tags is a repeated field beside all_tags, whose single adder
+    // shares addAllTags. k_int is named kInt, as protobuf names it, and marker holds an Empty.
     private static final JavaFileObject BRIEFING =
         JavaFileObjects.forSourceString(
             "com.example.Briefing",
             """
             package com.example;
 
+            import com.google.protobuf.Empty;
             import com.google.protobuf.GeneratedMessageLite;
+            import java.util.List;
 
             public final class Briefing extends GeneratedMessageLite<Briefing, Briefing.Builder> {
               public enum Brief { SHORT, LONG }
               public enum TopicCase { ALPHA, BETA }
+              public enum ChoiceCase { PLAIN_TEXT, RICHTEXT, LOST, CHOICE_NOT_SET }
 
               public Brief getBriefCase() { return Brief.SHORT; }
               public boolean hasBriefCase() { return true; }
               public TopicCase getTopicCase() { return TopicCase.ALPHA; }
+              public ChoiceCase getChoiceCase() { return ChoiceCase.CHOICE_NOT_SET; }
+              public String getPlainText() { return ""; }
+              public boolean hasPlainText() { return false; }
+              public String getRichText() { return ""; }
+              public boolean hasRichText() { return false; }
+              public String getPlaintext() { return ""; }
+              public List<String> getTagsList() { return List.of(); }
+              public int getKInt() { return 0; }
+              public Empty getMarker() { return Empty.getDefaultInstance(); }
+              public boolean hasMarker() { return false; }
               public int getCount() { return 0; }
+              public int getCase() { return 0; }
 
               @Override
               protected Object dynamicMethod(MethodToInvoke method, Object arg0, Object arg1) {
@@ -727,6 +977,20 @@ class MappingProcessorProtobufTest {
                 public Builder clearBriefCase() { return this; }
                 public Builder setTopicCase(TopicCase topic) { return this; }
                 public Builder clearTopicCase() { return this; }
+                public Builder setPlainText(String text) { return this; }
+                public Builder clearPlainText() { return this; }
+                public Builder setRichText(String text) { return this; }
+                public Builder clearRichText() { return this; }
+                public Builder clearChoice() { return this; }
+                public Builder setPlaintext(String text) { return this; }
+                public Builder clearPlaintext() { return this; }
+                public Builder addAllTags(String allTag) { return this; }
+                public Builder addAllTags(Iterable<String> tags) { return this; }
+                public Builder clearTags() { return this; }
+                public Builder setKInt(int value) { return this; }
+                public Builder clearKInt() { return this; }
+                public Builder setMarker(Empty marker) { return this; }
+                public Builder clearMarker() { return this; }
                 public Builder setCount(long count) { return this; }
                 public Builder clearCount() { return this; }
                 public Builder clearGone() { return this; }
@@ -734,64 +998,98 @@ class MappingProcessorProtobufTest {
             }
             """);
 
-    @Test
-    @DisplayName(
-        "a getXCase() with no X_NOT_SET is a field, and a setter of another type writes none")
-    void caseGetterField() {
-      Compilation compilation =
-          compile(
-              BRIEFING,
-              source(
-                  "Briefs",
-                  """
-                  record Brief(Briefing.Brief briefCase, Briefing.TopicCase topicCase) {}
+    private static JavaFileObject briefs(String richText) {
+      return source(
+          "Briefs",
+          """
+          record Nothing() {}
 
-                  @GenerateMapping
-                  interface BriefMapping extends MappingSpec<Brief, Briefing> {}
-                  """));
+          record Brief(
+              Briefing.Brief briefCase,
+              Briefing.TopicCase topicCase,
+              Optional<String> plainText,
+              %s richText,
+              String plaintext,
+              List<String> tags,
+              int kInt,
+              Optional<Nothing> marker) {}
+
+          @GenerateMapping
+          interface NothingMapping extends MappingSpec<Nothing, com.google.protobuf.Empty> {}
+
+          @GenerateMapping
+          interface BriefMapping extends MappingSpec<Brief, Briefing> {}
+          """
+              .formatted(richText));
+    }
+
+    @Test
+    @DisplayName("each field is read by protobuf's conventions, and nothing else is a field")
+    void fields() {
+      Compilation compilation = compile(BRIEFING, briefs("Optional<String>"));
       assertThat(compilation).succeeded();
       Assertions.assertThat(generated(compilation, "BriefMappingImpl"))
+          // A getXCase() whose enum has no X_NOT_SET reads a field.
           .contains("b.setBriefCase(domain.briefCase());")
           .contains("(wire.hasBriefCase() ? wire.getBriefCase() : null)")
           .contains("b.setTopicCase(domain.topicCase());")
-          .doesNotContain("Count");
+          // plaintext is no member of the oneof, so a plain String fills it.
+          .contains("b.setPlaintext(domain.plaintext());")
+          .contains("b.addAllTags(hkj$copyOf(domain.tags()));")
+          .contains("b.setKInt(domain.kInt());")
+          // A message with no fields nests through its own spec.
+          .contains("NothingMappingImpl")
+          // A setter of another type writes no field, and nor does a clear method alone.
+          .doesNotContain("Count")
+          .doesNotContain("Gone");
     }
-  }
 
-  @Test
-  @DisplayName("a bean that is no message keeps its companion-like accessors as properties")
-  void noMessage() {
-    Compilation compilation =
-        compile(
-            source(
-                "Users",
-                """
-                record User(String name) {}
+    @Test
+    @DisplayName("a member declared in camel case is a member of its oneof too")
+    void camelCaseMember() {
+      Compilation compilation = compile(BRIEFING, briefs("String"));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "domain field 'Brief.richText' is String, and fills 'richText', a member of the"
+                  + " oneof 'choice'");
+    }
 
-                final class UserMessage {
-                  private final String name;
-                  private UserMessage(String name) { this.name = name; }
-                  public String getName() { return name; }
-                  public String getNameBytes() { return name; }
-                  public static Builder newBuilder() { return new Builder(); }
-                  public static final class Builder {
-                    private String name;
-                    public Builder setName(String name) { this.name = name; return this; }
-                    public Builder clearName() { return this; }
-                    public Builder setNameBytes(String bytes) { return this; }
-                    public UserMessage build() { return new UserMessage(name); }
+    @Test
+    @DisplayName("a bean that is no message keeps its companion-like accessors as properties")
+    void noMessage() {
+      Compilation compilation =
+          compile(
+              source(
+                  "Users",
+                  """
+                  record User(String name) {}
+
+                  final class UserMessage {
+                    private final String name;
+                    private UserMessage(String name) { this.name = name; }
+                    public String getName() { return name; }
+                    public String getNameBytes() { return name; }
+                    public static Builder newBuilder() { return new Builder(); }
+                    public static final class Builder {
+                      private String name;
+                      public Builder setName(String name) { this.name = name; return this; }
+                      public Builder clearName() { return this; }
+                      public Builder setNameBytes(String bytes) { return this; }
+                      public UserMessage build() { return new UserMessage(name); }
+                    }
                   }
-                }
 
-                @GenerateMapping
-                interface UserMapping extends MappingSpec<User, UserMessage> {}
-                """));
-    assertThat(compilation).failed();
-    assertThat(compilation)
-        .hadErrorContaining(
-            "'UserMessage' has more components than 'User', leaving [nameBytes] unfilled.");
-    assertThat(compilation).hadErrorContaining("declare derived fields");
-    Assertions.assertThat(compilation.errors())
-        .noneMatch(error -> error.getMessage(null).contains("protobuf"));
+                  @GenerateMapping
+                  interface UserMapping extends MappingSpec<User, UserMessage> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'UserMessage' has more components than 'User', leaving [nameBytes] unfilled.");
+      assertThat(compilation).hadErrorContaining("declare derived fields");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("protobuf"));
+    }
   }
 }
