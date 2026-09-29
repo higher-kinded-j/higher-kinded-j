@@ -881,6 +881,124 @@ class MappingProcessorBeanTest {
       }
     }
 
+    // openapi-generator's readOnly nullable array: a getter that answers null until Jackson sets
+    // the list, declared nullable once as a declaration annotation and once on the return type.
+    @Test
+    @DisplayName(
+        "a getter-only List declared nullable is no list to fill, but a getter nothing writes")
+    void nullableGetterOnlyListIsNotFilled() {
+      JavaFileObject declarationNullable =
+          JavaFileObjects.forSourceString(
+              "com.example.jsr.Nullable",
+              """
+              package com.example.jsr;
+
+              public @interface Nullable {}
+              """);
+      Compilation compilation =
+          compileLinted(
+              declarationNullable,
+              JavaFileObjects.forSourceString(
+                  "com.example.Shelf",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+
+                  public record Shelf(String name) {}
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.ShelfModel",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+
+                  public class ShelfModel {
+                    private String name;
+                    private List<String> labels;
+                    private List<String> notes;
+                    public String getName() { return name; }
+                    public void setName(String name) { this.name = name; }
+                    @com.example.jsr.Nullable
+                    public List<String> getLabels() { return labels; }
+                    public List<@org.jspecify.annotations.Nullable String> getNotes() {
+                      return notes;
+                    }
+                    public java.util.@org.jspecify.annotations.Nullable List<String> getRemarks() {
+                      return notes;
+                    }
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.ShelfMapping",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateMapping;
+                  import org.higherkindedj.optics.annotations.MappingSpec;
+
+                  @GenerateMapping
+                  public interface ShelfMapping extends MappingSpec<Shelf, ShelfModel> {}
+                  """));
+      assertThat(compilation).failed();
+      // Only notes, whose elements are what is nullable, is still a list to fill, and so a wire
+      // component the domain lacks; labels and remarks are getters nothing writes, left out.
+      assertThat(compilation)
+          .hadErrorContaining(
+              "'ShelfModel' has more components than 'Shelf', leaving [notes] unfilled.");
+    }
+
+    @Test
+    @DisplayName("a getter-only List declared nullable and named after a component is refused")
+    void nullableGetterOnlyListNamedAfterAComponentIsRefused() {
+      Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Shelf",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+
+                  public record Shelf(String name, List<String> labels) {}
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.ShelfModel",
+                  """
+                  package com.example;
+
+                  import java.util.List;
+                  import org.jspecify.annotations.Nullable;
+
+                  public class ShelfModel {
+                    private String name;
+                    private @Nullable List<String> labels;
+                    public String getName() { return name; }
+                    public void setName(String name) { this.name = name; }
+                    public @Nullable List<String> getLabels() { return labels; }
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.ShelfMapping",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.optics.annotations.GenerateMapping;
+                  import org.higherkindedj.optics.annotations.MappingSpec;
+
+                  @GenerateMapping
+                  public interface ShelfMapping extends MappingSpec<Shelf, ShelfModel> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "bean property 'labels' on 'ShelfModel' has a getter, getLabels(), but no setter, so"
+                  + " the mapping leaves it out.");
+      Assertions.assertThat(compilation.errors())
+          .noneMatch(error -> error.getMessage(null).contains("addAll"));
+    }
+
     /** A getter-only list property of the given type, with no setter. */
     private static JavaFileObject listGetterOnly(String listType) {
       return JavaFileObjects.forSourceString(
