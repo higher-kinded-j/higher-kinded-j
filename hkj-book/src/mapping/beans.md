@@ -29,7 +29,7 @@ An unset property is an ordinary state of a bean, and `parse` reports it as any 
 |---|---|---|
 | a no-args constructor the Impl can call, and `setX` setters (Lombok `@Data` included) | `new`, then each setter | both ways |
 | a static `builder()` or `newBuilder()` whose `build()` returns it (a hand-written builder, or Lombok's `@Builder` or `@SuperBuilder`) | the builder's setters, then `build()` | both ways, reading the built type's getters |
-| a getter-only `List` beside its setters, the JAXB way, its getter not declared nullable | `getItems().addAll(...)` for that list | both ways |
+| a getter-only `List` beside its setters, the JAXB way | `getItems().addAll(...)` for that list, when a getter declared nullable answers one | both ways |
 | getters, and nothing that writes it, such as a view built through a constructor with arguments | nothing | [`parse` only](#one-directional-beans) |
 | setters or a builder, and no getters | the setters or the builder | [`build` only](#one-directional-beans) |
 

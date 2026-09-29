@@ -26,7 +26,8 @@ import javax.lang.model.util.ElementFilter;
  * ({@link #hasNullableAnnotation}). It also reads whether a site a mapping writes into is declared
  * non-null, by an annotation or by JSpecify's {@code @NullMarked} scope ({@link #nonNullReason}),
  * so a mapping that would write a {@code null} there can be refused, and whether a getter says it
- * may answer {@code null} ({@link #declaresNullable}), so a mapping never fills what it returns.
+ * may answer {@code null} ({@link #declaresNullable}), so a mapping fills the list it answers only
+ * when there is one.
  */
 public final class NullableAnnotations {
 
@@ -181,9 +182,12 @@ public final class NullableAnnotations {
   }
 
   /**
-   * Whether a method is declared to return {@code null}: an annotation on it, or on its return
-   * type, reads as nullable, by the rule {@link #declaredNonNull} applies first. A declaration
-   * annotation lands on the method and a {@code TYPE_USE} one on the return type.
+   * Whether a method is declared as one that may return {@code null}: an annotation on it, or on
+   * its return type, reads as nullable, by the rule {@link #declaredNonNull} applies first. A
+   * declaration annotation lands on the method and a {@code TYPE_USE} one on the return type; one
+   * on a type argument describes the elements, and does not count. The reading is lenient because a
+   * getter it misses, if it does answer {@code null}, turns a write into its result into a {@code
+   * NullPointerException}, where one it wrongly takes for nullable costs only a check.
    *
    * @param method the method, such as a bean getter
    * @return whether its declaration says it may return {@code null}

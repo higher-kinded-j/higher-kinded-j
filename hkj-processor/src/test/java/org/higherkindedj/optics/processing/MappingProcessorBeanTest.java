@@ -881,23 +881,20 @@ class MappingProcessorBeanTest {
       }
     }
 
-    // openapi-generator's readOnly nullable array: a getter that answers null until Jackson sets
-    // the list, declared nullable once as a declaration annotation and once on the return type.
+    // openapi-generator declares every getter it does not require @Nullable, a readOnly array's
+    // included: a nullable array's answers null until Jackson sets it, and any other's a list.
     @Test
-    @DisplayName(
-        "a getter-only List declared nullable is no list to fill, but a getter nothing writes")
-    void nullableGetterOnlyListIsNotFilled() {
-      JavaFileObject declarationNullable =
-          JavaFileObjects.forSourceString(
-              "com.example.jsr.Nullable",
-              """
-              package com.example.jsr;
-
-              public @interface Nullable {}
-              """);
+    @DisplayName("a getter-only List declared nullable is filled only when its getter answers one")
+    void nullableGetterOnlyListIsFilledOnlyWhenThereIsOne() throws ReflectiveOperationException {
       Compilation compilation =
           compileLinted(
-              declarationNullable,
+              JavaFileObjects.forSourceString(
+                  "com.example.jsr.Nullable",
+                  """
+                  package com.example.jsr;
+
+                  public @interface Nullable {}
+                  """),
               JavaFileObjects.forSourceString(
                   "com.example.Shelf",
                   """
@@ -905,19 +902,20 @@ class MappingProcessorBeanTest {
 
                   import java.util.List;
 
-                  public record Shelf(String name) {}
+                  public record Shelf(String name, List<String> labels, List<String> notes) {}
                   """),
               JavaFileObjects.forSourceString(
                   "com.example.ShelfModel",
                   """
                   package com.example;
 
+                  import java.util.ArrayList;
                   import java.util.List;
 
                   public class ShelfModel {
                     private String name;
                     private List<String> labels;
-                    private List<String> notes;
+                    private List<String> notes = new ArrayList<>();
                     public String getName() { return name; }
                     public void setName(String name) { this.name = name; }
                     @com.example.jsr.Nullable
@@ -925,62 +923,30 @@ class MappingProcessorBeanTest {
                     public List<@org.jspecify.annotations.Nullable String> getNotes() {
                       return notes;
                     }
-                    public java.util.@org.jspecify.annotations.Nullable List<String> getRemarks() {
-                      return notes;
-                    }
                   }
                   """),
               JavaFileObjects.forSourceString(
-                  "com.example.ShelfMapping",
+                  "com.example.RackModel",
                   """
                   package com.example;
 
-                  import org.higherkindedj.optics.annotations.GenerateMapping;
-                  import org.higherkindedj.optics.annotations.MappingSpec;
-
-                  @GenerateMapping
-                  public interface ShelfMapping extends MappingSpec<Shelf, ShelfModel> {}
-                  """));
-      assertThat(compilation).failed();
-      // Only notes, whose elements are what is nullable, is still a list to fill, and so a wire
-      // component the domain lacks; labels and remarks are getters nothing writes, left out.
-      assertThat(compilation)
-          .hadErrorContaining(
-              "'ShelfModel' has more components than 'Shelf', leaving [notes] unfilled.");
-    }
-
-    @Test
-    @DisplayName("a getter-only List declared nullable and named after a component is refused")
-    void nullableGetterOnlyListNamedAfterAComponentIsRefused() {
-      Compilation compilation =
-          compile(
-              JavaFileObjects.forSourceString(
-                  "com.example.Shelf",
-                  """
-                  package com.example;
-
+                  import java.util.ArrayList;
                   import java.util.List;
 
-                  public record Shelf(String name, List<String> labels) {}
-                  """),
-              JavaFileObjects.forSourceString(
-                  "com.example.ShelfModel",
-                  """
-                  package com.example;
-
-                  import java.util.List;
-                  import org.jspecify.annotations.Nullable;
-
-                  public class ShelfModel {
+                  public class RackModel {
                     private String name;
-                    private @Nullable List<String> labels;
+                    private List<String> labels = new ArrayList<>();
+                    private List<String> notes = new ArrayList<>();
                     public String getName() { return name; }
                     public void setName(String name) { this.name = name; }
-                    public @Nullable List<String> getLabels() { return labels; }
+                    public java.util.@org.jspecify.annotations.Nullable List<String> getLabels() {
+                      return labels;
+                    }
+                    public List<String> getNotes() { return notes; }
                   }
                   """),
               JavaFileObjects.forSourceString(
-                  "com.example.ShelfMapping",
+                  "com.example.ShelfMappings",
                   """
                   package com.example;
 
@@ -988,15 +954,38 @@ class MappingProcessorBeanTest {
                   import org.higherkindedj.optics.annotations.MappingSpec;
 
                   @GenerateMapping
-                  public interface ShelfMapping extends MappingSpec<Shelf, ShelfModel> {}
+                  interface ShelfMapping extends MappingSpec<Shelf, ShelfModel> {}
+
+                  @GenerateMapping
+                  interface RackMapping extends MappingSpec<Shelf, RackModel> {}
                   """));
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining(
-              "bean property 'labels' on 'ShelfModel' has a getter, getLabels(), but no setter, so"
-                  + " the mapping leaves it out.");
-      Assertions.assertThat(compilation.errors())
-          .noneMatch(error -> error.getMessage(null).contains("addAll"));
+      assertThat(compilation).succeeded();
+      // A nullable element type describes the elements, so notes is filled unguarded.
+      Assertions.assertThat(generatedSource(compilation, "com.example.ShelfMappingImpl"))
+          .contains(
+              "if (wire.getLabels() != null) wire.getLabels().addAll(hkj$copyOf(domain.labels()));")
+          .contains("\n    wire.getNotes().addAll(hkj$copyOf(domain.notes()));");
+      Assertions.assertThat(generatedSource(compilation, "com.example.RackMappingImpl"))
+          .contains(
+              "if (wire.getLabels() != null) wire.getLabels().addAll(hkj$copyOf(domain.labels()));");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object shelf =
+          result
+              .loadClass("com.example.Shelf")
+              .getDeclaredConstructor(String.class, List.class, List.class)
+              .newInstance("Oak", List.of("top"), List.of("dusty"));
+      // A model with a list is filled; one without leaves labels unwritten, where build threw, and
+      // parse reports the missing value, as a law check from a domain sample would.
+      Object rack = invoke(result.instance("com.example.RackMappingImpl"), "build", shelf);
+      Assertions.assertThat(invoke(rack, "getLabels")).isEqualTo(List.of("top"));
+      Object shelfMapping = result.instance("com.example.ShelfMappingImpl");
+      Object model = invoke(shelfMapping, "build", shelf);
+      Assertions.assertThat(invoke(model, "getLabels")).isNull();
+      Assertions.assertThat(invoke(model, "getNotes")).isEqualTo(List.of("dusty"));
+      assertThatValidated(validated(invoke(shelfMapping, "parse", model)))
+          .isInvalid()
+          .hasFieldErrors("labels: must not be null");
     }
 
     /** A getter-only list property of the given type, with no setter. */

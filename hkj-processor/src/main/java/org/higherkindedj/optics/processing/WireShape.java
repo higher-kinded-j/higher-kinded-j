@@ -376,11 +376,17 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
       }
     }
 
-    /** {@code receiver.getX().addAll(value)} — the JAXB collection-getter convention. */
-    record CollectionAdd(String getter) implements WriteSite {
+    /**
+     * {@code receiver.getX().addAll(value)} — the JAXB collection-getter convention. A getter
+     * declared nullable ({@code nullable}), as openapi-generator declares a {@code readOnly}
+     * array's, may answer {@code null} where JAXB's creates the list, so its write fills the list
+     * only when there is one: {@code if (receiver.getX() != null) receiver.getX().addAll(value)}.
+     */
+    record CollectionAdd(String getter, boolean nullable) implements WriteSite {
       @Override
       public CodeBlock write(String receiver, CodeBlock value) {
-        return CodeBlock.of("$L.$L().addAll($L)", receiver, getter, value);
+        CodeBlock fill = CodeBlock.of("$L.$L().addAll($L)", receiver, getter, value);
+        return nullable ? CodeBlock.of("if ($L.$L() != null) $L", receiver, getter, fill) : fill;
       }
     }
   }

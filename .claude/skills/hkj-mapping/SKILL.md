@@ -516,11 +516,11 @@ matter: it maps build-only whatever its width, derived fields included.
   constructor with `setX` setters; an immutable bean with a static `builder()`/`newBuilder()`
   (Lombok's `@Builder` or `@SuperBuilder`, Immutables, AutoValue); or the JAXB convention, where a
   getter-only `List`
-  is filled with `getItems().addAll(...)` (not one whose getter is declared nullable, as
-  openapi-generator's `readOnly` nullable array's is: that is a getter nothing writes, left out or
-  refused like any unpaired accessor) - that one must name its element type, since `addAll`
+  is filled with `getItems().addAll(...)` - that one must name its element type, since `addAll`
   cannot be written over a raw or wildcard receiver, so a raw or wildcard getter-only `List` is
-  refused on a mapping that builds (a sparse `UpdateSpec` only reads it, and keeps working).
+  refused on a mapping that builds (a sparse `UpdateSpec` only reads it, and keeps working). One
+  whose getter is declared nullable, as openapi-generator declares every non-required getter, is
+  filled only when the getter answers a list, and left unwritten otherwise.
   `build` fills through setters or the builder, `parse` reads
   through getters under the same null guard as a record wire, and a domain `Optional<T>` bridges to
   a nullable bean property `T` with no declaration (a record wire opts in per component with

@@ -51,8 +51,8 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * since a misspelt accessor is a likelier story than a wire meant to be crossed one way. A
  * getter-only {@code List} counts as written only on a bean that also has a setter, or whose every
  * getter is such a list: a {@code List} getter among read-only getters belongs to a read model,
- * which maps parse-only. Nor does one whose getter is declared nullable, which may have no list to
- * fill.
+ * which maps parse-only. One whose getter is declared nullable is filled only when the getter
+ * answers a list.
  *
  * <p>A property named {@code x_JsonNullable} of type {@code JsonNullable<T>} is no property of its
  * own when a property {@code x} of type {@code T} crosses beside it: openapi-generator's Java
@@ -201,9 +201,14 @@ final class BeanPropertyAnalyser {
           }
           properties.add(
               readWrite(name, getterType, getter, new WireShape.WriteSite.Setter(setter)));
-        } else if (collectionsWrite && isList(getterType) && fillable(entry.getValue())) {
+        } else if (collectionsWrite && isList(getterType)) {
           properties.add(
-              readWrite(name, getterType, getter, new WireShape.WriteSite.CollectionAdd(getter)));
+              readWrite(
+                  name,
+                  getterType,
+                  getter,
+                  new WireShape.WriteSite.CollectionAdd(
+                      getter, NullableAnnotations.declaresNullable(entry.getValue()))));
         } else {
           unpaired.add(unpairedGetter(bean, name, entry.getValue(), getterType));
         }
@@ -338,15 +343,6 @@ final class BeanPropertyAnalyser {
           neverBuilt);
     }
     return null;
-  }
-
-  /**
-   * Whether a getter-only {@code List} can be filled through its getter, the JAXB way: not when the
-   * getter is declared to answer {@code null}, as openapi-generator's is for a readOnly nullable
-   * array, since it may have no list to fill. It is then a getter nothing writes.
-   */
-  private static boolean fillable(ExecutableElement getter) {
-    return !NullableAnnotations.declaresNullable(getter);
   }
 
   private static WireShape.BeanProperty readWrite(
