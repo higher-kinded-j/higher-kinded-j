@@ -17,6 +17,7 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a field be renamed and converted at once?](basics.md#renamed-and-converted) | Yes: `@MapField` goes on its leaf, the one method named after it. | by design |
 | [Can a projection carry a derived field?](#derived-fields-and-the-emission-tiers) | No: `build` recomputes what the write-back would set. | by design |
 | [Can a mapped type be one the spec's package cannot see?](#visible-from-the-spec-package) | No: the Impl is generated in that package and names it. | by design |
+| [Can a spec or a mix-in hold its Impl in a constant?](#impl-constant-on-a-spec) | Not safely: it can read `null`, so the processor warns; `@SuppressWarnings("impl-constant")` quiets a deliberate one. | by design |
 | **Optional fields** | | |
 | [Can a bridged component be declared non-null, or primitive?](#bridged-component-nullable) | No: `build` writes `null` for empty, so declare it `@Nullable`. | by design |
 | [Can a sparse or sealed spec declare `@OptionalBridge`?](#bridged-component-nullable) | No; one inherited from a mix-in stays inert. | by design |
@@ -90,11 +91,12 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 
 ## Find your symptom {#find-your-symptom}
 
-Nothing refuses these at compile time. Each is a runtime surprise, linked to the teaching section that warns of it.
+Nothing refuses these at compile time, and only the first draws a warning. Each is a runtime surprise, linked to the section that explains it.
 
 | What you see | Why, and the fix |
 |---|---|
-| [`MAPPER.parse` throws a `NullPointerException`, sometimes](basics.md#bind-in-the-caller) | A constant on the spec can read `null`: bind the Impl in the caller. |
+| [`MAPPER.parse` throws a `NullPointerException`, sometimes](#impl-constant-on-a-spec) | A constant on the spec can read `null`, as the processor's warning at it says: bind the Impl in the caller. |
+| [An Impl's first use throws `ExceptionInInitializerError`, and every use after it `NoClassDefFoundError`](basics.md#bind-in-the-caller) | A constant on the spec holds a surface of the Impl, which draws no warning: bind the Impl in the caller. |
 | [The first `parse` or `build` throws a `StackOverflowError`](codecs.md#standard-codecs) | A leaf named like its factory calls itself: write `StandardCodecs.currency()`, qualified. |
 | [A browser's timestamps are rejected some of the time, or Python's every time](codecs.md#canonical-forms-only) | The stock date-time codecs accept only their own render: declare the producer's canon. |
 | [A bad date or enum got Jackson's 400, with no field path](basics.md#validated-leaves) | Jackson rejected a typed wire field before `parse` ran: keep a converted wire field a `String`. |
@@ -165,6 +167,16 @@ A spec with any derived field never emits `asIso()`: the wire round trip recompu
 **The processor refuses a type the spec's package cannot see wherever the mapping crosses it.** It generates the Impl as a top-level class in the spec's package, and the Impl names every type the mapping crosses, so each one has to be visible from there. That covers the spec and the bounds of its type parameters, its domain and wire types with their type arguments, a sealed pair's subtypes, and each component the wire carries, on both sides. It covers a bean wire's builder, a rename's, leaf's or marker's type, and a merge's target, sources and the components it fills. Where the reads are null-checked, it also covers the element types a container component's own class declares, as `Sku` in `class Grid extends ArrayList<List<Sku>>`. A type fails when it, or a class enclosing it, is `private`, or when it comes from another package and it, or a class enclosing it, is not `public`. The refusal names where the mapping meets the type, `record component 'sku' of 'Item' names 'Sku', which cannot be reached from 'com.example'`, and its fix names the class to change. Every such type is reported in the one compilation.
 
 A domain component the wire does not carry needs no visibility. A projection or a PATCH carries it over from the domain untouched, and the Impl never names its type.
+
+### A spec never holds its Impl in a constant {#impl-constant-on-a-spec}
+
+**The processor warns at a constant, on a spec or on a mix-in compiled with it, whose type is that spec's generated Impl.** That is MapStruct's habit, `CustomerMappingImpl MAPPER = CustomerMappingImpl.INSTANCE;`, and such a constant can read `null`. A `@GenerateMerge` spec's Impl is looked for the same way. The Impl implements the spec. Initialising a class first initialises every interface it implements that declares an instance method with a body: every `default` leaf and derived field, and any `private` instance helper. Using `CustomerMappingImpl.INSTANCE` first starts the Impl's initialisation, which initialises `CustomerMapping` before `INSTANCE` is assigned. `MAPPER` is evaluated then, and keeps the `null` it read for good. Two threads making those first uses at the same moment can deadlock instead. A constant on a [mix-in](codecs.md#shared-vocabulary-mix-in-interfaces) fails the same way. Keep the Impl in the calling code, as [Bind in the caller](basics.md#bind-in-the-caller) shows.
+
+- **It warns whether or not the interface declares such a method**, since the first leaf added arms the trap.
+- **It is a warning, not a refusal.** The Impl is still generated, and only a `-Werror` build fails on it.
+- **`@SuppressWarnings("impl-constant")` keeps a deliberate constant quiet**, on the constant or on a declaration enclosing it. The chapter's checkpoints use it to show the trap. `@SuppressWarnings("all")` does not, since it is the compiler's own switch.
+- **Only the constant's type is read, never its initialiser**, so a constant typed as the spec, or as a surface of the Impl, draws no warning. [Bind in the caller](basics.md#bind-in-the-caller) warns of the surface.
+- **Another spec's Impl draws nothing.** It is initialised on its own, so the constant reads it set, unless specs hold each other's Impls in a cycle, of two specs or more, which the processor does not trace.
 
 ---
 

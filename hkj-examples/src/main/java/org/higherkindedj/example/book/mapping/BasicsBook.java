@@ -172,6 +172,7 @@ record WarehouseDto(String code, int bays) {}
 
 @GenerateMapping
 interface WarehouseMapping extends MappingSpec<Warehouse, WarehouseDto> {
+  @SuppressWarnings("impl-constant") // kept to show the trap
   WarehouseMappingImpl MAPPER = WarehouseMappingImpl.INSTANCE;
 }
 
@@ -181,6 +182,7 @@ record CourierDto(String name, String email) {}
 
 @GenerateMapping
 interface CourierMapping extends MappingSpec<Courier, CourierDto> {
+  @SuppressWarnings("impl-constant") // kept to show the trap
   CourierMappingImpl MAPPER = CourierMappingImpl.INSTANCE;
 
   default ValidatedPrism<String, EmailAddress> email() {
@@ -189,3 +191,20 @@ interface CourierMapping extends MappingSpec<Courier, CourierDto> {
 }
 
 // ANCHOR_END: mapper_constants
+
+// ANCHOR: surface_constant
+// A surface of the Impl held on the spec: no warning, and never do this either.
+record Locker(String code, EmailAddress contact) {}
+
+record LockerDto(String code, String contact) {}
+
+@GenerateMapping
+interface LockerMapping extends MappingSpec<Locker, LockerDto> {
+  ValidatedPrism<LockerDto, Locker> PRISM = LockerMappingImpl.INSTANCE.asValidatedPrism();
+
+  default ValidatedPrism<String, EmailAddress> contact() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: surface_constant

@@ -9,6 +9,7 @@ import javax.annotation.processing.Messager;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.tools.Diagnostic;
 
 /**
@@ -67,12 +68,36 @@ public final class Diagnostics {
   }
 
   /**
+   * Whether {@code @SuppressWarnings(id)} sits on {@code element} or on a declaration enclosing it,
+   * so a warning its reporter checks first can be kept quiet where it is meant, as {@code
+   * hkj-checker} honours its check ids. {@code "all"} is not honoured, since it is the compiler's
+   * own lint switch.
+   *
+   * @param element the element the warning is about; must not be null
+   * @param id the warning's suppression id; must not be null
+   * @return whether the warning is suppressed there
+   */
+  public static boolean suppressed(Element element, String id) {
+    Objects.requireNonNull(element, "element must not be null");
+    Objects.requireNonNull(id, "id must not be null");
+    // Every declaration's enclosing chain ends at its package.
+    for (Element at = element; at.getKind() != ElementKind.PACKAGE; at = at.getEnclosingElement()) {
+      SuppressWarnings suppression = at.getAnnotation(SuppressWarnings.class);
+      if (suppression != null && List.of(suppression.value()).contains(id)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
    * Reports a note in the what/why/fix format, attached to {@code element}.
    *
    * <p>A note is for a gap the author should know about but may be unable to close where it is
    * reported — a generated method that is missing from a class that is otherwise sound. Unlike a
-   * warning, a note does not fail a {@code -Werror} build, which matters because a {@link Messager}
-   * warning cannot be suppressed.
+   * warning, a note does not fail a {@code -Werror} build, which matters because javac does not
+   * apply {@code @SuppressWarnings} to a {@link Messager} warning: one is suppressible only where
+   * its reporter asks {@link #suppressed} first.
    *
    * @param messager the processing-round messager; must not be null
    * @param element the element the note is about; must not be null

@@ -134,6 +134,7 @@ public class MergeProcessor extends AbstractProcessor {
     for (TypeKey merge : List.copyOf(unprocessed)) {
       if (!waiting.contains(merge)) {
         unprocessed.remove(merge);
+        ImplConstants.check(processingEnv, merge.in(elements), TAG);
         processSpec(merge.in(elements), registry);
       }
     }

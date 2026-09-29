@@ -33,6 +33,7 @@ record CustomerSummaryDto(String name, String email) {}
 
 @GenerateMapping
 interface CustomerSummaryMapping extends MappingSpec<Customer, CustomerSummaryDto> {
+  @SuppressWarnings("impl-constant") // kept to show the trap
   CustomerSummaryMappingImpl MAPPER = CustomerSummaryMappingImpl.INSTANCE;
 
   default ValidatedPrism<String, EmailAddress> email() {

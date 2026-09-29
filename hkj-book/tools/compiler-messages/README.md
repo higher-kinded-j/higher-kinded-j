@@ -39,7 +39,7 @@ Each entry is a `dict` in a group of `GROUPS` in `messages.py`:
 | `meaning`, `fix` | Usually one sentence each. The fix is code or an imperative. |
 | `rule` | `(link text, target)`: the rule's home, usually on `rules.md`. Write that heading first, so the link resolves. |
 | `code` | The smallest declaration that provokes the message, compiled in package `com.example` with the shared imports and types at the top of `messages.py`. A top-level declaration starts with an annotation, `record`, `class`, `interface`, `sealed`, `final`, `abstract` or `enum`; any other top-level line is a call-site statement, which goes at the end and which the script wraps in a method. |
-| `kind` | `"note"` for a note rather than an error. The entry is then held by `verify:reports`. |
+| `kind` | `"note"` or `"warning"` for a message that leaves the compile clean, rather than an error. The entry is then held by `verify:reports`. |
 
 The marker, or the fragment when there is no marker, must be at least 10 characters long and
 contain no `"`, because it becomes the verify comment's quoted fragment.

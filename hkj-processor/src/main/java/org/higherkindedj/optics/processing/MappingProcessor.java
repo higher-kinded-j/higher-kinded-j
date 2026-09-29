@@ -183,7 +183,7 @@ import org.higherkindedj.optics.processing.util.TypeKey;
 @SupportedOptions(MappingIndexes.OPTION)
 public class MappingProcessor extends AbstractProcessor {
 
-  private static final String TAG = "@GenerateMapping";
+  static final String TAG = "@GenerateMapping";
   private static final String MAPPING_SPEC = "org.higherkindedj.optics.annotations.MappingSpec";
   private static final String UPDATE_SPEC = "org.higherkindedj.optics.annotations.UpdateSpec";
   private static final String VALIDATED_PRISM = "org.higherkindedj.optics.validated.ValidatedPrism";
@@ -282,6 +282,7 @@ public class MappingProcessor extends AbstractProcessor {
     for (TypeKey spec : List.copyOf(unprocessed)) {
       if (!waiting.contains(spec)) {
         unprocessed.remove(spec);
+        ImplConstants.check(processingEnv, spec.in(elements), TAG);
         processSpec(spec.in(elements), registry);
       }
     }
