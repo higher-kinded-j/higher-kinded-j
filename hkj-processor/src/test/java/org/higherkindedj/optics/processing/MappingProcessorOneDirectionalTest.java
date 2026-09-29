@@ -332,7 +332,7 @@ class MappingProcessorOneDirectionalTest {
       assertThat(compilation).hadNoteContaining("'TaggedView' maps parse-only");
       Assertions.assertThat(generatedSource(compilation, "TaggedViewMappingImpl"))
           .contains("wire.getName()")
-          .doesNotContain("addAll");
+          .doesNotContain("getTags().addAll");
     }
 
     @Test

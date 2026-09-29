@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.edit;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -144,12 +145,25 @@ public final class Edits {
    */
   public static <S> Accumulated<S> accumulate(List<? extends FallibleEdit<S>> edits) {
     Objects.requireNonNull(edits, "edits must not be null");
-    Validated<NonEmptyList<FieldError>, Update<S>> folded = Validated.valid(Update.identity());
+    // Collected, then built once: concatenating as the fold goes would copy every earlier error at
+    // each step, and composing update by update would apply through one nested call per edit.
+    List<Update<S>> updates = new ArrayList<>(edits.size());
+    List<FieldError> errors = new ArrayList<>();
     for (FallibleEdit<S> edit : edits) {
       Objects.requireNonNull(edit, "edit must not be null");
-      folded = edit.toValidated().ap(folded.map(prev -> prev::andThen), NonEmptyList.semigroup());
+      Validated<NonEmptyList<FieldError>, Update<S>> validated = edit.toValidated();
+      if (validated.isValid()) {
+        updates.add(validated.get());
+      } else {
+        errors.add(validated.getError().head());
+        errors.addAll(validated.getError().tail());
+      }
     }
-    return new Accumulated<>(folded);
+    return new Accumulated<>(
+        errors.isEmpty()
+            ? Validated.valid(Monoids.<S>update().combineAll(updates))
+            : Validated.invalid(
+                NonEmptyList.of(errors.getFirst(), errors.subList(1, errors.size()))));
   }
 
   /**

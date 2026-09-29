@@ -12,6 +12,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntFunction;
+import java.util.stream.IntStream;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -88,6 +90,62 @@ class ValidatedParseTest {
           ValidatedPrism.of(ValidatedParseTest::parseEmail, Email::value);
       assertThat(EMAIL.parseEntries(Map.of("a@b", "x@y"), fromPrism).get())
           .containsExactly(entry(new Email("a@b"), new Email("x@y")));
+    }
+  }
+
+  @Nested
+  @DisplayName("Entries failing with several reasons")
+  class SeveralReasons {
+
+    // Every entry fails with two reasons, so each form reports two per entry, entry by entry.
+    private static final int ENTRIES = 100;
+    private static final List<String> TWO_REASONS = List.of("first", "second");
+    private static final ValidatedParse<String, Integer> FAILING =
+        ValidatedParse.of(
+            raw ->
+                Validated.invalid(
+                    NonEmptyList.of(FieldError.of("first"), FieldError.of("second"))));
+
+    private final List<String> wire = IntStream.range(0, ENTRIES).mapToObj(i -> "x" + i).toList();
+
+    @Test
+    @DisplayName("the list, set and array forms report every reason of every element, in order")
+    void elementForms() {
+      assertReportsAll(FAILING.parseAll(wire), String::valueOf, TWO_REASONS);
+      assertReportsAll(FAILING.parseAll(new LinkedHashSet<>(wire)), i -> "x" + i, TWO_REASONS);
+      assertReportsAll(
+          FAILING.parseAll(wire.toArray(String[]::new), Integer[]::new),
+          String::valueOf,
+          TWO_REASONS);
+    }
+
+    @Test
+    @DisplayName("the map forms report every reason of every entry, in entry order")
+    void mapForms() {
+      Map<String, String> map = new LinkedHashMap<>();
+      wire.forEach(raw -> map.put(raw, raw));
+
+      assertReportsAll(FAILING.parseValues(map), i -> "x" + i, TWO_REASONS);
+      assertReportsAll(FAILING.parseKeys(map), i -> "x" + i, TWO_REASONS);
+      // Both sides fail, so each entry reports the key's two reasons, then the value's.
+      assertReportsAll(
+          FAILING.parseEntries(map, FAILING),
+          i -> "x" + i,
+          List.of("first", "second", "first", "second"));
+    }
+
+    private static void assertReportsAll(
+        Validated<NonEmptyList<FieldError>, ?> parsed,
+        IntFunction<String> location,
+        List<String> reasons) {
+      assertThatValidated(parsed).isInvalid();
+      assertThat(parsed.getError().toJavaList())
+          .containsExactlyElementsOf(
+              IntStream.range(0, ENTRIES)
+                  .mapToObj(location)
+                  .flatMap(
+                      at -> reasons.stream().map(reason -> new FieldError(List.of(at), reason)))
+                  .toList());
     }
   }
 

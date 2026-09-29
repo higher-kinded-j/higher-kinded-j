@@ -1113,6 +1113,39 @@ class BenchmarkAssertionsTest {
   }
 
   // ========================================================================
+  // Accumulation Scaling
+  // ========================================================================
+
+  @Nested
+  @DisplayName("Accumulation Scaling")
+  class AccumulationScaling {
+
+    @Test
+    @DisplayName("Ten times the failures should cost about ten times as long, not a hundred")
+    void accumulationShouldGrowWithTheFailures() {
+      assertResultsAvailable();
+      assertBenchmarkPresent("AccumulationBenchmark");
+
+      for (String method :
+          List.of("parseAll", "editsAccumulate", "traverseValidated", "generatedNullScan")) {
+        var small = getParam("AccumulationBenchmark", method, "failures=10000");
+        var large = getParam("AccumulationBenchmark", method, "failures=100000");
+        assertThat(small).as("%s with 10,000 failures", method).isPresent();
+        assertThat(large).as("%s with 100,000 failures", method).isPresent();
+
+        // Linear growth gives about 10, balanced pairing about 12.5, and a fold that copies every
+        // earlier failure at each step about 100.
+        double ratio = small.get().score / large.get().score;
+        assertThat(ratio)
+            .as(
+                "%s: 100,000 failures against 10,000 should cost under 30x (was %.1fx)",
+                method, ratio)
+            .isLessThan(30.0);
+      }
+    }
+  }
+
+  // ========================================================================
   // Helper Classes
   // ========================================================================
 

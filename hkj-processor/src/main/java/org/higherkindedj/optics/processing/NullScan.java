@@ -79,6 +79,8 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
   private static final ClassName FUNCTION = ClassName.get("java.util.function", "Function");
   private static final ClassName OBJECTS = ClassName.get("java.util", "Objects");
   private static final ClassName COLLECTION = ClassName.get("java.util", "Collection");
+  private static final ClassName LIST = ClassName.get("java.util", "List");
+  private static final ClassName ARRAY_LIST = ClassName.get("java.util", "ArrayList");
   private static final ClassName SET = ClassName.get("java.util", "Set");
   private static final ClassName MAP = ClassName.get("java.util", "Map");
   private static final ClassName OPTIONAL = ClassName.get("java.util", "Optional");
@@ -344,19 +346,27 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .build();
   }
 
+  /**
+   * The failures are collected in one list and built into a {@code NonEmptyList} once, on return,
+   * as the bulk forms collect theirs: concatenating element by element would copy every earlier
+   * failure at each step.
+   */
+  private static CodeBlock declareFailures() {
+    return CodeBlock.of("$T<$T> failures = new $T<>()", LIST, FIELD_ERROR, ARRAY_LIST);
+  }
+
   private static CodeBlock accumulate() {
-    return CodeBlock.of(
-        "failures = failures == null ? located : $T.<$T>semigroup().combine(failures, located)",
-        NEL,
-        FIELD_ERROR);
+    return CodeBlock.of("failures.addAll(located.toJavaList())");
   }
 
   private static CodeBlock returnScanned(String argument) {
     return CodeBlock.of(
-        "return failures == null ? $T.valid($L) : $T.invalid(failures)",
+        "return failures.isEmpty() ? $T.valid($L) : $T.invalid($T.of(failures.getFirst(),"
+            + " failures.subList(1, failures.size())))",
         VALIDATED,
         argument,
-        VALIDATED);
+        VALIDATED,
+        NEL);
   }
 
   private static MethodSpec collectionHelper() {
@@ -371,7 +381,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .addParameter(c, "values")
         .addCode(nullGuard("values"))
         .addStatement("boolean set = values instanceof $T", SET)
-        .addStatement("$T failures = null", FAILURES)
+        .addStatement("$L", declareFailures())
         // iterate rather than index: a collection need not be a list, and get(i) is quadratic on
         // a LinkedList
         .addStatement("int i = 0")
@@ -404,7 +414,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .addParameter(elementScan(e), "each")
         .addCode(nullGuard("values"))
         .addStatement("boolean set = values instanceof $T", SET)
-        .addStatement("$T failures = null", FAILURES)
+        .addStatement("$L", declareFailures())
         .addStatement("int i = 0")
         .beginControlFlow("for ($T element : values)", e)
         .addStatement("int index = i++")
@@ -430,7 +440,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
             e)
         .addParameter(ArrayTypeName.of(e), "values")
         .addCode(nullGuard("values"))
-        .addStatement("$T failures = null", FAILURES)
+        .addStatement("$L", declareFailures())
         .beginControlFlow("for (int i = 0; i < values.length; i++)")
         .beginControlFlow("if (values[i] == null)")
         .addStatement("$T located = $L", FAILURES, nullAt("String.valueOf(i)"))
@@ -453,7 +463,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .addParameter(ArrayTypeName.of(e), "values")
         .addParameter(elementScan(e), "each")
         .addCode(nullGuard("values"))
-        .addStatement("$T failures = null", FAILURES)
+        .addStatement("$L", declareFailures())
         .beginControlFlow("for (int i = 0; i < values.length; i++)")
         .addStatement("$T located", FAILURES)
         .beginControlFlow("if (values[i] == null)")
@@ -477,7 +487,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
             c)
         .addParameter(c, "values")
         .addCode(nullGuard("values"))
-        .addStatement("$T failures = null", FAILURES)
+        .addStatement("$L", declareFailures())
         .beginControlFlow(
             "for ($T entry : values.entrySet())",
             ParameterizedTypeName.get(MAP.nestedClass("Entry"), ANY, ANY))
@@ -507,7 +517,7 @@ record NullScan(NullScan.Shape shape, NullScan inner, TypeMirror element) {
         .addParameter(c, "values")
         .addParameter(elementScan(v), "each")
         .addCode(nullGuard("values"))
-        .addStatement("$T failures = null", FAILURES)
+        .addStatement("$L", declareFailures())
         .beginControlFlow(
             "for ($T entry : values.entrySet())",
             ParameterizedTypeName.get(MAP.nestedClass("Entry"), ANY, WildcardTypeName.subtypeOf(v)))

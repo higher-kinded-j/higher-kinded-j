@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.higherkindedj.hkt.Update;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -91,6 +92,18 @@ class EditsTest {
       Update<Order> tidy = Edits.combine(List.of(Edit.modify(SKU, String::trim)));
 
       assertThat(tidy.apply(ORDER).sku()).isEqualTo("ab-123");
+    }
+
+    @Test
+    @DisplayName("should apply 100,000 edits without overflowing the stack")
+    void shouldApplyManyEditsWithoutOverflow() {
+      // Chained through combine one after another, the update would apply through one nested
+      // call per edit and overflow the stack; the update monoid's combineAll applies them in a
+      // loop.
+      Update<Order> all =
+          Edits.combine(Collections.nCopies(100_000, Edit.modify(QUANTITY, q -> q + 1)));
+
+      assertThat(all.apply(ORDER).quantity()).isEqualTo(100_005);
     }
 
     @Test
@@ -384,6 +397,16 @@ class EditsTest {
       assertThat(result.getError().toJavaList())
           .extracting(FieldError::toString)
           .containsExactly("email: not an address", "sku: not an address");
+    }
+
+    @Test
+    @DisplayName("should apply 100,000 valid edits without overflowing the stack")
+    void shouldApplyManyEditsWithoutOverflow() {
+      List<Edit<Order>> edits = Collections.nCopies(100_000, Edit.modify(QUANTITY, q -> q + 1));
+
+      assertThatValidated(Edits.accumulate(edits).apply(ORDER))
+          .isValid()
+          .hasValue(new Order(ORDER.email(), ORDER.sku(), 100_005));
     }
 
     @Test

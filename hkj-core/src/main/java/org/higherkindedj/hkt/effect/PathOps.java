@@ -199,7 +199,10 @@ public final class PathOps {
    * Converts a list of ValidationPaths into a ValidationPath of list.
    *
    * <p>If all paths are Valid, returns a path containing the list of values. If any paths are
-   * Invalid, accumulates all errors using the provided Semigroup.
+   * Invalid, accumulates all errors using the provided Semigroup, in list order. The errors combine
+   * in balanced pairs, which the Semigroup's associativity allows, so with a concatenating
+   * Semigroup such as {@code NonEmptyList.semigroup()} the time grows as {@code n log n} in the
+   * number of failures, where a left fold would grow quadratically.
    *
    * @param paths the list of paths to sequence; must not be null
    * @param semigroup the Semigroup for error accumulation; must not be null
@@ -214,27 +217,26 @@ public final class PathOps {
     Objects.requireNonNull(semigroup, "semigroup must not be null");
 
     List<A> results = new ArrayList<>(paths.size());
-    E accumulatedErrors = null;
+    List<E> errors = new ArrayList<>();
 
     for (ValidationPath<E, A> path : paths) {
       Validated<E, A> validated = path.run();
       if (validated.isValid()) {
         results.add(validated.get());
       } else {
-        E error = validated.getError();
-        accumulatedErrors =
-            accumulatedErrors == null ? error : semigroup.combine(accumulatedErrors, error);
+        errors.add(validated.getError());
       }
     }
 
-    if (accumulatedErrors != null) {
-      return new ValidationPath<>(Validated.invalid(accumulatedErrors), semigroup);
+    if (!errors.isEmpty()) {
+      return new ValidationPath<>(Validated.invalid(combinePairwise(errors, semigroup)), semigroup);
     }
     return new ValidationPath<>(Validated.valid(results), semigroup);
   }
 
   /**
-   * Maps a function over a list and sequences the results, accumulating errors.
+   * Maps a function over a list and sequences the results, accumulating errors in list order, as
+   * {@link #sequenceValidated} does.
    *
    * @param items the items to traverse; must not be null
    * @param f the function to apply; must not be null
@@ -252,7 +254,7 @@ public final class PathOps {
     Objects.requireNonNull(semigroup, "semigroup must not be null");
 
     List<B> results = new ArrayList<>(items.size());
-    E accumulatedErrors = null;
+    List<E> errors = new ArrayList<>();
 
     for (A item : items) {
       ValidationPath<E, B> path = f.apply(item);
@@ -260,16 +262,35 @@ public final class PathOps {
       if (validated.isValid()) {
         results.add(validated.get());
       } else {
-        E error = validated.getError();
-        accumulatedErrors =
-            accumulatedErrors == null ? error : semigroup.combine(accumulatedErrors, error);
+        errors.add(validated.getError());
       }
     }
 
-    if (accumulatedErrors != null) {
-      return new ValidationPath<>(Validated.invalid(accumulatedErrors), semigroup);
+    if (!errors.isEmpty()) {
+      return new ValidationPath<>(Validated.invalid(combinePairwise(errors, semigroup)), semigroup);
     }
     return new ValidationPath<>(Validated.valid(results), semigroup);
+  }
+
+  /**
+   * Combines the errors in list order, pairing neighbours level by level. A left fold hands a
+   * concatenating Semigroup everything accumulated so far at every step, so it copies each error
+   * once per later failure; paired, each error is copied once per level, and there are {@code log
+   * n} levels. Associativity makes the two groupings equal.
+   */
+  private static <E> E combinePairwise(List<E> errors, Semigroup<E> semigroup) {
+    List<E> level = errors;
+    while (level.size() > 1) {
+      List<E> next = new ArrayList<>((level.size() + 1) / 2);
+      for (int i = 0; i + 1 < level.size(); i += 2) {
+        next.add(semigroup.combine(level.get(i), level.get(i + 1)));
+      }
+      if (level.size() % 2 == 1) {
+        next.add(level.getLast());
+      }
+      level = next;
+    }
+    return level.getFirst();
   }
 
   // ===== TryPath Operations =====
@@ -1314,10 +1335,6 @@ public final class PathOps {
   // This approach was chosen to provide fail-fast behaviour for Maybe/Either/Try - once a
   // failure is encountered, processing stops immediately without evaluating remaining elements.
   // However, the intermediate List allocation may be inefficient for very large structures.
-  //
-  // For traverseEachValidated, which accumulates all errors rather than failing fast, a
-  // single-pass foldMap-based approach could avoid the intermediate allocation. This
-  // optimisation may be added in a future version.
 
   /**
    * Traverses a structure using an {@link org.higherkindedj.optics.Each} instance, applying a
@@ -1409,13 +1426,12 @@ public final class PathOps {
    * earlier failures.
    *
    * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
-   * list, then processes them. Since error accumulation requires processing all elements anyway, a
-   * future optimisation could use a single-pass foldMap approach with a suitable Monoid to avoid
-   * the intermediate list allocation for very large structures.
+   * list, then processes them as {@link #traverseValidated} does, so the errors combine in element
+   * order, in balanced pairs.
    *
    * <pre>{@code
    * Each<List<Order>, Order> listEach = EachInstances.listEach();
-   * Semigroup<List<String>> errorSemigroup = Semigroups.listConcat();
+   * Semigroup<List<String>> errorSemigroup = Semigroups.list();
    *
    * ValidationPath<List<String>, List<Order>> result = PathOps.traverseEachValidated(
    *     user.orders(),

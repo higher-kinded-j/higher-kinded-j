@@ -4,9 +4,11 @@ package com.example.widened;
 import java.lang.Object;
 import java.lang.Override;
 import java.lang.String;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
@@ -158,16 +160,16 @@ public final class CrewMappingImpl implements CrewMapping {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
     boolean set = values instanceof Set;
-    NonEmptyList<FieldError> failures = null;
+    List<FieldError> failures = new ArrayList<>();
     int i = 0;
     for (Object element : values) {
       if (element == null) {
         NonEmptyList<FieldError> located = NonEmptyList.of(set ? FieldError.of("must not contain a null element") : FieldError.of("must not be null").at(String.valueOf(i)));
-        failures = failures == null ? located : NonEmptyList.<FieldError>semigroup().combine(failures, located);
+        failures.addAll(located.toJavaList());
       }
       i++;
     }
-    return failures == null ? Validated.valid(values) : Validated.invalid(failures);
+    return failures.isEmpty() ? Validated.valid(values) : Validated.invalid(NonEmptyList.of(failures.getFirst(), failures.subList(1, failures.size())));
   }
 
   /**
@@ -177,14 +179,14 @@ public final class CrewMappingImpl implements CrewMapping {
     if (values == null) {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
-    NonEmptyList<FieldError> failures = null;
+    List<FieldError> failures = new ArrayList<>();
     for (int i = 0; i < values.length; i++) {
       if (values[i] == null) {
         NonEmptyList<FieldError> located = NonEmptyList.of(FieldError.of("must not be null").at(String.valueOf(i)));
-        failures = failures == null ? located : NonEmptyList.<FieldError>semigroup().combine(failures, located);
+        failures.addAll(located.toJavaList());
       }
     }
-    return failures == null ? Validated.valid(values) : Validated.invalid(failures);
+    return failures.isEmpty() ? Validated.valid(values) : Validated.invalid(NonEmptyList.of(failures.getFirst(), failures.subList(1, failures.size())));
   }
 
   /**
