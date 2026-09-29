@@ -202,7 +202,7 @@ public final class PathOps {
    * Invalid, accumulates all errors using the provided Semigroup, in list order. The errors combine
    * in balanced pairs, which the Semigroup's associativity allows, so with a concatenating
    * Semigroup such as {@code NonEmptyList.semigroup()} the time grows as {@code n log n} in the
-   * number of failures, not quadratically.
+   * number of failures, where a left fold would grow quadratically.
    *
    * @param paths the list of paths to sequence; must not be null
    * @param semigroup the Semigroup for error accumulation; must not be null
@@ -1335,10 +1335,6 @@ public final class PathOps {
   // This approach was chosen to provide fail-fast behaviour for Maybe/Either/Try - once a
   // failure is encountered, processing stops immediately without evaluating remaining elements.
   // However, the intermediate List allocation may be inefficient for very large structures.
-  //
-  // For traverseEachValidated, which accumulates all errors rather than failing fast, a
-  // single-pass foldMap-based approach could avoid the intermediate allocation. This
-  // optimisation may be added in a future version.
 
   /**
    * Traverses a structure using an {@link org.higherkindedj.optics.Each} instance, applying a
@@ -1430,13 +1426,12 @@ public final class PathOps {
    * earlier failures.
    *
    * <p><strong>Performance:</strong> This method first collects all elements into an intermediate
-   * list, then processes them. Since error accumulation requires processing all elements anyway, a
-   * future optimisation could use a single-pass foldMap approach with a suitable Monoid to avoid
-   * the intermediate list allocation for very large structures.
+   * list, then processes them as {@link #traverseValidated} does, so the errors combine in element
+   * order, in balanced pairs.
    *
    * <pre>{@code
    * Each<List<Order>, Order> listEach = EachInstances.listEach();
-   * Semigroup<List<String>> errorSemigroup = Semigroups.listConcat();
+   * Semigroup<List<String>> errorSemigroup = Semigroups.list();
    *
    * ValidationPath<List<String>, List<Order>> result = PathOps.traverseEachValidated(
    *     user.orders(),

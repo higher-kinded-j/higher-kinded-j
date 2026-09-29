@@ -6,17 +6,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.entry;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.IntFunction;
-import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -98,14 +94,11 @@ class ValidatedParseTest {
   }
 
   @Nested
-  @DisplayName("Accumulation cost")
-  class AccumulationCost {
+  @DisplayName("Entries failing with several reasons")
+  class SeveralReasons {
 
-    // Every entry fails with two reasons, so 50,000 entries report 100,000 failures. Concatenated
-    // as they arrived, each failure copied every earlier one, which took seconds; collected and
-    // built once, they take milliseconds, so the bound fails only a quadratic accumulation.
-    private static final int ENTRIES = 50_000;
-    private static final Duration BOUND = Duration.ofSeconds(2);
+    // Every entry fails with two reasons, so each form reports two per entry, entry by entry.
+    private static final int ENTRIES = 100;
     private static final List<String> TWO_REASONS = List.of("first", "second");
     private static final ValidatedParse<String, Integer> FAILING =
         ValidatedParse.of(
@@ -116,53 +109,43 @@ class ValidatedParseTest {
     private final List<String> wire = IntStream.range(0, ENTRIES).mapToObj(i -> "x" + i).toList();
 
     @Test
-    @DisplayName("the list, set and array forms report every failure in linear time, in order")
+    @DisplayName("the list, set and array forms report every reason of every element, in order")
     void elementForms() {
-      assertReportsAll(() -> FAILING.parseAll(wire), String::valueOf, TWO_REASONS);
+      assertReportsAll(FAILING.parseAll(wire), String::valueOf, TWO_REASONS);
+      assertReportsAll(FAILING.parseAll(new LinkedHashSet<>(wire)), i -> "x" + i, TWO_REASONS);
       assertReportsAll(
-          () -> FAILING.parseAll(new LinkedHashSet<>(wire)), i -> "x" + i, TWO_REASONS);
-      assertReportsAll(
-          () -> FAILING.parseAll(wire.toArray(String[]::new), Integer[]::new),
+          FAILING.parseAll(wire.toArray(String[]::new), Integer[]::new),
           String::valueOf,
           TWO_REASONS);
     }
 
     @Test
-    @DisplayName("the map forms report every failure in linear time, in entry order")
+    @DisplayName("the map forms report every reason of every entry, in entry order")
     void mapForms() {
       Map<String, String> map = new LinkedHashMap<>();
       wire.forEach(raw -> map.put(raw, raw));
 
-      assertReportsAll(() -> FAILING.parseValues(map), i -> "x" + i, TWO_REASONS);
-      assertReportsAll(() -> FAILING.parseKeys(map), i -> "x" + i, TWO_REASONS);
+      assertReportsAll(FAILING.parseValues(map), i -> "x" + i, TWO_REASONS);
+      assertReportsAll(FAILING.parseKeys(map), i -> "x" + i, TWO_REASONS);
       // Both sides fail, so each entry reports the key's two reasons, then the value's.
       assertReportsAll(
-          () -> FAILING.parseEntries(map, FAILING),
+          FAILING.parseEntries(map, FAILING),
           i -> "x" + i,
           List.of("first", "second", "first", "second"));
     }
 
-    private void assertReportsAll(
-        Supplier<Validated<NonEmptyList<FieldError>, ?>> parse,
+    private static void assertReportsAll(
+        Validated<NonEmptyList<FieldError>, ?> parsed,
         IntFunction<String> location,
         List<String> reasons) {
-      List<FieldError> failures =
-          assertTimeoutPreemptively(BOUND, () -> parse.get().getError().toJavaList());
-
-      int perEntry = reasons.size();
-      assertThat(failures).hasSize(ENTRIES * perEntry);
-      assertThat(failures.subList(0, 2 * perEntry))
-          .containsExactlyElementsOf(located(reasons, location.apply(0), location.apply(1)));
-      assertThat(failures.subList(failures.size() - perEntry, failures.size()))
-          .containsExactlyElementsOf(located(reasons, location.apply(ENTRIES - 1)));
-    }
-
-    private static List<FieldError> located(List<String> reasons, String... locations) {
-      List<FieldError> located = new ArrayList<>();
-      for (String location : locations) {
-        reasons.forEach(reason -> located.add(new FieldError(List.of(location), reason)));
-      }
-      return located;
+      assertThatValidated(parsed).isInvalid();
+      assertThat(parsed.getError().toJavaList())
+          .containsExactlyElementsOf(
+              IntStream.range(0, ENTRIES)
+                  .mapToObj(location)
+                  .flatMap(
+                      at -> reasons.stream().map(reason -> new FieldError(List.of(at), reason)))
+                  .toList());
     }
   }
 

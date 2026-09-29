@@ -382,9 +382,10 @@ public interface Monoids {
    * Update<Order> all = m.combineAll(updates);
    * }</pre>
    *
-   * <p>Each {@code combine} wraps the update before it, so a chain of them applies through one
-   * nested call per update, and a long enough chain overflows the stack. {@code combineAll} applies
-   * its updates in a loop instead, so it takes the same stack however many there are.
+   * <p>Each {@code combine} wraps the update before it, so a fold through {@code combine}, such as
+   * {@code updates.stream().reduce(m.empty(), m::combine)}, applies through one nested call per
+   * update, and a long enough chain overflows the stack. {@code combineAll} applies its updates in
+   * a loop, so its stack depth does not grow with their number.
    *
    * <p>Known in functional-programming literature as the {@code Endo} monoid.
    *
@@ -408,13 +409,14 @@ public interface Monoids {
 
       @Override
       public Update<S> combineAll(Iterable<Update<S>> elements) {
-        List<Update<S>> chain = new ArrayList<>();
+        List<Update<S>> collected = new ArrayList<>();
         for (Update<S> update : elements) {
-          chain.add(Objects.requireNonNull(update, "elements must not contain null"));
+          collected.add(Objects.requireNonNull(update, "elements must not contain null"));
         }
-        if (chain.isEmpty()) {
+        if (collected.isEmpty()) {
           return empty();
         }
+        List<Update<S>> chain = List.copyOf(collected);
         return source -> {
           S result = source;
           for (Update<S> update : chain) {

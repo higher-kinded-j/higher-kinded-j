@@ -248,6 +248,9 @@ Monoid<Update<Order>> m = Monoids.update();              // combine = "f then g"
 Gotcha: `andThen`'s argument must be typed `Update<S>` / `UnaryOperator<S>`. Pass a plain
 `Function<S, S>` and Java selects `Function.andThen`, silently degrading the result to `Function`.
 
+Fold many updates with `m.combineAll(updates)`: it applies them in a loop, where a long `andThen`
+or `combine` chain nests one call per update and can overflow the stack.
+
 ---
 
 ## ValidatedPrism: Parse, Don't Validate

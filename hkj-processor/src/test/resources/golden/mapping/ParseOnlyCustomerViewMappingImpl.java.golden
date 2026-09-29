@@ -85,16 +85,16 @@ public final class CustomerViewMappingImpl implements CustomerViewMapping {
       return Validated.invalidNel(FieldError.of("must not be null"));
     }
     boolean set = values instanceof Set;
-    NonEmptyList<FieldError> failures = null;
+    List<FieldError> failures = new ArrayList<>();
     int i = 0;
     for (Object element : values) {
       if (element == null) {
         NonEmptyList<FieldError> located = NonEmptyList.of(set ? FieldError.of("must not contain a null element") : FieldError.of("must not be null").at(String.valueOf(i)));
-        failures = failures == null ? located : NonEmptyList.<FieldError>semigroup().combine(failures, located);
+        failures.addAll(located.toJavaList());
       }
       i++;
     }
-    return failures == null ? Validated.valid(values) : Validated.invalid(failures);
+    return failures.isEmpty() ? Validated.valid(values) : Validated.invalid(NonEmptyList.of(failures.getFirst(), failures.subList(1, failures.size())));
   }
 
   /**

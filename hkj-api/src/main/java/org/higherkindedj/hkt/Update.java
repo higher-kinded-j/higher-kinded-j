@@ -21,7 +21,9 @@ import java.util.function.UnaryOperator;
  *
  * <p>Updates form a {@link Monoid} under left-to-right composition, available via {@link
  * Monoids#update()}: the identity element is {@link #identity()}, and {@code combine(f, g)} applies
- * {@code f} first, then {@code g}. This is what lets any number of updates be folded into one.
+ * {@code f} first, then {@code g}. This is what lets any number of updates be folded into one:
+ * {@link Monoid#combineAll(Iterable) combineAll} applies them in a loop, where a long chain of
+ * {@link #andThen} calls nests one call per update and can overflow the stack.
  *
  * <p>In functional-programming literature this type is known as {@code Endo} (an endomorphism); it
  * is named {@code Update} here for clarity.

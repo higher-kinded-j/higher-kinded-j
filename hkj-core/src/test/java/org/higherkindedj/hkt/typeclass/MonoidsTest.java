@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.typeclass;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -1063,28 +1064,28 @@ class MonoidsTest {
     }
 
     @Test
-    @DisplayName("combineAll should apply 100,000 updates in a loop, not one nested call each")
-    void combineAllShouldNotOverflowTheStack() {
-      Monoid<Update<Integer>> counting = Monoids.update();
+    @DisplayName("should apply 100,000 updates through combineAll without overflowing the stack")
+    void shouldApplyManyUpdatesWithoutOverflow() {
+      Monoid<Update<Integer>> integers = Monoids.update();
       Update<Integer> increment = n -> n + 1;
 
-      // Folded through combine, this nests 100,000 calls deep and overflows the stack.
-      assertThat(counting.combineAll(Collections.nCopies(100_000, increment)).apply(0))
+      // Folded through combine, the same updates would nest 100,000 calls deep.
+      assertThat(integers.combineAll(Collections.nCopies(100_000, increment)).apply(0))
           .isEqualTo(100_000);
     }
 
     @Test
-    @DisplayName("combineAll of nothing should be the identity update")
-    void combineAllOfNothingShouldBeIdentity() {
+    @DisplayName("should give the identity update when combineAll folds nothing")
+    void shouldGiveIdentityWhenCombineAllFoldsNothing() {
       String value = "unchanged";
 
       assertThat(updateMonoid.combineAll(List.of()).apply(value)).isSameAs(value);
     }
 
     @Test
-    @DisplayName("combineAll should reject a null update")
-    void combineAllShouldRejectNull() {
-      Assertions.assertThatNullPointerException()
+    @DisplayName("should reject a null update in combineAll")
+    void shouldRejectNullUpdateInCombineAll() {
+      assertThatNullPointerException()
           .isThrownBy(() -> updateMonoid.combineAll(Arrays.asList(appendA, null)))
           .withMessage("elements must not contain null");
     }
