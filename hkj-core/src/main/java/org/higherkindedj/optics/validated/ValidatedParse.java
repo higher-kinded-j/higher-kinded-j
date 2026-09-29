@@ -71,24 +71,22 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
   default Validated<NonEmptyList<FieldError>, List<A>> parseAll(List<? extends S> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
     List<A> values = new ArrayList<>(sources.size());
-    NonEmptyList<FieldError> failures = null;
+    List<FieldError> failures = new ArrayList<>();
     int i = 0;
     for (S source : sources) {
       int index = i++;
-      NonEmptyList<FieldError> located;
       if (source == null) {
-        located = NonEmptyList.of(FieldError.of("must not be null").at(String.valueOf(index)));
+        failures.add(FieldError.of("must not be null").at(String.valueOf(index)));
       } else {
         Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
         if (parsed.isValid()) {
           values.add(parsed.get());
-          continue;
+        } else {
+          addLocated(failures, parsed.getError(), String.valueOf(index));
         }
-        located = parsed.getError().map(err -> err.at(String.valueOf(index)));
       }
-      failures = accumulate(failures, located);
     }
-    return failures == null ? Validated.valid(List.copyOf(values)) : Validated.invalid(failures);
+    return failures.isEmpty() ? Validated.valid(List.copyOf(values)) : failed(failures);
   }
 
   /**
@@ -121,24 +119,22 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
   default Validated<NonEmptyList<FieldError>, Set<A>> parseAll(Set<? extends S> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
     Set<A> values = LinkedHashSet.newLinkedHashSet(sources.size());
-    NonEmptyList<FieldError> failures = null;
+    List<FieldError> failures = new ArrayList<>();
     for (S source : sources) {
-      NonEmptyList<FieldError> located;
       if (source == null) {
-        located = NonEmptyList.of(FieldError.of("must not contain a null element"));
+        failures.add(FieldError.of("must not contain a null element"));
       } else {
         Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
         if (parsed.isValid()) {
           values.add(parsed.get());
-          continue;
+        } else {
+          addLocated(failures, parsed.getError(), source.toString());
         }
-        located = parsed.getError().map(err -> err.at(source.toString()));
       }
-      failures = accumulate(failures, located);
     }
-    return failures == null
+    return failures.isEmpty()
         ? Validated.valid(Collections.unmodifiableSet(values))
-        : Validated.invalid(failures);
+        : failed(failures);
   }
 
   /**
@@ -160,24 +156,21 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     Objects.requireNonNull(sources, "sources must not be null");
     Objects.requireNonNull(newArray, "newArray must not be null");
     A[] values = newArray.apply(sources.length);
-    NonEmptyList<FieldError> failures = null;
+    List<FieldError> failures = new ArrayList<>();
     for (int i = 0; i < sources.length; i++) {
       S source = sources[i];
-      NonEmptyList<FieldError> located;
       if (source == null) {
-        located = NonEmptyList.of(FieldError.of("must not be null").at(String.valueOf(i)));
+        failures.add(FieldError.of("must not be null").at(String.valueOf(i)));
       } else {
         Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
         if (parsed.isValid()) {
           values[i] = parsed.get();
-          continue;
+        } else {
+          addLocated(failures, parsed.getError(), String.valueOf(i));
         }
-        String index = String.valueOf(i);
-        located = parsed.getError().map(err -> err.at(index));
       }
-      failures = accumulate(failures, located);
     }
-    return failures == null ? Validated.valid(values) : Validated.invalid(failures);
+    return failures.isEmpty() ? Validated.valid(values) : failed(failures);
   }
 
   /**
@@ -207,27 +200,25 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
       Map<K, ? extends S> sources) {
     Objects.requireNonNull(sources, "sources must not be null");
     Map<K, A> values = LinkedHashMap.newLinkedHashMap(sources.size());
-    NonEmptyList<FieldError> failures = null;
+    List<FieldError> failures = new ArrayList<>();
     for (Map.Entry<K, ? extends S> entry : sources.entrySet()) {
       K key = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
       S source = entry.getValue();
-      NonEmptyList<FieldError> located;
       if (source == null) {
-        located = NonEmptyList.of(FieldError.of("must not be null").at(key.toString()));
+        failures.add(FieldError.of("must not be null").at(key.toString()));
       } else {
         Validated<NonEmptyList<FieldError>, A> parsed = parse(source);
         if (parsed.isValid()) {
           values.put(key, parsed.get());
-          continue;
+        } else {
+          addLocated(failures, parsed.getError(), key.toString());
         }
-        located = parsed.getError().map(err -> err.at(key.toString()));
       }
-      failures = accumulate(failures, located);
     }
     // Map.copyOf does not preserve entry order, so wrap the LinkedHashMap instead.
-    return failures == null
+    return failures.isEmpty()
         ? Validated.valid(Collections.unmodifiableMap(values))
-        : Validated.invalid(failures);
+        : failed(failures);
   }
 
   /**
@@ -259,31 +250,27 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     Objects.requireNonNull(sources, "sources must not be null");
     Map<A, V> values = LinkedHashMap.newLinkedHashMap(sources.size());
     Set<A> claimed = LinkedHashSet.newLinkedHashSet(sources.size());
-    NonEmptyList<FieldError> failures = null;
+    List<FieldError> failures = new ArrayList<>();
     for (Map.Entry<? extends S, V> entry : sources.entrySet()) {
       S source = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
       V value = entry.getValue();
       Validated<NonEmptyList<FieldError>, A> parsedKey = parse(source);
-      NonEmptyList<FieldError> located = null;
+      int reported = failures.size();
       if (!parsedKey.isValid()) {
-        located = parsedKey.getError().map(err -> err.at(source.toString()));
+        addLocated(failures, parsedKey.getError(), source.toString());
       } else if (!claimed.add(parsedKey.get())) {
-        located = NonEmptyList.of(collision(source));
+        failures.add(collision(source));
       }
       if (value == null) {
-        located =
-            accumulate(
-                located, NonEmptyList.of(FieldError.of("must not be null").at(source.toString())));
+        failures.add(FieldError.of("must not be null").at(source.toString()));
       }
-      if (located == null) {
+      if (failures.size() == reported) {
         values.put(parsedKey.get(), value);
-      } else {
-        failures = accumulate(failures, located);
       }
     }
-    return failures == null
+    return failures.isEmpty()
         ? Validated.valid(Collections.unmodifiableMap(values))
-        : Validated.invalid(failures);
+        : failed(failures);
   }
 
   /**
@@ -311,7 +298,7 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     Objects.requireNonNull(valueParse, "valueParse must not be null");
     Map<A, V> values = LinkedHashMap.newLinkedHashMap(sources.size());
     Set<A> claimed = LinkedHashSet.newLinkedHashSet(sources.size());
-    NonEmptyList<FieldError> failures = null;
+    List<FieldError> failures = new ArrayList<>();
     for (Map.Entry<? extends S, ? extends SV> entry : sources.entrySet()) {
       S source = Objects.requireNonNull(entry.getKey(), "sources must not contain a null key");
       SV rawValue = entry.getValue();
@@ -320,24 +307,22 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
           rawValue == null
               ? Validated.invalidNel(FieldError.of("must not be null"))
               : valueParse.parse(rawValue);
-      NonEmptyList<FieldError> located = null;
+      int reported = failures.size();
       if (!parsedKey.isValid()) {
-        located = parsedKey.getError().map(err -> err.at(source.toString()));
+        addLocated(failures, parsedKey.getError(), source.toString());
       } else if (!claimed.add(parsedKey.get())) {
-        located = NonEmptyList.of(collision(source));
+        failures.add(collision(source));
       }
       if (!parsedValue.isValid()) {
-        located = accumulate(located, parsedValue.getError().map(err -> err.at(source.toString())));
+        addLocated(failures, parsedValue.getError(), source.toString());
       }
-      if (located == null) {
+      if (failures.size() == reported) {
         values.put(parsedKey.get(), parsedValue.get());
-      } else {
-        failures = accumulate(failures, located);
       }
     }
-    return failures == null
+    return failures.isEmpty()
         ? Validated.valid(Collections.unmodifiableMap(values))
-        : Validated.invalid(failures);
+        : failed(failures);
   }
 
   /**
@@ -352,12 +337,25 @@ public sealed interface ValidatedParse<S, A> permits ValidatedPrism, ValidatedPa
     return FieldError.of("duplicates an earlier key").at(sourceKey.toString());
   }
 
-  /** Folds one entry's located failures into the accumulated ones; either side may be null. */
-  private static NonEmptyList<FieldError> accumulate(
-      NonEmptyList<FieldError> failures, NonEmptyList<FieldError> located) {
-    return failures == null
-        ? located
-        : NonEmptyList.<FieldError>semigroup().combine(failures, located);
+  /**
+   * Adds one entry's failures, each located under {@code segment}, to the accumulated ones.
+   *
+   * <p>The bulk forms collect into one list and build the {@link NonEmptyList} once, in {@link
+   * #failed}: concatenating as they go would copy every earlier failure at each step, so a source
+   * with {@code n} failing elements would cost time quadratic in {@code n}.
+   */
+  private static void addLocated(
+      List<FieldError> failures, NonEmptyList<FieldError> errors, String segment) {
+    failures.add(errors.head().at(segment));
+    for (FieldError error : errors.tail()) {
+      failures.add(error.at(segment));
+    }
+  }
+
+  /** The accumulated failures, in the order they were added; {@code failures} is non-empty. */
+  private static <A> Validated<NonEmptyList<FieldError>, A> failed(List<FieldError> failures) {
+    return Validated.invalid(
+        NonEmptyList.of(failures.getFirst(), failures.subList(1, failures.size())));
   }
 
   /**

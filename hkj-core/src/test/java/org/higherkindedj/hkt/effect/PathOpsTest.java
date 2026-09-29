@@ -13,7 +13,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 import org.awaitility.Awaitility;
 import org.higherkindedj.hkt.Semigroup;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
@@ -269,6 +271,39 @@ class PathOpsTest {
 
       assertThat(result.run().isValid()).isTrue();
       assertThat(result.run().get()).containsExactly("A", "B", "C");
+    }
+
+    @Test
+    @DisplayName("sequenceValidated() and traverseValidated() combine errors pairwise, in order")
+    void combineErrorsPairwiseInOrder() {
+      // A concatenating semigroup counting the elements it copies. Folded left to right, 5,000
+      // single errors copy about 12.5 million; paired, they form 13 levels, and each level copies
+      // every error at most once.
+      int n = 5_000;
+      AtomicLong copied = new AtomicLong();
+      Semigroup<List<Integer>> counting =
+          (a, b) -> {
+            copied.addAndGet(a.size() + b.size());
+            List<Integer> result = new ArrayList<>(a);
+            result.addAll(b);
+            return result;
+          };
+      List<Integer> items = IntStream.range(0, n).boxed().toList();
+
+      ValidationPath<List<Integer>, List<Integer>> traversed =
+          PathOps.traverseValidated(items, i -> Path.invalid(List.of(i), counting), counting);
+
+      assertThat(traversed.run().getError()).isEqualTo(items);
+      assertThat(copied.get()).isLessThanOrEqualTo(13L * n);
+
+      copied.set(0);
+      List<ValidationPath<List<Integer>, Integer>> paths =
+          items.stream()
+              .map(i -> Path.<List<Integer>, Integer>invalid(List.of(i), counting))
+              .toList();
+
+      assertThat(PathOps.sequenceValidated(paths, counting).run().getError()).isEqualTo(items);
+      assertThat(copied.get()).isLessThanOrEqualTo(13L * n);
     }
   }
 

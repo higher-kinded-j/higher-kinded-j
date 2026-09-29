@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -372,13 +373,18 @@ public interface Monoids {
    * Returns a {@code Monoid} for {@link Update}, where the combination is left-to-right function
    * composition and the identity element is {@link Update#identity()}.
    *
-   * <p>{@code combine(f, g)} applies {@code f} first, then {@code g}. Folding a collection of
-   * updates through this monoid yields a single update that applies them all in order:
+   * <p>{@code combine(f, g)} applies {@code f} first, then {@code g}. {@link
+   * Monoid#combineAll(Iterable) combineAll} folds a collection of updates into a single update that
+   * applies them all in order:
    *
    * <pre>{@code
    * Monoid<Update<Order>> m = Monoids.update();
-   * Update<Order> all = updates.stream().reduce(m.empty(), m::combine);
+   * Update<Order> all = m.combineAll(updates);
    * }</pre>
+   *
+   * <p>Each {@code combine} wraps the update before it, so a chain of them applies through one
+   * nested call per update, and a long enough chain overflows the stack. {@code combineAll} applies
+   * its updates in a loop instead, so it takes the same stack however many there are.
    *
    * <p>Known in functional-programming literature as the {@code Endo} monoid.
    *
@@ -398,6 +404,24 @@ public interface Monoids {
       @Override
       public Update<S> combine(Update<S> u1, Update<S> u2) {
         return u1.andThen(u2);
+      }
+
+      @Override
+      public Update<S> combineAll(Iterable<Update<S>> elements) {
+        List<Update<S>> chain = new ArrayList<>();
+        for (Update<S> update : elements) {
+          chain.add(Objects.requireNonNull(update, "elements must not contain null"));
+        }
+        if (chain.isEmpty()) {
+          return empty();
+        }
+        return source -> {
+          S result = source;
+          for (Update<S> update : chain) {
+            result = update.apply(result);
+          }
+          return result;
+        };
       }
     };
   }

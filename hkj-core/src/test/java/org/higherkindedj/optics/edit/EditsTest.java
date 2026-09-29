@@ -8,9 +8,13 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.higherkindedj.hkt.Update;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
@@ -91,6 +95,17 @@ class EditsTest {
       Update<Order> tidy = Edits.combine(List.of(Edit.modify(SKU, String::trim)));
 
       assertThat(tidy.apply(ORDER).sku()).isEqualTo("ab-123");
+    }
+
+    @Test
+    @DisplayName("should apply 100,000 edits without overflowing the stack")
+    void shouldApplyManyEditsWithoutOverflow() {
+      // Composed pairwise, the update applied through one nested call per edit and overflowed
+      // at around ten thousand; the update monoid's combineAll applies them in a loop.
+      Update<Order> all =
+          Edits.combine(Collections.nCopies(100_000, Edit.modify(QUANTITY, q -> q + 1)));
+
+      assertThat(all.apply(ORDER).quantity()).isEqualTo(100_005);
     }
 
     @Test
@@ -384,6 +399,38 @@ class EditsTest {
       assertThat(result.getError().toJavaList())
           .extracting(FieldError::toString)
           .containsExactly("email: not an address", "sku: not an address");
+    }
+
+    @Test
+    @DisplayName("should report 100,000 failures in linear time, in edit order")
+    void shouldReportManyFailuresInLinearTime() {
+      List<FallibleEdit<Order>> edits =
+          IntStream.range(0, 100_000)
+              .mapToObj(
+                  i ->
+                      Edit.parseIfPresent(EMAIL, "bad-" + i, EditsTest::parseEmail)
+                          .at(String.valueOf(i)))
+              .toList();
+
+      // Concatenated edit by edit, each error copied every earlier one, which took seconds;
+      // collected and built once, they take milliseconds.
+      NonEmptyList<FieldError> errors =
+          assertTimeoutPreemptively(
+              Duration.ofSeconds(2), () -> Edits.accumulate(edits).toValidated().getError());
+
+      assertThat(errors.size()).isEqualTo(100_000);
+      assertThat(errors.head()).hasToString("0: not an address");
+      assertThat(errors.last()).hasToString("99999: not an address");
+    }
+
+    @Test
+    @DisplayName("should apply 100,000 valid edits without overflowing the stack")
+    void shouldApplyManyEditsWithoutOverflow() {
+      List<Edit<Order>> edits = Collections.nCopies(100_000, Edit.modify(QUANTITY, q -> q + 1));
+
+      assertThatValidated(Edits.accumulate(edits).apply(ORDER))
+          .isValid()
+          .hasValue(new Order(ORDER.email(), ORDER.sku(), 100_005));
     }
 
     @Test

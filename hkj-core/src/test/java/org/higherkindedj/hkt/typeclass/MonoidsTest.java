@@ -4,6 +4,8 @@ package org.higherkindedj.hkt.typeclass;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -1058,6 +1060,33 @@ class MonoidsTest {
       Update<String> all = updateMonoid.combineAll(List.of(appendA, appendB, appendC));
 
       assertThat(all.apply("")).isEqualTo("abc");
+    }
+
+    @Test
+    @DisplayName("combineAll should apply 100,000 updates in a loop, not one nested call each")
+    void combineAllShouldNotOverflowTheStack() {
+      Monoid<Update<Integer>> counting = Monoids.update();
+      Update<Integer> increment = n -> n + 1;
+
+      // Folded through combine, this nests 100,000 calls deep and overflows the stack.
+      assertThat(counting.combineAll(Collections.nCopies(100_000, increment)).apply(0))
+          .isEqualTo(100_000);
+    }
+
+    @Test
+    @DisplayName("combineAll of nothing should be the identity update")
+    void combineAllOfNothingShouldBeIdentity() {
+      String value = "unchanged";
+
+      assertThat(updateMonoid.combineAll(List.of()).apply(value)).isSameAs(value);
+    }
+
+    @Test
+    @DisplayName("combineAll should reject a null update")
+    void combineAllShouldRejectNull() {
+      Assertions.assertThatNullPointerException()
+          .isThrownBy(() -> updateMonoid.combineAll(Arrays.asList(appendA, null)))
+          .withMessage("elements must not contain null");
     }
   }
 }
