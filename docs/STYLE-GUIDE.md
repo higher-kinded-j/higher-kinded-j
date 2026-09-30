@@ -287,7 +287,7 @@ Book pages, skills, javadoc, code comments, diagnostics and test names describe 
 
 The test for any reference is whether a reader a year or two from now would find it useful. An issue number almost never passes: it points at a planning discussion that closes, moves or goes stale, while the page it sits in is read long after.
 
-The **release history** (`hkj-book/src/release-history.md`) is the one exception. There, a link from a version to the issue or pull request behind each change is exactly what a reader wants, so release entries keep them.
+The **release history** (`hkj-book/src/release-history.md` and the pages under `hkj-book/src/release-history/`) is the one exception. There, a link from a version to the issue or pull request behind each change is exactly what a reader wants, so release entries keep them.
 
 ### House Terminology Budget
 
@@ -394,6 +394,20 @@ A catalogue of messages or limits takes this shape:
 4. **One diagram** of which stage spoke (your declaration, the processor, the generated file, your call site)
 
 Entries state their rule and fix in the open. Only the reasoning and the reproducer fold.
+
+### Release Notes
+
+The release history is a chapter: a landing page, `release-history.md`, then an upgrade guide, `release-history/upgrading.md`, the unreleased notes, `release-history/unreleased.md`, and one page per released version. A released version's page is never rewritten, and the book's checks do not read it.
+
+A pull request that changes what a user sees adds its entry to `unreleased.md`:
+
+- **File the entry under its area.** The areas are Mapping, Optics, Effect Paths, Spring, Testing, Build and tooling, and Documentation, in that order. A change to something already in the notes updates that entry rather than adding a second.
+- **Keep an entry to one bullet of about 60 words.** A bold lead says what a user can now do, then the issue link, a sentence or two, and a link to the page that holds the detail. The mechanism, the edge cases and a message's exact wording belong on that page.
+- **Put its upgrade impact in the page's Upgrading section.** A change a running program can notice goes in that list, a shape that stops compiling goes in the table, and a deprecation goes in the deprecations table and in Removals on `upgrading.md`.
+
+The readability check holds each entry to the prose limits, but not the page to a run length, since a page of entries has no prose run to break up.
+
+At release, `unreleased.md` becomes the version's page, `vX_Y_Z.md`, titled `# vX.Y.Z (date)` with an explicit `{#id}` and a link to the GitHub release. A fresh `unreleased.md` starts empty. The landing page gains the version's row in "Releases at a glance", and "Since which version?" gains its new features. The Upgrading page's section for the release links to the new page, and SUMMARY.md and the Previous and Next links take the new page in.
 
 ### Headings and Subtitles
 

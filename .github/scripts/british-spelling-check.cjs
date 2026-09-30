@@ -127,8 +127,16 @@ const SKIP_FILES = new Set([
   'CODE_OF_CONDUCT.md', // the Contributor Covenant, quoted as written
   '.github/scripts/british-spelling-check.cjs', // this file's word list
 ]);
+// A released version's notes are never rewritten, so only the unreleased notes are read.
+const RELEASED_NOTES = /^hkj-book\/src\/release-history\/(v\d+(_\d+)*|earlier)\.md$/;
 function skipped(file) {
-  return SKIP_FILES.has(file) || /(^|\/)LICENSE/.test(file) || file.endsWith('.min.js') || file.includes('node_modules/');
+  return (
+    SKIP_FILES.has(file) ||
+    RELEASED_NOTES.test(file) ||
+    /(^|\/)LICENSE/.test(file) ||
+    file.endsWith('.min.js') ||
+    file.includes('node_modules/')
+  );
 }
 
 function kind(file) {
@@ -204,7 +212,7 @@ function maskProseCode(chars, start, end) {
   }
 }
 
-function markdownProse(text, file) {
+function markdownProse(text) {
   const chars = emptyLike(text);
   const lines = text.split('\n');
   const starts = [];
@@ -227,18 +235,12 @@ function markdownProse(text, file) {
     }
     start = end;
   }
-  // The release history is read only above its first released version.
-  let last = lines.length;
-  if (file === 'hkj-book/src/release-history.md') {
-    const released = lines.findIndex((l) => /^#{2,4}\s+\d+\.\d+\.\d+\b(?!-SNAPSHOT)/.test(l.trim()));
-    if (released >= 0) last = released;
-  }
   const headings = [];
   // The fences are read as the book's other checks read them (book-prose.cjs), so the checks agree
   // on where code starts and ends, including code nested in an ~~~admonish block.
   for (const { line, text: content } of linesAsProse(text)) {
     const index = line - 1;
-    if (index >= last || quoted.has(index) || content.trim().startsWith('{{#')) continue;
+    if (quoted.has(index) || content.trim().startsWith('{{#')) continue;
     for (let k = 0; k < content.length; k++) chars[starts[index] + k] = content[k];
     if (/^#{1,6}\s/.test(content.trim())) headings.push([starts[index], starts[index] + content.length]);
   }
@@ -371,7 +373,7 @@ for (const file of files) {
   if (!fs.existsSync(full)) continue;
   const text = fs.readFileSync(full, 'utf8');
   const { masked, headings } =
-    k === 'md' ? markdownProse(text, file) : k === 'java' ? javaProse(text) : commentProse(text, k === 'hash' ? '#' : '//');
+    k === 'md' ? markdownProse(text) : k === 'java' ? javaProse(text) : commentProse(text, k === 'hash' ? '#' : '//');
   const found = findings(text, masked, headings);
   if (found.length === 0) continue;
   if (FIX) {

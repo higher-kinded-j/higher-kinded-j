@@ -59,7 +59,10 @@ guide's "Chapter Guides" section says.
    each claim against the real processor or library; style, against the guides; a first reader; and
    code, for the example Java. Check every finding against the code before acting on it. The pull
    request says which findings were declined, and why.
-9. **In the pull request**, fill in the template's "Book changes" section.
+9. **Add the release-notes entry** to `hkj-book/src/release-history/unreleased.md` when users can
+   see the change, as the style guide's Release Notes section says. Never edit a released
+   version's page.
+10. **In the pull request**, fill in the template's "Book changes" section.
 
 ## Traps
 

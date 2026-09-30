@@ -200,7 +200,7 @@ var stateOnly = STATE_T.execStateT(computation, 10, optionalMonad);
 ```
 
 ~~~admonish note title="0.4.6 API Note"
-`evalStateT` and `execStateT` now take the `Monad<F>` as an explicit argument. The single-argument forms (`evalStateT(computation, 10)`, `execStateT(computation, 10)`) and the matching instance methods on `StateT` are deprecated for removal in 0.5.0, when the stored `monadF` record component is dropped so that two `StateT` values with the same state function compare equal regardless of the `Monad` instance they were built with. See the v0.4.6 entry in the [release history](../release-history.md).
+`evalStateT` and `execStateT` now take the `Monad<F>` as an explicit argument. The single-argument forms (`evalStateT(computation, 10)`, `execStateT(computation, 10)`) and the matching instance methods on `StateT` are deprecated for removal in 0.5.0, when the stored `monadF` record component is dropped so that two `StateT` values with the same state function compare equal regardless of the `Monad` instance they were built with. See the [0.4.6 release notes](../release-history/v0_4_6.md), and [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) for the rest of what 0.5.0 removes.
 ~~~
 
 ---
