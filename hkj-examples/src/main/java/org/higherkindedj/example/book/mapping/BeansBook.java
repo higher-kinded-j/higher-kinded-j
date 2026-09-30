@@ -386,6 +386,39 @@ interface MerchantModelMapping extends MappingSpec<Merchant, MerchantModel> {
 
 // ANCHOR_END: read_only_spec
 
+// A storefront, which carries the merchant that runs it.
+record Storefront(String url, Merchant merchant) {}
+
+// ANCHOR: read_only_nested
+// openapi-generator's model for a storefront: an ordinary two-way bean, holding the merchant model.
+class StorefrontModel {
+  private String url;
+  private MerchantModel merchant;
+
+  public String getUrl() {
+    return url;
+  }
+
+  public void setUrl(String url) {
+    this.url = url;
+  }
+
+  public MerchantModel getMerchant() {
+    return merchant;
+  }
+
+  public void setMerchant(MerchantModel merchant) {
+    this.merchant = merchant;
+  }
+}
+
+// It nests MerchantModelMapping where it builds and parses, so it takes two halves too: parse
+// nests through asValidatedParse(), build through asValidatedBuild(), and a note says so.
+@GenerateMapping
+interface StorefrontModelMapping extends MappingSpec<Storefront, StorefrontModel> {}
+
+// ANCHOR_END: read_only_nested
+
 // ANCHOR: default_trap
 // A product listing whose subtitle is optional, and two generated beans for it.
 record Listing(String title, Optional<String> subtitle) {}

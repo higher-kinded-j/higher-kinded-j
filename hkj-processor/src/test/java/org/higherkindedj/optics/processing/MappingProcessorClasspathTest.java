@@ -544,8 +544,9 @@ class MappingProcessorClasspathTest {
 
     @Test
     @DisplayName(
-        "a spec with a read-only property registers from its class file with both halves: each"
-            + " one-way site nests it, and a site that builds and parses is told why it cannot")
+        "a spec with a read-only property registers from its class file with both halves: a"
+            + " one-way site nests its half, a two-way one takes both, and a projection is told why"
+            + " it cannot")
     void readOnlySpecNestsFromTheClasspath() throws IOException {
       JavaFileObject upstreamTypes =
           JavaFileObjects.forSourceString(
@@ -642,13 +643,38 @@ class MappingProcessorClasspathTest {
                 public interface OwnerMapping extends MappingSpec<Owner, OwnerDto> {}
               }
               """);
-      Compilation refused = compiler(upstream).compile(twoWay);
+      Compilation nested = compiler(upstream).compile(twoWay);
+      assertThat(nested).succeeded();
+      Assertions.assertThat(generatedSource(nested, "com.readonly.down.BothOwnerMappingImpl"))
+          .contains("PetMappingImpl.INSTANCE.asValidatedBuild().build(domain.pet())")
+          .contains("PetMappingImpl.INSTANCE.asValidatedParse()::parse")
+          .doesNotContain("asValidatedPrism");
+
+      JavaFileObject projection =
+          JavaFileObjects.forSourceString(
+              "com.readonly.down.Seen",
+              """
+              package com.readonly.down;
+
+              import com.readonly.up.Types;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public final class Seen {
+                public record Owner(Types.Pet pet, String note) {}
+                public record OwnerView(Types.PetModel pet) {}
+
+                @GenerateMapping
+                public interface OwnerViewMapping extends MappingSpec<Owner, OwnerView> {}
+              }
+              """);
+      Compilation refused = compiler(upstream).compile(projection);
       assertThat(refused).failed();
       assertThat(refused)
           .hadErrorContaining(
               "'com.readonly.up.PetMapping (classpath)' maps this pair but has a read-only"
-                  + " property 'id' (no asValidatedPrism), so it cannot be nested in a mapping that"
-                  + " builds and parses");
+                  + " property 'id' (no asValidatedPrism), so it cannot be nested in a projection,"
+                  + " which needs a whole prism for its write-back");
       assertThat(refused)
           .hadErrorContaining(
               "return ValidatedPrism.of(com.readonly.up.PetMappingImpl.INSTANCE::parse,"

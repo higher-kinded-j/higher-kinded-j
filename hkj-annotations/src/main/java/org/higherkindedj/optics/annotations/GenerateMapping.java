@@ -133,8 +133,9 @@ import java.lang.annotation.Target;
  *       null), swaps the lens for a validated {@code patch(Domain, Wire)} write-back —
  *       <em>dense</em> semantics: every projected component is written, never skipped, so a null is
  *       a located error (a bridged {@code Optional} reads it as empty). Every mapping that builds
- *       and parses gets {@code asValidatedPrism()} so it plugs in wherever a leaf does, unless a
- *       property is {@link ReadOnly}, when it has the two halves instead.
+ *       and parses gets {@code asValidatedPrism()} so it plugs in wherever a leaf does, unless it
+ *       reads a {@link ReadOnly} property, or nests or dispatches to a mapping that does, when it
+ *       has the two halves instead.
  *   <li>A spec extending {@link UpdateSpec} instead of {@link MappingSpec} opts into
  *       <em>sparse</em> null-as-absent PATCH — the REST {@code PATCH} contract: it generates only
  *       {@code updateFrom(Wire) : Edits.Accumulated<Domain>}, folding the present (non-null) wire

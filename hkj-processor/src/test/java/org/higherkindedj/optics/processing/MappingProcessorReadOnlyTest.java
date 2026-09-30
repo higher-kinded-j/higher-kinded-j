@@ -26,9 +26,10 @@ import org.junit.jupiter.api.Test;
 /**
  * Read-only properties: a getter a two-way bean declares with no setter, which a {@code @ReadOnly}
  * marker reads on {@code parse} and {@code build} leaves unwritten. The Impl then carries both
- * directions, each as its own half, and no whole prism, so it nests only where one direction is
- * used. A marker the spec declares that reads nothing is refused; an inherited one binds where it
- * can and is otherwise inert.
+ * directions, each as its own half, and no whole prism, so it nests where a direction is used, but
+ * not where a whole prism is needed. A mapping that builds and parses and nests it takes the two
+ * halves too, as {@link MappingProcessorTwoHalvesTest} shows. A marker the spec declares that reads
+ * nothing is refused; an inherited one binds where it can and is otherwise inert.
  *
  * <p>Everything compiles under {@code -Xlint:unchecked,rawtypes -Werror}.
  */
@@ -971,8 +972,8 @@ class MappingProcessorReadOnlyTest {
     }
 
     @Test
-    @DisplayName("nowhere that builds and parses it, naming every read-only property")
-    void notInAFullMappingNamingEach() {
+    @DisplayName("not in a generic mapping, naming every read-only property")
+    void notInAGenericMappingNamingEach() {
       JavaFileObject pet = source("Pet", "public record Pet(Long id, String name, Long age) {}");
       JavaFileObject model =
           source(
@@ -1002,40 +1003,30 @@ class MappingProcessorReadOnlyTest {
                 Long age();
               }
               """);
-      JavaFileObject order = source("Order", "public record Order(String ref, List<Pet> pets) {}");
-      JavaFileObject orderModel =
-          source(
-              "OrderModel",
-              """
-              public class OrderModel {
-                private String ref;
-                private List<PetModel> pets;
-
-                public String getRef() { return ref; }
-                public void setRef(String ref) { this.ref = ref; }
-                public List<PetModel> getPets() { return pets; }
-                public void setPets(List<PetModel> pets) { this.pets = pets; }
-              }
-              """);
+      JavaFileObject order = source("Order", "public record Order<T>(T ref, List<Pet> pets) {}");
+      JavaFileObject orderDto =
+          source("OrderDto", "public record OrderDto<T>(T ref, List<PetModel> pets) {}");
       JavaFileObject orderSpec =
           source(
               "OrderMapping",
               """
               @GenerateMapping
-              public interface OrderMapping extends MappingSpec<Order, OrderModel> {}
+              public interface OrderMapping<T> extends MappingSpec<Order<T>, OrderDto<T>> {}
               """);
-      Compilation compilation = compile(pet, model, spec, order, orderModel, orderSpec);
+      Compilation compilation = compile(pet, model, spec, order, orderDto, orderSpec);
       assertThat(compilation).failed();
       assertThat(compilation)
           .hadErrorContaining(
               "'PetMapping' maps this pair but has read-only properties [id, age] (no"
-                  + " asValidatedPrism), so it cannot be nested in a mapping that builds and"
-                  + " parses: its build leaves those properties out");
+                  + " asValidatedPrism), so it cannot be nested in a generic mapping, which cannot"
+                  + " take two halves from a spec it nests (not supported yet): its build leaves"
+                  + " those properties out");
       assertThat(compilation)
           .hadErrorContaining(
-              "To nest it here anyway, add 'default ValidatedPrism<com.example.readonly.PetModel,"
-                  + " com.example.readonly.Pet> pets() { return"
-                  + " ValidatedPrism.of(PetMappingImpl.INSTANCE::parse,"
+              "Nest 'PetMapping' in a mapping without type parameters, or in one that only parses"
+                  + " or only builds. To nest it here anyway, add 'default"
+                  + " ValidatedPrism<com.example.readonly.PetModel, com.example.readonly.Pet>"
+                  + " pets() { return ValidatedPrism.of(PetMappingImpl.INSTANCE::parse,"
                   + " PetMappingImpl.INSTANCE::build); }' to the spec, a leaf over the element"
                   + " types: this mapping's parse then cannot read back what its build wrote"
                   + " either.");
@@ -1089,9 +1080,10 @@ class MappingProcessorReadOnlyTest {
     }
 
     @Test
-    @DisplayName("nowhere that builds and parses it, and the refusal says why")
-    void notInAFullMapping() {
-      JavaFileObject order = source("Order", "public record Order(String ref, Pet pet) {}");
+    @DisplayName("not in a projection, and the refusal says why")
+    void notInAProjection() {
+      JavaFileObject order =
+          source("Order", "public record Order(String ref, Pet pet, String note) {}");
       JavaFileObject model =
           source(
               "OrderModel",
@@ -1118,17 +1110,17 @@ class MappingProcessorReadOnlyTest {
       assertThat(compilation)
           .hadErrorContaining(
               "'PetMapping' maps this pair but has a read-only property 'id' (no"
-                  + " asValidatedPrism), so it cannot be nested in a mapping that builds and"
-                  + " parses: its build leaves that property out, so its parse cannot read back"
-                  + " what its build wrote.");
+                  + " asValidatedPrism), so it cannot be nested in a projection, which needs a"
+                  + " whole prism for its write-back: its build leaves that property out, so its"
+                  + " parse cannot read back what its build wrote.");
       assertThat(compilation)
           .hadErrorContaining(
-              "Nest 'PetMapping' where a mapping only parses or only builds, or where the property"
-                  + " holding it is itself @ReadOnly. To nest it here anyway, add 'default"
+              "Nest 'PetMapping' in a mapping that builds and parses its whole domain, or in one"
+                  + " that only parses or only builds. To nest it here anyway, add 'default"
                   + " ValidatedPrism<com.example.readonly.PetModel, com.example.readonly.Pet> pet()"
                   + " { return ValidatedPrism.of(PetMappingImpl.INSTANCE::parse,"
-                  + " PetMappingImpl.INSTANCE::build); }' to the spec: this mapping's parse then"
-                  + " cannot read back what its build wrote either.");
+                  + " PetMappingImpl.INSTANCE::build); }' to the spec: this mapping's patch then"
+                  + " cannot restore what the nested build leaves out.");
     }
   }
 

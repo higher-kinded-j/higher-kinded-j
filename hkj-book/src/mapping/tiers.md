@@ -71,8 +71,8 @@ A two-way mapping's methods turn on two independent questions: does the wire car
 
 - **A plain copy carries a value across unchanged.** A rename alone, or a flattened group, still copies. A leaf does not, and nor does a nested spec, lifted over a container or not. Neither does an `@OptionalBridge` component, or a reference property on a bean wire, which can be left unset.
 - **A derived field is not a plain copy either.** On the bottom row the processor refuses it, since the write-back could never honour a component that `build` recomputes. A flattened group on the bottom row is not supported yet.
-- **A [read-only](beans.md#read-only-properties) bean property crosses one way.** `parse` reads it and `build` leaves it out, so `parse` cannot read back what `build` wrote. The Impl has `asValidatedParse()` and `asValidatedBuild()` in place of `asValidatedPrism()`, and no `asIso()`.
-- **A sealed pair dispatches to each subtype's own spec.** It gets `build`, `parse` and `asValidatedPrism()`, never `asIso()`: [Sealed hierarchies](structure.md#sealed-hierarchies).
+- **A [read-only](beans.md#read-only-properties) bean property crosses one way.** `parse` reads it and `build` leaves it out, so `parse` cannot read back what `build` wrote. The Impl has `asValidatedParse()` and `asValidatedBuild()` in place of `asValidatedPrism()`, and no `asIso()`. So does a mapping that [nests such a spec](rules.md#nesting-two-halves) where it builds and parses.
+- **A sealed pair dispatches to each subtype's own spec.** It gets `build`, `parse` and `asValidatedPrism()`, or [two halves](rules.md#nesting-two-halves) in its place when a subtype's spec has them, and never `asIso()`: [Sealed hierarchies](structure.md#sealed-hierarchies).
 
 `asValidatedPrism()` is the whole mapping as a leaf, so it nests in another spec and lifts over containers. [Where a bean or a bridged component lands](rules.md#where-a-bean-or-bridged-component-lands) has the precise rules. The same methods, as a table to search:
 
@@ -81,11 +81,11 @@ A two-way mapping's methods turn on two independent questions: does the wire car
 | `build` | the spec maps both ways, or its bean wire has writers only |
 | `parse` | the spec maps both ways and the wire carries every component, or its bean wire has getters only |
 | `asIso()` | the wire carries every component, and each is a plain copy; never on a sealed pair |
-| `asValidatedPrism()` | the Impl has both `build` and `parse`, and no property is [read-only](beans.md#read-only-properties) |
+| `asValidatedPrism()` | the Impl has both `build` and `parse`, and no property is [read-only](beans.md#read-only-properties), here or in a spec it [nests or dispatches to](rules.md#nesting-two-halves) |
 | `asLens()` | the wire carries fewer components, and each is a plain copy |
 | `patch(domain, wire)` | the wire carries fewer components, and some are not plain copies: [the validated `patch`](#leaf-carrying-projections-the-validated-patch) |
-| `asValidatedParse()` | the bean wire has getters only, [One-directional beans](beans.md#one-directional-beans), or a property is [read-only](beans.md#read-only-properties) |
-| `asValidatedBuild()` | the bean wire has writers only, [One-directional beans](beans.md#one-directional-beans), or a property is [read-only](beans.md#read-only-properties) |
+| `asValidatedParse()` | the bean wire has getters only, [One-directional beans](beans.md#one-directional-beans), or a property is [read-only](beans.md#read-only-properties), here or in a spec it [nests or dispatches to](rules.md#nesting-two-halves) |
+| `asValidatedBuild()` | the bean wire has writers only, [One-directional beans](beans.md#one-directional-beans), or a property is [read-only](beans.md#read-only-properties), here or in a spec it [nests or dispatches to](rules.md#nesting-two-halves) |
 | `updateFrom(wire)` | the spec extends `UpdateSpec`, over a bean wire: [Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
 | `updateFrom(message, mask)` | the spec extends `UpdateSpec`, over a protobuf-java message: [A PATCH through its `FieldMask`](beans.md#a-patch-through-its-fieldmask) |
 
@@ -128,7 +128,7 @@ Each tier has its own overload:
 | `patch` | `patch` and `build` as method references, a domain value, a wire that parses and one that does not |
 | `asValidatedParse()` | `asValidatedParse()`, a wire that parses and one that does not |
 | `asValidatedBuild()` | `asValidatedBuild()` and a domain value |
-| both halves, from a [read-only](beans.md#read-only-properties) property | each half to its own overload, as above |
+| both halves, from a [read-only](beans.md#read-only-properties) property, or from a spec it [nests or dispatches to](rules.md#nesting-two-halves) | each half to its own overload, as above |
 | `updateFrom` | `updateFrom` as a method reference, a domain value, and an all-absent, a valid and an invalid wire |
 
 [Testing With hkj-test](../tooling/test_assertions.md#optic-laws) says what each overload checks, and how to choose its samples.

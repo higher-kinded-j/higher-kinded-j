@@ -393,7 +393,7 @@ via `Impl.INSTANCE.asValidatedPrism()` (concrete; threaded specs use `instance()
 specs build the Impl once with `of(prisms)` in the `@Bean` method) for full mappings (they build and parse);
 `ValidatedParse<Wire, Domain>` (`asValidatedParse()`) or `ValidatedBuild<Wire, Domain>`
 (`asValidatedBuild()`) for a one-directional bean mapping, or for either half of a mapping with a
-`@ReadOnly` property; `Function`/`BiFunction` method
+`@ReadOnly` property or nesting one; `Function`/`BiFunction` method
 references for a bare `build`, `patch` and `updateFrom`. `ValidatedPrism` is SEALED, and so are
 its two halves: fakes are built as values with `ValidatedPrism.of(...)` (or `ValidatedParse.of`,
 `ValidatedBuild.of`), never mocked
@@ -433,10 +433,11 @@ Depending on what the mapping can honour:
 |------------|--------------|
 | Lossless both ways | `asIso()` |
 | A lossy projection (domain -> wire only) | all-identity (on a bean wire, all-primitive too): `asLens()`; any fallible correspondence, or on a bean wire any reference property (it can be unset): validated `patch(domain, wire) : Validated<NonEmptyList<FieldError>, Domain>` (dense, the opposite of `UpdateSpec`'s sparse `updateFrom` below; null reads become located errors, a bridged `Optional` reads empty); **no** `parse` either way. Law-check: `MappingLaws.assertMappingLaws(Impl.INSTANCE::patch, Impl.INSTANCE::build, current, validWire, invalidWire)` (the valid wire must parse and change the domain) |
-| Full (it builds and parses, and no property is `@ReadOnly`) | `asValidatedPrism()` |
+| Full (it builds and parses, and no property is `@ReadOnly`, its own or a nested spec's) | `asValidatedPrism()` |
 | A bean wire with getters and nothing that writes it | `parse` + `asValidatedParse()`, **no** `build` |
 | A bean wire that is written and declares no getter | `build` + `asValidatedBuild()`, **no** `parse` |
-| A two-way bean with a `@ReadOnly` property | `build` (leaves the property out) + `parse` (reads it), as two halves: `asValidatedParse()` + `asValidatedBuild()`, **no** `asValidatedPrism()` or `asIso()`, since `parse` cannot read back what `build` wrote. Nests only where one direction is used; law-check each half with its one-directional overload |
+| A two-way bean with a `@ReadOnly` property | `build` (leaves the property out) + `parse` (reads it), as two halves: `asValidatedParse()` + `asValidatedBuild()`, **no** `asValidatedPrism()` or `asIso()`, since `parse` cannot read back what `build` wrote. Law-check each half with its one-directional overload |
+| A mapping that builds and parses, nesting (or sealed-dispatching to) a spec with two halves | The same two halves, inferred, with a note naming the spec: `parse` nests through its `asValidatedParse()`, `build` through its `asValidatedBuild()`, lifted through containers. The tier carries on outwards, across modules too. A leaf joining the nested halves keeps `asValidatedPrism()` instead |
 | Carrying **any** derived field | **no `asIso()`**: the round trip recomputes the derived component, so it is not an identity |
 
 Combining a derived field **with** a projection (a wire otherwise smaller than the domain) is
@@ -871,7 +872,7 @@ before rearranging the spec.
 | A domain value holding two members of one protobuf oneof, as two `Optional` components | Compiles, but setting one member clears the other, so `build` keeps only the last. Map the oneof to a sealed type instead |
 | A misspelt accessor (`getEmial()` beside `setEmail(String)`) | The two do not pair, so neither is a property. Named after a domain component, the unpaired one is refused, and the diagnostic names the near accessor to rename. Pair every accessor the mapping uses, or mark a deliberate one `@Unmapped` |
 | Marking an OpenAPI `readOnly` getter `@Unmapped` | The component then stays out, so the bean is narrower than the domain: a projection with **no** `parse`, the very response you wanted to read. Mark it `@ReadOnly` instead: `parse` reads it and `build` leaves it out |
-| Nesting a spec with a `@ReadOnly` property in a mapping that builds and parses | Refused: it has no `asValidatedPrism()`, since its `build` drops the property. It nests only where one direction is used (a parse-only or build-only mapping, an `UpdateSpec`, a merge, or another spec's `@ReadOnly` component) |
+| Nesting a spec with a `@ReadOnly` property (or one that nests such a spec) where a whole prism is needed | Refused in a projection, a generic mapping, and an element-mapped spec's `of(...)`, naming the read-only property it inherits: it has no `asValidatedPrism()`, since its `build` drops the property. Anywhere else it nests: a mapping that builds and parses takes two halves too, and a one-way site uses its half |
 | Expecting `@GenerateMerge` to give you a reverse split | Merging is forward-only by design |
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
 | A JAXB getter-only `List` on an `UpdateSpec` | Its getter creates the list on first call, so it never reads `null`: an omitted field would clear the domain list rather than leave it alone. Rejected; give the property a setter, and a getter that answers `null` until it is set |

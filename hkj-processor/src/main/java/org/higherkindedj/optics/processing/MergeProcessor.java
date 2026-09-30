@@ -558,7 +558,7 @@ public class MergeProcessor extends AbstractProcessor {
       MappingProcessor.Candidates candidates =
           MappingProcessor.Candidates.nearest(
               registry.stream()
-                  .filter(r -> r.serves(WireShape.Direction.PARSE_ONLY))
+                  .filter(r -> r.serves(MappingProcessor.Need.PARSE))
                   .filter(
                       r ->
                           processingEnv
@@ -607,7 +607,7 @@ public class MergeProcessor extends AbstractProcessor {
             new Fill(
                 name,
                 holder.getSimpleName().toString(),
-                nested.getFirst().nestingPrism(WireShape.Direction.PARSE_ONLY),
+                nested.getFirst().nestingPrism(MappingProcessor.Need.PARSE),
                 true,
                 null,
                 null));
@@ -762,13 +762,13 @@ public class MergeProcessor extends AbstractProcessor {
       TypeMirror sourceType,
       TypeMirror targetType) {
     return registry.stream()
-        .filter(r -> !r.serves(WireShape.Direction.PARSE_ONLY))
+        .filter(r -> !r.serves(MappingProcessor.Need.PARSE))
         .filter(
             r ->
                 processingEnv.getTypeUtils().isSameType(r.wire(), sourceType)
                     && processingEnv.getTypeUtils().isSameType(r.domain(), targetType))
         .findFirst()
-        .map(r -> r.unusable("maps this pair", "fill a merge", WireShape.Direction.PARSE_ONLY))
+        .map(r -> r.unusable("maps this pair", "fill a merge", MappingProcessor.Need.PARSE))
         .orElse("");
   }
 

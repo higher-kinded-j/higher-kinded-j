@@ -89,6 +89,39 @@ class BeansBookTest {
         .doesNotContain("asValidatedPrism", "asIso");
   }
 
+  @Test
+  @DisplayName(
+      "a mapping nesting one with a read-only property takes two halves, and each is lawful")
+  void nestingAReadOnlyPropertyTakesTwoHalves() {
+    // ANCHOR: read_only_nested_laws
+    MappingLaws.assertMappingLaws(
+        StorefrontModelMappingImpl.INSTANCE.asValidatedParse(),
+        storefrontModel(merchantModel("m-1", "Brightside")), // parses
+        storefrontModel(merchantModel(null, "Brightside"))); // located failure: merchant.id
+
+    MappingLaws.assertMappingLaws(
+        StorefrontModelMappingImpl.INSTANCE.asValidatedBuild(),
+        new Storefront("https://brightside.example", new Merchant("m-1", "Brightside")));
+    // ANCHOR_END: read_only_nested_laws
+
+    // The failure is located through the nested spec.
+    assertThatValidated(
+            StorefrontModelMappingImpl.INSTANCE.parse(
+                storefrontModel(merchantModel(null, "Brightside"))))
+        .hasFieldErrors("merchant.id: must not be null");
+    assertThat(StorefrontModelMappingImpl.class.getMethods())
+        .extracting(Method::getName)
+        .contains("asValidatedParse", "asValidatedBuild")
+        .doesNotContain("asValidatedPrism", "asIso");
+  }
+
+  private static StorefrontModel storefrontModel(MerchantModel merchant) {
+    StorefrontModel model = new StorefrontModel();
+    model.setUrl("https://brightside.example");
+    model.setMerchant(merchant);
+    return model;
+  }
+
   private static MerchantModel merchantModel(String id, String name) {
     MerchantModel model = new MerchantModel(id);
     model.setName(name);

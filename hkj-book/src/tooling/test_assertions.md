@@ -351,6 +351,7 @@ void statusPrismIsLawful() {
 - **Sparse update** (an `UpdateSpec`): pass the `updateFrom` method reference, a domain sample, and an all-absent, a valid and an invalid wire; checks identity, idempotence and located validation. Make the all-absent wire a freshly constructed bean, as a binder makes of an empty body, and the domain sample unlike any default, so a default the bean gives itself, which would defeat absence, fails the identity law. The invalid wire must fail on a field: a domain constructor's refusal is unlabelled, so a domain with no leaf checks `assertSparseIdentity` and `assertSparseIdempotent` on their own.
 - **Parse-only** (a bean that is only read): pass `asValidatedParse()` with a parsing and a non-parsing wire; checks that the first parses and the second fails with every error located.
 - **Build-only** (a bean that is only written): pass `asValidatedBuild()` with a domain sample; checks that `build` renders it without failing.
+- **Two halves** (a `@ReadOnly` property, its own or nested): check each half alone.
 
 The laws compare by `equals`. A same-typed array crosses as a clone, and a record compares an array component by reference, so a record with an array component needs an `equals` of its own that uses `Arrays.equals` before these laws apply to it; otherwise assert its round trip elementwise.
 
