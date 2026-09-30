@@ -7,9 +7,11 @@ import static com.google.testing.compile.Compiler.javac;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invoke;
 
+import com.example.proto.NamesProto.Oddity;
 import com.google.protobuf.Any;
 import com.google.protobuf.DescriptorProtos.EnumValueDescriptorProto;
 import com.google.protobuf.DescriptorProtos.EnumValueOptions;
+import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Duration;
 import com.google.protobuf.Field;
 import com.google.protobuf.FieldMask;
@@ -1449,7 +1451,11 @@ class MappingProcessorProtobufTest {
       var result = compileClean(source("Types", TYPES));
       Assertions.assertThat(generated(result.compilation(), "TypePatchImpl"))
           .contains("public Edits.Accumulated<TypeDef> updateFrom(Type wire, FieldMask mask)")
-          .contains("paths.contains(\"source_context\")")
+          // A message that carries its descriptor names each path exactly as its .proto file does.
+          .contains(
+              "hkj$path$sourceContext ="
+                  + " Type.getDescriptor().findFieldByNumber(Type.SOURCE_CONTEXT_FIELD_NUMBER).getName();")
+          .contains("all || paths.contains(hkj$path$sourceContext) ? wire : null")
           // The domain takes a copy of what the message holds, as parse does.
           .contains("hkj$copyOf(wire.getOneofsList())")
           .contains("Map.ofEntries()");
@@ -1551,6 +1557,43 @@ class MappingProcessorProtobufTest {
       assertThatValidated(update(impl, request, mask("nanos"), current))
           .isValid()
           .hasValue(record(result, "Stamp", 10L, 0));
+    }
+
+    @Test
+    @DisplayName("a path is the name the message's descriptor gives, however its .proto cases it")
+    void descriptorNames() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Odds",
+                  """
+                  sealed interface Mode {
+                    record KInt(String value) implements Mode {}
+
+                    record Plain(String value) implements Mode {}
+                  }
+
+                  record Odd(String foo2Bar, String xRay, String uRL, Optional<Mode> mode) {}
+
+                  @GenerateMapping
+                  interface OddPatch
+                      extends UpdateSpec<Odd, com.example.proto.NamesProto.Oddity> {}
+                  """));
+      Object impl = result.instance("com.example.OddPatchImpl");
+      Oddity wire =
+          Oddity.newBuilder().setFoo2Bar("f").setXRay("x").setURL("u").setKInt("k").build();
+      Object current = record(result, "Odd", "", "", "", Optional.empty());
+      for (FieldDescriptor field : Oddity.getDescriptor().getFields()) {
+        assertThatValidated(update(impl, wire, mask(field.getName()), current)).isValid();
+      }
+      assertThatValidated(update(impl, wire, mask("foo2Bar", "x_Ray", "URL", "kInt"), current))
+          .isValid()
+          .hasValue(
+              record(result, "Odd", "f", "x", "u", Optional.of(record(result, "Mode$KInt", "k"))));
+      assertThatValidated(update(impl, wire, mask("Mode"), current))
+          .isInvalid()
+          .hasFieldErrors(
+              "Mode: names a oneof, not a field: name one of its members [kInt, plain]");
     }
 
     @Test
@@ -1982,15 +2025,22 @@ class MappingProcessorProtobufTest {
                   interface WholePatch extends UpdateSpec<Whole, Briefing> {}
                   """));
       assertThat(compilation).succeeded();
+      // A lite message keeps no names, so each is read from protoc's constant and the Java name.
       Assertions.assertThat(generated(compilation, "WholePatchImpl"))
+          .contains("hkj$path$briefCase = \"brief_case\";")
+          .contains("hkj$path$plainText = \"plain_text\";")
+          .contains("hkj$path$richText = \"richText\";")
+          .contains("hkj$path$xRay = \"x_ray\";")
+          .contains("hkj$path$kInt = \"k_int\";")
           .contains(
-              "Set.of(\"brief_case\", \"topic_case\", \"plain_text\", \"richText\", \"x_ray\","
-                  + " \"plaintext\", \"tags\", \"k_int\", \"marker\")")
+              "Set.of(hkj$path$briefCase, hkj$path$topicCase, hkj$path$plainText,"
+                  + " hkj$path$richText, hkj$path$xRay, hkj$path$plaintext, hkj$path$tags,"
+                  + " hkj$path$kInt, hkj$path$marker)")
           .contains(
-              "Map.entry(\"choice\", \"names a oneof, not a field: name one of its members"
-                  + " [plain_text, richText, x_ray]\")")
+              "Map.entry(\"choice\", \"names a oneof, not a field: name one of its members \" +"
+                  + " List.of(hkj$path$plainText, hkj$path$richText, hkj$path$xRay))")
           // The member the message holds decides whether the mask names the oneof's component.
-          .contains("case RICHTEXT -> paths.contains(\"richText\");")
+          .contains("case RICHTEXT -> paths.contains(hkj$path$richText);")
           // A case constant naming no member reads as none set.
           .contains("default -> Validated.validNel(Optional.empty());");
     }

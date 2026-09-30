@@ -3,6 +3,7 @@ plugins {
     id("com.vanniktech.maven.publish")
     id("info.solidsoft.pitest") version "1.19.0-rc.3"
     jacoco
+    alias(libs.plugins.protobuf)
 }
 
 dependencies {
@@ -40,6 +41,14 @@ dependencies {
 
     // Property-based testing for verifying generated optics with random inputs
     testImplementation(libs.bundles.jqwik)
+}
+
+// protoc for the test-only .proto files, at the release that matches the protobuf-java runtime: a
+// message whose field names only its descriptor keeps is real protoc output, not a stand-in.
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.asProvider().get()}"
+    }
 }
 
 tasks.test {

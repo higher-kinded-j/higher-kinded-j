@@ -418,13 +418,21 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    *
    * <p>{@code oneof} is the oneof the field is a member of: setting one member clears the others.
    * {@code protoName} is the field's name in its {@code .proto} file, as a {@code FieldMask} path
-   * names it: {@code display_name} for {@code displayName}.
+   * names it: {@code display_name} for {@code displayName}, as far as its Java names tell it.
+   * {@code number} is the constant protoc gives the field's number, {@code
+   * DISPLAY_NAME_FIELD_NUMBER}, by which a message that carries its descriptor names the field
+   * exactly.
    *
    * @param presence the {@code hasX()} method, for a field that tracks its presence
    * @param oneof the oneof the field is a member of, if any
-   * @param protoName the field's name in its {@code .proto} file
+   * @param protoName the field's name in its {@code .proto} file, as its Java names tell it
+   * @param number the constant holding the field's number, where protoc wrote one
    */
-  record MessageField(Optional<String> presence, Optional<OneofMember> oneof, String protoName) {}
+  record MessageField(
+      Optional<String> presence,
+      Optional<OneofMember> oneof,
+      String protoName,
+      Optional<String> number) {}
 
   /**
    * A field's membership of a oneof, as the oneof's case getter tells it: the oneof's name, its

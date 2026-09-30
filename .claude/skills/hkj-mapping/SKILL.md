@@ -674,7 +674,9 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
 - **A protobuf-java message** as the wire generates `updateFrom(Message, FieldMask) :
   Edits.Accumulated<Domain>` in place of `updateFrom(Wire)`: a message reads a value for most
   unset fields, so its update names the fields it changes in the mask. A field the mask names (by
-  its `.proto` name, camel or snake case as declared, or `*` for all) parses as `parse` would and
+  its `.proto` name, camel or snake case as declared, read from the descriptor (a lite message has
+  none, so a capital first or after a digit or `_` reads lower-case), or `*` for all) parses as
+  `parse` would and
   replaces the stored value whole: named and unset, it clears an `Optional`, reads a proto3
   scalar's default, empties a collection and fails a plain component; a field it leaves out keeps
   its value, and an empty mask edits nothing (build the AIP-134 implied mask from

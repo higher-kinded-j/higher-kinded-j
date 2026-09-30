@@ -423,7 +423,7 @@ final class BeanPropertyAnalyser {
             readers,
             writers,
             oneofs(readers, names),
-            protoNames(message, names));
+            numbers(message, names));
     return new WireShape.BeanShape(
         message,
         suffixes.stream().flatMap(suffix -> field(suffix, accessors).stream()).toList(),
@@ -436,7 +436,7 @@ final class BeanPropertyAnalyser {
    * The accessors a protobuf-java message and its builder declare, as {@link #field} reads each
    * field from them: the message and the builder as its factory returns it, the message's
    * zero-argument methods and the builder's one-argument methods by name, each oneof member's
-   * membership by the member's name, and each field's {@code .proto} name by its name.
+   * membership by the member's name, and the constant holding each field's number by its name.
    */
   private record MessageAccessors(
       DeclaredType message,
@@ -444,13 +444,13 @@ final class BeanPropertyAnalyser {
       Map<String, ExecutableElement> readers,
       Map<String, List<ExecutableElement>> writers,
       Map<String, WireShape.OneofMember> oneofs,
-      Map<String, String> protoNames) {
+      Map<String, String> numbers) {
 
     MessageAccessors {
       readers = Map.copyOf(readers);
       writers = Map.copyOf(writers);
       oneofs = Map.copyOf(oneofs);
-      protoNames = Map.copyOf(protoNames);
+      numbers = Map.copyOf(numbers);
     }
   }
 
@@ -481,11 +481,18 @@ final class BeanPropertyAnalyser {
   private Optional<WireShape.BeanProperty> field(String suffix, MessageAccessors accessors) {
     String name = fieldName(suffix);
     // protobuf names no other method hasX, so one is the field's presence.
+    Optional<String> number = Optional.ofNullable(accessors.numbers().get(name));
     WireShape.MessageField field =
         new WireShape.MessageField(
             Optional.of("has" + suffix).filter(accessors.readers()::containsKey),
             Optional.ofNullable(accessors.oneofs().get(name)),
-            accessors.protoNames().getOrDefault(name, snakeCase(name)));
+            number
+                .map(
+                    constant ->
+                        protoName(
+                            constant.substring(0, constant.length() - FIELD_NUMBER.length()), name))
+                .orElseGet(() -> snakeCase(name)),
+            number);
     return COLLECTION_FIELDS.stream()
         .flatMap(kind -> collectionField(kind, suffix, field, accessors).stream())
         .findFirst()
@@ -622,30 +629,31 @@ final class BeanPropertyAnalyser {
   }
 
   /**
-   * Each field's name in its {@code .proto} file, by its Java name among {@code names}. protoc
-   * gives a message a constant for each field, named after it in upper case: {@code
+   * The constant holding each field's number, by its Java name among {@code names}. protoc gives a
+   * message a constant for each field, named after it in upper case: {@code
    * DISPLAY_NAME_FIELD_NUMBER} for {@code display_name}, whose Java name is {@code displayName}.
    * The constant says where the underscores go, and the Java name the case ({@link #protoName}).
    */
-  private static Map<String, String> protoNames(TypeElement message, List<String> names) {
-    Map<String, String> protoNames = new LinkedHashMap<>();
+  private static Map<String, String> numbers(TypeElement message, List<String> names) {
+    Map<String, String> numbers = new LinkedHashMap<>();
     ElementFilter.fieldsIn(message.getEnclosedElements()).stream()
         .map(constant -> constant.getSimpleName().toString())
         .filter(constant -> constant.endsWith(FIELD_NUMBER))
-        .map(constant -> constant.substring(0, constant.length() - FIELD_NUMBER.length()))
         .forEach(
-            field ->
-                member(field, names)
-                    .ifPresent(name -> protoNames.put(name, protoName(field, name))));
-    return protoNames;
+            constant ->
+                member(constant.substring(0, constant.length() - FIELD_NUMBER.length()), names)
+                    .ifPresent(name -> numbers.put(name, constant)));
+    return numbers;
   }
 
   /**
-   * A name as its {@code .proto} file declares it, from the constant naming it in upper case and
-   * its Java name, which {@link #member} has matched letter for letter: {@code display_name} from
-   * {@code DISPLAY_NAME} and {@code displayName}, and {@code displayName} from {@code DISPLAYNAME}
-   * and {@code displayName}. protobuf keeps a capital the file declares, and puts one of its own
-   * after an underscore or a digit, where the file is read as declaring the lower-case letter.
+   * A name as its {@code .proto} file declares it, as far as the constant naming it in upper case
+   * and its Java name, which {@link #member} has matched letter for letter, tell it: {@code
+   * display_name} from {@code DISPLAY_NAME} and {@code displayName}, and {@code displayName} from
+   * {@code DISPLAYNAME} and {@code displayName}. protobuf keeps a capital the file declares, but
+   * puts one of its own first and after an underscore or a digit, where the file is read as
+   * declaring the lower-case letter. A message that carries its descriptor names the field exactly;
+   * a lite one carries none.
    */
   static String protoName(String constant, String name) {
     StringBuilder declared = new StringBuilder();

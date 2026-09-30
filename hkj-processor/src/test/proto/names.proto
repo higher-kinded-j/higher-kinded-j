@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package names;
+
+option java_package = "com.example.proto";
+option java_outer_classname = "NamesProto";
+
+// Fields named in ways no rule reads back from their Java names: a capital after a digit, after an
+// underscore, and first. A FieldMask names each as this file does.
+message Oddity {
+  string foo2Bar = 1;
+  string x_Ray = 2;
+  string URL = 3;
+  oneof Mode {
+    string kInt = 4;
+    string plain = 5;
+  }
+}

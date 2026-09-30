@@ -5230,7 +5230,7 @@ public class MappingProcessor extends AbstractProcessor {
           "edits.add($T.parseIfPresent($L, $L ? wire : null, _ -> $L).at($S))",
           EDIT,
           setterExpr(componentsClass, written, c.name()),
-          masked(c, wire),
+          masked(c),
           legValue(c, wireRead(wire, c.wireName()), guardedRead(c, wire)),
           c.name());
     }
@@ -5256,6 +5256,36 @@ public class MappingProcessor extends AbstractProcessor {
                     + " constructed once, from the values the update ends on.\n")
             .addCode(body.build())
             .build();
+    // Each field's path, read from the message's descriptor where it carries one, so the name is
+    // exactly the one its .proto file declares; a lite message's is read from its Java names.
+    ClassName message = ClassName.get(wire.element());
+    boolean described = described(wire.element());
+    List<FieldSpec> pathFields =
+        wire.components().stream()
+            .map(
+                component -> {
+                  WireShape.MessageField field = component.field().orElseThrow();
+                  return FieldSpec.builder(
+                          String.class,
+                          pathOf(component.name()),
+                          Modifier.PRIVATE,
+                          Modifier.STATIC,
+                          Modifier.FINAL)
+                      .initializer(
+                          field
+                              .number()
+                              .filter(_ -> described)
+                              .map(
+                                  number ->
+                                      CodeBlock.of(
+                                          "$T.getDescriptor().findFieldByNumber($T.$L).getName()",
+                                          message,
+                                          message,
+                                          number))
+                              .orElseGet(() -> CodeBlock.of("$S", field.protoName())))
+                      .build();
+                })
+            .toList();
     FieldSpec fields =
         FieldSpec.builder(
                 ParameterizedTypeName.get(Set.class, String.class),
@@ -5267,23 +5297,22 @@ public class MappingProcessor extends AbstractProcessor {
                 "$T.of($L)",
                 Set.class,
                 wire.components().stream()
-                    .map(field -> CodeBlock.of("$S", field.field().orElseThrow().protoName()))
+                    .map(component -> CodeBlock.of("$L", pathOf(component.name())))
                     .collect(CodeBlock.joining(", ")))
             .build();
     // A oneof's name is no path, as protobuf's FieldMask rules have it: its members are.
-    Map<String, List<String>> oneofMembers = new LinkedHashMap<>();
+    Map<String, List<WireShape.WireComponent>> oneofMembers = new LinkedHashMap<>();
     wire.components()
         .forEach(
-            component -> {
-              WireShape.MessageField field = component.field().orElseThrow();
-              field
-                  .oneof()
-                  .ifPresent(
-                      membership ->
-                          oneofMembers
-                              .computeIfAbsent(oneofPath(membership), _ -> new ArrayList<>())
-                              .add(field.protoName()));
-            });
+            component ->
+                component
+                    .field()
+                    .flatMap(WireShape.MessageField::oneof)
+                    .ifPresent(
+                        membership ->
+                            oneofMembers
+                                .computeIfAbsent(membership.oneof(), _ -> new ArrayList<>())
+                                .add(component)));
     FieldSpec oneofPaths =
         FieldSpec.builder(
                 ParameterizedTypeName.get(Map.class, String.class, String.class),
@@ -5294,15 +5323,36 @@ public class MappingProcessor extends AbstractProcessor {
             .initializer(
                 "$T.ofEntries($L)",
                 Map.class,
-                oneofMembers.entrySet().stream()
+                oneofMembers.values().stream()
                     .map(
-                        oneof ->
-                            CodeBlock.of(
-                                "$T.entry($S, $S)",
-                                Map.class,
-                                oneof.getKey(),
-                                "names a oneof, not a field: name one of its members "
-                                    + oneof.getValue()))
+                        members -> {
+                          WireShape.MessageField first = members.getFirst().field().orElseThrow();
+                          CodeBlock name =
+                              first
+                                  .number()
+                                  .filter(_ -> described)
+                                  .map(
+                                      number ->
+                                          CodeBlock.of(
+                                              "$T.getDescriptor().findFieldByNumber($T.$L)"
+                                                  + ".getContainingOneof().getName()",
+                                              message,
+                                              message,
+                                              number))
+                                  .orElseGet(
+                                      () ->
+                                          CodeBlock.of(
+                                              "$S", oneofPath(first.oneof().orElseThrow())));
+                          return CodeBlock.of(
+                              "$T.entry($L, $S + $T.of($L))",
+                              Map.class,
+                              name,
+                              "names a oneof, not a field: name one of its members ",
+                              List.class,
+                              members.stream()
+                                  .map(member -> CodeBlock.of("$L", pathOf(member.name())))
+                                  .collect(CodeBlock.joining(", ")));
+                        })
                     .collect(CodeBlock.joining(", ")))
             .build();
     TypeSpec.Builder implBuilder =
@@ -5313,6 +5363,7 @@ public class MappingProcessor extends AbstractProcessor {
                 "Generated FieldMask update for {@link $T}: applies the fields a mask names into an"
                     + " {@code Edits.Accumulated<Domain>}.\n",
                 List.of())
+            .addFields(pathFields)
             .addField(fields)
             .addField(oneofPaths)
             .addMethod(updateFrom)
@@ -5328,26 +5379,39 @@ public class MappingProcessor extends AbstractProcessor {
    * every field. A component mapping a oneof takes the member the message holds, so the mask must
    * name that member; a message holding none clears the component when the mask names any member.
    */
-  private static CodeBlock masked(Correspondence c, WireShape wire) {
+  private static CodeBlock masked(Correspondence c) {
     if (c.kind() != Kind.ONEOF) {
-      return CodeBlock.of("all || paths.contains($S)", protoNameOf(wire, c.wireName()));
+      return CodeBlock.of("all || paths.contains($L)", pathOf(c.wireName()));
     }
     CodeBlock.Builder held =
         CodeBlock.builder().add("all || switch (wire.$L()) {\n$>", c.oneof().caseGetter());
     for (OneofArm arm : c.oneof().arms()) {
-      held.add("case $L -> paths.contains($S);\n", arm.constant(), protoNameOf(wire, arm.member()));
+      held.add("case $L -> paths.contains($L);\n", arm.constant(), pathOf(arm.member()));
     }
     return held.add(
             "default -> $L;\n$<}",
             c.oneof().arms().stream()
-                .map(arm -> CodeBlock.of("paths.contains($S)", protoNameOf(wire, arm.member())))
+                .map(arm -> CodeBlock.of("paths.contains($L)", pathOf(arm.member())))
                 .collect(CodeBlock.joining(" || ")))
         .build();
   }
 
-  /** The name a {@code FieldMask} path gives a message's field: its name in the {@code .proto}. */
-  private static String protoNameOf(WireShape wire, String field) {
-    return wire.componentNamed(field).orElseThrow().field().orElseThrow().protoName();
+  /** The constant of a {@code FieldMask} update's Impl holding the path naming {@code field}. */
+  private static String pathOf(String field) {
+    return "hkj$path$" + field;
+  }
+
+  /**
+   * Whether a message carries its descriptor, which names each field exactly as its {@code .proto}
+   * file does: a full runtime's message declares a static {@code getDescriptor()}, and a lite one,
+   * which keeps no names, declares none.
+   */
+  private static boolean described(TypeElement message) {
+    return ElementFilter.methodsIn(message.getEnclosedElements()).stream()
+        .anyMatch(
+            method ->
+                method.getModifiers().contains(Modifier.STATIC)
+                    && method.getSimpleName().contentEquals("getDescriptor"));
   }
 
   /**
