@@ -21,7 +21,7 @@
  * the names and phrases in ALLOWED, and an epigraph: a blockquote with an attribution line. String
  * literals other than a @DisplayName are code to this check, so diagnostics and example output are
  * reviewed by hand. A heading is reported but never rewritten, since its text is its
- * anchor. The release history is read only above its first released version: released entries are
+ * anchor. A released version's notes, under hkj-book/src/release-history/, are not read: they are
  * never rewritten.
  *
  * The check knows a fixed list of American spellings (WORDS below) rather than guessing, so it has
@@ -127,7 +127,7 @@ const SKIP_FILES = new Set([
   'CODE_OF_CONDUCT.md', // the Contributor Covenant, quoted as written
   '.github/scripts/british-spelling-check.cjs', // this file's word list
 ]);
-// A released version's notes are never rewritten, so only the unreleased notes are read.
+// A released version's notes are never rewritten, so they are not read; the chapter's other pages are.
 const RELEASED_NOTES = /^hkj-book\/src\/release-history\/(v\d+(_\d+)*|earlier)\.md$/;
 function skipped(file) {
   return (

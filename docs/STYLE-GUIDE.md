@@ -397,17 +397,24 @@ Entries state their rule and fix in the open. Only the reasoning and the reprodu
 
 ### Release Notes
 
-The release history is a chapter: a landing page, `release-history.md`, then an upgrade guide, `release-history/upgrading.md`, the unreleased notes, `release-history/unreleased.md`, and one page per released version. A released version's page is never rewritten, and the book's checks do not read it.
+The release history is a chapter: a landing page (`release-history.md`), an upgrade guide (`release-history/upgrading.md`), the unreleased notes (`release-history/unreleased.md`) and the released notes. Those are a page per release from 0.4.0, one for 0.3 and one for 0.1 to 0.2. Never rewrite a released version's notes; the readability and spelling checks skip them.
 
 A pull request that changes what a user sees adds its entry to `unreleased.md`:
 
 - **File the entry under its area.** The areas are Mapping, Optics, Effect Paths, Spring, Testing, Build and tooling, and Documentation, in that order. A change to something already in the notes updates that entry rather than adding a second.
-- **Keep an entry to one bullet of about 60 words.** A bold lead says what a user can now do, then the issue link, a sentence or two, and a link to the page that holds the detail. The mechanism, the edge cases and a message's exact wording belong on that page.
-- **Put its upgrade impact in the page's Upgrading section.** A change a running program can notice goes in that list, a shape that stops compiling goes in the table, and a deprecation goes in the deprecations table and in Removals on `upgrading.md`.
+- **Keep an entry to one bullet of about 60 words.** A bold lead says what a user can now do, then the issue link, a sentence or two, and a link to the page that holds the detail, where the book has one. The mechanism, the edge cases and a message's exact wording belong on that page.
+- **Put its upgrade impact in "Upgrading from" the last release.** A change a running program can notice goes under its area in "What a running program can notice". A shape that stops compiling goes in the table in "What stops a build that compiled". A deprecation goes in "Deprecated for removal", and in "Removals" on `upgrading.md`.
 
 The readability check holds each entry to the prose limits, but not the page to a run length, since a page of entries has no prose run to break up.
 
-At release, `unreleased.md` becomes the version's page, `vX_Y_Z.md`, titled `# vX.Y.Z (date)` with an explicit `{#id}` and a link to the GitHub release. A fresh `unreleased.md` starts empty. The landing page gains the version's row in "Releases at a glance", and "Since which version?" gains its new features. The Upgrading page's section for the release links to the new page, and SUMMARY.md and the Previous and Next links take the new page in.
+At release:
+
+1. **Finish every edit in `unreleased.md` first.** Once it is renamed, the readability and spelling checks stop reading it, so the cut is a rename and a new title only.
+2. **Rename it to the version's page**, `vX_Y_Z.md`. Its title becomes `# vX.Y.Z (D Month YYYY) {#vXYZ-d-month-yyyy}`, as in `# v0.4.11 (5 October 2026) {#v0411-5-october-2026}`. Put the `[vX.Y.Z on GitHub](...)` line under it, in place of the not-released line.
+3. **Start a fresh `unreleased.md` for the next version.** Keep the skeleton: the title, the not-released line, At a glance, the area headings, and the Upgrading section's headings and tables, emptied.
+4. **Repoint what linked to the old unreleased page.** `grep -rn unreleased hkj-book/src hkj-book/theme` finds them: the landing page's first row and its "Following `main`?" bullet, the Upgrading page's section for the release, and the legacy-anchor entry for the old unreleased heading.
+5. **Update the landing page and the Upgrading page.** Add the version's row to "Releases at a glance", and its new features to "Since which version?". The Upgrading page's section for the release links to the version page's Upgrading section rather than repeating it, and a section for the next version starts as a pointer to the fresh `unreleased.md`.
+6. **Add the page to `SUMMARY.md`,** and chain its Previous and Next links. The previous newest release's Previous link then names it, the one edit a released page takes.
 
 ### Headings and Subtitles
 

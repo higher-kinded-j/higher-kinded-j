@@ -350,8 +350,12 @@ function selfTest() {
     "",
     hundred,
   ], { runs: 1 });
-  if (!unmeasured("release-history/v0_4_10.md") || !unmeasured("release-history/earlier.md")) fail("released notes");
-  if (unmeasured("release-history/unreleased.md") || unmeasured("release-history.md")) fail("living release pages");
+  for (const released of ["release-history/v0_4_10.md", "release-history/v0_3.md", "release-history/earlier.md"]) {
+    if (!unmeasured(released)) fail(`released notes: ${released}`);
+  }
+  for (const living of ["release-history.md", "release-history/unreleased.md", "release-history/upgrading.md"]) {
+    if (unmeasured(living)) fail(`living release page: ${living}`);
+  }
   const longList = Array.from({ length: 5 }, () => `- ${hundred}`).join("\n");
   if (measure(longList, "release-history/upgrading.md").counts.runs !== 0) fail("release notes have no run length");
   if (measure(longList, "optics/lenses.md").counts.runs !== 1) fail("a list elsewhere is a run");

@@ -175,5 +175,5 @@
 
 ---
 
-**Previous:** [0.3.0 to 0.3.7](v0_3.md)
+**Previous:** [v0.3.0 to v0.3.7](v0_3.md)
 **Next:** [Benchmarks & Performance](../benchmarks.md)

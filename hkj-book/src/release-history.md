@@ -1,10 +1,11 @@
 # Release History
 
-What changed in each version of Higher-Kinded-J, and what to do when you move to it. Each release has a page of its own, with a link from each change to the issue or pull request behind it.
+What changed in each version of Higher-Kinded-J, and what to do when you move to it. Each release has notes, most with a link from each change to the issue or pull request behind it.
 
 - **Upgrading?** [Upgrading](release-history/upgrading.md) lists, release by release, what can stop a build that compiled or change what a program does. It also lists every API due for removal in 0.5.0.
 - **Following `main`?** [Unreleased: 0.4.11](release-history/unreleased.md) collects the changes since 0.4.10.
 - **Looking for a feature?** [Since which version?](#since-which-version) names the release that first shipped it.
+- **Searching every release at once?** The book's search reads every page of this chapter.
 
 ---
 
@@ -12,27 +13,27 @@ What changed in each version of Higher-Kinded-J, and what to do when you move to
 
 | Version | Released | Headline | Upgrade notes |
 |---|---|---|---|
-| [0.4.11](release-history/unreleased.md) | not yet | Generated client models map as generated, and more shapes are refused where you wrote them | [Yes](release-history/unreleased.md#upgrading) |
-| [0.4.10](release-history/v0_4_10.md) | 30 August 2026 | Standard codecs, generic optics that compile, one answer from the Focus DSL | [Yes](release-history/upgrading.md#to-0410) |
-| [0.4.9](release-history/v0_4_9.md) | 31 July 2026 | The record mapper: every wire shape, both PATCH styles, one null doctrine | [Yes](release-history/upgrading.md#to-049) |
-| [0.4.8](release-history/v0_4_8.md) | 17 July 2026 | Async typed errors, path-native resilience, accumulating validation and record mapping | |
-| [0.4.7](release-history/v0_4_7.md) | 26 June 2026 | Declarative Spring HTTP clients and type-safety improvements | [Yes](release-history/upgrading.md#to-041-048) |
-| [0.4.6](release-history/v0_4_6.md) | 7 June 2026 | Optic-driven request batching, guardrails, and n-ary coupled lenses | [Yes](release-history/upgrading.md#to-041-048) |
-| [0.4.5](release-history/v0_4_5.md) | 22 May 2026 | The `Instances` facade, more compile-time checks, and hardened migration recipes | [Yes](release-history/upgrading.md#to-041-048) |
-| [0.4.4](release-history/v0_4_4.md) | 16 May 2026 | The hkj-test module, PCollections integration, and type class enrichments | [Yes](release-history/upgrading.md#to-041-048) |
-| [0.4.3](release-history/v0_4_3.md) | 7 May 2026 | Pluggable HTTP error status, header carriers, and a documentation refresh | [Yes](release-history/upgrading.md#to-041-048) |
-| [0.4.2](release-history/v0_4_2.md) | 18 April 2026 | EffectBoundary, Claude Code skills, and Spring HTTP ergonomics | [Yes](release-history/upgrading.md#to-041-048) |
-| [0.4.1](release-history/v0_4_1.md) | 8 April 2026 | Effect handlers, Spring observability, and monad transformer enhancements | |
-| [0.4.0](release-history/v0_4_0.md) | 22 March 2026 | SPI-aware path widening, the generator plugin ecosystem, and a Focus DSL restructure | |
-| [0.3.7](release-history/v0_3.md#v037-15-march-2026) | 15 March 2026 | WriterT, MTL capabilities, smarter comprehensions, and one-line build setup | |
-| [0.3.6](release-history/v0_3.md#v036-6-march-2026) | 6 March 2026 | VStream lazy streaming, resilience patterns, and ForState comprehensions | |
-| [0.3.5](release-history/v0_3.md#v035-15-february-2026) | 15 February 2026 | Extended for-comprehensions, a VTask API refinement, and a documentation restructure | [Yes](release-history/upgrading.md#to-035) |
-| [0.3.4](release-history/v0_3.md#v034-31-january-2026) | 31 January 2026 | External type optics and the examples gallery | |
-| [0.3.3](release-history/v0_3.md#v033-24-january-2026) | 24 January 2026 | Structured concurrency, atomic optics, and enhanced examples | |
-| [0.3.2](release-history/v0_3.md#v032-17-january-2026) | 17 January 2026 | Virtual thread concurrency with VTask | |
-| [0.3.1](release-history/v0_3.md#v031-15-january-2026) | 15 January 2026 | Static analysis utilities | |
-| [0.3.0](release-history/v0_3.md#v030-4-january-2026) | 4 January 2026 | The Effect Path API with Focus DSL integration | [Yes](release-history/upgrading.md#to-030) |
-| [0.1.0 to 0.2.8](release-history/earlier.md) | May to December 2025 | The HKT core types, optics, the Free monad, and the first Effect Path API and Focus DSL | |
+| [0.4.11](release-history/unreleased.md) | not yet | Generated client models map as generated, and the processor stops more shapes at the declaration | [Upgrading from 0.4.10](release-history/unreleased.md#upgrading) |
+| [0.4.10](release-history/v0_4_10.md) | 30 August 2026 | Standard codecs, generic optics that compile, one answer from the Focus DSL | [To 0.4.10](release-history/upgrading.md#to-0410) |
+| [0.4.9](release-history/v0_4_9.md) | 31 July 2026 | The record mapper: every wire shape, both PATCH styles, one rule for null | [To 0.4.9](release-history/upgrading.md#to-049) |
+| [0.4.8](release-history/v0_4_8.md) | 17 July 2026 | Async typed errors, path-native resilience, accumulating validation and record mapping | None |
+| [0.4.7](release-history/v0_4_7.md) | 26 June 2026 | Declarative Spring HTTP clients and type-safety improvements | [To 0.4.1 through 0.4.8](release-history/upgrading.md#to-041-048) |
+| [0.4.6](release-history/v0_4_6.md) | 7 June 2026 | Optic-driven request batching, guardrails, and n-ary coupled lenses | [Removals in 0.5.0](release-history/upgrading.md#removals-in-050) |
+| [0.4.5](release-history/v0_4_5.md) | 22 May 2026 | The `Instances` facade, more compile-time checks, and hardened migration recipes | [To 0.4.1 through 0.4.8](release-history/upgrading.md#to-041-048) |
+| [0.4.4](release-history/v0_4_4.md) | 16 May 2026 | The hkj-test module, PCollections integration, and type class enrichments | [Removals in 0.5.0](release-history/upgrading.md#removals-in-050) |
+| [0.4.3](release-history/v0_4_3.md) | 7 May 2026 | Pluggable HTTP error status, header carriers, and a documentation refresh | [To 0.4.1 through 0.4.8](release-history/upgrading.md#to-041-048) |
+| [0.4.2](release-history/v0_4_2.md) | 18 April 2026 | EffectBoundary, Claude Code skills, and Spring HTTP ergonomics | [To 0.4.1 through 0.4.8](release-history/upgrading.md#to-041-048) |
+| [0.4.1](release-history/v0_4_1.md) | 8 April 2026 | Effect handlers, Spring observability, and monad transformer enhancements | [To 0.4.1 through 0.4.8](release-history/upgrading.md#to-041-048) |
+| [0.4.0](release-history/v0_4_0.md) | 22 March 2026 | SPI-aware path widening, an expanded generator plugin ecosystem, and a Focus DSL restructure | None |
+| [0.3.7](release-history/v0_3.md#v037-15-march-2026) | 15 March 2026 | WriterT, MTL capabilities, smarter comprehensions, and one-line build setup | None |
+| [0.3.6](release-history/v0_3.md#v036-6-march-2026) | 6 March 2026 | VStream lazy streaming, resilience patterns, and ForState comprehensions | None |
+| [0.3.5](release-history/v0_3.md#v035-15-february-2026) | 15 February 2026 | Extended for-comprehensions, a VTask API refinement, and a documentation restructure | [To 0.3.5](release-history/upgrading.md#to-035) |
+| [0.3.4](release-history/v0_3.md#v034-31-january-2026) | 31 January 2026 | External type optics and the examples gallery | None |
+| [0.3.3](release-history/v0_3.md#v033-24-january-2026) | 24 January 2026 | Structured concurrency, atomic optics, and enhanced examples | None |
+| [0.3.2](release-history/v0_3.md#v032-17-january-2026) | 17 January 2026 | Virtual thread concurrency with VTask | None |
+| [0.3.1](release-history/v0_3.md#v031-15-january-2026) | 15 January 2026 | Static analysis utilities | None |
+| [0.3.0](release-history/v0_3.md#v030-4-january-2026) | 4 January 2026 | The Effect Path API with Focus DSL integration | [To 0.3.0](release-history/upgrading.md#to-030) |
+| [0.1.0 to 0.2.8](release-history/earlier.md) | May to December 2025 | The HKT core types, optics, the Free monad, and the first Effect Path API and Focus DSL | [v0.1.4 notes](release-history/earlier.md#v014-5-june-2025) |
 
 ---
 
@@ -63,7 +64,8 @@ The release that first shipped each feature, with the page that teaches it.
 | The Focus DSL | [0.2.5](release-history/earlier.md#v025-9-december-2025) | [Focus DSL](optics/focus_dsl.md) |
 | Coupled fields: `Lens.paired` | [0.3.3](release-history/v0_3.md#v033-24-january-2026) | [Coupled Fields](optics/coupled_fields.md) |
 | Optics for types you cannot change: `@ImportOptics` | [0.3.4](release-history/v0_3.md#v034-31-january-2026) | [Importing Optics](optics/importing_optics.md) |
-| SPI path widening and the generator plugin ecosystem | [0.4.0](release-history/v0_4_0.md) | [Generator Plugins](tooling/generator_plugins.md) |
+| Traversal generator plugins | [0.1.6](release-history/earlier.md#v016-14-july-2025) | [Generator Plugins](tooling/generator_plugins.md) |
+| SPI path widening, and generators for Guava, Vavr, Eclipse Collections and Apache Commons | [0.4.0](release-history/v0_4_0.md) | [Generator Plugins](tooling/generator_plugins.md) |
 | Optic-driven request batching | [0.4.6](release-history/v0_4_6.md) | [Optic-Driven Batching](optics/optic_batching.md) |
 
 ### Validation and mapping {#since-validation-and-mapping}
@@ -83,8 +85,9 @@ The release that first shipped each feature, with the page that teaches it.
 | `VTask` on virtual threads | [0.3.2](release-history/v0_3.md#v032-17-january-2026) | [VTask](monads/vtask_monad.md) |
 | Structured concurrency with `Scope` | [0.3.3](release-history/v0_3.md#v033-24-january-2026) | [Structured Concurrency](monads/vtask_scope.md) |
 | `VStream` lazy streaming | [0.3.6](release-history/v0_3.md#v036-6-march-2026) | [VStream](monads/vstream.md) |
-| Circuit breaker, bulkhead, retry and saga | [0.3.6](release-history/v0_3.md#v036-6-march-2026) | [Resilience](resilience/ch_intro.md) |
-| Path-native resilience: `withRetry`, `withTimeout` and friends | [0.4.8](release-history/v0_4_8.md) | [Resilience](resilience/ch_intro.md) |
+| Retry policies | [0.2.6](release-history/earlier.md#v026-19-december-2025) | [Retry](resilience/retry.md) |
+| Circuit breaker, bulkhead and saga | [0.3.6](release-history/v0_3.md#v036-6-march-2026) | [Resilience](resilience/ch_intro.md) |
+| One `with*` resilience vocabulary across every Path | [0.4.8](release-history/v0_4_8.md) | [Resilience](resilience/ch_intro.md) |
 
 ### Spring {#since-spring}
 
