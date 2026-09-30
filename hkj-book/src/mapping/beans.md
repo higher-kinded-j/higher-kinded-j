@@ -215,11 +215,21 @@ An OpenAPI `readOnly` property is sent in responses and never in requests. opena
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:read_only_usage}}
 ```
 
-`parse` cannot read back a bean that `build` wrote, because the id is missing, so the mapping is no `ValidatedPrism`. The Impl carries `parse` and `build` as two halves, `asValidatedParse()` and `asValidatedBuild()`, and no `asValidatedPrism()` or `asIso()`. Each half nests where a mapping uses that direction alone, as a [one-directional bean](#one-directional-beans) does. A mapping that builds and parses the component holding it cannot nest it. Law-check each half on its own:
+`parse` cannot read back a bean that `build` wrote, because the id is missing, so the mapping is no `ValidatedPrism`. The Impl carries `parse` and `build` as two halves, `asValidatedParse()` and `asValidatedBuild()`, and no `asValidatedPrism()` or `asIso()`. Each half nests where a mapping uses that direction alone, as a [one-directional bean](#one-directional-beans) does. Law-check each half on its own:
 
 ``` java
 {{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/BeansBookTest.java:read_only_laws}}
 ```
+
+A generated model that holds the merchant needs no declaration for it. Its mapping builds and parses, so it nests each half in its own direction and takes two halves itself, and a note says so:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:read_only_nested}}
+
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/BeansBookTest.java:read_only_nested_laws}}
+```
+
+A projection cannot nest either, since its write-back needs a whole prism: [Nesting a mapping with two halves](rules.md#nesting-two-halves).
 
 A component that converts takes the marker on its leaf. [What `@ReadOnly` reads](rules.md#what-readonly-reads) has the precise rule.
 
@@ -296,7 +306,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 | The generated shape | What happens | Instead |
 |---|---|---|
 | an openapi-generator model, with getters, setters and a no-args constructor | it maps both ways, even as a response you only read, so the processor refuses a property your domain lacks | declare a [derived field](basics.md#derived-wire-fields) for it, which `build` fills and `parse` ignores |
-| a `readOnly` property, with a getter and no setter | it is refused as a likely misspelling, since `build` could never write it | declare it [`@ReadOnly`](#read-only-properties): `parse` reads it and `build` leaves it out, so the Impl has two halves and no `asValidatedPrism()` |
+| a `readOnly` property, with a getter and no setter | it is refused as a likely misspelling, since `build` could never write it | declare it [`@ReadOnly`](#read-only-properties): `parse` reads it and `build` leaves it out, so the Impl has two halves and no `asValidatedPrism()`, as does a model that holds it |
 | strictly typed properties: enums, `OffsetDateTime`, `UUID` | Jackson has already converted them before `parse` runs | map each to your own type with a leaf over the generated type |
 | an openapi-generator `java` client model with its default `openApiNullable=true` | the processor leaves out the `getX_JsonNullable()` and `setX_JsonNullable(...)` pair beside each nullable property, and maps it through `getX()` and `setX(...)` | nothing: [An openapi-generator `JsonNullable` companion](rules.md#jsonnullable-companions) says what an unset property reads. Clearing one through a PATCH is [not supported yet](rules.md#no-jsonnullable-patch-property) |
 | an openapi-generator `spring` model with its default `openApiNullable=true` | each nullable property is a `JsonNullable<T>` itself | map it through a leaf; on a PATCH bean it is [not supported yet](rules.md#no-jsonnullable-patch-property) |

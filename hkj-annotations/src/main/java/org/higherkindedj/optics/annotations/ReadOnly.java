@@ -41,8 +41,10 @@ import java.lang.annotation.Target;
  * asValidatedPrism()} or {@code asIso()}. It nests wherever one direction is used: in a mapping
  * that only parses, an {@code UpdateSpec} or a merge through {@code parse}, in a mapping that only
  * builds, and as a property another mapping reads read-only. A mapping that builds and parses the
- * component holding it cannot nest it. A bean all of whose properties are read-only has nothing
- * left to build, and maps parse-only.
+ * component holding it nests each half in its own direction, and so takes the two halves too, as
+ * does a sealed dispatch over it, and so, in turn, does any mapping nesting that one; a projection,
+ * a generic mapping and an element-mapped spec's {@code of(...)} need a whole prism, and refuse it.
+ * A bean all of whose properties are read-only has nothing left to build, and maps parse-only.
  *
  * <p>The marker may be a bare abstract method, whose return type is not read, so it may restate the
  * getter's own type; the generated Impl stubs it out, like a {@link MapField} rename. Where the

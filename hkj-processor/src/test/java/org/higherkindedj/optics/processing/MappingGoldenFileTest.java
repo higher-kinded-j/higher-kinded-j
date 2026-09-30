@@ -125,7 +125,11 @@ class MappingGoldenFileTest {
         new GoldenTestCase(
             "read-only bean property (parse reads it, build leaves it out: both halves, no prism)",
             "com.example.readonly.PetMappingImpl",
-            "ReadOnlyPetMappingImpl.java.golden"));
+            "ReadOnlyPetMappingImpl.java.golden"),
+        new GoldenTestCase(
+            "nesting a spec with two halves where it builds and parses (each through its half)",
+            "com.example.readonly.OrderMappingImpl",
+            "HalvesOrderMappingImpl.java.golden"));
   }
 
   @ParameterizedTest(name = "{0}")
@@ -258,6 +262,14 @@ class MappingGoldenFileTest {
           @ReadOnly
           String status();
         }
+
+        record Order(String ref, Pet pet, List<Pet> extras) {}
+
+        record OrderDto(String ref, PetModel pet, List<PetModel> extras) {}
+
+        // Nests PetMapping where it builds and parses, so it takes two halves too.
+        @GenerateMapping
+        interface OrderMapping extends MappingSpec<Order, OrderDto> {}
         """);
   }
 

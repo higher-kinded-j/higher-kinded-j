@@ -59,10 +59,10 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  *       no {@code build} there is no round trip to state.
  *   <li>build-only tier ({@code asValidatedBuild()} on a bean that is only written): pass a domain
  *       sample - build totality. With no {@code parse} there is nothing to round-trip against.
- *   <li>read-only tier ({@code asValidatedParse()} and {@code asValidatedBuild()} on a bean with a
- *       {@code @ReadOnly} property): check each half with its overload above. {@code build} leaves
- *       the read-only property out, so {@code parse} cannot read a built wire back whole, and there
- *       is no round trip to state.
+ *   <li>two-halves tier ({@code asValidatedParse()} and {@code asValidatedBuild()} on a bean with a
+ *       {@code @ReadOnly} property, or on a mapping that nests one where it builds and parses):
+ *       check each half with its overload above. {@code build} leaves the read-only property out,
+ *       so {@code parse} cannot read a built wire back whole, and there is no round trip to state.
  * </ul>
  *
  * <p>The derived-field reality: {@code build} recomputes a derived wire component and {@code parse}
@@ -422,10 +422,10 @@ public final class MappingLaws {
 
   /**
    * All laws of the parse-only tier ({@code asValidatedParse()} on a bean that is only read, or the
-   * parse half of a mapping with a {@code @ReadOnly} property). There is no round trip to state:
-   * the one has no {@code build}, and the other's {@code build} leaves the read-only property out,
-   * so its {@code parse} cannot read a built wire back whole. What remains is the parse contract
-   * itself.
+   * parse half of a mapping with a {@code @ReadOnly} property, its own or a nested spec's). There
+   * is no round trip to state: the one has no {@code build}, and the other's {@code build} leaves
+   * the read-only property out, so its {@code parse} cannot read a built wire back whole. What
+   * remains is the parse contract itself.
    *
    * <ul>
    *   <li><b>Acceptance</b> - {@code parse(parseableWire)} is {@code Valid}.
@@ -471,10 +471,11 @@ public final class MappingLaws {
 
   /**
    * The law of the build-only tier ({@code asValidatedBuild()} on a bean that is only written, or
-   * the build half of a mapping with a {@code @ReadOnly} property): {@code build} is total,
-   * rendering the sample without failing. There is nothing to round-trip against: the one has no
-   * {@code parse}, and the other's {@code parse} cannot read back the property its {@code build}
-   * leaves out. A bean's equality is its own affair too, so totality is what can be stated.
+   * the build half of a mapping with a {@code @ReadOnly} property, its own or a nested spec's):
+   * {@code build} is total, rendering the sample without failing. There is nothing to round-trip
+   * against: the one has no {@code parse}, and the other's {@code parse} cannot read back the
+   * property its {@code build} leaves out. A bean's equality is its own affair too, so totality is
+   * what can be stated.
    *
    * @param mapping the generated {@code Impl.INSTANCE.asValidatedBuild()}
    * @param domainSample a domain value to render

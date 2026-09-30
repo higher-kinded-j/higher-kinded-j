@@ -107,7 +107,8 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`names no getter`](#read-only-names-no-getter) | A `@ReadOnly` marker names no unpaired getter |
 | [`@ReadOnly method '…' names a property`](#read-only-names-a-mapped-property) | A `@ReadOnly` marker names a paired property |
 | [`has nothing to mark read-only`](#read-only-on-a-record) | A `@ReadOnly` marker sits on a record, or a one-way bean |
-| [`has a read-only property`](#read-only-nested-both-ways) | A spec with a read-only property is nested both ways |
+| [`has a read-only property`](#read-only-nested-both-ways) | A spec with two halves is nested where a whole prism is needed |
+| [`maps as two halves`](#maps-as-two-halves) | **Note.** A mapping takes two halves from a spec it nests |
 | [`which has no parse to read`](#read-only-on-a-projection) | A `@ReadOnly` property sits on a projection |
 | [`has no meaning on a sparse update`](#read-only-on-a-sparse-update) | A `@ReadOnly` marker sits on an `UpdateSpec` |
 | [`which a build cannot fill`](#getter-only-list-build) | A getter-only `List` is raw or a wildcard |
@@ -1244,7 +1245,7 @@ interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}
 
 A sealed pair has a domain subtype that no spec maps, so the generated switch would miss a case.
 
-**Fix.** Declare a spec for the subtype pair, in this module or in a dependency compiled with `hkj-processor`.
+**Fix.** Declare a spec for the subtype pair, in this module or in a dependency compiled with `hkj-processor`. Where the message names a spec that maps the pair but cannot take part, change that spec instead, since a second one would make the pair ambiguous.
 
 ```
 @GenerateMapping: permitted subtype 'com.example.Bank' of 'Payment' has no mapping spec. Sealed
@@ -1833,27 +1834,75 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
 
 ### `... has no usable source. 'X' maps this pair but has a read-only property 'y' (no asValidatedPrism) ...` {#read-only-nested-both-ways}
 
-A component nests a spec with a read-only property, in a mapping that builds and parses. That spec has no whole prism, since its `parse` cannot read back what its `build` leaves out.
+A projection nests a spec with two halves, which has no whole prism for its write-back, since its `parse` cannot read back what its `build` leaves out. A generic mapping, or an element-mapped spec's `of(...)`, refuses one the same way. The spec may have taken its halves from a spec it nests, which the message names.
 
-**Fix.** Nest it where a mapping only parses or only builds, or where the property holding it is itself `@ReadOnly`. The message spells out a leaf joining its halves for a mapping that must nest it anyway, at the cost of its own round trip.
+**Fix.** Nest it in a mapping that builds and parses its whole domain, which takes two halves too, or where a mapping only parses or only builds. The message spells out a leaf joining its halves for a mapping that must nest it anyway, at the cost of its own round trip.
 
 ```
 @GenerateMapping: target field 'TicketDto.customer' has no usable source. The types differ
 (com.example.CustomerModel vs com.example.Customer) and no matching leaf method was found.
 'CustomerMapping' maps this pair but has a read-only property 'id' (no asValidatedPrism), so it
-cannot be nested in a mapping that builds and parses: its build leaves that property out, so its
-parse cannot read back what its build wrote. Found on Ticket: [ref, customer]. Nest
-'CustomerMapping' where a mapping only parses or only builds, or where the property holding it
-is itself @ReadOnly. To nest it here anyway, add 'default
+cannot be nested in a projection, which needs a whole prism for its write-back: its build leaves
+that property out, so its parse cannot read back what its build wrote. Found on Ticket: [ref,
+customer, note]. Nest 'CustomerMapping' in a mapping that builds and parses its whole domain, or
+in one that only parses or only builds. To nest it here anyway, add 'default
 ValidatedPrism<com.example.CustomerModel, com.example.Customer> customer() { return
 ValidatedPrism.of(CustomerMappingImpl.INSTANCE::parse, CustomerMappingImpl.INSTANCE::build); }'
-to the spec: this mapping's parse then cannot read back what its build wrote either.
+to the spec: this mapping's patch then cannot restore what the nested build leaves out. On a
+projection, a leaf's write-back can fail, so the projection maps through the validated
+patch(domain, wire), never asLens().
 ```
 
-The rule: [What `@ReadOnly` reads](rules.md#what-readonly-reads).
+The rule: [Nesting a mapping with two halves](rules.md#nesting-two-halves).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
 <!-- verify:rejects "has a read-only property" -->
+```java
+record Customer(String id, String name) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String id();
+}
+
+record Ticket(String ref, Customer customer, String note) {}
+
+record TicketDto(String ref, CustomerModel customer) {}
+
+@GenerateMapping
+interface TicketMapping extends MappingSpec<Ticket, TicketDto> {}
+```
+~~~
+
+### `'X' maps as two halves: the generated Impl carries parse, build, asValidatedParse() and asValidatedBuild(), and no asValidatedPrism()` (a note) {#maps-as-two-halves}
+
+A mapping that builds and parses nests, or dispatches to, a spec with a read-only property, so its own `parse` cannot read back what its `build` wrote. It takes the two halves, each nesting through that spec's half, and the note names the spec.
+
+**Fix.** Nothing, unless you need `asValidatedPrism()`: law-check each half with its `MappingLaws` overload. A leaf joining the nested spec's halves keeps the whole prism, at the cost of a round trip that loses the read-only property.
+
+```
+@GenerateMapping: 'TicketMapping' maps as two halves: the generated Impl carries parse, build,
+asValidatedParse() and asValidatedBuild(), and no asValidatedPrism(). It nests 'CustomerMapping'
+at 'customer', which has a read-only property 'id': build leaves that property out, so parse
+cannot read back what build wrote. Law-check each direction with the MappingLaws overloads for
+one direction. To keep asValidatedPrism() anyway, declare a leaf joining the nested halves for
+'customer', at the cost of a round trip that loses what the nested build leaves out.
+```
+
+The rule: [Nesting a mapping with two halves](rules.md#nesting-two-halves).
+
+~~~admonish example title="A declaration that produces it" collapsible=true
+<!-- verify:reports "maps as two halves" -->
 ```java
 record Customer(String id, String name) {}
 
@@ -3034,7 +3083,7 @@ CustomerMappingImpl mapper = CustomerMappingImpl.INSTANCE;
 
 ### `cannot find symbol: method asIso()` {#no-such-surface}
 
-The Impl has no such method, because your spec's shape does not support it: a leaf withholds `asIso()`, a projection has no `parse`, a one-directional bean has only `build` or only `parse`, and an `UpdateSpec` has only `updateFrom`.
+The Impl has no such method, because your spec's shape does not support it: a leaf withholds `asIso()`, a projection has no `parse`, a one-directional bean has only `build` or only `parse`, and an `UpdateSpec` has only `updateFrom`. A mapping with a read-only property, or nesting or dispatching to one, has `asValidatedParse()` and `asValidatedBuild()` in place of `asValidatedPrism()`.
 
 **Fix.** Call a method your spec's shape gets; [the method table](tiers.md#which-methods-your-spec-gets) says when each appears.
 

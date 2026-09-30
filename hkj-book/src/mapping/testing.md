@@ -25,7 +25,7 @@ Unlike a MapStruct mapper, the spec interface is never the bean. Nothing registe
 | `parse` alone | `ValidatedParse<UserDto, User>` | the same `ValidatedPrism` bean, or `asValidatedParse()` on a parse-only bean mapping |
 | `build` alone | `Function<User, UserDto>` | `UserMappingImpl.INSTANCE::build`, from any tier that has one |
 | a build-only bean mapping's `build` | `ValidatedBuild<CustomerRequest, Customer>` | `CustomerRequestMappingImpl.INSTANCE.asValidatedBuild()` |
-| either half of a mapping with a [read-only property](beans.md#read-only-properties) | `ValidatedParse<MerchantModel, Merchant>` or `ValidatedBuild<MerchantModel, Merchant>` | `MerchantModelMappingImpl.INSTANCE.asValidatedParse()`, or `.asValidatedBuild()` |
+| either half of a mapping with a [read-only property](beans.md#read-only-properties), or [nesting one](rules.md#nesting-two-halves) | `ValidatedParse<MerchantModel, Merchant>` or `ValidatedBuild<MerchantModel, Merchant>` | `MerchantModelMappingImpl.INSTANCE.asValidatedParse()`, or `.asValidatedBuild()` |
 | a projection's `set`, over plain copies | `Lens<Employee, EmployeeCardDto>` | `EmployeeCardMappingImpl.INSTANCE.asLens()` |
 | a validated `patch` | `BiFunction<Subscriber, SubscriberDetailsDto, Validated<NonEmptyList<FieldError>, Subscriber>>` | `SubscriberDetailsMappingImpl.INSTANCE::patch` |
 | a sparse `updateFrom` | `Function<UserPatchRequest, Edits.Accumulated<User>>` | `UserPatchMappingImpl.INSTANCE::updateFrom` |

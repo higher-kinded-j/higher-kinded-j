@@ -616,7 +616,7 @@ interface InvoiceMapping extends MappingSpec<Invoice, InvoiceDto> {}"""),
              heading="permitted subtype 'X' of 'Y' has no mapping spec",
              fragment="has no mapping spec",
              meaning="A sealed pair has a domain subtype that no spec maps, so the generated switch would miss a case.",
-             fix="Declare a spec for the subtype pair, in this module or in a dependency compiled with `hkj-processor`.",
+             fix="Declare a spec for the subtype pair, in this module or in a dependency compiled with `hkj-processor`. Where the message names a spec that maps the pair but cannot take part, change that spec instead, since a second one would make the pair ambiguous.",
              rule=("Sealed hierarchies", "structure.md#sealed-hierarchies"),
              code="""sealed interface Payment permits Card, Bank {}
 
@@ -966,9 +966,38 @@ interface CustomerMapping extends MappingSpec<Customer, CustomerDto> {
         dict(id="read-only-nested-both-ways",
              heading="... has no usable source. 'X' maps this pair but has a read-only property 'y' (no asValidatedPrism) ...",
              fragment="has a read-only property",
-             meaning="A component nests a spec with a read-only property, in a mapping that builds and parses. That spec has no whole prism, since its `parse` cannot read back what its `build` leaves out.",
-             fix="Nest it where a mapping only parses or only builds, or where the property holding it is itself `@ReadOnly`. The message spells out a leaf joining its halves for a mapping that must nest it anyway, at the cost of its own round trip.",
-             rule=("What `@ReadOnly` reads", "rules.md#what-readonly-reads"),
+             meaning="A projection nests a spec with two halves, which has no whole prism for its write-back, since its `parse` cannot read back what its `build` leaves out. A generic mapping, or an element-mapped spec's `of(...)`, refuses one the same way. The spec may have taken its halves from a spec it nests, which the message names.",
+             fix="Nest it in a mapping that builds and parses its whole domain, which takes two halves too, or where a mapping only parses or only builds. The message spells out a leaf joining its halves for a mapping that must nest it anyway, at the cost of its own round trip.",
+             rule=("Nesting a mapping with two halves", "rules.md#nesting-two-halves"),
+             code="""record Customer(String id, String name) {}
+
+class CustomerModel {
+  private String id;
+  private String name;
+
+  public String getId() { return id; }
+  public String getName() { return name; }
+  public void setName(String name) { this.name = name; }
+}
+
+@GenerateMapping
+interface CustomerMapping extends MappingSpec<Customer, CustomerModel> {
+  @ReadOnly
+  String id();
+}
+
+record Ticket(String ref, Customer customer, String note) {}
+
+record TicketDto(String ref, CustomerModel customer) {}
+
+@GenerateMapping
+interface TicketMapping extends MappingSpec<Ticket, TicketDto> {}"""),
+        dict(id="maps-as-two-halves", kind="note",
+             heading="'X' maps as two halves: the generated Impl carries parse, build, asValidatedParse() and asValidatedBuild(), and no asValidatedPrism()",
+             fragment="maps as two halves",
+             meaning="A mapping that builds and parses nests, or dispatches to, a spec with a read-only property, so its own `parse` cannot read back what its `build` wrote. It takes the two halves, each nesting through that spec's half, and the note names the spec.",
+             fix="Nothing, unless you need `asValidatedPrism()`: law-check each half with its `MappingLaws` overload. A leaf joining the nested spec's halves keeps the whole prism, at the cost of a round trip that loses the read-only property.",
+             rule=("Nesting a mapping with two halves", "rules.md#nesting-two-halves"),
              code="""record Customer(String id, String name) {}
 
 class CustomerModel {
@@ -1619,7 +1648,7 @@ CustomerMappingImpl mapper = CustomerMappingImpl.INSTANCE;"""),
              fragment="cannot find symbol",
              display="cannot find symbol … method asIso()",
              marker="method asIso()",
-             meaning="The Impl has no such method, because your spec's shape does not support it: a leaf withholds `asIso()`, a projection has no `parse`, a one-directional bean has only `build` or only `parse`, and an `UpdateSpec` has only `updateFrom`.",
+             meaning="The Impl has no such method, because your spec's shape does not support it: a leaf withholds `asIso()`, a projection has no `parse`, a one-directional bean has only `build` or only `parse`, and an `UpdateSpec` has only `updateFrom`. A mapping with a read-only property, or nesting or dispatching to one, has `asValidatedParse()` and `asValidatedBuild()` in place of `asValidatedPrism()`.",
              fix="Call a method your spec's shape gets; [the method table](tiers.md#which-methods-your-spec-gets) says when each appears.",
              rule=("Which methods your spec gets", "tiers.md#which-methods-your-spec-gets"),
              code="""record Customer(EmailAddress email) {}

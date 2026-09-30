@@ -58,14 +58,14 @@ public final class PetMappingImpl implements PetMapping {
   }
 
   /**
-   * This mapping's {@code parse} as a {@link ValidatedParse}, so a mapping that only parses can nest it directly or lift it through containers.
+   * This mapping's {@code parse} as a {@link ValidatedParse}, so another mapping's {@code parse} can nest it directly or lift it through containers.
    */
   public ValidatedParse<PetModel, Pet> asValidatedParse() {
     return hkj$parseAdapter;
   }
 
   /**
-   * This mapping's {@code build} as a {@link ValidatedBuild}, so a mapping that only builds can nest it directly or lift it through containers.
+   * This mapping's {@code build} as a {@link ValidatedBuild}, so another mapping's {@code build} can nest it directly or lift it through containers.
    */
   public ValidatedBuild<PetModel, Pet> asValidatedBuild() {
     return hkj$buildAdapter;

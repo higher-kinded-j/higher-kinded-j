@@ -1041,7 +1041,7 @@ class MappingFixLineTest {
                 public String getName() { return name; }
                 public void setName(String name) { this.name = name; }
               }
-              record Keeper(String name, Pet pet) {}
+              record Keeper(String name, Pet pet, int visits) {}
               class KeeperModel {
                 private String name;
                 private ReadOnlyPetModel pet;
@@ -1090,7 +1090,8 @@ class MappingFixLineTest {
               "To nest it here anyway, add 'default ValidatedPrism<com.example.ReadOnlyPetModel,"
                   + " com.example.Pet> pet() { return"
                   + " ValidatedPrism.of(ReadOnlyPetMappingImpl.INSTANCE::parse,"
-                  + " ReadOnlyPetMappingImpl.INSTANCE::build); }' to the spec");
+                  + " ReadOnlyPetMappingImpl.INSTANCE::build); }' to the spec: this mapping's patch"
+                  + " then cannot restore what the nested build leaves out.");
       assertThat(compilation)
           .hadErrorContaining(
               "Add setId(Long) to 'PetModel'. Or, if 'id' is read-only, declare '@ReadOnly Long"
@@ -1200,7 +1201,7 @@ class MappingFixLineTest {
                 public String getName() { return name; }
                 public void setName(String name) { this.name = name; }
               }
-              record Keeper(String name, Pet pet) {}
+              record Keeper(String name, Pet pet, int visits) {}
               class KeeperModel {
                 private String name;
                 private ReadOnlyPetModel pet;
@@ -1289,7 +1290,9 @@ class MappingFixLineTest {
                   KeeperModel wire = new KeeperModel();
                   wire.setName("Ada");
                   wire.setPet(pet);
-                  return KeeperMappingImpl.INSTANCE.parse(wire).map(Keeper::pet);
+                  return KeeperMappingImpl.INSTANCE
+                      .patch(new Keeper("Ada", null, 3), wire)
+                      .map(Keeper::pet);
                 }
               }
               """);
