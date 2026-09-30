@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -21,6 +22,8 @@ import org.assertj.core.api.Assertions;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.edit.Edits;
+import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -36,6 +39,59 @@ class MappingProcessorBeanTest {
 
           public record EmailAddress(String value) {}
           """);
+
+  // Stands in for jackson-databind-nullable's holder, which the processor recognises by name.
+  private static final JavaFileObject JSON_NULLABLE =
+      JavaFileObjects.forSourceString(
+          "org.openapitools.jackson.nullable.JsonNullable",
+          """
+          package org.openapitools.jackson.nullable;
+
+          public final class JsonNullable<T> {
+            private static final JsonNullable<?> UNDEFINED = new JsonNullable<>(null, false);
+            private final T value;
+            private final boolean present;
+
+            private JsonNullable(T value, boolean present) {
+              this.value = value;
+              this.present = present;
+            }
+
+            @SuppressWarnings("unchecked")
+            public static <T> JsonNullable<T> undefined() {
+              return (JsonNullable<T>) UNDEFINED;
+            }
+
+            public static <T> JsonNullable<T> of(T value) {
+              return new JsonNullable<>(value, true);
+            }
+
+            public boolean isPresent() {
+              return present;
+            }
+
+            public T get() {
+              if (!present) {
+                throw new java.util.NoSuchElementException("undefined");
+              }
+              return value;
+            }
+
+            public T orElse(T other) {
+              return present ? value : other;
+            }
+          }
+          """);
+
+  /** Instantiates a compiled record through its canonical constructor. */
+  private static Object record(
+      RuntimeCompilationHelper.CompiledResult result, String name, Object... components)
+      throws ReflectiveOperationException {
+    return result
+        .loadClass("com.example." + name)
+        .getDeclaredConstructors()[0]
+        .newInstance(components);
+  }
 
   private Compilation compile(JavaFileObject... sources) {
     return javac().withProcessors(new MappingProcessor()).compile(sources);
@@ -3990,42 +4046,6 @@ class MappingProcessorBeanTest {
   @DisplayName("openapi-generator JsonNullable companions")
   class JsonNullableCompanions {
 
-    // Stands in for jackson-databind-nullable's holder, which the processor recognises by name.
-    private static final JavaFileObject JSON_NULLABLE =
-        JavaFileObjects.forSourceString(
-            "org.openapitools.jackson.nullable.JsonNullable",
-            """
-            package org.openapitools.jackson.nullable;
-
-            public final class JsonNullable<T> {
-              private static final JsonNullable<?> UNDEFINED = new JsonNullable<>(null, false);
-              private final T value;
-              private final boolean present;
-
-              private JsonNullable(T value, boolean present) {
-                this.value = value;
-                this.present = present;
-              }
-
-              @SuppressWarnings("unchecked")
-              public static <T> JsonNullable<T> undefined() {
-                return (JsonNullable<T>) UNDEFINED;
-              }
-
-              public static <T> JsonNullable<T> of(T value) {
-                return new JsonNullable<>(value, true);
-              }
-
-              public boolean isPresent() {
-                return present;
-              }
-
-              public T orElse(T other) {
-                return present ? value : other;
-              }
-            }
-            """);
-
     // Two nullable properties as openapi-generator's Java models write them by default
     // (openApiNullable=true), Jackson annotations aside.
     private static final JavaFileObject PET_MODEL =
@@ -4081,16 +4101,6 @@ class MappingProcessorBeanTest {
 
           """
               + body);
-    }
-
-    /** Instantiates a compiled record through its canonical constructor. */
-    private static Object record(
-        RuntimeCompilationHelper.CompiledResult result, String name, Object... components)
-        throws ReflectiveOperationException {
-      return result
-          .loadClass("com.example." + name)
-          .getDeclaredConstructors()[0]
-          .newInstance(components);
     }
 
     @Test
@@ -4364,6 +4374,483 @@ class MappingProcessorBeanTest {
       assertThat(compilation)
           .hadErrorContaining("derived field method 'nickname_JsonNullable' names no component");
       assertThat(compilation).hadErrorContaining("Found on PetModel: [name, nickname, tags].");
+    }
+  }
+
+  @Nested
+  @DisplayName("A JsonNullable PATCH property")
+  class JsonNullablePatchProperty {
+
+    // A PATCH request as openapi-generator's spring generator writes one by default
+    // (openApiNullable=true), Jackson and schema annotations aside: each nullable property is a
+    // JsonNullable, with a fluent setter taking the value it holds. The bridged nickname, which
+    // needs no null guard, comes first, so the Impl must still emit the guard a later one needs.
+    private static final JavaFileObject PET_PATCH =
+        JavaFileObjects.forSourceString(
+            "com.example.PetPatch",
+            """
+            package com.example;
+
+            import java.util.ArrayList;
+            import java.util.Arrays;
+            import java.util.List;
+            import java.util.Objects;
+            import org.openapitools.jackson.nullable.JsonNullable;
+
+            public class PetPatch {
+              private JsonNullable<String> nickname = JsonNullable.<String>undefined();
+              private JsonNullable<String> name = JsonNullable.<String>undefined();
+              private JsonNullable<String> email = JsonNullable.<String>undefined();
+              private JsonNullable<Integer> age = JsonNullable.<Integer>undefined();
+              private JsonNullable<List<String>> tags = JsonNullable.<List<String>>undefined();
+              private JsonNullable<AddressModel> address = JsonNullable.<AddressModel>undefined();
+              private JsonNullable<String> slug = JsonNullable.<String>undefined();
+              private JsonNullable<String> motto = JsonNullable.<String>undefined();
+
+              public PetPatch nickname(String nickname) {
+                this.nickname = JsonNullable.of(nickname);
+                return this;
+              }
+              public JsonNullable<String> getNickname() { return nickname; }
+              public void setNickname(JsonNullable<String> nickname) { this.nickname = nickname; }
+
+              public PetPatch name(String name) {
+                this.name = JsonNullable.of(name);
+                return this;
+              }
+              public JsonNullable<String> getName() { return name; }
+              public void setName(JsonNullable<String> name) { this.name = name; }
+
+              public PetPatch email(String email) {
+                this.email = JsonNullable.of(email);
+                return this;
+              }
+              public JsonNullable<String> getEmail() { return email; }
+              public void setEmail(JsonNullable<String> email) { this.email = email; }
+
+              public PetPatch age(Integer age) {
+                this.age = JsonNullable.of(age);
+                return this;
+              }
+              public JsonNullable<Integer> getAge() { return age; }
+              public void setAge(JsonNullable<Integer> age) { this.age = age; }
+
+              public PetPatch tags(List<String> tags) {
+                this.tags = JsonNullable.of(tags);
+                return this;
+              }
+              public PetPatch addTagsItem(String tagsItem) {
+                if (this.tags == null || !this.tags.isPresent() || this.tags.get() == null) {
+                  this.tags = JsonNullable.of(new ArrayList<>());
+                }
+                this.tags.get().add(tagsItem);
+                return this;
+              }
+              public JsonNullable<List<String>> getTags() { return tags; }
+              public void setTags(JsonNullable<List<String>> tags) { this.tags = tags; }
+
+              public PetPatch address(AddressModel address) {
+                this.address = JsonNullable.of(address);
+                return this;
+              }
+              public JsonNullable<AddressModel> getAddress() { return address; }
+              public void setAddress(JsonNullable<AddressModel> address) { this.address = address; }
+
+              public PetPatch slug(String slug) {
+                this.slug = JsonNullable.of(slug);
+                return this;
+              }
+              public JsonNullable<String> getSlug() { return slug; }
+              public void setSlug(JsonNullable<String> slug) { this.slug = slug; }
+
+              public PetPatch motto(String motto) {
+                this.motto = JsonNullable.of(motto);
+                return this;
+              }
+              public JsonNullable<String> getMotto() { return motto; }
+              public void setMotto(JsonNullable<String> motto) { this.motto = motto; }
+
+              @Override
+              public boolean equals(Object o) {
+                return o instanceof PetPatch other
+                    && equalsNullable(name, other.name)
+                    && equalsNullable(nickname, other.nickname);
+              }
+
+              private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+                return a == b
+                    || (a != null && b != null && a.isPresent() && b.isPresent()
+                        && Objects.deepEquals(a.get(), b.get()));
+              }
+
+              @Override
+              public int hashCode() {
+                return Objects.hash(hashCodeNullable(name), hashCodeNullable(nickname));
+              }
+
+              private static <T> int hashCodeNullable(JsonNullable<T> a) {
+                if (a == null) {
+                  return 1;
+                }
+                return a.isPresent() ? Arrays.deepHashCode(new Object[] {a.get()}) : 31;
+              }
+            }
+            """);
+
+    private static final JavaFileObject ADDRESS_MODEL =
+        JavaFileObjects.forSourceString(
+            "com.example.AddressModel",
+            """
+            package com.example;
+
+            public class AddressModel {
+              private String city;
+
+              public String getCity() { return city; }
+              public void setCity(String city) { this.city = city; }
+            }
+            """);
+
+    private static JavaFileObject source(String name, String body) {
+      return JavaFileObjects.forSourceString(
+          "com.example." + name,
+          """
+          package com.example;
+
+          import java.util.List;
+          import java.util.Map;
+          import java.util.Optional;
+          import org.higherkindedj.hkt.validated.FieldError;
+          import org.higherkindedj.hkt.validated.Validated;
+          import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MappingSpec;
+          import org.higherkindedj.optics.annotations.UpdateSpec;
+          import org.higherkindedj.optics.validated.ValidatedPrism;
+          import org.openapitools.jackson.nullable.JsonNullable;
+
+          """
+              + body);
+    }
+
+    /** A fresh PATCH bean, with each named property sent through its fluent setter. */
+    private static Object patch(RuntimeCompilationHelper.CompiledResult result, Object... sent)
+        throws ReflectiveOperationException {
+      Object bean = result.loadClass("com.example.PetPatch").getDeclaredConstructor().newInstance();
+      for (int i = 0; i < sent.length; i += 2) {
+        invoke(bean, (String) sent[i], sent[i + 1]);
+      }
+      return bean;
+    }
+
+    /** The Impl's {@code updateFrom}, as the sparse laws take it. */
+    @SuppressWarnings("unchecked")
+    private static Function<Object, Edits.Accumulated<Object>> accumulated(Object impl) {
+      return wire -> (Edits.Accumulated<Object>) invoke(impl, "updateFrom", wire);
+    }
+
+    @Test
+    @DisplayName("an omitted property keeps, a sent null clears an Optional, and a value sets")
+    void holderCarriesThreeStates() throws ReflectiveOperationException {
+      Compilation compilation =
+          compileLinted(
+              JSON_NULLABLE,
+              EMAIL,
+              PET_PATCH,
+              ADDRESS_MODEL,
+              source("Address", "public record Address(String city) {}"),
+              source(
+                  "Pet",
+                  """
+                  public record Pet(
+                      String name,
+                      Optional<String> nickname,
+                      Optional<EmailAddress> email,
+                      int age,
+                      List<String> tags,
+                      Optional<Address> address,
+                      Optional<String> slug,
+                      Optional<String> motto) {}
+                  """),
+              source(
+                  "AddressMapping",
+                  """
+                  @GenerateMapping
+                  public interface AddressMapping extends MappingSpec<Address, AddressModel> {}
+                  """),
+              source(
+                  "PetUpdate",
+                  """
+                  @GenerateMapping
+                  public interface PetUpdate extends UpdateSpec<Pet, PetPatch> {
+                    default ValidatedPrism<String, EmailAddress> email() {
+                      return ValidatedPrism.of(
+                          raw ->
+                              raw.contains("@")
+                                  ? Validated.validNel(new EmailAddress(raw))
+                                  : Validated.invalidNel(FieldError.of("not an email address")),
+                          EmailAddress::value);
+                    }
+
+                    // Over the whole Optional, so it wins over the bridge, as on a bean.
+                    default ValidatedPrism<String, Optional<String>> slug() {
+                      return ValidatedPrism.of(
+                          raw -> Validated.validNel(Optional.of(raw).filter(s -> !s.isBlank())),
+                          slug -> slug.orElse(""));
+                    }
+
+                    // Over the whole holder, so it decides what a sent null means.
+                    default ValidatedPrism<JsonNullable<String>, Optional<String>> motto() {
+                      return ValidatedPrism.of(
+                          held -> Validated.validNel(Optional.ofNullable(held.get())),
+                          motto -> JsonNullable.of(motto.orElse(null)));
+                    }
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.PetUpdateImpl"))
+          .contains("hkj$sent(wire.getNickname()), hkj$held -> ")
+          .contains("hkj$sent(wire.getMotto()), motto()::parse)")
+          .contains("A {@code JsonNullable} property is present once it is sent");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.PetUpdateImpl");
+      Function<Object, Edits.Accumulated<Object>> update = accumulated(impl);
+      Object leeds = record(result, "Address", "Leeds");
+      Object current =
+          record(
+              result,
+              "Pet",
+              "Rex",
+              Optional.of("R"),
+              Optional.of(record(result, "EmailAddress", "rex@example.com")),
+              3,
+              List.of("good"),
+              Optional.of(leeds),
+              Optional.of("rex"),
+              Optional.of("Woof"));
+
+      // A property left out stays undefined(), so an empty PATCH is the identity.
+      MappingLaws.assertSparseIdentity(update, current, patch(result));
+
+      // A sent null clears an Optional component, whatever parses its value; a whole-Optional
+      // leaf is guarded instead, as a bean's plain property is.
+      assertThatValidated(
+              update
+                  .apply(
+                      patch(
+                          result, "nickname", null, "email", null, "address", null, "motto", null))
+                  .apply(current))
+          .isEqualTo(
+              Validated.validNel(
+                  record(
+                      result,
+                      "Pet",
+                      "Rex",
+                      Optional.empty(),
+                      Optional.empty(),
+                      3,
+                      List.of("good"),
+                      Optional.empty(),
+                      Optional.of("rex"),
+                      Optional.empty())));
+
+      Object york =
+          result.loadClass("com.example.AddressModel").getDeclaredConstructor().newInstance();
+      invoke(york, "setCity", "York");
+      Object sent =
+          patch(
+              result,
+              "name",
+              "Max",
+              "nickname",
+              "M",
+              "email",
+              "max@example.com",
+              "age",
+              4,
+              "tags",
+              List.of("brave"),
+              "address",
+              york,
+              "slug",
+              " ",
+              "motto",
+              "Grr");
+      assertThatValidated(update.apply(sent).apply(current))
+          .isEqualTo(
+              Validated.validNel(
+                  record(
+                      result,
+                      "Pet",
+                      "Max",
+                      Optional.of("M"),
+                      Optional.of(record(result, "EmailAddress", "max@example.com")),
+                      4,
+                      List.of("brave"),
+                      Optional.of(record(result, "Address", "York")),
+                      Optional.empty(),
+                      Optional.of("Grr"))));
+      MappingLaws.assertSparseIdempotent(update, current, sent);
+
+      // A sent null on any other component, and a sent value its parse refuses, fail located.
+      Object invalid =
+          patch(
+              result,
+              "name",
+              null,
+              "email",
+              "max",
+              "age",
+              null,
+              "tags",
+              Arrays.asList("brave", null),
+              "slug",
+              null);
+      assertThatValidated(update.apply(invalid).apply(current))
+          .hasFieldErrors(
+              "name: must not be null",
+              "email: not an email address",
+              "age: must not be null",
+              "tags.1: must not be null",
+              "slug: must not be null");
+      MappingLaws.assertSparseValidationFails(update, current, invalid);
+    }
+
+    @Test
+    @DisplayName("a holder with no usable type or value, and a companion on an Optional, refuse")
+    void refusals() {
+      String patch =
+          """
+          public class %s {
+            public %s get%s() { return null; }
+            public void set%s(%s value) {}
+          }
+          """;
+      Compilation compilation =
+          compile(
+              JSON_NULLABLE,
+              EMAIL,
+              source("Coded", "public record Coded(String code) {}"),
+              source(
+                  "RawPatch",
+                  "@SuppressWarnings(\"rawtypes\")\n"
+                      + patch.formatted(
+                          "RawPatch", "JsonNullable", "Code", "Code", "JsonNullable")),
+              source(
+                  "RawUpdate",
+                  "@GenerateMapping public interface RawUpdate extends UpdateSpec<Coded, RawPatch>"
+                      + " {}"),
+              source(
+                  "WildPatch",
+                  patch.formatted(
+                      "WildPatch",
+                      "JsonNullable<? extends String>",
+                      "Code",
+                      "Code",
+                      "JsonNullable<? extends String>")),
+              source(
+                  "WildUpdate",
+                  "@GenerateMapping public interface WildUpdate extends UpdateSpec<Coded,"
+                      + " WildPatch> {}"),
+              source("Mail", "public record Mail(EmailAddress email) {}"),
+              source(
+                  "MailPatch",
+                  patch.formatted(
+                      "MailPatch",
+                      "JsonNullable<String>",
+                      "Email",
+                      "Email",
+                      "JsonNullable<String>")),
+              source(
+                  "MailUpdate",
+                  "@GenerateMapping public interface MailUpdate extends UpdateSpec<Mail, MailPatch>"
+                      + " {}"),
+              source("MaybeMail", "public record MaybeMail(Optional<EmailAddress> email) {}"),
+              source(
+                  "MaybeMailUpdate",
+                  "@GenerateMapping public interface MaybeMailUpdate extends UpdateSpec<MaybeMail,"
+                      + " MailPatch> {}"),
+              source("Counted", "public record Counted(int count) {}"),
+              source(
+                  "CountPatch",
+                  patch.formatted(
+                      "CountPatch",
+                      "JsonNullable<String>",
+                      "Count",
+                      "Count",
+                      "JsonNullable<String>")),
+              source(
+                  "CountUpdate",
+                  "@GenerateMapping public interface CountUpdate extends UpdateSpec<Counted,"
+                      + " CountPatch> {}"),
+              source("Keyed", "public record Keyed(Map<Integer, String> labels) {}"),
+              source(
+                  "KeyedPatch",
+                  patch.formatted(
+                      "KeyedPatch",
+                      "JsonNullable<Map<String, String>>",
+                      "Labels",
+                      "Labels",
+                      "JsonNullable<Map<String, String>>")),
+              source(
+                  "KeyedUpdate",
+                  "@GenerateMapping public interface KeyedUpdate extends UpdateSpec<Keyed,"
+                      + " KeyedPatch> {}"),
+              // A java client model's companion is left out, so its plain getter carries no clear.
+              source("Nicknamed", "public record Nicknamed(Optional<String> nickname) {}"),
+              source(
+                  "NicknameModel",
+                  """
+                  public class NicknameModel {
+                    public String getNickname() { return null; }
+                    public void setNickname(String nickname) {}
+                    public JsonNullable<String> getNickname_JsonNullable() { return null; }
+                    public void setNickname_JsonNullable(JsonNullable<String> nickname) {}
+                  }
+                  """),
+              source(
+                  "NicknameUpdate",
+                  "@GenerateMapping public interface NicknameUpdate extends"
+                      + " UpdateSpec<Nicknamed, NicknameModel> {}"));
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors()).hasSize(7);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the wire property 'code' (org.openapitools.jackson.nullable.JsonNullable) does not"
+                  + " name the type its JsonNullable holds.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the wire property 'code' (org.openapitools.jackson.nullable.JsonNullable<? extends"
+                  + " java.lang.String>) does not name the type its JsonNullable holds.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'code' as JsonNullable<T>, with T the type it holds, such as"
+                  + " JsonNullable<java.lang.String>.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the value the wire property 'email'"
+                  + " (org.openapitools.jackson.nullable.JsonNullable<java.lang.String>) holds cannot"
+                  + " be written into Mail.email (com.example.EmailAddress).");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the value the wire property 'email'"
+                  + " (org.openapitools.jackson.nullable.JsonNullable<java.lang.String>) holds cannot"
+                  + " be written into MaybeMail.email"
+                  + " (java.util.Optional<com.example.EmailAddress>).");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare a leaf 'default ValidatedPrism<java.lang.String, com.example.EmailAddress>"
+                  + " email()', or align the types.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'Counted.count' as java.lang.Integer, and a leaf 'default"
+                  + " ValidatedPrism<java.lang.String, java.lang.Integer> count()' converts into it.");
+      assertThat(compilation)
+          .hadErrorContaining("field 'labels' maps between Maps whose key types differ");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the wire property 'nickname' bridges the domain Optional component"
+                  + " Nicknamed.nickname");
     }
   }
 

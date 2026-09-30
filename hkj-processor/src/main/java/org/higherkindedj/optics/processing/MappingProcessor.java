@@ -5181,7 +5181,7 @@ public class MappingProcessor extends AbstractProcessor {
                           domainCrossing((DeclaredType) domainArg, edit.domainName());
                       return Stream.concat(
                           Stream.of(domainSide, wireCrossing(wireShape, edit.wireName())),
-                          inferredCrossings(domainSide, edit.scan()));
+                          inferredCrossings(domainSide, edit.valueScan()));
                     }))) {
       return;
     }
@@ -5200,6 +5200,12 @@ public class MappingProcessor extends AbstractProcessor {
    * carries no prism yet still parses — its {@link NullScan}). {@code scan} is the null scan the
    * edit's identity-copied part carries, and {@code copy} the copy it reads the wire through, as
    * {@link Correspondence#scan()} and {@link Correspondence#copy()} describe.
+   *
+   * <p>{@code holder} says the property is a {@code JsonNullable}, whose presence the holder
+   * carries: the edit reads it through {@code hkj$sent}, which answers {@code null} for an {@code
+   * undefined()} holder, so {@code parseIfPresent} leaves the component unchanged. {@code held},
+   * when set, is how a sent value parses, as the dense tiers parse a plain property of the type the
+   * holder carries; the edit's own parse parts are then unused.
    */
   private record UpdateEdit(
       String domainName,
@@ -5209,15 +5215,34 @@ public class MappingProcessor extends AbstractProcessor {
       TypeName domainElement,
       CodeBlock valuePrism,
       NullScan scan,
-      ContainerCopy copy) {
+      ContainerCopy copy,
+      boolean holder,
+      Correspondence held) {
 
     static UpdateEdit identity(String domainName, String wireName, TypeMirror type, NullScan scan) {
       return new UpdateEdit(
-          domainName, wireName, Kind.IDENTITY, null, null, null, scan, ContainerCopy.of(type));
+          domainName,
+          wireName,
+          Kind.IDENTITY,
+          null,
+          null,
+          null,
+          scan,
+          ContainerCopy.of(type),
+          false,
+          null);
     }
 
-    static UpdateEdit validated(String domainName, String wireName, Kind kind, CodeBlock prism) {
-      return new UpdateEdit(domainName, wireName, kind, prism, null, null, null, null);
+    static UpdateEdit validated(
+        String domainName, String wireName, Kind kind, CodeBlock prism, boolean holder) {
+      return new UpdateEdit(
+          domainName, wireName, kind, prism, null, null, null, null, holder, null);
+    }
+
+    /** A {@code JsonNullable} property's edit, whose sent value parses as {@code held} does. */
+    static UpdateEdit sent(String domainName, String wireName, Correspondence held) {
+      return new UpdateEdit(
+          domainName, wireName, held.kind(), null, null, null, null, null, true, held);
     }
 
     /**
@@ -5233,11 +5258,23 @@ public class MappingProcessor extends AbstractProcessor {
           c.domainElement(),
           c.valuePrism(),
           c.scan(),
-          c.copy());
+          c.copy(),
+          false,
+          null);
     }
 
     boolean parsed() {
       return prism != null || scan != null;
+    }
+
+    /** The null scan the edit's value carries: its own, or its sent value's. */
+    NullScan valueScan() {
+      return held == null ? scan : held.valueScan();
+    }
+
+    /** The copy the edit's value is written through: its own, or its sent value's. */
+    ContainerCopy valueCopy() {
+      return held == null ? copy : held.valueCopy();
     }
   }
 
@@ -5303,14 +5340,33 @@ public class MappingProcessor extends AbstractProcessor {
       // An explicit whole-component leaf wins even over a same-typed match, so it can validate or
       // normalise a copied field; on a container pair it also beats the element interpretation,
       // as the more specific declaration.
+      // A leaf over a whole JsonNullable is called only for a sent value, as the holder says.
       ExecutableElement leaf = findLeaf(spec, domainName, wireType, domainType);
+      boolean holder = BeanPropertyAnalyser.isJsonNullable(wireType);
       if (leaf != null) {
         if (!checkKeyLeafReached(spec, domainName, leaf, wireType, domainType, site)) {
           return null;
         }
         edits.add(
             UpdateEdit.validated(
-                domainName, property.name(), Kind.LEAF, leafCall(spec, leaf.getSimpleName())));
+                domainName,
+                property.name(),
+                Kind.LEAF,
+                leafCall(spec, leaf.getSimpleName()),
+                holder));
+        continue;
+      }
+
+      // A JsonNullable property tells a field the client left out, undefined(), from one it sent
+      // as null, so it carries the third state a plain property lacks: the holder says whether the
+      // field was sent, and a sent value, null included, parses as a plain property of the type the
+      // holder carries would.
+      if (holder) {
+        UpdateEdit sent = classifySent(spec, registry, domain, property, domainComp, site);
+        if (sent == null) {
+          return null;
+        }
+        edits.add(sent);
         continue;
       }
 
@@ -5355,7 +5411,8 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       if (nested.accessor() != null) {
-        edits.add(UpdateEdit.validated(domainName, property.name(), Kind.LEAF, nested.accessor()));
+        edits.add(
+            UpdateEdit.validated(domainName, property.name(), Kind.LEAF, nested.accessor(), false));
         continue;
       }
 
@@ -5363,6 +5420,141 @@ public class MappingProcessor extends AbstractProcessor {
       return null;
     }
     return edits;
+  }
+
+  /**
+   * Classifies a {@code JsonNullable} property's sent value against its domain component, as the
+   * dense tiers parse a bean's plain property of the type the holder carries: a leaf over that type
+   * and the component first, then, for an {@code Optional} component, the bridge, which reads a
+   * sent {@code null} as {@code Optional.empty()} and parses a value as the pair inside the {@code
+   * Optional} would, and otherwise the pair's own resolution, which guards a sent {@code null} as a
+   * located {@code must not be null}. The holder's wrapper type writes straight into a primitive
+   * component, as a plain property's does. Returns null after reporting.
+   */
+  private UpdateEdit classifySent(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeElement domain,
+      WireShape.WireComponent property,
+      RecordComponentElement domainComp,
+      LeafSite site) {
+    List<? extends TypeMirror> arguments = ((DeclaredType) property.type()).getTypeArguments();
+    if (arguments.isEmpty() || arguments.getFirst().getKind() == TypeKind.WILDCARD) {
+      reportUnheldJsonNullable(spec, property);
+      return null;
+    }
+    TypeMirror held = arguments.getFirst();
+    String name = domainComp.getSimpleName().toString();
+    TypeMirror domainType = domainComp.asType();
+    if (domainType.getKind().isPrimitive() && identityMatch(held, domainType)) {
+      return UpdateEdit.sent(
+          name, property.name(), new Correspondence(name, property.name(), Kind.IDENTITY, null));
+    }
+    TypeMirror optional = containerElement(domainType, "java.util.Optional");
+    boolean bridged = optional != null && findLeaf(spec, name, held, domainType) == null;
+    TypeMirror target = bridged ? bridgeElement(optional) : domainType;
+    PairResolution resolved =
+        resolvePair(spec, registry, name, property.name(), held, target, Need.PARSE, site);
+    if (resolved.reported()) {
+      return null;
+    }
+    if (resolved.correspondence() == null) {
+      reportNoSentSource(spec, registry, domain, property, domainComp, held, target);
+      return null;
+    }
+    return UpdateEdit.sent(
+        name,
+        property.name(),
+        bridged
+            ? bridgedCorrespondence(resolved.correspondence(), target, implPackage(spec))
+            : resolved.correspondence());
+  }
+
+  /**
+   * A {@code JsonNullable} property whose holder names no type: a raw one, or a wildcard, which no
+   * leaf can be declared over. A sent value parses as a property of the type the holder carries, so
+   * there is nothing to parse it as.
+   */
+  private void reportUnheldJsonNullable(TypeElement spec, WireShape.WireComponent property) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the wire property '"
+            + property.name()
+            + "' ("
+            + ProcessorUtils.qualifiedTypeName(property.type())
+            + ") does not name the type its JsonNullable holds.",
+        "A sparse update parses a sent value as a property of the type the JsonNullable holds, and"
+            + " a raw or wildcard JsonNullable names no type a leaf could be declared over.",
+        "Declare '"
+            + property.name()
+            + "' as JsonNullable<T>, with T the type it holds, such as"
+            + " JsonNullable<java.lang.String>.");
+  }
+
+  /**
+   * A {@code JsonNullable} property whose sent value nothing writes into its domain component. The
+   * value parses as a plain property of the type the holder carries, so the refusal names that
+   * type, never the holder, and for a bridged {@code Optional} component the type inside it.
+   */
+  private void reportNoSentSource(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeElement domain,
+      WireShape.WireComponent property,
+      RecordComponentElement domainComp,
+      TypeMirror held,
+      TypeMirror target) {
+    String name = domainComp.getSimpleName().toString();
+    LeafOffer offer = leafOffer(spec, name, held, target);
+    boolean primitive = target.getKind().isPrimitive();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the value the wire property '"
+            + property.name()
+            + "' ("
+            + ProcessorUtils.qualifiedTypeName(property.type())
+            + ") holds cannot be written into "
+            + domain.getSimpleName()
+            + "."
+            + name
+            + " ("
+            + ProcessorUtils.qualifiedTypeName(domainComp.asType())
+            + ").",
+        "A sparse update parses a sent JsonNullable's value as a plain "
+            + ProcessorUtils.qualifiedTypeName(held)
+            + " property: by identity, through a leaf named after the domain component, through an"
+            + " element leaf lifted over a List, Set, array, Optional or Map, or through a nested"
+            + " spec. An Optional component takes the value inside it, and a sent null clears it."
+            + leafNearMissHint(spec, name, held, target)
+            + (primitive ? PRIMITIVE_REASON : "")
+            + unusableSpecHint(
+                spec,
+                registry,
+                offer.wire(),
+                offer.domain(),
+                Need.PARSE,
+                "be nested in a sparse update, which parses what it reads"),
+        primitive
+            ? "Declare '"
+                + domain.getSimpleName()
+                + "."
+                + name
+                + "' as "
+                + ProcessorUtils.qualifiedTypeName(boxed(target))
+                + ", and a leaf '"
+                + keptAnnotations(spec, name, property.name())
+                + "default ValidatedPrism<"
+                + ProcessorUtils.qualifiedTypeName(held)
+                + ", "
+                + ProcessorUtils.qualifiedTypeName(boxed(target))
+                + "> "
+                + name
+                + "()' converts into it."
+            : updateLeafSuggestion(spec, name, property.name(), held, target));
   }
 
   /**
@@ -6020,7 +6212,12 @@ public class MappingProcessor extends AbstractProcessor {
                 "be nested in a sparse update, which parses what it reads"),
         domainComp.asType().getKind().isPrimitive()
             ? primitiveUpdateFix(spec, domain, wire, property, domainComp)
-            : updateLeafSuggestion(spec, property, domainComp));
+            : updateLeafSuggestion(
+                spec,
+                domainComp.getSimpleName().toString(),
+                property.name(),
+                property.type(),
+                domainComp.asType()));
   }
 
   /**
@@ -6072,16 +6269,14 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * The fix line for {@link #reportNoUpdateSource}: for a container pair the element leaf comes
-   * first (the shared-vocabulary form, lifted over the container), with the whole-container leaf as
-   * the more specific alternative; scalar pairs keep the whole-component suggestion. The element
-   * pair is {@link #liftedPair}'s, so the sparse tier offers the leaf the dense tiers offer.
+   * The fix line for {@link #reportNoUpdateSource} and {@link #reportNoSentSource}, over the pair
+   * the property's value and the component make: for a container pair the element leaf comes first
+   * (the shared-vocabulary form, lifted over the container), with the whole-container leaf as the
+   * more specific alternative; scalar pairs keep the whole-component suggestion. The element pair
+   * is {@link #liftedPair}'s, so the sparse tier offers the leaf the dense tiers offer.
    */
   private String updateLeafSuggestion(
-      TypeElement spec, WireShape.WireComponent property, RecordComponentElement domainComp) {
-    TypeMirror wireType = property.type();
-    TypeMirror domainType = domainComp.asType();
-    String name = domainComp.getSimpleName().toString();
+      TypeElement spec, String name, String wireName, TypeMirror wireType, TypeMirror domainType) {
     TypeMirror[] lifted = liftedPair(spec, name, wireType, domainType);
     // A same-named default method is the near miss the why names, which a leaf replaces; so is a
     // rename marker, whose rename the leaf then carries.
@@ -6089,7 +6284,7 @@ public class MappingProcessor extends AbstractProcessor {
         sameNamedMember(spec, name)
             .map(existing -> "Replace " + placeOf(existing, spec) + " with ")
             .orElse("Declare ");
-    String rename = keptAnnotations(spec, name, property.name());
+    String rename = keptAnnotations(spec, name, wireName);
     if (lifted != null) {
       return declare
           + "an element leaf '"
@@ -6166,6 +6361,7 @@ public class MappingProcessor extends AbstractProcessor {
             .map(component -> component.getSimpleName().toString())
             .filter(name -> edits.stream().anyMatch(edit -> edit.domainName().equals(name)))
             .toList();
+    boolean holders = edits.stream().anyMatch(UpdateEdit::holder);
 
     // The explicit type arguments give every edit its target type up front. Left to inference,
     // javac solves the edits together with the call, at a cost that grows much faster than their
@@ -6182,19 +6378,32 @@ public class MappingProcessor extends AbstractProcessor {
     for (UpdateEdit edit : edits) {
       call.add(",\n");
       CodeBlock setter = setterExpr(componentsClass, written, edit.domainName());
-      // A present value is written as a copy, so the patched domain shares nothing with the wire.
+      // A present value is written as a copy, so the patched domain shares nothing with the wire;
+      // a JsonNullable holder is present once sent, which hkj$sent says, and its value is copied as
+      // it parses.
       CodeBlock read =
-          ContainerCopy.through(edit.copy(), wireRead(wire, edit.wireName()), SCAN_SCOPE);
-      if (edit.parsed()) {
+          edit.holder()
+              ? CodeBlock.of("hkj$$sent($L)", wireRead(wire, edit.wireName()))
+              : ContainerCopy.through(edit.copy(), wireRead(wire, edit.wireName()), SCAN_SCOPE);
+      if (edit.held() != null) {
+        call.add(
+            "    $T.parseIfPresent($L, $L, hkj$$held -> $L).at($S)",
+            EDIT,
+            setter,
+            read,
+            legValue(edit.held(), CodeBlock.of("hkj$$held.get()"), guardedRead(edit.held(), wire)),
+            edit.domainName());
+      } else if (edit.parsed()) {
         CodeBlock parser =
             switch (edit.kind()) {
               case OPTIONAL -> elementOfOptionalParser(edit.prism());
               // An identity edit parses only through its null scan.
               case IDENTITY -> edit.scan().asFunction(implName, SCAN_SCOPE);
-              // LEAF and the container kinds, through the call the dense leg makes; the dense-only
-              // kinds (OPTIONAL_BRIDGE, DERIVED) are never constructed as sparse edits, ONEOF is
-              // found only on a message, whose update is a FieldMask's, and the Kind-canary test
-              // forces a deliberate arm here before any new Kind can reach this switch.
+              // LEAF and the container kinds, through the call the dense leg makes; OPTIONAL_BRIDGE
+              // reaches a sparse edit only as a JsonNullable's sent value, which parses above,
+              // DERIVED never does, ONEOF is found only on a message, whose update is a
+              // FieldMask's, and the Kind-canary test forces a deliberate arm here before any new
+              // Kind can reach this switch.
               default ->
                   parseCall(
                           edit.kind(),
@@ -6225,7 +6434,7 @@ public class MappingProcessor extends AbstractProcessor {
                     domainDeclared,
                     wire,
                     List.of(),
-                    edits.stream().flatMap(edit -> inferred(edit.scan(), edit.copy()))))
+                    edits.stream().flatMap(edit -> inferred(edit.valueScan(), edit.valueCopy()))))
             .addModifiers(Modifier.PUBLIC)
             .returns(accumulatedReturn)
             .addParameter(wireName, "wire")
@@ -6233,7 +6442,11 @@ public class MappingProcessor extends AbstractProcessor {
                 "Folds the present (non-null) properties of {@code wire} into an update: an absent"
                     + " property leaves the domain unchanged, a present one is set (or parsed"
                     + " through its leaf) and located on failure. The domain is constructed once,"
-                    + " from the values the update ends on.\n")
+                    + " from the values the update ends on.$L\n",
+                holders
+                    ? " A {@code JsonNullable} property is present once it is sent, as null or a"
+                        + " value, and absent while it is {@code undefined()}."
+                    : "")
             .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
             .addStatement("$L", call.build())
             .build();
@@ -6250,11 +6463,39 @@ public class MappingProcessor extends AbstractProcessor {
             .addType(componentsRecord(domainDeclared, written, implName.packageName()));
     addMarkerStubs(implBuilder, spec);
     leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
+    if (holders) {
+      implBuilder.addMethod(sentHelper());
+    }
+    if (edits.stream().anyMatch(edit -> edit.held() != null && usesIfPresent(edit.held(), wire))) {
+      implBuilder.addMethod(ifPresentHelper());
+    }
     implBuilder.addMethods(
-        NullScan.helpers(edits.stream().map(UpdateEdit::scan).filter(Objects::nonNull)));
+        NullScan.helpers(edits.stream().map(UpdateEdit::valueScan).filter(Objects::nonNull)));
     implBuilder.addMethods(
-        ContainerCopy.helpers(edits.stream().map(UpdateEdit::copy).filter(Objects::nonNull)));
+        ContainerCopy.helpers(edits.stream().map(UpdateEdit::valueCopy).filter(Objects::nonNull)));
     writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
+   * The {@code hkj$sent} read a {@code JsonNullable} property's edit takes: the holder when the
+   * client sent the field, as {@code null} or a value, and {@code null} when it left the field out,
+   * which binds {@code undefined()}, or the bean holds no holder at all. {@code parseIfPresent}
+   * reads that {@code null} as absent and leaves the component unchanged. The holder is named by
+   * the class the processor recognises, which a bean declaring such a property has on its path.
+   */
+  private static MethodSpec sentHelper() {
+    TypeVariableName t = TypeVariableName.get("T");
+    TypeName holder =
+        ParameterizedTypeName.get(ClassName.bestGuess(BeanPropertyAnalyser.JSON_NULLABLE), t);
+    return MethodSpec.methodBuilder("hkj$sent")
+        .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+        .addTypeVariable(t)
+        .returns(holder)
+        .addParameter(holder, "holder")
+        .addJavadoc(
+            "The holder when its field was sent, as null or a value; null when it was left out.\n")
+        .addStatement("return holder != null && holder.isPresent() ? holder : null")
+        .build();
   }
 
   /**
