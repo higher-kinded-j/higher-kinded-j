@@ -222,6 +222,9 @@ public class MappingProcessor extends AbstractProcessor {
       ClassName.get("org.higherkindedj.optics.validated", "ValidatedBuild");
   private static final ClassName EDITS = ClassName.get("org.higherkindedj.optics.edit", "Edits");
   private static final ClassName EDIT = ClassName.get("org.higherkindedj.optics.edit", "Edit");
+  private static final ClassName FALLIBLE_EDIT =
+      ClassName.get("org.higherkindedj.optics.edit", "FallibleEdit");
+  private static final String FIELD_MASK = "com.google.protobuf.FieldMask";
   private static final ClassName ACCUMULATED =
       ClassName.get("org.higherkindedj.optics.edit", "Edits", "Accumulated");
   private static final ClassName SETTER = ClassName.get("org.higherkindedj.optics", "Setter");
@@ -434,6 +437,7 @@ public class MappingProcessor extends AbstractProcessor {
       TypeElement wireBean) {
     Set<String> wireNames;
     List<String> readOnly = List.of();
+    int oneofSlots = 0;
     if (wireRecord != null) {
       wireNames =
           wireRecord.getRecordComponents().stream()
@@ -465,14 +469,35 @@ public class MappingProcessor extends AbstractProcessor {
           bean.map(WireShape.BeanShape::readOnlyNames)
               .map(names -> order.stream().filter(names::contains).distinct().toList())
               .orElse(List.of());
+      Map<String, List<String>> named = wireNamesOf(env.getElementUtils(), spec, domain);
+      oneofSlots = bean.map(shape -> oneofSlots(shape, named)).orElse(0);
     }
-    if (domainSlots(env, spec, domain, domainDeclared)
+    if (domainSlots(env, spec, domain, domainDeclared) + oneofSlots
         != wireNames.size() - derivedCandidateCount(env, spec, wireNames)) {
       return new PairSurface(Surface.PROJECTION);
     }
     return readOnly.isEmpty()
         ? new PairSurface(Surface.FULL)
         : new PairSurface(Surface.READ_ONLY, readOnly);
+  }
+
+  /**
+   * The wire components beyond one each that the domain's components mapping a protobuf-java oneof
+   * whole call for, as the registry counts slots: every member but one, for each component named
+   * after a oneof, by the wire names each component reads ({@code named}), so a component renamed
+   * away from a oneof's name maps no oneof. Tolerant as {@link #domainSlots} is: the component's
+   * type is checked when its own spec is validated.
+   */
+  private static int oneofSlots(WireShape wire, Map<String, List<String>> named) {
+    Map<String, Long> members =
+        wire.components().stream()
+            .flatMap(component -> component.field().flatMap(WireShape.MessageField::oneof).stream())
+            .collect(Collectors.groupingBy(WireShape.OneofMember::oneof, Collectors.counting()));
+    return named.values().stream()
+        .flatMap(List::stream)
+        .filter(members::containsKey)
+        .mapToInt(name -> members.get(name).intValue() - 1)
+        .sum();
   }
 
   /**
@@ -985,6 +1010,7 @@ public class MappingProcessor extends AbstractProcessor {
         null,
         present,
         null,
+        null,
         null);
   }
 
@@ -1309,7 +1335,7 @@ public class MappingProcessor extends AbstractProcessor {
    * which is the typo guard; one inherited from a mix-in binds where it can and is otherwise inert,
    * like every other inherited vocabulary member, so one mix-in serves wires that differ.
    */
-  private Set<String> unmappedNames(TypeElement spec, WireShape wire, boolean sparse) {
+  private Set<String> unmappedNames(TypeElement spec, WireShape wire) {
     Set<String> unpaired =
         wire.unpaired().stream()
             .map(WireShape.UnpairedAccessor::name)
@@ -1355,13 +1381,14 @@ public class MappingProcessor extends AbstractProcessor {
                           + unpaired
                           + "."),
           carried
-              ? componentFix(
-                  wire,
-                  sparse,
-                  "Remove the marker; to leave the property out of the mapping, remove one of its"
+              ? messageField(wire, name).isPresent()
+                  ? "Remove the marker: every field of a protobuf-java message maps, so fill '"
+                      + name
+                      + "' from a domain component or a derived field."
+                  : "Remove the marker; to leave the property out of the mapping, remove one of its"
                       + " accessors from '"
                       + wire.element().getSimpleName()
-                      + "'.")
+                      + "'."
               : unpaired.isEmpty()
                   ? "Remove the marker."
                   : "Name the marker after the accessor's property, or remove it."
@@ -1431,8 +1458,14 @@ public class MappingProcessor extends AbstractProcessor {
           reads
               + ", which parse reads and build leaves unwritten, and an UpdateSpec has neither:"
               + " it folds what a client sends into an update.",
-          "Replace @ReadOnly with @Unmapped to leave the accessor out of the update, or remove the"
-              + " marker. A @ReadOnly marker a mix-in declares for a MappingSpec stays inert here.");
+          messageField(wire, name).isPresent()
+              ? "Remove the marker: every field of a protobuf-java message maps, and the update"
+                  + " edits '"
+                  + name
+                  + "' when its FieldMask names it."
+              : "Replace @ReadOnly with @Unmapped to leave the accessor out of the update, or"
+                  + " remove the marker. A @ReadOnly marker a mix-in declares for a MappingSpec"
+                  + " stays inert here.");
       return;
     }
     if (wire.direction() != WireShape.Direction.BIDIRECTIONAL) {
@@ -1482,12 +1515,11 @@ public class MappingProcessor extends AbstractProcessor {
           TAG,
           what + "names a property '" + bean + "' maps.",
           reads + ", and '" + name + "' is read and written, so the mapping carries it both ways.",
-          componentFix(
-              wire,
-              false,
-              "Remove the marker; to leave the property unwritten, remove its writer from '"
+          messageField(wire, name).isPresent()
+              ? "Remove the marker: build writes every field of a protobuf-java message it maps."
+              : "Remove the marker; to leave the property unwritten, remove its writer from '"
                   + bean
-                  + "'."));
+                  + "'.");
     } else if (accessor.filter(found -> !found.reads()).isPresent()) {
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -1674,34 +1706,31 @@ public class MappingProcessor extends AbstractProcessor {
             : "A mapping carries only the properties a bean both reads and writes, so "
                 + target
                 + " would go unmapped without a word: build would never write it.",
-        componentFix(
-            bean,
-            sparse,
-            addPartner(bean, accessor, sparse)
-                + refusal
-                    .partner()
-                    .map(
-                        other ->
-                            " Or, if "
-                                + other.signature()
-                                + " is meant to "
-                                + (accessor.reads() ? "write" : "read")
-                                + " '"
-                                + name
-                                + "', rename it "
-                                + other.renamedFor(name)
-                                + ".")
-                    .orElse(
-                        (accessor.reads() && readable.getAsBoolean()
-                                ? readOnlyOffer(spec, accessor)
-                                : "")
-                            + (sparse
-                                ? " Or, if clients must not change " + component
-                                : " Or, if "
-                                    + accessor.signature()
-                                    + " is not meant to carry "
-                                    + component)
-                            + unmappedOffer(spec, accessor))));
+        addPartner(bean, accessor, sparse)
+            + refusal
+                .partner()
+                .map(
+                    other ->
+                        " Or, if "
+                            + other.signature()
+                            + " is meant to "
+                            + (accessor.reads() ? "write" : "read")
+                            + " '"
+                            + name
+                            + "', rename it "
+                            + other.renamedFor(name)
+                            + ".")
+                .orElse(
+                    (accessor.reads() && readable.getAsBoolean()
+                            ? readOnlyOffer(spec, accessor)
+                            : "")
+                        + (sparse
+                            ? " Or, if clients must not change " + component
+                            : " Or, if "
+                                + accessor.signature()
+                                + " is not meant to carry "
+                                + component)
+                        + unmappedOffer(spec, accessor)));
   }
 
   /**
@@ -1907,14 +1936,11 @@ public class MappingProcessor extends AbstractProcessor {
               + " written can leave a property unset: a read-only bean's getter may answer from its"
               + " constructor or create its value on first call, and either reads as present and"
               + " overwrites the domain value.",
-          componentFix(
-              bean,
-              true,
-              "Give '"
-                  + name
-                  + "' setters or a builder for its properties, and getters that answer null until"
-                  + " a value is set, so an omitted field stays null, or extend MappingSpec instead,"
-                  + " whose dense parse needs no absence."));
+          "Give '"
+              + name
+              + "' setters or a builder for its properties, and getters that answer null until"
+              + " a value is set, so an omitted field stays null, or extend MappingSpec instead,"
+              + " whose dense parse needs no absence.");
     } else {
       Diagnostics.error(
           processingEnv.getMessager(),
@@ -1963,13 +1989,10 @@ public class MappingProcessor extends AbstractProcessor {
                   + name
                   + "' should be built too, give it a no-args constructor the generated Impl can"
                   + " call: public, or package-private beside the spec."
-              : componentFix(
-                  bean,
-                  false,
-                  "If '"
-                      + name
-                      + "' should be built too, give it a no-args constructor with setX setters"
-                      + " matching its getters, or a builder."));
+              : "If '"
+                  + name
+                  + "' should be built too, give it a no-args constructor with setX setters"
+                  + " matching its getters, or a builder.");
       return;
     }
     Diagnostics.note(
@@ -2087,6 +2110,163 @@ public class MappingProcessor extends AbstractProcessor {
         .findFirst()
         .flatMap(WireShape.BeanProperty::write)
         .orElse(null);
+  }
+
+  /**
+   * What a protobuf-java message says of its field named {@code wireName}: empty on any other wire.
+   */
+  private static Optional<WireShape.MessageField> messageField(WireShape wire, String wireName) {
+    return wire.componentNamed(wireName).flatMap(WireShape.WireComponent::field);
+  }
+
+  /**
+   * Refuses each member of a protobuf-java oneof that a correspondence fills with anything but a
+   * domain {@code Optional}, and answers whether none was. Setting one member of a oneof clears the
+   * others, so {@code build}, which writes every field it fills, would keep only the last member it
+   * wrote. A bridged {@code Optional} reads a member that is not set as empty, and leaves an empty
+   * one unwritten, so the member the message holds is the one present.
+   */
+  private boolean checkOneofsBridged(
+      TypeElement spec, TypeElement domain, WireShape wire, List<Correspondence> comps) {
+    List<Correspondence> unbridged =
+        comps.stream()
+            .filter(
+                c ->
+                    c.kind() != Kind.OPTIONAL_BRIDGE
+                        && c.kind() != Kind.ONEOF
+                        && messageField(wire, c.wireName())
+                            .flatMap(WireShape.MessageField::oneof)
+                            .isPresent())
+            .toList();
+    for (Correspondence c : unbridged) {
+      String oneof =
+          messageField(wire, c.wireName())
+              .flatMap(WireShape.MessageField::oneof)
+              .orElseThrow()
+              .oneof();
+      String member =
+          "'"
+              + c.wireName()
+              + "', a member of the oneof '"
+              + oneof
+              + "' of the protobuf-java message '"
+              + wire.element().getSimpleName()
+              + "'";
+      String why =
+          "Setting one member of a oneof clears the others, so build, which writes every field it"
+              + " fills, would keep only the last member of '"
+              + oneof
+              + "' it wrote. A domain Optional reads a member that is not set as empty, and leaves"
+              + " an empty one unwritten.";
+      if (c.kind() == Kind.DERIVED) {
+        Diagnostics.error(
+            processingEnv.getMessager(),
+            spec,
+            TAG,
+            "the derived field '" + c.name() + "' fills " + member + ".",
+            why,
+            "Remove the derived field '"
+                + c.name()
+                + "', and fill the member from an Optional domain component instead.");
+        continue;
+      }
+      TypeMirror type = componentNamed(domain, c.name()).asType();
+      Diagnostics.error(
+          processingEnv.getMessager(),
+          spec,
+          TAG,
+          "domain field '"
+              + domain.getSimpleName()
+              + "."
+              + c.name()
+              + "' is "
+              + ProcessorUtils.simpleTypeName(type)
+              + ", and fills "
+              + member
+              + ".",
+          why,
+          "Declare '"
+              + c.name()
+              + "' as Optional<"
+              + ProcessorUtils.simpleTypeName(boxed(type))
+              + ">, as every domain component filling a member of '"
+              + oneof
+              + "' must be; or map the whole oneof to one component named '"
+              + oneof
+              + "', a sealed interface with a record named after each member.");
+    }
+    return unbridged.isEmpty();
+  }
+
+  /**
+   * Refuses an {@code Optional} bridge onto a field of a protobuf-java message that does not track
+   * its presence: a proto3 scalar declared without {@code optional}, a repeated field or a map
+   * field. Unset, such a field reads its default, an empty collection for the last two, so an empty
+   * {@code Optional} that {@code build} leaves unset would read back as present. The fixes are the
+   * domain component's own type, whose default or empty collection then stands for nothing; for a
+   * scalar, the {@code optional} that makes protoc generate {@code hasX()}; and a leaf over the
+   * whole {@code Optional}, which reads the default as empty, for a message whose {@code .proto}
+   * file is not the author's to change.
+   */
+  private void reportPresencelessBridge(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape wire,
+      String name,
+      String wireName,
+      TypeMirror wireType,
+      TypeMirror domainType,
+      TypeMirror element) {
+    boolean collection = ContainerCopy.of(wireType) != null;
+    String has = "has" + ProcessorUtils.capitalise(wireName) + "()";
+    // The element of an Optional over a primitive field is its boxed type, which pairs with the
+    // field only as the primitive.
+    TypeMirror declared =
+        wireType.getKind().isPrimitive()
+                && processingEnv.getTypeUtils().isSameType(boxed(wireType), element)
+            ? wireType
+            : element;
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' is "
+            + ProcessorUtils.simpleTypeName(domainType)
+            + ", bridged to the field '"
+            + wireName
+            + "' of the protobuf-java message '"
+            + wire.element().getSimpleName()
+            + "', which does not track whether it is set.",
+        "The bridge needs "
+            + has
+            + " to tell an unset field from a set one, and protobuf generates none for "
+            + (collection
+                ? "a repeated or map field, which reads as an empty collection when unset"
+                : "a proto3 scalar declared without optional, which reads its default when unset")
+            + ", so an empty Optional would read back as present.",
+        "Declare '"
+            + name
+            + "' as "
+            + ProcessorUtils.simpleTypeName(declared)
+            + ", dropping the Optional, so the field's "
+            + (collection
+                ? "empty collection encodes nothing"
+                : "default encodes nothing; declare the field optional in its .proto file, so"
+                    + " protoc generates "
+                    + has)
+            + "; or give '"
+            + name
+            + "' a leaf over the whole Optional, a ValidatedPrism<"
+            + ProcessorUtils.simpleTypeName(boxed(wireType))
+            + ", "
+            + ProcessorUtils.simpleTypeName(domainType)
+            + "> that reads the "
+            + (collection ? "empty collection" : "default")
+            + " as empty.");
   }
 
   /**
@@ -3123,7 +3303,9 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       WireShape.WireComponent wireComponent,
       boolean local) {
-    if (wireComponent.type().getKind().isPrimitive()) {
+    // A message field is left to the bridge itself, which reads one that tracks its presence as
+    // null when unset, and refuses one that does not for the reason that applies to it.
+    if (wireComponent.type().getKind().isPrimitive() && wireComponent.field().isEmpty()) {
       // Removing the annotation is no way out: the domain Optional still has nothing to map to,
       // and a bean wire bridges without the annotation anyway. On a bean the wrapper leaves a
       // marker declared here redundant, so the fix drops it with the primitive.
@@ -3899,8 +4081,16 @@ public class MappingProcessor extends AbstractProcessor {
                           : (DeclaredType)
                               componentType(domain, componentNamed(domainRecord, c.group().name()));
                   Crossing domainSide = domainCrossing(owner, c.name());
+                  // A oneof's arm names its variant, to build it and to write from it.
+                  Stream<Crossing> named =
+                      c.kind() == Kind.ONEOF
+                          ? Stream.of(
+                              domainSide,
+                              wireCrossing(wire, c.wireName()),
+                              Reachability.declared(c.arm().variant()))
+                          : Stream.of(domainSide, wireCrossing(wire, c.wireName()));
                   return Stream.concat(
-                      Stream.of(domainSide, wireCrossing(wire, c.wireName())),
+                      named,
                       scanned ? inferredCrossings(domainSide, c.valueScan()) : Stream.empty());
                 }));
   }
@@ -4232,7 +4422,7 @@ public class MappingProcessor extends AbstractProcessor {
     }
     // Asked after flattening, which refuses a group spread across a bean, so a flattened component
     // is never told to take an accessor of its record's type.
-    Set<String> unmapped = unmappedNames(spec, wireShape, false);
+    Set<String> unmapped = unmappedNames(spec, wireShape);
     if (unmapped == null) {
       return;
     }
@@ -4273,6 +4463,12 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
+    // A component named after a protobuf-java oneof maps its members whole, as a sealed type.
+    List<OneofGroup> oneofs = collectOneofs(spec, domain, domainDeclared, wire, renames);
+    if (oneofs == null) {
+      return;
+    }
+
     if (!checkBridgesApply(spec, domain, domainDeclared, wire, renames, flattened)) {
       return;
     }
@@ -4292,7 +4488,8 @@ public class MappingProcessor extends AbstractProcessor {
       return;
     }
 
-    boolean projects = wire.componentCount() - derived.size() < wireSlots(domain, flattened);
+    boolean projects =
+        wire.componentCount() - derived.size() < wireSlots(domain, flattened, oneofs);
     // A tier that parses builds the whole domain, so every domain component is crossed. Asked
     // before classification, so a leaf or spec it offers for a hidden type does not lead here next.
     boolean parsesDomain =
@@ -4320,6 +4517,7 @@ public class MappingProcessor extends AbstractProcessor {
               wire,
               renames,
               flattened,
+              List.of(),
               WireShape.Direction.PARSE_ONLY);
       if (parsed == null || !mapsReachably(spec, domainDeclared, wire, parsed, true)) {
         return;
@@ -4337,7 +4535,9 @@ public class MappingProcessor extends AbstractProcessor {
               wire,
               renames,
               derived,
-              WireShape.Direction.BUILD_ONLY);
+              List.of(),
+              WireShape.Direction.BUILD_ONLY,
+              false);
       if (built == null || !mapsReachably(spec, domainDeclared, wire, built, false)) {
         return;
       }
@@ -4387,12 +4587,16 @@ public class MappingProcessor extends AbstractProcessor {
               projected,
               renames,
               List.of(),
-              WireShape.Direction.BIDIRECTIONAL);
+              oneofs,
+              WireShape.Direction.BIDIRECTIONAL,
+              true);
+      if (projection == null || !checkOneofsBridged(spec, domain, projected, projection)) {
+        return;
+      }
       // A write-back that can fail is no lens: it maps as the validated patch tier instead, whose
       // guarded reads scan what they copy.
-      boolean lens = projection != null && totalReads(projection, projected);
-      if (projection == null
-          || !mapsReachably(spec, domainDeclared, projected, projection, !lens)) {
+      boolean lens = totalReads(projection, projected);
+      if (!mapsReachably(spec, domainDeclared, projected, projection, !lens)) {
         return;
       }
       if (lens) {
@@ -4404,8 +4608,9 @@ public class MappingProcessor extends AbstractProcessor {
     }
 
     List<Correspondence> correspondences =
-        classify(spec, registry, domain, domainDeclared, wire, renames, derived, flattened);
+        classify(spec, registry, domain, domainDeclared, wire, renames, derived, flattened, oneofs);
     if (correspondences == null
+        || !checkOneofsBridged(spec, domain, wire, correspondences)
         || !mapsReachably(spec, domainDeclared, wire, correspondences, true)) {
       return;
     }
@@ -4493,7 +4698,6 @@ public class MappingProcessor extends AbstractProcessor {
     if (!checkNotGeneric(spec, domain, wireBean, NonGenericMapping.SPARSE)) {
       return;
     }
-
     WireShape.BeanShape wireShape =
         new BeanPropertyAnalyser(processingEnv).analysePatch(spec, wireBean, TAG);
     if (wireShape == null
@@ -4506,7 +4710,7 @@ public class MappingProcessor extends AbstractProcessor {
             specCrossings(spec, domainArg, wireBean.asType()))) {
       return;
     }
-    Set<String> unmapped = unmappedNames(spec, wireShape, true);
+    Set<String> unmapped = unmappedNames(spec, wireShape);
     if (unmapped == null
         || readOnlyNames(spec, domain, wireShape, Set.of(), true) == null
         || !checkPatchAccessorsPair(spec, domain, wireShape, unmapped)
@@ -4521,6 +4725,12 @@ public class MappingProcessor extends AbstractProcessor {
     // @Flatten marker is inert or refused turns on which of the group's inner properties this
     // PATCH bean carries with nothing else to fill them.
     if (!checkNoFlattened(spec, domain, (DeclaredType) domainArg, wireShape, renames)) {
+      return;
+    }
+    // A protobuf-java message reads a value for most fields it has not set, so its update names the
+    // fields it changes in a FieldMask instead.
+    if (BeanPropertyAnalyser.isMessage(processingEnv, wireBean)) {
+      processMaskedUpdate(spec, registry, domain, (DeclaredType) domainArg, wireShape, renames);
       return;
     }
 
@@ -4638,7 +4848,7 @@ public class MappingProcessor extends AbstractProcessor {
               .findFirst()
               .orElse(null);
       if (domainComp == null) {
-        reportDanglingWireProperty(spec, domain, wire, property);
+        reportDanglingWireProperty(spec, domain, property);
         return null;
       }
       // One wire property per domain component: a same-named property and a rename can otherwise
@@ -4650,7 +4860,7 @@ public class MappingProcessor extends AbstractProcessor {
       }
       claimedBy.put(domainName, property.name());
       if (property.type().getKind().isPrimitive()) {
-        reportPrimitiveProperty(spec, wire, property);
+        reportPrimitiveProperty(spec, property);
         return null;
       }
       TypeMirror wireType = property.type();
@@ -4848,6 +5058,373 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
+   * Processes a sparse-update spec over a protobuf-java message, whose update names the fields it
+   * changes in a {@code FieldMask}, as an update request built with protobuf does. The message is
+   * read as {@code MappingSpec} reads it, one-sided like the sparse tier: every field must name a
+   * domain component, and a component no field names is never edited. Each field the mask names
+   * then parses exactly as {@code parse} would parse it, so a field it names and the message leaves
+   * unset clears an {@code Optional}, empties a collection, and fails a component that must be set.
+   * A field an inherited derived field fills is the domain's to compute, not to edit, so it needs
+   * no component, and a mask naming it edits nothing: one vocabulary serves the spec and its {@code
+   * MappingSpec} sibling. Only {@code updateFrom(Wire, FieldMask)} is emitted.
+   */
+  private void processMaskedUpdate(
+      TypeElement spec,
+      List<RegisteredSpec> registry,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape.BeanShape wire,
+      Map<String, String> renames) {
+    List<OneofGroup> oneofs = collectOneofs(spec, domain, domainDeclared, wire, renames);
+    if (oneofs == null) {
+      return;
+    }
+    // Declared locally, a derived field is refused already; inherited, it fills a field the domain
+    // lacks.
+    List<DerivedField> derived =
+        specMembers(spec).stream()
+            .filter(method -> isDerivedCandidate(processingEnv.getTypeUtils(), spec, method))
+            .map(method -> method.getSimpleName().toString())
+            .filter(name -> wire.componentNamed(name).isPresent())
+            .filter(name -> componentNamed(domain, name) == null)
+            .map(DerivedField::new)
+            .toList();
+    List<String> unnamed = unfilled(domain, wire, renames, derived, List.of(), oneofs);
+    if (!unnamed.isEmpty()) {
+      reportUnmaskableFields(spec, domain, wire, unnamed);
+      return;
+    }
+    List<Correspondence> comps =
+        classifyWire(
+            spec,
+            registry,
+            domain,
+            domainDeclared,
+            wire,
+            renames,
+            derived,
+            oneofs,
+            WireShape.Direction.PARSE_ONLY,
+            false);
+    if (comps == null
+        || !checkOneofsBridged(spec, domain, wire, comps)
+        || !mapsReachably(spec, domainDeclared, wire, comps, true)) {
+      return;
+    }
+    writeMaskedUpdateImpl(spec, domain, domainDeclared, wire, comps);
+  }
+
+  /**
+   * Refuses the message fields no domain component takes, all at once: a {@code FieldMask} may name
+   * any field of the message, and the update writes each one it names into the component named
+   * after it. A oneof's members take one component named after the oneof.
+   */
+  private void reportUnmaskableFields(
+      TypeElement spec, TypeElement domain, WireShape wire, List<String> unnamed) {
+    Optional<String> oneof =
+        unnamed.stream()
+            .map(name -> messageField(wire, name).flatMap(WireShape.MessageField::oneof))
+            .flatMap(Optional::stream)
+            .map(WireShape.OneofMember::oneof)
+            .findFirst();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the fields "
+            + unnamed
+            + " of the protobuf-java message '"
+            + wire.element().getSimpleName()
+            + "' name no component of "
+            + domain.getSimpleName()
+            + ".",
+        "updateFrom writes each field its FieldMask names into the domain component named after"
+            + " it, and a mask may name any field of the message. Found on "
+            + domain.getSimpleName()
+            + ": "
+            + wireNames(domain.getRecordComponents())
+            + ".",
+        "Add to "
+            + domain.getSimpleName()
+            + " a component named after each, or a @MapField rename to it from one, on its leaf"
+            + " where it has one"
+            + oneof
+                .map(
+                    name ->
+                        "; the members of the oneof '"
+                            + name
+                            + "' take one component named '"
+                            + name
+                            + "', a sealed interface with a record named after each member")
+                .orElse("")
+            + ".");
+  }
+
+  /**
+   * Emits the update a {@code FieldMask} drives: {@code updateFrom(Wire, FieldMask) :
+   * Edits.Accumulated<Domain>}. Each component a field maps is edited when the mask names that
+   * field, or {@code *}, which names them all, and parses as its dense leg does ({@link
+   * #legValue}); a component mapping a oneof is edited when the mask names any member. A path that
+   * names no field is a located failure, and so is a nested path, which reaches into a field. The
+   * edits fold over the same {@code Components} record the sparse tier writes, so the domain is
+   * constructed once, from the values the update ends on.
+   */
+  private void writeMaskedUpdateImpl(
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      List<Correspondence> comps) {
+    ClassName specName = ClassName.get(spec);
+    ClassName implName = implClassName(spec);
+    TypeElement fieldMask = processingEnv.getElementUtils().getTypeElement(FIELD_MASK);
+    if (!checkNoEmittedCollisions(
+        spec,
+        "a FieldMask update",
+        List.of(EmittedMember.of("updateFrom", wire.element().asType(), fieldMask.asType())))) {
+      return;
+    }
+    TypeName domainName = TypeName.get(domain.asType());
+    ClassName componentsClass = implName.nestedClass("Components");
+    // One edit per component: a oneof's arms read their component once, as its first arm, and a
+    // derived field fills a field the domain computes, which the update leaves alone.
+    List<Correspondence> edited =
+        comps.stream()
+            .filter(MappingProcessor::leads)
+            .filter(c -> c.kind() != Kind.DERIVED)
+            .toList();
+    List<String> written =
+        domain.getRecordComponents().stream()
+            .map(component -> component.getSimpleName().toString())
+            .filter(name -> edited.stream().anyMatch(c -> c.name().equals(name)))
+            .toList();
+    CodeBlock.Builder body =
+        CodeBlock.builder()
+            .addStatement("$T.requireNonNull(wire, $S)", OBJECTS, "wire must not be null")
+            .addStatement("$T.requireNonNull(mask, $S)", OBJECTS, "mask must not be null")
+            .addStatement("$T<$T> paths = mask.getPathsList()", List.class, String.class)
+            .addStatement("boolean all = paths.contains($S)", "*")
+            .addStatement(
+                "$T<$T<$T>> edits = new $T<>()",
+                List.class,
+                FALLIBLE_EDIT,
+                componentsClass,
+                ArrayList.class)
+            // A path named twice fails once.
+            .beginControlFlow("for ($T path : paths.stream().distinct().toList())", String.class)
+            .beginControlFlow("if (!path.equals($S) && !hkj$$FIELDS.contains(path))", "*")
+            .addStatement(
+                "edits.add(new $T.Parsed<$T>($T.invalidNel($T.of(path.contains($S) ? $S :"
+                    + " hkj$$ONEOFS.getOrDefault(path, $S)))).at(path))",
+                FALLIBLE_EDIT,
+                componentsClass,
+                VALIDATED,
+                FIELD_ERROR,
+                ".",
+                "nested paths are not supported yet",
+                "names no field of " + wire.element().getSimpleName())
+            .endControlFlow()
+            .endControlFlow();
+    for (Correspondence c : edited) {
+      body.addStatement(
+          "edits.add($T.parseIfPresent($L, $L ? wire : null, _ -> $L).at($S))",
+          EDIT,
+          setterExpr(componentsClass, written, c.name()),
+          masked(c),
+          legValue(c, wireRead(wire, c.wireName()), guardedRead(c, wire)),
+          c.name());
+    }
+    body.addStatement(
+        "return $T.<$T, $T>accumulate($L, edits)",
+        EDITS,
+        domainName,
+        componentsClass,
+        componentsLens(domainName, componentsClass, domain, written));
+    MethodSpec updateFrom =
+        MethodSpec.methodBuilder("updateFrom")
+            .addAnnotations(pairSuppression(domainDeclared, wire, comps))
+            .addModifiers(Modifier.PUBLIC)
+            .returns(ParameterizedTypeName.get(ACCUMULATED, domainName))
+            .addParameter(TypeName.get(wire.element().asType()), "wire")
+            .addParameter(ClassName.get(fieldMask), "mask")
+            .addJavadoc(
+                "Applies the fields of {@code wire} that {@code mask} names, or every field for"
+                    + " {@code *}: each parses as {@code parse} would parse it, so a named field"
+                    + " left unset clears or fails its component, and a component no named field"
+                    + " maps is left unchanged. An empty mask names no field. A path naming no"
+                    + " field, a oneof or a nested field is a located failure. The domain is"
+                    + " constructed once, from the values the update ends on.\n")
+            .addCode(body.build())
+            .build();
+    // Each field's path, read from the message's descriptor where it carries one, so the name is
+    // exactly the one its .proto file declares; a lite message's is read from its Java names.
+    ClassName message = ClassName.get(wire.element());
+    boolean described = described(wire.element());
+    List<FieldSpec> pathFields =
+        wire.components().stream()
+            .map(
+                component -> {
+                  WireShape.MessageField field = component.field().orElseThrow();
+                  return FieldSpec.builder(
+                          String.class,
+                          pathOf(component.name()),
+                          Modifier.PRIVATE,
+                          Modifier.STATIC,
+                          Modifier.FINAL)
+                      .initializer(
+                          field
+                              .number()
+                              .filter(_ -> described)
+                              .map(
+                                  number ->
+                                      CodeBlock.of(
+                                          "$T.getDescriptor().findFieldByNumber($T.$L).getName()",
+                                          message,
+                                          message,
+                                          number))
+                              .orElseGet(() -> CodeBlock.of("$S", field.protoName())))
+                      .build();
+                })
+            .toList();
+    FieldSpec fields =
+        FieldSpec.builder(
+                ParameterizedTypeName.get(Set.class, String.class),
+                "hkj$FIELDS",
+                Modifier.PRIVATE,
+                Modifier.STATIC,
+                Modifier.FINAL)
+            .initializer(
+                "$T.of($L)",
+                Set.class,
+                wire.components().stream()
+                    .map(component -> CodeBlock.of("$L", pathOf(component.name())))
+                    .collect(CodeBlock.joining(", ")))
+            .build();
+    // A oneof's name is no path, as protobuf's FieldMask rules have it: its members are.
+    Map<String, List<WireShape.WireComponent>> oneofMembers = new LinkedHashMap<>();
+    wire.components()
+        .forEach(
+            component ->
+                component
+                    .field()
+                    .flatMap(WireShape.MessageField::oneof)
+                    .ifPresent(
+                        membership ->
+                            oneofMembers
+                                .computeIfAbsent(membership.oneof(), _ -> new ArrayList<>())
+                                .add(component)));
+    FieldSpec oneofPaths =
+        FieldSpec.builder(
+                ParameterizedTypeName.get(Map.class, String.class, String.class),
+                "hkj$ONEOFS",
+                Modifier.PRIVATE,
+                Modifier.STATIC,
+                Modifier.FINAL)
+            .initializer(
+                "$T.ofEntries($L)",
+                Map.class,
+                oneofMembers.values().stream()
+                    .map(
+                        members -> {
+                          WireShape.MessageField first = members.getFirst().field().orElseThrow();
+                          CodeBlock name =
+                              first
+                                  .number()
+                                  .filter(_ -> described)
+                                  .map(
+                                      number ->
+                                          CodeBlock.of(
+                                              "$T.getDescriptor().findFieldByNumber($T.$L)"
+                                                  + ".getContainingOneof().getName()",
+                                              message,
+                                              message,
+                                              number))
+                                  .orElseGet(
+                                      () ->
+                                          CodeBlock.of(
+                                              "$S", oneofPath(first.oneof().orElseThrow())));
+                          return CodeBlock.of(
+                              "$T.entry($L, $S + $T.of($L))",
+                              Map.class,
+                              name,
+                              "names a oneof, not a field: name one of its members ",
+                              List.class,
+                              members.stream()
+                                  .map(member -> CodeBlock.of("$L", pathOf(member.name())))
+                                  .collect(CodeBlock.joining(", ")));
+                        })
+                    .collect(CodeBlock.joining(", ")))
+            .build();
+    TypeSpec.Builder implBuilder =
+        implSkeleton(
+                spec,
+                implName,
+                specName,
+                "Generated FieldMask update for {@link $T}: applies the fields a mask names into an"
+                    + " {@code Edits.Accumulated<Domain>}.\n",
+                List.of())
+            .addFields(pathFields)
+            .addField(fields)
+            .addField(oneofPaths)
+            .addMethod(updateFrom)
+            .addType(componentsRecord(domainDeclared, written, implName.packageName()));
+    addMarkerStubs(implBuilder, spec);
+    leafCache.addOverrides(processingEnv, implBuilder, spec, specName, specMembers(spec));
+    addReadHelpers(implBuilder, comps, wire);
+    writeFile(spec, specName.packageName(), implBuilder.build());
+  }
+
+  /**
+   * When a {@code FieldMask} update edits {@code c}'s component: when the mask names its field, or
+   * every field. A component mapping a oneof takes the member the message holds, so the mask must
+   * name that member; a message holding none clears the component when the mask names any member.
+   */
+  private static CodeBlock masked(Correspondence c) {
+    if (c.kind() != Kind.ONEOF) {
+      return CodeBlock.of("all || paths.contains($L)", pathOf(c.wireName()));
+    }
+    CodeBlock.Builder held =
+        CodeBlock.builder().add("all || switch (wire.$L()) {\n$>", c.oneof().caseGetter());
+    for (OneofArm arm : c.oneof().arms()) {
+      held.add("case $L -> paths.contains($L);\n", arm.constant(), pathOf(arm.member()));
+    }
+    return held.add(
+            "default -> $L;\n$<}",
+            c.oneof().arms().stream()
+                .map(arm -> CodeBlock.of("paths.contains($L)", pathOf(arm.member())))
+                .collect(CodeBlock.joining(" || ")))
+        .build();
+  }
+
+  /** The constant of a {@code FieldMask} update's Impl holding the path naming {@code field}. */
+  private static String pathOf(String field) {
+    return "hkj$path$" + field;
+  }
+
+  /**
+   * Whether a message carries its descriptor, which names each field exactly as its {@code .proto}
+   * file does: a full runtime's message declares a static {@code getDescriptor()}, and a lite one,
+   * which keeps no names, declares none.
+   */
+  private static boolean described(TypeElement message) {
+    return ElementFilter.methodsIn(message.getEnclosedElements()).stream()
+        .anyMatch(
+            method ->
+                method.getModifiers().contains(Modifier.STATIC)
+                    && method.getSimpleName().contentEquals("getDescriptor"));
+  }
+
+  /**
+   * A oneof's name in its {@code .proto} file, as a path would give it: from its constant naming no
+   * member, which protoc writes as the name in upper case followed by {@code _NOT_SET}, and its
+   * Java name.
+   */
+  private static String oneofPath(WireShape.OneofMember membership) {
+    return BeanPropertyAnalyser.protoName(
+        membership.unset().replaceFirst("_?NOT_?SET$", ""), membership.oneof());
+  }
+
+  /**
    * A record wire on an UpdateSpec: records cannot express an absent (null-as-not-provided) field.
    */
   private void reportRecordWireOnUpdate(TypeElement spec, TypeElement domain, TypeElement wire) {
@@ -4870,8 +5447,7 @@ public class MappingProcessor extends AbstractProcessor {
   /**
    * A primitive wire property is always present, so it can never carry the null-as-absent signal.
    */
-  private void reportPrimitiveProperty(
-      TypeElement spec, WireShape wire, WireShape.WireComponent property) {
+  private void reportPrimitiveProperty(TypeElement spec, WireShape.WireComponent property) {
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,
@@ -4879,22 +5455,18 @@ public class MappingProcessor extends AbstractProcessor {
         "the wire property '" + property.name() + "' is primitive and can never be absent.",
         "An all-absent PATCH body must fold to the identity update, but a primitive property always"
             + " carries a value (its default), so its 'absent' state cannot be distinguished.",
-        componentFix(
-            wire,
-            true,
-            "Declare '"
-                + property.name()
-                + "' on the PATCH DTO as "
-                + ProcessorUtils.qualifiedTypeName(boxed(property.type()))
-                + "."));
+        "Declare '"
+            + property.name()
+            + "' on the PATCH DTO as "
+            + ProcessorUtils.qualifiedTypeName(boxed(property.type()))
+            + ".");
   }
 
   /**
    * A wire property with no domain component to write into (one-sided coverage still requires one).
-   * A PATCH wire is a bean, so the replacement a protobuf-java message is offered is one too.
    */
   private void reportDanglingWireProperty(
-      TypeElement spec, TypeElement domain, WireShape wire, WireShape.WireComponent property) {
+      TypeElement spec, TypeElement domain, WireShape.WireComponent property) {
     Diagnostics.error(
         processingEnv.getMessager(),
         spec,
@@ -4910,11 +5482,8 @@ public class MappingProcessor extends AbstractProcessor {
             + ": "
             + wireNames(domain.getRecordComponents())
             + ".",
-        componentFix(
-            wire,
-            true,
-            "Add a @MapField rename to a domain component, on its leaf where it has one, or remove"
-                + " the property."));
+        "Add a @MapField rename to a domain component, on its leaf where it has one, or remove"
+            + " the property.");
   }
 
   /**
@@ -5197,9 +5766,9 @@ public class MappingProcessor extends AbstractProcessor {
               // An identity edit parses only through its null scan.
               case IDENTITY -> edit.scan().asFunction(implName, SCAN_SCOPE);
               // LEAF and the container kinds, through the call the dense leg makes; the dense-only
-              // kinds (OPTIONAL_BRIDGE, DERIVED) are never constructed as sparse edits, and the
-              // Kind-canary test forces a deliberate arm here before any new Kind can reach this
-              // switch.
+              // kinds (OPTIONAL_BRIDGE, DERIVED) are never constructed as sparse edits, ONEOF is
+              // found only on a message, whose update is a FieldMask's, and the Kind-canary test
+              // forces a deliberate arm here before any new Kind can reach this switch.
               default ->
                   parseCall(
                           edit.kind(),
@@ -5377,7 +5946,7 @@ public class MappingProcessor extends AbstractProcessor {
 
   // Package-visible for the Kind-canary test, which pins the constant list so a new kind must
   // choose its emission before it can land: writeUpdateImpl's parser switch and the default arms of
-  // buildCall and parseCall, which bridgeParseLeg routes every kind but IDENTITY through, would
+  // buildCall and parseCall, which bridgeValue routes every kind but IDENTITY through, would
   // otherwise give it a leaf's build and parse.
   enum Kind {
     // Same-typed components, copied by identity. One whose type names containers carries a
@@ -5400,7 +5969,11 @@ public class MappingProcessor extends AbstractProcessor {
     // prism, with the value prism riding as an argument.
     MAP_KEYS,
     MAP_ENTRIES,
-    DERIVED
+    DERIVED,
+    // A member of a protobuf-java oneof a sealed domain component maps: one correspondence per
+    // member, each written when the component holds its variant, and read, all members at once,
+    // by the one leg of the first.
+    ONEOF
   }
 
   /**
@@ -5418,6 +5991,544 @@ public class MappingProcessor extends AbstractProcessor {
   private record Group(String name, TypeName type, TypeElement record) {}
 
   /**
+   * A domain component that maps a protobuf-java message's oneof as a whole: its name, its type as
+   * the domain declares it, a sealed interface or an {@code Optional} of one, that sealed
+   * interface, whether the component is the {@code Optional}, the oneof's case getter, and an arm
+   * for each member. Each member's {@code ONEOF} correspondence carries it, so the one leg that
+   * parses the component switches over them all.
+   */
+  private record SealedOneof(
+      String name,
+      TypeMirror type,
+      TypeMirror sealed,
+      boolean optional,
+      String caseGetter,
+      List<OneofArm> arms) {
+
+    SealedOneof {
+      arms = List.copyOf(arms);
+    }
+
+    /** The private method of the Impl that parses the component, switching on the case getter. */
+    String parser() {
+      return "hkj$oneof$" + name;
+    }
+  }
+
+  /**
+   * One arm of a {@link SealedOneof}: the member, the case constant naming it and its getter, the
+   * variant record it pairs with, and how the member's value becomes the variant, through the
+   * variant's own spec ({@code prism}), or else into the variant's one component ({@code
+   * component}). The variant element is valid only in the round that classified it.
+   */
+  private record OneofArm(
+      String member,
+      String constant,
+      String getter,
+      TypeElement variant,
+      CodeBlock prism,
+      String component) {}
+
+  /**
+   * A domain component named after a oneof of a protobuf-java message, before its arms are
+   * resolved: its name and type, the sealed interface it holds, whether that is in an {@code
+   * Optional}, and each member paired with the variant named after it.
+   */
+  private record OneofGroup(
+      String name, TypeMirror type, TypeMirror sealed, boolean optional, List<OneofPair> pairs) {
+
+    OneofGroup {
+      pairs = List.copyOf(pairs);
+    }
+  }
+
+  /** A oneof member, what the message says of its membership, and the variant it pairs with. */
+  private record OneofPair(
+      WireShape.WireComponent member, WireShape.OneofMember membership, TypeElement variant) {}
+
+  /**
+   * The domain components that map a oneof of a protobuf-java message whole, or null once one is
+   * reported. A component maps a oneof when it is named after it; its type is then a sealed
+   * interface, or an {@code Optional} of one, whose records each pair with the member named after
+   * them, its Java name capitalised: {@code Locker} with {@code locker}, {@code PickupPoint} with
+   * {@code pickup_point}, {@code XRay} with {@code x_ray}. The pairing is exact both ways, since
+   * {@code build} writes each variant and {@code parse} reads each member, and a member the
+   * component holds is filled by no other component. A wire that is no message has no oneofs, so it
+   * has none.
+   */
+  private List<OneofGroup> collectOneofs(
+      TypeElement spec,
+      TypeElement domain,
+      DeclaredType domainDeclared,
+      WireShape wire,
+      Map<String, String> renames) {
+    Map<String, List<WireShape.WireComponent>> members = new LinkedHashMap<>();
+    wire.components()
+        .forEach(
+            component ->
+                component
+                    .field()
+                    .flatMap(WireShape.MessageField::oneof)
+                    .ifPresent(
+                        membership ->
+                            members
+                                .computeIfAbsent(membership.oneof(), _ -> new ArrayList<>())
+                                .add(component)));
+    List<OneofGroup> groups = new ArrayList<>();
+    for (RecordComponentElement component : domain.getRecordComponents()) {
+      String name = component.getSimpleName().toString();
+      // A rename binds to a field, which is never a oneof, so a renamed component maps no oneof.
+      List<WireShape.WireComponent> oneof = members.get(renames.getOrDefault(name, name));
+      if (oneof == null) {
+        continue;
+      }
+      TypeMirror type = componentType(domainDeclared, component);
+      TypeMirror optionalElement = containerElement(type, "java.util.Optional");
+      // An Optional may hold any subtype of the sealed type, which its wildcard's bound names.
+      TypeMirror held =
+          optionalElement instanceof WildcardType wildcard && wildcard.getExtendsBound() != null
+              ? wildcard.getExtendsBound()
+              : optionalElement;
+      TypeElement sealed = asSealed(held == null ? type : held);
+      if (sealed == null) {
+        reportUnsealedOneof(spec, domain, wire, name, type, oneof);
+        return null;
+      }
+      List<TypeElement> variants =
+          sealed.getPermittedSubclasses().stream()
+              .map(permitted -> (TypeElement) ((DeclaredType) permitted).asElement())
+              .toList();
+      Optional<TypeElement> generic =
+          Stream.concat(Stream.of(sealed), variants.stream())
+              .filter(declared -> !declared.getTypeParameters().isEmpty())
+              .findFirst();
+      if (generic.isPresent()) {
+        reportGenericOneof(spec, domain, name, sealed, generic.get());
+        return null;
+      }
+      Optional<TypeElement> notRecord =
+          variants.stream().filter(variant -> variant.getKind() != ElementKind.RECORD).findFirst();
+      if (notRecord.isPresent()) {
+        reportOneofVariantNotRecord(spec, domain, name, sealed, notRecord.get());
+        return null;
+      }
+      Optional<ExecutableElement> named = sameNamedMember(spec, name);
+      if (named.isPresent()) {
+        reportOneofMethod(spec, domain, name, named.get());
+        return null;
+      }
+      Map<String, List<TypeElement>> byName =
+          variants.stream()
+              .collect(
+                  Collectors.groupingBy(
+                      variant -> variant.getSimpleName().toString(),
+                      LinkedHashMap::new,
+                      Collectors.toList()));
+      Optional<List<TypeElement>> twins =
+          byName.values().stream().filter(same -> same.size() > 1).findFirst();
+      if (twins.isPresent()) {
+        reportOneofVariantsShareName(spec, domain, name, sealed, twins.get());
+        return null;
+      }
+      List<String> memberNames = oneof.stream().map(WireShape.WireComponent::name).toList();
+      List<String> unpairedMembers =
+          memberNames.stream()
+              .filter(member -> !byName.containsKey(ProcessorUtils.capitalise(member)))
+              .toList();
+      Set<String> variantNames =
+          memberNames.stream().map(ProcessorUtils::capitalise).collect(Collectors.toSet());
+      List<TypeElement> unpairedVariants =
+          variants.stream()
+              .filter(variant -> !variantNames.contains(variant.getSimpleName().toString()))
+              .toList();
+      if (!unpairedMembers.isEmpty() || !unpairedVariants.isEmpty()) {
+        reportOneofUnpaired(
+            spec,
+            domain,
+            wire,
+            name,
+            sealed,
+            memberNames.getFirst(),
+            unpairedMembers,
+            unpairedVariants);
+        return null;
+      }
+      groups.add(
+          new OneofGroup(
+              name,
+              type,
+              sealed.asType(),
+              optionalElement != null,
+              oneof.stream()
+                  .map(
+                      member ->
+                          new OneofPair(
+                              member,
+                              member.field().flatMap(WireShape.MessageField::oneof).orElseThrow(),
+                              byName.get(ProcessorUtils.capitalise(member.name())).getFirst()))
+                  .toList()));
+    }
+    Map<String, OneofGroup> holders = new LinkedHashMap<>();
+    groups.forEach(
+        group -> group.pairs().forEach(pair -> holders.put(pair.member().name(), group)));
+    for (RecordComponentElement component : domain.getRecordComponents()) {
+      String name = component.getSimpleName().toString();
+      OneofGroup holder = holders.get(renames.getOrDefault(name, name));
+      // A component named after a oneof is none of its members, which protoc names apart.
+      if (holder != null) {
+        reportOneofMemberHeldTwice(
+            spec, domain, name, renames.getOrDefault(name, name), holder.name());
+        return null;
+      }
+    }
+    return groups;
+  }
+
+  /** The oneof group named {@code name}, or null. */
+  private static OneofGroup oneofNamed(List<OneofGroup> oneofs, String name) {
+    return oneofs.stream().filter(group -> group.name().equals(name)).findFirst().orElse(null);
+  }
+
+  /**
+   * The {@code ONEOF} correspondences of a oneof group, one per member in the wire's order, or null
+   * once one is reported. A member's value becomes its variant through a spec for the pair, which a
+   * message member takes, or else into the variant's one component, when that component has the
+   * member's type, give or take boxing.
+   */
+  private List<Correspondence> oneofCorrespondences(
+      TypeElement spec, List<RegisteredSpec> registry, OneofGroup group, WireShape.Direction need) {
+    List<OneofArm> arms = new ArrayList<>();
+    for (OneofPair pair : group.pairs()) {
+      TypeMirror memberType = pair.member().type();
+      TypeMirror variantType = pair.variant().asType();
+      PrismResolution nested =
+          resolveNestedSpec(
+              spec,
+              registry,
+              group.name(),
+              memberType,
+              variantType,
+              need,
+              // No leaf stands in for a variant's spec.
+              null,
+              List.of());
+      if (nested.ambiguous()) {
+        return null;
+      }
+      List<? extends RecordComponentElement> held = pair.variant().getRecordComponents();
+      Optional<RecordComponentElement> component =
+          Optional.of(held)
+              .filter(components -> components.size() == 1)
+              .<RecordComponentElement>map(List::getFirst)
+              .filter(
+                  one ->
+                      processingEnv
+                          .getTypeUtils()
+                          .isSameType(boxed(one.asType()), boxed(memberType)));
+      if (nested.accessor() == null && component.isEmpty()) {
+        reportOneofVariantUnfilled(spec, group, pair);
+        return null;
+      }
+      arms.add(
+          new OneofArm(
+              pair.member().name(),
+              pair.membership().constant(),
+              pair.member().accessor().orElseThrow(),
+              pair.variant(),
+              nested.accessor(),
+              component.map(one -> one.getSimpleName().toString()).orElse(null)));
+    }
+    WireShape.OneofMember membership = group.pairs().getFirst().membership();
+    SealedOneof sealed =
+        new SealedOneof(
+            group.name(),
+            group.type(),
+            group.sealed(),
+            group.optional(),
+            membership.caseGetter(),
+            arms);
+    return arms.stream()
+        .map(
+            arm ->
+                new Correspondence(group.name(), arm.member(), Kind.ONEOF, arm.prism())
+                    .armOf(sealed))
+        .toList();
+  }
+
+  /**
+   * Refuses a domain component named after a oneof whose type is no sealed interface, nor an {@code
+   * Optional} of one: only a sealed type holds the oneof's one member at a time.
+   */
+  private void reportUnsealedOneof(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape wire,
+      String name,
+      TypeMirror type,
+      List<WireShape.WireComponent> members) {
+    List<String> memberNames = members.stream().map(WireShape.WireComponent::name).toList();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' is "
+            + ProcessorUtils.simpleTypeName(type)
+            + ", and names the oneof '"
+            + name
+            + "' of the protobuf-java message '"
+            + wire.element().getSimpleName()
+            + "', which maps to a sealed interface or an Optional of one.",
+        "The oneof holds at most one of its members, "
+            + memberNames
+            + ", and a sealed interface with a record for each is the domain type that holds the"
+            + " same choice.",
+        "Declare '"
+            + name
+            + "' as a sealed interface permitting records named after the members, "
+            + memberNames.stream().map(ProcessorUtils::capitalise).toList()
+            + ", or as an Optional of one; or rename '"
+            + name
+            + "', and map each member to an Optional component named after it.");
+  }
+
+  /**
+   * Refuses a oneof's sealed type, or a variant of it, that declares type parameters: {@code parse}
+   * builds each variant, and {@code build} tests the component against each, which a type parameter
+   * would leave unbound.
+   */
+  private void reportGenericOneof(
+      TypeElement spec, TypeElement domain, String name, TypeElement sealed, TypeElement generic) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "'"
+            + generic.getSimpleName()
+            + "', "
+            + (generic.equals(sealed)
+                ? "the sealed type"
+                : "a variant of '" + sealed.getSimpleName() + "',")
+            + " which domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' maps a oneof to, declares type parameters (not supported yet).",
+        "parse builds each variant, and build tests the component against each, which a type"
+            + " parameter would leave unbound.",
+        "Declare '" + generic.getSimpleName() + "' without type parameters.");
+  }
+
+  /**
+   * Refuses a method named after a component that maps a oneof: the component is read and written
+   * through its variants, so nothing calls the method, and a leaf there would validate nothing.
+   */
+  private void reportOneofMethod(
+      TypeElement spec, TypeElement domain, String name, ExecutableElement method) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        memberIn(method, spec)
+            + " is named after domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "', which maps the oneof '"
+            + name
+            + "' through its variants, so nothing calls it.",
+        "A member's value becomes its variant through a spec for the pair, or fills the variant's"
+            + " one component, and no leaf stands in for either.",
+        "Remove " + memberIn(method, spec) + ".");
+  }
+
+  /**
+   * Refuses two variants of a oneof's sealed type with one simple name: each pairs with the member
+   * named after it, so one of them would pair with nothing.
+   */
+  private void reportOneofVariantsShareName(
+      TypeElement spec,
+      TypeElement domain,
+      String name,
+      TypeElement sealed,
+      List<TypeElement> twins) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the variants "
+            + twins.stream().map(twin -> ProcessorUtils.qualifiedTypeName(twin.asType())).toList()
+            + " of '"
+            + sealed.getSimpleName()
+            + "', which domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' maps a oneof to, share the name '"
+            + twins.getFirst().getSimpleName()
+            + "'.",
+        "Each variant pairs with the member named after it, so one name pairs with one member.",
+        "Keep one record of '"
+            + sealed.getSimpleName()
+            + "' named '"
+            + twins.getFirst().getSimpleName()
+            + "'.");
+  }
+
+  /**
+   * Refuses a domain component filling a oneof member that another component maps whole, as its
+   * variant: {@code build} would write the member twice, and {@code parse} read it into both.
+   */
+  private void reportOneofMemberHeldTwice(
+      TypeElement spec, TypeElement domain, String name, String member, String holder) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' fills '"
+            + member
+            + "', a member of the oneof that domain field '"
+            + domain.getSimpleName()
+            + "."
+            + holder
+            + "' maps whole.",
+        "A oneof maps whole, through the component named after it, or member by member, never both:"
+            + " '"
+            + holder
+            + "' holds '"
+            + member
+            + "' as its variant "
+            + ProcessorUtils.capitalise(member)
+            + ".",
+        "Remove '"
+            + name
+            + "', or map each member to an Optional component of its own in place of '"
+            + holder
+            + "'.");
+  }
+
+  /** Refuses a variant of a oneof's sealed type that is no record, which parse could not build. */
+  private void reportOneofVariantNotRecord(
+      TypeElement spec, TypeElement domain, String name, TypeElement sealed, TypeElement variant) {
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the variant '"
+            + variant.getSimpleName()
+            + "' of '"
+            + sealed.getSimpleName()
+            + "', which domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' maps a oneof to, is not a record.",
+        "parse builds the variant a member's value becomes through a record's canonical"
+            + " constructor.",
+        "Make '" + variant.getSimpleName() + "' a record.");
+  }
+
+  /**
+   * Refuses a oneof whose members and sealed variants do not pair by name both ways: build writes
+   * each variant as the member named after it, and parse reads each member as its variant.
+   */
+  private void reportOneofUnpaired(
+      TypeElement spec,
+      TypeElement domain,
+      WireShape wire,
+      String name,
+      TypeElement sealed,
+      String example,
+      List<String> members,
+      List<TypeElement> variants) {
+    List<String> variantNames =
+        variants.stream().map(variant -> variant.getSimpleName().toString()).toList();
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the variants of '"
+            + sealed.getSimpleName()
+            + "' do not pair with the members of the oneof '"
+            + name
+            + "' of '"
+            + wire.element().getSimpleName()
+            + "', which domain field '"
+            + domain.getSimpleName()
+            + "."
+            + name
+            + "' maps: "
+            + (members.isEmpty() ? "" : "members " + members + " have no variant")
+            + (members.isEmpty() || variants.isEmpty() ? "" : ", and ")
+            + (variants.isEmpty() ? "" : "variants " + variantNames + " name no member")
+            + ".",
+        "Each member pairs with the variant named after it, capitalised, "
+            + ProcessorUtils.capitalise(example)
+            + " with "
+            + example
+            + ", since build writes every variant and parse reads every member.",
+        "Name a record of '"
+            + sealed.getSimpleName()
+            + "' after each member"
+            + (members.isEmpty()
+                ? ""
+                : ", adding " + members.stream().map(ProcessorUtils::capitalise).toList())
+            + (variants.isEmpty() ? "" : ", and rename or remove " + variantNames)
+            + ".");
+  }
+
+  /**
+   * Refuses a variant nothing fills from its member: no spec maps the pair, and the variant does
+   * not hold one component of the member's type.
+   */
+  private void reportOneofVariantUnfilled(TypeElement spec, OneofGroup group, OneofPair pair) {
+    String variant = pair.variant().getSimpleName().toString();
+    TypeMirror memberType = pair.member().type();
+    // Qualified, since a message member is often named as its variant is.
+    String typeName = ProcessorUtils.qualifiedTypeName(memberType);
+    Diagnostics.error(
+        processingEnv.getMessager(),
+        spec,
+        TAG,
+        "the variant '"
+            + variant
+            + "' of '"
+            + ProcessorUtils.simpleTypeName(group.sealed())
+            + "' pairs with the oneof member '"
+            + pair.member().name()
+            + "', of type "
+            + ProcessorUtils.simpleTypeName(memberType)
+            + ", and nothing fills it from one.",
+        "A member's value becomes its variant through a spec for the pair, or fills the variant's"
+            + " one component when that component has the member's type.",
+        "Give '"
+            + variant
+            + "' one component of type "
+            + typeName
+            // A message member can take a spec of its own, and a primitive one has no element.
+            + (Optional.ofNullable(processingEnv.getTypeUtils().asElement(memberType))
+                    .filter(
+                        element ->
+                            BeanPropertyAnalyser.isMessage(processingEnv, (TypeElement) element))
+                    .isPresent()
+                ? ", or declare '@GenerateMapping interface "
+                    + variant
+                    + "Mapping extends MappingSpec<"
+                    + ProcessorUtils.qualifiedTypeName(pair.variant().asType())
+                    + ", "
+                    + typeName
+                    + "> {}'."
+                : "."));
+  }
+
+  /**
    * {@code prism} is an expression yielding the ValidatedPrism for every non-identity kind, except
    * {@code DERIVED}, where it yields the spec's Getter accessor instead. {@code group} is the
    * flattened domain component this correspondence is an inner component of, or null for a
@@ -5429,6 +6540,8 @@ public class MappingProcessor extends AbstractProcessor {
    * values for {@code MAP_KEYS}; null where that part holds no container. {@code copy} is the
    * {@link ContainerCopy} the leg reads and writes its value through: the whole value's for {@code
    * IDENTITY}, and for {@code MAP_KEYS} the map's, when its values copy; null where there is none.
+   * {@code oneof} is the sealed component a {@code ONEOF} correspondence is an arm of; null for
+   * every other kind.
    */
   private record Correspondence(
       String name,
@@ -5440,16 +6553,51 @@ public class MappingProcessor extends AbstractProcessor {
       CodeBlock valuePrism,
       Correspondence present,
       NullScan scan,
-      ContainerCopy copy) {
+      ContainerCopy copy,
+      SealedOneof oneof) {
 
     Correspondence(String name, String wireName, Kind kind, CodeBlock prism) {
-      this(name, wireName, kind, prism, null, null, null, null, null, null);
+      this(name, wireName, kind, prism, null, null, null, null, null, null, null);
     }
 
     /** The same correspondence as a member of {@code group}. */
     Correspondence in(Group group) {
       return new Correspondence(
-          name, wireName, kind, prism, group, domainElement, valuePrism, present, scan, copy);
+          name,
+          wireName,
+          kind,
+          prism,
+          group,
+          domainElement,
+          valuePrism,
+          present,
+          scan,
+          copy,
+          oneof);
+    }
+
+    /** The same correspondence as an arm of the sealed component mapping {@code sealed}. */
+    Correspondence armOf(SealedOneof sealed) {
+      return new Correspondence(
+          name,
+          wireName,
+          kind,
+          prism,
+          group,
+          domainElement,
+          valuePrism,
+          present,
+          scan,
+          copy,
+          sealed);
+    }
+
+    /** The arm of the sealed component this {@code ONEOF} correspondence writes. */
+    OneofArm arm() {
+      return oneof.arms().stream()
+          .filter(arm -> arm.member().equals(wireName))
+          .findFirst()
+          .orElseThrow();
     }
 
     /**
@@ -5457,13 +6605,13 @@ public class MappingProcessor extends AbstractProcessor {
      * rather than let it be inferred: {@code ARRAY}, because a generic array cannot be created
      * without its constructor ({@code Domain[]::new}); a wildcard-carrying {@code OPTIONAL_BRIDGE},
      * whose {@code Optional} would otherwise close over a capture (see {@link
-     * MappingProcessor#bridgeParseLeg}); and, for the same reason, a scanned {@code MAP_KEYS} whose
+     * MappingProcessor#bridgeValue}); and, for the same reason, a scanned {@code MAP_KEYS} whose
      * value type carries a wildcard, where the element is the value type (see {@link
      * MappingProcessor#parseCall}). Null wherever inference suffices.
      */
     Correspondence withDomainElement(TypeName element) {
       return new Correspondence(
-          name, wireName, kind, prism, group, element, valuePrism, present, scan, copy);
+          name, wireName, kind, prism, group, element, valuePrism, present, scan, copy, oneof);
     }
 
     /**
@@ -5472,7 +6620,7 @@ public class MappingProcessor extends AbstractProcessor {
      */
     Correspondence withValuePrism(CodeBlock values) {
       return new Correspondence(
-          name, wireName, kind, prism, group, domainElement, values, present, scan, copy);
+          name, wireName, kind, prism, group, domainElement, values, present, scan, copy, oneof);
     }
 
     /**
@@ -5490,7 +6638,8 @@ public class MappingProcessor extends AbstractProcessor {
           valuePrism,
           present,
           nullScan,
-          containerCopy);
+          containerCopy,
+          oneof);
     }
 
     /**
@@ -5625,10 +6774,10 @@ public class MappingProcessor extends AbstractProcessor {
    * nested spec is consulted no leaf exists for the pair. More than one candidate spec is reported
    * as an error.
    *
-   * <p>{@code site} is how a fix line declares the leaf that would stand in for the spec, and
-   * {@code active} carries the (domain, wire) pairs already being composed on the current
-   * element-mapped recursion, so a spec whose leaf pair covers itself is caught instead of
-   * overflowing the stack.
+   * <p>{@code site} is how a fix line declares the leaf that would stand in for the spec, or null
+   * where no leaf can, as for a oneof's variant, and {@code active} carries the (domain, wire)
+   * pairs already being composed on the current element-mapped recursion, so a spec whose leaf pair
+   * covers itself is caught instead of overflowing the stack.
    */
   private PrismResolution resolveNestedSpec(
       TypeElement spec,
@@ -5641,7 +6790,14 @@ public class MappingProcessor extends AbstractProcessor {
       List<DeclaredType> active) {
     Candidates candidates = servingCandidates(spec, registry, wireType, domainType, need);
     List<RegisteredSpec> nested = candidates.chosen();
+    Optional<String> leaf =
+        Optional.ofNullable(site).map(offer -> offer.declaration(name, wireType, domainType));
     if (nested.size() > 1) {
+      String settle =
+          candidates.allClasspath()
+              ? "declare a @GenerateMapping spec for the pair in this compilation, which takes"
+                  + " precedence over a dependency's."
+              : "remove the duplicate spec.";
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -5652,13 +6808,11 @@ public class MappingProcessor extends AbstractProcessor {
               + ", "
               + ProcessorUtils.qualifiedTypeName(wireType)
               + "); with several, the choice would be arbitrary.",
-          "Add the leaf "
-              + site.declaration(name, wireType, domainType)
-              + " delegating to the spec you want, or "
-              + (candidates.allClasspath()
-                  ? "declare a @GenerateMapping spec for the pair in this compilation, which takes"
-                      + " precedence over a dependency's."
-                  : "remove the duplicate spec."));
+          leaf.map(
+                  declaration ->
+                      "Add the leaf " + declaration + " delegating to the spec you want, or ")
+              .map(offer -> offer + settle)
+              .orElseGet(() -> ProcessorUtils.capitalise(settle)));
       return new PrismResolution(null, true);
     }
     if (nested.size() == 1) {
@@ -5667,9 +6821,14 @@ public class MappingProcessor extends AbstractProcessor {
           spec,
           TAG,
           "field '" + name + "'",
-          "Keep it, or delegate explicitly with the leaf "
-              + site.declaration(name, wireType, domainType)
-              + " if the classpath spec is the one meant.",
+          leaf.map(
+                  declaration ->
+                      "Keep it, or delegate explicitly with the leaf "
+                          + declaration
+                          + " if the classpath spec is the one meant.")
+              .orElse(
+                  "Keep it, or remove the spec in this compilation if the classpath spec is the one"
+                      + " meant."),
           candidates);
       RegisteredSpec match = nested.getFirst();
       if (match.spec().getTypeParameters().isEmpty()) {
@@ -6721,6 +7880,9 @@ public class MappingProcessor extends AbstractProcessor {
         return null;
       }
       DeclaredType returnType = (DeclaredType) memberTypeIn(spec, method);
+      // A type argument is never primitive, so a primitive component takes its wrapper, which
+      // build unboxes into it.
+      TypeMirror derivedType = boxed(wireComponent.type());
       boolean shapeMatches =
           returnType.getTypeArguments().size() == 2
               && processingEnv
@@ -6728,7 +7890,7 @@ public class MappingProcessor extends AbstractProcessor {
                   .isSameType(returnType.getTypeArguments().getFirst(), domainDeclared)
               && processingEnv
                   .getTypeUtils()
-                  .isSameType(returnType.getTypeArguments().get(1), wireComponent.type());
+                  .isSameType(returnType.getTypeArguments().get(1), derivedType);
       if (!shapeMatches) {
         Diagnostics.error(
             processingEnv.getMessager(),
@@ -6739,7 +7901,7 @@ public class MappingProcessor extends AbstractProcessor {
                 + "' must return Getter<"
                 + domain.getSimpleName()
                 + ", "
-                + ProcessorUtils.qualifiedTypeName(wireComponent.type())
+                + ProcessorUtils.qualifiedTypeName(derivedType)
                 + "> but returns '"
                 + ProcessorUtils.qualifiedTypeName(memberTypeIn(spec, method))
                 + "'.",
@@ -6749,7 +7911,7 @@ public class MappingProcessor extends AbstractProcessor {
             "Declare 'default Getter<"
                 + domain.getSimpleName()
                 + ", "
-                + ProcessorUtils.qualifiedTypeName(wireComponent.type())
+                + ProcessorUtils.qualifiedTypeName(derivedType)
                 + "> "
                 + name
                 + "()'.");
@@ -6838,10 +8000,11 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       Map<String, String> renames,
       List<DerivedField> derived,
-      List<Flattened> flattened) {
+      List<Flattened> flattened,
+      List<OneofGroup> oneofs) {
     List<WireShape.WireComponent> wireComponents = wire.components();
 
-    if (wireComponents.size() - derived.size() != wireSlots(domain, flattened)) {
+    if (wireComponents.size() - derived.size() != wireSlots(domain, flattened, oneofs)) {
       Diagnostics.error(
           processingEnv.getMessager(),
           spec,
@@ -6856,21 +8019,28 @@ public class MappingProcessor extends AbstractProcessor {
                       + flattened.stream().map(Flattened::name).toList()
                       + " included")
               + ", leaving "
-              + unfilled(domain, wire, renames, derived, flattened)
+              + unfilled(domain, wire, renames, derived, flattened, oneofs)
               + " unfilled.",
           "build must fill every wire component from a domain source or a derived field, and the"
               + " extras have neither. A wire with fewer components maps as a projection (Lens"
               + " tier).",
-          componentFix(
-              wire,
-              false,
-              "Remove the extra wire components, add matching domain components (or a"
+          // A message's fields are protoc's to declare, and a flattened group never spreads
+          // across a bean.
+          wire.components().stream().anyMatch(component -> component.field().isPresent())
+              ? "Add matching domain components (for a oneof, one named after it, a sealed interface"
+                  + " with a record named after each member, or an Optional one for each member),"
+                  + " a @MapField rename where a name differs, or derived fields ('default"
+                  + " Getter<"
+                  + domain.getSimpleName()
+                  + ", ComponentType>' methods named after the extras that are members of no"
+                  + " oneof)."
+              : "Remove the extra wire components, add matching domain components (or a"
                   + " @MapField rename where a name differs), declare derived fields ('default"
                   + " Getter<"
                   + domain.getSimpleName()
                   + ", ComponentType>' methods named after the extras), or spread a nested"
                   + " domain component across the extras with an '@Flatten' marker named after"
-                  + " it."));
+                  + " it.");
       return null;
     }
 
@@ -6883,6 +8053,7 @@ public class MappingProcessor extends AbstractProcessor {
             wire,
             renames,
             flattened,
+            oneofs,
             WireShape.Direction.BIDIRECTIONAL);
     if (result == null) {
       return null;
@@ -6897,17 +8068,19 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The wire components nothing names as its source, in the wire's order: no domain component,
-   * under its own name or its rename, no component of a flattened group, and no derived field. A
-   * wire wider than its sources has at least one, so the refusal can name what to fill or remove.
+   * under its own name or its rename, no component of a flattened group, no member of a oneof a
+   * sealed component maps, and no derived field. A wire wider than its sources has at least one, so
+   * the refusal can name what to fill or remove.
    */
   private static List<String> unfilled(
       TypeElement domain,
       WireShape wire,
       Map<String, String> renames,
       List<DerivedField> derived,
-      List<Flattened> flattened) {
+      List<Flattened> flattened,
+      List<OneofGroup> oneofs) {
     Set<String> sourced =
-        Stream.concat(
+        Stream.of(
                 componentNames(domain).stream()
                     .flatMap(
                         name ->
@@ -6915,27 +8088,21 @@ public class MappingProcessor extends AbstractProcessor {
                                 .map(group -> group.inner().stream())
                                 .orElseGet(() -> Stream.of(name)))
                     .map(name -> renames.getOrDefault(name, name)),
+                oneofs.stream()
+                    .flatMap(group -> group.pairs().stream())
+                    .map(pair -> pair.member().name()),
                 derived.stream().map(DerivedField::wireName))
+            .flatMap(names -> names)
             .collect(Collectors.toSet());
     return wire.componentNames().stream().filter(name -> !sourced.contains(name)).toList();
-  }
-
-  /**
-   * The fix a refusal about which wire components meet which domain components offers: {@code fix},
-   * or for a protobuf-java message, a record in front of it, or a PATCH bean on the {@code sparse}
-   * tier ({@link BeanPropertyAnalyser#protobufFix}). A message's accessors are generated, and a
-   * derived field for one of its companions writes a field a second time, so no fix within the
-   * mapping is offered for one.
-   */
-  private String componentFix(WireShape wire, boolean sparse, String fix) {
-    return BeanPropertyAnalyser.protobufFix(processingEnv, wire.element(), sparse).orElse(fix);
   }
 
   /**
    * Classifies every domain component against the wire: its counterpart by name or rename, claimed
    * once, and a flattened component through each component of its record. Shared by the full tier,
    * which has already checked that no wire component is left over, and the parse-only tier, which
-   * reads the components the domain needs and ignores any other getter, having nothing to fill.
+   * reads the components the domain needs and ignores any other getter, having nothing to fill. A
+   * component mapping a protobuf-java oneof whole ({@code oneofs}) contributes an arm per member.
    * Nested specs resolve against those serving {@code need}.
    */
   private List<Correspondence> classifyDomain(
@@ -6946,12 +8113,24 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       Map<String, String> renames,
       List<Flattened> flattened,
+      List<OneofGroup> oneofs,
       WireShape.Direction need) {
     List<Correspondence> result = new ArrayList<>();
     Map<String, String> claimedWire = new LinkedHashMap<>();
     List<String> domainNames = componentNames(domain);
     for (RecordComponentElement domainComponent : domain.getRecordComponents()) {
       String name = domainComponent.getSimpleName().toString();
+      OneofGroup oneof = oneofNamed(oneofs, name);
+      if (oneof != null) {
+        // The oneof's members are claimed by the component, so no other component can take one.
+        oneof.pairs().forEach(pair -> claimedWire.put(pair.member().name(), name));
+        List<Correspondence> arms = oneofCorrespondences(spec, registry, oneof, need);
+        if (arms == null) {
+          return null;
+        }
+        result.addAll(arms);
+        continue;
+      }
       Flattened group = flattenedNamed(flattened, name);
       if (group == null) {
         Correspondence resolved =
@@ -7077,12 +8256,7 @@ public class MappingProcessor extends AbstractProcessor {
                       + "()' overrides the @MapField rename in '"
                       + dropped.getEnclosingElement().getSimpleName()
                       + "', and an override does not carry the annotation over."),
-          componentFix(
-              wire,
-              false,
-              "Align the component names, or "
-                  + renameFix(spec, existing, dropped)
-                  + flattenOffer));
+          "Align the component names, or " + renameFix(spec, existing, dropped) + flattenOffer);
       return null;
     }
     String previousSource = claimedWire.putIfAbsent(wireName, source);
@@ -7163,10 +8337,15 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * How many wire components the domain's sources call for: one per component, except that a
-   * flattened component calls for one per component of its record.
+   * flattened component calls for one per component of its record, and a component mapping a
+   * protobuf-java oneof for one per member.
    */
-  private static int wireSlots(TypeElement domain, List<Flattened> flattened) {
-    int slots = domain.getRecordComponents().size() - flattened.size();
+  private static int wireSlots(
+      TypeElement domain, List<Flattened> flattened, List<OneofGroup> oneofs) {
+    int slots = domain.getRecordComponents().size() - flattened.size() - oneofs.size();
+    for (OneofGroup group : oneofs) {
+      slots += group.pairs().size();
+    }
     for (Flattened group : flattened) {
       slots += group.inner().size();
     }
@@ -7191,11 +8370,18 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       String name,
       String wireName,
-      TypeMirror wireType,
+      TypeMirror declared,
       TypeMirror domainType,
       List<String> domainNames,
       WireShape.Direction need,
       boolean projection) {
+    // A protobuf-java message field reads as its wrapper type where the domain holds a reference:
+    // its getter's value boxes and its setter's argument unboxes, so a leaf over the wrapper
+    // converts it, as the class protoc wrote cannot be changed to declare the wrapper.
+    TypeMirror wireType =
+        messageField(wire, wireName).isPresent() && !domainType.getKind().isPrimitive()
+            ? boxed(declared)
+            : declared;
     // Optional bridge: a domain Optional<DE> maps to a nullable wire component PE. Empty <->
     // null/absent; the present value maps as the pair (PE, DE) would unbridged.
     //
@@ -7215,7 +8401,7 @@ public class MappingProcessor extends AbstractProcessor {
           wire,
           name,
           wireName,
-          wireType,
+          declared,
           domainType,
           optionalElement,
           need);
@@ -7841,13 +9027,22 @@ public class MappingProcessor extends AbstractProcessor {
     LeafSite site =
         leafSite(
             LeafSite.bridged(declaresBridge(spec, name), wire), spec, name, wireName, domainType);
+    // A message field that does not track its presence reads a value when it is unset, so no
+    // conversion of the present value could carry the bridge's empty either.
+    Optional<WireShape.MessageField> field = messageField(wire, wireName);
+    if (field.filter(message -> message.presence().isEmpty()).isPresent()) {
+      reportPresencelessBridge(spec, domain, wire, name, wireName, wireType, domainType, bridged);
+      return null;
+    }
     // An empty Optional is a null on the wire, which a primitive can never hold, so no conversion
     // of the present value could make the pair map. Only a bean without a marker reaches here with
-    // one: a marker on a primitive member is refused where the marker is checked.
-    if (wireType.getKind().isPrimitive()) {
+    // one: a marker on a primitive member is refused where the marker is checked. A message field
+    // left is one that tracks its presence, whose read is null when it is unset, of the boxed type.
+    if (!wire.componentNamed(wireName).orElseThrow().readsNull()) {
       reportPrimitiveBridge(spec, domain, wire, name, wireName, wireType, domainType, bridged);
       return null;
     }
+    TypeMirror read = wireType.getKind().isPrimitive() ? boxed(wireType) : wireType;
     // Nor can a @Singular collection, which is never null to begin with, so no conversion of the
     // present value could carry the bridge's empty either. Asked before the present value is
     // resolved, unlike the getter-only List below: on a bean that is only written, the setter's
@@ -7856,15 +9051,16 @@ public class MappingProcessor extends AbstractProcessor {
       reportSingularBridge(spec, domain, name, wireName, domainType, bridged, write);
       return null;
     }
-    PairResolution present =
-        resolvePair(spec, registry, name, wireName, wireType, bridged, need, site);
+    PairResolution present = resolvePair(spec, registry, name, wireName, read, bridged, need, site);
     if (present.reported()) {
       return null;
     }
-    NonNullSite nonNull = nonNullWriteSite(wire, wireName);
+    // A message field's builder is never handed the empty Optional's null: build leaves the field
+    // unset instead, so what its setter declares about null does not matter.
+    NonNullSite nonNull = field.isPresent() ? null : nonNullWriteSite(wire, wireName);
     if (present.correspondence() == null) {
       reportUnbridged(
-          spec, registry, domain, wire, name, wireName, wireType, bridged, need, site, nonNull);
+          spec, registry, domain, wire, name, wireName, read, bridged, need, site, nonNull);
       return null;
     }
     // A property written through its own getter has no absent state to carry the bridge's empty.
@@ -8376,9 +9572,11 @@ public class MappingProcessor extends AbstractProcessor {
    * whatever its width, a derived field sourcing any component no domain component names ({@code
    * derived}, empty for a projection, which refuses them). Each pair resolves exactly like a
    * full-tier component (explicit leaf first, identity, nested specs, container lifting) via {@link
-   * #resolveCorrespondence}, against the specs serving {@code need}. A projection whose reads are
-   * all total keeps the lawful {@code asLens()} write-back; otherwise it maps as the validated
-   * {@code patch} tier (see {@link #totalReads}).
+   * #resolveCorrespondence}, against the specs serving {@code need}, and a member of a oneof a
+   * sealed component maps ({@code oneofs}) through that component's arm. A projection whose reads
+   * are all total keeps the lawful {@code asLens()} write-back; otherwise it maps as the validated
+   * {@code patch} tier (see {@link #totalReads}). {@code projection} says the mapping is one, for
+   * the fix line a pair nothing converts is offered.
    */
   private List<Correspondence> classifyWire(
       TypeElement spec,
@@ -8388,17 +9586,33 @@ public class MappingProcessor extends AbstractProcessor {
       WireShape wire,
       Map<String, String> renames,
       List<DerivedField> derived,
-      WireShape.Direction need) {
+      List<OneofGroup> oneofs,
+      WireShape.Direction need,
+      boolean projection) {
     boolean built = wire.direction() == WireShape.Direction.BUILD_ONLY;
     Map<String, String> domainByWire = new LinkedHashMap<>();
     renames.forEach((domainName, wireName) -> domainByWire.put(wireName, domainName));
     List<String> domainNames =
         domain.getRecordComponents().stream().map(c -> c.getSimpleName().toString()).toList();
+    // A oneof a sealed component maps sources each of its members through that component's arm.
+    Map<String, Correspondence> arms = new LinkedHashMap<>();
+    for (OneofGroup group : oneofs) {
+      List<Correspondence> resolved = oneofCorrespondences(spec, registry, group, need);
+      if (resolved == null) {
+        return null;
+      }
+      resolved.forEach(arm -> arms.put(arm.wireName(), arm));
+    }
     Set<String> usedDomain = new LinkedHashSet<>();
     List<Correspondence> result = new ArrayList<>();
     for (WireShape.WireComponent wireComponent : wire.components()) {
       String wireName = wireComponent.name();
       if (derived.stream().anyMatch(field -> field.wireName().equals(wireName))) {
+        continue;
+      }
+      Correspondence arm = arms.get(wireName);
+      if (arm != null) {
+        result.add(arm);
         continue;
       }
       String name = domainByWire.getOrDefault(wireName, wireName);
@@ -8431,22 +9645,18 @@ public class MappingProcessor extends AbstractProcessor {
                 + ": "
                 + wireNames(domain.getRecordComponents())
                 + ".",
-            // A derived field's Getter names the component's type as a type argument, which a
-            // primitive cannot be, so only a reference component is offered one.
-            componentFix(
-                wire,
-                false,
-                built && !wireComponent.type().getKind().isPrimitive()
-                    ? "Align the component names, add a @MapField rename (on the component's leaf"
-                        + " where it has one), or declare a derived field 'default Getter<"
-                        + domain.getSimpleName()
-                        + ", "
-                        + ProcessorUtils.simpleTypeName(wireComponent.type())
-                        + "> "
-                        + wireName
-                        + "()' that computes it."
-                    : "Align the component names, or add a @MapField rename, on the component's"
-                        + " leaf where it has one."));
+            // A derived field's Getter names a primitive component by its wrapper.
+            built
+                ? "Align the component names, add a @MapField rename (on the component's leaf"
+                    + " where it has one), or declare a derived field 'default Getter<"
+                    + domain.getSimpleName()
+                    + ", "
+                    + ProcessorUtils.simpleTypeName(boxed(wireComponent.type()))
+                    + "> "
+                    + wireName
+                    + "()' that computes it."
+                : "Align the component names, or add a @MapField rename, on the component's"
+                    + " leaf where it has one.");
         return null;
       }
       if (!usedDomain.add(name)) {
@@ -8481,7 +9691,7 @@ public class MappingProcessor extends AbstractProcessor {
               domainType,
               domainNames,
               need,
-              !built);
+              projection);
       if (resolved == null) {
         return null;
       }
@@ -9188,10 +10398,7 @@ public class MappingProcessor extends AbstractProcessor {
    */
   private static CodeBlock buildValue(
       WireShape.WireComponent wc, List<Correspondence> comps, String targetPackage) {
-    // Classification claims every wire component exactly once before emission, so the lookup
-    // cannot miss; there is deliberately no fallback to cover.
-    Correspondence c =
-        comps.stream().filter(x -> x.wireName().equals(wc.name())).findFirst().orElseThrow();
+    Correspondence c = correspondenceFor(wc, comps);
     CodeBlock value =
         switch (c.kind()) {
           case LEAF, ELEMENTS, ARRAY, MAP, MAP_KEYS, MAP_ENTRIES ->
@@ -9204,6 +10411,12 @@ public class MappingProcessor extends AbstractProcessor {
           case OPTIONAL_BRIDGE -> bridgeBuildValue(wc, c, targetPackage);
           case IDENTITY -> domainRead(c);
           case DERIVED -> CodeBlock.of("$L.get(domain)", c.prism());
+          // The variant the write's guard bound, into its member through the pair's spec, or
+          // from its one component.
+          case ONEOF ->
+              c.arm().prism() == null
+                  ? CodeBlock.of("hkj$$v.$L()", c.arm().component())
+                  : buildCall(c, wc, targetPackage).on(CodeBlock.of("hkj$$v"));
         };
     // What the domain holds reaches the wire as a copy, never as the domain's own container.
     return ContainerCopy.through(c.valueCopy(), value, SCAN_SCOPE);
@@ -9253,6 +10466,8 @@ public class MappingProcessor extends AbstractProcessor {
       case MAP_KEYS -> new PrismCall(c.prism(), "buildKeys", null);
       // The key prism is the receiver, and the value prism rides as the argument.
       case MAP_ENTRIES -> new PrismCall(c.prism(), "buildEntries", c.valuePrism());
+      // A oneof's arm builds its member through the pair's spec.
+      case ONEOF -> new PrismCall(c.prism(), "build", null);
       default -> new PrismCall(c.prism(), "build", null);
     };
   }
@@ -9319,6 +10534,9 @@ public class MappingProcessor extends AbstractProcessor {
    * field behind a property ({@code status = "ACTIVE"}), and a skipped write would leave that
    * default in place for {@code parse} to read back as present, breaking the round trip with
    * nothing to say so. Writing it makes {@code build} independent of how the bean was constructed.
+   * Only a property that tracks its presence, a protobuf-java message's field with a {@code
+   * hasX()}, is left unwritten instead ({@link #wireBuildBody}): its builder starts it unset, which
+   * {@code parse} reads back as empty.
    */
   private static CodeBlock bridgeBuildValue(
       WireShape.WireComponent wc, Correspondence c, String targetPackage) {
@@ -9334,10 +10552,57 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * The total {@code build} body on either wire shape: the record constructor or the bean strategy.
+   * A bridged value is {@code null} when the domain's {@code Optional} is empty, and a oneof's arm
+   * has no value when the component holds another variant; each says when it is there ({@link
+   * #presentWhen}), so a property that tracks its presence is written only then ({@link
+   * WireShape.WireValue}).
    */
   private static CodeBlock wireBuildBody(
       WireShape wire, TypeName wireName, List<Correspondence> comps, String targetPackage) {
-    return wire.buildStatements(wireName, wc -> buildValue(wc, comps, targetPackage));
+    return wire.buildStatements(
+        wireName,
+        wc -> {
+          Correspondence c = correspondenceFor(wc, comps);
+          return new WireShape.WireValue(buildValue(wc, comps, targetPackage), presentWhen(c, wc));
+        });
+  }
+
+  /**
+   * When the value {@code build} writes through {@code c} into {@code wc} is there to write: a
+   * bridged {@code Optional} when it holds a value, on a property that tracks its presence, which a
+   * {@code null} would not leave unset; and a oneof's arm when the component holds its variant,
+   * which the condition binds as {@code hkj$v} for the write. A plain sealed component is checked
+   * for a {@code null} by its first arm, as a protobuf setter checks any other value. Empty for a
+   * value that is always written.
+   */
+  private static Optional<CodeBlock> presentWhen(Correspondence c, WireShape.WireComponent wc) {
+    return switch (c.kind()) {
+      case OPTIONAL_BRIDGE -> wc.presence().map(_ -> CodeBlock.of("$L.isPresent()", domainRead(c)));
+      case ONEOF ->
+          Optional.of(
+              CodeBlock.of(
+                  "$L instanceof $T hkj$$v",
+                  c.oneof().optional()
+                      ? CodeBlock.of("$L.orElse(null)", domainRead(c))
+                      : leads(c)
+                          ? CodeBlock.of(
+                              "$T.requireNonNull($L, $S)",
+                              ClassName.get(Objects.class),
+                              domainRead(c),
+                              c.name())
+                          : domainRead(c),
+                  ClassName.get(c.arm().variant())));
+      case IDENTITY, LEAF, ELEMENTS, ARRAY, OPTIONAL, MAP, MAP_KEYS, MAP_ENTRIES, DERIVED ->
+          Optional.empty();
+    };
+  }
+
+  /** The correspondence that fills the wire component {@code wc}. */
+  private static Correspondence correspondenceFor(
+      WireShape.WireComponent wc, List<Correspondence> comps) {
+    // Classification claims every wire component exactly once before emission, so the lookup
+    // cannot miss; there is deliberately no fallback to cover.
+    return comps.stream().filter(x -> x.wireName().equals(wc.name())).findFirst().orElseThrow();
   }
 
   /**
@@ -9471,16 +10736,17 @@ public class MappingProcessor extends AbstractProcessor {
    * shapes. An unset bean property is null, and Jackson binds a missing JSON property on a record
    * component to null just the same — "a record can never read null" is false at every JSON
    * boundary, so the guard policy is shape-independent. Only a primitive identity read (which
-   * cannot be null) goes unguarded.
+   * cannot be null) goes unguarded, unless its property tracks its presence, whose read is {@code
+   * null} when it is unset ({@link WireShape.WireComponent#readFrom}).
    */
   private static boolean guardedRead(Correspondence c, WireShape wire) {
-    // Derived fields are not read; an Optional bridge maps null to Optional.empty, so both are
-    // null-safe and never guarded.
-    if (c.kind() == Kind.DERIVED || c.kind() == Kind.OPTIONAL_BRIDGE) {
+    // Derived fields are not read; an Optional bridge maps null to Optional.empty, and a oneof's
+    // arms read only the member its case names, which is set, so none of them is guarded.
+    if (c.kind() == Kind.DERIVED || c.kind() == Kind.OPTIONAL_BRIDGE || c.kind() == Kind.ONEOF) {
       return false;
     }
     if (c.kind() == Kind.IDENTITY) {
-      return !wire.componentNamed(c.wireName()).orElseThrow().type().getKind().isPrimitive();
+      return wire.componentNamed(c.wireName()).orElseThrow().readsNull();
     }
     return true;
   }
@@ -9862,7 +11128,70 @@ public class MappingProcessor extends AbstractProcessor {
     implBuilder.addMethods(
         NullScan.helpers(comps.stream().map(Correspondence::valueScan).filter(Objects::nonNull)));
     implBuilder.addMethod(GuardedConstruction.helper());
+    implBuilder.addMethods(oneofParsers(comps, wire));
     implBuilder.addMethods(copyHelpers(comps));
+  }
+
+  /** The parser of each component mapping a protobuf-java oneof, once each. */
+  private static List<MethodSpec> oneofParsers(List<Correspondence> comps, WireShape wire) {
+    return comps.stream()
+        .filter(c -> c.kind() == Kind.ONEOF)
+        .map(Correspondence::oneof)
+        .distinct()
+        .map(oneof -> oneofParser(oneof, wire))
+        .toList();
+  }
+
+  /**
+   * The parser of a component mapping a oneof: a switch on the oneof's case getter, each member's
+   * arm building its variant from the member's value, through the pair's spec or the variant's
+   * canonical constructor, whose refusal is located under the component as any record's is. Every
+   * other case, the one naming no member among them, is an empty {@code Optional}, or a missing
+   * component.
+   */
+  private static MethodSpec oneofParser(SealedOneof oneof, WireShape wire) {
+    TypeName component = TypeName.get(oneof.type());
+    ClassName optional = ClassName.get("java.util", "Optional");
+    CodeBlock wrap =
+        oneof.optional()
+            ? CodeBlock.of("v -> $T.<$T>of(v)", optional, TypeName.get(oneof.sealed()))
+            : CodeBlock.of("v -> v");
+    CodeBlock.Builder body =
+        CodeBlock.builder().add("return switch (wire.$L()) {\n$>", oneof.caseGetter());
+    for (OneofArm arm : oneof.arms()) {
+      ClassName variant = ClassName.get(arm.variant());
+      CodeBlock read = CodeBlock.of("wire.$L()", arm.getter());
+      CodeBlock parsed =
+          arm.prism() == null
+              ? CodeBlock.of(
+                  "hkj$$construct($T.validNel(($T<$T>) () -> new $T($L)), $S)",
+                  VALIDATED,
+                  ClassName.get("java.util.function", "Supplier"),
+                  variant,
+                  variant,
+                  read,
+                  "not a valid " + variant.simpleName())
+              : parseCall(Kind.LEAF, arm.prism(), null, null, null).on(read);
+      body.add("case $L -> $L.<$T>map($L);\n", arm.constant(), parsed, component, wrap);
+    }
+    body.add(
+        "default -> $L;\n",
+        oneof.optional()
+            ? CodeBlock.of("$T.validNel($T.empty())", VALIDATED, optional)
+            : CodeBlock.of("$T.invalidNel($T.of($S))", VALIDATED, FIELD_ERROR, "must not be null"));
+    body.add("$<};\n");
+    return MethodSpec.methodBuilder(oneof.parser())
+        .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+        .returns(
+            ParameterizedTypeName.get(
+                VALIDATED, ParameterizedTypeName.get(NEL, FIELD_ERROR), component))
+        .addParameter(ClassName.get(wire.element()), "wire")
+        .addJavadoc(
+            "Parses the oneof '$L' into the component of that name: the variant its set member"
+                + " holds.\n",
+            oneof.name())
+        .addCode(body.build())
+        .build();
   }
 
   /** The copy helpers the legs read or write their values through, each once, in one order. */
@@ -9888,50 +11217,66 @@ public class MappingProcessor extends AbstractProcessor {
 
   /**
    * One {@code Validated.fields()} leg for a correspondence — shared by the full tier's {@code
-   * parse} and the projection tier's {@code patch}. Every reference read is guarded (see {@link
+   * parse} and the projection tier's {@code patch}: the component's {@link #legValue} under its
+   * name, or nothing for a correspondence that reads no value of its own.
+   */
+  private CodeBlock parseLeg(WireShape wire, Correspondence c, CodeBlock wireRead, boolean guard) {
+    CodeBlock value = legValue(c, wireRead, guard);
+    return value.isEmpty() ? value : CodeBlock.of("\n.field($S, $L)", c.name(), value);
+  }
+
+  /**
+   * The {@code Validated} a correspondence parses its component to, from the wire read {@code
+   * wireRead}: shared by the dense legs and the update a {@code FieldMask} drives, which parses
+   * each field it names exactly as {@code parse} would. Every reference read is guarded (see {@link
    * #guardedRead}), so the leaf and container legs always wrap their read in the {@code
    * hkj$ifPresent} helper — a null becomes a located {@code FieldError} instead of reaching a leaf
    * (whose parse rejects null). {@code guard} only varies the identity leg, whose primitive reads
-   * can never be null.
+   * can never be null. Empty for a derived component, which carries no domain data, and for every
+   * arm of a oneof but its first, which reads the whole component.
    */
-  private CodeBlock parseLeg(WireShape wire, Correspondence c, CodeBlock wireRead, boolean guard) {
-    ClassName optional = ClassName.get("java.util", "Optional");
+  private static CodeBlock legValue(Correspondence c, CodeBlock wireRead, boolean guard) {
     // The domain takes a copy of what the wire holds, never the wire's own container; the scan and
     // the guard then run over the copy, which carries exactly what the wire did.
     CodeBlock read = ContainerCopy.through(c.valueCopy(), wireRead, SCAN_SCOPE);
     return switch (c.kind()) {
       case LEAF, ELEMENTS, ARRAY, MAP, MAP_KEYS, MAP_ENTRIES ->
-          CodeBlock.of(
-              "\n.field($S, hkj$$ifPresent($L, $L))", c.name(), read, parseCall(c).asFunction());
+          CodeBlock.of("hkj$$ifPresent($L, $L)", read, parseCall(c).asFunction());
       case OPTIONAL ->
-          CodeBlock.of(
-              "\n.field($S, hkj$$ifPresent($L, $L))",
-              c.name(),
-              read,
-              elementOfOptionalParser(c.prism()));
+          CodeBlock.of("hkj$$ifPresent($L, $L)", read, elementOfOptionalParser(c.prism()));
       // An identity container is read as a copy, and a null anywhere inside it is a located
       // invalid at its full path - the doctrine the lifted legs enforce via parseAll/parseValues.
       // Its scan guards the container itself too; a primitive read, never guarded, has no scan.
       case IDENTITY ->
           c.scan() != null
-              ? CodeBlock.of("\n.field($S, $L)", c.name(), c.scan().on(read, SCAN_SCOPE))
+              ? c.scan().on(read, SCAN_SCOPE)
               : guard
-                  ? CodeBlock.of(
-                      "\n.field($S, hkj$$ifPresent($L, $T::validNel))", c.name(), read, VALIDATED)
-                  : CodeBlock.of("\n.field($S, $T.validNel($L))", c.name(), VALIDATED, read);
+                  ? CodeBlock.of("hkj$$ifPresent($L, $T::validNel)", read, VALIDATED)
+                  : CodeBlock.of("$T.validNel($L)", VALIDATED, read);
       // A nullable read bridges to the domain Optional: null becomes Optional.empty, so it is
       // never guarded and never fails on absence. A present value still goes through whatever the
       // unbridged component would have used - its leaf, its container's lifting, its nested spec,
       // or an identity container's null scan.
-      case OPTIONAL_BRIDGE -> bridgeParseLeg(c, read, optional);
+      case OPTIONAL_BRIDGE -> bridgeValue(c, read);
       // A derived component carries no domain data; parse reconstructs without it.
       case DERIVED -> CodeBlock.of("");
+      // A oneof's component is read once, by its first arm, through the helper switching over
+      // every member.
+      case ONEOF -> leads(c) ? CodeBlock.of("$L(wire)", c.oneof().parser()) : CodeBlock.of("");
     };
   }
 
   /**
-   * The bridged leg: an absent (null) read is valid emptiness, and a present one parses exactly as
-   * its unbridged pair would, through the call that pair's leg makes, through the identity
+   * Whether a correspondence reads its component in a leg of its own: every one but the arms of a
+   * oneof after its first, which reads the component for them all.
+   */
+  private static boolean leads(Correspondence c) {
+    return c.kind() != Kind.ONEOF || c.wireName().equals(c.oneof().arms().getFirst().member());
+  }
+
+  /**
+   * The bridged value: an absent (null) read is valid emptiness, and a present one parses exactly
+   * as its unbridged pair would, through the call that pair's leg makes, through the identity
    * container's null scan, or straight through. They share one shape so the bridge cannot drift
    * from the legs it stands in for.
    *
@@ -9943,7 +11288,8 @@ public class MappingProcessor extends AbstractProcessor {
    * wildcard-argument container keeps its scan, because the leg names the {@code Optional}'s
    * argument outright rather than letting the scan's result be inferred into it.
    */
-  private static CodeBlock bridgeParseLeg(Correspondence c, CodeBlock read, ClassName optional) {
+  private static CodeBlock bridgeValue(Correspondence c, CodeBlock read) {
+    ClassName optional = ClassName.get("java.util", "Optional");
     CodeBlock present;
     if (c.present().kind() != Kind.IDENTITY) {
       present = parseCall(c.present()).on(CodeBlock.of("v"));
@@ -9956,17 +11302,9 @@ public class MappingProcessor extends AbstractProcessor {
     CodeBlock witness =
         c.domainElement() == null ? CodeBlock.of("") : CodeBlock.of("<$T>", c.domainElement());
     return present == null
-        ? CodeBlock.of(
-            "\n.field($S, $T.validNel($T.$LofNullable($L)))",
-            c.name(),
-            VALIDATED,
-            optional,
-            witness,
-            read)
+        ? CodeBlock.of("$T.validNel($T.$LofNullable($L))", VALIDATED, optional, witness, read)
         : CodeBlock.of(
-            "\n.field($S, $T.ofNullable($L).map(v -> $L.map($T::$Lof)).orElseGet("
-                + "() -> $T.validNel($T.empty())))",
-            c.name(),
+            "$T.ofNullable($L).map(v -> $L.map($T::$Lof)).orElseGet(() -> $T.validNel($T.empty()))",
             optional,
             read,
             present,
@@ -10018,8 +11356,10 @@ public class MappingProcessor extends AbstractProcessor {
     CodeBlock buildBody = wireBuildBody(wire, wireName, comps, implPackage(spec));
     List<AnnotationSpec> suppression = pairSuppression(domainDeclared, wire, comps);
 
+    // A oneof's first arm reads the component for its other arms, which read nothing of their own.
+    List<Correspondence> legs = comps.stream().filter(MappingProcessor::leads).toList();
     List<CodeBlock> patchLegs = new ArrayList<>();
-    for (Correspondence c : comps) {
+    for (Correspondence c : legs) {
       // A JSON-bound record leaves an absent component null, exactly like an unset bean
       // property, so every reference read is guarded into a located FieldError (the locked
       // null policy, the same guardedRead the full tier uses); a primitive
@@ -10059,7 +11399,7 @@ public class MappingProcessor extends AbstractProcessor {
               GuardedConstruction.ladder(
                   patchLegs,
                   GuardedConstruction.apply(
-                      comps.stream().map(c -> nameFor.get(c.name()).toString()).toList(),
+                      legs.stream().map(c -> nameFor.get(c.name()).toString()).toList(),
                       GuardedConstruction.boundThunk(
                           unprojectedReads,
                           domainName,
@@ -10080,12 +11420,12 @@ public class MappingProcessor extends AbstractProcessor {
               reserved,
               domainName,
               values -> {
-                // values align 1:1 with comps: every projected leg emits exactly one .field
-                // (a projection can never carry a DERIVED correspondence, the only empty leg),
-                // so index i pairs comps.get(i) with its parsed value.
+                // values align 1:1 with the legs: every leading correspondence emits exactly one
+                // .field (a projection can never carry a DERIVED correspondence, and a oneof's
+                // later arms are no legs), so index i pairs legs.get(i) with its parsed value.
                 Map<String, CodeBlock> valueFor = new LinkedHashMap<>(nameFor);
-                for (int i = 0; i < comps.size(); i++) {
-                  valueFor.put(comps.get(i).name(), values.get(i));
+                for (int i = 0; i < legs.size(); i++) {
+                  valueFor.put(legs.get(i).name(), values.get(i));
                 }
                 return GuardedConstruction.boundThunk(
                     unprojectedReads, domainName, patchCtorArgs(domain, projected, valueFor::get));

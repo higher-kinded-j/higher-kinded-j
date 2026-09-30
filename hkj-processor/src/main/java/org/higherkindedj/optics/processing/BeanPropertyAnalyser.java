@@ -5,6 +5,7 @@ package org.higherkindedj.optics.processing;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -64,6 +65,10 @@ import org.higherkindedj.optics.processing.util.ProcessorUtils;
  * <p>A two-way bean records the accessors it leaves out, each getter nothing writes and each writer
  * nothing reads, so that the processor can refuse one whose omission would lose a value: this
  * analysis knows the bean, and only the spec knows which names its mapping needs.
+ *
+ * <p>A protobuf-java message is a builder bean with more accessors than fields, so it is read by
+ * its fields instead ({@link #message}): each is a name its builder can clear, read and written
+ * through the accessors protobuf gives a field of its kind.
  *
  * <p>Getters and setters are gathered from {@link javax.lang.model.util.Elements#getAllMembers}, so
  * a bean inherits properties from its superclasses (as JAXB-generated beans do); {@link Object}
@@ -161,6 +166,11 @@ final class BeanPropertyAnalyser {
 
   private WireShape.BeanShape analyse(
       TypeElement spec, TypeElement bean, String tag, boolean report, boolean neverBuilt) {
+    BuilderModel builder = findBuilderModel(bean);
+    // A protobuf-java message is read by its fields, whatever other accessors it declares.
+    if (builder != null && isMessage(env, bean)) {
+      return message(bean, builder);
+    }
     // A bean inherits properties from its superclasses, so a member read off its declaring element
     // speaks that element's variables: 'T getId()' on BaseDto<T> is String on UserDto.
     DeclaredType beanType = (DeclaredType) bean.asType();
@@ -168,7 +178,7 @@ final class BeanPropertyAnalyser {
     // Setters write a bean the Impl can construct, and a PATCH bean without a builder, which only
     // something else constructs.
     boolean setterWritten =
-        hasUsableNoArgsConstructor(spec, bean) || (neverBuilt && findBuilderModel(bean) == null);
+        hasUsableNoArgsConstructor(spec, bean) || (neverBuilt && builder == null);
     Map<String, List<ExecutableElement>> setters = setterWritten ? collectSetters(bean) : Map.of();
 
     if (setterWritten) {
@@ -225,7 +235,6 @@ final class BeanPropertyAnalyser {
       }
     }
 
-    BuilderModel builder = findBuilderModel(bean);
     Map<String, List<ExecutableElement>> builderSetters = Map.of();
     Singulars singulars = Singulars.NONE;
     if (builder != null) {
@@ -339,10 +348,380 @@ final class BeanPropertyAnalyser {
           bean,
           tag,
           getters.keySet(),
-          setters.isEmpty() ? builderSetters.keySet() : setters.keySet(),
-          neverBuilt);
+          setters.isEmpty() ? builderSetters.keySet() : setters.keySet());
     }
     return null;
+  }
+
+  /**
+   * Whether {@code type} is a protobuf-java message: a subtype of {@code MessageLite}, which every
+   * message implements on the full and lite runtimes alike. It is looked up by name, so the
+   * processor takes no dependency on protobuf-java, and a build without it has no messages.
+   */
+  static boolean isMessage(ProcessingEnvironment env, TypeElement type) {
+    Types types = env.getTypeUtils();
+    return Optional.ofNullable(env.getElementUtils().getTypeElement(PROTOBUF_MESSAGE))
+        .filter(message -> types.isSubtype(types.erasure(type.asType()), message.asType()))
+        .isPresent();
+  }
+
+  /**
+   * A protobuf-java message, as the two-way builder bean its fields make it. protobuf generates
+   * more accessors than a message has fields: {@code getXBytes()} and {@code setXBytes(ByteString)}
+   * beside a string field, {@code getXValue()} and {@code setXValue(int)} beside an open enum,
+   * {@code getUnknownFields()} and {@code setUnknownFields(...)} on every message of the full
+   * runtime, and a count, an element getter and a builder view beside a repeated field. Paired up
+   * as properties, some of them would be properties no domain has. What tells a field apart is the
+   * {@code clearX()} its builder declares, which protobuf gives every field and every oneof, and
+   * nothing else. A field is read and written by its kind:
+   *
+   * <ul>
+   *   <li>a repeated field through {@code getXList()} and {@code addAllX(...)}, as a {@code List};
+   *   <li>a map field through {@code getXMap()} and {@code putAllX(...)}, as a {@code Map}, its
+   *       deprecated {@code getX()} left alone;
+   *   <li>any other field through {@code getX()} and the {@code setX(...)} that takes the type it
+   *       reads, so a message field's {@code setX(X.Builder)} is left alone.
+   * </ul>
+   *
+   * <p>A field is named as protobuf names it in Java, its accessors' suffix with the first letter
+   * in lower case: {@code kInt} for {@code k_int}, whose getter is {@code getKInt()}, where the
+   * JavaBeans rule would keep {@code KInt}. A name with a {@code clearX()} and none of those
+   * accessors is a oneof, whose members each record their membership, as each field records the
+   * {@code hasX()} telling whether it is set ({@link WireShape.MessageField}). protoc generates a
+   * field's accessors together, so a name whose accessors disagree is none of its fields, and only
+   * a class written to look like a message has one. A message declares no accessor the mapping
+   * needs to know it leaves out, so none is recorded as unpaired.
+   */
+  private WireShape.BeanShape message(TypeElement message, BuilderModel builder) {
+    Map<String, ExecutableElement> readers = new LinkedHashMap<>();
+    publicInstanceMethods(message).stream()
+        .filter(method -> method.getParameters().isEmpty())
+        .forEach(method -> readers.putIfAbsent(method.getSimpleName().toString(), method));
+    Map<String, List<ExecutableElement>> writers =
+        publicInstanceMethods(builder.builderElement()).stream()
+            .filter(method -> method.getParameters().size() == 1)
+            .collect(
+                Collectors.groupingBy(
+                    method -> method.getSimpleName().toString(), Collectors.toUnmodifiableList()));
+    // In the order the builder declares its clear methods, which is the order of the fields.
+    List<String> suffixes =
+        ElementFilter.methodsIn(builder.builderElement().getEnclosedElements()).stream()
+            .filter(
+                method ->
+                    method.getParameters().isEmpty()
+                        && method.getModifiers().contains(Modifier.PUBLIC)
+                        && !method.getModifiers().contains(Modifier.STATIC))
+            .map(method -> method.getSimpleName().toString())
+            .filter(name -> name.length() > CLEAR.length() && name.startsWith(CLEAR))
+            .map(name -> name.substring(CLEAR.length()))
+            .toList();
+    List<String> names = suffixes.stream().map(BeanPropertyAnalyser::fieldName).toList();
+    MessageAccessors accessors =
+        new MessageAccessors(
+            (DeclaredType) message.asType(),
+            builder.builderType(),
+            readers,
+            writers,
+            oneofs(readers, names),
+            numbers(message, names));
+    return new WireShape.BeanShape(
+        message,
+        suffixes.stream().flatMap(suffix -> field(suffix, accessors).stream()).toList(),
+        Optional.of(builder.strategy()),
+        WireShape.Direction.BIDIRECTIONAL,
+        List.of());
+  }
+
+  /**
+   * The accessors a protobuf-java message and its builder declare, as {@link #field} reads each
+   * field from them: the message and the builder as its factory returns it, the message's
+   * zero-argument methods and the builder's one-argument methods by name, each oneof member's
+   * membership by the member's name, and the constant holding each field's number by its name.
+   */
+  private record MessageAccessors(
+      DeclaredType message,
+      DeclaredType builder,
+      Map<String, ExecutableElement> readers,
+      Map<String, List<ExecutableElement>> writers,
+      Map<String, WireShape.OneofMember> oneofs,
+      Map<String, String> numbers) {
+
+    MessageAccessors {
+      readers = Map.copyOf(readers);
+      writers = Map.copyOf(writers);
+      oneofs = Map.copyOf(oneofs);
+      numbers = Map.copyOf(numbers);
+    }
+  }
+
+  /**
+   * How a repeated or a map field is read and written: the prefix of the builder method that adds a
+   * whole collection to it ({@code addAll}), the type that method takes ({@code Iterable}), the
+   * suffix of its getter ({@code List}), and the container type the getter answers.
+   */
+  private record CollectionField(
+      String adderPrefix, String adderParameter, String getterSuffix, String containerName) {}
+
+  private static final List<CollectionField> COLLECTION_FIELDS =
+      List.of(
+          new CollectionField("addAll", ITERABLE, "List", LIST),
+          new CollectionField("putAll", MAP, "Map", MAP));
+
+  private static final String CLEAR = "clear";
+
+  private static final String GET = "get";
+
+  private static final String CASE = "Case";
+
+  /**
+   * The field whose builder declares {@code clear<suffix>()}: a repeated or map field where the
+   * message declares its collection accessors, else a singular one, or empty for a oneof, which has
+   * no accessors of its own under that name.
+   */
+  private Optional<WireShape.BeanProperty> field(String suffix, MessageAccessors accessors) {
+    String name = fieldName(suffix);
+    // protobuf names no other method hasX, so one is the field's presence.
+    Optional<String> number = Optional.ofNullable(accessors.numbers().get(name));
+    WireShape.MessageField field =
+        new WireShape.MessageField(
+            Optional.of("has" + suffix).filter(accessors.readers()::containsKey),
+            Optional.ofNullable(accessors.oneofs().get(name)),
+            number
+                .map(
+                    constant ->
+                        protoName(
+                            constant.substring(0, constant.length() - FIELD_NUMBER.length()), name))
+                .orElseGet(() -> snakeCase(name)),
+            number);
+    return COLLECTION_FIELDS.stream()
+        .flatMap(kind -> collectionField(kind, suffix, field, accessors).stream())
+        .findFirst()
+        .or(() -> singularField(suffix, field, accessors));
+  }
+
+  /**
+   * The repeated or map field {@code kind} reads under {@code suffix}: its getter answers a
+   * container of that kind, and the builder method adding a whole one takes a container, not the
+   * single element another field's adder takes, as {@code addAllFoo(String)} does for a repeated
+   * field named {@code all_foo}.
+   */
+  private Optional<WireShape.BeanProperty> collectionField(
+      CollectionField kind,
+      String suffix,
+      WireShape.MessageField field,
+      MessageAccessors accessors) {
+    Types types = env.getTypeUtils();
+    TypeMirror taken =
+        types.erasure(env.getElementUtils().getTypeElement(kind.adderParameter()).asType());
+    Optional<ExecutableElement> adder =
+        accessors.writers().getOrDefault(kind.adderPrefix() + suffix, List.of()).stream()
+            .filter(
+                writer ->
+                    types.isSubtype(
+                        types.erasure(writer.getParameters().getFirst().asType()), taken))
+            .findFirst();
+    Optional<ExecutableElement> getter =
+        Optional.ofNullable(accessors.readers().get(GET + suffix + kind.getterSuffix()));
+    return adder.flatMap(
+        write ->
+            getter.flatMap(
+                read ->
+                    Optional.ofNullable(
+                            ProcessorUtils.supertypeOf(
+                                types,
+                                getterType(accessors.message(), read),
+                                env.getElementUtils().getTypeElement(kind.containerName())))
+                        .map(
+                            type ->
+                                new WireShape.BeanProperty(
+                                    fieldName(suffix),
+                                    type,
+                                    Optional.of(read.getSimpleName().toString()),
+                                    Optional.of(new WireShape.WriteSite.Setter(write)),
+                                    Optional.of(field)))));
+  }
+
+  /**
+   * The singular field under {@code suffix}: read by {@code getX()}, and written by the {@code
+   * setX(...)} that takes the type the getter answers.
+   */
+  private Optional<WireShape.BeanProperty> singularField(
+      String suffix, WireShape.MessageField field, MessageAccessors accessors) {
+    Types types = env.getTypeUtils();
+    return Optional.ofNullable(accessors.readers().get(GET + suffix))
+        .flatMap(
+            getter -> {
+              TypeMirror type = getterType(accessors.message(), getter);
+              return accessors.writers().getOrDefault("set" + suffix, List.of()).stream()
+                  .filter(setter -> types.isSameType(paramType(accessors.builder(), setter), type))
+                  .findFirst()
+                  .map(
+                      setter ->
+                          new WireShape.BeanProperty(
+                              fieldName(suffix),
+                              type,
+                              Optional.of(getter.getSimpleName().toString()),
+                              Optional.of(new WireShape.WriteSite.Setter(setter)),
+                              Optional.of(field)));
+            });
+  }
+
+  /**
+   * The name protobuf gives a field in Java, from its accessors' suffix: {@code kInt} from {@code
+   * KInt}. protobuf writes the suffix with its first letter in upper case, and the name with it in
+   * lower case, whatever follows.
+   */
+  private static String fieldName(String suffix) {
+    return Character.toLowerCase(suffix.charAt(0)) + suffix.substring(1);
+  }
+
+  /**
+   * Each oneof member's membership, by the member's name among {@code names}. A oneof {@code kind}
+   * has a case getter, {@code getKindCase()}, answering an enum with a constant for each member,
+   * its {@code .proto} name in upper case ({@code STRING_VALUE} for {@code string_value}), and
+   * {@code KIND_NOT_SET}. So an enum a {@code getXCase()} answers is a oneof's when one of its
+   * constants reads as its oneof's name followed by {@code NOT_SET}, and any other {@code
+   * getXCase()} reads a field named {@code x_case}. A constant names the field protobuf would name
+   * from it ({@link #member}).
+   */
+  private Map<String, WireShape.OneofMember> oneofs(
+      Map<String, ExecutableElement> readers, List<String> names) {
+    Map<String, WireShape.OneofMember> members = new LinkedHashMap<>();
+    readers.entrySet().stream()
+        .filter(
+            reader ->
+                reader.getKey().length() > GET.length() + CASE.length()
+                    && reader.getKey().startsWith(GET)
+                    && reader.getKey().endsWith(CASE))
+        .forEach(
+            reader -> {
+              String method = reader.getKey();
+              String oneof =
+                  fieldName(method.substring(GET.length(), method.length() - CASE.length()));
+              String unset = normalised(oneof) + "notset";
+              // A primitive has no element, and a type that is no enum has no constants.
+              List<String> constants =
+                  Optional.ofNullable(
+                          env.getTypeUtils().asElement(reader.getValue().getReturnType()))
+                      .stream()
+                      .flatMap(type -> ElementFilter.fieldsIn(type.getEnclosedElements()).stream())
+                      .filter(constant -> constant.getKind() == ElementKind.ENUM_CONSTANT)
+                      .map(constant -> constant.getSimpleName().toString())
+                      .toList();
+              constants.stream()
+                  .filter(constant -> normalised(constant).equals(unset))
+                  .findFirst()
+                  .ifPresent(
+                      notSet ->
+                          constants.stream()
+                              .filter(constant -> !constant.equals(notSet))
+                              .forEach(
+                                  constant ->
+                                      member(constant, names)
+                                          .ifPresent(
+                                              field ->
+                                                  members.put(
+                                                      field,
+                                                      new WireShape.OneofMember(
+                                                          oneof, method, constant, notSet)))));
+            });
+    return members;
+  }
+
+  /**
+   * The constant holding each field's number, by its Java name among {@code names}. protoc gives a
+   * message a constant for each field, named after it in upper case: {@code
+   * DISPLAY_NAME_FIELD_NUMBER} for {@code display_name}, whose Java name is {@code displayName}.
+   * The constant says where the underscores go, and the Java name the case ({@link #protoName}).
+   */
+  private static Map<String, String> numbers(TypeElement message, List<String> names) {
+    Map<String, String> numbers = new LinkedHashMap<>();
+    ElementFilter.fieldsIn(message.getEnclosedElements()).stream()
+        .map(constant -> constant.getSimpleName().toString())
+        .filter(constant -> constant.endsWith(FIELD_NUMBER))
+        .forEach(
+            constant ->
+                member(constant.substring(0, constant.length() - FIELD_NUMBER.length()), names)
+                    .ifPresent(name -> numbers.put(name, constant)));
+    return numbers;
+  }
+
+  /**
+   * A name as its {@code .proto} file declares it, as far as the constant naming it in upper case
+   * and its Java name, which {@link #member} has matched letter for letter, tell it: {@code
+   * display_name} from {@code DISPLAY_NAME} and {@code displayName}, and {@code displayName} from
+   * {@code DISPLAYNAME} and {@code displayName}. protobuf keeps a capital the file declares, but
+   * puts one of its own first and after an underscore or a digit, where the file is read as
+   * declaring the lower-case letter. A message that carries its descriptor names the field exactly;
+   * a lite one carries none.
+   */
+  static String protoName(String constant, String name) {
+    StringBuilder declared = new StringBuilder();
+    int letter = 0;
+    char previous = '_';
+    for (char c : constant.toLowerCase(Locale.ROOT).toCharArray()) {
+      if (c == '_') {
+        declared.append(c);
+      } else {
+        char java = name.charAt(letter++);
+        declared.append(Character.isLetter(previous) ? java : c);
+      }
+      previous = c;
+    }
+    return declared.toString();
+  }
+
+  private static final String FIELD_NUMBER = "_FIELD_NUMBER";
+
+  /**
+   * A field's Java name written as a {@code .proto} file would declare it, for a message whose
+   * constants name no field: {@code display_name} for {@code displayName}.
+   */
+  private static String snakeCase(String name) {
+    return name.replaceAll("([A-Z])", "_$1").toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * The field among {@code names} a constant naming a field in upper case names, as a oneof case
+   * constant and a field number constant do: the one protobuf names from it ({@link #camelCase}),
+   * or failing that, the only one whose name reads as the constant's with underscores and case set
+   * aside, as a field declared in camel case in its {@code .proto} file does. Matched exactly
+   * first, a field {@code foobar} beside a member {@code foo_bar} is never taken for the member.
+   */
+  private static Optional<String> member(String constant, List<String> names) {
+    String camel = camelCase(constant);
+    List<String> alike =
+        names.stream().filter(name -> normalised(name).equals(normalised(constant))).toList();
+    return names.contains(camel)
+        ? Optional.of(camel)
+        : alike.size() == 1 ? Optional.of(alike.getFirst()) : Optional.empty();
+  }
+
+  /**
+   * The Java name protobuf gives the field a constant names in upper case, {@code phoneNumber} for
+   * {@code PHONE_NUMBER}: the constant in lower case, each underscore dropped and the letter after
+   * it, or after a digit, in upper case.
+   */
+  private static String camelCase(String constant) {
+    StringBuilder name = new StringBuilder();
+    boolean upper = false;
+    for (char c : constant.toLowerCase(Locale.ROOT).toCharArray()) {
+      if (c == '_') {
+        upper = true;
+      } else {
+        name.append(upper ? Character.toUpperCase(c) : c);
+        upper = Character.isDigit(c);
+      }
+    }
+    return name.toString();
+  }
+
+  /**
+   * A field or constant name with its underscores dropped and in lower case, so that a oneof's
+   * {@code NOT_SET} constant, and a member declared in camel case, compare with what they name.
+   */
+  private static String normalised(String name) {
+    return name.replace("_", "").toLowerCase(Locale.ROOT);
   }
 
   private static WireShape.BeanProperty readWrite(
@@ -1103,16 +1482,10 @@ final class BeanPropertyAnalyser {
   /**
    * Refuses a bean no reading fits. Asked only once the one-way readings are ruled out, so the two
    * name sets are either both empty, a bean with nothing to read or write, or both non-empty, a
-   * bean whose getters and writers never share a name. {@code sparse} marks a sparse update's PATCH
-   * bean, which a record cannot replace.
+   * bean whose getters and writers never share a name.
    */
   private void reportUnusable(
-      TypeElement spec,
-      TypeElement bean,
-      String tag,
-      Set<String> reads,
-      Set<String> writes,
-      boolean sparse) {
+      TypeElement spec, TypeElement bean, String tag, Set<String> reads, Set<String> writes) {
     if (reads.isEmpty() && declaresSetters(bean)) {
       Diagnostics.error(
           env.getMessager(),
@@ -1163,41 +1536,8 @@ final class BeanPropertyAnalyser {
             + ". A bean maps both ways over the properties it can read and write, and one way only"
             + " when it offers nothing at all in the other direction, so reading some names and"
             + " writing others fits neither.",
-        protobufFix(env, bean, sparse)
-            .orElse(
-                "Align each getter with its setter (or builder setter), which a misspelt accessor"
-                    + " usually explains, or remove the accessors of the direction the wire is not"
-                    + " crossed in."));
-  }
-
-  /**
-   * The fix for a refusal a protobuf-java message meets, or empty for any other wire: convert the
-   * message by hand to a record, or for a PATCH body to a bean whose getters answer {@code null}
-   * until set, and map that. A message reads as a builder bean, but the properties that reading
-   * finds are not the fields it carries: protobuf generates companion accessors that pair up like
-   * properties, and gives a repeated or map field no setter, so a refusal's own fix, which works
-   * within the mapping, cannot reach a working one.
-   *
-   * @param env the processing environment, to look protobuf-java up on the path
-   * @param wire the wire a refusal names
-   * @param sparse whether the wire is a sparse update's PATCH body, which a record cannot be
-   * @return the fix line, when {@code wire} is a protobuf-java message
-   */
-  static Optional<String> protobufFix(ProcessingEnvironment env, TypeElement wire, boolean sparse) {
-    TypeElement message = env.getElementUtils().getTypeElement(PROTOBUF_MESSAGE);
-    Types types = env.getTypeUtils();
-    if (message == null || !types.isSubtype(types.erasure(wire.asType()), message.asType())) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        "Convert '"
-            + wire.getSimpleName()
-            + "' by hand to "
-            + (sparse ? "a PATCH bean whose getters answer null until set" : "a record")
-            + ", and map that instead: a protobuf-java message is not supported yet,"
-            + " since the companion accessors protobuf generates (such as getXBytes() beside a"
-            + " string field, getXValue() beside a proto3 enum, and getUnknownFields()) pair up as"
-            + " properties, and a repeated or map field, having no setter, is no property at all.");
+        "Align each getter with its setter (or builder setter), which a misspelt accessor usually"
+            + " explains, or remove the accessors of the direction the wire is not crossed in.");
   }
 
   private List<ExecutableElement> publicInstanceMethods(TypeElement type) {

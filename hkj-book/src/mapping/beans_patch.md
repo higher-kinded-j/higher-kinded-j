@@ -2,7 +2,7 @@
 
 _Map a PATCH request so an omitted field keeps its current value and a bad one still fails._
 
-A PATCH request carries only the fields the client wants to change, so a `null` in it means *not sent*, not *broken*. This page maps such a request onto your domain record, a Java `record`, with `UpdateSpec`: sent fields are validated and applied, and omitted ones keep their current value. The request must be a class with getters and setters, which [Bean-Shaped Wires](beans.md) covers. The mapper needs Java 25 and the hkj Gradle plugin, and the [Quickstart](quickstart.md) sets both up.
+A PATCH request carries only the fields the client wants to change, so a `null` in it means *not sent*, not *broken*. This page maps such a request onto your domain record, a Java `record`, with `UpdateSpec`: sent fields are validated and applied, and omitted ones keep their current value. The request must be a class with getters and setters, which [Bean-Shaped Wires](beans.md) covers. A protobuf-java message names the fields it changes in a `FieldMask` instead, as [A PATCH through its `FieldMask`](beans.md#a-patch-through-its-fieldmask) shows. The mapper needs Java 25 and the hkj Gradle plugin, and the [Quickstart](quickstart.md) sets both up.
 
 ~~~admonish info title="What You'll Learn"
 - Tell what a `null` in a PATCH body means, and why no mapper can infer it

@@ -1,0 +1,40 @@
+// ANCHOR: dispatch_proto
+// A dispatch request as the order service's gRPC API sends one.
+syntax = "proto3";
+
+package book.mapping.v1;
+
+import "google/protobuf/field_mask.proto";
+
+option java_package = "org.higherkindedj.example.book.mapping.proto";
+option java_multiple_files = true;
+option java_outer_classname = "DispatchProto";
+
+message CustomerMessage {
+  string name = 1;
+  string email = 2;
+}
+
+enum Priority {
+  PRIORITY_UNSPECIFIED = 0;
+  PRIORITY_STANDARD = 1;
+  PRIORITY_EXPRESS = 2;
+}
+
+message DispatchRequest {
+  CustomerMessage customer = 1;
+  repeated string skus = 2;
+  optional string note = 3;
+  Priority priority = 4;
+  oneof destination {
+    string locker = 5;
+    string pickup_point = 6;
+  }
+}
+
+// An update names the fields it changes in its mask.
+message UpdateDispatchRequest {
+  DispatchRequest dispatch = 1;
+  google.protobuf.FieldMask update_mask = 2;
+}
+// ANCHOR_END: dispatch_proto

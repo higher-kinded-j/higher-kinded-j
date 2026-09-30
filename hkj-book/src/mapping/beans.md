@@ -2,11 +2,13 @@
 
 _Map getter/setter and builder classes as you map records, including ones only read or written._
 
-Generated client models, JAXB payloads and many legacy DTOs are beans: classes with getters and setters, or a builder, rather than records. If your wire is a bean, almost nothing changes: [leaves](basics.md#validated-leaves), [renames](basics.md#renames-mapfield), container lifting, nesting and located errors work exactly as on a record. Three things differ, and all three come from one fact: a bean can exist with some properties never set. This page walks those three first. Mapping a generated client? Read [the checklist for generated clients](#generated-client-checklist) as well. A bean used as a PATCH request, where `null` means *not sent*, has a page of its own, [Sparse PATCH](beans_patch.md).
+Generated client models, JAXB payloads and many legacy DTOs are beans: classes with getters and setters, or a builder, rather than records. If your wire is a bean, almost nothing changes: [leaves](basics.md#validated-leaves), [renames](basics.md#renames-mapfield), container lifting, nesting and located errors work exactly as on a record. Three things differ, and all three come from one fact: a bean can exist with some properties never set. This page walks those three first. Mapping a generated client? Read [the checklist for generated clients](#generated-client-checklist) as well, and for a gRPC boundary, [protobuf-java messages](#protobuf-java-messages). A bean used as a PATCH request, where `null` means *not sent*, has a page of its own, [Sparse PATCH](beans_patch.md).
 
 ~~~admonish info title="What You'll Learn"
 - Map a getter/setter or builder bean like a record, and predict what an unset property does
 - Predict which methods a bean's Impl carries, from the bean's shape
+- Map a protobuf-java message, and predict what an unset field reads
+- Map a protobuf oneof to a sealed type, and apply an update through its `FieldMask`
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -56,7 +58,7 @@ A law check from a domain sample with an empty `Optional` fails on the first two
 ~~~
 
 ~~~admonish tip title="You can ship now"
-You can now map a getter/setter or builder bean like a record, and know what an unset property does to `parse`, to an `Optional` and to the methods the Impl offers. The rest of this page, [beans crossed one way](#one-directional-beans), [projections](#bean-projections), [accessors kept out on purpose](#accessors-meant-to-stay-out) and [the checklist for generated clients](#generated-client-checklist), is for when you need it.
+You can now map a getter/setter or builder bean like a record, and know what an unset property does to `parse`, to an `Optional` and to the methods the Impl offers. The rest of this page, [beans crossed one way](#one-directional-beans), [projections](#bean-projections), [accessors kept out on purpose](#accessors-meant-to-stay-out), [protobuf-java messages](#protobuf-java-messages) and [the checklist for generated clients](#generated-client-checklist), is for when you need it.
 ~~~
 
 ~~~admonish question title="Checkpoint: which subtitle comes back?" id="check-beans-default"
@@ -223,6 +225,70 @@ A component that converts takes the marker on its leaf. [What `@ReadOnly` reads]
 
 ---
 
+## protobuf-java messages {#protobuf-java-messages}
+
+A protobuf-java message is a builder bean, so a gRPC boundary maps as any bean does, with nothing to configure. protoc generates more accessors than a message has fields, such as `getNameBytes()` beside a string field, so the processor reads a message by its fields. It takes no protobuf dependency of its own, and maps the classes protoc generates wherever they come from: this build, as here, or a jar. Here is the order service's dispatch request, which protoc compiles in the same build:
+
+``` proto
+{{#include ../../../hkj-examples/src/main/proto/book/mapping/dispatch.proto:dispatch_proto}}
+```
+
+The spec needs nothing new. The customer nests through its own spec, a leaf converts the generated enum, and the oneof maps to a sealed type. The leaf sits in a mix-in, `DispatchVocabulary`, which [the update](#a-patch-through-its-fieldmask) shares:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_usage}}
+```
+
+A repeated field maps to a `List` and a map field to a `Map`, and `build` writes each whole. What an unset field reads depends on whether protobuf tracks it, which it shows by generating `hasX()`:
+
+| The field | Unset, `parse` reads it as | A domain `Optional` over it |
+|---|---|---|
+| a message field, a field declared `optional`, a oneof member, or a singular proto2 field | `null`, so a plain component reports `must not be null` | empty, and `build` leaves the field unset |
+| a proto3 scalar declared without `optional` | its default: `""`, `0`, `false` or the first enum constant | refused, since its default would read back as present |
+| a repeated or map field | an empty `List` or `Map` | refused, as for a scalar |
+
+A oneof holds one member at a time, which a sealed type says too. A domain component named after the oneof maps it whole, and each variant is a record named after one member: `Destination.Locker` pairs with `locker`, and `Destination.PickupPoint` with `pickup_point`. A member holding a message becomes its variant through a spec for the pair, and a scalar member fills the variant's one component. As an `Optional`, the component reads a oneof with no member set as empty. You can instead map each member to an `Optional` of its own, as `DispatchRecord` does in the warning that follows. [How a protobuf-java message is read](rules.md#how-a-message-is-read) and [how a oneof maps](rules.md#protobuf-oneof-members) have the precise rules.
+
+~~~admonish warning title="Not checked for you: what a message cannot hold"
+The processor cannot see these three, and each shows only at run time:
+
+- **An enum number the build does not know.** A newer client can send a number your generated enum lacks, which its getter reads as `UNRECOGNIZED`. A component keeping the generated enum parses it, and `build` then throws. Convert the enum through a leaf that refuses `UNRECOGNIZED`, as `priority()` does.
+- **Two members of one oneof.** A domain value holding both a `locker` and a `pickupPoint`, as two `Optional` components, builds a message holding only the last one written. Map the oneof to a sealed type, as `Dispatch` does, so the domain holds one.
+- **An unset proto2 `required` field.** An empty `Optional` leaves it unset, and the builder's `build()` then throws `UninitializedMessageException`. Map a required field to a component without the `Optional`.
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_enum_trap}}
+
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/BeansBookTest.java:protobuf_enum_trap_proof}}
+
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/mapping/BeansBookTest.java:protobuf_oneof_trap_proof}}
+```
+~~~
+
+### A PATCH through its `FieldMask` {#a-patch-through-its-fieldmask}
+
+A message reads a value for most fields it has not set, so an unset field cannot mean *leave unchanged*. A gRPC update request names the fields it changes in a `FieldMask` instead. Extend `UpdateSpec` over the message, and the Impl's `updateFrom(message, mask)` returns the edits the mask asks for. `DispatchPatch` shares its leaves with `DispatchMapping` through the `DispatchVocabulary` mix-in:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_patch_spec}}
+
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_patch_usage}}
+```
+
+Each field the mask names parses as `parse` would read it, and replaces the stored value whole, so the stored locker gave way to the pickup point. A field the mask names and the message leaves unset reads as `parse` reads it: the note would clear, and the customer would fail. A path is the field's name in the `.proto` file, or `*` for every field. A path into a nested message, such as `customer.name`, is not supported yet, and fails located at the path.
+
+An empty mask names no field, so the update changes nothing. A request that omits its mask asks for every field its message sets, as [AIP-134](https://google.aip.dev/134) has it, and `maskOf` builds that mask on the full runtime:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_implied_mask}}
+```
+
+[A protobuf-java message updates through its `FieldMask`](rules.md#protobuf-fieldmask-update) has the precise rules.
+
+---
+
 ## Generated clients: a checklist {#generated-client-checklist}
 
 Beans are often generated from a schema, and generators have habits. Check these where a generated bean meets the mapper:
@@ -237,7 +303,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 | a PATCH request bean with `default:` values or container defaults | the generator renders them as initialisers, which read as sent | give the PATCH request its own schema: [A PATCH getter must answer `null` until set](beans_patch.md#patch-getters-answer-null) |
 | a Lombok class | the processor sees its accessors only once Lombok has run | list Lombok's `annotationProcessor` before `hkj-processor`; the HKJ Gradle plugin adds its own after your `dependencies` block ([Lombok](../tooling/manual_setup.md#lombok)) |
 | Lombok's `@Singular` on a collection | it maps: `build` writes the collection whole and leaves the singular adder alone. The collection is never `null`, so it cannot carry an absent `Optional` or a PATCH's absence | for an `Optional` component, declare it a `List` or drop `@Singular`; on a PATCH request, drop `@Singular`: [A Lombok `@Singular` collection](rules.md#singular-collections) |
-| a protobuf-java message | not supported yet: protobuf's companions pair up as properties your domain lacks (`getUnknownFields()`, `getXBytes()` beside a string field, `getXValue()` beside an enum), and a repeated or map field has no setter. Each refusal it meets says it is not supported yet | convert it to a record by hand, and map the record |
+| a protobuf-java message | it maps both ways by its fields, and protoc's other accessors, such as `getXBytes()`, stay out. An unset field with `hasX()` reads as `null`, and an update follows its `FieldMask` | nothing, unless an `Optional` faces a proto3 scalar: declare that field `optional` in the `.proto` ([protobuf-java messages](#protobuf-java-messages)) |
 | a bean another annotation processor generates | the mapping waits for the type to exist, with nothing to configure | nothing: [Mapping over types other processors generate](../tooling/manual_setup.md#mapping-over-types-other-processors-generate) |
 
 ---
@@ -247,6 +313,7 @@ Beans are often generated from a schema, and generators have habits. Check these
 * **Three things follow from an unset property**: a reference property costs `asIso()`, an `Optional` bridges with no annotation, and a smaller bean has no `parse`
 * **What the bean does with a `null` is not checked for you**: a default reads back as present, and a writer that rejects it throws, so law-check from a domain sample with an empty `Optional`
 * **A bean's shape decides its direction**: a read model gets `parse` alone, a write model `build` alone, and a generated model with getters and setters maps both ways
+* **A protobuf-java message maps by its fields**: a field with `hasX()` reads as `null` when unset, a oneof maps to a sealed type, and an update follows its `FieldMask`
 ~~~
 
 ~~~admonish tip title="See Also"

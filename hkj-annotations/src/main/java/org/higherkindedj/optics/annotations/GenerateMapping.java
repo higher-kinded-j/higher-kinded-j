@@ -113,15 +113,20 @@ import java.lang.annotation.Target;
  *       {@code T} (empty writes {@code null}, replacing any default the bean starts with), with no
  *       declaration, unless that property is written through its own getter, which leaves it
  *       nothing to write absence into; on a record wire the same bridge is opted into per component
- *       with {@link OptionalBridge}. The domain stays a record. A bean crossed one way only maps
- *       that way: one with getters and nothing that writes it generates {@code parse} and {@code
- *       asValidatedParse()} and no {@code build}, and one that can be written but declares no
- *       getter generates {@code build} and {@code asValidatedBuild()} and no {@code parse}. A note
- *       names the direction, and such a mapping nests wherever only its direction is used. A getter
- *       with no setter on a bean read both ways, or a getter-only {@code List} there, is read only
- *       where a {@link ReadOnly} marker names it: {@code parse} reads it and {@code build} leaves
- *       it out, so the mapping carries {@code asValidatedParse()} and {@code asValidatedBuild()} in
- *       place of {@code asValidatedPrism()}.
+ *       with {@link OptionalBridge}. A protobuf-java message is such a builder bean, read by its
+ *       fields rather than by every accessor protoc generates: a field with {@code hasX()} reads
+ *       {@code null} when unset, an empty {@code Optional} leaves it unset, and one without {@code
+ *       hasX()} refuses the bridge. A oneof maps to a domain component named after it, a sealed
+ *       interface with a record named after each member, or each member to an {@code Optional}. The
+ *       domain stays a record. A bean crossed one way only maps that way: one with getters and
+ *       nothing that writes it generates {@code parse} and {@code asValidatedParse()} and no {@code
+ *       build}, and one that can be written but declares no getter generates {@code build} and
+ *       {@code asValidatedBuild()} and no {@code parse}. A note names the direction, and such a
+ *       mapping nests wherever only its direction is used. A getter with no setter on a bean read
+ *       both ways, or a getter-only {@code List} there, is read only where a {@link ReadOnly}
+ *       marker names it: {@code parse} reads it and {@code build} leaves it out, so the mapping
+ *       carries {@code asValidatedParse()} and {@code asValidatedBuild()} in place of {@code
+ *       asValidatedPrism()}.
  *   <li>A lossless mapping additionally gets {@code asIso()}; a wire with fewer components maps as
  *       a projection with {@code asLens()} and no {@code parse} (truthful types); a projection
  *       carrying a fallible leaf, or a bean projection with a reference property (which can read
@@ -140,7 +145,8 @@ import java.lang.annotation.Target;
  *       patch} is dense (a missing value is an error), {@code updateFrom} is sparse (a missing
  *       value means keep the current one). {@code updateFrom} constructs the record once, from the
  *       values the PATCH ends on, so a constructor checking its fields against each other never
- *       sees a PATCH half applied.
+ *       sees a PATCH half applied. Over a protobuf-java message it generates {@code
+ *       updateFrom(Wire, FieldMask)} instead, which edits the fields the mask names.
  * </ul>
  */
 @Target(ElementType.TYPE)

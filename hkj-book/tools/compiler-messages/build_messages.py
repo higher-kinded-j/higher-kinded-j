@@ -108,6 +108,14 @@ SHORT = {
     "getter-only-list-build": "A getter-only `List` is raw or a wildcard",
     "bridged-to-a-getter-only-list": "A domain `Optional` faces a getter-only `List`",
     "bridged-to-a-singular-collection": "A domain `Optional` faces a Lombok `@Singular` collection",
+    "protobuf-field-without-presence": "A domain `Optional` faces a message field with no `hasX()`",
+    "protobuf-oneof-member": "A oneof member is filled by something other than an `Optional`",
+    "protobuf-oneof-unsealed": "A component named after a oneof is not sealed",
+    "protobuf-oneof-variant-not-record": "A oneof's sealed variant is not a record",
+    "protobuf-oneof-unpaired": "A oneof's members and variants do not pair by name",
+    "protobuf-oneof-variant-unfilled": "Nothing fills a oneof's variant from its member",
+    "protobuf-oneof-held-twice": "A component fills a member a sealed component holds",
+    "protobuf-oneof-method": "A method is named after a component that maps a oneof",
     "singular-adder-not-told-apart": "A build-only builder's `@Singular` adder is ambiguous",
     "reads-some-writes-others": "A bean reads some names and writes others",
     "extends-both-tiers": "One spec extends `MappingSpec` and `UpdateSpec`",
@@ -115,6 +123,7 @@ SHORT = {
     "record-patch-wire": "A PATCH wire is a record",
     "getter-only-list-patch": "A PATCH bean has a getter-only `List`",
     "singular-collection-patch": "A PATCH bean has a Lombok `@Singular` collection",
+    "protobuf-field-names-no-component": "A message field names no component of a `FieldMask` update",
     "optional-on-a-patch": "A plain PATCH property faces a domain `Optional`",
     "generic-bean-or-patch": "A bean, PATCH or sealed mapping is generic",
     "abstract-leaf-needs-a-generic-spec": "A concrete spec declares a leaf with no body",
@@ -311,7 +320,7 @@ _The refusals you are most likely to meet from the mapping processor, what each 
 When the processor cannot write correct code for a spec, it refuses at compile time, pointing at your declaration, with a message that says what is wrong, why, and what to write. Look the message up in [Find your message](#find-your-message): each entry gives the fix and the full message in the open, with a declaration that produces it folded away. Every declaration here is compiled on each build, and the build fails if its message stops carrying the words the entry quotes. A message not listed still carries its own what, why and fix, and its rule is on [Rules and Limits](rules.md).
 
 ~~~admonish info title="Reading an entry"
-- **Headings** quote the message with its names replaced: `X` and `Y` for types, `x` and `y` for components or methods, `T` for a type argument, `p` for a package. The `@GenerateMapping:` prefix is left off.
+- **Headings** quote the message with its names replaced: `X`, `Y` and `Z` for types, `x`, `y` and `z` for components, fields or methods, `T` for a type argument, `p` for a package. The `@GenerateMapping:` prefix is left off.
 - **The words:** the *domain* is your record, the *wire* the DTO, the *spec* the `@GenerateMapping` interface, and a *leaf* a `default ValidatedPrism` method that converts one field.
 - **Errors, warnings and notes:** an error stops the build, a warning stops only a `-Werror` build, and a note stops nothing. One entry is a warning and one a note, and each says so. The processor prints a few other notes, each saying how it read a declaration, such as a bean it maps one way only.
 - **The full messages** are printed for declarations compiled in a package `com.example`.

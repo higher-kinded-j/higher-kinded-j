@@ -37,7 +37,9 @@ package org.higherkindedj.optics.annotations;
  * so an unset property parses to a located {@code FieldError} rather than throwing. A component
  * whose {@code null} means <em>absent</em> rather than <em>broken</em> says so with {@link
  * OptionalBridge}; a bean wire needs no such declaration, because it bridges an {@code Optional}
- * component automatically wherever the property can be written as null. The domain type {@code D}
+ * component automatically wherever the property can be written as null. A protobuf-java message is
+ * read by its fields: a field with {@code hasX()} reads {@code null} when unset, an empty {@code
+ * Optional} leaves it unset, and a oneof maps to a sealed interface. The domain type {@code D}
  * stays a record (or a sealed interface of records), since {@code parse} assembles it through its
  * canonical constructor.
  *

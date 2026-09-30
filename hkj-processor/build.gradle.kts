@@ -3,6 +3,7 @@ plugins {
     id("com.vanniktech.maven.publish")
     id("info.solidsoft.pitest") version "1.19.0-rc.3"
     jacoco
+    alias(libs.plugins.protobuf)
 }
 
 dependencies {
@@ -32,11 +33,22 @@ dependencies {
     // Lombok interop coverage: bean-shaped wires read Lombok-generated accessors in the same
     // javac run, so the pairing is pinned by LombokInteropTest rather than assumed.
     testImplementation(libs.lombok)
+    // protobuf-java interop coverage: its well-known types are messages protoc generated, so a
+    // mapping over each field kind is pinned against the real accessors rather than a stand-in.
+    testImplementation(libs.protobuf.java)
     testImplementation(libs.assertj.core)
     testImplementation(libs.archunit.junit5)
 
     // Property-based testing for verifying generated optics with random inputs
     testImplementation(libs.bundles.jqwik)
+}
+
+// protoc for the test-only .proto files, at the release that matches the protobuf-java runtime: a
+// message whose field names only its descriptor keeps is real protoc output, not a stand-in.
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.asProvider().get()}"
+    }
 }
 
 tasks.test {

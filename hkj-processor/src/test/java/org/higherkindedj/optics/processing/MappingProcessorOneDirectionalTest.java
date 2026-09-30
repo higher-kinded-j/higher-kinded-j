@@ -642,30 +642,61 @@ class MappingProcessorOneDirectionalTest {
     }
 
     @Test
-    @DisplayName("a primitive writer no domain component sources is not offered a derived field")
-    void unsourcedPrimitiveWriterOffersNoDerivedField() {
+    @DisplayName(
+        "a primitive writer no domain component sources is offered a derived field over its"
+            + " wrapper, which builds")
+    void unsourcedPrimitiveWriterOffersADerivedField() throws ReflectiveOperationException {
       JavaFileObject request =
           source(
               "RankRequest",
               """
               public class RankRequest {
+                private int rank;
                 public void setName(String name) {}
-                public void setRank(int rank) {}
+                public void setRank(int rank) { this.rank = rank; }
+                public int rank() { return rank; }
               }
               """);
-      JavaFileObject spec =
-          source(
-              "RankRequestMapping",
-              """
-              @GenerateMapping
-              public interface RankRequestMapping extends MappingSpec<Person, RankRequest> {}
-              """);
-      Compilation compilation = compile(PERSON, request, spec);
-      assertThat(compilation).failed();
-      assertThat(compilation)
+      Compilation refused =
+          compile(
+              PERSON,
+              request,
+              source(
+                  "RankRequestMapping",
+                  """
+                  @GenerateMapping
+                  public interface RankRequestMapping extends MappingSpec<Person, RankRequest> {}
+                  """));
+      assertThat(refused).failed();
+      assertThat(refused)
           .hadErrorContaining("build-only field 'RankRequest.rank' has no domain source.");
-      Assertions.assertThat(compilation.errors())
-          .noneMatch(error -> error.getMessage(Locale.ROOT).contains("declare a derived field"));
+      assertThat(refused)
+          .hadErrorContaining(
+              "declare a derived field 'default Getter<Person, Integer> rank()' that computes it");
+
+      // The line followed: build unboxes what the getter answers into the primitive writer.
+      Compilation followed =
+          compile(
+              PERSON,
+              request,
+              source(
+                  "RankRequestMapping",
+                  """
+                  @GenerateMapping
+                  public interface RankRequestMapping extends MappingSpec<Person, RankRequest> {
+                    default Getter<Person, Integer> rank() {
+                      return Getter.of(person -> person.name().length());
+                    }
+                  }
+                  """));
+      assertThat(followed).succeeded();
+      var result = new RuntimeCompilationHelper.CompiledResult(followed);
+      Object built =
+          invoke(
+              result.instance(PKG + ".RankRequestMappingImpl"),
+              "build",
+              create(result, "Person", "Ada"));
+      Assertions.assertThat(invoke(built, "rank")).isEqualTo(3);
     }
 
     @Test

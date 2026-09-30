@@ -6,9 +6,17 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.google.protobuf.DescriptorProtos;
+import com.google.protobuf.Descriptors;
+import com.google.protobuf.FieldMask;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.higherkindedj.example.book.mapping.proto.CustomerMessage;
+import org.higherkindedj.example.book.mapping.proto.DispatchRequest;
+import org.higherkindedj.example.book.mapping.proto.Priority;
+import org.higherkindedj.example.book.mapping.proto.UpdateDispatchRequest;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -118,7 +126,81 @@ public final class BeansBook {
     // ANCHOR_END: read_only_usage
     System.out.println(merchant);
     System.out.println(idSent);
+
+    // ANCHOR: protobuf_usage
+    DispatchRequest dispatchRequest =
+        DispatchRequest.newBuilder()
+            .setCustomer(CustomerMessage.newBuilder().setName("Ada").setEmail("ada@corp.example"))
+            .addSkus("SKU-1")
+            .setPriority(Priority.PRIORITY_EXPRESS)
+            .setLocker("LK-4")
+            .build(); // no note: hasNote() is false
+    DispatchMappingImpl dispatchMapping = DispatchMappingImpl.INSTANCE;
+
+    Validated<NonEmptyList<FieldError>, Dispatch> dispatch = dispatchMapping.parse(dispatchRequest);
+    // Valid(Dispatch[customer=Customer[name=Ada, email=EmailAddress[value=ada@corp.example]],
+    // skus=[SKU-1], note=Optional.empty, priority=EXPRESS,
+    // destination=Optional[Locker[id=LK-4]]])
+
+    // The customer is a message field, which tracks whether it is set: unset, it reads as null.
+    Validated<NonEmptyList<FieldError>, Dispatch> noCustomer =
+        dispatchMapping.parse(dispatchRequest.toBuilder().clearCustomer().build());
+    // Invalid(NonEmptyList[customer: must not be null])
+
+    // An empty Optional leaves the field unset, so the message built has no note either.
+    Customer grace = new Customer("Grace", new EmailAddress("grace@corp.example"));
+    DispatchRequest built =
+        dispatchMapping.build(
+            new Dispatch(
+                grace,
+                List.of("SKU-2"),
+                Optional.empty(),
+                DispatchPriority.STANDARD,
+                Optional.of(new Destination.PickupPoint("PP-9"))));
+    boolean noteSent = built.hasNote();
+    // false
+    // ANCHOR_END: protobuf_usage
+    System.out.println(dispatch);
+    System.out.println(noCustomer);
+    System.out.println(noteSent);
+
+    // ANCHOR: protobuf_patch_usage
+    Dispatch stored =
+        new Dispatch(
+            new Customer("Lin", new EmailAddress("lin@corp.example")),
+            List.of("SKU-3"),
+            Optional.empty(),
+            DispatchPriority.STANDARD,
+            Optional.of(new Destination.Locker("LK-7")));
+    UpdateDispatchRequest update =
+        UpdateDispatchRequest.newBuilder()
+            .setDispatch(
+                DispatchRequest.newBuilder().setNote("leave at the door").setPickupPoint("PP-2"))
+            .setUpdateMask(FieldMask.newBuilder().addPaths("note").addPaths("pickup_point"))
+            .build();
+
+    Validated<NonEmptyList<FieldError>, Dispatch> updated =
+        DispatchPatchImpl.INSTANCE.updateFrom(update.getDispatch(), maskOf(update)).apply(stored);
+    // Valid(Dispatch[customer=Customer[name=Lin, email=EmailAddress[value=lin@corp.example]],
+    // skus=[SKU-3], note=Optional[leave at the door], priority=STANDARD,
+    // destination=Optional[PickupPoint[code=PP-2]]])
+    // ANCHOR_END: protobuf_patch_usage
+    System.out.println(updated);
   }
+
+  // ANCHOR: protobuf_implied_mask
+  // A request that omits its mask asks for every field its message sets. An empty mask names none.
+  static FieldMask maskOf(UpdateDispatchRequest update) {
+    return update.hasUpdateMask()
+        ? update.getUpdateMask()
+        : FieldMask.newBuilder()
+            .addAllPaths(
+                update.getDispatch().getAllFields().keySet().stream()
+                    .map(Descriptors.FieldDescriptor::getName)
+                    .toList())
+            .build();
+  }
+  // ANCHOR_END: protobuf_implied_mask
 }
 
 // ANCHOR: bean_spec
@@ -443,3 +525,91 @@ class ListingModel {
 
 @GenerateMapping
 interface ListingModelMapping extends MappingSpec<Listing, ListingModel> {}
+
+// ANCHOR: protobuf_spec
+// A dispatch as the order service keeps it. DispatchRequest and CustomerMessage are the messages
+// protoc generates from dispatch.proto.
+enum DispatchPriority {
+  STANDARD,
+  EXPRESS
+}
+
+// The oneof 'destination': a record named after each member.
+sealed interface Destination {
+  record Locker(String id) implements Destination {}
+
+  record PickupPoint(String code) implements Destination {}
+}
+
+record Dispatch(
+    Customer customer,
+    List<String> skus,
+    Optional<String> note,
+    DispatchPriority priority,
+    Optional<Destination> destination) {}
+
+@GenerateMapping
+interface CustomerMessageMapping extends MappingSpec<Customer, CustomerMessage> {
+  default ValidatedPrism<String, EmailAddress> email() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// The customer nests through CustomerMessageMapping, the skus copy as a List, the note reads as
+// empty when unset, and so does the oneof, whose set member becomes its record.
+@GenerateMapping
+interface DispatchMapping extends MappingSpec<Dispatch, DispatchRequest>, DispatchVocabulary {}
+
+// The leaves DispatchMapping shares with DispatchPatch, an update over the same pair.
+interface DispatchVocabulary {
+  // The priority converts through this leaf, which refuses the unset PRIORITY_UNSPECIFIED and
+  // the UNRECOGNIZED an unknown number reads as.
+  default ValidatedPrism<Priority, DispatchPriority> priority() {
+    return ValidatedPrism.of(
+        wire ->
+            switch (wire) {
+              case PRIORITY_STANDARD -> Validated.validNel(DispatchPriority.STANDARD);
+              case PRIORITY_EXPRESS -> Validated.validNel(DispatchPriority.EXPRESS);
+              case PRIORITY_UNSPECIFIED, UNRECOGNIZED ->
+                  Validated.invalidNel(FieldError.of("not a priority: " + wire));
+            },
+        domain ->
+            switch (domain) {
+              case STANDARD -> Priority.PRIORITY_STANDARD;
+              case EXPRESS -> Priority.PRIORITY_EXPRESS;
+            });
+  }
+}
+
+// ANCHOR_END: protobuf_spec
+
+// ANCHOR: protobuf_patch_spec
+@GenerateMapping
+interface DispatchPatch extends UpdateSpec<Dispatch, DispatchRequest>, DispatchVocabulary {}
+
+// ANCHOR_END: protobuf_patch_spec
+
+// ANCHOR: protobuf_enum_trap
+// The same request, its priority kept as the generated enum itself: no leaf converts it.
+record DispatchRecord(
+    Customer customer,
+    List<String> skus,
+    Optional<String> note,
+    Priority priority,
+    Optional<String> locker,
+    Optional<String> pickupPoint) {}
+
+@GenerateMapping
+interface DispatchRecordMapping extends MappingSpec<DispatchRecord, DispatchRequest> {}
+
+// ANCHOR_END: protobuf_enum_trap
+
+// ANCHOR: protobuf_required_trap
+// descriptor.proto's NamePart, a proto2 message whose two fields are required.
+record OptionName(String namePart, Optional<Boolean> isExtension) {}
+
+@GenerateMapping
+interface OptionNameMapping
+    extends MappingSpec<OptionName, DescriptorProtos.UninterpretedOption.NamePart> {}
+
+// ANCHOR_END: protobuf_required_trap

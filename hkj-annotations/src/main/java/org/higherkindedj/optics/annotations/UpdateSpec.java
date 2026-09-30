@@ -90,6 +90,16 @@ package org.higherkindedj.optics.annotations;
  * because its {@code null} already means leave unchanged; and a field defaulting to {@code
  * Optional.empty()} would clear the component on every request that omits it.
  *
+ * <p>A protobuf-java message reads a value for most fields it has not set, so an update request
+ * built with protobuf names the fields it changes in a {@code FieldMask} instead. Over a message,
+ * the Impl generates {@code updateFrom(W message, FieldMask mask)} in place of {@code
+ * updateFrom(W)}. Each field the mask names, by its name in the {@code .proto} file or {@code *}
+ * for every field, parses as {@link MappingSpec}'s {@code parse} would read it: named and unset, it
+ * clears an {@code Optional}, empties a collection, and fails a component that must be set. A field
+ * the mask leaves out keeps its value, and a path into a nested message, or one naming no field, is
+ * a located failure. Every field must name a domain component, since a mask may name any, and a
+ * primitive field maps as it does on a {@code MappingSpec}.
+ *
  * <p>A spec names one tier: an interface extending {@code UpdateSpec} must not also extend {@link
  * MappingSpec}, and declaring both is rejected with a diagnostic. One interface generates one Impl,
  * and the two tiers emit disjoint members, so nothing an Impl could carry answers both clauses. A
@@ -97,7 +107,7 @@ package org.higherkindedj.optics.annotations;
  * mix-in interface both extend.
  *
  * @param <D> the domain type (a record)
- * @param <W> the wire type (a bean-shaped PATCH DTO)
+ * @param <W> the wire type (a bean-shaped PATCH DTO, or a protobuf-java message)
  * @see MappingSpec
  */
 public interface UpdateSpec<D, W> {}

@@ -6,8 +6,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import com.google.protobuf.FieldMask;
+import com.google.protobuf.UninitializedMessageException;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.mapping.proto.CustomerMessage;
+import org.higherkindedj.example.book.mapping.proto.DispatchRequest;
+import org.higherkindedj.example.book.mapping.proto.Priority;
+import org.higherkindedj.example.book.mapping.proto.UpdateDispatchRequest;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -149,5 +156,180 @@ class BeansBookTest {
     TransferBean bean = new TransferBean();
     bean.setDepartment(department);
     return bean;
+  }
+
+  @Test
+  @DisplayName(
+      "a protobuf message maps by its fields: an unset message field is missing, and an empty"
+          + " Optional leaves its field unset")
+  void protobufMessageObeysTheLaws() {
+    DispatchRequest request =
+        DispatchRequest.newBuilder()
+            .setCustomer(CustomerMessage.newBuilder().setName("Ada").setEmail("ada@corp.example"))
+            .addSkus("SKU-1")
+            .setNote("leave at the door")
+            .setPriority(Priority.PRIORITY_EXPRESS)
+            .setPickupPoint("PP-9")
+            .build();
+    MappingLaws.assertMappingLaws(
+        DispatchMappingImpl.INSTANCE.asValidatedPrism(),
+        request, // parses, and builds back equal
+        request.toBuilder().clearCustomer().build()); // an unset message field: located failure
+    MappingLaws.assertMappingLaws(
+        DispatchMappingImpl.INSTANCE.asValidatedPrism(),
+        new Dispatch(
+            new Customer("Grace", new EmailAddress("grace@corp.example")),
+            List.of(),
+            Optional.empty(),
+            DispatchPriority.STANDARD,
+            Optional.of(new Destination.Locker("LK-4"))));
+
+    assertThatValidated(
+            DispatchMappingImpl.INSTANCE.parse(request.toBuilder().clearCustomer().build()))
+        .isInvalid()
+        .hasFieldErrors("customer: must not be null");
+  }
+
+  @Test
+  @DisplayName(
+      "an open enum reads an unknown number as UNRECOGNIZED: a leaf refuses it, and build throws"
+          + " on it where no leaf does")
+  void unrecognisedEnumNumber() {
+    // ANCHOR: protobuf_enum_trap_proof
+    DispatchRequest fromNewerClient =
+        DispatchRequest.newBuilder()
+            .setCustomer(CustomerMessage.newBuilder().setName("Ada").setEmail("ada@corp.example"))
+            .setPriorityValue(3) // a priority added to the .proto after this build
+            .build();
+
+    // Kept as the generated enum, it parses as UNRECOGNIZED, which no builder can write back.
+    DispatchRecord kept = DispatchRecordMappingImpl.INSTANCE.parse(fromNewerClient).get();
+    assertThat(kept.priority()).isEqualTo(Priority.UNRECOGNIZED);
+    assertThatThrownBy(() -> DispatchRecordMappingImpl.INSTANCE.build(kept))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Can't get the number of an unknown enum value.");
+
+    // Converted through a leaf, it is refused where it is read.
+    assertThatValidated(DispatchMappingImpl.INSTANCE.parse(fromNewerClient))
+        .isInvalid()
+        .hasFieldErrors("priority: not a priority: UNRECOGNIZED");
+    // ANCHOR_END: protobuf_enum_trap_proof
+  }
+
+  @Test
+  @DisplayName(
+      "a domain value holding two members of one oneof as Optionals builds only the last one"
+          + " written")
+  void twoOneofMembers() {
+    Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
+    // ANCHOR: protobuf_oneof_trap_proof
+    DispatchRecord both =
+        new DispatchRecord(
+            ada,
+            List.of("SKU-1"),
+            Optional.empty(),
+            Priority.PRIORITY_STANDARD,
+            Optional.of("LK-4"), // a locker
+            Optional.of("PP-9")); // and a pickup point: this record allows both
+
+    DispatchRequest built = DispatchRecordMappingImpl.INSTANCE.build(both);
+    assertThat(built.getDestinationCase()).isEqualTo(DispatchRequest.DestinationCase.PICKUP_POINT);
+    assertThat(DispatchRecordMappingImpl.INSTANCE.parse(built).get().locker()).isEmpty();
+    // ANCHOR_END: protobuf_oneof_trap_proof
+  }
+
+  @Test
+  @DisplayName("an empty Optional leaves a proto2 required field unset, and build() throws")
+  void unsetRequiredField() {
+    // ANCHOR: protobuf_required_trap_proof
+    assertThatThrownBy(
+            () ->
+                OptionNameMappingImpl.INSTANCE.build(
+                    new OptionName("deprecated", Optional.empty())))
+        .isInstanceOf(UninitializedMessageException.class)
+        .hasMessageContaining("is_extension");
+    // ANCHOR_END: protobuf_required_trap_proof
+  }
+
+  @Test
+  @DisplayName(
+      "an update applies the fields its mask names, clears one named and unset, and fails a path"
+          + " it cannot follow")
+  void fieldMaskUpdate() {
+    Dispatch stored =
+        new Dispatch(
+            new Customer("Lin", new EmailAddress("lin@corp.example")),
+            List.of("SKU-3"),
+            Optional.of("ring twice"),
+            DispatchPriority.STANDARD,
+            Optional.of(new Destination.Locker("LK-7")));
+    DispatchRequest request = DispatchRequest.newBuilder().setPickupPoint("PP-2").build();
+
+    assertThatValidated(
+            DispatchPatchImpl.INSTANCE
+                .updateFrom(
+                    request,
+                    FieldMask.newBuilder().addPaths("note").addPaths("pickup_point").build())
+                .apply(stored))
+        .isValid()
+        .hasValue(
+            new Dispatch(
+                stored.customer(),
+                stored.skus(),
+                Optional.empty(),
+                DispatchPriority.STANDARD,
+                Optional.of(new Destination.PickupPoint("PP-2"))));
+    assertThatValidated(
+            DispatchPatchImpl.INSTANCE
+                .updateFrom(request, FieldMask.getDefaultInstance())
+                .apply(stored))
+        .isValid()
+        .hasValue(stored);
+    assertThatValidated(
+            DispatchPatchImpl.INSTANCE
+                .updateFrom(
+                    request,
+                    FieldMask.newBuilder().addPaths("customer.name").addPaths("priority").build())
+                .apply(stored))
+        .isInvalid()
+        .hasFieldErrors(
+            "customer.name: nested paths are not supported yet",
+            "priority: not a priority: PRIORITY_UNSPECIFIED");
+  }
+
+  @Test
+  @DisplayName(
+      "a request that omits its mask edits the fields its message sets, and the update obeys the"
+          + " sparse laws")
+  void impliedMask() {
+    Dispatch stored =
+        new Dispatch(
+            new Customer("Lin", new EmailAddress("lin@corp.example")),
+            List.of("SKU-3"),
+            Optional.empty(),
+            DispatchPriority.STANDARD,
+            Optional.of(new Destination.Locker("LK-7")));
+    UpdateDispatchRequest noMask =
+        UpdateDispatchRequest.newBuilder()
+            .setDispatch(DispatchRequest.newBuilder().setNote("ring twice").setPickupPoint("PP-2"))
+            .build();
+    assertThat(BeansBook.maskOf(noMask).getPathsList())
+        .containsExactlyInAnyOrder("note", "pickup_point");
+    // An explicit empty mask names no field.
+    assertThat(
+            BeansBook.maskOf(
+                    noMask.toBuilder().setUpdateMask(FieldMask.getDefaultInstance()).build())
+                .getPathsList())
+        .isEmpty();
+
+    MappingLaws.assertMappingLaws(
+        request ->
+            DispatchPatchImpl.INSTANCE.updateFrom(request.getDispatch(), BeansBook.maskOf(request)),
+        stored,
+        UpdateDispatchRequest.getDefaultInstance(), // no field set, so no field named
+        noMask, // changes the note and the destination
+        UpdateDispatchRequest.newBuilder()
+            .setUpdateMask(FieldMask.newBuilder().addPaths("priority"))
+            .build()); // names the priority, left unset
   }
 }

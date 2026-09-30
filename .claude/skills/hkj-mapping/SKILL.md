@@ -1,6 +1,6 @@
 ---
 name: hkj-mapping
-description: "Compile-time data assembly and mapping with Higher-Kinded-J. Use whenever the task involves: mapping a domain record to/from a wire DTO, request, response, entity or payload (@GenerateMapping, MappingSpec, @MapField); mapping a sealed domain hierarchy to a sealed DTO hierarchy; hand-written toDto()/fromDto()/toDomain()/toEntity() mapper or converter classes; replacing MapStruct/ModelMapper/Dozer or a reflective bean mapper; building one target record by merging several source records (@GenerateMerge); constructing a record from independently-validated parts, collecting every error (@GenerateAssembly, fields(), accumulate()); or giving a sealed error hierarchy a structured envelope with a typed context record (@GenerateErrorEnvelope, ErrorEnvelope, editContext). Also covers the arity rules (the hand-written fields()/accumulate() ladder stops at 16; @GenerateAssembly has no ceiling), parse/build law-checking with MappingLaws, and -parameters."
+description: "Compile-time data assembly and mapping with Higher-Kinded-J. Use whenever the task involves: mapping a domain record to/from a wire DTO, request, response, entity or payload, a protobuf-java or gRPC message included (@GenerateMapping, MappingSpec, @MapField); mapping a sealed domain hierarchy to a sealed DTO hierarchy; hand-written toDto()/fromDto()/toDomain()/toEntity() mapper or converter classes; replacing MapStruct/ModelMapper/Dozer or a reflective bean mapper; building one target record by merging several source records (@GenerateMerge); constructing a record from independently-validated parts, collecting every error (@GenerateAssembly, fields(), accumulate()); or giving a sealed error hierarchy a structured envelope with a typed context record (@GenerateErrorEnvelope, ErrorEnvelope, editContext). Also covers the arity rules (the hand-written fields()/accumulate() ladder stops at 16; @GenerateAssembly has no ceiling), parse/build law-checking with MappingLaws, and -parameters."
 ---
 
 # Higher-Kinded-J Compile-Time Mapping and Assembly
@@ -76,7 +76,7 @@ says what is *not* obvious.
 | Rename a field on the wire | an **abstract** method named after the domain component, annotated `@MapField(to = "fullName")` |
 | Rename a field that is also **parsed** (`emailAddress: String` -> `email: EmailAddress`) | `@MapField(to = "emailAddress")` on the component's leaf: the leaf is the one method named after it, so a separate marker would not compile |
 | A component that must be **parsed** (`String` -> `EmailAddress`) | a zero-arg `default` method named after the domain component, returning `ValidatedPrism<Wire, Domain>` |
-| A wire-only field **derived** from the domain | a zero-arg `default` method returning `Getter<Domain, WireType>` |
+| A wire-only field **derived** from the domain | a zero-arg `default` method returning `Getter<Domain, WireType>` (a primitive wire type takes its wrapper: `Getter<Domain, Integer>` for an `int`) |
 | A domain `Optional<T>` against a **nullable record** wire component `T` | `@OptionalBridge` on an abstract marker named after the domain component, or on that component's leaf |
 | A `Map` whose **keys** differ on the two sides | a zero-arg `default` method returning `ValidatedPrism<WireKey, DomainKey>`, annotated `@MapKey("component")` - the method's own name is free |
 | A nested domain record against a **flat** wire (`Address` vs `street`, `city`, `postcode`) | `@Flatten` on an abstract marker named after the domain component; the record's components then map by name |
@@ -531,6 +531,26 @@ matter: it maps build-only whatever its width, derived fields included.
   see `reference/mapping-example.md`. A bean projection with a reference
   property takes the validated `patch` (the property can be unset); an all-primitive one keeps
   `asLens()`.
+- **A protobuf-java message maps both ways by its fields**, on the full and lite runtimes, with nothing
+  to configure: a field is a name its builder can `clearX()`. A singular field reads `getX()` and
+  writes the `setX` taking that type; a repeated field is a `List` (`getXList()`, `addAllX`); a map
+  field a `Map` (`getXMap()`, `putAllX`). protoc's other accessors (`getXBytes()`, `getXValue()`,
+  `getUnknownFields()`, counts, `OrBuilder` views) are not fields. A field is named as protobuf
+  names it in Java (`k_int` is `kInt`). A field with `hasX()` (a message field, a field declared
+  `optional`, a oneof member, a singular proto2 field) reads `null` when unset: a domain `Optional`
+  reads it empty and `build` leaves it unset, any other component reports `must not be null`. A
+  field with no `hasX()` reads its default. A primitive field reads as its wrapper where the domain
+  holds a reference, so a `ValidatedPrism<Long, Instant>` leaf converts an `int64`. Unknown fields
+  and extensions are not carried. A oneof maps whole to a domain component named after it, typed
+  as a sealed interface (or an `Optional` of one) with a record named after each member
+  (the member's Java name capitalised: `Locker` <-> `locker`, `PickupPoint` <-> `pickup_point`,
+  `XRay` <-> `x_ray`; exhaustive both ways, one variant per name). A message member becomes its
+  variant through a spec for the pair; a scalar member fills a one-component variant as it is (no
+  leaf stands in for a variant, so an enum member keeps `UNRECOGNIZED`: refuse it in the variant's
+  constructor). With no member set, an `Optional` reads empty and a plain sealed component reports
+  `must not be null`; `build` throws on a `null` one. Generic sealed types and variants, a
+  `@MapField` rename onto a oneof, a method named after the component and another component
+  filling a held member are refused. Or map each member to an `Optional` of its own.
 - **A bean crossed one way maps that way.** Getters and nothing that writes it: parse-only
   (`parse` + `asValidatedParse()`; every domain component needs a getter, extra getters are
   ignored, and a derived field declared there is refused). Writers and no getters: build-only
@@ -625,8 +645,8 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   `Map`) parses through the element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
   serves a full spec and its PATCH sibling. Replacement is wholesale; each failing element is
   located (`phones.1`). A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) wins as the
-  more specific declaration. Nested specs do not lift here — delegate via an element leaf to the
-  nested Impl's `asValidatedPrism()`. Same-typed identity containers are null-scanned at every
+  more specific declaration. Nested specs do not lift through a PATCH bean's container — delegate
+  via an element leaf to the nested Impl's `asValidatedPrism()` (a FieldMask update lifts them). Same-typed identity containers are null-scanned at every
   depth, as on the dense tiers (`tags.1: must not be null`; a set's unlocated, as `tags: must not
   contain a null element`), an `Optional` holding a container included. `@MapKey` applies here
   too.
@@ -651,8 +671,25 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   exception's message (`not a valid Range` when it has none, or a blank one); `toValidated()`'s
   `Update` throws there instead, having no error channel. An empty PATCH hands back the current
   value without constructing. The generated fold is `Edits.accumulate(focus, ...)`.
+- **A protobuf-java message** as the wire generates `updateFrom(Message, FieldMask) :
+  Edits.Accumulated<Domain>` in place of `updateFrom(Wire)`: a message reads a value for most
+  unset fields, so its update names the fields it changes in the mask. A field the mask names (by
+  its `.proto` name, camel or snake case as declared, read from the descriptor (a lite message has
+  none, so a capital first or after a digit or `_` reads lower-case), or `*` for all) parses as
+  `parse` would and
+  replaces the stored value whole: named and unset, it clears an `Optional`, reads a proto3
+  scalar's default, empties a collection and fails a plain component; a field it leaves out keeps
+  its value, and an empty mask edits nothing (build the AIP-134 implied mask from
+  `message.getAllFields()` when the request omits one). A nested path, a oneof's own name or an
+  unknown name is a located failure (`nested paths are not supported yet`, `names a oneof, not a
+  field`, `names no field of M`). Every field must name a domain component, unless a derived field
+  from a mix-in shared with a `MappingSpec` fills it; primitives, `Optional`s over `hasX()` fields
+  and nested specs over containers map as on a `MappingSpec`. A oneof's component takes the member
+  the message holds when the mask names that member, and clears when it holds none.
 - Law-check it with the sparse overload:
-  `MappingLaws.assertMappingLaws(Impl.INSTANCE::updateFrom, current, absentWire, validWire, invalidWire)`,
+  `MappingLaws.assertMappingLaws(Impl.INSTANCE::updateFrom, current, absentWire, validWire, invalidWire)`
+  (for a FieldMask update, pass a function of the request, `req -> Impl.INSTANCE.updateFrom(
+  req.getDispatch(), req.getUpdateMask())`, with a request naming no field as `absentWire`),
   with `absentWire` a freshly constructed bean (what a binder makes of `{}`) and `current` unlike
   any default (non-empty containers), so a default the bean gives itself fails the identity law.
   `invalidWire` must fail a field: a constructor's refusal is unlabelled, so a leafless domain
@@ -825,7 +862,13 @@ before rearranging the spec.
 | One spec extending both `MappingSpec` and `UpdateSpec` | Refused. One Impl carries one tier and the two emit disjoint members. Declare a spec per tier and share renames and leaves through a plain mix-in both extend |
 | Expecting `build` from a getter-only bean | Nothing can write it, so it maps parse-only, and a note says why. Give it a no-args constructor with setters, or a builder, and it maps both ways |
 | A bean only read, or only written, on an `UpdateSpec` | Refused: a sparse update reads `null` as absent, which only a bean that is written can leave unset, and a bean only written has nothing to read |
-| A protobuf-java message as the wire | Not supported yet. Its companion accessors (`getXBytes()` beside a string field, `getXValue()` beside an enum, `getUnknownFields()`) pair up as properties the domain lacks, and a repeated or map field has no setter. Each refusal it meets says it is not supported yet. Convert the message to a record by hand, and map the record (for an `UpdateSpec`, a PATCH bean whose getters answer `null` until set). Do not declare derived fields for the companions: one for `xBytes` makes `build` write the field twice |
+| A protobuf-java message whose domain component is `Optional` over a proto3 scalar with no `optional`, a repeated or a map field | Refused (`which does not track whether it is set`): unset, the field reads its default, so an empty `Optional` would read back as present. Drop the `Optional`; declare the scalar `optional` in the `.proto` so protoc generates `hasX()`; or, where the `.proto` is not yours, declare a leaf over the whole `Optional` (`ValidatedPrism<Long, Optional<Long>>`) that reads the default as empty |
+| A plain component (or a derived field) for a protobuf oneof member | Refused (`a member of the oneof`): setting one member clears the others, so `build` would keep only the last. Declare every member's component `Optional`, or map the whole oneof to one component named after it, a sealed interface with a record per member |
+| A component named after a protobuf oneof that is not a sealed interface (or an `Optional` of one) | Refused (`which maps to a sealed interface or an Optional of one`). Its variants must be records (`maps a oneof to, is not a record`), pair with the members by name both ways (`do not pair with the members of the oneof`), and each be filled by a spec for the pair or one component of the member's type (`and nothing fills it from one`) |
+| Keeping a generated protobuf enum in the domain | Compiles, but a number the build does not know parses as `UNRECOGNIZED`, and `build` then throws (`Can't get the number of an unknown enum value.`). Convert it through a `ValidatedPrism<GeneratedEnum, DomainEnum>` leaf that refuses `UNRECOGNIZED` |
+| A protobuf-java message as an `UpdateSpec` PATCH body | Maps: the Impl generates `updateFrom(Message, FieldMask)`, editing the fields the mask names. Every field must name a domain component (`of the protobuf-java message 'M' name no component of`, all listed at once). A nested mask path (`customer.name`) fails at run time, located (`nested paths are not supported yet`): name the whole field. An empty mask edits nothing |
+| A domain `Optional` over a proto2 `required` field | Compiles, but an empty `Optional` leaves the field unset and the builder's `build()` throws `UninitializedMessageException`. Map a required field to a component without the `Optional` |
+| A domain value holding two members of one protobuf oneof, as two `Optional` components | Compiles, but setting one member clears the other, so `build` keeps only the last. Map the oneof to a sealed type instead |
 | A misspelt accessor (`getEmial()` beside `setEmail(String)`) | The two do not pair, so neither is a property. Named after a domain component, the unpaired one is refused, and the diagnostic names the near accessor to rename. Pair every accessor the mapping uses, or mark a deliberate one `@Unmapped` |
 | Marking an OpenAPI `readOnly` getter `@Unmapped` | The component then stays out, so the bean is narrower than the domain: a projection with **no** `parse`, the very response you wanted to read. Mark it `@ReadOnly` instead: `parse` reads it and `build` leaves it out |
 | Nesting a spec with a `@ReadOnly` property in a mapping that builds and parses | Refused: it has no `asValidatedPrism()`, since its `build` drops the property. It nests only where one direction is used (a parse-only or build-only mapping, an `UpdateSpec`, a merge, or another spec's `@ReadOnly` component) |

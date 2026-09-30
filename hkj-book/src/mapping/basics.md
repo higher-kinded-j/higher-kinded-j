@@ -211,7 +211,7 @@ The error still names the domain component:
 
 ## Derived wire fields {#derived-wire-fields}
 
-A wire component with **no domain counterpart** can be computed from the whole domain value: a `displayName` the domain does not store, because it is derivable. Declare a zero-parameter `default` method named after the *wire* component, returning `Getter<Domain, WireComponentType>`. Read the `Getter` as a `Function<Domain, WireComponentType>`: `Getter.of` takes a plain lambda.
+A wire component with **no domain counterpart** can be computed from the whole domain value: a `displayName` the domain does not store, because it is derivable. Declare a zero-parameter `default` method named after the *wire* component, returning `Getter<Domain, WireComponentType>`. Read the `Getter` as a `Function<Domain, WireComponentType>`: `Getter.of` takes a plain lambda. A primitive component takes its wrapper, `Getter<Domain, Integer>` for an `int`, which `build` unboxes.
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BasicsBook.java:derived_spec}}
