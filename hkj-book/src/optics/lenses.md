@@ -10,15 +10,14 @@
 - Composing lenses to navigate deeply nested records
 - The difference between `get`, `set`, and `modify` operations
 - Building reusable, composable data access patterns
-- When to use lenses vs direct field access
-- When a wither, Lombok's `@With` included, is enough, and when a lens earns its place
+- Decide between direct field access, a wither such as Lombok's `@With`, and a composed lens
 ~~~
 
 ~~~admonish example title="See Example Code"
 [LensUsageExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java)
 ~~~
 
-A Lens focuses on a single, required field within a record: the `address` in a `User`, the `street` in an `Address`. It exposes `get`, `set`, and `modify`, and composes with other lenses to reach any depth without hand-written copy cascades.
+A Lens focuses on a single, required field within a record: the `address` in a `User`, the `street` in an `Address`. It exposes `get`, `set`, and `modify`, and composes with other lenses to reach any depth without hand-written copy cascades. Where a record's `withX` method copies one record, a lens reaches through nested ones ([Why a lens, when you have `@With`?](#lens-or-wither)).
 
 ---
 
@@ -232,22 +231,22 @@ Lens<Employee, String> fullAddressLens = Lens.of(
 
 ## Why a lens, when you have `@With`? {#lens-or-wither}
 
-Lombok's `@With`, a hand-written `withX` method and the generated `with*` helpers are all withers. Each copies one record with one component replaced, so the advice in [When to Use `with*` Helpers vs Manual Lenses](#when-to-use-with-helpers-vs-manual-lenses) holds for any of them.
+Lombok's `@With`, a hand-written `withX` method and the generated `with*` helpers are all withers: each copies one record with one component replaced. For a change one level deep and made once, a wither is enough, as [When to Use `with*` Helpers vs Manual Lenses](#when-to-use-with-helpers-vs-manual-lenses) says. For a change that goes deeper, is reused, or carries an effect, a lens earns its place.
 
-A wither knows only its own record. A change three records down takes one wither per level, each nested inside the next:
+A wither knows only its own record. A change three records deep takes one wither per level, each nested inside the next. Here it is with the instance withers Lombok's `@With` generates:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/LensOrWitherBook.java:cascade}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/LensesBook.java:cascade}}
 ```
 
-The composed lens from [Step 2](#step-2-composing-a-deep-lens) makes the same change in one call, `employeeToStreet.set("456 Main St", employee)`, and it is a value you can store and reuse. Two more differences matter:
+`employee.company()` appears twice, because each level reads the path again. The composed lens from [Step 2](#step-2-composing-a-deep-lens) makes the same change in one call, `employeeToStreet.set("456 Main St", employee)`, and it is a value you can store and reuse. Two more jobs need a lens:
 
-- **Chained withers run the constructor once per call.** `withLo(5).withHi(10)` cannot move `Range(1, 3)` to `Range(5, 10)` when the constructor refuses `lo > hi`: the first call builds `Range(5, 3)`. Two lens writes fail alike, and [`Lens.paired`](coupled_fields.md) constructs once.
-- **Neither creates a value.** A wither or a lens changes a record that exists. Create one with its canonical constructor, or with a builder.
+- **A lens updates by function, and by effect.** `modify` reads and writes the path in one call, and [`modifyF`](#beyond-the-basics-effectful-updates-with-modifyf) runs a check or a lookup on the way. A wither takes only the new value.
+- **Coupled fields need one construction.** Take `Range(int lo, int hi)`, whose constructor refuses `lo > hi`. On `Range(1, 3)`, `withLo(5).withHi(10)` fails on `Range(5, 3)`, and which order works depends on the direction of the move. Two lens writes fail alike; [`Lens.paired`](coupled_fields.md) constructs once.
 
-A class that copies itself through Lombok's `@With` or `toBuilder()` can have lenses too, through a [copy strategy](copy_strategies.md).
+Neither creates a value, so a lens can replace `@With`, never `@Builder`. A class built with Lombok gets lenses through [`@Wither` or `@ViaBuilder`](copy_strategies.md), with Lombok listed before `hkj-processor` ([Lombok setup](../tooling/manual_setup.md#lombok)).
 
-Java 25, which the library is built on today, has no wither in the language. [JEP 468](https://openjdk.org/jeps/468) proposes one: a `with` block that changes any components of one record through one constructor call. That would settle the `Range` case, but a change three records down would nest three blocks, where the composed lens is one call.
+Java 25, which the library is built on today, has no wither in the language. [JEP 468](https://openjdk.org/jeps/468) proposes one: a `with` block that changes any components of one record through one constructor call. A block constructs once, as `Lens.paired` does, but it changes one record, so the street change nests three blocks where the composed lens is one call.
 
 ---
 
@@ -442,15 +441,10 @@ Lenses integrate with For comprehensions in two ways:
 - Use `ForState` for stateful lens operations that thread updates through a workflow. See [For Comprehensions: Stateful Updates with ForState](../functional/for_mtl.md#stateful-updates-with-forstate).
 ~~~
 
-~~~admonish warning title="Coupled Fields"
-When record fields share an invariant (e.g., `lo <= hi` in a `Range`), sequential lens updates can fail due to invalid intermediate states. Use `Lens.paired` to update coupled fields atomically. See [Coupled Fields](coupled_fields.md) for details.
-~~~
-
 ~~~admonish info title="Key Takeaways"
 * **A lens is a first-class path to a required field**: `get`, `set`, and `modify`, with the copy-and-update cascade handled for you
 * **Compose with `andThen` to any depth**: build the path once, store it as a constant, reuse it everywhere
-* **`with*` helpers for shallow, composed lenses for deep**: the generated helpers cover top-level updates; composition covers the rest
-* **Any wither changes one record**: Lombok's `@With` and hand-written withers included, so a deep change cascades, and chained withers construct once per call
+* **Withers for shallow, composed lenses for deep**: the generated `with*` helpers, Lombok's `@With` and hand-written withers each change one record; composition covers the rest, and `Lens.paired` changes coupled components at once
 * **Prefer `modify` over get-then-set**, and `modifyF` when the update carries an effect (validation, async) through the same path
 ~~~
 
