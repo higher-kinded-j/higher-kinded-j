@@ -39,6 +39,7 @@ Delete this section if the pull request changes neither the book nor a rule, ref
 - [ ] I have performed a self-review of my own code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation (e.g., README.md, Javadoc)
+- [ ] I have added an entry to `hkj-book/src/release-history/unreleased.md` for a change a user can see, with its upgrade impact in that page's Upgrading section
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes (`./gradlew test`)

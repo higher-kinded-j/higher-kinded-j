@@ -163,6 +163,7 @@ rewrite {
 - [Compile-Time Checks](compile_checks.md) - The `migration-nudge`, `free-switch-exhaustive`, and `witness-arity` checks are the compile-time equivalents of the recipes above
 - [Build Plugins](gradle_plugin.md) - The Gradle and Maven plugins that wire `hkj-openrewrite` into a project alongside the other tooling
 - [Release History](../release-history.md) - Per-version notes; recipe groups are documented in the release that introduces them
+- [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) - Every API deprecated for removal, the release that deprecated it, and the recipe that migrates it
 ~~~
 
 ---

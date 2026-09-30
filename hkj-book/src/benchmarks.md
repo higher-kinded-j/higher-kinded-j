@@ -355,4 +355,4 @@ For everything else, the type safety, composability, and testability benefits fa
 
 ---
 
-**Previous:** [Release History](release-history.md)
+**Previous:** [v0.1.0 to v0.2.8](release-history/earlier.md)

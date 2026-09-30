@@ -19,9 +19,11 @@
  * includes, images and diagrams are left out, and so is an epigraph, a
  * quotation whose words are someone else's: a blockquote with an attribution
  * line (`> — Author`). An inline code span counts as one word, as the guide
- * says. Two pages are not measured: SUMMARY.md, the sidebar's list of links,
- * and release-history.md, an append-only log whose released entries are never
- * rewritten, so a ceiling on them could only ever be spent.
+ * says. SUMMARY.md, the sidebar's list of links, is not measured, and neither
+ * is a released version's page under release-history/, which is never
+ * rewritten, so a ceiling on it could only ever be spent. The other pages under
+ * release-history/, the unreleased notes and the upgrade guide, are lists of
+ * entries: each entry is held to the limits, and the page to no run length.
  *
  * The counts are a ratchet, not a verdict: every page is measured, reference
  * pages and fine print included, so a rise asks for a look rather than a
@@ -62,8 +64,15 @@ const LABELS = {
   aboveBelow: "'above' and 'below'",
 };
 
-/** The sidebar's list of links, and the append-only release log. */
-const UNMEASURED = new Set(["SUMMARY.md", "release-history.md"]);
+/** The sidebar's list of links, and a released version's notes, which are never rewritten. */
+function unmeasured(rel) {
+  return rel === "SUMMARY.md" || /^release-history\/(v\d+(_\d+)*|earlier)\.md$/.test(rel);
+}
+
+/** A page of release notes: a list of entries under headings, with no prose run to break up. */
+function releaseNotes(rel) {
+  return rel.startsWith("release-history/");
+}
 
 /** Abbreviations whose full stop does not end a sentence. */
 const ABBREVIATIONS = /\b(e\.g|i\.e|vs|cf)\.$/i;
@@ -240,7 +249,7 @@ function units(text) {
 }
 
 /** The six counts for one page, and what each is made of. */
-function measure(text) {
+function measure(text, rel = "") {
   const counts = Object.fromEntries(METRICS.map((m) => [m, 0]));
   const detail = Object.fromEntries(METRICS.map((m) => [m, []]));
   const runWords = new Map();
@@ -281,7 +290,7 @@ function measure(text) {
     }
   }
   for (const [run, n] of runWords) {
-    if (n > 400) {
+    if (n > 400 && !releaseNotes(rel)) {
       counts.runs++;
       detail.runs.push({ line: runLines.get(run), size: n, text: `a run of ${n} words` });
     }
@@ -293,7 +302,7 @@ function measureBook() {
   const pages = {};
   for (const file of markdownFiles(bookSrc).sort()) {
     const rel = path.relative(bookSrc, file).split(path.sep).join("/");
-    if (!UNMEASURED.has(rel)) pages[rel] = measure(fs.readFileSync(file, "utf8"));
+    if (!unmeasured(rel)) pages[rel] = measure(fs.readFileSync(file, "utf8"), rel);
   }
   return pages;
 }
@@ -341,6 +350,15 @@ function selfTest() {
     "",
     hundred,
   ], { runs: 1 });
+  for (const released of ["release-history/v0_4_10.md", "release-history/v0_3.md", "release-history/earlier.md"]) {
+    if (!unmeasured(released)) fail(`released notes: ${released}`);
+  }
+  for (const living of ["release-history.md", "release-history/unreleased.md", "release-history/upgrading.md"]) {
+    if (unmeasured(living)) fail(`living release page: ${living}`);
+  }
+  const longList = Array.from({ length: 5 }, () => `- ${hundred}`).join("\n");
+  if (measure(longList, "release-history/upgrading.md").counts.runs !== 0) fail("release notes have no run length");
+  if (measure(longList, "optics/lenses.md").counts.runs !== 1) fail("a list elsewhere is a run");
   if (sentences("Use e.g. this one. javac says so. And then that.").length !== 3) fail("sentence splitting");
   if (words(plain("See `Foo.bar(x, y)` now")).length !== 3) fail("a code span is not one word");
 }
@@ -396,7 +414,7 @@ function pageArgument(args, flag, measured) {
     return null;
   }
   const rel = given.replace(/^\.?\/?hkj-book\/src\//, "");
-  if (UNMEASURED.has(rel)) {
+  if (unmeasured(rel)) {
     console.log(`${rel} is not measured`);
     return null;
   }
