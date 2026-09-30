@@ -415,13 +415,15 @@ final class BeanPropertyAnalyser {
             .filter(name -> name.length() > CLEAR.length() && name.startsWith(CLEAR))
             .map(name -> name.substring(CLEAR.length()))
             .toList();
+    List<String> names = suffixes.stream().map(BeanPropertyAnalyser::fieldName).toList();
     MessageAccessors accessors =
         new MessageAccessors(
             (DeclaredType) message.asType(),
             builder.builderType(),
             readers,
             writers,
-            oneofs(readers, suffixes.stream().map(BeanPropertyAnalyser::fieldName).toList()));
+            oneofs(readers, names),
+            protoNames(message, names));
     return new WireShape.BeanShape(
         message,
         suffixes.stream().flatMap(suffix -> field(suffix, accessors).stream()).toList(),
@@ -433,20 +435,22 @@ final class BeanPropertyAnalyser {
   /**
    * The accessors a protobuf-java message and its builder declare, as {@link #field} reads each
    * field from them: the message and the builder as its factory returns it, the message's
-   * zero-argument methods and the builder's one-argument methods by name, and each oneof member's
-   * oneof by the member's name.
+   * zero-argument methods and the builder's one-argument methods by name, each oneof member's
+   * membership by the member's name, and each field's {@code .proto} name by its name.
    */
   private record MessageAccessors(
       DeclaredType message,
       DeclaredType builder,
       Map<String, ExecutableElement> readers,
       Map<String, List<ExecutableElement>> writers,
-      Map<String, String> oneofs) {
+      Map<String, WireShape.OneofMember> oneofs,
+      Map<String, String> protoNames) {
 
     MessageAccessors {
       readers = Map.copyOf(readers);
       writers = Map.copyOf(writers);
       oneofs = Map.copyOf(oneofs);
+      protoNames = Map.copyOf(protoNames);
     }
   }
 
@@ -480,7 +484,8 @@ final class BeanPropertyAnalyser {
     WireShape.MessageField field =
         new WireShape.MessageField(
             Optional.of("has" + suffix).filter(accessors.readers()::containsKey),
-            Optional.ofNullable(accessors.oneofs().get(name)));
+            Optional.ofNullable(accessors.oneofs().get(name)),
+            accessors.protoNames().getOrDefault(name, snakeCase(name)));
     return COLLECTION_FIELDS.stream()
         .flatMap(kind -> collectionField(kind, suffix, field, accessors).stream())
         .findFirst()
@@ -564,16 +569,17 @@ final class BeanPropertyAnalyser {
   }
 
   /**
-   * Each oneof member's oneof, by the member's name among {@code names}. A oneof {@code kind} has a
-   * case getter, {@code getKindCase()}, answering an enum with a constant for each member, its
-   * {@code .proto} name in upper case ({@code STRING_VALUE} for {@code string_value}), and {@code
-   * KIND_NOT_SET}. So an enum a {@code getXCase()} answers is a oneof's when one of its constants
-   * reads as its oneof's name followed by {@code NOT_SET}, and any other {@code getXCase()} reads a
-   * field named {@code x_case}. A constant names the field protobuf would name from it ({@link
-   * #member}).
+   * Each oneof member's membership, by the member's name among {@code names}. A oneof {@code kind}
+   * has a case getter, {@code getKindCase()}, answering an enum with a constant for each member,
+   * its {@code .proto} name in upper case ({@code STRING_VALUE} for {@code string_value}), and
+   * {@code KIND_NOT_SET}. So an enum a {@code getXCase()} answers is a oneof's when one of its
+   * constants reads as its oneof's name followed by {@code NOT_SET}, and any other {@code
+   * getXCase()} reads a field named {@code x_case}. A constant names the field protobuf would name
+   * from it ({@link #member}).
    */
-  private Map<String, String> oneofs(Map<String, ExecutableElement> readers, List<String> names) {
-    Map<String, String> members = new LinkedHashMap<>();
+  private Map<String, WireShape.OneofMember> oneofs(
+      Map<String, ExecutableElement> readers, List<String> names) {
+    Map<String, WireShape.OneofMember> members = new LinkedHashMap<>();
     readers.entrySet().stream()
         .filter(
             reader ->
@@ -595,25 +601,62 @@ final class BeanPropertyAnalyser {
                       .filter(constant -> constant.getKind() == ElementKind.ENUM_CONSTANT)
                       .map(constant -> constant.getSimpleName().toString())
                       .toList();
-              if (constants.stream()
-                  .map(BeanPropertyAnalyser::normalised)
-                  .anyMatch(unset::equals)) {
-                constants.stream()
-                    .filter(constant -> !normalised(constant).equals(unset))
-                    .forEach(
-                        constant ->
-                            member(constant, names).ifPresent(field -> members.put(field, oneof)));
-              }
+              constants.stream()
+                  .filter(constant -> normalised(constant).equals(unset))
+                  .findFirst()
+                  .ifPresent(
+                      notSet ->
+                          constants.stream()
+                              .filter(constant -> !constant.equals(notSet))
+                              .forEach(
+                                  constant ->
+                                      member(constant, names)
+                                          .ifPresent(
+                                              field ->
+                                                  members.put(
+                                                      field,
+                                                      new WireShape.OneofMember(
+                                                          oneof, method, constant, notSet)))));
             });
     return members;
   }
 
   /**
-   * The field among {@code names} a oneof case constant names: the one protobuf names from it
-   * ({@link #camelCase}), or failing that, the only one whose name reads as the constant's with
-   * underscores and case set aside, as a field declared in camel case in its {@code .proto} file
-   * does. Matched exactly first, a field {@code foobar} beside a member {@code foo_bar} is never
-   * taken for the member.
+   * Each field's name in its {@code .proto} file, by its Java name among {@code names}. protoc
+   * gives a message a constant for each field, named after it in upper case: {@code
+   * DISPLAY_NAME_FIELD_NUMBER} for {@code display_name}, whose Java name is {@code displayName}. A
+   * field declared in camel case in its {@code .proto} file keeps no record of it in its constant,
+   * and is named here in lower case.
+   */
+  private static Map<String, String> protoNames(TypeElement message, List<String> names) {
+    Map<String, String> protoNames = new LinkedHashMap<>();
+    ElementFilter.fieldsIn(message.getEnclosedElements()).stream()
+        .map(constant -> constant.getSimpleName().toString())
+        .filter(constant -> constant.endsWith(FIELD_NUMBER))
+        .map(constant -> constant.substring(0, constant.length() - FIELD_NUMBER.length()))
+        .forEach(
+            field ->
+                member(field, names)
+                    .ifPresent(name -> protoNames.put(name, field.toLowerCase(Locale.ROOT))));
+    return protoNames;
+  }
+
+  private static final String FIELD_NUMBER = "_FIELD_NUMBER";
+
+  /**
+   * A field's Java name written as a {@code .proto} file would declare it, for a message whose
+   * constants name no field: {@code display_name} for {@code displayName}.
+   */
+  private static String snakeCase(String name) {
+    return name.replaceAll("([A-Z])", "_$1").toLowerCase(Locale.ROOT);
+  }
+
+  /**
+   * The field among {@code names} a constant naming a field in upper case names, as a oneof case
+   * constant and a field number constant do: the one protobuf names from it ({@link #camelCase}),
+   * or failing that, the only one whose name reads as the constant's with underscores and case set
+   * aside, as a field declared in camel case in its {@code .proto} file does. Matched exactly
+   * first, a field {@code foobar} beside a member {@code foo_bar} is never taken for the member.
    */
   private static Optional<String> member(String constant, List<String> names) {
     String camel = camelCase(constant);
@@ -625,7 +668,7 @@ final class BeanPropertyAnalyser {
   }
 
   /**
-   * The Java name protobuf gives the field a oneof case constant names, {@code phoneNumber} for
+   * The Java name protobuf gives the field a constant names in upper case, {@code phoneNumber} for
    * {@code PHONE_NUMBER}: the constant in lower case, each underscore dropped and the letter after
    * it, or after a digit, in upper case.
    */

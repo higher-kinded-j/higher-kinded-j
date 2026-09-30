@@ -117,6 +117,11 @@ class MappingProcessorProtobufTest {
     return canonical.newInstance(components);
   }
 
+  @SuppressWarnings("unchecked")
+  private static Validated<NonEmptyList<FieldError>, Object> validated(Object value) {
+    return (Validated<NonEmptyList<FieldError>, Object>) value;
+  }
+
   private static String generated(Compilation compilation, String impl) {
     try {
       return compilation
@@ -618,7 +623,8 @@ class MappingProcessorProtobufTest {
       assertThat(compilation)
           .hadErrorContaining(
               "Declare 'stringValue' as Optional<String>, as every domain component filling a"
-                  + " member of 'kind' must be.");
+                  + " member of 'kind' must be; or map the whole oneof to one component named"
+                  + " 'kind', a sealed interface with a record named after each member.");
       assertThat(compilation).hadErrorContaining("Declare 'numberValue' as Optional<Double>");
       assertThat(compilation)
           .hadErrorContaining(
@@ -654,31 +660,6 @@ class MappingProcessorProtobufTest {
           .hadErrorContaining(
               "domain field 'Text.stringValue' is String, and fills 'stringValue', a member of the"
                   + " oneof 'kind'");
-    }
-
-    @Test
-    @DisplayName("a message is refused as the PATCH body of a sparse UpdateSpec")
-    void sparse() {
-      Compilation compilation =
-          compile(
-              source(
-                  "Names",
-                  """
-                  record Name(String value) {}
-
-                  @GenerateMapping
-                  interface NamePatch extends UpdateSpec<Name, StringValue> {}
-                  """));
-      assertThat(compilation).failed();
-      assertThat(compilation)
-          .hadErrorContaining(
-              "the wire 'StringValue' is a protobuf-java message, which a sparse UpdateSpec cannot"
-                  + " read as a PATCH body (not supported yet).");
-      assertThat(compilation)
-          .hadErrorContaining(
-              "Map 'StringValue' with a MappingSpec, whose parse reads every field, and apply the"
-                  + " fields named by the FieldMask your update request carries to the domain"
-                  + " value yourself.");
     }
 
     @Test
@@ -921,6 +902,605 @@ class MappingProcessorProtobufTest {
     }
   }
 
+  // google.protobuf.Value's oneof 'kind' as a sealed type: a record named after each member, the
+  // two
+  // message members through specs of their own. The records shadow protobuf's own names in the
+  // fixture's package, so protobuf's are qualified.
+  private static final String JSON =
+      """
+      sealed interface Json
+          permits NullValue, NumberValue, StringValue, BoolValue, StructValue, ListValue {}
+
+      record NullValue(com.google.protobuf.NullValue value) implements Json {}
+
+      record NumberValue(double number) implements Json {}
+
+      record StringValue(String text) implements Json {
+        StringValue {
+          if (text.isBlank()) {
+            throw new IllegalArgumentException("must not be blank");
+          }
+        }
+      }
+
+      record BoolValue(boolean flag) implements Json {}
+
+      record StructValue(Map<String, Value> fields) implements Json {}
+
+      record ListValue(List<Value> values) implements Json {}
+
+      @GenerateMapping
+      interface StructValueMapping extends MappingSpec<StructValue, Struct> {}
+
+      @GenerateMapping
+      interface ListValueMapping extends MappingSpec<ListValue, com.google.protobuf.ListValue> {}
+      """;
+
+  @Nested
+  @DisplayName("A oneof maps to a sealed component, a record for each member")
+  class SealedOneofs {
+
+    @Test
+    @DisplayName("each member builds and parses as its variant, and none set is a missing value")
+    void required() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Jsons",
+                  JSON
+                      + """
+
+                      record JsonValue(Json kind) {}
+
+                      @GenerateMapping
+                      interface JsonValueMapping extends MappingSpec<JsonValue, Value> {}
+                      """));
+      Assertions.assertThat(generated(result.compilation(), "JsonValueMappingImpl"))
+          .contains("switch (wire.getKindCase())")
+          .contains("if (domain.kind() instanceof NumberValue hkj$v)")
+          .contains("b.setNumberValue(hkj$v.number());");
+      Object impl = result.instance("com.example.JsonValueMappingImpl");
+      Object number = record(result, "JsonValue", record(result, "NumberValue", 2.5));
+      Assertions.assertThat(invoke(impl, "build", number))
+          .isEqualTo(Value.newBuilder().setNumberValue(2.5).build());
+      Value text = Value.newBuilder().setStringValue("Ada").build();
+      MappingLaws.assertMappingLaws(prism(impl), text, Value.getDefaultInstance());
+      for (Value wire :
+          List.of(
+              Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build(),
+              Value.newBuilder().setNumberValue(-1).build(),
+              Value.newBuilder().setBoolValue(true).build(),
+              Value.newBuilder()
+                  .setStructValue(Struct.newBuilder().putFields("k", text).build())
+                  .build(),
+              Value.newBuilder()
+                  .setListValue(com.google.protobuf.ListValue.newBuilder().addValues(text).build())
+                  .build())) {
+        ValidatedPrismLaws.assertBuildParse(prism(impl), wire);
+      }
+      assertThatValidated(parse(impl, Value.getDefaultInstance()))
+          .isInvalid()
+          .hasFieldErrors("kind: must not be null");
+      // A variant's own invariant refuses the member's value, located under the component.
+      assertThatValidated(parse(impl, Value.newBuilder().setStringValue(" ").build()))
+          .isInvalid()
+          .hasFieldErrors("kind: must not be blank");
+    }
+
+    @Test
+    @DisplayName("an Optional reads a oneof with no member set as empty, and leaves it unset")
+    void optional() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Jsons",
+                  JSON
+                      + """
+
+                      record MaybeJson(Optional<Json> kind) {}
+
+                      @GenerateMapping
+                      interface MaybeJsonMapping extends MappingSpec<MaybeJson, Value> {}
+                      """));
+      Object impl = result.instance("com.example.MaybeJsonMappingImpl");
+      Object empty = record(result, "MaybeJson", Optional.empty());
+      Assertions.assertThat(invoke(impl, "build", empty)).isEqualTo(Value.getDefaultInstance());
+      ValidatedPrismLaws.assertParseBuild(prism(impl), empty);
+      ValidatedPrismLaws.assertBuildParse(
+          prism(impl), Value.newBuilder().setBoolValue(false).build());
+    }
+
+    @Test
+    @DisplayName(
+        "a mapping with a sealed oneof nests as a full mapping, and a projection patches it")
+    void nestsAndProjects() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Jsons",
+                  JSON
+                      + """
+
+                      record JsonValue(Json kind) {}
+
+                      record Doc(Map<String, JsonValue> fields) {}
+
+                      record WideJson(Json kind, String note) {}
+
+                      @GenerateMapping
+                      interface JsonValueMapping extends MappingSpec<JsonValue, Value> {}
+
+                      @GenerateMapping
+                      interface DocMapping extends MappingSpec<Doc, Struct> {}
+
+                      @GenerateMapping
+                      interface WideJsonMapping extends MappingSpec<WideJson, Value> {}
+                      """));
+      Struct struct =
+          Struct.newBuilder().putFields("n", Value.newBuilder().setNumberValue(3).build()).build();
+      ValidatedPrismLaws.assertBuildParse(
+          prism(result.instance("com.example.DocMappingImpl")), struct);
+      Object wide = record(result, "WideJson", record(result, "BoolValue", true), "kept");
+      Object patched =
+          invoke(
+              result.instance("com.example.WideJsonMappingImpl"),
+              "patch",
+              wide,
+              Value.newBuilder().setNumberValue(3).build());
+      assertThatValidated(validated(patched))
+          .isValid()
+          .hasValue(record(result, "WideJson", record(result, "NumberValue", 3.0), "kept"));
+    }
+
+    @Test
+    @DisplayName("a component named after a oneof that is no sealed type is refused")
+    void unsealed() {
+      Compilation compilation =
+          compile(
+              source(
+                  "Plains",
+                  """
+                  record Plain(String kind) {}
+
+                  @GenerateMapping
+                  interface PlainMapping extends MappingSpec<Plain, Value> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "domain field 'Plain.kind' is String, and names the oneof 'kind' of the"
+                  + " protobuf-java message 'Value', which maps to a sealed interface or an"
+                  + " Optional of one.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'kind' as a sealed interface permitting records named after the members,"
+                  + " [NullValue, NumberValue, StringValue, BoolValue, StructValue, ListValue]");
+    }
+
+    @Test
+    @DisplayName("a variant that is no record is refused")
+    void variantNotRecord() {
+      Compilation compilation =
+          compile(
+              source(
+                  "Loose",
+                  JSON.replace(
+                          "record BoolValue(boolean flag) implements Json {}",
+                          "final class BoolValue implements Json {}")
+                      + """
+
+                      record JsonValue(Json kind) {}
+
+                      @GenerateMapping
+                      interface JsonValueMapping extends MappingSpec<JsonValue, Value> {}
+                      """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the variant 'BoolValue' of 'Json', which domain field 'JsonValue.kind' maps a oneof"
+                  + " to, is not a record.");
+    }
+
+    private Compilation pairing(String permits, String extra) {
+      return compile(
+          source(
+              "Pairs",
+              JSON.replace(
+                      "permits NullValue, NumberValue, StringValue, BoolValue, StructValue,"
+                          + " ListValue",
+                      "permits " + permits)
+                  + extra
+                  + """
+
+                  record JsonValue(Json kind) {}
+
+                  @GenerateMapping
+                  interface JsonValueMapping extends MappingSpec<JsonValue, Value> {}
+                  """));
+    }
+
+    @Test
+    @DisplayName("members and variants that do not pair by name are refused, both ways")
+    void unpaired() {
+      Compilation both =
+          pairing(
+              "NullValue, NumberValue, StringValue, BoolValue, StructValue, Other",
+              "\nrecord Other(String text) implements Json {}\n");
+      assertThat(both).failed();
+      assertThat(both)
+          .hadErrorContaining(
+              "the variants of 'Json' do not pair with the members of the oneof 'kind' of 'Value',"
+                  + " which domain field 'JsonValue.kind' maps: members [listValue] have no"
+                  + " variant, and variants [Other] name no member.");
+      assertThat(both)
+          .hadErrorContaining(
+              "Name a record of 'Json' after each member, adding [ListValue], and rename or"
+                  + " remove [Other].");
+
+      Compilation membersOnly =
+          pairing("NullValue, NumberValue, StringValue, BoolValue, StructValue", "");
+      assertThat(membersOnly).hadErrorContaining("members [listValue] have no variant.");
+
+      Compilation variantsOnly =
+          pairing(
+              "NullValue, NumberValue, StringValue, BoolValue, StructValue, ListValue, Other",
+              "\nrecord Other(String text) implements Json {}\n");
+      assertThat(variantsOnly).hadErrorContaining(": variants [Other] name no member.");
+      assertThat(variantsOnly).hadErrorContaining("after each member, and rename or remove");
+    }
+
+    private Compilation unfilled(String from, String to, String wire) {
+      return compile(
+          source(
+              "Unfilled",
+              JSON.replace(from, to)
+                  + """
+
+                  record JsonValue(Json kind) {}
+
+                  record WideJson(Json kind, String note) {}
+
+                  @GenerateMapping
+                  interface JsonValueMapping extends MappingSpec<%s, Value> {}
+                  """
+                      .formatted(wire)));
+    }
+
+    @Test
+    @DisplayName("a variant nothing fills from its member is refused, offered a spec for a message")
+    void variantUnfilled() {
+      Compilation primitive =
+          unfilled(
+              "record NumberValue(double number)",
+              "record NumberValue(double number, String unit)",
+              "JsonValue");
+      assertThat(primitive).failed();
+      assertThat(primitive)
+          .hadErrorContaining(
+              "the variant 'NumberValue' of 'kind' pairs with the oneof member 'numberValue', a"
+                  + " double, and nothing fills it from one.");
+      assertThat(primitive).hadErrorContaining("Give 'NumberValue' one component of type double.");
+
+      Compilation text =
+          unfilled("record StringValue(String text)", "record StringValue(int text)", "JsonValue");
+      assertThat(text).hadErrorContaining("Give 'StringValue' one component of type String.");
+
+      Compilation message =
+          unfilled(
+              "@GenerateMapping\ninterface StructValueMapping extends MappingSpec<StructValue,"
+                  + " Struct> {}",
+              "",
+              "JsonValue");
+      assertThat(message)
+          .hadErrorContaining(
+              "Give 'StructValue' one component of type Struct, or declare '@GenerateMapping"
+                  + " interface StructValueMapping extends MappingSpec<StructValue, Struct> {}'.");
+
+      // A projection resolves the same arms.
+      Compilation projected =
+          unfilled(
+              "record NumberValue(double number)", "record NumberValue(String number)", "WideJson");
+      assertThat(projected).hadErrorContaining("pairs with the oneof member 'numberValue'");
+    }
+
+    @Test
+    @DisplayName("two specs for a variant's pair are refused, offering no leaf in their place")
+    void ambiguousVariantSpec() {
+      Compilation compilation =
+          unfilled(
+              "@GenerateMapping\ninterface StructValueMapping",
+              "@GenerateMapping\ninterface OtherStructMapping extends MappingSpec<StructValue,"
+                  + " Struct> {}\n\n@GenerateMapping\ninterface StructValueMapping",
+              "JsonValue");
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "field 'kind' matches more than one mapping spec: [OtherStructMapping,"
+                  + " StructValueMapping].");
+      assertThat(compilation).hadErrorContaining("arbitrary. Remove the duplicate spec.");
+    }
+  }
+
+  @Nested
+  @DisplayName("An UpdateSpec over a message applies the fields a FieldMask names")
+  class FieldMaskUpdates {
+
+    private static final String TYPES =
+        """
+        record TypeDef(
+            String name,
+            List<Field> fields,
+            List<String> oneofs,
+            List<Option> options,
+            Optional<SourceContext> sourceContext,
+            Syntax syntax,
+            String edition) {}
+
+        @GenerateMapping
+        interface TypePatch extends UpdateSpec<TypeDef, Type> {}
+        """;
+
+    @SuppressWarnings("unchecked")
+    private static Validated<NonEmptyList<FieldError>, Object> update(
+        Object impl, Object wire, FieldMask mask, Object current) {
+      Object accumulated = invoke(impl, "updateFrom", wire, mask);
+      return (Validated<NonEmptyList<FieldError>, Object>) invoke(accumulated, "apply", current);
+    }
+
+    private static FieldMask mask(String... paths) {
+      return FieldMask.newBuilder().addAllPaths(List.of(paths)).build();
+    }
+
+    @Test
+    @DisplayName(
+        "a named field is set as parse reads it, cleared when unset, and the rest left as they are")
+    void namedFields() throws ReflectiveOperationException {
+      var result = compileClean(source("Types", TYPES));
+      Assertions.assertThat(generated(result.compilation(), "TypePatchImpl"))
+          .contains("public Edits.Accumulated<TypeDef> updateFrom(Type wire, FieldMask mask)")
+          .contains("paths.contains(\"source_context\")");
+      Object impl = result.instance("com.example.TypePatchImpl");
+      Object current =
+          record(
+              result,
+              "TypeDef",
+              "Person",
+              List.of(),
+              List.of("contact"),
+              List.of(),
+              Optional.of(SourceContext.newBuilder().setFileName("person.proto").build()),
+              Syntax.SYNTAX_PROTO3,
+              "2023");
+      Type request = Type.newBuilder().setName("People").addOneofs("reach").build();
+      assertThatValidated(update(impl, request, mask("name", "source_context"), current))
+          .isValid()
+          .hasValue(
+              record(
+                  result,
+                  "TypeDef",
+                  "People",
+                  List.of(),
+                  List.of("contact"),
+                  List.of(),
+                  Optional.empty(),
+                  Syntax.SYNTAX_PROTO3,
+                  "2023"));
+      assertThatValidated(update(impl, request, mask("*"), current))
+          .isValid()
+          .hasValue(
+              record(
+                  result,
+                  "TypeDef",
+                  "People",
+                  List.of(),
+                  List.of("reach"),
+                  List.of(),
+                  Optional.empty(),
+                  Syntax.SYNTAX_PROTO2,
+                  ""));
+      assertThatValidated(update(impl, request, FieldMask.getDefaultInstance(), current))
+          .isValid()
+          .hasValue(current);
+      assertThatValidated(
+              update(impl, request, mask("source_context.file_name", "nope", "name"), current))
+          .isInvalid()
+          .hasFieldErrors(
+              "source_context.file_name: nested paths are not supported yet",
+              "nope: names no field of Type");
+    }
+
+    @Test
+    @DisplayName("a primitive field updates too, reading its default when named and unset")
+    void primitiveFields() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Stamps",
+                  """
+                  record Stamp(long seconds, int nanos) {}
+
+                  @GenerateMapping
+                  interface StampPatch extends UpdateSpec<Stamp, Timestamp> {}
+                  """));
+      Object impl = result.instance("com.example.StampPatchImpl");
+      Object current = record(result, "Stamp", 10L, 5);
+      Timestamp request = Timestamp.newBuilder().setSeconds(20).build();
+      assertThatValidated(update(impl, request, mask("seconds"), current))
+          .isValid()
+          .hasValue(record(result, "Stamp", 20L, 5));
+      assertThatValidated(update(impl, request, mask("nanos"), current))
+          .isValid()
+          .hasValue(record(result, "Stamp", 10L, 0));
+    }
+
+    @Test
+    @DisplayName("a named member updates the sealed component its oneof maps, and a rename binds")
+    void oneofAndRename() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Jsons",
+                  JSON
+                      + """
+
+                      record MaybeJson(Optional<Json> kind) {}
+
+                      record Titled(String title, Optional<Any> value) {}
+
+                      @GenerateMapping
+                      interface MaybeJsonPatch extends UpdateSpec<MaybeJson, Value> {}
+
+                      @GenerateMapping
+                      interface TitledPatch extends UpdateSpec<Titled, Option> {
+                        @org.higherkindedj.optics.annotations.MapField(to = "name")
+                        String title();
+                      }
+                      """));
+      Object json = result.instance("com.example.MaybeJsonPatchImpl");
+      assertThatValidated(
+              update(
+                  json,
+                  Value.newBuilder().setStringValue("Ada").build(),
+                  mask("string_value"),
+                  record(result, "MaybeJson", Optional.empty())))
+          .isValid()
+          .hasValue(record(result, "MaybeJson", Optional.of(record(result, "StringValue", "Ada"))));
+      Object titled = result.instance("com.example.TitledPatchImpl");
+      assertThatValidated(
+              update(
+                  titled,
+                  Option.newBuilder().setName("deprecated").build(),
+                  mask("name"),
+                  record(result, "Titled", "old", Optional.empty())))
+          .isValid()
+          .hasValue(record(result, "Titled", "deprecated", Optional.empty()));
+    }
+
+    @Test
+    @DisplayName("a field no domain component takes is refused, since a mask may name it")
+    void unnamedField() {
+      Compilation compilation =
+          compile(
+              source(
+                  "Named",
+                  """
+                  record Named(String name) {}
+
+                  @GenerateMapping
+                  interface NamedPatch extends UpdateSpec<Named, Option> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining(
+              "the field 'value' of the protobuf-java message 'Option' names no component of"
+                  + " Named.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Add a component named 'value' to Named, or a @MapField rename to it from one, on its"
+                  + " leaf where it has one.");
+    }
+
+    @Test
+    @DisplayName("a masked update refuses what the dense tiers refuse")
+    void refusals() {
+      Compilation unsealed =
+          compile(
+              source(
+                  "Plains",
+                  """
+                  record Plain(String kind) {}
+
+                  @GenerateMapping
+                  interface PlainPatch extends UpdateSpec<Plain, Value> {}
+                  """));
+      assertThat(unsealed).hadErrorContaining("which maps to a sealed interface");
+
+      Compilation unconverted =
+          compile(
+              source(
+                  "Opts",
+                  """
+                  record Opt(Integer name, Optional<Any> value) {}
+
+                  @GenerateMapping
+                  interface OptPatch extends UpdateSpec<Opt, Option> {}
+                  """));
+      assertThat(unconverted).hadErrorContaining("has no usable source");
+
+      Compilation plainMember =
+          compile(
+              source(
+                  "Members",
+                  """
+                  record Members(
+                      Optional<NullValue> nullValue,
+                      Optional<Double> numberValue,
+                      String stringValue,
+                      Optional<Boolean> boolValue,
+                      Optional<Struct> structValue,
+                      Optional<ListValue> listValue) {}
+
+                  @GenerateMapping
+                  interface MembersPatch extends UpdateSpec<Members, Value> {}
+                  """));
+      assertThat(plainMember).hadErrorContaining("a member of the oneof 'kind'");
+
+      Compilation colliding =
+          compile(
+              source(
+                  "Colliding",
+                  """
+                  record Opt(String name, Optional<Any> value) {}
+
+                  @GenerateMapping
+                  interface OptPatch extends UpdateSpec<Opt, Option> {
+                    default org.higherkindedj.optics.edit.Edits.Accumulated<Opt> updateFrom(
+                        Option wire, FieldMask mask) {
+                      return null;
+                    }
+                  }
+                  """));
+      assertThat(colliding)
+          .hadErrorContaining(
+              "collides with the 'updateFrom' member the generated OptPatchImpl emits");
+    }
+
+    @Test
+    @DisplayName("a masked update names the types it writes only where its package can see them")
+    void unreachable() {
+      JavaFileObject other =
+          JavaFileObjects.forSourceString(
+              "com.other.Doc",
+              """
+              package com.other;
+
+              import com.google.protobuf.Any;
+              import com.google.protobuf.ByteString;
+              import java.util.Optional;
+              import org.higherkindedj.optics.annotations.GenerateMapping;
+              import org.higherkindedj.optics.annotations.MappingSpec;
+
+              public record Doc(String name, Optional<Tag> value) {}
+
+              record Tag(String typeUrl, ByteString value) {}
+
+              @GenerateMapping
+              interface TagMapping extends MappingSpec<Tag, Any> {}
+              """);
+      Compilation compilation =
+          compile(
+              other,
+              source(
+                  "DocPatches",
+                  """
+                  @GenerateMapping
+                  interface DocPatch extends UpdateSpec<com.other.Doc, Option> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation).hadErrorContaining("cannot be reached from");
+    }
+  }
+
   @Nested
   @DisplayName("A class shaped like a message is read as protobuf generates one")
   class MessageShapes {
@@ -1053,6 +1633,31 @@ class MappingProcessorProtobufTest {
           .hadErrorContaining(
               "domain field 'Brief.richText' is String, and fills 'richText', a member of the"
                   + " oneof 'choice'");
+    }
+
+    @Test
+    @DisplayName("a sealed oneof fills its members, so only the other fields are left unfilled")
+    void sealedOneofOnAWiderMessage() {
+      Compilation compilation =
+          compile(
+              BRIEFING,
+              source(
+                  "Choices",
+                  """
+                  sealed interface Choice {
+                    record PlainText(String text) implements Choice {}
+
+                    record RichText(String text) implements Choice {}
+                  }
+
+                  record Short(Optional<Choice> choice, String plaintext) {}
+
+                  @GenerateMapping
+                  interface ShortMapping extends MappingSpec<Short, Briefing> {}
+                  """));
+      assertThat(compilation).failed();
+      assertThat(compilation)
+          .hadErrorContaining("leaving [briefCase, topicCase, tags, kInt, marker] unfilled.");
     }
 
     @Test

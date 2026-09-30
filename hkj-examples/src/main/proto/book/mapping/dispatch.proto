@@ -4,6 +4,8 @@ syntax = "proto3";
 
 package book.mapping.v1;
 
+import "google/protobuf/field_mask.proto";
+
 option java_package = "org.higherkindedj.example.book.mapping.proto";
 option java_multiple_files = true;
 option java_outer_classname = "DispatchProto";
@@ -28,5 +30,11 @@ message DispatchRequest {
     string locker = 5;
     string pickup_point = 6;
   }
+}
+
+// An update names the fields it changes in its mask.
+message UpdateDispatchRequest {
+  DispatchRequest dispatch = 1;
+  google.protobuf.FieldMask update_mask = 2;
 }
 // ANCHOR_END: dispatch_proto

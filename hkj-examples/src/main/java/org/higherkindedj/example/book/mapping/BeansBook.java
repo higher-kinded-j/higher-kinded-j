@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.google.protobuf.DescriptorProtos;
+import com.google.protobuf.FieldMask;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -14,6 +15,7 @@ import java.util.Optional;
 import org.higherkindedj.example.book.mapping.proto.CustomerMessage;
 import org.higherkindedj.example.book.mapping.proto.DispatchRequest;
 import org.higherkindedj.example.book.mapping.proto.Priority;
+import org.higherkindedj.example.book.mapping.proto.UpdateDispatchRequest;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
@@ -136,8 +138,8 @@ public final class BeansBook {
 
     Validated<NonEmptyList<FieldError>, Dispatch> dispatch = dispatchMapping.parse(dispatchRequest);
     // Valid(Dispatch[customer=Customer[name=Ada, email=EmailAddress[value=ada@corp.example]],
-    // skus=[SKU-1], note=Optional.empty, priority=EXPRESS, locker=Optional[LK-4],
-    // pickupPoint=Optional.empty])
+    // skus=[SKU-1], note=Optional.empty, priority=EXPRESS,
+    // destination=Optional[Locker[id=LK-4]]])
 
     // The customer is a message field, which tracks whether it is set: unset, it reads as null.
     Validated<NonEmptyList<FieldError>, Dispatch> noCustomer =
@@ -153,14 +155,38 @@ public final class BeansBook {
                 List.of("SKU-2"),
                 Optional.empty(),
                 DispatchPriority.STANDARD,
-                Optional.empty(),
-                Optional.of("PP-9")));
+                Optional.of(new Destination.PickupPoint("PP-9"))));
     boolean noteSent = built.hasNote();
     // false
     // ANCHOR_END: protobuf_usage
     System.out.println(dispatch);
     System.out.println(noCustomer);
     System.out.println(noteSent);
+
+    // ANCHOR: protobuf_patch_usage
+    Dispatch stored =
+        new Dispatch(
+            new Customer("Lin", new EmailAddress("lin@corp.example")),
+            List.of("SKU-3"),
+            Optional.empty(),
+            DispatchPriority.STANDARD,
+            Optional.of(new Destination.Locker("LK-7")));
+    UpdateDispatchRequest update =
+        UpdateDispatchRequest.newBuilder()
+            .setDispatch(
+                DispatchRequest.newBuilder().setNote("leave at the door").setPickupPoint("PP-2"))
+            .setUpdateMask(FieldMask.newBuilder().addPaths("note").addPaths("pickup_point"))
+            .build();
+
+    Validated<NonEmptyList<FieldError>, Dispatch> updated =
+        DispatchPatchImpl.INSTANCE
+            .updateFrom(update.getDispatch(), update.getUpdateMask())
+            .apply(stored);
+    // Valid(Dispatch[customer=Customer[name=Lin, email=EmailAddress[value=lin@corp.example]],
+    // skus=[SKU-3], note=Optional[leave at the door], priority=STANDARD,
+    // destination=Optional[PickupPoint[code=PP-2]]])
+    // ANCHOR_END: protobuf_patch_usage
+    System.out.println(updated);
   }
 }
 
@@ -489,10 +515,17 @@ interface ListingModelMapping extends MappingSpec<Listing, ListingModel> {}
 
 // ANCHOR: protobuf_spec
 // A dispatch as the order service keeps it. DispatchRequest and CustomerMessage are the messages
-// protoc generates from dispatch.proto, and the oneof's two members are two Optionals.
+// protoc generates from dispatch.proto.
 enum DispatchPriority {
   STANDARD,
   EXPRESS
+}
+
+// The oneof 'destination': a record named after each member.
+sealed interface Destination {
+  record Locker(String id) implements Destination {}
+
+  record PickupPoint(String code) implements Destination {}
 }
 
 record Dispatch(
@@ -500,16 +533,7 @@ record Dispatch(
     List<String> skus,
     Optional<String> note,
     DispatchPriority priority,
-    Optional<String> locker,
-    Optional<String> pickupPoint) {
-
-  Dispatch {
-    // A oneof holds one member, so the record holds at most one of the two.
-    if (locker.isPresent() && pickupPoint.isPresent()) {
-      throw new IllegalArgumentException("a dispatch goes to a locker or a pickup point, not both");
-    }
-  }
-}
+    Optional<Destination> destination) {}
 
 @GenerateMapping
 interface CustomerMessageMapping extends MappingSpec<Customer, CustomerMessage> {
@@ -519,10 +543,13 @@ interface CustomerMessageMapping extends MappingSpec<Customer, CustomerMessage> 
 }
 
 @GenerateMapping
-interface DispatchMapping extends MappingSpec<Dispatch, DispatchRequest> {
-  // The customer nests through CustomerMessageMapping, the skus copy as a List, and the note and
-  // the oneof's members read as empty when unset. The priority converts through this leaf, which
-  // refuses the unset PRIORITY_UNSPECIFIED and the UNRECOGNIZED an unknown number reads as.
+interface DispatchMapping extends MappingSpec<Dispatch, DispatchRequest>, DispatchVocabulary {}
+
+// The customer nests through CustomerMessageMapping, the skus copy as a List, the note reads as
+// empty when unset, and so does the oneof, whose set member becomes its record.
+interface DispatchVocabulary {
+  // The priority converts through this leaf, which refuses the unset PRIORITY_UNSPECIFIED and
+  // the UNRECOGNIZED an unknown number reads as.
   default ValidatedPrism<Priority, DispatchPriority> priority() {
     return ValidatedPrism.of(
         wire ->
@@ -541,6 +568,12 @@ interface DispatchMapping extends MappingSpec<Dispatch, DispatchRequest> {
 }
 
 // ANCHOR_END: protobuf_spec
+
+// ANCHOR: protobuf_patch_spec
+@GenerateMapping
+interface DispatchPatch extends UpdateSpec<Dispatch, DispatchRequest>, DispatchVocabulary {}
+
+// ANCHOR_END: protobuf_patch_spec
 
 // ANCHOR: protobuf_enum_trap
 // The same request, its priority kept as the generated enum itself: no leaf converts it.

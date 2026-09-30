@@ -419,18 +419,32 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
    * write it.
    *
    * <p>{@code presence} is the {@code hasX()} method that tells whether the field is set. A message
-   * field has one, and so does a scalar declared {@code optional}, every field of a proto2 message,
-   * and every member of a oneof. A proto3 scalar declared without {@code optional} has none: unset,
-   * it reads its default, which cannot be told apart from the default set. Nor has a repeated or
-   * map field, which an empty collection leaves unset.
+   * field has one, and so does a scalar declared {@code optional}, every singular field of a proto2
+   * message, and every member of a oneof. A proto3 scalar declared without {@code optional} has
+   * none: unset, it reads its default, which cannot be told apart from the default set. Nor has a
+   * repeated or map field, which an empty collection leaves unset.
    *
-   * <p>{@code oneof} is the oneof the field belongs to, as its case getter names it ({@code
-   * getKindCase()} names {@code kind}): setting one member clears the others.
+   * <p>{@code oneof} is the oneof the field is a member of: setting one member clears the others.
+   * {@code protoName} is the field's name in its {@code .proto} file, as a {@code FieldMask} path
+   * names it: {@code display_name} for {@code displayName}.
    *
    * @param presence the {@code hasX()} method, for a field that tracks its presence
    * @param oneof the oneof the field is a member of, if any
+   * @param protoName the field's name in its {@code .proto} file
    */
-  record MessageField(Optional<String> presence, Optional<String> oneof) {}
+  record MessageField(Optional<String> presence, Optional<OneofMember> oneof, String protoName) {}
+
+  /**
+   * A field's membership of a oneof, as the oneof's case getter tells it: the oneof's name, its
+   * case getter ({@code getKindCase}), the case constant naming this member ({@code STRING_VALUE}),
+   * and the one naming none ({@code KIND_NOT_SET}).
+   *
+   * @param oneof the oneof's name, as the case getter names it
+   * @param caseGetter the getter answering which member is set
+   * @param constant the case constant naming this member
+   * @param unset the case constant naming no member
+   */
+  record OneofMember(String oneof, String caseGetter, String constant, String unset) {}
 
   /** How a single bean property is written into a target (a bean instance or a builder). */
   sealed interface WriteSite

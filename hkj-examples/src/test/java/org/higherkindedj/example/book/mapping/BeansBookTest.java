@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 
+import com.google.protobuf.FieldMask;
 import com.google.protobuf.UninitializedMessageException;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -180,8 +181,7 @@ class BeansBookTest {
             List.of(),
             Optional.empty(),
             DispatchPriority.STANDARD,
-            Optional.of("LK-4"),
-            Optional.empty()));
+            Optional.of(new Destination.Locker("LK-4"))));
 
     assertThatValidated(
             DispatchMappingImpl.INSTANCE.parse(request.toBuilder().clearCustomer().build()))
@@ -217,8 +217,8 @@ class BeansBookTest {
 
   @Test
   @DisplayName(
-      "a domain value holding two members of one oneof builds only the last one written, which"
-          + " Dispatch's invariant rules out")
+      "a domain value holding two members of one oneof as Optionals builds only the last one"
+          + " written")
   void twoOneofMembers() {
     Customer ada = new Customer("Ada", new EmailAddress("ada@corp.example"));
     // ANCHOR: protobuf_oneof_trap_proof
@@ -234,18 +234,6 @@ class BeansBookTest {
     DispatchRequest built = DispatchRecordMappingImpl.INSTANCE.build(both);
     assertThat(built.getDestinationCase()).isEqualTo(DispatchRequest.DestinationCase.PICKUP_POINT);
     assertThat(DispatchRecordMappingImpl.INSTANCE.parse(built).get().locker()).isEmpty();
-
-    // Dispatch's own invariant refuses both, so it never holds two.
-    assertThatThrownBy(
-            () ->
-                new Dispatch(
-                    ada,
-                    List.of("SKU-1"),
-                    Optional.empty(),
-                    DispatchPriority.STANDARD,
-                    Optional.of("LK-4"),
-                    Optional.of("PP-9")))
-        .isInstanceOf(IllegalArgumentException.class);
     // ANCHOR_END: protobuf_oneof_trap_proof
   }
 
@@ -260,5 +248,51 @@ class BeansBookTest {
         .isInstanceOf(UninitializedMessageException.class)
         .hasMessageContaining("is_extension");
     // ANCHOR_END: protobuf_required_trap_proof
+  }
+
+  @Test
+  @DisplayName(
+      "an update applies the fields its mask names, clears one named and unset, and fails a path"
+          + " it cannot follow")
+  void fieldMaskUpdate() {
+    Dispatch stored =
+        new Dispatch(
+            new Customer("Lin", new EmailAddress("lin@corp.example")),
+            List.of("SKU-3"),
+            Optional.of("ring twice"),
+            DispatchPriority.STANDARD,
+            Optional.of(new Destination.Locker("LK-7")));
+    DispatchRequest request = DispatchRequest.newBuilder().setPickupPoint("PP-2").build();
+
+    assertThatValidated(
+            DispatchPatchImpl.INSTANCE
+                .updateFrom(
+                    request,
+                    FieldMask.newBuilder().addPaths("note").addPaths("pickup_point").build())
+                .apply(stored))
+        .isValid()
+        .hasValue(
+            new Dispatch(
+                stored.customer(),
+                stored.skus(),
+                Optional.empty(),
+                DispatchPriority.STANDARD,
+                Optional.of(new Destination.PickupPoint("PP-2"))));
+    assertThatValidated(
+            DispatchPatchImpl.INSTANCE
+                .updateFrom(request, FieldMask.getDefaultInstance())
+                .apply(stored))
+        .isValid()
+        .hasValue(stored);
+    assertThatValidated(
+            DispatchPatchImpl.INSTANCE
+                .updateFrom(
+                    request,
+                    FieldMask.newBuilder().addPaths("customer.name").addPaths("priority").build())
+                .apply(stored))
+        .isInvalid()
+        .hasFieldErrors(
+            "customer.name: nested paths are not supported yet",
+            "priority: not a priority: PRIORITY_UNSPECIFIED");
   }
 }
