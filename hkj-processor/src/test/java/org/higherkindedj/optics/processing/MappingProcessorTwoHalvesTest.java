@@ -1323,6 +1323,71 @@ class MappingProcessorTwoHalvesTest {
 
     @Test
     @DisplayName(
+        "a dependency's Impl with no whole prism is read as two halves only where it has both")
+    void aStaleImplWithOneHalf() throws IOException {
+      Compilation up = compiler().compile(upstream);
+      assertThat(up).succeeded();
+      Path dir = classDirectoryWithout(up, tmp.resolve("stale"), "com.halves.up.UpTagMappingImpl");
+      // An Impl compiled under other rules: a parse half, and neither a whole prism nor a build
+      // half.
+      Compilation stale =
+          javac()
+              .withClasspath(classpathWith(dir))
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      UP + ".UpTagMappingImpl",
+                      """
+                      package com.halves.up;
+
+                      import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+                      import org.higherkindedj.hkt.validated.FieldError;
+                      import org.higherkindedj.hkt.validated.Validated;
+                      import org.higherkindedj.optics.validated.ValidatedParse;
+
+                      public final class UpTagMappingImpl implements Up.TagMapping {
+                        public static final UpTagMappingImpl INSTANCE = new UpTagMappingImpl();
+
+                        public Validated<NonEmptyList<FieldError>, Up.Tag> parse(Up.TagDto wire) {
+                          return Validated.validNel(new Up.Tag(wire.label()));
+                        }
+
+                        public ValidatedParse<Up.TagDto, Up.Tag> asValidatedParse() {
+                          return ValidatedParse.of(this::parse);
+                        }
+                      }
+                      """));
+      assertThat(stale).succeeded();
+      classDirectory(stale, dir);
+
+      Compilation compilation =
+          compiler(dir)
+              .compile(
+                  JavaFileObjects.forSourceString(
+                      "com.halves.down.Labels",
+                      """
+                      package com.halves.down;
+
+                      import com.halves.up.Up;
+                      import org.higherkindedj.optics.annotations.GenerateMapping;
+                      import org.higherkindedj.optics.annotations.MappingSpec;
+
+                      public final class Labels {
+                        public record Label(Up.Tag tag) {}
+                        public record LabelDto(Up.TagDto tag) {}
+
+                        @GenerateMapping
+                        public interface LabelMapping extends MappingSpec<Label, LabelDto> {}
+                      }
+                      """));
+      // Read as the whole mapping its registration says, it is nested through the whole prism
+      // its Impl lacks, rather than through a build half it lacks as well.
+      assertThat(compilation).failed();
+      Assertions.assertThat(notes(compilation)).noneMatch(note -> note.contains("two halves"));
+      assertThat(compilation).hadErrorContaining("asValidatedPrism()");
+    }
+
+    @Test
+    @DisplayName(
         "a sealed subtype whose dependency's spec cannot take part is offered a spec of this"
             + " compilation, which takes precedence")
     void aDependencySpecThatCannotTakePart() throws IOException {

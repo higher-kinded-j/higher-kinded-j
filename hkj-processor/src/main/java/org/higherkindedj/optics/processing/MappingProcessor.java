@@ -553,14 +553,19 @@ public class MappingProcessor extends AbstractProcessor {
   }
 
   /**
-   * Whether the Impl of a dependency's spec that builds and parses has no whole prism, and so has
-   * the two halves, the only other surface such a spec compiles to.
+   * Whether the Impl of a dependency's spec that builds and parses carries the two halves in place
+   * of a whole prism. This processor gives such a spec one or the other, but an Impl compiled under
+   * other rules may carry neither, and is then read as the whole mapping its registration says.
    */
   private static boolean compiledWithHalves(Elements elements, TypeElement spec) {
-    return ElementFilter.methodsIn(
-            elements.getTypeElement(implClassName(spec).canonicalName()).getEnclosedElements())
-        .stream()
-        .noneMatch(m -> m.getSimpleName().contentEquals("asValidatedPrism"));
+    Set<String> methods =
+        ElementFilter.methodsIn(
+                elements.getTypeElement(implClassName(spec).canonicalName()).getEnclosedElements())
+            .stream()
+            .map(method -> method.getSimpleName().toString())
+            .collect(Collectors.toSet());
+    return !methods.contains("asValidatedPrism")
+        && methods.containsAll(List.of("asValidatedParse", "asValidatedBuild"));
   }
 
   /** A pair's surface, with the properties its wire reads read-only, which only a bean has. */
