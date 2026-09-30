@@ -276,6 +276,9 @@ When migrating incrementally, convert between Path types at boundaries:
 |------|----|--------|
 | `MaybePath` | `EitherPath` | `.toEitherPath(error)`, `.toEitherPath(errorSupplier)` |
 | `MaybePath` | `TryPath` | `.toTryPath(exceptionSupplier)` |
+| `MaybePath` | `ValidationPath` | `.toValidationPath(error, semigroup)`, `.toValidationPathGet(errorSupplier, semigroup)` |
+| `OptionalPath` | `EitherPath` | `.toEitherPath(error)`, `.toEitherPath(errorSupplier)` |
+| `OptionalPath` | `ValidationPath` | `.toValidationPath(error, semigroup)`, `.toValidationPathGet(errorSupplier, semigroup)` |
 | `EitherPath` | `MaybePath` | `.toMaybePath()` |
 | `EitherPath` | `TryPath` | `.toTryPath(errorToException)` |
 | `TryPath` | `EitherPath` | `.toEitherPath(exceptionToError)` |

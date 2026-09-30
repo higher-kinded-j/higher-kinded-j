@@ -205,7 +205,7 @@ ErrorContext<IOKind.Witness, String, Unit> workflow =
 ErrorContext<IOKind.Witness, String, Config> config =
     ErrorContext.<String, Config>io(
         () -> loadConfigFromServer(),
-        Throwable::getMessage)
+        Throwable::toString)
     .recover(error -> {
         log.warn("Using defaults: {}", error);
         return Config.defaults();

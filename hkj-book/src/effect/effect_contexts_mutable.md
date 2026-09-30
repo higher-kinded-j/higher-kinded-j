@@ -387,7 +387,7 @@ MutableContext<IOKind.Witness, Counter, ErrorContext<IOKind.Witness, String, Dat
     return MutableContext.<Counter>modify(Counter::increment)
         .map(u -> ErrorContext.<String, Data>io(
             () -> dataService.fetch(),
-            Throwable::getMessage));
+            Throwable::toString));
 }
 ```
 

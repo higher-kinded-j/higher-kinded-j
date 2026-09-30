@@ -44,9 +44,12 @@ The Path API supports rich conversions between all path types. Some conversions 
 │  VALIDATION PATHS                                                                │
 │  ────────────────                                                                │
 │    EitherPath ←─────────────────────────────────────────────→ ValidationPath     │
-│              toValidationPath() / toEitherPath()                                 │
+│              toValidationPath(semigroup) / toEitherPath()                        │
 │                                                                                  │
-│    TryPath ─────── toValidationPath(mapper) ────────────────→ ValidationPath     │
+│    TryPath ─────── toValidationPath(mapper, semigroup) ─────→ ValidationPath     │
+│                                                                                  │
+│    MaybePath ───── toValidationPath(error, semigroup) ──────→ ValidationPath     │
+│                    toValidationPathGet(errorSupplier, semigroup)                 │
 │                                                                                  │
 │  ASYNC TYPED-ERROR PATHS                                                         │
 │  ───────────────────────                                                         │
@@ -91,15 +94,17 @@ EitherPath<String, User> withError =
 EitherPath<UserError, User> withLazyError =
     maybeUser.toEitherPath(() -> new UserError("User " + id + " not found"));
 
-// Mid-chain nothing downstream settles E, so the witness names it here
-EitherPath<UserError, String> named =
-    maybeUser.<UserError>toEitherPath(() -> new UserError("not found")).map(User::name);
+// Mid-chain nothing downstream settles E: name it when the supplier builds a subtype
+EitherPath<ServiceError, String> named =
+    maybeUser.<ServiceError>toEitherPath(() -> new ServiceError.UserNotFound()).map(User::name);
 ```
 
 ~~~admonish tip title="Which of the two overloads runs"
 A lambda, a method reference, or a variable whose type is a `Supplier` picks the deferred overload; every other argument picks the eager one. Reach for the deferred form when building the error is not free - it formats a message, reads a `MessageSource`, or captures a stack trace - because on the `Just` branch the supplier is never called. For a plain record the eager form reads better and costs nothing.
 
-An error whose own type is a functional interface is unaffected, since it is not a `Supplier`. Two shapes do need a hand, and both name the error type to reach the eager overload: such an error written *as a lambda*, which reads as a supplier and fails to infer (`maybeUser.<MyError>toEitherPath(() -> "boom")`); and a bare `null`, which selects the deferred overload and is rejected as a null supplier (`maybeUser.toEitherPath((MyError) null)` if a null left was meant - note the **cast**, since a type witness still picks the deferred overload here).
+An error whose own type is a functional interface is unaffected, since it is not a `Supplier`. The one shape that needs a hand is such an error written *as a lambda*, which reads as a supplier and fails to infer; name the error type to reach the eager overload: `maybeUser.<MyError>toEitherPath(() -> "boom")`.
+
+Neither overload takes a null error. A null value or a null supplier is rejected with a `NullPointerException` where the conversion is written, and so is a supplier that returns null when the path is empty. A bare `null` picks the deferred overload, so its message reads `errorSupplier must not be null`. Where no detail is needed, pass a real error such as `Unit.INSTANCE`.
 ~~~
 
 This is useful when:
@@ -151,10 +156,12 @@ EitherPath<Throwable, Config> withException =
 EitherPath<ConfigError, Config> withTypedError =
     tryConfig.toEitherPath(ex -> new ConfigError("Failed to load: " + ex.getMessage()));
 
-// Extract just the message
+// Describe the exception: unlike getMessage(), toString() is never null
 EitherPath<String, Config> withMessage =
-    tryConfig.toEitherPath(Throwable::getMessage);
+    tryConfig.toEitherPath(Throwable::toString);
 ```
+
+The function must not return null, and a null is refused with a `NullPointerException` rather than becoming a `Left(null)`. `Throwable::getMessage` returns null for an exception built without a message, so describe the exception another way.
 
 ### TryPath → MaybePath
 
@@ -258,6 +265,26 @@ EitherPath<List<String>, User> either = validated.toEitherPath();
 EitherPath<List<String>, Order> order = either
     .via(user -> Path.<List<String>, Order>right(createOrder(user)));
 ```
+
+### MaybePath → ValidationPath
+
+`toValidationPath` takes the error and the `Semigroup` that combines errors, and `toValidationPathGet` takes a supplier of the error instead. `OptionalPath` has both.
+
+<!-- verify -->
+```java
+MaybePath<User> maybeUser = Path.maybe(findUser(id));
+Semigroup<ServiceError> firstError = Semigroups.first();
+
+// The error is built whichever way the Maybe went
+ValidationPath<ServiceError, User> checked =
+    maybeUser.toValidationPath(new ServiceError.UserNotFound(), firstError);
+
+// Deferred: the supplier runs only on the Nothing branch
+ValidationPath<ServiceError, User> deferred =
+    maybeUser.toValidationPathGet(() -> new ServiceError.UserNotFound(), firstError);
+```
+
+A `Semigroup` typed to the parent, such as `firstError`, settles the error type, so a supplier that builds one subtype of a sealed error needs no type witness. The deferred form has its own name because, beside a `Semigroup`, a lambda could not tell the compiler which form was meant.
 
 ### TryPath → ValidationPath
 
@@ -759,7 +786,7 @@ public EitherPath<HttpError, UserDto> getUser(String id) {
 
 | From | To | Method | Notes |
 |------|-----|--------|-------|
-| MaybePath | EitherPath | `toEitherPath(error)` | Nothing → Left |
+| MaybePath | EitherPath | `toEitherPath(error)`, `toEitherPath(errorSupplier)` | Nothing → Left |
 | EitherPath | MaybePath | `toMaybePath()` | Left → Nothing |
 | TryPath | EitherPath | `toEitherPath(mapper)` | Exception → Left |
 | TryPath | MaybePath | `toMaybePath()` | Failure → Nothing |
@@ -770,9 +797,11 @@ public EitherPath<HttpError, UserDto> getUser(String id) {
 
 | From | To | Method | Notes |
 |------|-----|--------|-------|
-| EitherPath | ValidationPath | `toValidationPath()` | Preserves success/failure |
+| MaybePath | ValidationPath | `toValidationPath(error, semigroup)`, `toValidationPathGet(errorSupplier, semigroup)` | Nothing → Invalid |
+| OptionalPath | ValidationPath | `toValidationPath(error, semigroup)`, `toValidationPathGet(errorSupplier, semigroup)` | Empty → Invalid |
+| EitherPath | ValidationPath | `toValidationPath(semigroup)` | Preserves success/failure |
 | ValidationPath | EitherPath | `toEitherPath()` | Preserves valid/invalid |
-| TryPath | ValidationPath | `toValidationPath(mapper)` | Exception → Invalid |
+| TryPath | ValidationPath | `toValidationPath(mapper, semigroup)` | Exception → Invalid |
 
 ### Utility Path Conversions
 
@@ -782,7 +811,7 @@ public EitherPath<HttpError, UserDto> getUser(String id) {
 | MaybePath | IdPath | `toIdPath(default)` | Nothing → default value |
 | OptionalPath | MaybePath | `toMaybePath()` | Empty → Nothing |
 | MaybePath | OptionalPath | `toOptionalPath()` | Nothing → Empty |
-| OptionalPath | EitherPath | `toEitherPath(error)` | Empty → Left |
+| OptionalPath | EitherPath | `toEitherPath(error)`, `toEitherPath(errorSupplier)` | Empty → Left |
 | Any Kind | GenericPath | `Path.generic(kind, monad)` | Universal wrapper |
 
 Continue to [Patterns and Recipes](patterns.md) for real-world usage patterns.

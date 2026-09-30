@@ -129,11 +129,13 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    * <p>If this path contains a value, returns an EitherPath with a Right value. If this path is
    * empty, returns an EitherPath with the provided error as the Left value.
    *
-   * @param error the error to use if this path is empty
+   * @param error the error to use if this path is empty; must not be null
    * @param <E> the error type
    * @return an EitherPath representing this path's value or the provided error
+   * @throws NullPointerException if error is null
    */
   public <E> EitherPath<E, A> toEitherPath(E error) {
+    Objects.requireNonNull(error, "error must not be null");
     return value.isJust()
         ? new EitherPath<>(Either.right(value.get()))
         : new EitherPath<>(Either.left(error));
@@ -152,20 +154,26 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    * is a functional interface included. The one shape to watch is an error type that is a
    * functional interface written as a lambda, which reads as a supplier and fails to infer: name
    * the error type to select the eager overload, {@code path.<MyError>toEitherPath(() -> "boom")}.
-   * A bare {@code null} likewise selects this overload and is rejected; cast it to the error type,
-   * {@code path.toEitherPath((MyError) null)}, to pass a null error to the eager one. This mirrors
-   * {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
+   * {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)} selects between its overloads the
+   * same way. Unlike it, neither overload here takes a null error: a bare {@code null} selects this
+   * one and is rejected as a null supplier.
    *
-   * @param errorSupplier supplies the error if this path is empty; must not be null
+   * @param errorSupplier supplies the error if this path is empty; must not be null, and must not
+   *     return null
    * @param <E> the error type
    * @return an EitherPath representing this path's value or the supplied error
-   * @throws NullPointerException if errorSupplier is null
+   * @throws NullPointerException if errorSupplier is null, or returns null when this path is empty
    */
   public <E> EitherPath<E, A> toEitherPath(Supplier<? extends E> errorSupplier) {
     Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
     return value.isJust()
         ? new EitherPath<>(Either.right(value.get()))
-        : new EitherPath<>(Either.left(errorSupplier.get()));
+        : new EitherPath<>(Either.left(suppliedError(errorSupplier)));
+  }
+
+  /** Holds a supplied error to the non-null contract the eager conversions enforce. */
+  private static <E> E suppliedError(Supplier<? extends E> errorSupplier) {
+    return Objects.requireNonNull(errorSupplier.get(), "errorSupplier must not return null");
   }
 
   /**
@@ -174,7 +182,8 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    * <p>If this path contains a value, returns a TryPath with a Success. If this path is empty,
    * returns a TryPath with the provided exception as a Failure.
    *
-   * @param exceptionSupplier provides the exception if this path is empty; must not be null
+   * @param exceptionSupplier provides the exception if this path is empty; must not be null, and
+   *     must not return null
    * @return a TryPath representing this path's value or the provided exception
    * @throws NullPointerException if exceptionSupplier is null
    */
@@ -182,7 +191,10 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
     Objects.requireNonNull(exceptionSupplier, "exceptionSupplier must not be null");
     return value.isJust()
         ? new TryPath<>(Try.success(value.get()))
-        : new TryPath<>(Try.failure(exceptionSupplier.get()));
+        : new TryPath<>(
+            Try.failure(
+                Objects.requireNonNull(
+                    exceptionSupplier.get(), "exceptionSupplier must not return null")));
   }
 
   /**
@@ -190,6 +202,9 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    *
    * <p>If this path contains a value, returns a Valid. If this path is empty, returns an Invalid
    * with the provided error.
+   *
+   * <p>The error is built before this method runs, whichever way this path went. To build it only
+   * when this path is empty, use {@link #toValidationPathGet(Supplier, Semigroup)}.
    *
    * @param errorIfEmpty the error to use if this path is empty; must not be null
    * @param semigroup the Semigroup for error accumulation; must not be null
@@ -203,6 +218,37 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
     return value.isJust()
         ? new ValidationPath<>(Validated.valid(value.get()), semigroup)
         : new ValidationPath<>(Validated.invalid(errorIfEmpty), semigroup);
+  }
+
+  /**
+   * Converts this MaybePath to a ValidationPath, deferring construction of the error.
+   *
+   * <p>If this path contains a value, returns a Valid and the supplier is never called. If this
+   * path is empty, the supplier is called once and its result becomes the Invalid error. Prefer
+   * this over {@link #toValidationPath(Object, Semigroup)} when building the error is not free - it
+   * formats a message, reads a resource bundle, or captures a stack trace.
+   *
+   * <p>The semigroup settles the error type, so a supplier that builds one subtype of a sealed
+   * error needs no type witness: {@code path.toValidationPathGet(() -> new NotFound(id), errors)}
+   * with a {@code Semigroup<DomainError>} gives a {@code ValidationPath<DomainError, A>}. The
+   * method has its own name because, beside a semigroup, a lambda would match a supplier overload
+   * of {@code toValidationPath} and the eager one alike.
+   *
+   * @param errorSupplier supplies the error if this path is empty; must not be null, and must not
+   *     return null
+   * @param semigroup the Semigroup for error accumulation; must not be null
+   * @param <E> the error type
+   * @return a ValidationPath representing this path's value or the supplied error
+   * @throws NullPointerException if errorSupplier or semigroup is null, or errorSupplier returns
+   *     null when this path is empty
+   */
+  public <E> ValidationPath<E, A> toValidationPathGet(
+      Supplier<? extends E> errorSupplier, Semigroup<E> semigroup) {
+    Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
+    Objects.requireNonNull(semigroup, "semigroup must not be null");
+    return value.isJust()
+        ? new ValidationPath<>(Validated.valid(value.get()), semigroup)
+        : new ValidationPath<>(Validated.invalid(suppliedError(errorSupplier)), semigroup);
   }
 
   /**
@@ -220,7 +266,8 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
    * <p>If this path contains a value, returns an IdPath wrapping it. If this path is empty, throws
    * the exception provided by the supplier.
    *
-   * @param exceptionSupplier provides the exception if this path is empty; must not be null
+   * @param exceptionSupplier provides the exception if this path is empty; must not be null, and
+   *     must not return null
    * @return an IdPath containing this path's value
    * @throws RuntimeException the exception from the supplier if this path is empty
    * @throws NullPointerException if exceptionSupplier is null
@@ -230,7 +277,7 @@ public final class MaybePath<A> implements Recoverable<Unit, A> {
     if (value.isJust()) {
       return new IdPath<>(Id.of(value.get()));
     }
-    throw exceptionSupplier.get();
+    throw Objects.requireNonNull(exceptionSupplier.get(), "exceptionSupplier must not return null");
   }
 
   // ===== Composable implementation =====

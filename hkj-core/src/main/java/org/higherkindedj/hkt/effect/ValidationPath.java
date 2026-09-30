@@ -199,14 +199,19 @@ public final class ValidationPath<E, A>
   /**
    * Converts this ValidationPath to a TryPath.
    *
-   * @param errorToException converts the error to an exception; must not be null
+   * @param errorToException converts the error to an exception; must not be null, and must not
+   *     return null
    * @return a TryPath representing this path's value or the exception
    * @throws NullPointerException if errorToException is null
    */
   public TryPath<A> toTryPath(Function<? super E, ? extends Throwable> errorToException) {
     Objects.requireNonNull(errorToException, "errorToException must not be null");
     return value.fold(
-        e -> new TryPath<>(Try.failure(errorToException.apply(e))),
+        e ->
+            new TryPath<>(
+                Try.failure(
+                    Objects.requireNonNull(
+                        errorToException.apply(e), "errorToException must not return null"))),
         a -> new TryPath<>(Try.success(a)));
   }
 
@@ -525,7 +530,7 @@ public final class ValidationPath<E, A>
    *
    * <p>This is the preferred way to transform errors while maintaining accumulation capability.
    *
-   * @param mapper the function to transform the error; must not be null
+   * @param mapper the function to transform the error; must not be null, and must not return null
    * @param newSemigroup the Semigroup for the new error type; must not be null
    * @param <E2> the new error type
    * @return a ValidationPath with the transformed error type and new Semigroup
@@ -534,7 +539,9 @@ public final class ValidationPath<E, A>
       Function<? super E, ? extends E2> mapper, Semigroup<E2> newSemigroup) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     Objects.requireNonNull(newSemigroup, "newSemigroup must not be null");
-    return new ValidationPath<>(value.mapError(mapper), newSemigroup);
+    return new ValidationPath<>(
+        value.mapError(e -> Objects.requireNonNull(mapper.apply(e), "mapper must not return null")),
+        newSemigroup);
   }
 
   // ===== Focus Bridge Methods =====

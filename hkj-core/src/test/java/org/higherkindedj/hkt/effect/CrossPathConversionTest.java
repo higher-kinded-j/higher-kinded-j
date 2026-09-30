@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.effect;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
 
@@ -37,6 +38,10 @@ class CrossPathConversionTest {
   private static String buildError() {
     return TEST_ERROR;
   }
+
+  private sealed interface DomainError permits NotFound {}
+
+  private record NotFound(String id) implements DomainError {}
 
   // ===== MaybePath Conversions =====
 
@@ -313,6 +318,19 @@ class CrossPathConversionTest {
 
       assertThat(result.run().isInvalid()).isTrue();
       assertThat(result.run().getError()).isEqualTo(TEST_ERROR);
+    }
+
+    @Test
+    @DisplayName("TryPath(Failure) rejects an error mapping that returns null")
+    void tryFailureRejectsANullMappedError() {
+      TryPath<String> source = Path.failure(new RuntimeException());
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> source.toEitherPath(Throwable::getMessage))
+          .withMessageContaining("exceptionToError must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> source.toValidationPath(Throwable::getMessage, STRING_SEMIGROUP))
+          .withMessageContaining("exceptionToError must not return null");
     }
 
     @Test
@@ -607,13 +625,108 @@ class CrossPathConversionTest {
     }
 
     @Test
-    @DisplayName("OptionalPath holds a supplied error to the same non-null contract as the value")
-    void optionalRejectsASuppliedNullError() {
+    @DisplayName("A null error is rejected even when there is a value to return")
+    void nullErrorIsRejectedEagerly() {
+      MaybePath<String> just = Path.just(TEST_VALUE);
+      OptionalPath<String> present = Path.present(TEST_VALUE);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> just.toEitherPath((String) null))
+          .withMessageContaining("error must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> present.toEitherPath((String) null))
+          .withMessageContaining("errorIfEmpty must not be null");
+    }
+
+    @Test
+    @DisplayName("A supplied error is held to the same non-null contract as the value")
+    void suppliedNullErrorIsRejected() {
+      MaybePath<String> nothing = Path.nothing();
       OptionalPath<String> absent = Path.absent();
 
       assertThatNullPointerException()
+          .isThrownBy(() -> nothing.toEitherPath(() -> null))
+          .withMessageContaining("errorSupplier must not return null");
+      assertThatNullPointerException()
           .isThrownBy(() -> absent.toEitherPath(() -> null))
           .withMessageContaining("errorSupplier must not return null");
+    }
+
+    @Test
+    @DisplayName("toValidationPathGet calls the supplier only when there is no value")
+    void toValidationPathGetCallsTheSupplierOnlyWhenEmpty() {
+      AtomicInteger calls = new AtomicInteger();
+      Supplier<String> errorSupplier =
+          () -> {
+            calls.incrementAndGet();
+            return TEST_ERROR;
+          };
+
+      ValidationPath<String, String> fromJust =
+          Path.just(TEST_VALUE).toValidationPathGet(errorSupplier, STRING_SEMIGROUP);
+      ValidationPath<String, String> fromPresent =
+          Path.present(TEST_VALUE).toValidationPathGet(errorSupplier, STRING_SEMIGROUP);
+      assertThat(calls).hasValue(0);
+
+      ValidationPath<String, String> fromNothing =
+          Path.<String>nothing().toValidationPathGet(errorSupplier, STRING_SEMIGROUP);
+      ValidationPath<String, String> fromAbsent =
+          Path.<String>absent().toValidationPathGet(errorSupplier, STRING_SEMIGROUP);
+
+      assertThatValidated(fromJust.run()).isValid().hasValue(TEST_VALUE);
+      assertThatValidated(fromPresent.run()).isValid().hasValue(TEST_VALUE);
+      assertThatValidated(fromNothing.run()).isInvalid().hasError(TEST_ERROR);
+      assertThatValidated(fromAbsent.run()).isInvalid().hasError(TEST_ERROR);
+      assertThat(calls).hasValue(2);
+    }
+
+    @Test
+    @DisplayName("toValidationPathGet takes the error type from the semigroup, not the supplier")
+    void toValidationPathGetTakesTheErrorTypeFromTheSemigroup() {
+      Semigroup<DomainError> firstError = (a, b) -> a;
+
+      ValidationPath<DomainError, String> fromMaybe =
+          Path.<String>nothing().toValidationPathGet(() -> new NotFound(TEST_ERROR), firstError);
+      ValidationPath<DomainError, String> fromOptional =
+          Path.<String>absent().toValidationPathGet(() -> new NotFound(TEST_ERROR), firstError);
+
+      assertThatValidated(fromMaybe.run()).isInvalid().hasError(new NotFound(TEST_ERROR));
+      assertThatValidated(fromOptional.run()).isInvalid().hasError(new NotFound(TEST_ERROR));
+    }
+
+    @Test
+    @DisplayName("toValidationPathGet rejects a supplied null error")
+    void toValidationPathGetRejectsASuppliedNullError() {
+      MaybePath<String> nothing = Path.nothing();
+      OptionalPath<String> absent = Path.absent();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> nothing.toValidationPathGet(() -> null, STRING_SEMIGROUP))
+          .withMessageContaining("errorSupplier must not return null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> absent.toValidationPathGet(() -> null, STRING_SEMIGROUP))
+          .withMessageContaining("errorSupplier must not return null");
+    }
+
+    @Test
+    @DisplayName("toValidationPathGet rejects a null argument even when there is a value")
+    void toValidationPathGetRejectsANullArgumentEagerly() {
+      MaybePath<String> just = Path.just(TEST_VALUE);
+      OptionalPath<String> present = Path.present(TEST_VALUE);
+      Supplier<String> errorSupplier = () -> TEST_ERROR;
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> just.toValidationPathGet(null, STRING_SEMIGROUP))
+          .withMessageContaining("errorSupplier must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> present.toValidationPathGet(null, STRING_SEMIGROUP))
+          .withMessageContaining("errorSupplier must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> just.toValidationPathGet(errorSupplier, null))
+          .withMessageContaining("semigroup must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> present.toValidationPathGet(errorSupplier, null))
+          .withMessageContaining("semigroup must not be null");
     }
 
     @Test

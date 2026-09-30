@@ -1598,6 +1598,172 @@ class VResultPathTest {
           .isInstanceOf(IllegalStateException.class);
     }
 
+    private VResultPath<String, String> failingUse(
+        Throwable defect, Function<Throwable, String> onDefect) {
+      return VResultPath.bracketOutcome(
+          VResultPath.<String, String>pure("res"),
+          resource -> VResultPath.<String, String>fromVTask(VTask.fail(defect)),
+          this::logRelease,
+          onDefect);
+    }
+
+    @Test
+    @DisplayName("onDefect returning null still releases once, then fails naming onDefect")
+    void onDefectReturningNullStillReleases() {
+      IllegalStateException defect = new IllegalStateException("wire snapped");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> failingUse(defect, d -> null).run().run())
+          .withMessage("onDefect must not return null")
+          .withCause(defect);
+      assertThat(releaseLog).containsExactly("res:compensate");
+    }
+
+    @Test
+    @DisplayName("onDefect throwing still releases once, then fails with its exception")
+    void onDefectThrowingStillReleases() {
+      IllegalStateException defect = new IllegalStateException("wire snapped");
+      IllegalArgumentException broken = new IllegalArgumentException("onDefect broke");
+
+      assertThatThrownBy(
+              () ->
+                  failingUse(
+                          defect,
+                          d -> {
+                            throw broken;
+                          })
+                      .run()
+                      .run())
+          .isSameAs(broken)
+          .hasSuppressedException(defect);
+      assertThat(releaseLog).containsExactly("res:compensate");
+    }
+
+    @Test
+    @DisplayName(
+        "onDefect rethrowing or wrapping the defect adds no duplicate; unwrapping keeps it")
+    void onDefectRelatedToTheDefectAddsNoDuplicate() {
+      IllegalStateException inner = new IllegalStateException("inner");
+      IllegalStateException defect = new IllegalStateException("wire snapped", inner);
+
+      assertThatThrownBy(
+              () ->
+                  failingUse(
+                          defect,
+                          d -> {
+                            throw (RuntimeException) d;
+                          })
+                      .run()
+                      .run())
+          .isSameAs(defect)
+          .hasNoSuppressedExceptions();
+      assertThatThrownBy(
+              () ->
+                  failingUse(
+                          defect,
+                          d -> {
+                            throw new IllegalArgumentException(d);
+                          })
+                      .run()
+                      .run())
+          .hasCause(defect)
+          .hasNoSuppressedExceptions();
+      assertThatThrownBy(
+              () ->
+                  failingUse(
+                          defect,
+                          d -> {
+                            throw (RuntimeException) d.getCause();
+                          })
+                      .run()
+                      .run())
+          .isSameAs(inner)
+          .hasSuppressedException(defect);
+      assertThat(releaseLog).containsExactly("res:compensate", "res:compensate", "res:compensate");
+    }
+
+    @Test
+    @DisplayName("an onDefect failure whose cause chain loops still carries the defect")
+    void cyclicCauseChainIsWalkedOnce() {
+      IllegalStateException defect = new IllegalStateException("wire snapped");
+      IllegalArgumentException broken = new IllegalArgumentException("onDefect broke");
+      IllegalArgumentException loop = new IllegalArgumentException("loop");
+      broken.initCause(loop);
+      loop.initCause(broken);
+
+      assertThatThrownBy(
+              () ->
+                  failingUse(
+                          defect,
+                          d -> {
+                            throw broken;
+                          })
+                      .run()
+                      .run())
+          .isSameAs(broken)
+          .hasSuppressedException(defect);
+    }
+
+    @Test
+    @DisplayName("a release that fails on Left(null) carries the pending failure")
+    void releaseFailingCarriesThePendingFailure() {
+      IllegalStateException defect = new IllegalStateException("wire snapped");
+      IllegalStateException cleanup = new IllegalStateException("cleanup broke");
+
+      Throwable thrown =
+          catchThrowable(
+              () ->
+                  VResultPath.bracketOutcome(
+                          VResultPath.<String, String>pure("res"),
+                          resource -> VResultPath.<String, String>fromVTask(VTask.fail(defect)),
+                          (resource, outcome) ->
+                              VTask.succeed(outcome.fold(String::length, String::length)),
+                          d -> null)
+                      .run()
+                      .run());
+      Throwable failedTask =
+          catchThrowable(
+              () ->
+                  VResultPath.bracketOutcome(
+                          VResultPath.<String, String>pure("res"),
+                          resource -> VResultPath.<String, String>fromVTask(VTask.fail(defect)),
+                          (resource, outcome) -> VTask.<String>fail(cleanup),
+                          d -> null)
+                      .run()
+                      .run());
+
+      assertThat(thrown).isInstanceOf(NullPointerException.class);
+      assertThat(thrown.getSuppressed())
+          .singleElement()
+          .satisfies(
+              pending ->
+                  assertThat(pending).hasMessage("onDefect must not return null").hasCause(defect));
+      assertThat(failedTask).isSameAs(cleanup);
+      assertThat(cleanup.getSuppressed())
+          .singleElement()
+          .satisfies(pending -> assertThat(pending).hasMessage("onDefect must not return null"));
+    }
+
+    @Test
+    @DisplayName("a release that throws with nothing pending propagates unchanged")
+    void releaseThrowingWithNothingPendingPropagates() {
+      IllegalStateException cleanup = new IllegalStateException("cleanup broke");
+
+      assertThatThrownBy(
+              () ->
+                  VResultPath.bracketOutcome(
+                          VResultPath.<String, String>pure("res"),
+                          resource -> VResultPath.pure("used"),
+                          (resource, outcome) -> {
+                            throw cleanup;
+                          },
+                          Throwable::getMessage)
+                      .run()
+                      .run())
+          .isSameAs(cleanup)
+          .hasNoSuppressedExceptions();
+    }
+
     @Test
     @DisplayName("all arguments are eagerly guarded")
     void argumentsAreGuarded() {

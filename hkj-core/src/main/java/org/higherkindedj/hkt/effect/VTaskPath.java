@@ -243,7 +243,9 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    * a runtime exception is thrown when the VTask is executed.
    *
    * @param path the AffinePath to apply; must not be null
-   * @param exceptionIfAbsent supplies the exception if the path does not match; must not be null
+   * @param exceptionIfAbsent supplies the exception if the path does not match; must not be null,
+   *     and must not return null; a null result fails the path with a NullPointerException when it
+   *     runs
    * @param <B> the focused type
    * @return a new VTaskPath containing the focused value
    * @throws NullPointerException if path or exceptionIfAbsent is null
@@ -316,9 +318,11 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
    *
    * <p>Success produces {@code Either.right(value)}; failure produces {@code Either.left(mapped)}.
    *
-   * @param exceptionMapper function to map exceptions to the left type
+   * @param exceptionMapper function to map exceptions to the left type; must not be null, and must
+   *     not return null; a null result fails the path with a NullPointerException when it runs
    * @param <E> the left (error) type
-   * @return a new VTaskPath that always succeeds with an Either
+   * @return a new VTaskPath that succeeds with an Either, unless exceptionMapper throws or returns
+   *     null
    */
   <E> VTaskPath<Either<E, A>> catching(Function<? super Throwable, ? extends E> exceptionMapper);
 

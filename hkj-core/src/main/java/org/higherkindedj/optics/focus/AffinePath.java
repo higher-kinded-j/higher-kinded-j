@@ -792,11 +792,13 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * }</pre>
    *
    * @param source the source structure
-   * @param errorIfAbsent the error to use if the affine doesn't match
+   * @param errorIfAbsent the error to use if the affine doesn't match; must not be null
    * @param <E> the error type
    * @return an EitherPath containing Right if matched, Left otherwise
+   * @throws NullPointerException if errorIfAbsent is null
    */
   default <E> EitherPath<E, A> toEitherPath(S source, E errorIfAbsent) {
+    Objects.requireNonNull(errorIfAbsent, "errorIfAbsent must not be null");
     return getOptional(source)
         .<EitherPath<E, A>>map(Path::right)
         .orElseGet(() -> Path.left(errorIfAbsent));
@@ -813,9 +815,8 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    *
    * <p>A lambda, a method reference, or a variable whose type is a {@link Supplier} selects this
    * overload; every other argument selects {@link #toEitherPath(Object, Object)}, an error whose
-   * own type is a functional interface included. A bare {@code null} selects this overload and is
-   * rejected; cast it to the error type, {@code path.toEitherPath(source, (MyError) null)}, to pass
-   * a null error to the eager one.
+   * own type is a functional interface included. Neither overload takes a null error: a bare {@code
+   * null} selects this one and is rejected as a null supplier.
    *
    * <h2>Example Usage</h2>
    *
@@ -827,16 +828,23 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * }</pre>
    *
    * @param source the source structure
-   * @param errorSupplier supplies the error if the affine doesn't match; must not be null
+   * @param errorSupplier supplies the error if the affine doesn't match; must not be null, and must
+   *     not return null
    * @param <E> the error type
    * @return an EitherPath containing Right if matched, Left with the supplied error otherwise
-   * @throws NullPointerException if errorSupplier is null
+   * @throws NullPointerException if errorSupplier is null, or returns null when the affine doesn't
+   *     match
    */
   default <E> EitherPath<E, A> toEitherPath(S source, Supplier<? extends E> errorSupplier) {
     Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
     return getOptional(source)
         .<EitherPath<E, A>>map(Path::right)
-        .orElseGet(() -> Path.left(errorSupplier.get()));
+        .orElseGet(() -> Path.left(suppliedError(errorSupplier)));
+  }
+
+  /** Holds a supplied error to the non-null contract the eager conversion enforces. */
+  private static <E> E suppliedError(Supplier<? extends E> errorSupplier) {
+    return Objects.requireNonNull(errorSupplier.get(), "errorSupplier must not return null");
   }
 
   /**
@@ -859,13 +867,21 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * }</pre>
    *
    * @param source the source structure
-   * @param exceptionIfAbsent supplies the exception if the affine doesn't match
+   * @param exceptionIfAbsent supplies the exception if the affine doesn't match; must not be null,
+   *     and must not return null
    * @return a TryPath containing Success if matched, Failure otherwise
+   * @throws NullPointerException if exceptionIfAbsent is null, or returns null when the affine
+   *     doesn't match
    */
   default TryPath<A> toTryPath(S source, Supplier<? extends Throwable> exceptionIfAbsent) {
+    Objects.requireNonNull(exceptionIfAbsent, "exceptionIfAbsent must not be null");
     return getOptional(source)
         .map(Path::success)
-        .orElseGet(() -> Path.failure(exceptionIfAbsent.get()));
+        .orElseGet(
+            () ->
+                Path.failure(
+                    Objects.requireNonNull(
+                        exceptionIfAbsent.get(), "exceptionIfAbsent must not return null")));
   }
 
   /**

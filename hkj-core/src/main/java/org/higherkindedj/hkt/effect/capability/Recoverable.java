@@ -129,7 +129,11 @@ public sealed interface Recoverable<E, A> extends Chainable<A>
    *     .mapError(ex -> new AppError("Parse failed", ex));
    * }</pre>
    *
-   * @param mapper the function to transform the error; must not be null
+   * <p>The mapper must not return null. A path that applies it refuses a null result with a {@link
+   * NullPointerException}: an eager path throws where the call is written, and a deferred one fails
+   * when it runs.
+   *
+   * @param mapper the function to transform the error; must not be null, and must not return null
    * @param <E2> the new error type
    * @return a path with the transformed error type
    * @throws NullPointerException if mapper is null

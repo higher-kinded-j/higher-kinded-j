@@ -161,14 +161,19 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    *
    * <p>If this path contains an error, the error mapper is used to create an exception.
    *
-   * @param errorToException converts the error to an exception; must not be null
+   * @param errorToException converts the error to an exception; must not be null, and must not
+   *     return null
    * @return a TryPath representing this path's value or the exception
    * @throws NullPointerException if errorToException is null
    */
   public TryPath<A> toTryPath(Function<? super E, ? extends Throwable> errorToException) {
     Objects.requireNonNull(errorToException, "errorToException must not be null");
     return value.fold(
-        e -> new TryPath<>(Try.failure(errorToException.apply(e))),
+        e ->
+            new TryPath<>(
+                Try.failure(
+                    Objects.requireNonNull(
+                        errorToException.apply(e), "errorToException must not return null"))),
         a -> new TryPath<>(Try.success(a)));
   }
 
@@ -383,7 +388,8 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
   @Override
   public <E2> EitherPath<E2, A> mapError(Function<? super E, ? extends E2> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new EitherPath<>(value.mapLeft(mapper));
+    return new EitherPath<>(
+        value.mapLeft(e -> Objects.requireNonNull(mapper.apply(e), "mapper must not return null")));
   }
 
   /**
@@ -404,19 +410,23 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    *     n -> "Value: " + n);  // Transform success
    * }</pre>
    *
-   * @param errorMapper the function applied to a {@code Left} value
+   * @param errorMapper the function applied to a {@code Left} value; must not be null, and must not
+   *     return null
    * @param successMapper the function applied to a {@code Right} value
    * @param <E2> the new error type
    * @param <A2> the new success type
    * @return a new {@code EitherPath<E2, A2>}
-   * @throws NullPointerException if either mapper is {@code null}
+   * @throws NullPointerException if either mapper is {@code null}, or errorMapper returns null
    */
   public <E2, A2> EitherPath<E2, A2> bimap(
       Function<? super E, ? extends E2> errorMapper,
       Function<? super A, ? extends A2> successMapper) {
     Objects.requireNonNull(errorMapper, "errorMapper must not be null");
     Objects.requireNonNull(successMapper, "successMapper must not be null");
-    return new EitherPath<>(value.bimap(errorMapper, successMapper));
+    return new EitherPath<>(
+        value.bimap(
+            e -> Objects.requireNonNull(errorMapper.apply(e), "errorMapper must not return null"),
+            successMapper));
   }
 
   // ===== FocusPath Bridge Methods =====
@@ -464,13 +474,15 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    * // Returns Left(Error.of("Email not found")) if user has no email
    * }</pre>
    *
-   * @param path the AffinePath to apply
-   * @param errorIfAbsent the error to use if the path doesn't match
+   * @param path the AffinePath to apply; must not be null
+   * @param errorIfAbsent the error to use if the path doesn't match; must not be null
    * @param <B> the focused type
    * @return a new EitherPath containing the focused value or the error
+   * @throws NullPointerException if path or errorIfAbsent is null
    */
   public <B> EitherPath<E, B> focus(AffinePath<A, B> path, E errorIfAbsent) {
     Objects.requireNonNull(path, "path must not be null");
+    Objects.requireNonNull(errorIfAbsent, "errorIfAbsent must not be null");
     return via(
         a ->
             path.getOptional(a)
@@ -626,11 +638,12 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    *
    * @param step the computation to bound; must not be null
    * @param duration the time budget; must not be null
-   * @param onTimeout supplies the typed error for the timeout case; must not be null
+   * @param onTimeout supplies the typed error for the timeout case; must not be null, and must not
+   *     return null
    * @param <E> the error type
    * @param <A> the success type
    * @return the outcome, or {@code Left(onTimeout.get())} on timeout; never null
-   * @throws NullPointerException if any argument is null
+   * @throws NullPointerException if any argument is null, or onTimeout returns null
    */
   public static <E, A> EitherPath<E, A> withTimeout(
       Supplier<? extends EitherPath<E, A>> step,
@@ -645,7 +658,10 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
             .recoverWith(
                 failure ->
                     failure instanceof TimeoutException
-                        ? VTask.succeed(Either.<E, A>left(onTimeout.get()))
+                        ? VTask.succeed(
+                            Either.<E, A>left(
+                                Objects.requireNonNull(
+                                    onTimeout.get(), "onTimeout must not return null")))
                         : VTask.fail(failure))
             .run());
   }
@@ -690,11 +706,11 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    *
    * @param step the computation to protect; must not be null
    * @param circuitBreaker the (shareable) breaker; must not be null
-   * @param onOpen types the open-circuit rejection; must not be null
+   * @param onOpen types the open-circuit rejection; must not be null, and must not return null
    * @param <E> the error type
    * @param <A> the success type
    * @return the outcome as a path; never null
-   * @throws NullPointerException if any argument is null
+   * @throws NullPointerException if any argument is null, or onOpen returns null
    */
   public static <E, A> EitherPath<E, A> withCircuitBreaker(
       Supplier<? extends EitherPath<E, A>> step,
@@ -709,7 +725,8 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
             .recoverWith(
                 failure ->
                     failure instanceof CircuitOpenException open
-                        ? VTask.succeed(Either.<E, A>left(onOpen.apply(open)))
+                        ? VTask.succeed(
+                            Either.<E, A>left(ErrorResults.fromException(onOpen, open, "onOpen")))
                         : VTask.fail(failure))
             .run());
   }
@@ -745,11 +762,11 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    *
    * @param step the computation to protect; must not be null
    * @param bulkhead the (shareable) bulkhead; must not be null
-   * @param onFull types the bulkhead rejection; must not be null
+   * @param onFull types the bulkhead rejection; must not be null, and must not return null
    * @param <E> the error type
    * @param <A> the success type
    * @return the outcome as a path; never null
-   * @throws NullPointerException if any argument is null
+   * @throws NullPointerException if any argument is null, or onFull returns null
    */
   public static <E, A> EitherPath<E, A> withBulkhead(
       Supplier<? extends EitherPath<E, A>> step,
@@ -764,7 +781,8 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
             .recoverWith(
                 failure ->
                     failure instanceof BulkheadFullException full
-                        ? VTask.succeed(Either.<E, A>left(onFull.apply(full)))
+                        ? VTask.succeed(
+                            Either.<E, A>left(ErrorResults.fromException(onFull, full, "onFull")))
                         : VTask.fail(failure))
             .run());
   }

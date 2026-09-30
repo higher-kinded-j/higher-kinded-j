@@ -440,7 +440,7 @@ Exception becomes a typed error:
 <!-- verify -->
 ```java
 TryPath<Config> tried = Path.tryOf(() -> loadConfig());
-EitherPath<String, Config> either = tried.toEitherPath(Throwable::getMessage);
+EitherPath<String, Config> either = tried.toEitherPath(Throwable::toString);
 ```
 
 ### IOPath → TryPath

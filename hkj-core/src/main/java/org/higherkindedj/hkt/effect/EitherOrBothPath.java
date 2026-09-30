@@ -212,14 +212,19 @@ public final class EitherOrBothPath<L, A>
    * Converts to a {@link TryPath}: a {@code Left} becomes a failure (via {@code errorToException});
    * a {@code Right}/{@code Both} becomes a success holding the value.
    *
-   * @param errorToException converts the left value to an exception; must not be null
+   * @param errorToException converts the left value to an exception; must not be null, and must not
+   *     return null
    * @return a TryPath representing this path
    * @throws NullPointerException if errorToException is null
    */
   public TryPath<A> toTryPath(Function<? super L, ? extends Throwable> errorToException) {
     Objects.requireNonNull(errorToException, "errorToException must not be null");
     return value.fold(
-        l -> new TryPath<>(Try.failure(errorToException.apply(l))),
+        l ->
+            new TryPath<>(
+                Try.failure(
+                    Objects.requireNonNull(
+                        errorToException.apply(l), "errorToException must not return null"))),
         r -> new TryPath<>(Try.success(r)),
         (l, r) -> new TryPath<>(Try.success(r)));
   }
@@ -440,17 +445,20 @@ public final class EitherOrBothPath<L, A>
    * Transforms the warning type with a new {@link Semigroup}, preserving accumulation capability.
    * This is the supported way to rebase the warning channel.
    *
-   * @param mapper the function to transform the warnings; must not be null
+   * @param mapper the function to transform the warnings; must not be null, and must not return
+   *     null
    * @param newSemigroup the semigroup for the new warning type; must not be null
    * @param <L2> the new warning type
    * @return a path with the transformed warning type and new semigroup
-   * @throws NullPointerException if mapper or newSemigroup is null
+   * @throws NullPointerException if mapper or newSemigroup is null, or mapper returns null
    */
   public <L2> EitherOrBothPath<L2, A> mapErrorWith(
       Function<? super L, ? extends L2> mapper, Semigroup<L2> newSemigroup) {
     Objects.requireNonNull(mapper, "mapper must not be null");
     Objects.requireNonNull(newSemigroup, "newSemigroup must not be null");
-    return new EitherOrBothPath<>(value.mapLeft(mapper), newSemigroup);
+    return new EitherOrBothPath<>(
+        value.mapLeft(e -> Objects.requireNonNull(mapper.apply(e), "mapper must not return null")),
+        newSemigroup);
   }
 
   // ===== Focus bridge =====

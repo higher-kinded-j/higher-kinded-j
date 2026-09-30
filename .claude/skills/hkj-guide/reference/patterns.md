@@ -70,11 +70,11 @@ public EitherPath<UserError, User> getById(String id) {
 
 `toEitherPath` takes either the error **value** or a `Supplier` of one. A lambda, a method
 reference, or a variable of a `Supplier` type picks the deferred overload; anything else picks the
-eager one. Two shapes need the error type named to reach the eager overload: an error whose own
-type is a functional interface written as a lambda (`path.<MyError>toEitherPath(() -> "boom")`),
-and a bare `null` (`path.toEitherPath((MyError) null)` - a cast, since a witness still picks the
-deferred overload). Use the deferred form when building the error is not free - it formats a message, reads
-a `MessageSource`, or captures a stack trace - because the supplier never runs on the `Just` branch:
+eager one. An error whose own type is a functional interface, written as a lambda, needs the error
+type named to reach the eager overload (`path.<MyError>toEitherPath(() -> "boom")`). Neither
+overload takes a null error. Use the deferred form when building the error is not free - it formats
+a message, reads a `MessageSource`, or captures a stack trace - because the supplier never runs on
+the `Just` branch:
 
 <!-- verify -->
 ```java
@@ -83,6 +83,10 @@ public EitherPath<UserError, User> getById(String id) {
         .toEitherPath(() -> new UserError.NotFound(id));
 }
 ```
+
+For a `ValidationPath`, `toValidationPathGet(errorSupplier, semigroup)` defers the error the same
+way; a `Semigroup` typed to the parent error settles the error type, so the supplier may build a
+subtype.
 
 ### Chained Service Calls with ForPath
 

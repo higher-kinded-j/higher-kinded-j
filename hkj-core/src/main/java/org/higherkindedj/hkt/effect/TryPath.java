@@ -163,38 +163,51 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
   /**
    * Converts this TryPath to an EitherPath.
    *
-   * <p>The exception is transformed using the provided function to create the error type.
+   * <p>The exception is transformed using the provided function to create the error type. The
+   * function must not return null: {@code Throwable::getMessage} returns null for an exception
+   * built without a message, so prefer {@code Throwable::toString} or a message of your own.
    *
-   * @param exceptionToError converts the exception to an error; must not be null
+   * @param exceptionToError converts the exception to an error; must not be null, and must not
+   *     return null
    * @param <E> the error type
    * @return an EitherPath representing this path's value or the transformed error
-   * @throws NullPointerException if exceptionToError is null
+   * @throws NullPointerException if exceptionToError is null, or returns null for this path's
+   *     exception
    */
   public <E> EitherPath<E, A> toEitherPath(
       Function<? super Throwable, ? extends E> exceptionToError) {
     Objects.requireNonNull(exceptionToError, "exceptionToError must not be null");
     return value.foldFailureFirst(
-        ex -> new EitherPath<>(Either.left(exceptionToError.apply(ex))),
+        ex ->
+            new EitherPath<>(
+                Either.left(ErrorResults.fromException(exceptionToError, ex, "exceptionToError"))),
         a -> new EitherPath<>(Either.right(a)));
   }
 
   /**
    * Converts this TryPath to a ValidationPath.
    *
-   * <p>The exception is transformed using the provided function to create the error type.
+   * <p>The exception is transformed using the provided function to create the error type. The
+   * function must not return null, as {@link #toEitherPath(Function)} explains.
    *
-   * @param exceptionToError converts the exception to an error; must not be null
+   * @param exceptionToError converts the exception to an error; must not be null, and must not
+   *     return null
    * @param semigroup the Semigroup for error accumulation; must not be null
    * @param <E> the error type
    * @return a ValidationPath representing this path's value or the transformed error
-   * @throws NullPointerException if either argument is null
+   * @throws NullPointerException if either argument is null, or exceptionToError returns null for
+   *     this path's exception
    */
   public <E> ValidationPath<E, A> toValidationPath(
       Function<? super Throwable, ? extends E> exceptionToError, Semigroup<E> semigroup) {
     Objects.requireNonNull(exceptionToError, "exceptionToError must not be null");
     Objects.requireNonNull(semigroup, "semigroup must not be null");
     return value.foldFailureFirst(
-        ex -> new ValidationPath<>(Validated.invalid(exceptionToError.apply(ex)), semigroup),
+        ex ->
+            new ValidationPath<>(
+                Validated.invalid(
+                    ErrorResults.fromException(exceptionToError, ex, "exceptionToError")),
+                semigroup),
         a -> new ValidationPath<>(Validated.valid(a), semigroup));
   }
 
@@ -473,10 +486,12 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * // Returns Failure if config has no API key
    * }</pre>
    *
-   * @param path the AffinePath to apply
-   * @param exceptionIfAbsent supplies the exception if the path doesn't match
+   * @param path the AffinePath to apply; must not be null
+   * @param exceptionIfAbsent supplies the exception if the path doesn't match; must not be null,
+   *     and must not return null, or the result is a Failure holding a NullPointerException
    * @param <B> the focused type
    * @return a new TryPath containing the focused value or a Failure
+   * @throws NullPointerException if path or exceptionIfAbsent is null
    */
   public <B> TryPath<B> focus(
       AffinePath<A, B> path, Supplier<? extends Throwable> exceptionIfAbsent) {
@@ -486,7 +501,12 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
         a ->
             path.getOptional(a)
                 .map(Path::success)
-                .orElseGet(() -> Path.failure(exceptionIfAbsent.get())));
+                .orElseGet(
+                    () ->
+                        Path.failure(
+                            Objects.requireNonNull(
+                                exceptionIfAbsent.get(),
+                                "exceptionIfAbsent must not return null"))));
   }
 
   // ===== Object methods =====
