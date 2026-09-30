@@ -82,10 +82,11 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a PATCH wire be a record?](#no-record-patch-wire) | No: a record component is always present. | by design |
 | [Can a PATCH bean be only read, or only written?](#patch-bean-read-and-written) | No: a PATCH bean is both read and written. | by design |
 | [Can a PATCH bean have a setter with no getter?](#every-patch-setter-has-a-getter) | No, unless marked `@Unmapped`: the update would ignore it. | by design |
-| [Can a PATCH set a field to empty?](#no-optional-bridge-on-a-patch) | Through an `Optional`-typed property; a plain one bridged to `Optional` cannot. | by design |
+| [Can a PATCH set a field to empty?](#no-optional-bridge-on-a-patch) | Through an `Optional`-typed or `JsonNullable` property; a plain one bridged to `Optional` cannot. | by design |
 | [Can a PATCH bean have a getter-only `List`?](#no-getter-only-list-on-a-patch) | No: it never reads `null`, so it cannot be absent. | not supported yet |
 | [Can a PATCH bean's builder write a Lombok `@Singular` collection?](#singular-collections) | No: it never reads `null`, so it cannot be absent. | not supported yet |
-| [Can a PATCH bean carry a `JsonNullable` property?](#no-jsonnullable-patch-property) | No: use an `Optional`-typed property. | not supported yet |
+| [Can a PATCH bean carry a `JsonNullable` property?](#no-jsonnullable-patch-property) | Yes: an omitted field keeps its value, and a sent `null` clears an `Optional`. | by design |
+| [Can a `JsonNullable` PATCH property be raw, or a wildcard?](#no-jsonnullable-patch-property) | No: declare the type it holds, such as `JsonNullable<String>`. | by design |
 | [Can a PATCH body be a protobuf-java message?](#protobuf-fieldmask-update) | Yes: `updateFrom` takes the message and its `FieldMask`, and edits the fields the mask names. | by design |
 | [Can a `FieldMask` path reach into a nested message?](#protobuf-fieldmask-update) | No: the path fails, so name the whole field, which replaces the nested value. | not supported yet |
 | [Can a message's `UpdateSpec` leave a field without a domain component?](#protobuf-fieldmask-update) | No, since a mask may name any field, unless a derived field it shares with a `MappingSpec` fills it. | by design |
@@ -426,9 +427,9 @@ The [tier grid](tiers.md#which-methods-your-spec-gets) asks whether every compon
 **A `getX_JsonNullable()` and `setX_JsonNullable(...)` pair beside a property `x` is left out of the mapping.** openapi-generator's `java` client models, on its Jackson libraries such as `native` and `resttemplate`, keep each nullable property that is not required in a `JsonNullable` by default (`openApiNullable=true`), and expose it twice. `getX()` and `setX(T)` read and write its value, and the companion pair reads and writes the `JsonNullable<T>` that Jackson binds. The processor maps `x` through the plain pair, so the model has one property per JSON field.
 
 - **The processor recognises the companion by its shape.** It is a property named `x_JsonNullable` of type `org.openapitools.jackson.nullable.JsonNullable<T>`, beside a property `x` of type `T`. Otherwise it stays a property: when it holds another type, when no `x` is beside it, or when `x` is a getter-only `List`, which the companion alone writes.
-- **The `spring` generator's property has no plain pair.** Its `JsonNullable<T> getX()` is the property itself, so the rules for [a `JsonNullable` property](#no-jsonnullable-patch-property) apply.
+- **The `spring` generator's property has no plain pair.** Its `JsonNullable<T> getX()` is the property itself, which a `MappingSpec` maps through a leaf, and a PATCH bean reads as [a `JsonNullable` property](#no-jsonnullable-patch-property).
 - **An unset property reads `null`**, as on any bean. `getX()` answers `null` for an omitted property and for an explicit `null` alike, so on a [PATCH bean](beans_patch.md) both leave the component unchanged.
-- **A domain `Optional` component is still refused on a PATCH bean.** The plain getter has no state left for *clear*, so it meets [No plain property bridged to a domain `Optional`](#no-optional-bridge-on-a-patch). Clearing through the companion is not supported yet.
+- **A domain `Optional` component is refused on a PATCH bean.** The plain getter has no state left for *clear*, so it meets [No plain property bridged to a domain `Optional`](#no-optional-bridge-on-a-patch). Clearing through the companion is not supported yet.
 - **What the model does with the `null` an empty `Optional` writes is not checked for you.** It sends an explicit `null`, as [Bean-shaped wire targets](beans.md#bean-shaped-wire-targets) warns.
 
 ### What `@Unmapped` withholds {#what-unmapped-withholds}
@@ -550,7 +551,7 @@ A one-directional mapping follows these rules:
 
 ### No plain property bridged to a domain `Optional` {#no-optional-bridge-on-a-patch}
 
-**A domain `Optional<T>` component bridged from a non-Optional property is rejected**, and so is an [`@OptionalBridge`](absence.md#optional-bridge) the sparse spec declares itself, for the same reason. Under null-as-absent, `null` already means "leave unchanged", so "set to empty" has no encoding through a plain property (a plain property has only `null` and a value, one state short of JSON Merge Patch's three). The bridge's `null`-means-absent and the sparse tier's `null`-means-unchanged are two readings of one byte, and a spec extending `UpdateSpec` has already chosen. An `Optional`-typed property expresses *set to empty*: see [What each JSON state does](beans_patch.md#what-each-json-state-does).
+**A domain `Optional<T>` component bridged from a non-Optional property is rejected**, and so is an [`@OptionalBridge`](absence.md#optional-bridge) the sparse spec declares itself, for the same reason. Under null-as-absent, `null` already means "leave unchanged", so "set to empty" has no encoding through a plain property (a plain property has only `null` and a value, one state short of JSON Merge Patch's three). The bridge's `null`-means-absent and the sparse tier's `null`-means-unchanged are two readings of one byte, and a spec extending `UpdateSpec` has already chosen. An `Optional`-typed property expresses *set to empty*, and so does [a `JsonNullable` one](#no-jsonnullable-patch-property): see [What each JSON state does](beans_patch.md#what-each-json-state-does).
 
 ### No getter-only `List` property {#no-getter-only-list-on-a-patch}
 
@@ -588,9 +589,21 @@ A one-directional mapping follows these rules:
 
 **A wire property that names no domain component is rejected.** The client could send it and nothing would read it. Add a `@MapField` rename to the domain component it stands for, on the component's leaf where it has one, or remove the property. Coverage is one-sided: a domain component with no wire property is simply never changed, since a PATCH DTO covers a subset on purpose.
 
-### No `JsonNullable` property {#no-jsonnullable-patch-property}
+### A `JsonNullable` property keeps, clears or sets {#no-jsonnullable-patch-property}
 
-**A `JsonNullable` property is not supported yet.** Declare an `Optional`-typed property instead, which keeps the *clear* state, or a plain nullable one where *clear* has no meaning. openapi-generator's `spring` models declare such a property. Its `java` client models add a [companion pair](#jsonnullable-companions) instead, which is left out, so the processor reads such a PATCH bean through `getX()`, where a sent `null` reads as an omitted property.
+**A PATCH property declared `JsonNullable<T>` tells an omitted field from a sent `null`.** openapi-generator's `spring` models declare each nullable property that is not required this way, so a PATCH request generated from your contract maps as it is. The processor recognises `org.openapitools.jackson.nullable.JsonNullable` by its name, so it adds no dependency of its own.
+
+| The request body | The property holds | `updateFrom` |
+|---|---|---|
+| `{}` | `JsonNullable.undefined()` | leaves the component unchanged |
+| `{"nickname": null}` | `JsonNullable.of(null)` | clears an `Optional` component, and reports `nickname: must not be null` on any other |
+| `{"nickname": "ada"}` | `JsonNullable.of("ada")` | sets the component, through its leaf if it has one |
+
+- **A sent value parses as a plain property of the type it holds.** A `JsonNullable<String>` takes the leaf, element leaf or nested spec a `String` property on a bean would. A domain `Optional` takes the value inside it, as the [Optional bridge](absence.md#optional-bridge) does.
+- **A leaf over the whole `JsonNullable` sees only a sent value.** An omitted field leaves the component unchanged before the leaf runs, so the leaf decides what a sent `null` means.
+- **The property names the type it holds.** The processor refuses a raw `JsonNullable`, or one with a wildcard: declare `JsonNullable<String>`, say.
+- **Jackson binds the three states through its module.** Register `JsonNullableJackson3Module`, or `JsonNullableModule` on Jackson 2, which the generated model needs anyway.
+- **openapi-generator's `java` client models keep a plain pair beside it.** Their [companion](#jsonnullable-companions) is left out, so a PATCH bean reads `getX()`, where a sent `null` reads as an omitted field.
 
 ### A protobuf-java message updates through its `FieldMask` {#protobuf-fieldmask-update}
 

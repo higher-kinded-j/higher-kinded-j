@@ -580,7 +580,8 @@ matter: it maps build-only whatever its width, derived fields included.
   explicit-`null` property reads `null` (on an `UpdateSpec`, left unchanged, and a domain `Optional`
   component is refused there, since the plain getter cannot express *clear*), and `build` writes an
   empty `Optional` as an explicit JSON `null`, so a wire sample for `MappingLaws` must set each
-  nullable property. A `-g spring` model has no plain pair: its property is a `JsonNullable<T>`.
+  nullable property. A `-g spring` model has no plain pair: its property is a `JsonNullable<T>`,
+  which a `MappingSpec` maps through a leaf and an `UpdateSpec` reads in all three PATCH states.
 - **A type another processor generates is waited for.** A wire or domain type, or a component,
   bean property, builder or mix-in method read from one, that another annotation processor writes
   in the same compilation (an Immutables value, a schema-generated DTO) does not exist until the
@@ -636,6 +637,13 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   leaves unchanged. Caveats: Jackson binds an explicit JSON `null` to `Optional.empty()` (sent-null
   clears on this property shape), and the bean field must default to `null`, NOT `Optional.empty()`,
   or omitting the field clears the domain value.
+- A **`JsonNullable<T>` property** (openapi-generator `-g spring`, `openApiNullable=true`) carries
+  the same three states, recognised by name: `undefined()` (omitted) leaves the component
+  unchanged, `of(null)` clears an `Optional` component and is a located `must not be null` on any
+  other, and `of(value)` parses as a plain `T` bean property would (leaf, element leaf, nested
+  spec; an `Optional` component takes the value inside it). A leaf over the whole `JsonNullable`
+  sees only sent values. A raw or wildcard `JsonNullable` is refused. Jackson needs
+  `JsonNullableJackson3Module` (Jackson 2: `JsonNullableModule`) to bind the three states.
 - **Inherited vocabulary stays inert**: a bridge, a derived field, or a rename whose `to` this bean
   does not carry is never consulted here, so one mix-in serves a full spec and its PATCH sibling
   even when the bean covers a subset. A derived field the `UpdateSpec` declares itself is refused

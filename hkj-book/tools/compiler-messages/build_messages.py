@@ -126,6 +126,7 @@ SHORT = {
     "singular-collection-patch": "A PATCH bean has a Lombok `@Singular` collection",
     "protobuf-field-names-no-component": "A message field names no component of a `FieldMask` update",
     "optional-on-a-patch": "A plain PATCH property faces a domain `Optional`",
+    "jsonnullable-value-no-source": "Nothing converts a `JsonNullable`'s value to the component",
     "generic-bean-or-patch": "A bean, PATCH or sealed mapping is generic",
     "abstract-leaf-needs-a-generic-spec": "A concrete spec declares a leaf with no body",
     "merge-component-ambiguous": "Several merge sources carry one component",

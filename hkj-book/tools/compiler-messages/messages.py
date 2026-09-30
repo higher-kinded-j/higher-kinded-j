@@ -28,6 +28,7 @@ import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.validated.StandardCodecs;
 import org.higherkindedj.optics.validated.ValidatedPrism;
 import org.jspecify.annotations.NonNull;
+import org.openapitools.jackson.nullable.JsonNullable;
 """
 
 FIXTURE_TYPES = """record EmailAddress(String value) {}
@@ -1466,6 +1467,24 @@ class CustomerPatch {
   public void setName(String name) { this.name = name; }
   public String getNickname() { return nickname; }
   public void setNickname(String nickname) { this.nickname = nickname; }
+}
+
+@GenerateMapping
+interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}"""),
+        dict(id="jsonnullable-value-no-source",
+             heading="the value the wire property 'x' (JsonNullable<T>) holds cannot be written into X.x (Y)",
+             fragment="holds cannot be written into",
+             meaning="A `JsonNullable` PATCH property's sent value parses as a plain property of the type it holds, and nothing converts that type into the component.",
+             fix="Declare the leaf the message names, over the type the `JsonNullable` holds, such as `default ValidatedPrism<String, EmailAddress> email()`.",
+             rule=("A `JsonNullable` property keeps, clears or sets", "rules.md#no-jsonnullable-patch-property"),
+             code="""record Customer(EmailAddress email) {}
+
+// A nullable property as openapi-generator's spring generator writes it.
+class CustomerPatch {
+  private JsonNullable<String> email = JsonNullable.undefined();
+
+  public JsonNullable<String> getEmail() { return email; }
+  public void setEmail(JsonNullable<String> email) { this.email = email; }
 }
 
 @GenerateMapping

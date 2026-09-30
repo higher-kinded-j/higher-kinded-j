@@ -77,13 +77,14 @@ A binder turns each JSON state into what the getter answers, and `updateFrom` re
 |---|---|---|---|
 | A plain property, `String nickname` | keeps the current value | keeps it: the bound bean is the same as for `{}` | sets it, through its leaf if it has one |
 | An `Optional`, `Optional<String> nickname` | keeps the current value | clears it: Jackson binds `Optional.empty()` | sets it |
+| A `JsonNullable`, `JsonNullable<String> nickname` | keeps the current value | clears an `Optional` component, and fails any other | sets it, through its leaf if it has one |
 | A container, `List<String> phones` | keeps the current value | keeps it | replaces it whole, each element through its leaf if it has one; `[]` empties it |
 | A nested record, `Address address` | keeps the current value | keeps it | replaces it whole: fields left out are not merged in |
 
-A primitive property can only ever read as sent, so the processor refuses it and offers the wrapper type.
+A primitive property can only ever read as sent, so the processor refuses it and offers the wrapper type. openapi-generator's `spring` models declare each nullable property as a `JsonNullable`, which [A `JsonNullable` property keeps, clears or sets](rules.md#no-jsonnullable-patch-property) covers.
 
 ~~~admonish warning title="Not checked for you: a sent null clears an Optional property"
-The `Optional`-typed property is the only shape where an explicit `null` differs from leaving the field out, so it is how a client says *clear this*. Make the component `Optional` in the domain and in the bean, and leave the bean field `null` until set. A client that sends `"nickname": null` to mean *leave it* clears it instead: omit the field to keep the value.
+An `Optional`-typed property and a `JsonNullable` one are the shapes where an explicit `null` differs from leaving the field out, so they are how a client says *clear this*. Make the component `Optional` in the domain. In a bean you write, declare the property `Optional` too, and leave its field `null` until set. A client that sends `"nickname": null` to mean *leave it* clears it instead: omit the field to keep the value.
 ~~~
 
 ### A PATCH getter must answer `null` until set {#patch-getters-answer-null}
@@ -214,7 +215,7 @@ The same laws hold over container elements:
 
 ## The rules in brief {#patch-rules-in-brief}
 
-The processor refuses a PATCH spec it cannot honour, and names the fix. The last three rows are behaviours rather than refusals. Each row links to its rule:
+The processor refuses a PATCH spec it cannot honour, and names the fix. The last four rows are behaviours rather than refusals. Each row links to its rule:
 
 | On a PATCH spec or bean | What happens | Instead |
 |---|---|---|
@@ -228,8 +229,8 @@ The processor refuses a PATCH spec it cannot honour, and names the fix. The last
 | [A setter with no getter](rules.md#every-patch-setter-has-a-getter) | refused | a getter, or [`@Unmapped`](beans.md#accessors-meant-to-stay-out) on the spec |
 | [A wire property that names no domain component](rules.md#patch-wire-property-names-a-component) | refused | a `@MapField` rename, on the component's leaf where it has one, or drop the property |
 | [A sealed hierarchy](rules.md#no-sealed-patch), on either side | refused | one `UpdateSpec` per concrete record pair |
-| [A `JsonNullable` property](rules.md#no-jsonnullable-patch-property) | not supported yet | an `Optional`-typed property |
 | [An inherited derived field or `@OptionalBridge` marker](rules.md#inherited-vocabulary-on-a-patch) | inert | nothing: one mix-in serves both tiers |
+| [A `JsonNullable` property](rules.md#no-jsonnullable-patch-property) | a sent `null` clears an `Optional` component | nothing: an omitted field keeps its value |
 | [A nested record, `Optional`, `List` or `Map` of the same type on both sides](rules.md#patch-replaces-wholesale) | replaced whole | a leaf where its parts need checking; deep merge is out of scope |
 | [A domain component with no wire property](rules.md#patch-wire-property-names-a-component) | never changed | nothing: a PATCH DTO covers a subset on purpose |
 

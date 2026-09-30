@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.openapitools.jackson.nullable.JsonNullableJackson3Module;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
@@ -144,13 +145,51 @@ class SparsePatchBookTest {
     // ANCHOR_END: json_states
   }
 
+  @Test
+  @DisplayName("a JsonNullable property keeps, clears or sets, bound by Jackson")
+  void aJsonNullablePropertyCarriesEveryState() {
+    CustomerProfile ada =
+        new CustomerProfile(
+            "Ada", Optional.of("Countess"), Optional.of(new EmailAddress("ada@example.org")));
+
+    assertThatValidated(applyModel(ada, "{}")).hasValue(ada); // omitted: kept
+    assertThatValidated(applyModel(ada, "{\"nickname\": null, \"altEmail\": null}"))
+        .hasValue(new CustomerProfile("Ada", Optional.empty(), Optional.empty())); // cleared
+    assertThatValidated(applyModel(ada, "{\"nickname\": \"Lady Lovelace\"}"))
+        .hasValue(
+            new CustomerProfile(
+                "Ada",
+                Optional.of("Lady Lovelace"),
+                Optional.of(new EmailAddress("ada@example.org")))); // set
+    assertThatValidated(applyModel(ada, "{\"name\": null, \"altEmail\": \"nope\"}"))
+        .hasFieldErrors("name: must not be null", "altEmail: not an email address");
+
+    MappingLaws.assertMappingLaws(
+        CustomerProfilePatchModelMappingImpl.INSTANCE::updateFrom,
+        ada,
+        new CustomerProfilePatchModel(), // what Jackson binds from {}
+        new CustomerProfilePatchModel().nickname(null).altEmail("grace@example.org"),
+        new CustomerProfilePatchModel().altEmail("nope"));
+  }
+
   private static final JsonMapper JSON = JsonMapper.builder().build();
+
+  private static final JsonMapper JSON_NULLABLE =
+      JsonMapper.builder().addModule(new JsonNullableJackson3Module()).build();
 
   /** Binds a PATCH body as a Spring controller would, then applies it to the current profile. */
   private static Validated<NonEmptyList<FieldError>, CustomerProfile> applyJson(
       CustomerProfile current, String body) {
     return CustomerProfilePatchMappingImpl.INSTANCE
         .updateFrom(JSON.readValue(body, CustomerProfilePatchBean.class))
+        .apply(current);
+  }
+
+  /** Binds a PATCH body into the generated model, with the module its JsonNullables need. */
+  private static Validated<NonEmptyList<FieldError>, CustomerProfile> applyModel(
+      CustomerProfile current, String body) {
+    return CustomerProfilePatchModelMappingImpl.INSTANCE
+        .updateFrom(JSON_NULLABLE.readValue(body, CustomerProfilePatchModel.class))
         .apply(current);
   }
 }
