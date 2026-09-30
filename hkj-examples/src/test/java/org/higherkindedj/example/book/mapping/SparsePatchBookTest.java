@@ -172,6 +172,22 @@ class SparsePatchBookTest {
         new CustomerProfilePatchModel().altEmail("nope"));
   }
 
+  @Test
+  @DisplayName("without its module, Jackson reads a sent null into a JsonNullable as omitted")
+  void aJsonNullableNeedsItsModule() {
+    CustomerProfile ada = new CustomerProfile("Ada", Optional.of("Countess"), Optional.empty());
+    // ANCHOR: json_nullable_module
+    JsonMapper plain = JsonMapper.builder().build();
+    JsonMapper found = JsonMapper.builder().findAndAddModules().build();
+
+    // Without the module, Jackson hands setNickname a null holder, which reads as omitted:
+    assertThatValidated(applyModel(plain, ada, "{\"nickname\": null}")).hasValue(ada);
+    // with it, found on the classpath, the sent null clears the nickname.
+    assertThatValidated(applyModel(found, ada, "{\"nickname\": null}"))
+        .hasValue(new CustomerProfile("Ada", Optional.empty(), Optional.empty()));
+    // ANCHOR_END: json_nullable_module
+  }
+
   private static final JsonMapper JSON = JsonMapper.builder().build();
 
   private static final JsonMapper JSON_NULLABLE =
@@ -188,8 +204,14 @@ class SparsePatchBookTest {
   /** Binds a PATCH body into the generated model, with the module its JsonNullables need. */
   private static Validated<NonEmptyList<FieldError>, CustomerProfile> applyModel(
       CustomerProfile current, String body) {
+    return applyModel(JSON_NULLABLE, current, body);
+  }
+
+  /** Binds a PATCH body into the generated model with {@code json}, then applies it. */
+  private static Validated<NonEmptyList<FieldError>, CustomerProfile> applyModel(
+      JsonMapper json, CustomerProfile current, String body) {
     return CustomerProfilePatchModelMappingImpl.INSTANCE
-        .updateFrom(JSON_NULLABLE.readValue(body, CustomerProfilePatchModel.class))
+        .updateFrom(json.readValue(body, CustomerProfilePatchModel.class))
         .apply(current);
   }
 }

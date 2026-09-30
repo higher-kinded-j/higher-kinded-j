@@ -9,6 +9,7 @@ import static org.higherkindedj.optics.processing.RuntimeCompilationHelper.invok
 
 import com.google.testing.compile.Compilation;
 import com.google.testing.compile.JavaFileObjects;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -40,48 +41,7 @@ class MappingProcessorBeanTest {
           public record EmailAddress(String value) {}
           """);
 
-  // Stands in for jackson-databind-nullable's holder, which the processor recognises by name.
-  private static final JavaFileObject JSON_NULLABLE =
-      JavaFileObjects.forSourceString(
-          "org.openapitools.jackson.nullable.JsonNullable",
-          """
-          package org.openapitools.jackson.nullable;
-
-          public final class JsonNullable<T> {
-            private static final JsonNullable<?> UNDEFINED = new JsonNullable<>(null, false);
-            private final T value;
-            private final boolean present;
-
-            private JsonNullable(T value, boolean present) {
-              this.value = value;
-              this.present = present;
-            }
-
-            @SuppressWarnings("unchecked")
-            public static <T> JsonNullable<T> undefined() {
-              return (JsonNullable<T>) UNDEFINED;
-            }
-
-            public static <T> JsonNullable<T> of(T value) {
-              return new JsonNullable<>(value, true);
-            }
-
-            public boolean isPresent() {
-              return present;
-            }
-
-            public T get() {
-              if (!present) {
-                throw new java.util.NoSuchElementException("undefined");
-              }
-              return value;
-            }
-
-            public T orElse(T other) {
-              return present ? value : other;
-            }
-          }
-          """);
+  private static final JavaFileObject JSON_NULLABLE = JsonNullableStub.SOURCE;
 
   /** Instantiates a compiled record through its canonical constructor. */
   private static Object record(
@@ -4523,6 +4483,7 @@ class MappingProcessorBeanTest {
           import org.higherkindedj.hkt.validated.FieldError;
           import org.higherkindedj.hkt.validated.Validated;
           import org.higherkindedj.optics.annotations.GenerateMapping;
+          import org.higherkindedj.optics.annotations.MapKey;
           import org.higherkindedj.optics.annotations.MappingSpec;
           import org.higherkindedj.optics.annotations.UpdateSpec;
           import org.higherkindedj.optics.validated.ValidatedPrism;
@@ -4540,6 +4501,35 @@ class MappingProcessorBeanTest {
         invoke(bean, (String) sent[i], sent[i + 1]);
       }
       return bean;
+    }
+
+    /** A fresh bean of the compiled class {@code name}. */
+    private static Object bean(RuntimeCompilationHelper.CompiledResult result, String name)
+        throws ReflectiveOperationException {
+      return result.loadClass("com.example." + name).getDeclaredConstructor().newInstance();
+    }
+
+    /**
+     * A fresh bean of {@code name} with each named setter given a holder of its value, as Jackson
+     * binds a sent field.
+     */
+    private static Object sent(
+        RuntimeCompilationHelper.CompiledResult result, String name, Object... setters)
+        throws ReflectiveOperationException {
+      Object bean = bean(result, name);
+      for (int i = 0; i < setters.length; i += 2) {
+        invoke(bean, (String) setters[i], holder(result, setters[i + 1]));
+      }
+      return bean;
+    }
+
+    /** {@code JsonNullable.of(value)}, from the compiled stub. */
+    private static Object holder(RuntimeCompilationHelper.CompiledResult result, Object value)
+        throws ReflectiveOperationException {
+      return result
+          .loadClass("org.openapitools.jackson.nullable.JsonNullable")
+          .getMethod("of", Object.class)
+          .invoke(null, value);
     }
 
     /** The Impl's {@code updateFrom}, as the sparse laws take it. */
@@ -4610,7 +4600,7 @@ class MappingProcessorBeanTest {
       Assertions.assertThat(generatedSource(compilation, "com.example.PetUpdateImpl"))
           .contains("hkj$sent(wire.getNickname()), hkj$held -> ")
           .contains("hkj$sent(wire.getMotto()), motto()::parse)")
-          .contains("A {@code JsonNullable} property is present once it is sent");
+          .contains("A {@code JsonNullable} property is the exception: it is present once sent");
 
       var result = new RuntimeCompilationHelper.CompiledResult(compilation);
       Object impl = result.instance("com.example.PetUpdateImpl");
@@ -4717,7 +4707,276 @@ class MappingProcessorBeanTest {
     }
 
     @Test
-    @DisplayName("a holder with no usable type or value, and a companion on an Optional, refuse")
+    @DisplayName(
+        "a container, a nested spec and a key leaf reach through the holder, each value a copy")
+    void containersThroughTheHolder() throws ReflectiveOperationException {
+      Compilation compilation =
+          compileLinted(
+              JSON_NULLABLE,
+              ADDRESS_MODEL,
+              source("Address", "public record Address(String city) {}"),
+              source(
+                  "Shelf",
+                  """
+                  public record Shelf(
+                      List<String> tags,
+                      Optional<List<String>> aliases,
+                      Map<String, List<String>> labels,
+                      List<Address> homes,
+                      Optional<Map<Integer, String>> codes) {}
+                  """),
+              source(
+                  "ShelfPatch",
+                  """
+                  public class ShelfPatch {
+                    private JsonNullable<List<String>> tags = JsonNullable.undefined();
+                    private JsonNullable<List<String>> aliases = JsonNullable.undefined();
+                    private JsonNullable<Map<String, List<String>>> labels = JsonNullable.undefined();
+                    private JsonNullable<List<AddressModel>> homes = JsonNullable.undefined();
+                    private JsonNullable<Map<String, String>> codes = JsonNullable.undefined();
+
+                    public JsonNullable<List<String>> getTags() { return tags; }
+                    public void setTags(JsonNullable<List<String>> tags) { this.tags = tags; }
+                    public JsonNullable<List<String>> getAliases() { return aliases; }
+                    public void setAliases(JsonNullable<List<String>> aliases) {
+                      this.aliases = aliases;
+                    }
+                    public JsonNullable<Map<String, List<String>>> getLabels() { return labels; }
+                    public void setLabels(JsonNullable<Map<String, List<String>>> labels) {
+                      this.labels = labels;
+                    }
+                    public JsonNullable<List<AddressModel>> getHomes() { return homes; }
+                    public void setHomes(JsonNullable<List<AddressModel>> homes) { this.homes = homes; }
+                    public JsonNullable<Map<String, String>> getCodes() { return codes; }
+                    public void setCodes(JsonNullable<Map<String, String>> codes) { this.codes = codes; }
+                  }
+                  """),
+              source(
+                  "AddressMapping",
+                  """
+                  @GenerateMapping
+                  public interface AddressMapping extends MappingSpec<Address, AddressModel> {}
+                  """),
+              source(
+                  "ShelfUpdate",
+                  """
+                  @GenerateMapping
+                  public interface ShelfUpdate extends UpdateSpec<Shelf, ShelfPatch> {
+                    // Reaches the keys of the Map inside the Optional, as the bridge does on a bean.
+                    @MapKey("codes")
+                    default ValidatedPrism<String, Integer> codesKey() {
+                      return ValidatedPrism.of(
+                          raw ->
+                              raw.chars().allMatch(Character::isDigit)
+                                  ? Validated.validNel(Integer.valueOf(raw))
+                                  : Validated.invalidNel(FieldError.of("not a number")),
+                          String::valueOf);
+                    }
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+      Assertions.assertThat(generatedSource(compilation, "com.example.ShelfUpdateImpl"))
+          .contains(
+              "hkj$sent(wire.getTags()), hkj$held -> hkj$allPresent(hkj$copyOf(hkj$held.get())))")
+          .contains("Optional.ofNullable(hkj$copyOf(hkj$held.get()))");
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Object impl = result.instance("com.example.ShelfUpdateImpl");
+      Function<Object, Edits.Accumulated<Object>> update = accumulated(impl);
+      Object current =
+          record(
+              result,
+              "Shelf",
+              List.of("old"),
+              Optional.of(List.of("a")),
+              Map.of("k", List.of("x")),
+              List.of(record(result, "Address", "Leeds")),
+              Optional.of(Map.of(1, "one")));
+      MappingLaws.assertSparseIdentity(update, current, bean(result, "ShelfPatch"));
+
+      List<String> tags = new ArrayList<>(List.of("new"));
+      List<String> aliases = new ArrayList<>(List.of("b"));
+      Object york = bean(result, "AddressModel");
+      invoke(york, "setCity", "York");
+      Object sent =
+          sent(
+              result,
+              "ShelfPatch",
+              "setTags",
+              tags,
+              "setAliases",
+              aliases,
+              "setLabels",
+              Map.of("k", List.of("y")),
+              "setHomes",
+              List.of(york),
+              "setCodes",
+              Map.of("2", "two"));
+      Object patched = validated(update.apply(sent).apply(current)).get();
+      Assertions.assertThat(patched)
+          .isEqualTo(
+              record(
+                  result,
+                  "Shelf",
+                  List.of("new"),
+                  Optional.of(List.of("b")),
+                  Map.of("k", List.of("y")),
+                  List.of(record(result, "Address", "York")),
+                  Optional.of(Map.of(2, "two"))));
+      // The patched shelf holds copies, so a later change to what the client sent is not seen.
+      tags.add("late");
+      aliases.add("late");
+      Assertions.assertThat(invoke(patched, "tags")).isEqualTo(List.of("new"));
+      Assertions.assertThat(invoke(patched, "aliases")).isEqualTo(Optional.of(List.of("b")));
+
+      Object cleared = sent(result, "ShelfPatch", "setAliases", null, "setCodes", null);
+      Assertions.assertThat(invoke(validated(update.apply(cleared).apply(current)).get(), "codes"))
+          .isEqualTo(Optional.empty());
+      Object invalid =
+          sent(
+              result,
+              "ShelfPatch",
+              "setAliases",
+              Arrays.asList("b", null),
+              "setLabels",
+              Map.of("k", Arrays.asList("y", null)),
+              "setCodes",
+              Map.of("two", "two"));
+      assertThatValidated(update.apply(invalid).apply(current))
+          .hasFieldErrors(
+              "aliases.1: must not be null",
+              "labels.k.1: must not be null",
+              "codes.two: not a number");
+    }
+
+    @Test
+    @DisplayName(
+        "a wildcard or raw holder, a domain holder and an Optional over a wildcard read as sent")
+    void edgeShapes() throws ReflectiveOperationException {
+      Compilation compilation =
+          compileLinted(
+              JSON_NULLABLE,
+              EMAIL,
+              source(
+                  "Card",
+                  """
+                  public record Card(
+                      String motto,
+                      Optional<String> alias,
+                      String code,
+                      JsonNullable<String> note,
+                      Optional<String> hint,
+                      Optional<? extends EmailAddress> backup,
+                      Optional<? extends CharSequence> label) {}
+                  """),
+              source(
+                  "CardPatch",
+                  """
+                  @SuppressWarnings("rawtypes")
+                  public class CardPatch {
+                    private JsonNullable<? extends String> motto = JsonNullable.undefined();
+                    private JsonNullable<? extends String> alias = JsonNullable.undefined();
+                    private JsonNullable code = JsonNullable.undefined();
+                    private JsonNullable<String> note = JsonNullable.undefined();
+                    private JsonNullable<Optional<String>> hint = JsonNullable.undefined();
+                    private JsonNullable<String> backup = JsonNullable.undefined();
+                    private JsonNullable<CharSequence> label = JsonNullable.undefined();
+
+                    public JsonNullable<? extends String> getMotto() { return motto; }
+                    public void setMotto(JsonNullable<? extends String> motto) { this.motto = motto; }
+                    public JsonNullable<? extends String> getAlias() { return alias; }
+                    public void setAlias(JsonNullable<? extends String> alias) { this.alias = alias; }
+                    public JsonNullable getCode() { return code; }
+                    public void setCode(JsonNullable code) { this.code = code; }
+                    public JsonNullable<String> getNote() { return note; }
+                    public void setNote(JsonNullable<String> note) { this.note = note; }
+                    public JsonNullable<Optional<String>> getHint() { return hint; }
+                    public void setHint(JsonNullable<Optional<String>> hint) { this.hint = hint; }
+                    public JsonNullable<String> getBackup() { return backup; }
+                    public void setBackup(JsonNullable<String> backup) { this.backup = backup; }
+                    public JsonNullable<CharSequence> getLabel() { return label; }
+                    public void setLabel(JsonNullable<CharSequence> label) { this.label = label; }
+                  }
+                  """),
+              source(
+                  "CardUpdate",
+                  """
+                  @GenerateMapping
+                  public interface CardUpdate extends UpdateSpec<Card, CardPatch> {
+                    // Over the raw holder as declared, so it is called only for a sent value.
+                    @SuppressWarnings("rawtypes")
+                    default ValidatedPrism<JsonNullable, String> code() {
+                      return ValidatedPrism.of(
+                          held -> Validated.validNel(String.valueOf(held.get())), JsonNullable::of);
+                    }
+
+                    default ValidatedPrism<String, EmailAddress> backup() {
+                      return ValidatedPrism.of(
+                          raw ->
+                              raw.contains("@")
+                                  ? Validated.validNel(new EmailAddress(raw))
+                                  : Validated.invalidNel(FieldError.of("not an email address")),
+                          EmailAddress::value);
+                    }
+                  }
+                  """));
+      assertThat(compilation).succeeded();
+
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      Function<Object, Edits.Accumulated<Object>> update =
+          accumulated(result.instance("com.example.CardUpdateImpl"));
+      Object note = holder(result, "was");
+      Object current =
+          record(
+              result,
+              "Card",
+              "Carpe diem",
+              Optional.of("C"),
+              "c1",
+              note,
+              Optional.of("h"),
+              Optional.of(record(result, "EmailAddress", "c@example.com")),
+              Optional.of("lbl"));
+      MappingLaws.assertSparseIdentity(update, current, bean(result, "CardPatch"));
+
+      Object sent =
+          sent(
+              result,
+              "CardPatch",
+              "setMotto",
+              "Seize the day",
+              "setAlias",
+              null,
+              "setCode",
+              7,
+              "setNote",
+              null,
+              "setHint",
+              Optional.empty(),
+              "setBackup",
+              "b@example.com",
+              "setLabel",
+              null);
+      Object sentNote = invoke(sent, "getNote");
+      Object patched = validated(update.apply(sent).apply(current)).get();
+      Assertions.assertThat(invoke(patched, "motto")).isEqualTo("Seize the day");
+      Assertions.assertThat(invoke(patched, "alias")).isEqualTo(Optional.empty());
+      Assertions.assertThat(invoke(patched, "code")).isEqualTo("7");
+      // A domain holder takes the holder as sent, its null included.
+      Assertions.assertThat(invoke(patched, "note")).isSameAs(sentNote);
+      // A holder of an Optional copies it, so an empty Optional clears and a null is refused.
+      Assertions.assertThat(invoke(patched, "hint")).isEqualTo(Optional.empty());
+      Assertions.assertThat(invoke(patched, "backup"))
+          .isEqualTo(Optional.of(record(result, "EmailAddress", "b@example.com")));
+      Assertions.assertThat(invoke(patched, "label")).isEqualTo(Optional.empty());
+
+      Object invalid = sent(result, "CardPatch", "setHint", null, "setBackup", "nope");
+      assertThatValidated(update.apply(invalid).apply(current))
+          .hasFieldErrors("hint: must not be null", "backup: not an email address");
+    }
+
+    @Test
+    @DisplayName("a holder naming no type, or a value nothing converts, is refused")
     void refusals() {
       String patch =
           """
@@ -4740,19 +4999,29 @@ class MappingProcessorBeanTest {
                   "RawUpdate",
                   "@GenerateMapping public interface RawUpdate extends UpdateSpec<Coded, RawPatch>"
                       + " {}"),
+              source("Mail", "public record Mail(EmailAddress email) {}"),
+              source("MaybeMail", "public record MaybeMail(Optional<EmailAddress> email) {}"),
               source(
                   "WildPatch",
                   patch.formatted(
-                      "WildPatch",
-                      "JsonNullable<? extends String>",
-                      "Code",
-                      "Code",
-                      "JsonNullable<? extends String>")),
+                      "WildPatch", "JsonNullable<?>", "Email", "Email", "JsonNullable<?>")),
               source(
                   "WildUpdate",
-                  "@GenerateMapping public interface WildUpdate extends UpdateSpec<Coded,"
+                  "@GenerateMapping public interface WildUpdate extends UpdateSpec<MaybeMail,"
                       + " WildPatch> {}"),
-              source("Mail", "public record Mail(EmailAddress email) {}"),
+              source("Counted", "public record Counted(int count) {}"),
+              source(
+                  "SuperPatch",
+                  patch.formatted(
+                      "SuperPatch",
+                      "JsonNullable<? super Integer>",
+                      "Count",
+                      "Count",
+                      "JsonNullable<? super Integer>")),
+              source(
+                  "SuperUpdate",
+                  "@GenerateMapping public interface SuperUpdate extends UpdateSpec<Counted,"
+                      + " SuperPatch> {}"),
               source(
                   "MailPatch",
                   patch.formatted(
@@ -4765,12 +5034,10 @@ class MappingProcessorBeanTest {
                   "MailUpdate",
                   "@GenerateMapping public interface MailUpdate extends UpdateSpec<Mail, MailPatch>"
                       + " {}"),
-              source("MaybeMail", "public record MaybeMail(Optional<EmailAddress> email) {}"),
               source(
                   "MaybeMailUpdate",
                   "@GenerateMapping public interface MaybeMailUpdate extends UpdateSpec<MaybeMail,"
                       + " MailPatch> {}"),
-              source("Counted", "public record Counted(int count) {}"),
               source(
                   "CountPatch",
                   patch.formatted(
@@ -4813,38 +5080,53 @@ class MappingProcessorBeanTest {
                   "@GenerateMapping public interface NicknameUpdate extends"
                       + " UpdateSpec<Nicknamed, NicknameModel> {}"));
       assertThat(compilation).failed();
-      Assertions.assertThat(compilation.errors()).hasSize(7);
+      Assertions.assertThat(compilation.errors()).hasSize(8);
       assertThat(compilation)
           .hadErrorContaining(
               "the wire property 'code' (org.openapitools.jackson.nullable.JsonNullable) does not"
-                  + " name the type its JsonNullable holds.");
+                  + " name the type its value parses as.");
       assertThat(compilation)
           .hadErrorContaining(
-              "the wire property 'code' (org.openapitools.jackson.nullable.JsonNullable<? extends"
-                  + " java.lang.String>) does not name the type its JsonNullable holds.");
+              "Declare 'code' on 'RawPatch' as"
+                  + " org.openapitools.jackson.nullable.JsonNullable<java.lang.String>, holding what"
+                  + " Coded.code takes.");
       assertThat(compilation)
           .hadErrorContaining(
-              "Declare 'code' as JsonNullable<T>, with T the type it holds, such as"
-                  + " JsonNullable<java.lang.String>.");
+              "Declare 'email' on 'WildPatch' as"
+                  + " org.openapitools.jackson.nullable.JsonNullable<com.example.EmailAddress>,"
+                  + " holding what MaybeMail.email takes.");
       assertThat(compilation)
           .hadErrorContaining(
-              "the value the wire property 'email'"
-                  + " (org.openapitools.jackson.nullable.JsonNullable<java.lang.String>) holds cannot"
-                  + " be written into Mail.email (com.example.EmailAddress).");
+              "Declare 'count' on 'SuperPatch' as"
+                  + " org.openapitools.jackson.nullable.JsonNullable<java.lang.Integer>, holding what"
+                  + " Counted.count takes.");
       assertThat(compilation)
           .hadErrorContaining(
-              "the value the wire property 'email'"
-                  + " (org.openapitools.jackson.nullable.JsonNullable<java.lang.String>) holds cannot"
-                  + " be written into MaybeMail.email"
+              "the wire property 'email'"
+                  + " (org.openapitools.jackson.nullable.JsonNullable<java.lang.String>) holds a"
+                  + " java.lang.String, which cannot be written into Mail.email"
+                  + " (com.example.EmailAddress). A sparse update parses a sent JsonNullable's"
+                  + " value as a plain java.lang.String property");
+      assertThat(compilation).hadErrorContaining("A sent null is reported as 'must not be null'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "which cannot be written into MaybeMail.email"
                   + " (java.util.Optional<com.example.EmailAddress>).");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "The Optional component takes the value inside it: a sent null clears it, and a"
+                  + " value converts into com.example.EmailAddress.");
       assertThat(compilation)
           .hadErrorContaining(
               "Declare a leaf 'default ValidatedPrism<java.lang.String, com.example.EmailAddress>"
                   + " email()', or align the types.");
       assertThat(compilation)
           .hadErrorContaining(
-              "Declare 'Counted.count' as java.lang.Integer, and a leaf 'default"
-                  + " ValidatedPrism<java.lang.String, java.lang.Integer> count()' converts into it.");
+              "Declare 'count' on 'CountPatch' as"
+                  + " org.openapitools.jackson.nullable.JsonNullable<java.lang.Integer>, which a"
+                  + " sparse update writes straight into the int component, or declare"
+                  + " 'Counted.count' as java.lang.Integer and add a leaf 'default"
+                  + " ValidatedPrism<java.lang.String, java.lang.Integer> count()'.");
       assertThat(compilation)
           .hadErrorContaining("field 'labels' maps between Maps whose key types differ");
       assertThat(compilation)

@@ -345,11 +345,14 @@ class CustomerProfilePatchModel {
   }
 }
 
+// ANCHOR: json_nullable_spec
 @GenerateMapping
 interface CustomerProfilePatchModelMapping
     extends UpdateSpec<CustomerProfile, CustomerProfilePatchModel> {
-  // A sent altEmail parses through the leaf over the String it holds, inside the Optional.
+  // A leaf over the String the JsonNullable holds, which a sent altEmail parses through
   default ValidatedPrism<String, EmailAddress> altEmail() {
     return EmailCodecs.EMAIL;
   }
 }
+
+// ANCHOR_END: json_nullable_spec

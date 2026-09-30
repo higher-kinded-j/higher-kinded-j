@@ -136,7 +136,7 @@ When the processor cannot write correct code for a spec, it refuses at compile t
 | [`fields […] of the protobuf-java message '…' name no component of`](#protobuf-field-names-no-component) | A message field names no component of a `FieldMask` update |
 | [`is a @Singular collection`](#singular-collection-patch) | A PATCH bean has a Lombok `@Singular` collection |
 | [`which a sparse update cannot express`](#optional-on-a-patch) | A plain PATCH property faces a domain `Optional` |
-| [`holds cannot be written into`](#jsonnullable-value-no-source) | Nothing converts a `JsonNullable`'s value to the component |
+| [`which cannot be written into`](#jsonnullable-value-no-source) | Nothing converts a `JsonNullable`'s value to the component |
 
 **[Generic specs](#generic-specs)**
 
@@ -2748,27 +2748,27 @@ interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}
 ```
 ~~~
 
-### `the value the wire property 'x' (JsonNullable<T>) holds cannot be written into X.x (Y)` {#jsonnullable-value-no-source}
+### `the wire property 'x' (JsonNullable<T>) holds a T, which cannot be written into X.x (Y)` {#jsonnullable-value-no-source}
 
 A `JsonNullable` PATCH property's sent value parses as a plain property of the type it holds, and nothing converts that type into the component.
 
 **Fix.** Declare the leaf the message names, over the type the `JsonNullable` holds, such as `default ValidatedPrism<String, EmailAddress> email()`.
 
 ```
-@GenerateMapping: the value the wire property 'email'
-(org.openapitools.jackson.nullable.JsonNullable<java.lang.String>) holds cannot be written into
-Customer.email (com.example.EmailAddress). A sparse update parses a sent JsonNullable's value as
-a plain java.lang.String property: by identity, through a leaf named after the domain component,
-through an element leaf lifted over a List, Set, array, Optional or Map, or through a nested
-spec. An Optional component takes the value inside it, and a sent null clears it. Declare a leaf
-'default ValidatedPrism<java.lang.String, com.example.EmailAddress> email()', or align the
-types.
+@GenerateMapping: the wire property 'email'
+(org.openapitools.jackson.nullable.JsonNullable<java.lang.String>) holds a java.lang.String,
+which cannot be written into Customer.email (com.example.EmailAddress). A sparse update parses a
+sent JsonNullable's value as a plain java.lang.String property: by identity, through a leaf
+named after the domain component, through an element leaf lifted over a List, Set, array,
+Optional or Map, or through a nested spec. A sent null is reported as 'must not be null'.
+Declare a leaf 'default ValidatedPrism<java.lang.String, com.example.EmailAddress> email()', or
+align the types.
 ```
 
 The rule: [A `JsonNullable` property keeps, clears or sets](rules.md#no-jsonnullable-patch-property).
 
 ~~~admonish example title="A declaration that produces it" collapsible=true
-<!-- verify:rejects "holds cannot be written into" -->
+<!-- verify:rejects "which cannot be written into" -->
 ```java
 record Customer(EmailAddress email) {}
 

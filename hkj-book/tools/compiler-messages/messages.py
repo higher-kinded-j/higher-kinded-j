@@ -1472,8 +1472,8 @@ class CustomerPatch {
 @GenerateMapping
 interface CustomerPatchMapping extends UpdateSpec<Customer, CustomerPatch> {}"""),
         dict(id="jsonnullable-value-no-source",
-             heading="the value the wire property 'x' (JsonNullable<T>) holds cannot be written into X.x (Y)",
-             fragment="holds cannot be written into",
+             heading="the wire property 'x' (JsonNullable<T>) holds a T, which cannot be written into X.x (Y)",
+             fragment="which cannot be written into",
              meaning="A `JsonNullable` PATCH property's sent value parses as a plain property of the type it holds, and nothing converts that type into the component.",
              fix="Declare the leaf the message names, over the type the `JsonNullable` holds, such as `default ValidatedPrism<String, EmailAddress> email()`.",
              rule=("A `JsonNullable` property keeps, clears or sets", "rules.md#no-jsonnullable-patch-property"),
