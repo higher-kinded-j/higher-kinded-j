@@ -624,9 +624,8 @@ final class BeanPropertyAnalyser {
   /**
    * Each field's name in its {@code .proto} file, by its Java name among {@code names}. protoc
    * gives a message a constant for each field, named after it in upper case: {@code
-   * DISPLAY_NAME_FIELD_NUMBER} for {@code display_name}, whose Java name is {@code displayName}. A
-   * field declared in camel case in its {@code .proto} file keeps no record of it in its constant,
-   * and is named here in lower case.
+   * DISPLAY_NAME_FIELD_NUMBER} for {@code display_name}, whose Java name is {@code displayName}.
+   * The constant says where the underscores go, and the Java name the case ({@link #protoName}).
    */
   private static Map<String, String> protoNames(TypeElement message, List<String> names) {
     Map<String, String> protoNames = new LinkedHashMap<>();
@@ -637,8 +636,31 @@ final class BeanPropertyAnalyser {
         .forEach(
             field ->
                 member(field, names)
-                    .ifPresent(name -> protoNames.put(name, field.toLowerCase(Locale.ROOT))));
+                    .ifPresent(name -> protoNames.put(name, protoName(field, name))));
     return protoNames;
+  }
+
+  /**
+   * A name as its {@code .proto} file declares it, from the constant naming it in upper case and
+   * its Java name, which {@link #member} has matched letter for letter: {@code display_name} from
+   * {@code DISPLAY_NAME} and {@code displayName}, and {@code displayName} from {@code DISPLAYNAME}
+   * and {@code displayName}. protobuf keeps a capital the file declares, and puts one of its own
+   * after an underscore or a digit, where the file is read as declaring the lower-case letter.
+   */
+  static String protoName(String constant, String name) {
+    StringBuilder declared = new StringBuilder();
+    int letter = 0;
+    char previous = '_';
+    for (char c : constant.toLowerCase(Locale.ROOT).toCharArray()) {
+      if (c == '_') {
+        declared.append(c);
+      } else {
+        char java = name.charAt(letter++);
+        declared.append(Character.isLetter(previous) ? java : c);
+      }
+      previous = c;
+    }
+    return declared.toString();
   }
 
   private static final String FIELD_NUMBER = "_FIELD_NUMBER";

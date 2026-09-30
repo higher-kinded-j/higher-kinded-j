@@ -233,7 +233,7 @@ A protobuf-java message is a builder bean, so a gRPC boundary maps as any bean d
 {{#include ../../../hkj-examples/src/main/proto/book/mapping/dispatch.proto:dispatch_proto}}
 ```
 
-The spec is an ordinary one. The customer nests through its own spec, a leaf converts the generated enum, and the oneof maps to a sealed type:
+The spec needs nothing new. The customer nests through its own spec, a leaf converts the generated enum, and the oneof maps to a sealed type. The leaf sits in a mix-in, `DispatchVocabulary`, which [the update](#a-patch-through-its-fieldmask) shares:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_spec}}
@@ -277,7 +277,15 @@ A message reads a value for most fields it has not set, so an unset field cannot
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_patch_usage}}
 ```
 
-Each field the mask names parses as `parse` would read it, so the stored locker gave way to the pickup point. A field the mask names and the message leaves unset clears an `Optional`, and fails a component that must be set. A path is the field's name in the `.proto` file, or `*` for every field. A path into a nested message, such as `customer.name`, is not supported yet, and fails located at the path. [A protobuf-java message updates through its `FieldMask`](rules.md#protobuf-fieldmask-update) has the precise rules.
+Each field the mask names parses as `parse` would read it, and replaces the stored value whole, so the stored locker gave way to the pickup point. A field the mask names and the message leaves unset reads as `parse` reads it: the note would clear, and the customer would fail. A path is the field's name in the `.proto` file, or `*` for every field. A path into a nested message, such as `customer.name`, is not supported yet, and fails located at the path.
+
+An empty mask names no field, so the update changes nothing. A request that omits its mask asks for every field its message sets, as [AIP-134](https://google.aip.dev/134) has it, and `maskOf` builds that mask on the full runtime:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/mapping/BeansBook.java:protobuf_implied_mask}}
+```
+
+[A protobuf-java message updates through its `FieldMask`](rules.md#protobuf-fieldmask-update) has the precise rules.
 
 ---
 

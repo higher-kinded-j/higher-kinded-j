@@ -70,6 +70,9 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can an `Optional` map a message field with no `hasX()`?](#protobuf-field-without-presence) | No: unset, the field reads its default, so an empty `Optional` would read back as present. | by design |
 | [Can a oneof member map to a plain component?](#protobuf-oneof-members) | No: `build` would keep only the last member it wrote, so map the oneof to a sealed type, or each member to an `Optional`. | by design |
 | [Can a oneof map to a sealed domain type?](#protobuf-oneof-members) | Yes: a record named after each member, filled through a spec or its one component. | by design |
+| [Can a oneof's variant convert its member through a leaf?](#protobuf-oneof-members) | No: a scalar member fills the variant's one component as it is, so check it in the variant's constructor. | not supported yet |
+| [Can a oneof's sealed type, or a variant, be generic?](#protobuf-oneof-members) | No: declare them without type parameters. | not supported yet |
+| [Can a `@MapField` rename point a component at a oneof?](#protobuf-oneof-members) | No: name the component after the oneof. | not supported yet |
 | [Where does a one-directional bean nest?](#how-a-beans-direction-is-read) | Only where nothing needs its missing direction. | by design |
 | **Sparse PATCH** | | |
 | [Can one spec extend `MappingSpec` and `UpdateSpec`?](#one-tier-per-spec) | No: declare a spec per tier and share a mix-in. | by design |
@@ -83,7 +86,8 @@ Each question links to its rule. *By design* means the behaviour or the refusal 
 | [Can a PATCH bean carry a `JsonNullable` property?](#no-jsonnullable-patch-property) | No: use an `Optional`-typed property. | not supported yet |
 | [Can a PATCH body be a protobuf-java message?](#protobuf-fieldmask-update) | Yes: `updateFrom` takes the message and its `FieldMask`, and edits the fields the mask names. | by design |
 | [Can a `FieldMask` path reach into a nested message?](#protobuf-fieldmask-update) | No: the path fails, so name the whole field, which replaces the nested value. | not supported yet |
-| [Does a nested spec lift through a PATCH container?](#patch-containers) | No: give the component an element leaf that delegates to it. | not supported yet |
+| [Can a message's `UpdateSpec` leave a field without a domain component?](#protobuf-fieldmask-update) | No, since a mask may name any field, unless a derived field it shares with a `MappingSpec` fills it. | by design |
+| [Does a nested spec lift through a PATCH bean's container?](#patch-containers) | No: give the component an element leaf that delegates to it. A `FieldMask` update lifts it, as `parse` does. | not supported yet |
 | [Can a PATCH spec dispatch over a sealed hierarchy?](#no-sealed-patch) | No: an absent property cannot choose a subtype. | by design |
 | [Does a PATCH merge a nested object field by field?](#patch-replaces-wholesale) | No: a nested record, list or map is replaced whole. | by design |
 | **Generic specs** | | |
@@ -117,6 +121,7 @@ Nothing refuses these at compile time, and only the first draws a warning. Each 
 | [`build` throws on an empty `Optional`](beans.md#bean-shaped-wire-targets) | A setter, builder or record constructor rejects `null` without declaring it: drop the `Optional`, or encode absence in a leaf. |
 | [`build` throws `Can't get the number of an unknown enum value.`](beans.md#protobuf-java-messages) | A generated enum kept in the domain parsed a number the build does not know as `UNRECOGNIZED`: convert it through a leaf that refuses it. |
 | [A message built from a domain value lost one of its oneof members](beans.md#protobuf-java-messages) | The domain value held two members of one oneof as `Optional`s, and setting one clears the other: map the oneof to a sealed type. |
+| [A `FieldMask` update changed nothing](beans.md#a-patch-through-its-fieldmask) | Its mask was empty: a request that omits its mask asks for every field its message sets, a mask you build before the call. |
 | [Adding to a built wire's list throws `UnsupportedOperationException`](structure.md#nesting-containers-and-recursion) | A same-typed container crosses as an unmodifiable copy: set a new list, or copy it first. |
 | [A record with an array is not equal to its own round trip](structure.md#other-containers) | The array crosses as a clone and compares by reference: give the record an `equals` that uses `Arrays.equals`. |
 | [Two swapped prisms passed to `of(...)` compiled](generics.md#element-mapped-specs) | Two abstract leaves of one type swap silently: pass them in declaration order. |
@@ -509,9 +514,11 @@ A one-directional mapping follows these rules:
 
 **The processor maps a oneof whole to a domain component named after it, typed as a sealed interface or an `Optional` of one, or each member to an `Optional` of its own.** Setting one member of a oneof clears the others, so `build`, which writes every field it fills, would keep only the last member it wrote. So a member filled by anything but an `Optional`, a derived field included, is refused. The processor finds a oneof through its case getter, `getKindCase()` for a oneof named `kind`.
 
-- **A variant pairs with the member named after it**: `Locker` with `locker`, and `PickupPoint` with `pickup_point`. A member with no variant, a variant naming no member, and a variant that is no record are each refused.
+- **A variant pairs with the member named after it, capitalised**: `Locker` with `locker`, `PickupPoint` with `pickup_point`, and `XRay` with `x_ray`. A member with no variant, a variant naming no member, two variants of one name and a variant that is no record are each refused. A generic sealed type or variant is not supported yet.
 - **A member's value becomes its variant through a spec for the pair**, as a nested message does, or fills the variant's one component when that component has the member's type. A variant filled neither way is refused.
-- **`build` writes the member the variant names**, and leaves the oneof unset for an empty `Optional`.
+- **No leaf stands in for a variant**, so a method named after the component is refused. A scalar member fills its variant as it is, and an enum member keeps the generated enum, `UNRECOGNIZED` included: refuse it in the variant's constructor. Converting a member through a leaf is not supported yet.
+- **The component carries the oneof's name.** A `@MapField` rename onto a oneof is not supported yet, and a component filling a member the sealed component holds is refused.
+- **`build` writes the member the variant names**, and leaves the oneof unset for an empty `Optional`. A plain sealed component holding `null` throws, as a protobuf setter does.
 - **`parse` reads the member the message has set as its variant.** With no member set, an `Optional` reads as empty, and a sealed component reports `must not be null`. That failure, and a variant's own refusal, are located at the component.
 - **An `Optional` for each member reads a member that is not set as empty**, and `build` writes only the members present. The domain can then hold two members, and `build` keeps only the last one it wrote.
 
@@ -575,11 +582,12 @@ A one-directional mapping follows these rules:
 
 **An `UpdateSpec` over a [protobuf-java message](beans.md#a-patch-through-its-fieldmask) generates `updateFrom(message, mask)`, which edits only the fields a `FieldMask` names.** A message reads a value for most fields it has not set, so an unset field cannot mean *leave unchanged*. An update request built with protobuf names the fields it changes in a `FieldMask` instead.
 
-- **A field the mask names parses as `parse` would read it.** Named and unset, it clears an `Optional`, empties a `List` or `Map`, and fails a component that must be set. A field the mask leaves out keeps its current value.
-- **A path is a field's name in the `.proto` file**, such as `pickup_point`, or `*` for every field. A oneof's component takes what the message holds when the mask names any of its members.
-- **A path the update cannot follow fails, located at the path.** A path into a nested message, such as `customer.name`, is not supported yet: name the whole field, which replaces the nested value. A name the message lacks fails too.
-- **Every field must name a domain component**, since a mask may name any field. A component no field names is never edited.
-- **Each field reads as it does for a `MappingSpec`**, so a primitive field, an `Optional` over a field with `hasX()`, and a sealed oneof all map, where a PATCH bean refuses the first two. The domain's constructor runs once, as [the next section](#sparse-construct-once) says.
+- **A field the mask names parses as `parse` would read it, and replaces the stored value whole.** A list is replaced, never appended to. Named and unset, a field with `hasX()` clears an `Optional` and fails a plain component, a proto3 scalar without `optional` reads its default, and a repeated or map field empties.
+- **A field the mask leaves out keeps its current value**, and an empty mask names no field. A request that omits its mask asks for every field its message sets, a mask the caller builds ([A PATCH through its `FieldMask`](beans.md#a-patch-through-its-fieldmask)).
+- **A path is a field's name in the `.proto` file**, such as `pickup_point` or `displayName`, or `*` for every field. A oneof's component takes the member the message holds when the mask names that member, and clears when the message holds none and the mask names any member.
+- **A path the update cannot follow fails, located at the path, once however often it is named.** A path into a nested message, such as `customer.name`, is not supported yet: name the whole field. A oneof's own name, which a mask never holds, fails naming its members, and so does a name the message lacks.
+- **Every field must name a domain component**, since a mask may name any field, and every missing one is reported at once. A field that a derived field fills, from a mix-in shared with a `MappingSpec`, needs none, and a mask naming it edits nothing. A component no field names is never edited.
+- **Each field reads as it does for a `MappingSpec`.** A primitive field, an `Optional` over a field with `hasX()`, a sealed oneof and a nested spec lifted over a container all map, though a PATCH bean refuses the first two and the last. The domain's constructor runs once, as [the next section](#sparse-construct-once) says.
 
 ### A sparse update constructs the record once {#sparse-construct-once}
 
@@ -590,7 +598,7 @@ A one-directional mapping follows these rules:
 **A present container parses through the element leaf named after its component.** It lifts only when both sides declare the same container: `List`, `Set`, a reference-element array, `Optional` or `Map`. Replacement stays wholesale, and each failing element locates the way its container locates anything: by index (`phones.1`), by key, or, in a `Set`, by the element's own rendering.
 
 - **A whole-container leaf wins.** `ValidatedPrism<List<S>, List<A>>` is the more specific declaration, so it replaces the element interpretation.
-- **Lifting a nested spec through a sparse container is not supported yet.** When the elements need a whole mapping, give the component an element leaf that delegates to the nested Impl's `asValidatedPrism()`.
+- **Lifting a nested spec through a PATCH bean's container is not supported yet.** When the elements need a whole mapping, give the component an element leaf that delegates to the nested Impl's `asValidatedPrism()`. A [`FieldMask` update](#protobuf-fieldmask-update) lifts it, as `parse` does.
 
 ---
 

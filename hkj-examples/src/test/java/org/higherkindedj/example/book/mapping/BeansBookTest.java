@@ -14,6 +14,7 @@ import java.util.Optional;
 import org.higherkindedj.example.book.mapping.proto.CustomerMessage;
 import org.higherkindedj.example.book.mapping.proto.DispatchRequest;
 import org.higherkindedj.example.book.mapping.proto.Priority;
+import org.higherkindedj.example.book.mapping.proto.UpdateDispatchRequest;
 import org.higherkindedj.optics.laws.MappingLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -294,5 +295,41 @@ class BeansBookTest {
         .hasFieldErrors(
             "customer.name: nested paths are not supported yet",
             "priority: not a priority: PRIORITY_UNSPECIFIED");
+  }
+
+  @Test
+  @DisplayName(
+      "a request that omits its mask edits the fields its message sets, and the update obeys the"
+          + " sparse laws")
+  void impliedMask() {
+    Dispatch stored =
+        new Dispatch(
+            new Customer("Lin", new EmailAddress("lin@corp.example")),
+            List.of("SKU-3"),
+            Optional.empty(),
+            DispatchPriority.STANDARD,
+            Optional.of(new Destination.Locker("LK-7")));
+    UpdateDispatchRequest noMask =
+        UpdateDispatchRequest.newBuilder()
+            .setDispatch(DispatchRequest.newBuilder().setNote("ring twice").setPickupPoint("PP-2"))
+            .build();
+    assertThat(BeansBook.maskOf(noMask).getPathsList())
+        .containsExactlyInAnyOrder("note", "pickup_point");
+    // An explicit empty mask names no field.
+    assertThat(
+            BeansBook.maskOf(
+                    noMask.toBuilder().setUpdateMask(FieldMask.getDefaultInstance()).build())
+                .getPathsList())
+        .isEmpty();
+
+    MappingLaws.assertMappingLaws(
+        request ->
+            DispatchPatchImpl.INSTANCE.updateFrom(request.getDispatch(), BeansBook.maskOf(request)),
+        stored,
+        UpdateDispatchRequest.getDefaultInstance(), // no field set, so no field named
+        noMask, // changes the note and the destination
+        UpdateDispatchRequest.newBuilder()
+            .setUpdateMask(FieldMask.newBuilder().addPaths("priority"))
+            .build()); // names the priority, left unset
   }
 }

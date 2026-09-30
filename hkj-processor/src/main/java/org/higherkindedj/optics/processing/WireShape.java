@@ -43,14 +43,14 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
   CodeBlock buildStatements(TypeName wireType, Function<WireComponent, WireValue> valueFor);
 
   /**
-   * The value {@code build} hands one wire component, and, for a domain {@code Optional} bridged to
-   * it, the condition under which the domain holds one: {@code value} is {@code null} when it does
-   * not. A record takes the {@code null}, and so does a bean property, except where the property
-   * {@linkplain BeanProperty#presence tracks its presence}: there the write is made only when the
-   * value is present, so the property stays unset.
+   * The value {@code build} hands one wire component, and the condition under which it is there to
+   * write, where a bean property is written only then: a domain {@code Optional} bridged to a
+   * property that {@linkplain WireComponent#presence tracks its presence}, which stays unset while
+   * the domain holds none, and a oneof's member, written when the component holds its variant. A
+   * record takes every value, a {@code null} included.
    *
    * @param value the value written
-   * @param present the condition under which {@code value} is not {@code null}, for a bridged one
+   * @param present the condition under which {@code value} is written, where there is one
    */
   record WireValue(CodeBlock value, Optional<CodeBlock> present) {}
 
@@ -243,9 +243,9 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
      * The bean build body: the strategy's frame, and between it one write per property, each
      * carrying its value whatever that is, a {@code null} included. So a property written through a
      * setter or a builder setter never keeps a default the bean or its builder started with. Only a
-     * read-only property is skipped, since nothing writes it, and so is an absent value of a
-     * property that {@linkplain BeanProperty#presence tracks its presence}: a protobuf-java builder
-     * starts every field unset, and its setters refuse a {@code null}.
+     * read-only property is skipped, since nothing writes it, and a write whose value says when it
+     * is there ({@link WireValue#present}) is made only then: a protobuf-java builder starts every
+     * field unset, and its setters refuse a {@code null}.
      */
     @Override
     public CodeBlock buildStatements(
@@ -259,7 +259,7 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
         }
         WireValue value = valueFor.apply(property.asWireComponent());
         CodeBlock write = property.write().orElseThrow().write(frame.receiver(), value.value());
-        Optional<CodeBlock> present = value.present().filter(_ -> property.presence().isPresent());
+        Optional<CodeBlock> present = value.present();
         if (present.isPresent()) {
           body.beginControlFlow("if ($L)", present.get())
               .addStatement("$L", write)
@@ -399,14 +399,6 @@ sealed interface WireShape permits WireShape.RecordShape, WireShape.BeanShape {
     /** A property of a bean that is not a protobuf-java message. */
     BeanProperty(String name, TypeMirror type, Optional<String> getter, Optional<WriteSite> write) {
       this(name, type, getter, write, Optional.empty());
-    }
-
-    /**
-     * The method that tells whether this property is set, when it tracks its presence: a message
-     * field's {@code hasX()}.
-     */
-    Optional<String> presence() {
-      return field.flatMap(MessageField::presence);
     }
 
     WireComponent asWireComponent() {

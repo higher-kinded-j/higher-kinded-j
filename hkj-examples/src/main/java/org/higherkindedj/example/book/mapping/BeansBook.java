@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.google.protobuf.DescriptorProtos;
+import com.google.protobuf.Descriptors;
 import com.google.protobuf.FieldMask;
 import java.util.Arrays;
 import java.util.List;
@@ -179,15 +180,27 @@ public final class BeansBook {
             .build();
 
     Validated<NonEmptyList<FieldError>, Dispatch> updated =
-        DispatchPatchImpl.INSTANCE
-            .updateFrom(update.getDispatch(), update.getUpdateMask())
-            .apply(stored);
+        DispatchPatchImpl.INSTANCE.updateFrom(update.getDispatch(), maskOf(update)).apply(stored);
     // Valid(Dispatch[customer=Customer[name=Lin, email=EmailAddress[value=lin@corp.example]],
     // skus=[SKU-3], note=Optional[leave at the door], priority=STANDARD,
     // destination=Optional[PickupPoint[code=PP-2]]])
     // ANCHOR_END: protobuf_patch_usage
     System.out.println(updated);
   }
+
+  // ANCHOR: protobuf_implied_mask
+  // A request that omits its mask asks for every field its message sets. An empty mask names none.
+  static FieldMask maskOf(UpdateDispatchRequest update) {
+    return update.hasUpdateMask()
+        ? update.getUpdateMask()
+        : FieldMask.newBuilder()
+            .addAllPaths(
+                update.getDispatch().getAllFields().keySet().stream()
+                    .map(Descriptors.FieldDescriptor::getName)
+                    .toList())
+            .build();
+  }
+  // ANCHOR_END: protobuf_implied_mask
 }
 
 // ANCHOR: bean_spec
@@ -542,11 +555,12 @@ interface CustomerMessageMapping extends MappingSpec<Customer, CustomerMessage> 
   }
 }
 
+// The customer nests through CustomerMessageMapping, the skus copy as a List, the note reads as
+// empty when unset, and so does the oneof, whose set member becomes its record.
 @GenerateMapping
 interface DispatchMapping extends MappingSpec<Dispatch, DispatchRequest>, DispatchVocabulary {}
 
-// The customer nests through CustomerMessageMapping, the skus copy as a List, the note reads as
-// empty when unset, and so does the oneof, whose set member becomes its record.
+// The leaves DispatchMapping shares with DispatchPatch, an update over the same pair.
 interface DispatchVocabulary {
   // The priority converts through this leaf, which refuses the unset PRIORITY_UNSPECIFIED and
   // the UNRECOGNIZED an unknown number reads as.

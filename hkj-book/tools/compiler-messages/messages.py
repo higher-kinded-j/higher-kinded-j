@@ -1148,7 +1148,7 @@ record Json(String kind) {}
 @GenerateMapping
 interface JsonMapping extends MappingSpec<Json, com.google.protobuf.Value> {}"""),
         dict(id="protobuf-oneof-variant-not-record",
-             heading="the variant 'V' of 'S', which domain field 'X.y' maps a oneof to, is not a record",
+             heading="the variant 'X' of 'Y', which domain field 'Z.z' maps a oneof to, is not a record",
              fragment="maps a oneof to, is not a record",
              meaning="`parse` builds the variant a member's value becomes through a record's canonical constructor, so every variant of the sealed type must be a record.",
              fix="Make the variant a record.",
@@ -1167,7 +1167,7 @@ record JsonValue(Json kind) {}
 @GenerateMapping
 interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {}"""),
         dict(id="protobuf-oneof-unpaired",
-             heading="the variants of 'S' do not pair with the members of the oneof 'y' of 'Z', which domain field 'X.y' maps",
+             heading="the variants of 'Y' do not pair with the members of the oneof 'z' of 'Z', which domain field 'X.z' maps",
              fragment="do not pair with the members of the oneof",
              meaning="Each member of the oneof pairs with the variant named after it, `Locker` with `locker`, and a member or a variant is left without its partner.",
              fix="Name a record of the sealed type after each member, and rename or remove a variant that names none.",
@@ -1187,7 +1187,7 @@ record JsonValue(Json kind) {}
 @GenerateMapping
 interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {}"""),
         dict(id="protobuf-oneof-variant-unfilled",
-             heading="the variant 'V' of 'y' pairs with the oneof member 'm', a T, and nothing fills it from one",
+             heading="the variant 'X' of 'Y' pairs with the oneof member 'x', of type T, and nothing fills it from one",
              fragment="and nothing fills it from one",
              meaning="A member's value becomes its variant through a spec for the pair, or fills the variant's one component when that component has the member's type. The variant has neither.",
              fix="Give the variant one component of the member's type. For a member holding a message, you can instead declare a spec mapping the variant to it.",
@@ -1206,6 +1206,50 @@ record JsonValue(Json kind) {}
 
 @GenerateMapping
 interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {}"""),
+        dict(id="protobuf-oneof-held-twice",
+             heading="domain field 'X.x' fills 'x', a member of the oneof that domain field 'X.y' maps whole",
+             fragment="a member of the oneof that domain field",
+             meaning="A component fills a member that another component, named after the oneof, already holds as its variant. A oneof maps whole or member by member, never both.",
+             fix="Remove the component, or map each member to an `Optional` of its own in place of the sealed component.",
+             rule=("A oneof maps to a sealed type, or member by member", "rules.md#protobuf-oneof-members"),
+             code="""// Json.kind holds the member 'stringValue' as its variant StringValue.
+sealed interface Json {
+  record NullValue(com.google.protobuf.NullValue value) implements Json {}
+  record NumberValue(double value) implements Json {}
+  record StringValue(String value) implements Json {}
+  record BoolValue(boolean value) implements Json {}
+  record StructValue(com.google.protobuf.Struct value) implements Json {}
+  record ListValue(com.google.protobuf.ListValue value) implements Json {}
+}
+
+record JsonValue(Json kind, Optional<String> stringValue) {}
+
+@GenerateMapping
+interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {}"""),
+        dict(id="protobuf-oneof-method",
+             heading="'y()' is named after domain field 'X.y', which maps the oneof 'y' through its variants, so nothing calls it",
+             fragment="through its variants, so nothing calls it",
+             meaning="A leaf, or another method, is named after a component that maps a oneof. The component is read and written through its variants, so the method would validate nothing.",
+             fix="Remove the method. To refuse a member's value, check it in its variant's constructor.",
+             rule=("A oneof maps to a sealed type, or member by member", "rules.md#protobuf-oneof-members"),
+             code="""sealed interface Json {
+  record NullValue(com.google.protobuf.NullValue value) implements Json {}
+  record NumberValue(double value) implements Json {}
+  record StringValue(String value) implements Json {}
+  record BoolValue(boolean value) implements Json {}
+  record StructValue(com.google.protobuf.Struct value) implements Json {}
+  record ListValue(com.google.protobuf.ListValue value) implements Json {}
+}
+
+record JsonValue(Json kind) {}
+
+@GenerateMapping
+interface JsonValueMapping extends MappingSpec<JsonValue, com.google.protobuf.Value> {
+  default ValidatedPrism<String, Json> kind() {
+    return ValidatedPrism.of(
+        text -> Validated.invalidNel(FieldError.of("unused")), json -> json.toString());
+  }
+}"""),
         dict(id="singular-adder-not-told-apart",
              heading="the singular adder of the @Singular collection 'x' on 'Y' cannot be told apart",
              fragment="cannot be told apart",
@@ -1335,10 +1379,12 @@ class OrderPatch {
 @GenerateMapping
 interface OrderPatchMapping extends UpdateSpec<Order, OrderPatch> {}"""),
         dict(id="protobuf-field-names-no-component",
-             heading="the field 'x' of the protobuf-java message 'Z' names no component of X",
-             fragment="names no component of",
-             meaning="An `UpdateSpec` over a message applies the fields a `FieldMask` names, and a mask may name any field, so each one needs a domain component to write into.",
-             fix="Add a component named after the field, or a `@MapField` rename to it from one.",
+             heading="the fields [x] of the protobuf-java message 'Z' name no component of X",
+             fragment="name no component of",
+             marker="of the protobuf-java message 'Timestamp' name no component of",
+             display="fields […] of the protobuf-java message '…' name no component of",
+             meaning="An `UpdateSpec` over a message applies the fields a `FieldMask` names, and a mask may name any field, so each one needs a domain component to write into. Every such field is listed at once.",
+             fix="Add a component named after each field, or a `@MapField` rename to it from one. A oneof's members take one component named after the oneof, of a sealed type. A field a derived field fills, from a mix-in the spec shares with a `MappingSpec`, needs none.",
              rule=("A protobuf-java message updates through its `FieldMask`", "rules.md#protobuf-fieldmask-update"),
              code="""// Timestamp has the fields 'seconds' and 'nanos'.
 record Stamp(long seconds) {}

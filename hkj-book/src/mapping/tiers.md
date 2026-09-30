@@ -87,6 +87,7 @@ A two-way mapping's methods turn on two independent questions: does the wire car
 | `asValidatedParse()` | the bean wire has getters only, [One-directional beans](beans.md#one-directional-beans), or a property is [read-only](beans.md#read-only-properties) |
 | `asValidatedBuild()` | the bean wire has writers only, [One-directional beans](beans.md#one-directional-beans), or a property is [read-only](beans.md#read-only-properties) |
 | `updateFrom(wire)` | the spec extends `UpdateSpec`, over a bean wire: [Sparse PATCH](beans_patch.md#sparse-patch-write-back-updatespec) |
+| `updateFrom(message, mask)` | the spec extends `UpdateSpec`, over a protobuf-java message: [A PATCH through its `FieldMask`](beans.md#a-patch-through-its-fieldmask) |
 
 ### A bound request goes to `parse` or `patch` {#a-bound-request-goes-to-parse}
 
