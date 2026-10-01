@@ -8,7 +8,7 @@
 
 ---
 
-## Prerequisites
+## Prerequisites {#prerequisites}
 
 Higher-Kinded-J is built on **Java 25** today, and parts of it are compiled with **preview features**, so the build sets `--enable-preview`.
 

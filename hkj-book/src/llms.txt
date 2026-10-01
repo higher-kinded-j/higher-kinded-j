@@ -1,6 +1,6 @@
 # Higher-Kinded-J
 
-> Unifying Composable Effects and Advanced Optics for Java 25+
+> Unifying Composable Effects and Advanced Optics for Java 25
 
 Higher-Kinded-J is a comprehensive functional programming library for Java providing composable error handling through the Effect Path API, type-safe immutable data navigation through the Focus DSL, for-comprehensions for monadic sequencing, MTL-style capabilities, virtual-thread concurrency, resilience patterns, and compile-time safety tooling.
 

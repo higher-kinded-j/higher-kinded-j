@@ -32,34 +32,26 @@ Two artefacts, before any theory. The first is the shape of the code you write. 
 
 ```java
 // Traditional Java: pyramid of nested checks
-User user = userRepository.findById(userId);
-if (user == null) {
-    return OrderResult.error("User not found");
-}
-try {
-    ValidationResult validation = validator.validate(request);
-    if (!validation.isValid()) {
-        return OrderResult.error(validation.getErrors().get(0));
+if (user != null) {
+    if (validator.validate(request).isValid()) {
+        try {
+            return paymentService.charge(user, amount);
+        } catch (PaymentException e) { ... }
     }
-    // ... more nesting, more checks
-} catch (ValidationException e) {
-    return OrderResult.error("Validation error: " + e.getMessage());
 }
 ```
 
 The **Effect Path API** models computation as a railway: success travels one track, failure travels the other, and `map`, `via` and `recover` work identically across every effect type:
 
 ```java
-// Effect Path API: flat, composable, readable
-public EitherPath<OrderError, Order> processOrder(String userId, OrderRequest request) {
-    return Path.maybe(userRepository.findById(userId))
-        .toEitherPath(new OrderError.UserNotFound(userId))
-        .via(user -> Path.either(validator.validate(request))
-            .mapError(OrderError.ValidationFailed::new))
-        .via(validated -> Path.tryOf(() -> paymentService.charge(user, amount))
-            .toEitherPath(OrderError.PaymentFailed::new))
-        .map(payment -> createOrder(user, request, payment));
-}
+// Effect Path API: flat, composable railway
+EitherPath<AppError, OrderResult> result =
+    Path.maybe(findUser(userId))
+        .<AppError>toEitherPath(new UserNotFound(userId))
+        .via(user -> Path.either(validator.validate(request, user)))
+        .via(valid -> Path.tryOf(() -> paymentService.charge(valid))
+            .toEitherPath(PaymentFailed::new))
+        .map(OrderResult::success);
 ```
 
 The second is what a client sees when the data is bad. One spec interface and one annotation derive a DTO-to-domain mapper in both directions, and the fallible direction reports **every** bad field at once, each located by path. Here is a request with five defects, one inside a nested record and one on the second element of a list, answered by a single 422:
@@ -86,12 +78,12 @@ Nobody wrote a line of error-handling code to produce it. The [mapping capstone]
 
 ### Requirements
 
-* **JDK 25** or later, with `--enable-preview`. Higher-Kinded-J uses Java preview features.
-* Gradle or Maven. The build plugins below configure everything; [Manual Gradle and Maven Setup](https://higher-kinded-j.github.io/latest/tooling/manual_setup.html) covers projects that cannot apply them.
+* **JDK 25**, the release Higher-Kinded-J is built on today. Parts of it are compiled with preview features, which ties a build to that release rather than setting a floor, so a project whose default JDK is another release points a Gradle or Maven toolchain at 25. [Prerequisites](https://higher-kinded-j.github.io/latest/quickstart.html#prerequisites) says where `--enable-preview` is actually needed.
+* Gradle or Maven. The build plugins below configure everything but the JDK; [Manual Gradle and Maven Setup](https://higher-kinded-j.github.io/latest/tooling/manual_setup.html) covers projects that cannot apply them.
 
 | Higher-Kinded-J | Spring Boot | Jackson | Java |
 |-----------------|-------------|---------|------|
-| 0.4.x | 4.1.0+ | 3.x (`tools.jackson`) | 25+ |
+| 0.4.x | 4.1.0+ | 3.x (`tools.jackson`) | 25 |
 
 ### Gradle
 
@@ -164,11 +156,12 @@ flowchart TB
 ```
 
 ```java
-// Fetch user (effect) → navigate to address (optics) → validate (effect)
-EitherPath<Error, String> result =
-    userService.findById(userId)           // EitherPath<Error, User>
-        .focus(UserFocus.address())        // EitherPath<Error, Address>
-        .focus(AddressFocus.postcode())    // EitherPath<Error, String>
+// Fetch user (effect) → navigate to address (optics) →
+// extract postcode (optics) → validate (effect)
+EitherPath<AppError, String> result =
+    userService.findById(userId)           // EitherPath<AppError, User>
+        .focus(UserFocus.address())        // EitherPath<AppError, Address>
+        .focus(AddressFocus.postcode())    // EitherPath<AppError, String>
         .via(code -> validatePostcode(code));
 ```
 
@@ -179,8 +172,8 @@ Effects and structure, composition and navigation, one vocabulary. **[Discover O
 ## What's in the Library
 
 * **[Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.html)**: one railway vocabulary across absence, typed errors, exceptions, accumulating validation, deferred I/O and virtual-thread concurrency; `ForPath` comprehensions; and [path-native resilience](https://higher-kinded-j.github.io/latest/resilience/ch_intro.html) (`withRetry` / `withTimeout` / `withCircuitBreaker` / `withBulkhead`) that treats a business `Left` as a value, never as a failure to retry. See the [path types at a glance](https://higher-kinded-j.github.io/latest/home.html#path-types-at-a-glance).
-* **[Optics](https://higher-kinded-j.github.io/latest/optics/ch_intro.html)**: the most comprehensive optics implementation available for Java. Write a record, add `@GenerateLenses` and `@GenerateFocus`, and the processor writes a typed path builder: `UserFocus.address().street().name().set("New Street", user)`. Lenses, prisms, isos, affines, traversals, folds and setters; sealed types, collections and [types you don't own](https://higher-kinded-j.github.io/latest/optics/importing_optics.html) (Jackson, JOOQ, Immutables, Lombok, AutoValue, Protocol Buffers); filtered and indexed traversals; and [31 container types](https://higher-kinded-j.github.io/latest/optics/focus_containers.html) widening to the right path type automatically.
-* **[Mapping at the Boundary](https://higher-kinded-j.github.io/latest/mapping/ch_intro.html)**: `@GenerateMapping` derives both directions for record, bean-shaped and generic wires of any width (a total `build`, an accumulating `parse` that locates every bad field, both PATCH styles), with a [stock codec vocabulary](https://higher-kinded-j.github.io/latest/mapping/codecs.html#standard-codecs) (`uuid`, `localDate`, `instant`, `enumByName`, `bigDecimal`, ...) so a typical boundary needs no hand-written leaves. `@GenerateMerge` and `@GenerateErrorEnvelope` alongside. Every tier is law-checked and pinned by golden files.
+* **[Optics](https://higher-kinded-j.github.io/latest/optics/ch_intro.html)**: the most comprehensive optics implementation available for Java. Write a record, add `@GenerateLenses` and `@GenerateFocus(generateNavigators = true)`, and the processor writes a typed path builder: `UserFocus.address().street().name().set("New Street", user)`. Lenses, prisms, isos, affines, traversals, folds and setters; sealed types, collections and [types you don't own](https://higher-kinded-j.github.io/latest/optics/importing_optics.html) (Jackson, JOOQ, Immutables, Lombok, AutoValue, Protocol Buffers); filtered and indexed traversals; and [31 container types](https://higher-kinded-j.github.io/latest/optics/focus_containers.html) widening to the right path type automatically.
+* **[Mapping at the Boundary](https://higher-kinded-j.github.io/latest/mapping/ch_intro.html)**: `@GenerateMapping` generates both directions for records, beans and generic wires (a total `build`, and an accumulating `parse` that locates every bad field) and the PATCH write-backs. It maps [protobuf-java messages](https://higher-kinded-j.github.io/latest/mapping/beans.html#protobuf-java-messages), and the openapi-generator models and Lombok builders in the [generated-client checklist](https://higher-kinded-j.github.io/latest/mapping/beans.html#generated-client-checklist). A [stock codec vocabulary](https://higher-kinded-j.github.io/latest/mapping/codecs.html#standard-codecs) means a typical boundary needs no hand-written conversions, and specs nest [across modules](https://higher-kinded-j.github.io/latest/mapping/structure.html#across-modules). [Mapper at a Glance](https://higher-kinded-j.github.io/latest/mapping/at_a_glance.html) sets it against MapStruct and Bean Validation.
 * **[Effect Handlers](https://higher-kinded-j.github.io/latest/effect/effect_handlers_intro.html)**: define domain operations as data with `@EffectAlgebra`, compose them with `@ComposeEffects`, and interpret the same program for production, testing, dry-run or audit. Mock-free testing via `Id` interpreters; `ProgramAnalyser` inspects a program before any side effect runs.
 * **[Testing with hkj-test](https://higher-kinded-j.github.io/latest/tooling/test_assertions.html)**: fluent AssertJ assertions for every type in the library (`assertThatEither(result).isRight().hasRight(42)`), the optic and mapping laws for your own types, and a `SteppableClock` for deterministic time. `import module org.higherkindedj.test;` brings it all into scope.
 * **[Foundations](https://higher-kinded-j.github.io/latest/hkts/foundations_intro.html)**: a simulation of higher-kinded types by defunctionalisation (`Functor`, `Applicative`, `Monad` and friends written once across `Optional`, `List`, `CompletableFuture`, `VTask` and your own types), plus the core types and the [monad transformers and MTL capabilities](https://higher-kinded-j.github.io/latest/transformers/ch_intro.html) for the cases the Path API does not fit. Most applications start with Effect Paths and never look down here.
@@ -243,7 +236,7 @@ Modern Java handed you records, sealed interfaces, and pattern matching. What it
 |-------------|---------------------|---------------------------|
 | Nested `Optional`, thrown exceptions, and validation that stops at the first error | the standard library | one railway vocabulary (`map` / `via` / `recover`) across absence, typed errors, async, and **accumulating** validation |
 | `Option` / `Either` / `Try` from **Vavr** | the FP library most Java developers know | the same core types **plus** higher-kinded abstraction, a full optics suite, monad transformers, and an effect system, built natively on modern Java (records, sealed types, virtual threads), where Vavr keeps a Java 8 foundation |
-| Hand-written DTO↔domain mappers and validation glue | custom converter classes per pair | `@GenerateMapping` over record, bean-shaped and generic wires: a total `build`, an accumulating `parse` that reports every bad field (nulls located, never an NPE), a stock codec vocabulary, and generated PATCH write-backs, all law-checked by the build's test suite |
+| A mapper in one place and validation in another | **MapStruct** with Bean Validation, or converter classes per pair | `@GenerateMapping`: one declaration gives both directions, and each field's conversion is its check, so `parse` locates every bad field, a `null` included. Records, beans, protobuf messages and generic wires, a stock codec vocabulary and generated PATCH write-backs, all law-checked ([Coming from MapStruct and Bean Validation](https://higher-kinded-j.github.io/latest/mapping/from_mapstruct.html)) |
 | **Resilience4j** annotations for retry / circuit-breaker / bulkhead | AOP-style resilience | the same policies as composable path combinators (`withRetry` / `withCircuitBreaker` / `withBulkhead`) that treat a business `Left` as a value, never as a failure to retry |
 | Hand-written `wither` / copy-constructor updates on records | manual boilerplate | generated lenses, prisms, and traversals: the most comprehensive optics available for Java |
 
@@ -278,13 +271,16 @@ graph TD;
     root --> hkj_processor["hkj-processor"];
     hkj_processor --> hkj_processor_plugins["hkj-processor-plugins"];
     root --> hkj_checker["hkj-checker"];
+    root --> hkj_bom["hkj-bom"];
     root --> plugins["plugins"];
     plugins --> hkj_gradle_plugin["hkj-gradle-plugin"];
     plugins --> hkj_maven_plugin["hkj-maven-plugin"];
     root --> hkj_spring["hkj-spring"];
     hkj_spring --> hkj_spring_autoconfigure["autoconfigure"];
     hkj_spring --> hkj_spring_starter["starter"];
-    hkj_spring --> hkj_spring_example["example"];
+    hkj_spring --> hkj_spring_client["client"];
+    hkj_spring --> hkj_spring_client_processor["client-processor"];
+    hkj_spring --> hkj_spring_example["examples"];
     root --> hkj_test["hkj-test"];
     root --> hkj_openrewrite["hkj-openrewrite"];
     root --> hkj_benchmarks["hkj-benchmarks"];
@@ -298,9 +294,10 @@ graph TD;
 * **hkj-processor**: Annotation processor for generating boilerplate
 * **hkj-processor-plugins**: Extensible plugins for code generation
 * **hkj-checker**: Javac compiler plugin for compile-time Path type mismatch detection
+* **hkj-bom**: Bill of Materials that aligns the versions of the core library, `hkj-test` and the Spring starter
 * **hkj-gradle-plugin**: Gradle plugin for one-line project setup
 * **hkj-maven-plugin**: Maven plugin for automated build configuration
-* **hkj-spring**: Spring Boot integration (autoconfigure, starter, example)
+* **hkj-spring**: Spring Boot integration (autoconfigure, starter, the `@HkjHttpClient` client and its processor, and example applications)
 * **hkj-test**: AssertJ assertion helpers for HKJ types (test-scope dependency)
 * **hkj-openrewrite**: OpenRewrite recipes for automated migrations
 * **hkj-benchmarks**: JMH benchmarks for performance testing

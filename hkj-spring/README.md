@@ -538,8 +538,8 @@ class UserControllerTest {
 
 ## Requirements
 
-- Java 25+
-- Spring Boot 4.0.3+
+- Java 25, the release Higher-Kinded-J is built on today
+- Spring Boot 4.1.0+
 - higher-kinded-j core library
 
 ## Related Documentation

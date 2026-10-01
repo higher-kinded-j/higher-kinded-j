@@ -150,14 +150,14 @@ You don't need to learn an esoteric functional library to feel the benefit. Each
 |-------------|---------------------|---------------------------|
 | Nested `Optional`, thrown exceptions, and validation that stops at the first error | the standard library | one railway vocabulary (`map` / `via` / `recover`) across absence, typed errors, async, and **accumulating** validation |
 | `Option` / `Either` / `Try` from **Vavr** | the FP library most Java developers know | the same core types **plus** higher-kinded abstraction, a full optics suite, monad transformers, and an effect system, built natively on modern Java (records, sealed types, virtual threads), where Vavr keeps a Java 8 foundation |
-| Hand-written DTO↔domain mappers and validation glue | custom converter classes per pair | `@GenerateMapping` over record, bean-shaped and generic wires: a total `build`, an accumulating `parse` that reports every bad field (nulls located, never an NPE), a stock codec vocabulary, and generated PATCH write-backs, all law-checked by the build's test suite |
+| A mapper in one place and validation in another | **MapStruct** with Bean Validation, or converter classes per pair | `@GenerateMapping`: one declaration gives both directions, and each field's conversion is its check, so `parse` locates every bad field, a `null` included. Records, beans, protobuf messages and generic wires, a stock codec vocabulary and generated PATCH write-backs, all law-checked ([Coming from MapStruct and Bean Validation](mapping/from_mapstruct.md)) |
 | **Resilience4j** annotations for retry / circuit-breaker / bulkhead | AOP-style resilience | the same policies as composable path combinators (`withRetry` / `withCircuitBreaker` / `withBulkhead`) that treat a business `Left` as a value, never as a failure to retry |
 | Hand-written `wither` / copy-constructor updates on records | manual boilerplate | generated lenses, prisms, and traversals: the most comprehensive optics available for Java |
 
 And unlike any of those tools, effects and data navigation speak **the same language**: the [Effect-Optics bridge](#the-bridge-effects-meet-optics) above is something no other Java library offers.
 
 ~~~admonish tip title="Why this matters"
-Every row in that table is a guarantee, not a convenience. An `Either` in a return type is checked by the compiler where an exception is not; an accumulating `parse` answers a client once where a first-failure mapper costs one round trip per defect; a generated lens is law-checked where a hand-written wither is trusted. The library holds itself to the same bar: every emission tier is pinned by golden files, the optic and mapping laws ship in `hkj-test` for your own types, and every HKJ module compiles under the HKJ checker at zero findings.
+Every row in that table is a guarantee, not a convenience. An `Either` in a return type is checked by the compiler where an exception is not; an accumulating `parse` answers a client once where a mapper that throws on the first bad value costs one round trip per defect; a generated lens is law-checked where a hand-written wither is trusted. The library holds itself to the same bar: every emission tier is pinned by golden files, the optic and mapping laws ship in `hkj-test` for your own types, and every HKJ module compiles under the HKJ checker at zero findings.
 ~~~
 
 ~~~admonish note title="How the optics compare to other Java optics libraries" collapsible=true
@@ -180,7 +180,7 @@ Higher-Kinded-J also offers the most advanced optics implementation in the Java 
 | **Focus DSL** | ✓ | ✗ | ✗ | ✗ |
 | **Profunctor Architecture** | ✓ | ✓ | ✓ | ✗ |
 | **Fluent API** | ✓ | ✗ | ✗ | ✗ |
-| **Modern Java (21+)** | ✓ | ✗ | ✗ | ✗ |
+| **Modern Java (25)** | ✓ | ✗ | ✗ | ✗ |
 | **Virtual Threads** | ✓ | ✗ | ✗ | ✗ |
 | **Effect Handlers / Free Monads** | ✓ | ✗ | ✗ | ✗ |
 
@@ -239,7 +239,7 @@ Write the records, add the annotations, and the processor writes `StreetLenses`,
 
 ### [Mapping at the Boundary](mapping/ch_intro.md)
 
-One spec interface and one annotation replace the hand-written mapper. `@GenerateMapping` derives both directions at compile time for record, bean-shaped and generic wires of any width (the one direction a bean supports, where it can only be read or only be written): a total `build` out, an accumulating `parse` back that locates every bad field, and both PATCH styles as write-backs. A [stock codec vocabulary](mapping/codecs.md#standard-codecs) covers the standard conversions, so a typical boundary needs no hand-written leaves, and every tier is law-checked and pinned by golden files.
+One spec interface and one annotation replace the hand-written mapper. `@GenerateMapping` derives both directions at compile time: a total `build` out, an accumulating `parse` back that locates every bad field, and both PATCH styles as write-backs. It maps records, beans and generic wires of any width, including the classes code generators write: [protobuf-java messages](mapping/beans.md#protobuf-java-messages), and the openapi-generator models and Lombok builders in the [generated-client checklist](mapping/beans.md#generated-client-checklist). Specs nest [across modules](mapping/structure.md#across-modules), and share a [vocabulary of leaves](mapping/codecs.md#shared-vocabulary-mix-in-interfaces) there too. A [stock codec vocabulary](mapping/codecs.md#standard-codecs) covers the standard conversions, so a typical boundary needs no hand-written leaves, and every tier is law-checked and pinned by golden files. To weigh the mapper against MapStruct and Bean Validation, [Mapper at a Glance](mapping/at_a_glance.md) shows the code it generates and what a call costs.
 
 ~~~admonish example title="Quick example" collapsible=true
 <!-- verify -->
@@ -350,7 +350,7 @@ assertThatMaybe(value).isJust().hasValue("hello");
 assertThatTry(computation).isFailure().hasExceptionOfType(IOException.class);
 ```
 
-Coverage spans the discriminated unions, the effect types (`IO`, `VTask`, `VStream`), the Reader / Writer / State trio, every monad transformer, the `Free` / `EitherF` algebras and the `VTaskPath` / `VStreamPath` / `VTaskContext` Path-and-context assertions. On Java 25 with `--enable-preview`, `import module org.higherkindedj.test;` brings every helper into scope in one line.
+Coverage spans the discriminated unions, the effect types (`IO`, `VTask`, `VStream`), the Reader / Writer / State trio, every monad transformer, the `Free` / `EitherF` algebras and the `VTaskPath` / `VStreamPath` / `VTaskContext` Path-and-context assertions. On Java 25, `import module org.higherkindedj.test;` brings every helper into scope in one line.
 ~~~
 
 **[Explore hkj-test →](tooling/test_assertions.md)**
@@ -450,16 +450,33 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 ~~~
 
 ~~~admonish note title="Mapping at the Boundary" collapsible=true
+**Ship**, read in order:
+
 1. **[Introduction](mapping/ch_intro.md):** The mapper every service carries, and the one response that replaces it
 2. **[Quickstart](mapping/quickstart.md):** Five steps from a blank build to a located 422
 3. **[Basics](mapping/basics.md):** One spec interface, both directions, every bad field located
 4. **[Standard Codecs and Shared Vocabulary](mapping/codecs.md):** The stock `ValidatedPrism` leaves, custom codecs, and mix-in interfaces
 5. **[Absent Fields and Record Invariants](mapping/absence.md):** A field whose `null` means absent, and a record's own checks
 6. **[Nesting, Containers, and Sealed Hierarchies](mapping/structure.md):** Nested specs, lifted containers, and dotted error paths
-7. **[Capstone](mapping/capstone.md):** One 422, every bad field, compiled and law-checked
+7. **[Capstone: One 422, Every Bad Field](mapping/capstone.md):** One boundary built end to end, compiled and law-checked
 8. **[Check Your Understanding](mapping/self_check.md):** Ten questions on the Quickstart through the Capstone, with answers the build proves
-9. **[Bean-Shaped Wires](mapping/beans.md):** Getter/setter and builder wires, with the full feature set
-10. **[Sparse PATCH](mapping/beans_patch.md):** The `UpdateSpec` write-back
+
+**On demand**, when a task calls for it:
+
+9. **[What Your Spec Generates](mapping/tiers.md):** Which methods each spec shape gets, and why
+10. **[Bean-Shaped Wires](mapping/beans.md):** Getter/setter, builder, one-directional and protobuf-java wires
+11. **[Sparse PATCH](mapping/beans_patch.md):** The `UpdateSpec` write-back, where an omitted field keeps its value
+12. **[Generic Specs](mapping/generics.md):** A `Page<T>` at the boundary
+13. **[Merge and Error Envelopes](mapping/merge_envelopes.md):** One record from several sources, and a typed error context
+14. **[Injecting, Testing, and Diagnostics](mapping/testing.md):** Spring beans, test fakes, and how wide a record may be
+15. **[Capstone: An Estate in Three Modules](mapping/estate.md):** A shared vocabulary, a client jar, a Lombok bean and a PATCH across modules
+
+**Look it up**, when you hold a question:
+
+16. **[Mapper at a Glance](mapping/at_a_glance.md):** The generated code, what it costs, and the decisions to know before adopting
+17. **[Coming from MapStruct and Bean Validation](mapping/from_mapstruct.md):** Both vocabularies, translated
+18. **[Rules and Limits](mapping/rules.md):** Every enforced rule and limit, in one place
+19. **[Compiler Messages](mapping/compiler_errors.md):** The common refusals, what each means, and the fix
 ~~~
 
 ~~~admonish note title="Monad Transformers" collapsible=true
