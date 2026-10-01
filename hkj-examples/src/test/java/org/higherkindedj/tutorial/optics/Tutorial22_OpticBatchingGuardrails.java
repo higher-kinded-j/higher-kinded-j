@@ -67,8 +67,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: Complete Tutorial 21 (Optic-Driven Request Batching) before this one.
  *
- * <p>Estimated time: ~12 minutes.
- *
  * <p>Replace each {@code answerRequired()} placeholder with the correct code to make the tests
  * pass.
  */

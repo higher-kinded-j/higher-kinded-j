@@ -1007,7 +1007,7 @@ This is the reason they can all be composed together so seamlessly.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice traversal basics in [Tutorial 05: Traversal Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial05_TraversalBasics.java) (8 exercises, ~12 minutes).
+Practise traversal basics in [Tutorial 05: Traversal Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial05_TraversalBasics.java) (8 exercises).
 ~~~
 
 ---

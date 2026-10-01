@@ -72,8 +72,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: complete Tutorial 01 (When Path Isn't Enough).
  *
- * <p>Estimated time: 20-30 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 02: Async with Absence")

@@ -1402,7 +1402,7 @@ Electronics count: 4
 ---
 
 ~~~admonish info title="Hands-On Learning"
-Practice fold combination in [Tutorial 18: Fold Combination](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial18_FoldCombination.java) (8 exercises, ~10 minutes).
+Practise fold combination in [Tutorial 18: Fold Combination](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial18_FoldCombination.java) (8 exercises).
 ~~~
 
 ---

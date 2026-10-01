@@ -369,7 +369,7 @@ Team updated = TeamLenses.players()
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice list decomposition patterns in [Tutorial 15: List Prisms](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial15_ListPrisms.java) (19 exercises, ~12 minutes).
+Practise list decomposition patterns in [Tutorial 15: List Prisms](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial15_ListPrisms.java) (19 exercises).
 ~~~
 
 ---

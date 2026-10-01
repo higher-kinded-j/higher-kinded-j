@@ -31,8 +31,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: TutorialVStream, TutorialVStreamParallel
  *
- * <p>Estimated time: 15-20 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial: VStream Advanced Features")

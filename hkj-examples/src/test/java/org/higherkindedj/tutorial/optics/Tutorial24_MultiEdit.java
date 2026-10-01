@@ -56,8 +56,6 @@ import org.junit.jupiter.api.Test;
  * <p>Prerequisites: Tutorial 01 (Lens Basics); Tutorial 12 (Accumulating Assembly) is the
  * construction-side twin of Part 3. Read the Multi-Edit and Sparse Updates chapter.
  *
- * <p>Estimated time: ~12 minutes.
- *
  * <p>Replace each {@code answerRequired()} placeholder with the correct code to make the tests
  * pass.
  */

@@ -469,7 +469,7 @@ These are verified by property-based tests in `LensPairedLawsPropertyTest.java`.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice both the binary form and the arity ladder in [Tutorial 23: N-ary Coupled Lenses](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial23_CoupledLenses.java) (3 exercises, ~10 minutes).
+Practise both the binary form and the arity ladder in [Tutorial 23: N-ary Coupled Lenses](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial23_CoupledLenses.java) (3 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

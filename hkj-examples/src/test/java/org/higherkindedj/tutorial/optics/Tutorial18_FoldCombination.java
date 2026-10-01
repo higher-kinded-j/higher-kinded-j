@@ -47,8 +47,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: Complete Tutorials 1-6 (especially Lens, Prism, and composition basics).
  *
- * <p>Estimated time: ~10 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 18: Fold Combination")

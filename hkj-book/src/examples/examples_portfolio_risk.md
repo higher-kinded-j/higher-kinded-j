@@ -338,7 +338,7 @@ changes.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice container navigation in [Tutorial 20: Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java).
+Practise container navigation in [Tutorial 20: Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java).
 ~~~
 
 ---

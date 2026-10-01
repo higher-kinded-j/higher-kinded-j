@@ -46,8 +46,6 @@ import org.junit.jupiter.api.Test;
  * <p>Prerequisites: Tutorial 03 (Prism Basics); Tutorial 12 (Accumulating Assembly) for Part 3.
  * Read the Validated Prisms chapter.
  *
- * <p>Estimated time: ~10 minutes.
- *
  * <p>Replace each {@code answerRequired()} placeholder with the correct code to make the tests
  * pass.
  */

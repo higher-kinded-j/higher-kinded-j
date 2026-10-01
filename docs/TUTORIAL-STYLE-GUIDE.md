@@ -142,9 +142,8 @@ Every tutorial class must have comprehensive Javadoc that includes:
 4. **Introduction**: 1-2 paragraphs explaining what the tutorial covers
 5. **Key Concepts**: Bulleted list of concepts with brief explanations
 6. **Prerequisites** (if applicable): Reference to prior tutorials
-7. **Estimated time**: When the README time band is not obvious from the file alone (`<p>Estimated time: 25-35 minutes`)
-8. **Tiered hints note**: If the file uses tiered hints (Nudge / Strategy / Spoiler), explain the convention once at class level
-9. **Instruction**: Tell users to replace placeholders with working code
+7. **Tiered hints note**: If the file uses tiered hints (Nudge / Strategy / Spoiler), explain the convention once at class level
+8. **Instruction**: Tell users to replace placeholders with working code
 
 ```java
 /**
@@ -581,23 +580,9 @@ Within a single tutorial, exercises should progress from simple to complex:
 4. **Real-world**: Practical application
 5. **Edge cases**: Error handling, empty cases
 
-### Time Estimates
+### No Time Estimates
 
-Include time estimates in the README.md for each tutorial:
-
-```markdown
-### Tutorial 01: Kind Basics (~8 minutes)
-Learn the foundation of higher-kinded types in Java:
-- Understanding `Kind<F, A>`
-- Widening and narrowing
-- Witness types
-```
-
-Typical estimates:
-- Basic tutorials: 8-10 minutes
-- Intermediate tutorials: 10-12 minutes
-- Advanced tutorials: 12-15 minutes
-- Transformer / capstone tutorials: 25-35 minutes
+Give a tutorial's size as its exercise count, never as a time. That holds in its Javadoc, its README entry, its journey page, every journey table and every Hands-On Learning link. Readers work at different speeds, and an estimate a reader overruns reads as a verdict on them. A count can be checked against the test file; a time cannot, so it drifts.
 
 ### Tracking Progress
 
@@ -711,7 +696,7 @@ When a documentation page has an associated tutorial, add **two** admonishments:
 
 ```markdown
 ~~~admonish info title="Hands-On Learning"
-Practice Focus-Effect bridging in [Tutorial 14: Focus-Effect Bridge](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial14_FocusEffectBridge.java) (13 exercises, ~15 minutes).
+Practise Focus-Effect bridging in [Tutorial 14: Focus-Effect Bridge](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial14_FocusEffectBridge.java) (13 exercises).
 ~~~
 ```
 
@@ -722,7 +707,7 @@ The two admonishments serve different purposes:
 | Position | Admonishment | Purpose |
 |----------|--------------|---------|
 | After "What You'll Learn" | `~~~admonish title="Hands On Practice"` | Quick access for readers who want to jump straight to exercises |
-| Before "See Also" | `~~~admonish info title="Hands-On Learning"` | Contextual reminder with exercise count and time estimate |
+| Before "See Also" | `~~~admonish info title="Hands-On Learning"` | Contextual reminder with exercise count |
 
 ### Link Format
 
@@ -735,7 +720,6 @@ https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/te
 Include in the detailed link:
 - Tutorial number and name
 - Exercise count
-- Time estimate (in minutes)
 
 ### Tutorial-to-Doc References
 
@@ -778,7 +762,7 @@ When creating a new tutorial, ensure:
 - [ ] Solution file exists with matching structure
 - [ ] Solution file's every `@Test` has a "Why this is idiomatic / Alternative / Common wrong attempt" teaching block
 - [ ] README.md is updated with the new tutorial
-- [ ] Time estimate is included
+- [ ] Size given as an exercise count, with no time estimate
 - [ ] British English spelling throughout
 - [ ] No emojis (except final 🎉 if appropriate)
 - [ ] Records used for domain modelling

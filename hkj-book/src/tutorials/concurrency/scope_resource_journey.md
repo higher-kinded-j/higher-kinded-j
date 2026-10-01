@@ -8,7 +8,7 @@
 - Integrating Scope and Resource for concurrent resource-aware operations
 ~~~
 
-**Duration**: ~30 minutes | **Tutorials**: 2 | **Exercises**: 14 (12 graded + 2 diagnostic)
+**Tutorials**: 2 | **Exercises**: 14 (12 graded + 2 diagnostic)
 
 **Prerequisites**: Complete the [VTask Journey](vtask_journey.md) first
 
@@ -44,7 +44,7 @@ By the end, you'll understand how to build robust concurrent applications with p
 
 ---
 
-## Tutorial 1: Structured Concurrency with Scope (~15 minutes)
+## Tutorial 1: Structured Concurrency with Scope
 **File**: `TutorialScope.java` | **Exercises**: 6
 
 Master task coordination with different joining strategies.
@@ -127,7 +127,7 @@ validation.run().fold(
 
 ---
 
-## Tutorial 2: Resource Management (~15 minutes)
+## Tutorial 2: Resource Management
 **File**: `TutorialResource.java` | **Exercises**: 6
 
 Master the bracket pattern for safe resource handling.

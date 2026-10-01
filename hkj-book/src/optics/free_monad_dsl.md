@@ -681,7 +681,7 @@ logger.getLog().forEach(System.out::println);  // Side effect here is fine
 ---
 
 ~~~admonish info title="Hands-On Learning"
-Practice the Free Monad DSL in [Tutorial 11: Advanced Optics DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial11_AdvancedOpticsDSL.java) (7 exercises, ~15 minutes).
+Practise the Free Monad DSL in [Tutorial 11: Advanced Optics DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial11_AdvancedOpticsDSL.java) (7 exercises).
 ~~~
 
 ~~~admonish info title="Key Takeaways"

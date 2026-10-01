@@ -64,8 +64,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: Complete Tutorials 05 (Traversals) and 12 (Focus DSL) before this one.
  *
- * <p>Estimated time: ~15 minutes.
- *
  * <p>Replace each {@code answerRequired()} placeholder with the correct code to make the tests
  * pass.
  */

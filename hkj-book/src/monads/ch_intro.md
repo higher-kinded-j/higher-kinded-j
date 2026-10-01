@@ -123,7 +123,7 @@ A rough decision guide:
 20. [Const](const_type.md) - Phantom-typed constants
 
 ~~~admonish info title="Hands-On Learning"
-Practice real-world monad patterns in [Tutorial 07: Real World](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java) (6 exercises, ~12 minutes).
+Practise real-world monad patterns in [Tutorial 07: Real World](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial07_RealWorld.java) (6 exercises).
 ~~~
 
 ---

@@ -11,7 +11,7 @@
 - Bridging from `For` comprehensions to `ForState` with `toState()`
 ~~~
 
-**Duration**: ~25 minutes | **Tutorials**: 1 | **Exercises**: 11
+**Tutorials**: 1 | **Exercises**: 11
 
 ## Journey Overview
 
@@ -30,7 +30,7 @@ Before starting this tutorial, read the [ForState: Named State Comprehensions](.
 
 ---
 
-## Tutorial 01: ForState Basics (~25 minutes)
+## Tutorial 01: ForState Basics
 **File**: `Tutorial01_ForStateBasics.java` | **Exercises**: 11
 
 Master the complete ForState API through progressive exercises, including the `toState()` bridge from `For` comprehensions.

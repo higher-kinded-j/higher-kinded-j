@@ -8,7 +8,7 @@
 - The difference between applicative (`par`) and monadic (`from`) composition
 ~~~
 
-**Duration**: ~20 minutes | **Tutorials**: 1 | **Exercises**: 9
+**Tutorials**: 1 | **Exercises**: 9
 
 ## Journey Overview
 
@@ -27,7 +27,7 @@ Before starting this tutorial, read the [ForPath Comprehension](../../effect/for
 
 ---
 
-## Tutorial 02: ForPath Parallel Composition (~20 minutes)
+## Tutorial 02: ForPath Parallel Composition
 **File**: `Tutorial02_ForPathParallel.java` | **Exercises**: 9
 
 Master parallel composition across multiple Path types, from simple value combination to true concurrent execution with virtual threads.

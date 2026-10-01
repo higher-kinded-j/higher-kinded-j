@@ -263,7 +263,7 @@ See [Benchmarks & Performance](../benchmarks.md) for full details and how to int
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice parallel composition with ForPath in [Tutorial 02: ForPath Parallel Composition](../tutorials/expression/forpath_parallel_journey.md) (9 exercises, ~20 minutes).
+Practise parallel composition with ForPath in [Tutorial 02: ForPath Parallel Composition](../tutorials/expression/forpath_parallel_journey.md) (9 exercises).
 ~~~
 
 ---

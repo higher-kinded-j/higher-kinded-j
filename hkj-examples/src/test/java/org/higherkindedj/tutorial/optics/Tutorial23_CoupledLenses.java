@@ -49,8 +49,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: Complete Tutorial 01 (Lens Basics) and read the Coupled Fields chapter.
  *
- * <p>Estimated time: ~10 minutes.
- *
  * <p>Replace each {@code answerRequired()} placeholder with the correct code to make the tests
  * pass.
  */

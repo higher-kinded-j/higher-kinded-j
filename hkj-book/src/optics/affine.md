@@ -704,7 +704,7 @@ In some functional programming libraries (notably Scala's Monocle), the Affine o
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice affine basics in [Tutorial 04: Affine Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial04_AffineBasics.java) (7 exercises, ~10 minutes).
+Practise affine basics in [Tutorial 04: Affine Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial04_AffineBasics.java) (7 exercises).
 ~~~
 
 ---

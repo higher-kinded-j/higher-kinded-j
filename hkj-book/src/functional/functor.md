@@ -165,7 +165,7 @@ Two different runtime behaviours, one method name, no `if` in sight. That is `Fu
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice Functor mapping in [Tutorial 02: Functor Mapping](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial02_FunctorMapping.java) (6 exercises, ~8 minutes).
+Practise Functor mapping in [Tutorial 02: Functor Mapping](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial02_FunctorMapping.java) (6 exercises).
 ~~~
 
 ---

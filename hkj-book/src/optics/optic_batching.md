@@ -258,7 +258,7 @@ In tests, this is exactly what you want: `assertThat(result.backendCalls()).isEq
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice the four pieces (batching, heterogeneous fetch, multi-source routing, railway errors) in [Tutorial 21: Optic-Driven Request Batching](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial21_OpticBatching.java) (5 exercises, ~15 minutes).
+Practise the four pieces (batching, heterogeneous fetch, multi-source routing, railway errors) in [Tutorial 21: Optic-Driven Request Batching](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial21_OpticBatching.java) (5 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

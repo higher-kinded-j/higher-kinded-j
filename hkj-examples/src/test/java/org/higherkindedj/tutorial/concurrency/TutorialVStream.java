@@ -28,8 +28,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: Familiarity with VTask basics
  *
- * <p>Estimated time: 12-15 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial: VStream Basics")

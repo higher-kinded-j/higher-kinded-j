@@ -7,7 +7,7 @@
 - Static analysis of programs before execution
 ~~~
 
-**Duration**: ~40 minutes | **Tutorials**: 4 | **Exercises**: 26
+**Tutorials**: 4 | **Exercises**: 26
 
 **Prerequisites**: [Core Types: Error Handling Journey](error_handling_journey.md)
 
@@ -25,7 +25,7 @@ Natural Transformations → Coyoneda (map fusion) → Free Applicative (parallel
 
 ---
 
-## Tutorial 08: Natural Transformations (~10 minutes)
+## Tutorial 08: Natural Transformations
 **File**: `Tutorial08_NaturalTransformation.java` | **Exercises**: 5
 
 Learn to transform between type constructors while preserving structure.
@@ -47,7 +47,7 @@ Learn to transform between type constructors while preserving structure.
 
 ---
 
-## Tutorial 09: Coyoneda (~10 minutes)
+## Tutorial 09: Coyoneda
 **File**: `Tutorial09_Coyoneda.java` | **Exercises**: 5
 
 Learn how Coyoneda gives you a free Functor and enables map fusion.
@@ -83,7 +83,7 @@ Coyoneda.lift(list)
 
 ---
 
-## Tutorial 10: Free Applicative (~10 minutes)
+## Tutorial 10: Free Applicative
 **File**: `Tutorial10_FreeApplicative.java` | **Exercises**: 6
 
 Learn to model independent computations that can potentially run in parallel.
@@ -115,7 +115,7 @@ var parallel = freeApA.map2(freeApB, (a, b) -> combine(a, b));
 
 ---
 
-## Tutorial 11: Static Analysis (~10 minutes)
+## Tutorial 11: Static Analysis
 **File**: `Tutorial11_StaticAnalysis.java` | **Exercises**: 10
 
 Learn to analyse Free Applicative programs before execution.

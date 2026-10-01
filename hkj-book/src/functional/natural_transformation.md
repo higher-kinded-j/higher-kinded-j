@@ -316,7 +316,7 @@ These are the same laws functions obey. `Natural` is, deliberately, just a funct
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice natural transformations in [Tutorial 08: Natural Transformation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial08_NaturalTransformation.java) (5 exercises, ~10 minutes).
+Practise natural transformations in [Tutorial 08: Natural Transformation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial08_NaturalTransformation.java) (5 exercises).
 ~~~
 
 ---

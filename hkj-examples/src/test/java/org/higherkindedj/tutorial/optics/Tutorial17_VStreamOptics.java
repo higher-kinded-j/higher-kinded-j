@@ -43,8 +43,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: Familiarity with VStream basics and optics (Lens, Traversal, FocusDSL)
  *
- * <p>Estimated time: 15-20 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial: VStream Optics Integration")

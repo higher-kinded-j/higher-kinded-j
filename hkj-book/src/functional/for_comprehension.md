@@ -230,7 +230,7 @@ The `For` builder in `higher-kinded-j` provides the same expressive power throug
 ---
 
 ~~~admonish info title="Hands-On Learning"
-- [Tutorial 02: ForPath Parallel Composition](../tutorials/expression/forpath_parallel_journey.md) (9 exercises, ~20 minutes).
+- [Tutorial 02: ForPath Parallel Composition](../tutorials/expression/forpath_parallel_journey.md) (9 exercises).
 ~~~
 
 ~~~admonish tip title="Further Reading"

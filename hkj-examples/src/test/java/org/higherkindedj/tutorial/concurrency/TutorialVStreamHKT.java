@@ -44,8 +44,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: Complete the VStream Basics tutorial first.
  *
- * <p>Estimated time: 12-15 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial: VStream HKT")

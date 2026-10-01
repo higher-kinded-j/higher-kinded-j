@@ -258,7 +258,7 @@ public final class ResultGenerator extends BaseTraversableGenerator {
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice container navigation in [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises, ~10 minutes).
+Practise container navigation in [Tutorial 20: Custom Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) (4 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

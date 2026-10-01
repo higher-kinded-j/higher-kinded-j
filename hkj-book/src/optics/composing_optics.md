@@ -852,7 +852,7 @@ See [FluentValidationExample.java](https://github.com/higher-kinded-j/higher-kin
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice optic composition in [Tutorial 06: Optics Composition](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial06_OpticsComposition.java) (7 exercises, ~10 minutes).
+Practise optic composition in [Tutorial 06: Optics Composition](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial06_OpticsComposition.java) (7 exercises).
 ~~~
 
 ---

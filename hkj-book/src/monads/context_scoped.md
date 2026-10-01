@@ -835,7 +835,7 @@ void shouldThrowWhenUnbound() {
 | Inheritance | Child virtual threads inherit bindings |
 
 ~~~admonish info title="Hands-On Learning"
-Practice Context patterns in [Tutorial 01: Context Fundamentals](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/context/Tutorial01_ContextFundamentals.java) (7 exercises, ~25 minutes).
+Practise Context patterns in [Tutorial 01: Context Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/context/Tutorial01_ContextBasics.java) (7 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

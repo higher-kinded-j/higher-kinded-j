@@ -34,8 +34,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Requirements: Java 25+ (ScopedValue and structured concurrency)
  *
- * <p>Estimated time: 25-30 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 05: Context with VTask")

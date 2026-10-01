@@ -7,7 +7,7 @@
 - Interpreting programs for logging, validation, and direct execution
 ~~~
 
-**Duration**: ~35 minutes | **Tutorials**: 3 | **Exercises**: 22
+**Tutorials**: 3 | **Exercises**: 22
 
 **Prerequisites**: [Optics: Traversals & Practice Journey](traversals_journey.md)
 
@@ -25,7 +25,7 @@ Fluent API (ergonomics) → Advanced Prisms → Free Monad DSL (programs as data
 
 ---
 
-## Tutorial 09: Fluent Optics API (~10 minutes)
+## Tutorial 09: Fluent Optics API
 **File**: `Tutorial09_FluentOpticsAPI.java` | **Exercises**: 7
 
 Learn the ergonomic fluent API for Java-friendly optic operations.
@@ -60,7 +60,7 @@ boolean hasAdmin = OpticOps.exists(user, rolesTraversal, Role::isAdmin);
 
 ---
 
-## Tutorial 10: Advanced Prism Patterns (~10 minutes)
+## Tutorial 10: Advanced Prism Patterns
 **File**: `Tutorial10_AdvancedPrismPatterns.java` | **Exercises**: 8
 
 Master advanced prism techniques including predicate-based matching and cross-optic composition.
@@ -104,7 +104,7 @@ positive.getOptional(-3);  // Optional.empty()
 
 ---
 
-## Tutorial 11: Free Monad DSL (~15 minutes)
+## Tutorial 11: Free Monad DSL
 **File**: `Tutorial11_AdvancedOpticsDSL.java` | **Exercises**: 7
 
 Master the Free Monad DSL for building composable optic programs as data structures.

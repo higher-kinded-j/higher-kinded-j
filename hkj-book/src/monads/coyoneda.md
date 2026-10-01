@@ -302,7 +302,7 @@ It's a powerful tool for optimising functional pipelines and simplifying Free mo
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice Coyoneda in [Tutorial 09: Coyoneda](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial09_Coyoneda.java) (5 exercises, ~10 minutes).
+Practise Coyoneda in [Tutorial 09: Coyoneda](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial09_Coyoneda.java) (5 exercises).
 ~~~
 
 ---

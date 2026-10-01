@@ -216,7 +216,7 @@ The edits' errors are located relative to the focus. Where the focus is a nested
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial24_MultiEdit.java) (5 exercises, ~12 minutes): pure folds, sparse patches, and the all-errors-at-once validated PATCH.
+Practise the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial24_MultiEdit.java) (5 exercises): pure folds, sparse patches, and the all-errors-at-once validated PATCH.
 ~~~
 
 ~~~admonish tip title="See Also"

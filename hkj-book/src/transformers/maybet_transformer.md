@@ -314,7 +314,7 @@ In practice, choose whichever matches your existing codebase. Both offer equival
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-The MaybeT exercise lives alongside the OptionalT exercises in [Tutorial 02: Async with Absence](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial02_AsyncWithAbsence.java) (5 exercises, ~25 minutes).
+The MaybeT exercise lives alongside the OptionalT exercises in [Tutorial 02: Async with Absence](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial02_AsyncWithAbsence.java) (5 exercises).
 ~~~
 
 ---

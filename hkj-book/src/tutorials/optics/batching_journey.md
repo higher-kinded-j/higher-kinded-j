@@ -6,7 +6,7 @@
 - N-ary coupled lenses: atomic updates for fields that share an invariant
 ~~~
 
-**Duration**: ~40 minutes | **Tutorials**: 3 (T21-T23) | **Exercises**: 13
+**Tutorials**: 3 (T21-T23) | **Exercises**: 13
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 The Focus DSL journey taught paths that read and write one structure in memory. This journey covers what happens when those paths meet the outside world and each other: a traversal whose focuses each cost a remote call (batch it), a batch you want to see and bound before it runs (guardrails), and fields whose updates must move together or not at all (coupled lenses). The reference chapters are [Optic-Driven Batching](../../optics/optic_batching.md), [Plan Introspection and Guardrails](../../optics/optic_batching_guardrails.md), and [Coupled Fields](../../optics/coupled_fields.md).
@@ -27,7 +27,7 @@ Three independent capabilities, each solving a failure mode that appears once op
 
 ---
 
-## Tutorial 21: Optic-Driven Request Batching (~15 minutes)
+## Tutorial 21: Optic-Driven Request Batching
 **File**: `Tutorial21_OpticBatching.java` | **Exercises**: 5
 
 Loading data for each focus of a traversal is the classic N+1 problem. Optic-driven batching lets the optic plan one batched call instead.
@@ -41,7 +41,7 @@ Loading data for each focus of a traversal is the classic N+1 problem. Optic-dri
 
 ---
 
-## Tutorial 22: Plan Introspection and Guardrails (~12 minutes)
+## Tutorial 22: Plan Introspection and Guardrails
 **File**: `Tutorial22_OpticBatchingGuardrails.java` | **Exercises**: 5
 
 A batch you cannot see is a batch you cannot bound. This tutorial inspects the plan Tutorial 21 built and puts limits around it.
@@ -55,7 +55,7 @@ A batch you cannot see is a batch you cannot bound. This tutorial inspects the p
 
 ---
 
-## Tutorial 23: N-ary Coupled Lenses (~10 minutes)
+## Tutorial 23: N-ary Coupled Lenses
 **File**: `Tutorial23_CoupledLenses.java` | **Exercises**: 3
 
 A record with a cross-field invariant (a `Range` where `lo <= hi`) breaks under sequential single-field lens updates. Coupled lenses update the fields together, atomically.

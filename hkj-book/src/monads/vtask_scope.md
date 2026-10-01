@@ -273,7 +273,7 @@ Either<Throwable, List<String>> eitherResult = allSucceed.resultEither();
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice Scope patterns in [Tutorial: Scope & Resource](../tutorials/concurrency/scope_resource_journey.md) (6 exercises, ~15 minutes).
+Practise Scope patterns in [Tutorial: Scope & Resource](../tutorials/concurrency/scope_resource_journey.md) (6 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

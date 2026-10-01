@@ -196,7 +196,7 @@ The fastest way to pick is to ask which parameter is wrong:
 If you find yourself reaching for two axes at once, that is usually correct: the example above uses `magnify` for the carrier and `mapT` for the inner effect, and each retains its single responsibility. If you find yourself fighting one axis to do the work of another, that is the signal to step back and check which axis the problem actually lives on.
 
 ~~~admonish info title="Hands-On Learning"
-Practice the optic-polymorphic forms in [Tutorial 05: Optic-Polymorphic Zoom and Magnify](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/expression/Tutorial05_ZoomAndMagnify.java) (6 exercises, ~12 minutes).
+Practise the optic-polymorphic forms in [Tutorial 05: Optic-Polymorphic Zoom and Magnify](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/expression/Tutorial05_ZoomAndMagnify.java) (6 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

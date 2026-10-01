@@ -72,8 +72,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: complete Tutorial 01 and 02 of the Effect Path Journey first.
  *
- * <p>Estimated time: 25-35 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 01: When Path Isn't Enough")

@@ -181,7 +181,7 @@ Where this lives: [A record's own invariants](#constructor-invariants).
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practise both rules in [Tutorial 27: Boundary Edge Cases](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial27_BoundaryEdgeCases.java) (6 exercises, ~15 minutes): a room request that leaves its note out, and a stay whose constructor refuses its dates.
+Practise both rules in [Tutorial 27: Boundary Edge Cases](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial27_BoundaryEdgeCases.java) (6 exercises): a room request that leaves its note out, and a stay whose constructor refuses its dates.
 ~~~
 
 ~~~admonish tip title="See Also"

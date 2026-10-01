@@ -16,7 +16,7 @@ var outcome = findOrder(id)
 Same six layers. Same mental model. One expression.
 ~~~
 
-**Duration**: ~30 minutes | **Tutorials**: 1 (capstone) | **Exercises**: 7
+**Tutorials**: 1 (capstone) | **Exercises**: 7
 
 **Prerequisites**: complete the [Foundations Journey](../coretypes/foundations_journey.md), the [Effect API Journey](../effect/effect_journey.md), and at least one of [Optics: Lens & Prism](../optics/lens_prism_journey.md) or [Concurrency: VTask](../concurrency/vtask_journey.md).
 

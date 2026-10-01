@@ -406,7 +406,7 @@ Choose `IO` when:
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice VTask fundamentals in [Tutorial: VTask](../tutorials/concurrency/vtask_journey.md) (8 exercises, ~25 minutes).
+Practise VTask fundamentals in [Tutorial: VTask](../tutorials/concurrency/vtask_journey.md) (8 exercises).
 ~~~
 
 ~~~admonish example title="Benchmarks"

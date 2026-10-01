@@ -15,7 +15,7 @@ Before starting, we should be comfortable with:
 
 ## Tutorial Track
 
-### Tutorial 1: Circuit Breaker (~10 minutes)
+### Tutorial 1: Circuit Breaker
 
 Learn to protect services from cascading failures with the circuit breaker pattern.
 
@@ -29,7 +29,7 @@ Learn to protect services from cascading failures with the circuit breaker patte
 
 **File:** `Tutorial01_CircuitBreaker.java`
 
-### Tutorial 2: Saga (~10 minutes)
+### Tutorial 2: Saga
 
 Learn to coordinate multi-step operations with automatic compensation on failure.
 
@@ -42,7 +42,7 @@ Learn to coordinate multi-step operations with automatic compensation on failure
 
 **File:** `Tutorial02_Saga.java`
 
-### Tutorial 3: Retry, Bulkhead & Combined Resilience (~10 minutes)
+### Tutorial 3: Retry, Bulkhead & Combined Resilience
 
 Learn VTask-native retry, concurrency limiting, and combining multiple patterns.
 
@@ -55,7 +55,7 @@ Learn VTask-native retry, concurrency limiting, and combining multiple patterns.
 
 **File:** `Tutorial03_RetryBulkheadResilience.java`
 
-### Tutorial 4: Path API Resilience (~10 minutes)
+### Tutorial 4: Path API Resilience
 
 Learn to use resilience patterns through the fluent Path API.
 

@@ -7,7 +7,7 @@
 - Assembling records from N validated fields with located, declaration-ordered errors
 ~~~
 
-**Duration**: ~40 minutes | **Tutorials**: 4 | **Exercises**: 26
+**Tutorials**: 4 | **Exercises**: 26
 
 **Prerequisites**: [Core Types: Foundations Journey](foundations_journey.md)
 
@@ -25,7 +25,7 @@ MonadError (explicit failures) → Concrete Types (right tool for the job) → R
 
 ---
 
-## Tutorial 05: MonadError Handling (~10 minutes)
+## Tutorial 05: MonadError Handling
 **File**: `Tutorial05_MonadErrorHandling.java` | **Exercises**: 7
 
 Learn to make failures explicit and recoverable using MonadError.
@@ -46,7 +46,7 @@ Learn to make failures explicit and recoverable using MonadError.
 
 ---
 
-## Tutorial 06: Concrete Types (~10 minutes)
+## Tutorial 06: Concrete Types
 **File**: `Tutorial06_ConcreteTypes.java` | **Exercises**: 7
 
 Learn when to use each concrete type that implements the typeclasses you've learned.
@@ -77,7 +77,7 @@ Need error message?
 
 ---
 
-## Tutorial 07: Real World (~10 minutes)
+## Tutorial 07: Real World
 **File**: `Tutorial07_RealWorld.java` | **Exercises**: 6
 
 Bring everything together by building realistic workflows that combine multiple patterns.
@@ -101,7 +101,7 @@ Bring everything together by building realistic workflows that combine multiple 
 
 ---
 
-## Tutorial 12: Accumulating Assembly (~10 minutes)
+## Tutorial 12: Accumulating Assembly
 **File**: `Tutorial12_AccumulatingAssembly.java` | **Exercises**: 6
 
 Learn the staged assembly builder: build a record from N validated fields with every error reported at once, each carrying its field path.
