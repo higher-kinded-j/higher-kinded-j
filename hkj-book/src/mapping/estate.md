@@ -74,7 +74,7 @@ The address is a Lombok `@Data` bean:
 {{#include ../../../hkj-examples/estate-clients/src/main/java/org/higherkindedj/example/estate/clients/AddressBean.java:lombok_wire}}
 ```
 
-The PATCH request is a generator-shaped bean too, with every property `null` until a request sets it. Its nickname is the one hand-shaped property: an `Optional`, so that a client can clear it. openapi-generator's default model maps too, but reads a sent `null` as an omitted property, so clearing through it is [not supported yet](rules.md#no-jsonnullable-patch-property).
+The PATCH request is a generator-shaped bean too, with every property `null` until a request sets it. Its nickname is the one hand-shaped property: an `Optional`, so that a client can clear it. openapi-generator's `java` client model maps too, but reads a sent `null` as an omitted property, so clearing through it is [not supported yet](rules.md#jsonnullable-companions).
 
 ```java
 {{#include ../../../hkj-examples/estate-clients/src/main/java/org/higherkindedj/example/estate/clients/CustomerPatch.java:patch_bean}}

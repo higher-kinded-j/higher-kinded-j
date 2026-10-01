@@ -70,15 +70,16 @@ package org.higherkindedj.optics.annotations;
  * is one-sided: every wire property maps to a domain component, but a domain component with no wire
  * property is simply never changed.
  *
- * <p>Absence is read, never declared: a property is absent when its getter answers {@code null}, so
- * every PATCH bean getter must answer {@code null} until its property is set. Any default the bean
- * gives itself, a field initialiser ({@code tags = new ArrayList<>()}, {@code status = "ACTIVE"}),
- * a value its constructor or builder assigns, or a getter that creates one on first call, makes an
- * omitted field read as that default, which {@code updateFrom} then writes over the domain value.
- * No signature shows a default, so this cannot be refused: leave PATCH bean fields uninitialised
- * and unassigned by the constructor, let each getter return what was set, configure a DTO generator
- * to leave containers {@code null} where it offers that, and give the PATCH schema's properties no
- * {@code default}, which a generator renders as an initialiser.
+ * <p>Absence is read, never declared: a property is absent when its getter answers {@code null},
+ * or, for a {@code JsonNullable} property, {@code undefined()}, so every PATCH bean getter must
+ * answer that until its property is set. Any default the bean gives itself, a field initialiser
+ * ({@code tags = new ArrayList<>()}, {@code status = "ACTIVE"}), a value its constructor or builder
+ * assigns, or a getter that creates one on first call, makes an omitted field read as that default,
+ * which {@code updateFrom} then writes over the domain value. No signature shows a default, so this
+ * cannot be refused: leave PATCH bean fields uninitialised and unassigned by the constructor, let
+ * each getter return what was set, configure a DTO generator to leave containers {@code null} where
+ * it offers that, and give the PATCH schema's properties no {@code default}, which a generator
+ * renders as an initialiser.
  *
  * <p>A getter-only {@code List} property is rejected: the JAXB convention creates the list on first
  * call, so the property never reads {@code null} and cannot express <em>not provided</em>. Give it
@@ -89,6 +90,14 @@ package org.higherkindedj.optics.annotations;
  * Optional} clears it. A plain property is rejected unless a whole-component leaf converts it,
  * because its {@code null} already means leave unchanged; and a field defaulting to {@code
  * Optional.empty()} would clear the component on every request that omits it.
+ *
+ * <p>A property declared {@code org.openapitools.jackson.nullable.JsonNullable<T>}, as
+ * openapi-generator's {@code spring} models declare each nullable property, tells the two apart
+ * too: {@code undefined()} leaves the component unchanged, and a sent value, {@code null} included,
+ * parses as a plain {@code T} property would on a bean mapped by {@link MappingSpec}. A sent {@code
+ * null} clears an {@code Optional} component and is a located {@code must not be null} on any
+ * other, and a leaf over the whole {@code JsonNullable} is called only for a sent value. The
+ * processor recognises the type by its name, so it takes no dependency on the library.
  *
  * <p>A protobuf-java message reads a value for most fields it has not set, so an update request
  * built with protobuf names the fields it changes in a {@code FieldMask} instead. Over a message,

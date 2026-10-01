@@ -13,6 +13,8 @@ import org.higherkindedj.optics.annotations.MappingSpec;
 import org.higherkindedj.optics.annotations.UpdateSpec;
 import org.higherkindedj.optics.edit.Edits;
 import org.higherkindedj.optics.validated.ValidatedPrism;
+import org.jspecify.annotations.Nullable;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 /**
  * The code shown on the book's <a
@@ -293,3 +295,64 @@ class CustomerProfilePatchBean {
 @GenerateMapping
 interface CustomerProfilePatchMapping
     extends UpdateSpec<CustomerProfile, CustomerProfilePatchBean> {}
+
+// The same profile patched through a request as openapi-generator's spring generator writes it by
+// default (openApiNullable=true), its doc comments, schema and Jackson annotations, equals,
+// hashCode and toString left out. Each nullable property is a JsonNullable, which tells a field the
+// client left out from one it sent as null. SparsePatchBookTest binds real JSON into it.
+class CustomerProfilePatchModel {
+  private JsonNullable<String> name = JsonNullable.<String>undefined();
+  private JsonNullable<String> nickname = JsonNullable.<String>undefined();
+  private JsonNullable<String> altEmail = JsonNullable.<String>undefined();
+
+  public CustomerProfilePatchModel name(@Nullable String name) {
+    this.name = JsonNullable.<String>of(name);
+    return this;
+  }
+
+  public JsonNullable<String> getName() {
+    return name;
+  }
+
+  public void setName(JsonNullable<String> name) {
+    this.name = name;
+  }
+
+  public CustomerProfilePatchModel nickname(@Nullable String nickname) {
+    this.nickname = JsonNullable.<String>of(nickname);
+    return this;
+  }
+
+  public JsonNullable<String> getNickname() {
+    return nickname;
+  }
+
+  public void setNickname(JsonNullable<String> nickname) {
+    this.nickname = nickname;
+  }
+
+  public CustomerProfilePatchModel altEmail(@Nullable String altEmail) {
+    this.altEmail = JsonNullable.<String>of(altEmail);
+    return this;
+  }
+
+  public JsonNullable<String> getAltEmail() {
+    return altEmail;
+  }
+
+  public void setAltEmail(JsonNullable<String> altEmail) {
+    this.altEmail = altEmail;
+  }
+}
+
+// ANCHOR: json_nullable_spec
+@GenerateMapping
+interface CustomerProfilePatchModelMapping
+    extends UpdateSpec<CustomerProfile, CustomerProfilePatchModel> {
+  // A leaf over the String the JsonNullable holds, which a sent altEmail parses through
+  default ValidatedPrism<String, EmailAddress> altEmail() {
+    return EmailCodecs.EMAIL;
+  }
+}
+
+// ANCHOR_END: json_nullable_spec

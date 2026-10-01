@@ -92,7 +92,7 @@ final class BeanPropertyAnalyser {
   private static final String PROTOBUF_MESSAGE = "com.google.protobuf.MessageLite";
 
   /** The holder openapi-generator's Java models keep a nullable property in, by default. */
-  private static final String JSON_NULLABLE = "org.openapitools.jackson.nullable.JsonNullable";
+  static final String JSON_NULLABLE = "org.openapitools.jackson.nullable.JsonNullable";
 
   /**
    * What openapi-generator appends to the accessors that expose a property's {@code JsonNullable}.
@@ -351,6 +351,14 @@ final class BeanPropertyAnalyser {
           setters.isEmpty() ? builderSetters.keySet() : setters.keySet());
     }
     return null;
+  }
+
+  /**
+   * Whether {@code type} is openapi-generator's {@code JsonNullable}, raw or parameterised. It is
+   * recognised by name, so the processor takes no dependency on jackson-databind-nullable.
+   */
+  static boolean isJsonNullable(TypeMirror type) {
+    return isDeclared(type, JSON_NULLABLE);
   }
 
   /**
@@ -761,7 +769,7 @@ final class BeanPropertyAnalyser {
   private boolean isJsonNullableCompanion(
       WireShape.BeanProperty property, List<WireShape.BeanProperty> properties) {
     String name = property.name();
-    if (!name.endsWith(JSON_NULLABLE_SUFFIX) || !isDeclared(property.type(), JSON_NULLABLE)) {
+    if (!name.endsWith(JSON_NULLABLE_SUFFIX) || !isJsonNullable(property.type())) {
       return false;
     }
     String plain = name.substring(0, name.length() - JSON_NULLABLE_SUFFIX.length());

@@ -763,6 +763,212 @@ class MappingFixLineTest {
   }
 
   @Nested
+  @DisplayName("a JsonNullable PATCH property")
+  class JsonNullableProperty {
+
+    private static final String REFUSED =
+        """
+        import org.openapitools.jackson.nullable.JsonNullable;
+
+        record EmailAddress(String value) {}
+
+        record Mail(EmailAddress email) {}
+        class MailPatch {
+          private JsonNullable<String> email = JsonNullable.undefined();
+          public JsonNullable<String> getEmail() { return email; }
+          public void setEmail(JsonNullable<String> email) { this.email = email; }
+        }
+        @GenerateMapping
+        interface MailUpdate extends UpdateSpec<Mail, MailPatch> {}
+
+        record MaybeMail(Optional<EmailAddress> email) {}
+        @GenerateMapping
+        interface MaybeMailUpdate extends UpdateSpec<MaybeMail, MailPatch> {}
+
+        record Tally(int count) {}
+        class TallyPatch {
+          private JsonNullable<String> count = JsonNullable.undefined();
+          public JsonNullable<String> getCount() { return count; }
+          public void setCount(JsonNullable<String> count) { this.count = count; }
+        }
+        @GenerateMapping
+        interface TallyUpdate extends UpdateSpec<Tally, TallyPatch> {}
+
+        record Coded(String code) {}
+        @SuppressWarnings("rawtypes")
+        class CodedPatch {
+          private JsonNullable code = JsonNullable.undefined();
+          public JsonNullable getCode() { return code; }
+          public void setCode(JsonNullable code) { this.code = code; }
+        }
+        @GenerateMapping
+        interface CodedUpdate extends UpdateSpec<Coded, CodedPatch> {}
+        """;
+
+    @Test
+    @DisplayName("is offered a leaf over the type it holds, or a holder naming one")
+    void refused() {
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .compile(JsonNullableStub.SOURCE, source(REFUSED));
+      assertThat(compilation).failed();
+      Assertions.assertThat(compilation.errors()).hasSize(4);
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare a leaf 'default ValidatedPrism<java.lang.String, com.example.EmailAddress>"
+                  + " email()', or align the types.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'count' on 'TallyPatch' as"
+                  + " org.openapitools.jackson.nullable.JsonNullable<java.lang.Integer>, which a"
+                  + " sparse update writes straight into the int component, or declare"
+                  + " 'Tally.count' as java.lang.Integer and add a leaf 'default"
+                  + " ValidatedPrism<java.lang.String, java.lang.Integer> count()'.");
+      assertThat(compilation)
+          .hadErrorContaining(
+              "Declare 'code' on 'CodedPatch' as"
+                  + " org.openapitools.jackson.nullable.JsonNullable<java.lang.String>, holding what"
+                  + " Coded.code takes.");
+    }
+
+    @Test
+    @DisplayName("each line it offers maps the pair, a sent null clearing only an Optional")
+    void followed() throws ReflectiveOperationException {
+      Compilation compilation =
+          javac()
+              .withProcessors(new MappingProcessor())
+              .withOptions("-Xlint:all,-processing,-auxiliaryclass", "-Werror")
+              .compile(
+                  JsonNullableStub.SOURCE,
+                  source(
+                      """
+                      import org.openapitools.jackson.nullable.JsonNullable;
+
+                      record EmailAddress(String value) {}
+
+                      final class EmailCodec {
+                        static final ValidatedPrism<String, EmailAddress> EMAIL =
+                            ValidatedPrism.of(
+                                raw ->
+                                    raw.contains("@")
+                                        ? Validated.validNel(new EmailAddress(raw))
+                                        : Validated.invalidNel(FieldError.of("not an email address")),
+                                EmailAddress::value);
+
+                        private EmailCodec() {}
+                      }
+
+                      record Mail(EmailAddress email) {}
+                      class MailPatch {
+                        private JsonNullable<String> email = JsonNullable.undefined();
+                        public JsonNullable<String> getEmail() { return email; }
+                        public void setEmail(JsonNullable<String> email) { this.email = email; }
+                      }
+                      @GenerateMapping
+                      interface MailUpdate extends UpdateSpec<Mail, MailPatch> {
+                        default ValidatedPrism<java.lang.String, com.example.EmailAddress> email() {
+                          return EmailCodec.EMAIL;
+                        }
+                      }
+
+                      record MaybeMail(Optional<EmailAddress> email) {}
+                      @GenerateMapping
+                      interface MaybeMailUpdate extends UpdateSpec<MaybeMail, MailPatch> {
+                        default ValidatedPrism<java.lang.String, com.example.EmailAddress> email() {
+                          return EmailCodec.EMAIL;
+                        }
+                      }
+
+                      record Tally(int count) {}
+                      class TallyPatch {
+                        private org.openapitools.jackson.nullable.JsonNullable<java.lang.Integer>
+                            count = JsonNullable.undefined();
+                        public JsonNullable<Integer> getCount() { return count; }
+                        public void setCount(JsonNullable<Integer> count) { this.count = count; }
+                      }
+                      @GenerateMapping
+                      interface TallyUpdate extends UpdateSpec<Tally, TallyPatch> {}
+
+                      record Stock(java.lang.Integer count) {}
+                      class StockPatch {
+                        private JsonNullable<String> count = JsonNullable.undefined();
+                        public JsonNullable<String> getCount() { return count; }
+                        public void setCount(JsonNullable<String> count) { this.count = count; }
+                      }
+                      @GenerateMapping
+                      interface StockUpdate extends UpdateSpec<Stock, StockPatch> {
+                        default ValidatedPrism<java.lang.String, java.lang.Integer> count() {
+                          return StandardCodecs.intFromString();
+                        }
+                      }
+
+                      record Coded(String code) {}
+                      class CodedPatch {
+                        private org.openapitools.jackson.nullable.JsonNullable<java.lang.String>
+                            code = JsonNullable.undefined();
+                        public JsonNullable<String> getCode() { return code; }
+                        public void setCode(JsonNullable<String> code) { this.code = code; }
+                      }
+                      @GenerateMapping
+                      interface CodedUpdate extends UpdateSpec<Coded, CodedPatch> {}
+
+                      final class Probe {
+                        static Object mail() {
+                          MailPatch patch = new MailPatch();
+                          patch.setEmail(JsonNullable.of("ada@example.org"));
+                          return MailUpdateImpl.INSTANCE
+                              .updateFrom(patch)
+                              .apply(new Mail(new EmailAddress("old@example.org")));
+                        }
+
+                        static Object maybeMail() {
+                          MailPatch patch = new MailPatch();
+                          patch.setEmail(JsonNullable.of(null));
+                          return MaybeMailUpdateImpl.INSTANCE
+                              .updateFrom(patch)
+                              .apply(new MaybeMail(Optional.of(new EmailAddress("old@example.org"))));
+                        }
+
+                        static Object tally() {
+                          TallyPatch patch = new TallyPatch();
+                          patch.setCount(JsonNullable.of(null));
+                          return TallyUpdateImpl.INSTANCE.updateFrom(patch).apply(new Tally(1));
+                        }
+
+                        static Object stock() {
+                          StockPatch patch = new StockPatch();
+                          patch.setCount(JsonNullable.of("7"));
+                          return StockUpdateImpl.INSTANCE.updateFrom(patch).apply(new Stock(1));
+                        }
+
+                        static Object coded() {
+                          CodedPatch patch = new CodedPatch();
+                          patch.setCode(JsonNullable.of("c2"));
+                          return CodedUpdateImpl.INSTANCE.updateFrom(patch).apply(new Coded("c1"));
+                        }
+                      }
+                      """));
+      assertThat(compilation).succeededWithoutWarnings();
+      var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+      assertThatValidated(probe(result, "mail"))
+          .hasValueSatisfying(
+              mail -> mail.toString().equals("Mail[email=EmailAddress[value=ada@example.org]]"),
+              "the sent address");
+      assertThatValidated(probe(result, "maybeMail"))
+          .hasValueSatisfying(
+              mail -> mail.toString().equals("MaybeMail[email=Optional.empty]"),
+              "a cleared address");
+      assertThatValidated(probe(result, "tally")).hasFieldErrors("count: must not be null");
+      assertThatValidated(probe(result, "stock"))
+          .hasValueSatisfying(
+              stock -> stock.toString().equals("Stock[count=7]"), "the parsed count");
+      assertThatValidated(probe(result, "coded"))
+          .hasValueSatisfying(coded -> coded.toString().equals("Coded[code=c2]"), "the sent code");
+    }
+  }
+
+  @Nested
   @DisplayName("a primitive wire member the Optional bridge reaches")
   class PrimitiveBridge {
 

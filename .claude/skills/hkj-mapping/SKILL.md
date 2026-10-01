@@ -580,7 +580,8 @@ matter: it maps build-only whatever its width, derived fields included.
   explicit-`null` property reads `null` (on an `UpdateSpec`, left unchanged, and a domain `Optional`
   component is refused there, since the plain getter cannot express *clear*), and `build` writes an
   empty `Optional` as an explicit JSON `null`, so a wire sample for `MappingLaws` must set each
-  nullable property. A `-g spring` model has no plain pair: its property is a `JsonNullable<T>`.
+  nullable property. A `-g spring` model has no plain pair: its property is a `JsonNullable<T>`,
+  which a `MappingSpec` maps through a leaf and an `UpdateSpec` reads in all three PATCH states.
 - **A type another processor generates is waited for.** A wire or domain type, or a component,
   bean property, builder or mix-in method read from one, that another annotation processor writes
   in the same compilation (an Immutables value, a schema-generated DTO) does not exist until the
@@ -636,6 +637,18 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   leaves unchanged. Caveats: Jackson binds an explicit JSON `null` to `Optional.empty()` (sent-null
   clears on this property shape), and the bean field must default to `null`, NOT `Optional.empty()`,
   or omitting the field clears the domain value.
+- A **`JsonNullable<T>` property** (openapi-generator `-g spring`, `openApiNullable=true`, its
+  fields starting `undefined()`) carries the same three states, recognised by name: `undefined()`
+  (omitted) leaves the component unchanged, `of(null)` clears an `Optional` component and is a
+  located `must not be null` on any other, and `of(value)` parses as `parse` reads a plain `T` bean
+  property (leaf over `T`, element leaf, nested spec lifted over a container; an `Optional`
+  component takes the value inside it). Declare the leaf over `T`, not over the holder. A
+  whole-`Optional` leaf turns a sent `null` into `must not be null`; a leaf over the whole
+  `JsonNullable` sees only sent values; a domain component of the holder's own type takes the
+  holder as sent. `? extends X` reads as `X`; a raw holder, `?` or `? super` is refused. Jackson
+  binds the three states only with `JsonNullableJackson3Module` registered (Jackson 2:
+  `JsonNullableModule`; `JsonMapper.builder().findAndAddModules()` finds it): without it a sent
+  `null` silently reads as omitted.
 - **Inherited vocabulary stays inert**: a bridge, a derived field, or a rename whose `to` this bean
   does not carry is never consulted here, so one mix-in serves a full spec and its PATCH sibling
   even when the bean covers a subset. A derived field the `UpdateSpec` declares itself is refused
@@ -646,7 +659,8 @@ Validated<NonEmptyList<FieldError>, User> updated = update.apply(user);  // or a
   `Map`) parses through the element leaf named after the component — the same vocabulary the dense tiers lift, so one mix-in
   serves a full spec and its PATCH sibling. Replacement is wholesale; each failing element is
   located (`phones.1`). A whole-container leaf (`ValidatedPrism<List<S>, List<A>>`) wins as the
-  more specific declaration. Nested specs do not lift through a PATCH bean's container — delegate
+  more specific declaration. Nested specs do not lift through a PATCH bean's container (a
+  `JsonNullable` property's value does lift them) — delegate
   via an element leaf to the nested Impl's `asValidatedPrism()` (a FieldMask update lifts them). Same-typed identity containers are null-scanned at every
   depth, as on the dense tiers (`tags.1: must not be null`; a set's unlocated, as `tags: must not
   contain a null element`), an `Optional` holding a container included. `@MapKey` applies here
@@ -876,7 +890,7 @@ before rearranging the spec.
 | Expecting `@GenerateMerge` to give you a reverse split | Merging is forward-only by design |
 | `Validated.fields()` will not take a 17th field | The **ladder** stops at 16. `@GenerateAssembly` has no ceiling, so annotate the record instead (`FOR_COMPREHENSION` is a separate ceiling, still 12) |
 | A JAXB getter-only `List` on an `UpdateSpec` | Its getter creates the list on first call, so it never reads `null`: an omitted field would clear the domain list rather than leave it alone. Rejected; give the property a setter, and a getter that answers `null` until it is set |
-| A PATCH bean that gives itself a default (a field initialiser such as `tags = new ArrayList<>()`, a constructor assignment, a getter that creates its value) | Not detected: the getter never answers `null`, so an omitted field reads as its default and `updateFrom` writes it over the domain. Let every getter answer `null` until set, and law-check with a freshly constructed bean as the all-absent wire and a current value unlike any default, which catches it |
+| A PATCH bean that gives itself a default (a field initialiser such as `tags = new ArrayList<>()`, a constructor assignment, a getter that creates its value) | Not detected: the getter never answers `null`, so an omitted field reads as its default and `updateFrom` writes it over the domain. Let every getter answer `null` (a `JsonNullable`: `undefined()`) until set, and law-check with a freshly constructed bean as the all-absent wire and a current value unlike any default, which catches it |
 | A bridged bean property whose setter refuses `null` (`List.copyOf(v)`, an Immutables builder) | `build` writes `null` for an empty `Optional`. A setter declared non-null (`@NonNull`, or `@NullMarked` without `@Nullable`) is refused when it compiles: mark the parameter `@Nullable`. One that refuses `null` without declaring it throws from `build`: guard the copy (`v == null ? null : List.copyOf(v)`); for a generated builder, drop the `Optional` or declare a leaf over the whole `Optional` that encodes absence the builder's way |
 | Bridging a domain `Optional<List<T>>` onto a JAXB getter-only `List` | The getter creates the list on first call, so absence has nowhere to live and would read back as a present empty list. Declare the component `List<T>`, where empty *is* nothing, or give the property both a setter and a getter that returns what the setter stored (a lazily creating getter loses absence on the read even with a setter) |
 | A leaf that picks its codec on each call (from a flag, a system property, a field a test changes), or builds one over `SimpleDateFormat` or `DecimalFormat` | The Impl reads each leaf once, on first use, and every caller on every thread shares what it answered, so the first pick sticks and a non-thread-safe codec races. Make the choice inside the codec's parse, and build over thread-safe parts such as `DateTimeFormatter` |

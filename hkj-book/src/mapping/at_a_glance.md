@@ -88,7 +88,7 @@ are in [Compiler Messages](compiler_errors.md).
 | JAXB getter-only `List` | ✅ (through `addAll`) | ✅ | ✅ | ❌ (it can never read `null`) |
 | Sealed hierarchy against sealed hierarchy | ✅ | ✅ | ❌ | ❌ |
 | Generic record (`Page<T>`) | ✅ | ✅ | ✅ | ❌ (record-to-record only) |
-| `JsonNullable` property (a `_JsonNullable` companion is [left out](rules.md#jsonnullable-companions)) | through a leaf | through a leaf | through a leaf | ❌, not supported yet |
+| `JsonNullable` property (a `_JsonNullable` companion is [left out](rules.md#jsonnullable-companions)) | through a leaf | through a leaf | through a leaf | ✅ ([omitted, `null` or a value](rules.md#no-jsonnullable-patch-property)) |
 
 A lossless pair also earns `asIso()`; a bean pair with a reference property does not, because an
 unset property is an ordinary state. [What Your Spec Generates](tiers.md) explains which surface each spec gets, and why.
@@ -188,7 +188,7 @@ blocker. Each ❌ means keep what you have for that case.
 | Lombok `@Accessors(fluent = true)` wires | ⚠ the accessors are not `getX`/`isX`, so they do not pair |
 | PATCH endpoints where an omitted field means *leave unchanged* | ✅ `UpdateSpec` (a protobuf-java message's through its `FieldMask`) |
 | PATCH DTOs from openapi-generator with `default:` values in the schema | ⚠ the defaults read as sent: see [A PATCH getter must answer `null` until set](beans_patch.md#patch-getters-answer-null) |
-| PATCH bodies that must distinguish *clear* from *absent* | ⚠ an `Optional`-typed property; `JsonNullable` is not supported yet |
+| PATCH bodies that must distinguish *clear* from *absent* | ✅ an `Optional`-typed or `JsonNullable` property |
 | Nested objects patched field by field | ❌ replacement is wholesale |
 | Clients that need error paths in **wire** names | ⚠ paths are domain-named |
 | Spec-carrying libraries on the module path | ⚠ no cross-module index there |

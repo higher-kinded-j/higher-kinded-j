@@ -1597,6 +1597,50 @@ class MappingProcessorProtobufTest {
     }
 
     @Test
+    @DisplayName(
+        "a member converted into an Optional over a wildcard updates as its component declares it")
+    void wildcardOptionalMember() throws ReflectiveOperationException {
+      var result =
+          compileClean(
+              source(
+                  "Loose",
+                  """
+                  record Tag(String value) {}
+
+                  record Loose(
+                      String foo2Bar,
+                      String xRay,
+                      String uRL,
+                      Optional<? extends Tag> kInt,
+                      Optional<String> plain) {}
+
+                  @GenerateMapping
+                  interface LoosePatch
+                      extends UpdateSpec<Loose, com.example.proto.NamesProto.Oddity> {
+                    default org.higherkindedj.optics.validated.ValidatedPrism<String, Tag> kInt() {
+                      return org.higherkindedj.optics.validated.ValidatedPrism.of(
+                          value -> org.higherkindedj.hkt.validated.Validated.validNel(new Tag(value)),
+                          Tag::value);
+                    }
+                  }
+                  """));
+      Object impl = result.instance("com.example.LoosePatchImpl");
+      Object current = record(result, "Loose", "", "", "", Optional.empty(), Optional.of("p"));
+      assertThatValidated(
+              update(
+                  impl, Oddity.newBuilder().setKInt("k").build(), mask("kInt", "plain"), current))
+          .hasValue(
+              record(
+                  result,
+                  "Loose",
+                  "",
+                  "",
+                  "",
+                  Optional.of(record(result, "Tag", "k")),
+                  Optional.empty()));
+    }
+
+    @Test
     @DisplayName("a named member updates the sealed component its oneof maps, and a rename binds")
     void oneofAndRename() throws ReflectiveOperationException {
       var result =
