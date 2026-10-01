@@ -159,6 +159,16 @@ public interface UserClientApi {
 }
 ```
 
+Add the processor that generates the clients; the starter carries only their runtime, since a
+dependency never adds to the processor path (the HKJ build plugin's `spring = true` adds both):
+
+```gradle
+dependencies {
+    implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:LATEST_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-spring-boot-client-processor:LATEST_VERSION")
+}
+```
+
 The processor generates three siblings: a native `@HttpExchange` interface (return types unwrapped to
 `ResponseEntity<T>`, mapping/parameter annotations copied through) that Spring proxies; a
 `UserClientApiClient` that dispatches each method to `HkjClientExchange` and decodes a `Left` from the

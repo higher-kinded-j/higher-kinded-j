@@ -4,6 +4,7 @@
     <description>Maven plugin that configures HKJ dependencies, preview features, and compile-time checks</description>
     <groupId>io.github.higher-kinded-j</groupId>
     <artifactId>hkj-maven-plugin</artifactId>
+    <version>@hkj.version@</version>
     <goalPrefix>hkj</goalPrefix>
     <isolatedRealm>false</isolatedRealm>
     <inheritedByDefault>true</inheritedByDefault>

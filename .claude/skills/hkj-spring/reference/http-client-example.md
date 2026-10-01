@@ -10,14 +10,25 @@ that calls the `hkj-spring/example` server.
 
 Add the starter (it bundles `spring-boot-restclient`, which binds `spring.http.serviceclient.*` and
 applies the base URL; it is not pulled in by `spring-boot-starter-web` alone) and the processor that
-generates the clients. A build runs only the processors it names, so the starter alone generates
-nothing; the HKJ build plugin's `spring = true` adds both:
+generates the clients. A dependency never adds to the processor path, so the starter alone generates
+nothing; the HKJ build plugin's `spring = true` (Maven: `<spring>true</spring>`) adds both:
 
 ```gradle
 dependencies {
     implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:LATEST_VERSION")
     annotationProcessor("io.github.higher-kinded-j:hkj-spring-boot-client-processor:LATEST_VERSION")
 }
+```
+
+```xml
+<!-- maven-compiler-plugin <configuration>, beside the other processors -->
+<annotationProcessorPaths>
+    <path>
+        <groupId>io.github.higher-kinded-j</groupId>
+        <artifactId>hkj-spring-boot-client-processor</artifactId>
+        <version>LATEST_VERSION</version>
+    </path>
+</annotationProcessorPaths>
 ```
 
 Configure the base URL and timeouts per group. The group name defaults to the decapitalised

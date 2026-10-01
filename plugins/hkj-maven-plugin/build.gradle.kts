@@ -65,6 +65,16 @@ sourceSets.main {
     resources.srcDir(bundleSkills)
 }
 
+// Maven refuses a plugin descriptor without its version, so the build writes it in. A literal
+// token, because the descriptor carries Maven ${...} expressions of its own.
+tasks.processResources {
+    val versionValue = project.version.toString()
+    inputs.property("version", versionValue)
+    filesMatching("META-INF/maven/plugin.xml") {
+        filter { line -> line.replace("@hkj.version@", versionValue) }
+    }
+}
+
 // Maven plugin classes must not use --enable-preview so they can load in any Java 25+ JVM
 tasks.withType<JavaCompile>().configureEach {
     doFirst {
@@ -74,6 +84,8 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // The version the bundled hkj-version.properties must carry
+    systemProperty("hkj.expectedVersion", project.version.toString())
     // Tests don't need preview features either
     doFirst {
         jvmArgs?.removeIf { it == "--enable-preview" }

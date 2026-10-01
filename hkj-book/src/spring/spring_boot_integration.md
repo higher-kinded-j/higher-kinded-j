@@ -105,10 +105,10 @@ Or with Maven:
 ```
 
 ~~~admonish tip title="Already using the HKJ build plugin?"
-The [HKJ Gradle and Maven plugins](../tooling/gradle_plugin.md) set every
-HKJ version for you, and add the starter and the `@HkjHttpClient` processor
-when Spring integration is enabled, so you do not need the version
-management above. This BOM snippet is for Spring
+The [HKJ Gradle and Maven plugins](../tooling/gradle_plugin.md) add
+`hkj-core`, and with Spring integration enabled the starter and the
+`@HkjHttpClient` processor, all at the plugin's version. They do not add
+`hkj-test`, so give it a version or keep the BOM. This BOM snippet is for Spring
 projects that wire HKJ in by hand.
 ~~~
 

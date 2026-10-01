@@ -91,6 +91,20 @@ class HKJPluginTest {
     }
 
     @Test
+    @DisplayName("adds no Spring dependency or processor by default")
+    void plugin_addsNoSpring_byDefault() {
+      applyPlugin();
+      evaluateProject();
+
+      assertThat(dependencyNotations("implementation"))
+          .noneMatch(dep -> dep.contains("hkj-spring-boot-starter"));
+      assertThat(dependencyNotations("annotationProcessor"))
+          .noneMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+      assertThat(dependencyNotations("testAnnotationProcessor"))
+          .noneMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+    }
+
+    @Test
     @DisplayName("adds hkj-processor-plugins to testAnnotationProcessor")
     void plugin_addsProcessorDependency_toTestAnnotationProcessor() {
       applyPlugin();
@@ -247,7 +261,8 @@ class HKJPluginTest {
     }
 
     @Test
-    @DisplayName("adds the @HkjHttpClient processor to every source set when spring is enabled")
+    @DisplayName(
+        "adds the @HkjHttpClient processor to the main and test processors when spring is enabled")
     void plugin_addsClientProcessor_whenSpringEnabled() {
       applyPlugin();
       HKJExtension ext = project.getExtensions().getByType(HKJExtension.class);
@@ -258,18 +273,6 @@ class HKJPluginTest {
           .anyMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
       assertThat(dependencyNotations("testAnnotationProcessor"))
           .anyMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
-    }
-
-    @Test
-    @DisplayName("adds no Spring dependency or processor when spring is disabled")
-    void plugin_addsNoSpring_whenDisabled() {
-      applyPlugin();
-      evaluateProject();
-
-      assertThat(dependencyNotations("implementation"))
-          .noneMatch(dep -> dep.contains("hkj-spring-boot-starter"));
-      assertThat(dependencyNotations("annotationProcessor"))
-          .noneMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
     }
 
     @Test

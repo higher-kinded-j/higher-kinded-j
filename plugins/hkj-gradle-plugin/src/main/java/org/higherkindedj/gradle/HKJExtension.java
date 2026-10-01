@@ -51,7 +51,9 @@ public abstract class HKJExtension {
   public abstract Property<Boolean> getPreview();
 
   /**
-   * Whether to add hkj-spring-boot-starter. Defaults to false.
+   * Whether to add hkj-spring-boot-starter, and hkj-spring-boot-client-processor to every source
+   * set's annotation processors so that {@code @HkjHttpClient} clients are generated. Defaults to
+   * false.
    *
    * @return the spring integration property
    */

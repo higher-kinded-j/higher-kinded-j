@@ -67,7 +67,7 @@ mvn rewrite:dryRun   # preview changes
 mvn rewrite:run      # apply changes
 ```
 
-`hkj-openrewrite` is published from 0.4.11. Each release keeps every recipe before it, so the latest version carries them all. A 0.5.0 deprecation recipe arrives with the release that deprecates its API.
+`hkj-openrewrite` is published from 0.4.11. Each release keeps every recipe before it, so the latest version carries them all. A recipe for an API deprecated after 0.4.11 arrives with the release that deprecates it.
 
 ---
 
@@ -161,7 +161,7 @@ rewrite {
 
 ~~~admonish tip title="See Also"
 - [Compile-Time Checks](compile_checks.md) - The `migration-nudge`, `free-switch-exhaustive`, and `witness-arity` checks are the compile-time equivalents of the recipes above
-- [Build Plugins](gradle_plugin.md) - The Gradle and Maven plugins that wire `hkj-openrewrite` into a project alongside the other tooling
+- [Build Plugins](gradle_plugin.md) - The Gradle and Maven plugins that set up the rest of the tooling; add `hkj-openrewrite` to the rewrite plugin as the [Quick Start](#quick-start) shows
 - [Release History](../release-history.md) - Per-version notes; recipe groups are documented in the release that introduces them
 - [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) - Every API deprecated for removal, the release that deprecated it, and the recipe that migrates it
 ~~~

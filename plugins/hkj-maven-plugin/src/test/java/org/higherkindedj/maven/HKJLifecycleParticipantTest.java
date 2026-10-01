@@ -57,6 +57,16 @@ class HKJLifecycleParticipantTest {
     return plugin;
   }
 
+  private Xpp3Dom pluginConfig() {
+    return (Xpp3Dom) compilerPlugin().getConfiguration();
+  }
+
+  private static PluginExecution execution(String id) {
+    PluginExecution execution = new PluginExecution();
+    execution.setId(id);
+    return execution;
+  }
+
   private static Xpp3Dom dom(String name) {
     return new Xpp3Dom(name);
   }
@@ -220,16 +230,24 @@ class HKJLifecycleParticipantTest {
     }
 
     @Test
-    @DisplayName("skips executions with no configuration")
-    void skipsExecutionsWithoutConfig() {
-      PluginExecution execution = new PluginExecution();
-      execution.setId("default-compile");
-      // No configuration set.
-      addCompilerPlugin(null, execution);
+    @DisplayName("configures lifecycle executions that carry no configuration of their own")
+    void configuresExecutionsWithoutConfig() {
+      // Maven's lifecycle injection gives default-compile and default-testCompile no
+      // configuration, and they then read nothing from the plugin level.
+      addCompilerPlugin(null, execution("default-compile"), execution("default-testCompile"));
 
       participant.configureCompilerPlugin(project, defaultConfig);
 
-      assertThat(compilerPlugin().getExecutions().get(0).getConfiguration()).isNull();
+      for (PluginExecution execution : compilerPlugin().getExecutions()) {
+        Xpp3Dom cfg = (Xpp3Dom) execution.getConfiguration();
+        assertThat(cfg).as(execution.getId()).isNotNull();
+        assertThat(cfg.getChild("release").getValue()).isEqualTo("25");
+        assertThat(cfg.getChild("enablePreview").getValue()).isEqualTo("true");
+        assertThat(processorArtifactIds(cfg, "annotationProcessorPaths"))
+            .containsExactlyInAnyOrder("hkj-processor-plugins", "hkj-checker");
+        assertThat(argValues(cfg, "compilerArgs"))
+            .containsExactlyInAnyOrder("-parameters", "-Xplugin:HKJChecker");
+      }
     }
   }
 
@@ -268,39 +286,117 @@ class HKJLifecycleParticipantTest {
   }
 
   @Nested
-  @DisplayName("spring enabled")
-  class SpringEnabled {
+  @DisplayName("spring integration")
+  class SpringIntegration {
 
     private HKJConfiguration springConfig() {
       return new HKJConfiguration("0.3.7", true, true, false, true);
     }
 
     @Test
-    @DisplayName("adds the @HkjHttpClient processor to the main and test processor paths")
+    @DisplayName("adds the @HkjHttpClient processor to the compile and testCompile executions")
     void addsClientProcessor_whenSpringEnabled() {
+      addCompilerPlugin(null, execution("default-compile"), execution("default-testCompile"));
+
+      participant.configureCompilerPlugin(project, springConfig());
+
+      assertThat(processorArtifactIds(pluginConfig(), "annotationProcessorPaths"))
+          .containsExactlyInAnyOrder(
+              "hkj-processor-plugins", "hkj-checker", "hkj-spring-boot-client-processor");
+      for (PluginExecution execution : compilerPlugin().getExecutions()) {
+        assertThat(
+                processorArtifactIds(
+                    (Xpp3Dom) execution.getConfiguration(), "annotationProcessorPaths"))
+            .as(execution.getId())
+            .containsExactlyInAnyOrder(
+                "hkj-processor-plugins", "hkj-checker", "hkj-spring-boot-client-processor");
+      }
+    }
+
+    @Test
+    @DisplayName("keeps a processor path the user already declares, without a duplicate")
+    void keepsUserClientProcessor_withoutDuplicate() {
       Xpp3Dom cfg = dom("configuration");
-      cfg.addChild(dom("testAnnotationProcessorPaths"));
+      Xpp3Dom paths = dom("annotationProcessorPaths");
+      Xpp3Dom userPath = dom("path");
+      child(userPath, "groupId", "io.github.higher-kinded-j");
+      child(userPath, "artifactId", "hkj-spring-boot-client-processor");
+      child(userPath, "version", "0.4.7");
+      paths.addChild(userPath);
+      cfg.addChild(paths);
       addCompilerPlugin(cfg);
 
       participant.configureCompilerPlugin(project, springConfig());
 
-      Xpp3Dom finalCfg = (Xpp3Dom) compilerPlugin().getConfiguration();
-      assertThat(processorArtifactIds(finalCfg, "annotationProcessorPaths"))
-          .contains("hkj-processor-plugins", "hkj-spring-boot-client-processor");
-      assertThat(processorArtifactIds(finalCfg, "testAnnotationProcessorPaths"))
-          .contains("hkj-spring-boot-client-processor");
+      assertThat(processorArtifactIds(pluginConfig(), "annotationProcessorPaths"))
+          .containsExactlyInAnyOrder(
+              "hkj-spring-boot-client-processor", "hkj-processor-plugins", "hkj-checker");
     }
 
     @Test
     @DisplayName("adds no @HkjHttpClient processor when spring is disabled")
     void addsNoClientProcessor_whenSpringDisabled() {
-      addCompilerPlugin(null);
+      addCompilerPlugin(null, execution("default-compile"));
 
       participant.configureCompilerPlugin(project, defaultConfig);
 
-      Xpp3Dom cfg = (Xpp3Dom) compilerPlugin().getConfiguration();
-      assertThat(processorArtifactIds(cfg, "annotationProcessorPaths"))
+      assertThat(processorArtifactIds(pluginConfig(), "annotationProcessorPaths"))
           .doesNotContain("hkj-spring-boot-client-processor");
+      assertThat(
+              processorArtifactIds(
+                  (Xpp3Dom) compilerPlugin().getExecutions().get(0).getConfiguration(),
+                  "annotationProcessorPaths"))
+          .doesNotContain("hkj-spring-boot-client-processor");
+    }
+  }
+
+  @Nested
+  @DisplayName("surefire")
+  class Surefire {
+
+    private Plugin surefirePlugin() {
+      for (Plugin plugin : project.getBuildPlugins()) {
+        if ("org.apache.maven.plugins:maven-surefire-plugin".equals(plugin.getKey())) {
+          return plugin;
+        }
+      }
+      throw new AssertionError("maven-surefire-plugin was not registered");
+    }
+
+    @Test
+    @DisplayName("adds --enable-preview to default-test, which reads only its own configuration")
+    void addsEnablePreview_toTestExecution() {
+      Plugin surefire = new Plugin();
+      surefire.setGroupId("org.apache.maven.plugins");
+      surefire.setArtifactId("maven-surefire-plugin");
+      surefire.addExecution(execution("default-test"));
+      project.getBuild().addPlugin(surefire);
+
+      participant.configureSurefirePlugin(project, defaultConfig);
+
+      Xpp3Dom executionConfig =
+          (Xpp3Dom) surefirePlugin().getExecutions().get(0).getConfiguration();
+      assertThat(executionConfig.getChild("argLine").getValue()).isEqualTo("--enable-preview");
+      assertThat(((Xpp3Dom) surefirePlugin().getConfiguration()).getChild("argLine").getValue())
+          .isEqualTo("--enable-preview");
+    }
+
+    @Test
+    @DisplayName("keeps a user argLine and adds --enable-preview once")
+    void keepsUserArgLine() {
+      Xpp3Dom cfg = dom("configuration");
+      child(cfg, "argLine", "-Xmx1g");
+      Plugin surefire = new Plugin();
+      surefire.setGroupId("org.apache.maven.plugins");
+      surefire.setArtifactId("maven-surefire-plugin");
+      surefire.setConfiguration(cfg);
+      project.getBuild().addPlugin(surefire);
+
+      participant.configureSurefirePlugin(project, defaultConfig);
+      participant.configureSurefirePlugin(project, defaultConfig);
+
+      assertThat(((Xpp3Dom) surefirePlugin().getConfiguration()).getChild("argLine").getValue())
+          .isEqualTo("-Xmx1g --enable-preview");
     }
   }
 }

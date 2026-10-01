@@ -71,7 +71,7 @@ The plugin creates an `hkj` extension block with these options:
 hkj {
     version = "0.3.7-SNAPSHOT"       // HKJ library version (default: plugin version)
     preview = true           // add --enable-preview flags (default: true)
-    spring = false           // add hkj-spring-boot-starter (default: false)
+    spring = false           // add the starter and the @HkjHttpClient processor (default: false)
     skills = false           // install Claude Code skills (default: false)
     checks {
         pathTypeMismatch = true   // enable compile-time Path type checking (default: true)
@@ -110,7 +110,7 @@ hkj {
 }
 ```
 
-This adds `hkj-spring-boot-starter` to the `implementation` configuration, which provides auto-configuration for using HKJ types with Spring's dependency injection and web layer. It also adds `hkj-spring-boot-client-processor` to every annotation processor configuration, which generates the [`@HkjHttpClient`](../spring/declarative_http_clients.md) clients: a build runs only the processors it names, so the starter alone would not.
+This adds `hkj-spring-boot-starter` to the `implementation` configuration, which provides auto-configuration for using HKJ types with Spring's dependency injection and web layer. It also adds `hkj-spring-boot-client-processor` to every annotation processor configuration, which generates the [`@HkjHttpClient`](../spring/declarative_http_clients.md) clients: a dependency never adds to the processor path, so the starter alone would not.
 
 ~~~admonish tip title="See Also"
 - [Spring Boot Integration](../spring/spring_boot_integration.md) - Full guide to using HKJ with Spring Boot
@@ -150,7 +150,7 @@ hkj {
 }
 ```
 
-All HKJ dependencies (`hkj-core`, `hkj-processor-plugins`, `hkj-checker`, `hkj-spring-boot-starter`) use the same version.
+All HKJ dependencies (`hkj-core`, `hkj-processor-plugins`, `hkj-checker`, `hkj-spring-boot-starter`, `hkj-spring-boot-client-processor`) use the same version.
 
 ---
 

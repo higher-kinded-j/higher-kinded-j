@@ -7,6 +7,7 @@ import java.util.List;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
@@ -29,13 +30,14 @@ public class HKJDiagnosticsMojo extends AbstractMojo {
   private MavenProject project;
 
   @Override
-  public void execute() {
+  public void execute() throws MojoExecutionException {
     Plugin hkjPlugin = findHKJPlugin();
     HKJConfiguration config;
-    if (hkjPlugin != null) {
-      config = HKJConfiguration.fromPlugin(hkjPlugin);
-    } else {
-      config = new HKJConfiguration(project.getVersion(), true, false, false, true);
+    try {
+      config =
+          hkjPlugin != null ? HKJConfiguration.fromPlugin(hkjPlugin) : HKJConfiguration.defaults();
+    } catch (IllegalStateException e) {
+      throw new MojoExecutionException(e.getMessage(), e);
     }
 
     List<String> depsAdded = new ArrayList<>();

@@ -27,8 +27,16 @@ tasks.test {
     useJUnitPlatform()
 }
 
-// Central configuration for publishing. OpenRewrite itself stays compileOnly: the rewrite Gradle or
-// Maven plugin that runs these recipes supplies it.
+// The recipes run inside the rewrite plugin's JVM, which may not enable preview features, so the
+// shipped classes are compiled without them, as the Maven plugin's are.
+tasks.compileJava {
+    doFirst {
+        options.compilerArgs.removeIf { it == "--enable-preview" }
+    }
+}
+
+// Central configuration for publishing. OpenRewrite is compileOnly: the rewrite Gradle or Maven
+// plugin that runs these recipes supplies it.
 mavenPublishing {
     publishToMavenCentral()
 

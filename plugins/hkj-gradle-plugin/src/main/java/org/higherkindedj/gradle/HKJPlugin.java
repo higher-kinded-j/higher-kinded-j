@@ -129,7 +129,7 @@ public class HKJPlugin implements Plugin<Project> {
     }
 
     // Spring integration: the starter, and the processor that generates @HkjHttpClient clients.
-    // The starter's own processor path is not inherited, so a consumer must be given it here.
+    // A dependency never adds to the processor path, so the starter cannot bring the processor.
     if (Boolean.TRUE.equals(extension.getSpring().get())) {
       deps.add("implementation", GROUP_ID + ":hkj-spring-boot-starter:" + version);
       sourceSets.all(
