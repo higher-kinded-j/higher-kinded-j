@@ -1765,6 +1765,75 @@ class VResultPathTest {
     }
 
     @Test
+    @DisplayName("an Error from onDefect still releases once on Left(null), then is raised")
+    void onDefectThrowingAnErrorStillReleases() {
+      IllegalStateException defect = new IllegalStateException("wire snapped");
+      AssertionError broken = new AssertionError("onDefect broke");
+      List<Either<String, String>> released = new ArrayList<>();
+
+      assertThatThrownBy(
+              () ->
+                  VResultPath.bracketOutcome(
+                          VResultPath.<String, String>pure("res"),
+                          resource -> VResultPath.<String, String>fromVTask(VTask.fail(defect)),
+                          (resource, outcome) -> {
+                            released.add(outcome);
+                            return VTask.succeed("released");
+                          },
+                          d -> {
+                            throw broken;
+                          })
+                      .run()
+                      .run())
+          .isSameAs(broken)
+          .hasSuppressedException(defect);
+      assertThat(released).containsExactly(Either.left(null));
+    }
+
+    @Test
+    @DisplayName("an Error thrown while use builds its path is typed, and release still runs")
+    void useThrowingAnErrorDuringConstructionStillReleases() {
+      Either<String, String> result =
+          VResultPath.bracketOutcome(
+                  VResultPath.<String, String>pure("res"),
+                  resource -> {
+                    throw new AssertionError("built badly");
+                  },
+                  this::logRelease,
+                  Throwable::getMessage)
+              .run()
+              .run();
+
+      assertThatEither(result).isLeft().hasLeft("built badly");
+      assertThat(releaseLog).containsExactly("res:compensate");
+    }
+
+    @Test
+    @DisplayName("an Error thrown by release carries the pending failure")
+    void releaseThrowingAnErrorCarriesThePendingFailure() {
+      IllegalStateException defect = new IllegalStateException("wire snapped");
+      AssertionError cleanup = new AssertionError("cleanup broke");
+
+      assertThatThrownBy(
+              () ->
+                  VResultPath.bracketOutcome(
+                          VResultPath.<String, String>pure("res"),
+                          resource -> VResultPath.<String, String>fromVTask(VTask.fail(defect)),
+                          (resource, outcome) -> {
+                            throw cleanup;
+                          },
+                          d -> null)
+                      .run()
+                      .run())
+          .isSameAs(cleanup);
+      assertThat(cleanup.getSuppressed())
+          .singleElement()
+          .satisfies(
+              pending ->
+                  assertThat(pending).hasMessage("onDefect must not return null").hasCause(defect));
+    }
+
+    @Test
     @DisplayName("all arguments are eagerly guarded")
     void argumentsAreGuarded() {
       VResultPath<String, String> ok = VResultPath.pure("x");
