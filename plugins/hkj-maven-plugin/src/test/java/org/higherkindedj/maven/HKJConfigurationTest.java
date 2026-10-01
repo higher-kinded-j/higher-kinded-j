@@ -3,9 +3,14 @@
 package org.higherkindedj.maven;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.Optional;
 import org.apache.maven.model.Plugin;
-import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,16 +20,89 @@ import org.junit.jupiter.api.Test;
 @DisplayName("HKJConfiguration")
 class HKJConfigurationTest {
 
-  private MavenProject project;
+  /** The version the build bundles into the plugin, passed in by the test task. */
+  private static final String EXPECTED_VERSION =
+      Objects.requireNonNull(
+          System.getProperty("hkj.expectedVersion"),
+          "hkj.expectedVersion is set by the Gradle test task: run the tests through Gradle");
+
   private Plugin plugin;
 
   @BeforeEach
   void setUp() {
-    project = new MavenProject();
-    project.setVersion("1.0.0");
     plugin = new Plugin();
     plugin.setGroupId("io.github.higher-kinded-j");
     plugin.setArtifactId("hkj-maven-plugin");
+  }
+
+  @Nested
+  @DisplayName("plugin version")
+  class PluginVersion {
+
+    @Test
+    @DisplayName("uses the version bundled in the plugin when no version is configured")
+    void usesBundledVersion_whenNoVersionConfigured() {
+      plugin.setVersion("9.9.9");
+
+      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin);
+
+      assertThat(config.version()).isEqualTo(EXPECTED_VERSION);
+    }
+
+    @Test
+    @DisplayName(
+        "defaults() uses the bundled version and the same defaults as an empty declaration")
+    void defaultsMatchAnEmptyDeclaration() {
+      assertThat(HKJConfiguration.defaults())
+          .isEqualTo(HKJConfiguration.fromPlugin(new Plugin()))
+          .extracting(HKJConfiguration::version)
+          .isEqualTo(EXPECTED_VERSION);
+    }
+
+    @Test
+    @DisplayName("the plugin descriptor carries the plugin's version")
+    void descriptorCarriesVersion() throws IOException {
+      try (InputStream in =
+          HKJConfiguration.class.getResourceAsStream("/META-INF/maven/plugin.xml")) {
+        assertThat(in).isNotNull();
+        String descriptor = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        assertThat(descriptor)
+            .contains("<version>" + EXPECTED_VERSION + "</version>")
+            .doesNotContain("@hkj.version@");
+      }
+    }
+
+    @Test
+    @DisplayName("prefers the bundled version to the declared one")
+    void prefersBundledVersion_whenBothExist() {
+      assertThat(HKJConfiguration.pluginVersion(Optional.of("1.0.0"), Optional.of("2.0.0")))
+          .isEqualTo("1.0.0");
+    }
+
+    @Test
+    @DisplayName("falls back to the version the POM declares for the plugin")
+    void fallsBackToDeclaredVersion_whenNothingBundled() {
+      assertThat(HKJConfiguration.pluginVersion(Optional.empty(), Optional.of("1.2.3")))
+          .isEqualTo("1.2.3");
+    }
+
+    @Test
+    @DisplayName("throws with a fix line when neither a bundled nor a declared version exists")
+    void throwsWithFixLine_whenNeitherBundledNorDeclared() {
+      assertThatThrownBy(() -> HKJConfiguration.pluginVersion(Optional.empty(), Optional.empty()))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage(
+              "Could not determine the HKJ plugin version. Add <configuration><version>X</version>"
+                  + "</configuration> to the hkj-maven-plugin, where X is the Higher-Kinded-J"
+                  + " release to use.");
+    }
+
+    @Test
+    @DisplayName("refuses a blank version")
+    void refusesBlankVersion() {
+      assertThatThrownBy(() -> new HKJConfiguration(" ", true, false, false, true))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
   }
 
   @Nested
@@ -32,17 +110,9 @@ class HKJConfigurationTest {
   class DefaultConfiguration {
 
     @Test
-    @DisplayName("uses project version when no version specified")
-    void usesProjectVersion_whenNoVersionSpecified() {
-      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin, project);
-
-      assertThat(config.version()).isEqualTo("1.0.0");
-    }
-
-    @Test
     @DisplayName("preview defaults to true")
     void previewDefaultsToTrue() {
-      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin);
 
       assertThat(config.preview()).isTrue();
     }
@@ -50,7 +120,7 @@ class HKJConfigurationTest {
     @Test
     @DisplayName("spring defaults to false")
     void springDefaultsToFalse() {
-      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin);
 
       assertThat(config.spring()).isFalse();
     }
@@ -58,7 +128,7 @@ class HKJConfigurationTest {
     @Test
     @DisplayName("pathTypeMismatch defaults to true")
     void pathTypeMismatchDefaultsToTrue() {
-      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin);
 
       assertThat(config.pathTypeMismatch()).isTrue();
     }
@@ -66,7 +136,7 @@ class HKJConfigurationTest {
     @Test
     @DisplayName("skills defaults to false")
     void skillsDefaultsToFalse() {
-      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration config = HKJConfiguration.fromPlugin(plugin);
 
       assertThat(config.skills()).isFalse();
     }
@@ -83,7 +153,7 @@ class HKJConfigurationTest {
       addChild(config, "version", "0.3.7-SNAPSHOT");
       plugin.setConfiguration(config);
 
-      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin);
 
       assertThat(result.version()).isEqualTo("0.3.7-SNAPSHOT");
     }
@@ -95,7 +165,7 @@ class HKJConfigurationTest {
       addChild(config, "preview", "false");
       plugin.setConfiguration(config);
 
-      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin);
 
       assertThat(result.preview()).isFalse();
     }
@@ -107,7 +177,7 @@ class HKJConfigurationTest {
       addChild(config, "spring", "true");
       plugin.setConfiguration(config);
 
-      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin);
 
       assertThat(result.spring()).isTrue();
     }
@@ -119,7 +189,7 @@ class HKJConfigurationTest {
       addChild(config, "pathTypeMismatch", "false");
       plugin.setConfiguration(config);
 
-      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin);
 
       assertThat(result.pathTypeMismatch()).isFalse();
     }
@@ -131,7 +201,7 @@ class HKJConfigurationTest {
       addChild(config, "skills", "true");
       plugin.setConfiguration(config);
 
-      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin);
 
       assertThat(result.skills()).isTrue();
     }
@@ -144,9 +214,9 @@ class HKJConfigurationTest {
       addChild(config, "preview", "");
       plugin.setConfiguration(config);
 
-      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin, project);
+      HKJConfiguration result = HKJConfiguration.fromPlugin(plugin);
 
-      assertThat(result.version()).isEqualTo("1.0.0");
+      assertThat(result.version()).isEqualTo(EXPECTED_VERSION);
       assertThat(result.preview()).isTrue();
     }
   }

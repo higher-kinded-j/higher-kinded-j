@@ -163,6 +163,7 @@ class HKJPluginFunctionalTest {
 
     assertThat(output).contains("Spring integration: enabled");
     assertThat(output).contains("hkj-spring-boot-starter:0.3.0");
+    assertThat(output).contains("hkj-spring-boot-client-processor:0.3.0");
   }
 
   @Test

@@ -91,6 +91,20 @@ class HKJPluginTest {
     }
 
     @Test
+    @DisplayName("adds no Spring dependency or processor by default")
+    void plugin_addsNoSpring_byDefault() {
+      applyPlugin();
+      evaluateProject();
+
+      assertThat(dependencyNotations("implementation"))
+          .noneMatch(dep -> dep.contains("hkj-spring-boot-starter"));
+      assertThat(dependencyNotations("annotationProcessor"))
+          .noneMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+      assertThat(dependencyNotations("testAnnotationProcessor"))
+          .noneMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+    }
+
+    @Test
     @DisplayName("adds hkj-processor-plugins to testAnnotationProcessor")
     void plugin_addsProcessorDependency_toTestAnnotationProcessor() {
       applyPlugin();
@@ -247,6 +261,21 @@ class HKJPluginTest {
     }
 
     @Test
+    @DisplayName(
+        "adds the @HkjHttpClient processor to the main and test processors when spring is enabled")
+    void plugin_addsClientProcessor_whenSpringEnabled() {
+      applyPlugin();
+      HKJExtension ext = project.getExtensions().getByType(HKJExtension.class);
+      ext.getSpring().set(true);
+      evaluateProject();
+
+      assertThat(dependencyNotations("annotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+      assertThat(dependencyNotations("testAnnotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+    }
+
+    @Test
     @DisplayName("checks(Action) DSL configures pathTypeMismatch")
     void plugin_checksActionDSL_configuresPathTypeMismatch() {
       applyPlugin();
@@ -322,6 +351,19 @@ class HKJPluginTest {
       assertThat(dependencyNotations("integrationTestAnnotationProcessor"))
           .anyMatch(dep -> dep.contains("hkj-processor-plugins"))
           .noneMatch(dep -> dep.contains("hkj-checker"));
+    }
+
+    @Test
+    @DisplayName("adds the @HkjHttpClient processor to a custom source set when spring is enabled")
+    void plugin_addsClientProcessor_onCustomSourceSet() {
+      applyPlugin();
+      HKJExtension ext = project.getExtensions().getByType(HKJExtension.class);
+      ext.getSpring().set(true);
+      project.getExtensions().getByType(SourceSetContainer.class).create("integrationTest");
+      evaluateProject();
+
+      assertThat(dependencyNotations("integrationTestAnnotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
     }
   }
 }

@@ -3,6 +3,7 @@
 
 plugins {
     `java-library`
+    id("com.vanniktech.maven.publish")
 }
 
 dependencies {
@@ -24,4 +25,60 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+// The recipes run inside the rewrite plugin's JVM, which may not enable preview features, so the
+// shipped classes are compiled without them, as the Maven plugin's are.
+tasks.compileJava {
+    doFirst {
+        options.compilerArgs.removeIf { it == "--enable-preview" }
+    }
+}
+
+// Central configuration for publishing. OpenRewrite is compileOnly: the rewrite Gradle or Maven
+// plugin that runs these recipes supplies it.
+mavenPublishing {
+    publishToMavenCentral()
+
+    signAllPublications()
+
+    coordinates(
+        groupId = project.group.toString(),
+        artifactId = "hkj-openrewrite",
+        version = project.version.toString()
+    )
+
+    pom {
+        name.set("Higher-Kinded-J OpenRewrite Recipes")
+        description.set("OpenRewrite recipes for migrating between Higher-Kinded-J releases")
+        url.set("https://github.com/higher-kinded-j/higher-kinded-j")
+
+        licenses {
+            license {
+                name.set("The MIT License")
+                url.set("https://opensource.org/licenses/MIT")
+            }
+        }
+        developers {
+            developer {
+                id.set("higher-kinded-j")
+                name.set("Magnus Smith")
+                email.set("simulation-hkt@gmail.com")
+            }
+        }
+        scm {
+            connection.set("scm:git:git://github.com/higher-kinded-j/higher-kinded-j.git")
+            developerConnection.set("scm:git:ssh://github.com/higher-kinded-j/higher-kinded-j.git")
+            url.set("https://github.com/higher-kinded-j/higher-kinded-j")
+        }
+        inceptionYear.set("2025")
+        organization {
+            name.set("The Higher-Kinded-J Team")
+            url.set("https://github.com/higher-kinded-j")
+        }
+        issueManagement {
+            system.set("GitHub")
+            url.set("https://github.com/higher-kinded-j/higher-kinded-j/issues")
+        }
+    }
 }

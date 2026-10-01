@@ -9,6 +9,7 @@ This module provides Spring Boot integration for higher-kinded-j, enabling type-
 | 0.2.7 | 3.5.7 | 2.x | Legacy support |
 | 0.2.8+ | 4.0.1+ | 3.x | Effect Path API |
 | 0.3.7+ | 4.0.3+ | 3.x | + VTaskPath/VStreamPath virtual thread handlers |
+| 0.4.x | 4.1.0+ | 3.x | + `@HkjHttpClient` declarative HTTP clients; built and tested against Spring Boot 4.1 |
 
 > **Important**: Version 0.2.8+ introduces breaking changes. Use 0.2.7 for Spring Boot 3.5.7 compatibility.
 
@@ -155,6 +156,18 @@ public interface UserClientApi {
 
   @PostExchange                                   // deferred on a virtual thread →
   VTaskPath<Either<ApiError, UserDto>> create(@RequestBody UserDto body);   // withRetry/timeout/…
+}
+```
+
+Add the processor that generates the clients, since a dependency never adds to the processor path
+and the starter carries only their runtime. The HKJ build plugin's `spring = true` adds both, and
+[Declarative HTTP Clients](https://higher-kinded-j.github.io/latest/spring/declarative_http_clients.html#step-1-add-the-starter)
+shows the Maven form:
+
+```gradle
+dependencies {
+    implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:LATEST_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-spring-boot-client-processor:LATEST_VERSION")
 }
 ```
 
@@ -538,8 +551,8 @@ class UserControllerTest {
 
 ## Requirements
 
-- Java 25+
-- Spring Boot 4.0.3+
+- Java 25, the release Higher-Kinded-J is built on today
+- Spring Boot 4.1.0+
 - higher-kinded-j core library
 
 ## Related Documentation

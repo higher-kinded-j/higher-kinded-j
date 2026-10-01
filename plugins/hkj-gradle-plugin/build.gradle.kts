@@ -37,7 +37,7 @@ tasks.withType<Sign>().configureEach {
         .getOrElse(false)
 }
 
-// Generate version.properties so the plugin knows its own version at runtime
+// Generate hkj-version.properties so the plugin knows its own version at runtime
 val generateVersionProperties = tasks.register("generateVersionProperties") {
     val outputDir = layout.buildDirectory.dir("generated/resources/hkj")
     val versionValue = project.version.toString()

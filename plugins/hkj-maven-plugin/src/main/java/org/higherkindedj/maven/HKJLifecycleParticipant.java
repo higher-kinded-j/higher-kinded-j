@@ -2,11 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.maven;
 
+import java.util.Optional;
+import java.util.Properties;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenSession;
+import org.apache.maven.model.ConfigurationContainer;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
@@ -40,25 +43,25 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
   @Override
   public void afterProjectsRead(MavenSession session) throws MavenExecutionException {
     for (MavenProject project : session.getProjects()) {
-      Plugin hkjPlugin = findHKJPlugin(project);
-      if (hkjPlugin == null) {
+      Optional<Plugin> hkjPlugin = findPlugin(project, PLUGIN_KEY);
+      if (hkjPlugin.isEmpty()) {
         continue;
       }
 
-      HKJConfiguration config = HKJConfiguration.fromPlugin(hkjPlugin, project);
+      HKJConfiguration config;
+      try {
+        config = HKJConfiguration.fromPlugin(hkjPlugin.get());
+      } catch (IllegalStateException e) {
+        throw new MavenExecutionException(e.getMessage(), project.getFile());
+      }
       configureDependencies(project, config);
       configureCompilerPlugin(project, config);
       configureSurefirePlugin(project, config);
     }
   }
 
-  private Plugin findHKJPlugin(MavenProject project) {
-    for (Plugin plugin : project.getBuildPlugins()) {
-      if (PLUGIN_KEY.equals(plugin.getKey())) {
-        return plugin;
-      }
-    }
-    return null;
+  private static Optional<Plugin> findPlugin(MavenProject project, String pluginKey) {
+    return project.getBuildPlugins().stream().filter(p -> pluginKey.equals(p.getKey())).findFirst();
   }
 
   private void configureDependencies(MavenProject project, HKJConfiguration config) {
@@ -92,37 +95,51 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
   }
 
   void configureCompilerPlugin(MavenProject project, HKJConfiguration config) {
-    Plugin compilerPlugin = findOrCreatePlugin(project, COMPILER_PLUGIN_KEY);
-    Xpp3Dom pluginConfig = getOrCreateConfiguration(compilerPlugin);
-
-    // Set release and preview
-    if (config.preview()) {
-      setChildValue(pluginConfig, "release", "25");
-      setChildValue(pluginConfig, "enablePreview", "true");
+    // Only a compiler the build already has: a packaging that compiles nothing (pom) has none,
+    // and one added here would carry no version.
+    Optional<Plugin> found = findPlugin(project, COMPILER_PLUGIN_KEY);
+    if (found.isEmpty()) {
+      return;
     }
+    Plugin compilerPlugin = found.get();
 
-    // Always ensure HKJ entries are on the plugin-level annotationProcessorPaths and
-    // compilerArgs. These are the defaults for both the compile and testCompile goals
-    // (testCompile falls back to them when the test-specific overrides aren't set).
-    addHkjProcessorPaths(pluginConfig, "annotationProcessorPaths", config, /* create= */ true);
-    addHkjCompilerArgs(pluginConfig, "compilerArgs", config, /* create= */ true);
-
-    // Defensively patch any user-declared test-specific overrides. When
-    // <testAnnotationProcessorPaths> / <testCompilerArgs> are set (at the plugin level or
-    // in an execution), the testCompile goal reads from them exclusively instead of the
-    // main annotationProcessorPaths / compilerArgs, so HKJ must be added there too.
-    // Execution-level <annotationProcessorPaths> / <compilerArgs> are also patched because
-    // execution-level configuration overrides the plugin-level values for that execution.
-    applyTestOverrides(pluginConfig, config);
+    // The plugin-level configuration serves a goal invoked directly (mvn compiler:compile). By
+    // the time a lifecycle participant runs, Maven has already merged it into each execution,
+    // and a lifecycle-bound execution (default-compile, default-testCompile) reads only its own,
+    // so every execution is configured too.
+    Xpp3Dom pluginNode = getOrCreateConfiguration(compilerPlugin);
+    Optional<String> pluginRelease = childValue(pluginNode, "release");
+    configureCompilerNode(pluginNode, project, config, /* ownRelease= */ false);
     for (PluginExecution execution : compilerPlugin.getExecutions()) {
-      if (!(execution.getConfiguration() instanceof Xpp3Dom executionConfig)) {
-        continue;
-      }
-      addHkjProcessorPaths(
-          executionConfig, "annotationProcessorPaths", config, /* create= */ false);
-      addHkjCompilerArgs(executionConfig, "compilerArgs", config, /* create= */ false);
-      applyTestOverrides(executionConfig, config);
+      Xpp3Dom executionNode = getOrCreateConfiguration(execution);
+      // A release that differs from the plugin's was set on the execution on purpose, as for a
+      // multi-release jar, so that execution keeps its release and preview settings.
+      Optional<String> executionRelease = childValue(executionNode, "release");
+      boolean ownRelease = executionRelease.isPresent() && !executionRelease.equals(pluginRelease);
+      configureCompilerNode(executionNode, project, config, ownRelease);
     }
+  }
+
+  private void configureCompilerNode(
+      Xpp3Dom configNode, MavenProject project, HKJConfiguration config, boolean ownRelease) {
+    // hkj-core is compiled for Java 25, and preview ties the release to the JDK's own; without
+    // preview, a release the build already names is kept.
+    if (!ownRelease) {
+      if (config.preview()) {
+        setChildValue(configNode, "release", "25");
+        setChildValue(configNode, "enablePreview", "true");
+      } else if (childValue(configNode, "release").isEmpty()
+          && project.getProperties().getProperty("maven.compiler.release") == null) {
+        setChildValue(configNode, "release", "25");
+      }
+    }
+    // testCompile reads annotationProcessorPaths and compilerArgs too, unless the test-specific
+    // overrides below are set.
+    addHkjProcessorPaths(configNode, "annotationProcessorPaths", config, /* create= */ true);
+    addHkjCompilerArgs(configNode, "compilerArgs", config, /* create= */ true);
+    // When <testAnnotationProcessorPaths> / <testCompilerArgs> are set, the testCompile goal
+    // reads from them exclusively, so HKJ must be added there too.
+    applyTestOverrides(configNode, config);
   }
 
   private void applyTestOverrides(Xpp3Dom configNode, HKJConfiguration config) {
@@ -144,6 +161,11 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     if (config.pathTypeMismatch()) {
       addAnnotationProcessorPath(paths, "hkj-checker", config.version());
     }
+    // A dependency never adds to the processor path, so the starter cannot bring the processor
+    // that generates @HkjHttpClient clients.
+    if (config.spring()) {
+      addAnnotationProcessorPath(paths, "hkj-spring-boot-client-processor", config.version());
+    }
   }
 
   private void addHkjCompilerArgs(
@@ -161,44 +183,47 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     }
   }
 
-  private void configureSurefirePlugin(MavenProject project, HKJConfiguration config) {
+  void configureSurefirePlugin(MavenProject project, HKJConfiguration config) {
     if (!config.preview()) {
       return;
     }
 
-    Plugin surefirePlugin = findOrCreatePlugin(project, SUREFIRE_PLUGIN_KEY);
-    Xpp3Dom pluginConfig = getOrCreateConfiguration(surefirePlugin);
-    Xpp3Dom argLine = getOrCreateChild(pluginConfig, "argLine");
-    if (argLine.getValue() == null || !argLine.getValue().contains("--enable-preview")) {
-      String existing = argLine.getValue() != null ? argLine.getValue() + " " : "";
-      argLine.setValue(existing + "--enable-preview");
+    // Surefire reads the argLine property unless the build writes an <argLine> element, and
+    // other plugins, such as JaCoCo's prepare-agent, extend that property. The flag joins the
+    // property, so an element is never introduced to shadow it.
+    Properties properties = project.getProperties();
+    properties.setProperty("argLine", withEnablePreview(properties.getProperty("argLine")));
+
+    // An <argLine> element the build writes itself replaces the property, in whichever
+    // execution it reaches, so the flag joins it there too.
+    findPlugin(project, SUREFIRE_PLUGIN_KEY)
+        .ifPresent(
+            surefire -> {
+              appendToArgLine(surefire);
+              surefire.getExecutions().forEach(this::appendToArgLine);
+            });
+  }
+
+  private void appendToArgLine(ConfigurationContainer container) {
+    if (container.getConfiguration() instanceof Xpp3Dom config
+        && config.getChild("argLine") instanceof Xpp3Dom argLine) {
+      argLine.setValue(withEnablePreview(argLine.getValue()));
     }
   }
 
-  private Plugin findOrCreatePlugin(MavenProject project, String pluginKey) {
-    String[] parts = pluginKey.split(":");
-    String groupId = parts[0];
-    String artifactId = parts[1];
-
-    for (Plugin plugin : project.getBuildPlugins()) {
-      if (pluginKey.equals(plugin.getKey())) {
-        return plugin;
-      }
+  private static String withEnablePreview(String argLine) {
+    if (argLine == null || argLine.isBlank()) {
+      return "--enable-preview";
     }
-
-    Plugin plugin = new Plugin();
-    plugin.setGroupId(groupId);
-    plugin.setArtifactId(artifactId);
-    project.getBuild().addPlugin(plugin);
-    return plugin;
+    return argLine.contains("--enable-preview") ? argLine : argLine + " --enable-preview";
   }
 
-  private Xpp3Dom getOrCreateConfiguration(Plugin plugin) {
-    Xpp3Dom config = (Xpp3Dom) plugin.getConfiguration();
-    if (config == null) {
-      config = new Xpp3Dom("configuration");
-      plugin.setConfiguration(config);
+  private Xpp3Dom getOrCreateConfiguration(ConfigurationContainer container) {
+    if (container.getConfiguration() instanceof Xpp3Dom config) {
+      return config;
     }
+    Xpp3Dom config = new Xpp3Dom("configuration");
+    container.setConfiguration(config);
     return config;
   }
 
@@ -209,6 +234,13 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
       parent.addChild(child);
     }
     return child;
+  }
+
+  private static Optional<String> childValue(Xpp3Dom parent, String name) {
+    return Optional.ofNullable(parent.getChild(name))
+        .map(Xpp3Dom::getValue)
+        .map(String::trim)
+        .filter(v -> !v.isEmpty());
   }
 
   private void setChildValue(Xpp3Dom parent, String name, String value) {

@@ -4,9 +4,11 @@ package org.higherkindedj.maven;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
@@ -29,13 +31,13 @@ public class HKJDiagnosticsMojo extends AbstractMojo {
   private MavenProject project;
 
   @Override
-  public void execute() {
-    Plugin hkjPlugin = findHKJPlugin();
+  public void execute() throws MojoExecutionException {
     HKJConfiguration config;
-    if (hkjPlugin != null) {
-      config = HKJConfiguration.fromPlugin(hkjPlugin, project);
-    } else {
-      config = new HKJConfiguration(project.getVersion(), true, false, false, true);
+    try {
+      config =
+          findHKJPlugin().map(HKJConfiguration::fromPlugin).orElseGet(HKJConfiguration::defaults);
+    } catch (IllegalStateException e) {
+      throw new MojoExecutionException(e.getMessage(), e);
     }
 
     List<String> depsAdded = new ArrayList<>();
@@ -94,12 +96,9 @@ public class HKJDiagnosticsMojo extends AbstractMojo {
     getLog().info(sb.toString().stripTrailing());
   }
 
-  private Plugin findHKJPlugin() {
-    for (Plugin plugin : project.getBuildPlugins()) {
-      if (PLUGIN_KEY.equals(plugin.getKey())) {
-        return plugin;
-      }
-    }
-    return null;
+  private Optional<Plugin> findHKJPlugin() {
+    return project.getBuildPlugins().stream()
+        .filter(p -> PLUGIN_KEY.equals(p.getKey()))
+        .findFirst();
   }
 }

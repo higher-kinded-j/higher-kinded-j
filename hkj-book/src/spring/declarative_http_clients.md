@@ -107,14 +107,35 @@ Profile show(String id) {
 
 ### Step 1: Add the Starter
 
-The client lives in `hkj-spring-boot-starter`; if you already have it for the server side, you have the client too.
+The client runtime lives in `hkj-spring-boot-starter`, and the code generator in `hkj-spring-boot-client-processor`. A dependency never adds to the processor path, so a starter you already have for the server side brings the runtime but not the generator. Add both:
 
 ```gradle
 // build.gradle.kts
 dependencies {
     implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:LATEST_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-spring-boot-client-processor:LATEST_VERSION")
 }
 ```
+
+In Maven, the processor goes on the compiler plugin's processor path. `<annotationProcessorPaths>` is the whole path, so add the `<path>` to the list you already have, beside `hkj-processor-plugins`, rather than as a second list:
+
+```xml
+<!-- maven-compiler-plugin <configuration>: one list, holding every processor -->
+<annotationProcessorPaths>
+    <path>
+        <groupId>io.github.higher-kinded-j</groupId>
+        <artifactId>hkj-processor-plugins</artifactId>
+        <version>LATEST_VERSION</version>
+    </path>
+    <path>
+        <groupId>io.github.higher-kinded-j</groupId>
+        <artifactId>hkj-spring-boot-client-processor</artifactId>
+        <version>LATEST_VERSION</version>
+    </path>
+</annotationProcessorPaths>
+```
+
+With the [HKJ build plugin](../tooling/gradle_plugin.md#spring-boot-mode), `spring = true` (Maven: `<spring>true</spring>`) adds both.
 
 ### Step 2: Declare and Configure
 
@@ -318,6 +339,7 @@ The streaming case is consumed through this translator rather than through a gen
 A generic `@HkjHttpClient` interface is supported **codegen-only**: the native interface and facade carry the type parameters, but the `@ImportHttpServices`/`@Bean` wiring is skipped, because a generic client cannot be a singleton bean. You instantiate the facade for a concrete type argument yourself.
 
 ~~~admonish warning title="Common Mistakes"
+- **The starter without the processor.** The interface compiles, nothing is generated, and startup fails with `required a bean of type 'com.example.UserClientApi' that could not be found`. Add `hkj-spring-boot-client-processor` to the processor path, as [Step 1](#step-1-add-the-starter) shows.
 - **A sealed error type with no `@JsonTypeInfo`.** Jackson cannot pick the subtype, so decoding fails. Add the type info, or use a concrete error type.
 - **Client interfaces outside the component scan.** If your `@HkjHttpClient` interfaces are not under your `@SpringBootApplication`'s scanned packages, the generated configuration is not picked up and Spring never creates the proxy. Add an explicit `@ImportHttpServices(basePackages = "...")`.
 - **Expecting a transport failure to become a `Left`.** Connection-refused and timeout are not domain errors; they propagate. Use the `VTaskPath` variant and `runSafe()` to capture them as the failure arm of `Try<Either<E, T>>`.

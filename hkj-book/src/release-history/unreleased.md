@@ -112,6 +112,7 @@ This release maps the wires that generated clients produce: openapi-generator mo
 ## Spring {#spring}
 
 - **A client keeps the `@OnStatus` overrides it inherits from a jar** ([#849](https://github.com/higher-kinded-j/higher-kinded-j/issues/849)): the annotations are now kept in the class file, and an inherited override is checked as a local one is. See [Declarative HTTP clients](../spring/declarative_http_clients.md#1-per-method-onstatus).
+- **`spring = true` on the build plugins also generates `@HkjHttpClient` clients** ([#1002](https://github.com/higher-kinded-j/higher-kinded-j/pull/1002)): the Gradle and Maven plugins now add `hkj-spring-boot-client-processor` beside the starter, since a dependency never adds to the processor path. A build that wires Higher-Kinded-J by hand adds the processor itself. See [Declarative HTTP Clients](../spring/declarative_http_clients.md#step-1-add-the-starter).
 
 ---
 
@@ -131,6 +132,9 @@ This release maps the wires that generated clients produce: openapi-generator mo
 - **A dependency's spec with a mix-in off the classpath is passed over** ([#895](https://github.com/higher-kinded-j/higher-kinded-j/pull/895)): the use site's error names the missing type, where javac used to report `cannot access` inside generated source. See [Multi-module builds](../tooling/manual_setup.md#multi-module-builds).
 - **Every processor runs from the module path** ([#889](https://github.com/higher-kinded-j/higher-kinded-j/issues/889)): all twenty run there, and `Path.from()` finds a `VStreamPath`. Builds that use Gradle's `annotationProcessor` or Maven's `<annotationProcessorPaths>` see no change. See [PathProvider SPI Registration](../monads/vstream_advanced.md#pathprovider-spi-registration).
 - **Coverage tools skip every generated type** ([#798](https://github.com/higher-kinded-j/higher-kinded-j/issues/798), [#817](https://github.com/higher-kinded-j/higher-kinded-j/issues/817)): nested generated types carry `@Generated` themselves, and traversals and folds are named nested classes rather than anonymous ones. See [Build-time impact](../optics/production_readiness.md#build-time-impact).
+- **The Maven plugin adds the libraries at its own version** ([#1002](https://github.com/higher-kinded-j/higher-kinded-j/pull/1002)): without a `<version>` in its configuration it uses the plugin's version, as the Gradle plugin does, where it used your project's. See [Maven Users](../tooling/gradle_plugin.md#maven-users).
+- **The Maven plugin configures the build's compile and test runs** ([#1002](https://github.com/higher-kinded-j/higher-kinded-j/pull/1002)): they get release 25, preview features, the HKJ processors and the checker, with no configuration of their own. `--enable-preview` joins surefire's `argLine` property, so JaCoCo's agent keeps its place, and `mvn hkj:diagnostics` prints the plugin's settings. See [Maven Users](../tooling/gradle_plugin.md#maven-users).
+- **`hkj-openrewrite` is published, and `hkj-bom` manages every published module** ([#1002](https://github.com/higher-kinded-j/higher-kinded-j/pull/1002)): the migration recipes are on Maven Central from 0.4.11, and the BOM now covers `hkj-processor`, `hkj-spring-boot-client` and `hkj-spring-boot-client-processor`. See [Migration Recipes](../tooling/openrewrite.md).
 
 ---
 
@@ -155,7 +159,7 @@ For most changes, the processor stops at your declaration on a shape that used t
 
 - **Rebuild libraries that publish specs with 0.4.11 first.** That means mapping specs, mix-ins, `@GenerateFocus` records and `@HkjHttpClient` base interfaces. Their class files now carry annotations a consuming build reads ([#844](https://github.com/higher-kinded-j/higher-kinded-j/issues/844), [#847](https://github.com/higher-kinded-j/higher-kinded-j/issues/847), [#849](https://github.com/higher-kinded-j/higher-kinded-j/issues/849)). Both sides must agree on a bean's properties and a leaf order ([#868](https://github.com/higher-kinded-j/higher-kinded-j/issues/868), [#876](https://github.com/higher-kinded-j/higher-kinded-j/issues/876)).
 - **A module that declares specs ships index classes** ([#676](https://github.com/higher-kinded-j/higher-kinded-j/issues/676)): they live in `org.higherkindedj.mapping.index`. Two such jars cannot load together as automatic modules, so a library bound for a module path passes `-Ahkj.mapping.index=false`. A module with its own `module-info` writes none.
-- **A build that names its processors adds one** ([#877](https://github.com/higher-kinded-j/higher-kinded-j/issues/877)): with `-processor` or Maven's `<annotationProcessors>`, add `org.higherkindedj.optics.processing.CompanionAnnotationProcessor`. Put a processor claiming every annotation, such as Lombok's, ahead of `hkj-processor`.
+- **A build that names its processors adds the companion processors** ([#877](https://github.com/higher-kinded-j/higher-kinded-j/issues/877)): with `-processor` or Maven's `<annotationProcessors>`, add `org.higherkindedj.optics.processing.CompanionAnnotationProcessor`, and a build that generates `@HkjHttpClient` clients also adds `org.higherkindedj.spring.client.processor.CompanionAnnotationProcessor` beside `org.higherkindedj.spring.client.processor.HkjHttpClientProcessor`. Put a processor claiming every annotation, such as Lombok's, ahead of `hkj-processor`.
 
 ### What a running program can notice {#runtime-changes}
 
@@ -226,6 +230,7 @@ Most of these fail at your declaration, or warn there under `-Werror`, naming th
 | Effect Paths | A `toEitherPath` error whose own type is a functional interface, written as a lambda | Name the error type: `path.<MyError>toEitherPath(...)` | [#794](https://github.com/higher-kinded-j/higher-kinded-j/issues/794) |
 | Effect Paths | `@PathConfig`, `EFFECTFUL` or `ACCUMULATING` (a `[removal]` warning), or a generic `errorType` on `RECOVERABLE` | Run `MigrateDeprecationsTo0_5_0`; use a non-generic error type | [#890](https://github.com/higher-kinded-j/higher-kinded-j/issues/890), [#945](https://github.com/higher-kinded-j/higher-kinded-j/issues/945), [#949](https://github.com/higher-kinded-j/higher-kinded-j/issues/949) |
 | Spring | An inherited `@OnStatus` naming a type the method cannot return or the classpath lacks, or drawing the duplicate-status or `MaybePath` warning; a module reading it without `hkj-spring-boot-client` (a warning) | Fix the override, and expose the client with Gradle's `api` | [#849](https://github.com/higher-kinded-j/higher-kinded-j/issues/849) |
+| Build and tooling | `spring = true` with `version` set below 0.4.7, which has no `hkj-spring-boot-client-processor` to resolve | Use 0.4.7 or later, or set `spring = false` and add the starter by hand | [#1002](https://github.com/higher-kinded-j/higher-kinded-j/pull/1002) |
 
 ### Deprecated for removal in 0.5.0 {#deprecated}
 
