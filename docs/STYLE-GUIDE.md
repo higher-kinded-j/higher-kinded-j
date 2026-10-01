@@ -166,8 +166,6 @@ Practise Lens basics in [Tutorial 01: Lens Basics](https://github.com/higher-kin
 ~~~
 ```
 
-Give the exercise count, never a time: see [No Time Estimates](TUTORIAL-STYLE-GUIDE.md#no-time-estimates).
-
 ### Further Reading Section
 
 Content pages may include a "Further Reading" admonition at the **end** of the page, before the navigation links. This section should contain **external** references only.

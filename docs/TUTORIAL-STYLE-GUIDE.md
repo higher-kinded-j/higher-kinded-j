@@ -580,10 +580,6 @@ Within a single tutorial, exercises should progress from simple to complex:
 4. **Real-world**: Practical application
 5. **Edge cases**: Error handling, empty cases
 
-### No Time Estimates
-
-Give a tutorial's size as its exercise count, never as a time. That holds in its Javadoc, its README entry, its journey page, every journey table and every Hands-On Learning link. Readers work at different speeds, and an estimate a reader overruns reads as a verdict on them. A count can be checked against the test file; a time cannot, so it drifts.
-
 ### Tracking Progress
 
 The `tutorialProgress` Gradle task counts unanswered `answerRequired()` placeholders across every track and prints a per-journey progress bar. Authors should ensure that:
@@ -762,7 +758,6 @@ When creating a new tutorial, ensure:
 - [ ] Solution file exists with matching structure
 - [ ] Solution file's every `@Test` has a "Why this is idiomatic / Alternative / Common wrong attempt" teaching block
 - [ ] README.md is updated with the new tutorial
-- [ ] Size given as an exercise count, with no time estimate
 - [ ] British English spelling throughout
 - [ ] No emojis (except final 🎉 if appropriate)
 - [ ] Records used for domain modelling
