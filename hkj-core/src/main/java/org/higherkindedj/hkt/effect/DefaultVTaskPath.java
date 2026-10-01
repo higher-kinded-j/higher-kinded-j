@@ -226,7 +226,9 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
                     () ->
                         Path.vtask(
                             () -> {
-                              throw exceptionIfAbsent.get();
+                              throw Objects.requireNonNull(
+                                  exceptionIfAbsent.get(),
+                                  "exceptionIfAbsent must not return null");
                             })));
   }
 
@@ -274,7 +276,8 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
               try {
                 return Either.right(this.unsafeRun());
               } catch (Throwable t) {
-                return Either.left(exceptionMapper.apply(t));
+                return Either.left(
+                    ErrorResults.fromException(exceptionMapper, t, "exceptionMapper"));
               }
             }));
   }

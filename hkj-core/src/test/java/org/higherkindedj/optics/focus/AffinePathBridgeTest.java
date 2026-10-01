@@ -190,6 +190,28 @@ class AffinePathBridgeTest {
     }
 
     @Test
+    @DisplayName("rejects a null error even when the affine matches")
+    void rejectsANullError() {
+      AffinePath<Config, String> path = FocusPath.of(apiKeyLens).via(optionalSome);
+      Config config = new Config(Optional.of("secret"), "app");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.toEitherPath(config, (String) null))
+          .withMessageContaining("errorIfAbsent must not be null");
+    }
+
+    @Test
+    @DisplayName("rejects a supplier that returns null when the affine doesn't match")
+    void rejectsASuppliedNullError() {
+      AffinePath<Config, String> path = FocusPath.of(apiKeyLens).via(optionalSome);
+      Config config = new Config(Optional.empty(), "app");
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> path.toEitherPath(config, () -> null))
+          .withMessageContaining("errorSupplier must not return null");
+    }
+
+    @Test
     @DisplayName("allows error recovery")
     void allowsErrorRecovery() {
       AffinePath<Config, String> path = FocusPath.of(apiKeyLens).via(optionalSome);

@@ -85,12 +85,11 @@ class EitherPathTest {
     }
 
     @Test
-    @DisplayName("Path.left() accepts null error")
-    void pathLeftAcceptsNull() {
-      // Either allows null values
-      EitherPath<String, String> path = Path.left(null);
-      assertThat(path.run().isLeft()).isTrue();
-      assertThat(path.run().getLeft()).isNull();
+    @DisplayName("Path.left() rejects a null error")
+    void pathLeftRejectsNull() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Path.<String, String>left(null))
+          .withMessage("error must not be null");
     }
   }
 

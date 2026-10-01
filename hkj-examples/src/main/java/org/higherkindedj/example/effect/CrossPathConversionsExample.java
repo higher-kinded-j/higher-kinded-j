@@ -53,7 +53,7 @@ public class CrossPathConversionsExample {
 
     // To EitherPath - provide error for Nothing case
     EitherPath<String, Integer> eitherFromJust = justPath.toEitherPath("No value");
-    System.out.println("Just -> Either: " + eitherFromJust.run()); // Right[42]
+    System.out.println("Just -> Either: " + eitherFromJust.run()); // Right(42)
 
     // To OptionalPath
     OptionalPath<Integer> optionalFromJust = justPath.toOptionalPath();
@@ -63,20 +63,28 @@ public class CrossPathConversionsExample {
     ValidationPath<NonEmptyList<String>, Integer> validationFromJust =
         justPath.toValidationPath(
             NonEmptyList.single("No value"), NonEmptyList.<String>semigroup());
-    System.out.println("Just -> Validation: " + validationFromJust.run()); // Valid[42]
+    System.out.println("Just -> Validation: " + validationFromJust.run()); // Valid(42)
 
     // From Nothing
     MaybePath<Integer> nothingPath = Path.nothing();
 
     EitherPath<String, Integer> eitherFromNothing = nothingPath.toEitherPath("Value was absent");
-    System.out.println("Nothing -> Either: " + eitherFromNothing.run()); // Left[Value was absent]
+    System.out.println("Nothing -> Either: " + eitherFromNothing.run()); // Left(Value was absent)
 
     // The supplier overload builds the error only on the branch that uses it
     EitherPath<String, Integer> eitherFromDeferredError =
         nothingPath.toEitherPath(() -> "Value was absent, computed only here");
     System.out.println(
         "Nothing -> Either (deferred): "
-            + eitherFromDeferredError.run()); // Left[Value was absent, computed only here]
+            + eitherFromDeferredError.run()); // Left(Value was absent, computed only here)
+
+    // toValidationPathGet defers the error the same way; the semigroup settles its type
+    ValidationPath<NonEmptyList<String>, Integer> validationFromDeferredError =
+        nothingPath.toValidationPathGet(
+            () -> NonEmptyList.single("Value was absent, computed only here"),
+            NonEmptyList.<String>semigroup());
+    System.out.println("Nothing -> Validation (deferred): " + validationFromDeferredError.run());
+    // prints Invalid(NonEmptyList[Value was absent, computed only here])
 
     System.out.println();
   }
@@ -91,16 +99,16 @@ public class CrossPathConversionsExample {
 
     // To MaybePath - error information is LOST
     MaybePath<Integer> maybeFromRight = rightPath.toMaybePath();
-    System.out.println("Right -> Maybe: " + maybeFromRight.run()); // Just[42]
+    System.out.println("Right -> Maybe: " + maybeFromRight.run()); // Just(42)
 
     // To TryPath
     TryPath<Integer> tryFromRight = rightPath.toTryPath(RuntimeException::new);
-    System.out.println("Right -> Try: " + tryFromRight.run()); // Success[42]
+    System.out.println("Right -> Try: " + tryFromRight.run()); // Success(42)
 
     // To ValidationPath - preserves error type
     ValidationPath<String, Integer> validationFromRight =
         rightPath.toValidationPath(Semigroups.first());
-    System.out.println("Right -> Validation: " + validationFromRight.run()); // Valid[42]
+    System.out.println("Right -> Validation: " + validationFromRight.run()); // Valid(42)
 
     // To OptionalPath - error information is LOST
     OptionalPath<Integer> optionalFromRight = rightPath.toOptionalPath();
@@ -125,11 +133,11 @@ public class CrossPathConversionsExample {
 
     // To MaybePath
     MaybePath<Integer> maybeFromSuccess = successPath.toMaybePath();
-    System.out.println("Success -> Maybe: " + maybeFromSuccess.run()); // Just[42]
+    System.out.println("Success -> Maybe: " + maybeFromSuccess.run()); // Just(42)
 
     // To EitherPath - transform Throwable to custom error type
-    EitherPath<String, Integer> eitherFromSuccess = successPath.toEitherPath(Throwable::getMessage);
-    System.out.println("Success -> Either: " + eitherFromSuccess.run()); // Right[42]
+    EitherPath<String, Integer> eitherFromSuccess = successPath.toEitherPath(Throwable::toString);
+    System.out.println("Success -> Either: " + eitherFromSuccess.run()); // Right(42)
 
     // To OptionalPath
     OptionalPath<Integer> optionalFromSuccess = successPath.toOptionalPath();
@@ -141,8 +149,9 @@ public class CrossPathConversionsExample {
     MaybePath<Integer> maybeFromFailure = failurePath.toMaybePath();
     System.out.println("Failure -> Maybe: " + maybeFromFailure.run()); // Nothing
 
-    EitherPath<String, Integer> eitherFromFailure = failurePath.toEitherPath(Throwable::getMessage);
-    System.out.println("Failure -> Either: " + eitherFromFailure.run()); // Left[Database error]
+    EitherPath<String, Integer> eitherFromFailure = failurePath.toEitherPath(Throwable::toString);
+    System.out.println("Failure -> Either: " + eitherFromFailure.run());
+    // prints Left(java.lang.RuntimeException: Database error)
 
     System.out.println();
   }
@@ -157,16 +166,16 @@ public class CrossPathConversionsExample {
 
     // To EitherPath
     EitherPath<NonEmptyList<String>, Integer> eitherFromValid = validPath.toEitherPath();
-    System.out.println("Valid -> Either: " + eitherFromValid.run()); // Right[42]
+    System.out.println("Valid -> Either: " + eitherFromValid.run()); // Right(42)
 
     // To MaybePath - error information is LOST
     MaybePath<Integer> maybeFromValid = validPath.toMaybePath();
-    System.out.println("Valid -> Maybe: " + maybeFromValid.run()); // Just[42]
+    System.out.println("Valid -> Maybe: " + maybeFromValid.run()); // Just(42)
 
     // To TryPath - need to convert error to Throwable
     TryPath<Integer> tryFromValid =
         validPath.toTryPath(errors -> new RuntimeException(String.join(", ", errors)));
-    System.out.println("Valid -> Try: " + tryFromValid.run()); // Success[42]
+    System.out.println("Valid -> Try: " + tryFromValid.run()); // Success(42)
 
     // To OptionalPath
     OptionalPath<Integer> optionalFromValid = validPath.toOptionalPath();
@@ -178,7 +187,7 @@ public class CrossPathConversionsExample {
 
     EitherPath<NonEmptyList<String>, Integer> eitherFromInvalid = invalidPath.toEitherPath();
     System.out.println("Invalid -> Either: " + eitherFromInvalid.run());
-    // Left[NonEmptyList[Error 1, Error 2]]
+    // Left(NonEmptyList[Error 1, Error 2])
 
     System.out.println();
   }
@@ -193,17 +202,17 @@ public class CrossPathConversionsExample {
 
     // To MaybePath
     MaybePath<Integer> maybeFromPresent = presentPath.toMaybePath();
-    System.out.println("Present -> Maybe: " + maybeFromPresent.run()); // Just[42]
+    System.out.println("Present -> Maybe: " + maybeFromPresent.run()); // Just(42)
 
     // To EitherPath - provide error for empty case
     EitherPath<String, Integer> eitherFromPresent = presentPath.toEitherPath("No value");
-    System.out.println("Present -> Either: " + eitherFromPresent.run()); // Right[42]
+    System.out.println("Present -> Either: " + eitherFromPresent.run()); // Right(42)
 
     // To ValidationPath (NonEmptyList error channel)
     ValidationPath<NonEmptyList<String>, Integer> validationFromPresent =
         presentPath.toValidationPath(
             NonEmptyList.single("Required value missing"), NonEmptyList.<String>semigroup());
-    System.out.println("Present -> Validation: " + validationFromPresent.run()); // Valid[42]
+    System.out.println("Present -> Validation: " + validationFromPresent.run()); // Valid(42)
 
     // From Absent
     OptionalPath<Integer> absentPath = Path.absent();
@@ -212,13 +221,13 @@ public class CrossPathConversionsExample {
     System.out.println("Absent -> Maybe: " + maybeFromAbsent.run()); // Nothing
 
     EitherPath<String, Integer> eitherFromAbsent = absentPath.toEitherPath("Value is required");
-    System.out.println("Absent -> Either: " + eitherFromAbsent.run()); // Left[Value is required]
+    System.out.println("Absent -> Either: " + eitherFromAbsent.run()); // Left(Value is required)
 
     EitherPath<String, Integer> eitherFromDeferredAbsent =
         absentPath.toEitherPath(() -> "Value is required");
     System.out.println(
         "Absent -> Either (deferred): "
-            + eitherFromDeferredAbsent.run()); // Left[Value is required]
+            + eitherFromDeferredAbsent.run()); // Left(Value is required)
 
     System.out.println();
   }
@@ -233,11 +242,11 @@ public class CrossPathConversionsExample {
 
     // To MaybePath - always Just
     MaybePath<Integer> maybeFromId = idPath.toMaybePath();
-    System.out.println("Id -> Maybe: " + maybeFromId.run()); // Just[42]
+    System.out.println("Id -> Maybe: " + maybeFromId.run()); // Just(42)
 
     // To EitherPath - always Right
     EitherPath<String, Integer> eitherFromId = idPath.toEitherPath();
-    System.out.println("Id -> Either: " + eitherFromId.run()); // Right[42]
+    System.out.println("Id -> Either: " + eitherFromId.run()); // Right(42)
 
     System.out.println();
   }

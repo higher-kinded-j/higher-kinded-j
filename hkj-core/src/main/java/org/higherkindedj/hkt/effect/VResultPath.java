@@ -4,20 +4,25 @@ package org.higherkindedj.hkt.effect;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.capability.Chainable;
 import org.higherkindedj.hkt.effect.capability.Combinable;
 import org.higherkindedj.hkt.effect.capability.Deferred;
 import org.higherkindedj.hkt.effect.capability.Recoverable;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.function.Function3;
+import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
 import org.higherkindedj.hkt.resilience.Bulkhead;
 import org.higherkindedj.hkt.resilience.BulkheadFullException;
@@ -142,11 +147,10 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * @param <E> the error type
    * @param <A> the success type
    * @return a VResultPath that immediately produces the Either when run
-   * @throws NullPointerException if either is null
+   * @throws NullPointerException if either is null, or holds a null error
    */
   public static <E, A> VResultPath<E, A> fromEither(Either<E, A> either) {
-    Objects.requireNonNull(either, "either must not be null");
-    return new VResultPath<>(VTask.succeed(either));
+    return new VResultPath<>(VTask.succeed(ErrorResults.admitted(either, "either")));
   }
 
   /**
@@ -458,7 +462,11 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
   @Override
   public <E2> VResultPath<E2, A> mapError(Function<? super E, ? extends E2> mapper) {
     Objects.requireNonNull(mapper, "mapper must not be null");
-    return new VResultPath<>(task.map(either -> either.mapLeft(mapper)));
+    return new VResultPath<>(
+        task.map(
+            either ->
+                either.mapLeft(
+                    e -> Objects.requireNonNull(mapper.apply(e), "mapper must not return null"))));
   }
 
   /**
@@ -479,7 +487,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    *     n -> "Value: " + n);  // Transform success
    * }</pre>
    *
-   * @param errorMapper the function applied to a {@code Left} value; must not be null
+   * @param errorMapper the function applied to a {@code Left} value; must not be null, and must not
+   *     return null; a null result fails the path with a NullPointerException when it runs
    * @param successMapper the function applied to a {@code Right} value; must not be null
    * @param <E2> the new error type
    * @param <A2> the new success type
@@ -491,7 +500,14 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
       Function<? super A, ? extends A2> successMapper) {
     Objects.requireNonNull(errorMapper, "errorMapper must not be null");
     Objects.requireNonNull(successMapper, "successMapper must not be null");
-    return new VResultPath<>(task.map(either -> either.bimap(errorMapper, successMapper)));
+    return new VResultPath<>(
+        task.map(
+            either ->
+                either.bimap(
+                    e ->
+                        Objects.requireNonNull(
+                            errorMapper.apply(e), "errorMapper must not return null"),
+                    successMapper)));
   }
 
   // ===== Conversions =====
@@ -713,7 +729,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * also mapped to {@code onTimeout}.
    *
    * @param duration the time budget; must not be null
-   * @param onTimeout supplies the typed error for the timeout case; must not be null
+   * @param onTimeout supplies the typed error for the timeout case; must not be null, and must not
+   *     return null; a null result fails the path with a NullPointerException when it runs
    * @return a time-bounded path (non-null)
    * @throws NullPointerException if either argument is null
    */
@@ -726,7 +743,10 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
             .recoverWith(
                 failure ->
                     failure instanceof TimeoutException
-                        ? VTask.succeed(Either.left(onTimeout.get()))
+                        ? VTask.succeed(
+                            Either.left(
+                                Objects.requireNonNull(
+                                    onTimeout.get(), "onTimeout must not return null")))
                         : VTask.fail(failure)));
   }
 
@@ -809,7 +829,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * {@code onOpen}.
    *
    * @param circuitBreaker the (shareable) breaker; must not be null
-   * @param onOpen types the open-circuit rejection; must not be null
+   * @param onOpen types the open-circuit rejection; must not be null, and must not return null; a
+   *     null result fails the path with a NullPointerException when it runs
    * @return a new path protected by the breaker (non-null)
    * @throws NullPointerException if either argument is null
    */
@@ -823,7 +844,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
             .recoverWith(
                 failure ->
                     failure instanceof CircuitOpenException open
-                        ? VTask.succeed(Either.left(onOpen.apply(open)))
+                        ? VTask.succeed(
+                            Either.left(ErrorResults.fromException(onOpen, open, "onOpen")))
                         : VTask.fail(failure)));
   }
 
@@ -851,7 +873,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * is likewise mapped through {@code onFull}.
    *
    * @param bulkhead the (shareable) bulkhead; must not be null
-   * @param onFull types the bulkhead rejection; must not be null
+   * @param onFull types the bulkhead rejection; must not be null, and must not return null; a null
+   *     result fails the path with a NullPointerException when it runs
    * @return a new path protected by the bulkhead (non-null)
    * @throws NullPointerException if either argument is null
    */
@@ -865,7 +888,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
             .recoverWith(
                 failure ->
                     failure instanceof BulkheadFullException full
-                        ? VTask.succeed(Either.left(onFull.apply(full)))
+                        ? VTask.succeed(
+                            Either.left(ErrorResults.fromException(onFull, full, "onFull")))
                         : VTask.fail(failure)));
   }
 
@@ -877,10 +901,14 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * <p>Policies: a typed failure from {@code acquire} skips {@code use} and {@code release}
    * (nothing was acquired). A defect thrown inside {@code use} - including one thrown while {@code
    * use} is still <em>constructing</em> its path, before any task runs - is first converted to the
-   * typed channel through {@code onDefect}, so {@code release} always observes a real outcome and
-   * the resource is never leaked. A defect thrown by {@code release} itself propagates as a defect
-   * - broken cleanup is exceptional and must be visible, even at the cost of masking the primary
-   * outcome.
+   * typed channel through {@code onDefect}, so {@code release} observes a typed outcome whenever
+   * {@code onDefect} can build one, and the resource is never leaked. If {@code onDefect} itself
+   * throws, or returns null, release still runs and sees {@code Left(null)}, so decide on {@code
+   * isRight()} or {@code fold} rather than on the error's value; the path then fails with what
+   * {@code onDefect} threw, the defect suppressed, or with a {@link NullPointerException} whose
+   * cause is the defect. A defect thrown by {@code release} itself propagates as a defect, carrying
+   * any such pending failure as suppressed - broken cleanup is exceptional and must be visible,
+   * even at the cost of masking the primary outcome.
    *
    * <p>Cancellation reaches {@code use} as an {@link InterruptedException}-style defect and is
    * therefore also typed through {@code onDefect} (release still runs - the {@code Resource}
@@ -889,8 +917,10 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    *
    * @param acquire produces the resource; must not be null
    * @param use consumes the resource; must not be null
-   * @param release always runs after {@code use}, observing the outcome; must not be null
-   * @param onDefect types a defect thrown inside {@code use}; must not be null
+   * @param release always runs after {@code use}, observing the outcome, which is {@code
+   *     Left(null)} only when {@code onDefect} throws or returns null; must not be null
+   * @param onDefect types a defect thrown inside {@code use}; must not be null, and must not return
+   *     null
    * @param <E> the typed error type
    * @param <A> the resource type
    * @param <B> the result type
@@ -924,17 +954,90 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
                             useOutcome = VTask.fail(defect);
                           }
                           return useOutcome
-                              .recoverWith(
-                                  defect -> VTask.succeed(Either.left(onDefect.apply(defect))))
+                              .map(outcome -> new Settled<E, B>(outcome, Maybe.nothing()))
+                              .recoverWith(defect -> VTask.succeed(settle(onDefect, defect)))
                               .flatMap(
-                                  outcome -> {
-                                    VTask<?> released =
-                                        Objects.requireNonNull(
-                                            release.apply(resource, outcome),
-                                            "release must not return null");
-                                    return released.map(ignored -> outcome);
-                                  });
+                                  settlement -> releaseThenRaise(release, resource, settlement));
                         })));
+  }
+
+  /**
+   * Runs release on the settled outcome, then raises any pending failure. A release defect
+   * propagates, carrying the pending failure it would otherwise mask.
+   */
+  private static <E, A, B> VTask<Either<E, B>> releaseThenRaise(
+      BiFunction<? super A, ? super Either<E, B>, ? extends VTask<?>> release,
+      A resource,
+      Settled<E, B> settlement) {
+    VTask<?> released;
+    try {
+      released =
+          Objects.requireNonNull(
+              release.apply(resource, settlement.outcome()), "release must not return null");
+    } catch (Throwable releaseDefect) {
+      return VTask.fail(settlement.carriedBy(releaseDefect));
+    }
+    return released
+        .<Unit>map(ignored -> Unit.INSTANCE)
+        .recoverWith(releaseDefect -> VTask.fail(settlement.carriedBy(releaseDefect)))
+        .flatMap(ignored -> settlement.raise());
+  }
+
+  /**
+   * The outcome release observes, with the failure to raise once release has run when {@code
+   * onDefect} could not type the defect. A release defect carries that failure as suppressed.
+   */
+  private record Settled<E, B>(Either<E, B> outcome, Maybe<Throwable> pending) {
+
+    VTask<Either<E, B>> raise() {
+      return pending.isJust() ? VTask.fail(pending.get()) : VTask.succeed(outcome);
+    }
+
+    Throwable carriedBy(Throwable releaseDefect) {
+      return pending.isJust() ? suppress(releaseDefect, pending.get()) : releaseDefect;
+    }
+  }
+
+  /**
+   * Types a defect through {@code onDefect}. When it throws, or returns null, release still
+   * observes a {@code Left(null)}, and the failure is raised after it.
+   */
+  private static <E, B> Settled<E, B> settle(
+      Function<? super Throwable, ? extends E> onDefect, Throwable defect) {
+    E error;
+    try {
+      error = onDefect.apply(defect);
+    } catch (Throwable broken) {
+      return new Settled<>(Either.left(null), Maybe.just(suppress(broken, defect)));
+    }
+    if (error == null) {
+      NullPointerException refused = new NullPointerException("onDefect must not return null");
+      refused.initCause(defect);
+      return new Settled<>(Either.left(null), Maybe.just(refused));
+    }
+    return new Settled<>(Either.left(error), Maybe.nothing());
+  }
+
+  /**
+   * Suppresses {@code secondary} on {@code primary}, as try-with-resources does, unless {@code
+   * secondary} is already in {@code primary}'s cause chain, where it would appear twice.
+   */
+  private static Throwable suppress(Throwable primary, Throwable secondary) {
+    if (!inCauseChain(primary, secondary)) {
+      primary.addSuppressed(secondary);
+    }
+    return primary;
+  }
+
+  /** Whether {@code target} is {@code start} or one of its causes; a cyclic chain ends the walk. */
+  private static boolean inCauseChain(Throwable start, Throwable target) {
+    Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+    for (Throwable t = start; t != null && seen.add(t); t = t.getCause()) {
+      if (t == target) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Smuggles a typed error through the scope's failure channel for fail-fast joining. */

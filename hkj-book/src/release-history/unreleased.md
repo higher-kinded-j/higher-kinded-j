@@ -11,7 +11,7 @@ This release maps the wires that generated clients produce: openapi-generator mo
 - **Mappings share more.** One mix-in vocabulary serves every spec that extends it, and specs nest, dispatch and merge across modules.
 - **More failures are located errors.** A record's own invariant, which used to throw, and a `null` at any depth, which used to pass, now join the accumulated errors.
 - **Parsing a bad wire got cheaper.** A wire with five bad fields parses in about half the time, and 100,000 failures accumulate in milliseconds.
-- **Other areas gain smaller improvements.** `toEitherPath` takes a supplier for its error, `Maybe` gains `toOptional()` and `stream()`, and generated optics compile under `-Xlint:rawtypes` and `-Xlint:cast` with `-Werror`.
+- **Other areas gain smaller improvements.** `toEitherPath` and the new `toValidationPathGet` take a supplier for their error, `Maybe` gains `toOptional()` and `stream()`, and generated optics compile under `-Xlint:rawtypes` and `-Xlint:cast` with `-Werror`.
 - **Some changes alter what a running program does.** Most surface as a compile error that names its fix, so read [Upgrading from 0.4.10](#upgrading) first.
 ~~~
 
@@ -100,7 +100,7 @@ This release maps the wires that generated clients produce: openapi-generator mo
 
 ## Effect Paths {#effect-paths}
 
-- **`MaybePath`, `OptionalPath` and `AffinePath` take a supplier for the error** ([#794](https://github.com/higher-kinded-j/higher-kinded-j/issues/794)): `toEitherPath(() -> new NotFound(id))` builds the error only on the branch that uses it. See [Type Conversions](../effect/conversions.md#maybepath--eitherpath).
+- **`MaybePath`, `OptionalPath` and `AffinePath` take a supplier for the error** ([#794](https://github.com/higher-kinded-j/higher-kinded-j/issues/794), [#821](https://github.com/higher-kinded-j/higher-kinded-j/issues/821)): `toEitherPath(() -> new NotFound(id))` builds the error only on the branch that uses it, and on `MaybePath` and `OptionalPath`, `toValidationPathGet(() -> new NotFound(id), firstError)` does the same for a `ValidationPath`. See [MaybePath → EitherPath](../effect/conversions.md#maybepath--eitherpath) and [MaybePath → ValidationPath](../effect/conversions.md#maybepath--validationpath).
 - **`Maybe` bridges to the JDK** ([#784](https://github.com/higher-kinded-j/higher-kinded-j/pull/784)): `toOptional()` completes the round trip `fromOptional` started, and `stream()` lets `.flatMap(Maybe::stream)` keep a pipeline's hits. See [Maybe Monad](../monads/maybe_monad.md#interacting-with-maybe-values).
 - **A `@PathSource` Path's `peek` runs with its effect** ([#949](https://github.com/higher-kinded-j/higher-kinded-j/issues/949)): on a lazy witness such as `IO`, the action now runs when the effect runs.
 - **`@PathSource` applies to a record, and waits for a generated witness** ([#949](https://github.com/higher-kinded-j/higher-kinded-j/issues/949)): a witness another processor writes in the same build, such as one from `@EffectAlgebra`, now works.
@@ -181,7 +181,10 @@ For most changes, the processor stops at your declaration on a shape that used t
 
 #### Effect Paths {#runtime-effect-paths}
 
-- **`toEitherPath(null)` now throws** ([#794](https://github.com/higher-kinded-j/higher-kinded-j/issues/794)): the call selects the new supplier overload, so cast the `null` to the error type if a `Left(null)` was meant. A `Supplier` passed as the error itself now supplies the error.
+- **A null error is refused** ([#821](https://github.com/higher-kinded-j/higher-kinded-j/issues/821)): `Path.left`, `Path.either`, `ErrorContext.failure`, `ErrorContext.fromEither`, `GenericPath.raiseError`, `MaybePath.toEitherPath`, `AffinePath.toEitherPath`, `EitherPath.focus`, and `toErrorContext` on `OptionalContext` and `JavaOptionalContext`, throw `NullPointerException` for one, even when the path holds a value. A path never holds `Left(null)`, so a re-raise such as `recoverWith(e -> Path.left(e))` is safe. Pass a real error, such as `Unit.INSTANCE`.
+- **An error that is itself a `Supplier` now supplies it** ([#794](https://github.com/higher-kinded-j/higher-kinded-j/issues/794)): `toEitherPath` calls it for its value, and a bare `toEitherPath(null)` picks that overload and throws `NullPointerException`.
+- **A function that builds an error must not return null** ([#821](https://github.com/higher-kinded-j/higher-kinded-j/issues/821)): `mapError`, `bimap`, `TryPath.toEitherPath`, `catching`, `ErrorContext.io`, and the error factories of `withTimeout`, `withCircuitBreaker` and `withBulkhead`, refuse a null result. `Throwable::toString` is never null. Eager paths throw `NullPointerException` at the call, deferred ones when run, keeping any mapped exception as the cause. `AffinePath.toTryPath` now checks its supplier even on a match.
+- **`bracketOutcome` releases even when `onDefect` fails** ([#821](https://github.com/higher-kinded-j/higher-kinded-j/issues/821)): if `onDefect` throws or returns null, `release` still runs, seeing `Left(null)`. The path then fails with that exception or a `NullPointerException`, which a failing `release` carries as suppressed. A throwing `onDefect` used to skip `release` and leak the resource, and a null one returned `Left(null)`.
 - **A `@PathSource` Path's `peek` returns a new Path** ([#949](https://github.com/higher-kinded-j/higher-kinded-j/issues/949)): on a lazy witness its action runs each time the effect runs. On an eager one it runs once, and an exception it throws reaches the returned Path.
 - **`sequenceValidated` groups its combines in balanced pairs** ([#982](https://github.com/higher-kinded-j/higher-kinded-j/issues/982)): any associative `Semigroup` that leaves its arguments alone gives the same result, and `traverseValidated` matches it.
 - **A Path with a custom `suffix` prints its own class name** ([#945](https://github.com/higher-kinded-j/higher-kinded-j/issues/945)): from `toString`, where it printed the annotated type's name.

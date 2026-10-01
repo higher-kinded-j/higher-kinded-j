@@ -119,7 +119,7 @@ public class Tutorial04_PathResilience {
      *
      * <pre>
      *   // Nudge:    Three different conversions: catching, asMaybe, asTry.
-     *   // Strategy: 2a: failing.catching(Throwable::getMessage)
+     *   // Strategy: 2a: failing.catching(Throwable::toString)
      *   //           2b: failing.asMaybe()
      *   //           2c: failing.asTry()
      *   // Spoiler:  exactly that for each.
@@ -135,11 +135,11 @@ public class Tutorial04_PathResilience {
               });
 
       // TODO: Wrap the failure as Either<String, String> using
-      //       failing.catching(Throwable::getMessage)
+      //       failing.catching(Throwable::toString)
       VTaskPath<Either<String, String>> caught = answerRequired();
 
       Either<String, String> result = caught.unsafeRun();
-      assertThatEither(result).isLeft().hasLeft("Connection refused");
+      assertThatEither(result).isLeft().hasLeft("java.lang.RuntimeException: Connection refused");
     }
 
     @Test

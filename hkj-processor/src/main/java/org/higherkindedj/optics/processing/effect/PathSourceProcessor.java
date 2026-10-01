@@ -1140,13 +1140,16 @@ public class PathSourceProcessor extends AbstractProcessor {
             "mapper")
         .addJavadoc(
             "Transforms an error using the given function.\n\n"
-                + "@param mapper the error transformation function; must not be null\n"
+                + "@param mapper the error transformation function; must not be null, and must not"
+                + " return null\n"
                 + "@return a new $L with the transformed error\n",
             pathClassName)
         .addStatement("$T.requireNonNull(mapper, $S)", OBJECTS, "mapper must not be null")
         .addStatement(
-            "return new $L<>(monadError.handleErrorWith(kind, e -> monadError.raiseError(mapper.apply(e))), monad, monadError)",
-            pathClassName)
+            "return new $L<>(monadError.handleErrorWith(kind, e -> monadError.raiseError($T.requireNonNull(mapper.apply(e), $S))), monad, monadError)",
+            pathClassName,
+            OBJECTS,
+            "mapper must not return null")
         .build();
   }
 

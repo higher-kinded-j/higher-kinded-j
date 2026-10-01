@@ -374,6 +374,23 @@ class OptionalContextTest {
 
       assertThat(result.runIO().unsafeRun().getLeft()).isEqualTo("not found");
     }
+
+    @Test
+    @DisplayName("toErrorContext() rejects a null error before running the computation")
+    void toErrorContextRejectsANullError() {
+      AtomicBoolean called = new AtomicBoolean(false);
+      OptionalContext<IOKind.Witness, Integer> ctx =
+          OptionalContext.io(
+              () -> {
+                called.set(true);
+                return TEST_VALUE;
+              });
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> ctx.toErrorContext((String) null))
+          .withMessageContaining("errorForNothing must not be null");
+      assertThat(called).isFalse();
+    }
   }
 
   @Nested

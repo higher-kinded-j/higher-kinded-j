@@ -109,10 +109,10 @@ public class Tutorial04_PathResilience_Solution {
               });
 
       // SOLUTION: Use catching to wrap the error as Either<String, String>
-      VTaskPath<Either<String, String>> caught = failing.catching(Throwable::getMessage);
+      VTaskPath<Either<String, String>> caught = failing.catching(Throwable::toString);
 
       Either<String, String> result = caught.unsafeRun();
-      assertThatEither(result).isLeft().hasLeft("Connection refused");
+      assertThatEither(result).isLeft().hasLeft("java.lang.RuntimeException: Connection refused");
     }
 
     /**

@@ -268,6 +268,17 @@ class EffectPathFocusTest {
             .isThrownBy(() -> userPath.focus(null, "error"))
             .withMessageContaining("path must not be null");
       }
+
+      @Test
+      @DisplayName("validates null errorIfAbsent")
+      void validatesNullErrorIfAbsent() {
+        AffinePath<User, String> emailPath = FocusPath.of(userEmailLens).via(optionalSome);
+        EitherPath<String, User> userPath = Path.right(new User("Alice", Optional.empty()));
+
+        assertThatNullPointerException()
+            .isThrownBy(() -> userPath.focus(emailPath, null))
+            .withMessageContaining("errorIfAbsent must not be null");
+      }
     }
   }
 

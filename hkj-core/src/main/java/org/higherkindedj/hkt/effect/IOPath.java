@@ -750,9 +750,11 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * Either<ApiError, Response> result = safe.unsafeRun();
    * }</pre>
    *
-   * @param exceptionMapper converts exceptions to error type E; must not be null
+   * @param exceptionMapper converts exceptions to error type E; must not be null, and must not
+   *     return null; a null result fails the path with a NullPointerException when it runs
    * @param <E> the error type
-   * @return an IOPath producing Either instead of throwing
+   * @return an IOPath producing Either instead of throwing, unless exceptionMapper throws or
+   *     returns null
    * @throws NullPointerException if exceptionMapper is null
    */
   public <E> IOPath<Either<E, A>> catching(
@@ -764,7 +766,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
               try {
                 return Either.right(this.value.unsafeRunSync());
               } catch (Throwable t) {
-                return Either.left(exceptionMapper.apply(t));
+                return Either.left(
+                    ErrorResults.fromException(exceptionMapper, t, "exceptionMapper"));
               }
             }));
   }
@@ -863,7 +866,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * toTryPath()} first.
    *
    * @param path the AffinePath to apply; must not be null
-   * @param exceptionIfAbsent supplies the exception if the path doesn't match; must not be null
+   * @param exceptionIfAbsent supplies the exception if the path doesn't match; must not be null,
+   *     and must not return null; a null result fails the path with a NullPointerException when it
+   *     runs
    * @param <B> the focused type
    * @return a new IOPath containing the focused value
    * @throws NullPointerException if path or exceptionIfAbsent is null
@@ -880,7 +885,9 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
                     () ->
                         Path.io(
                             () -> {
-                              throw exceptionIfAbsent.get();
+                              throw Objects.requireNonNull(
+                                  exceptionIfAbsent.get(),
+                                  "exceptionIfAbsent must not return null");
                             })));
   }
 

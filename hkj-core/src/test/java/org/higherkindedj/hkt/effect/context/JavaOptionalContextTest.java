@@ -386,6 +386,23 @@ class JavaOptionalContextTest {
     }
 
     @Test
+    @DisplayName("toErrorContext() rejects a null error before running the computation")
+    void toErrorContextRejectsANullError() {
+      AtomicBoolean called = new AtomicBoolean(false);
+      JavaOptionalContext<IOKind.Witness, Integer> ctx =
+          JavaOptionalContext.io(
+              () -> {
+                called.set(true);
+                return TEST_VALUE;
+              });
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> ctx.toErrorContext((String) null))
+          .withMessageContaining("errorForEmpty must not be null");
+      assertThat(called).isFalse();
+    }
+
+    @Test
     @DisplayName("toOptionalContext() converts present to Just")
     void toOptionalContextConvertsPresentToJust() {
       OptionalContext<IOKind.Witness, Integer> result =

@@ -306,12 +306,14 @@ public final class OptionalContext<F extends WitnessArity<TypeArity.Unary>, A>
    * <p>This method runs the underlying computation to check the result. For a deferred conversion,
    * use the escape hatch to MaybeT and convert manually.
    *
-   * @param errorForNothing the error to use if this context is empty
+   * @param errorForNothing the error to use if this context is empty; must not be null
    * @param <E> the error type
    * @return an ErrorContext representing this context with typed errors
+   * @throws NullPointerException if errorForNothing is null, before the computation runs
    * @throws ClassCastException if F is not IOKind.Witness
    */
   public <E> ErrorContext<IOKind.Witness, E, A> toErrorContext(E errorForNothing) {
+    Objects.requireNonNull(errorForNothing, "errorForNothing must not be null");
     Maybe<A> result = runIO().unsafeRun();
     return result.isJust()
         ? ErrorContext.success(result.get())

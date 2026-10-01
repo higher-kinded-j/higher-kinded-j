@@ -185,9 +185,9 @@ public final class OptionalPath<A> implements Chainable<A> {
    * is a functional interface included. The one shape to watch is an error type that is a
    * functional interface written as a lambda, which reads as a supplier and fails to infer: name
    * the error type to select the eager overload, {@code path.<MyError>toEitherPath(() -> "boom")}.
-   * A bare {@code null} likewise selects this overload and is rejected; cast it to the error type,
-   * {@code path.toEitherPath((MyError) null)}, to pass a null error to the eager one. This mirrors
-   * {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)}.
+   * {@link org.higherkindedj.hkt.maybe.Maybe#toEither(Supplier)} selects between its overloads the
+   * same way. Unlike it, neither overload here takes a null error: a bare {@code null} selects this
+   * one and is rejected as a null supplier.
    *
    * @param errorSupplier supplies the error if this path is empty; must not be null, and must not
    *     return null
@@ -202,15 +202,16 @@ public final class OptionalPath<A> implements Chainable<A> {
         .orElseGet(() -> new EitherPath<>(Either.left(suppliedError(errorSupplier))));
   }
 
-  /**
-   * Holds a supplied error to the same non-null contract {@link #toEitherPath(Object)} enforces.
-   */
+  /** Holds a supplied error to the non-null contract the eager conversions enforce. */
   private static <E> E suppliedError(Supplier<? extends E> errorSupplier) {
     return Objects.requireNonNull(errorSupplier.get(), "errorSupplier must not return null");
   }
 
   /**
    * Converts this OptionalPath to a ValidationPath.
+   *
+   * <p>The error is built before this method runs, whichever way this path went. To build it only
+   * when this path is empty, use {@link #toValidationPathGet(Supplier, Semigroup)}.
    *
    * @param errorIfEmpty the error to use if this path is empty; must not be null
    * @param semigroup the Semigroup for error accumulation; must not be null
@@ -224,6 +225,38 @@ public final class OptionalPath<A> implements Chainable<A> {
     return value
         .<ValidationPath<E, A>>map(a -> new ValidationPath<>(Validated.valid(a), semigroup))
         .orElseGet(() -> new ValidationPath<>(Validated.invalid(errorIfEmpty), semigroup));
+  }
+
+  /**
+   * Converts this OptionalPath to a ValidationPath, deferring construction of the error.
+   *
+   * <p>If this path contains a value, returns a Valid and the supplier is never called. If this
+   * path is empty, the supplier is called once and its result becomes the Invalid error. Prefer
+   * this over {@link #toValidationPath(Object, Semigroup)} when building the error is not free - it
+   * formats a message, reads a resource bundle, or captures a stack trace.
+   *
+   * <p>The semigroup settles the error type, so a supplier that builds one subtype of a sealed
+   * error needs no type witness: {@code path.toValidationPathGet(() -> new NotFound(id), errors)}
+   * with a {@code Semigroup<DomainError>} gives a {@code ValidationPath<DomainError, A>}. The
+   * method has its own name because, beside a semigroup, a lambda would match a supplier overload
+   * of {@code toValidationPath} and the eager one alike.
+   *
+   * @param errorSupplier supplies the error if this path is empty; must not be null, and must not
+   *     return null
+   * @param semigroup the Semigroup for error accumulation; must not be null
+   * @param <E> the error type
+   * @return a ValidationPath with Valid if present, Invalid with the supplied error if empty
+   * @throws NullPointerException if errorSupplier or semigroup is null, or errorSupplier returns
+   *     null when this path is empty
+   */
+  public <E> ValidationPath<E, A> toValidationPathGet(
+      Supplier<? extends E> errorSupplier, Semigroup<E> semigroup) {
+    Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
+    Objects.requireNonNull(semigroup, "semigroup must not be null");
+    return value
+        .<ValidationPath<E, A>>map(a -> new ValidationPath<>(Validated.valid(a), semigroup))
+        .orElseGet(
+            () -> new ValidationPath<>(Validated.invalid(suppliedError(errorSupplier)), semigroup));
   }
 
   // ===== Composable implementation =====

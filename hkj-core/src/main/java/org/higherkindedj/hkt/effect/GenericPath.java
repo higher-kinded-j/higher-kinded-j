@@ -158,15 +158,17 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> imple
    *
    * <p>Requires a MonadError instance to lift the error into the monadic context.
    *
-   * @param error the error value
+   * @param error the error value; must not be null
    * @param monadError the MonadError instance; must not be null
    * @param <F> the witness type
    * @param <E> the error type
    * @param <A> the value type
    * @return a new GenericPath representing an error
+   * @throws NullPointerException if either argument is null
    */
   public static <F extends WitnessArity<TypeArity.Unary>, E, A> GenericPath<F, A> raiseError(
       E error, MonadError<F, E> monadError) {
+    Objects.requireNonNull(error, "error must not be null");
     Objects.requireNonNull(monadError, "monadError must not be null");
     return new GenericPath<>(monadError.raiseError(error), monadError, monadError);
   }
@@ -272,7 +274,7 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> imple
    * <p>Note: This method is useful for error type unification but requires the target MonadError to
    * be able to raise the new error type.
    *
-   * @param mapper the function to transform the error
+   * @param mapper the function to transform the error; must not be null, and must not return null
    * @param targetMonadError the MonadError for the target error type
    * @param <E1> the original error type
    * @param <E2> the new error type
@@ -290,7 +292,11 @@ public final class GenericPath<F extends WitnessArity<TypeArity.Unary>, A> imple
     }
     MonadError<F, E1> me = (MonadError<F, E1>) monadError;
     Kind<F, A> mapped =
-        me.handleErrorWith(value, e -> targetMonadError.raiseError(mapper.apply(e)));
+        me.handleErrorWith(
+            value,
+            e ->
+                targetMonadError.raiseError(
+                    Objects.requireNonNull(mapper.apply(e), "mapper must not return null")));
     return new GenericPath<>(mapped, targetMonadError, targetMonadError);
   }
 

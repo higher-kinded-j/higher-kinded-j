@@ -229,12 +229,14 @@ public final class Path {
   /**
    * Creates an EitherPath containing a Left (error) value.
    *
-   * @param error the error value
+   * @param error the error value; must not be null
    * @param <E> the error type
    * @param <A> the success type (phantom)
    * @return an EitherPath containing Left
+   * @throws NullPointerException if error is null
    */
-  public static <E, A> EitherPath<E, A> left(@Nullable E error) {
+  public static <E, A> EitherPath<E, A> left(E error) {
+    Objects.requireNonNull(error, "error must not be null");
     return new EitherPath<>(Either.left(error));
   }
 
@@ -249,11 +251,10 @@ public final class Path {
    * @param <E> the error type
    * @param <A> the success type
    * @return an EitherPath wrapping the Either
-   * @throws NullPointerException if either is null
+   * @throws NullPointerException if either is null, or holds a null error
    */
   public static <E, A> EitherPath<E, A> either(Either<E, A> either) {
-    Objects.requireNonNull(either, "either must not be null");
-    return new EitherPath<>(either);
+    return new EitherPath<>(ErrorResults.admitted(either, "either"));
   }
 
   // ===== EitherOrBothPath factory methods =====
@@ -571,7 +572,7 @@ public final class Path {
    * @param <E> the error type
    * @param <A> the success type
    * @return a VResultPath that immediately produces the Either when run
-   * @throws NullPointerException if either is null
+   * @throws NullPointerException if either is null, or holds a null error
    */
   public static <E, A> VResultPath<E, A> vresultEither(Either<E, A> either) {
     return VResultPath.fromEither(either);

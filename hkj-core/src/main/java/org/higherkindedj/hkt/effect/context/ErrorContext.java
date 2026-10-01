@@ -81,7 +81,8 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
    * provided mapper.
    *
    * @param computation the computation to execute; must not be null
-   * @param errorMapper converts exceptions to the error type; must not be null
+   * @param errorMapper converts exceptions to the error type; must not be null, and must not return
+   *     null; a null result fails the context with a NullPointerException when it runs
    * @param <E> the error type
    * @param <A> the success value type
    * @return a new ErrorContext wrapping the computation
@@ -98,12 +99,24 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
               try {
                 return Either.right(computation.get());
               } catch (Throwable t) {
-                return Either.left(errorMapper.apply(t));
+                return Either.left(mappedError(errorMapper, t));
               }
             });
 
     EitherT<IOKind.Witness, E, A> transformer = EitherT.fromKind(IO_OP.widen(io));
     return new ErrorContext<>(transformer, IOMonad.INSTANCE);
+  }
+
+  /** Holds a mapped error to the non-null contract, keeping the failure it was mapped from. */
+  private static <E> E mappedError(
+      Function<? super Throwable, ? extends E> errorMapper, Throwable failure) {
+    E error = errorMapper.apply(failure);
+    if (error == null) {
+      NullPointerException refused = new NullPointerException("errorMapper must not return null");
+      refused.initCause(failure);
+      throw refused;
+    }
+    return error;
   }
 
   /**
@@ -142,12 +155,14 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
   /**
    * Creates a failed ErrorContext containing the given error.
    *
-   * @param error the error value; may be null if E is nullable
+   * @param error the error value; must not be null
    * @param <E> the error type
    * @param <A> the success value type
    * @return a new ErrorContext representing failure
+   * @throws NullPointerException if error is null
    */
   public static <E, A> ErrorContext<IOKind.Witness, E, A> failure(E error) {
+    Objects.requireNonNull(error, "error must not be null");
     EitherT<IOKind.Witness, E, A> transformer = EitherT.left(IOMonad.INSTANCE, error);
     return new ErrorContext<>(transformer, IOMonad.INSTANCE);
   }
@@ -159,10 +174,13 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
    * @param <E> the error type
    * @param <A> the success value type
    * @return a new ErrorContext wrapping the Either
-   * @throws NullPointerException if either is null
+   * @throws NullPointerException if either is null, or holds a null error
    */
   public static <E, A> ErrorContext<IOKind.Witness, E, A> fromEither(Either<E, A> either) {
     Objects.requireNonNull(either, "either must not be null");
+    if (either.isLeft() && either.getLeft() == null) {
+      throw new NullPointerException("either must not hold a null error");
+    }
     EitherT<IOKind.Witness, E, A> transformer = EitherT.fromEither(IOMonad.INSTANCE, either);
     return new ErrorContext<>(transformer, IOMonad.INSTANCE);
   }
@@ -311,7 +329,8 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
    * <p>If this context contains an error, the function is applied to transform it. If this context
    * is successful, the value is unchanged but the error type is updated.
    *
-   * @param mapper the function to transform the error; must not be null
+   * @param mapper the function to transform the error; must not be null, and must not return null;
+   *     a null result fails the context with a NullPointerException when it runs
    * @param <E2> the new error type
    * @return a context with the transformed error type
    * @throws NullPointerException if mapper is null
@@ -322,7 +341,12 @@ public final class ErrorContext<F extends WitnessArity<TypeArity.Unary>, E, A>
 
     // We need to map over the inner Either to transform the error
     Kind<F, Either<E, A>> underlying = transformer.value();
-    Kind<F, Either<E2, A>> mapped = outerMonad.map(either -> either.mapLeft(mapper), underlying);
+    Kind<F, Either<E2, A>> mapped =
+        outerMonad.map(
+            either ->
+                either.mapLeft(
+                    e -> Objects.requireNonNull(mapper.apply(e), "mapper must not return null")),
+            underlying);
 
     EitherT<F, E2, A> newTransformer = EitherT.fromKind(mapped);
     return new ErrorContext<>(newTransformer, outerMonad);

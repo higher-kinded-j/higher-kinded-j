@@ -288,7 +288,7 @@ class Fixture {
    * shadowed type would stop that snippet compiling.
    */
   static EitherPath<DomainError, User> findUser(String id) {
-    return Path.left(null);
+    throw new UnsupportedOperationException("fixture stub");
   }
 
   static EitherPath<String, Order> validateOrder(OrderRequest request) {
