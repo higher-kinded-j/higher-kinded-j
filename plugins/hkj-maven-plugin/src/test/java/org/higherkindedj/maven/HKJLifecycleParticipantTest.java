@@ -16,7 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("HKJLifecycleParticipant.configureCompilerPlugin")
+@DisplayName("HKJLifecycleParticipant")
 class HKJLifecycleParticipantTest {
 
   private static final String COMPILER_PLUGIN_KEY =
@@ -331,6 +331,13 @@ class HKJLifecycleParticipantTest {
       assertThat(processorArtifactIds(pluginConfig(), "annotationProcessorPaths"))
           .containsExactlyInAnyOrder(
               "hkj-spring-boot-client-processor", "hkj-processor-plugins", "hkj-checker");
+      assertThat(
+              pluginConfig()
+                  .getChild("annotationProcessorPaths")
+                  .getChildren("path")[0]
+                  .getChild("version")
+                  .getValue())
+          .isEqualTo("0.4.7");
     }
 
     @Test
@@ -351,52 +358,129 @@ class HKJLifecycleParticipantTest {
   }
 
   @Nested
+  @DisplayName("release")
+  class Release {
+
+    @Test
+    @DisplayName("sets release 25 without preview when the build names no release")
+    void setsRelease_whenPreviewOffAndNoneNamed() {
+      addCompilerPlugin(null, execution("default-compile"));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration("0.3.7", false, false, false, true));
+
+      Xpp3Dom executionConfig =
+          (Xpp3Dom) compilerPlugin().getExecutions().get(0).getConfiguration();
+      assertThat(executionConfig.getChild("release").getValue()).isEqualTo("25");
+      assertThat(executionConfig.getChild("enablePreview")).isNull();
+    }
+
+    @Test
+    @DisplayName("keeps the build's own release when preview is off")
+    void keepsNamedRelease_whenPreviewOff() {
+      project.getProperties().setProperty("maven.compiler.release", "26");
+      addCompilerPlugin(null, execution("default-compile"));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration("0.3.7", false, false, false, true));
+
+      Xpp3Dom executionConfig =
+          (Xpp3Dom) compilerPlugin().getExecutions().get(0).getConfiguration();
+      assertThat(executionConfig.getChild("release")).isNull();
+    }
+
+    @Test
+    @DisplayName("leaves an execution's own release, and its preview, alone")
+    void keepsExecutionsOwnRelease() {
+      Xpp3Dom multiRelease = dom("configuration");
+      child(multiRelease, "release", "17");
+      PluginExecution java17 = execution("java17");
+      java17.setConfiguration(multiRelease);
+      addCompilerPlugin(null, execution("default-compile"), java17);
+
+      participant.configureCompilerPlugin(project, defaultConfig);
+
+      Xpp3Dom java17Config = (Xpp3Dom) compilerPlugin().getExecutions().get(1).getConfiguration();
+      assertThat(java17Config.getChild("release").getValue()).isEqualTo("17");
+      assertThat(java17Config.getChild("enablePreview")).isNull();
+      assertThat(processorArtifactIds(java17Config, "annotationProcessorPaths"))
+          .contains("hkj-processor-plugins");
+      Xpp3Dom defaultCompile = (Xpp3Dom) compilerPlugin().getExecutions().get(0).getConfiguration();
+      assertThat(defaultCompile.getChild("release").getValue()).isEqualTo("25");
+    }
+
+    @Test
+    @DisplayName("adds no compiler to a project that has none, such as a pom")
+    void addsNoCompiler_whenAbsent() {
+      participant.configureCompilerPlugin(project, defaultConfig);
+
+      assertThat(project.getBuildPlugins()).isEmpty();
+    }
+  }
+
+  @Nested
   @DisplayName("surefire")
   class Surefire {
 
-    private Plugin surefirePlugin() {
-      for (Plugin plugin : project.getBuildPlugins()) {
-        if ("org.apache.maven.plugins:maven-surefire-plugin".equals(plugin.getKey())) {
-          return plugin;
-        }
-      }
-      throw new AssertionError("maven-surefire-plugin was not registered");
-    }
-
-    @Test
-    @DisplayName("adds --enable-preview to default-test, which reads only its own configuration")
-    void addsEnablePreview_toTestExecution() {
+    private Plugin addSurefire(Xpp3Dom config, PluginExecution... executions) {
       Plugin surefire = new Plugin();
       surefire.setGroupId("org.apache.maven.plugins");
       surefire.setArtifactId("maven-surefire-plugin");
-      surefire.addExecution(execution("default-test"));
+      if (config != null) {
+        surefire.setConfiguration(config);
+      }
+      for (PluginExecution execution : executions) {
+        surefire.addExecution(execution);
+      }
       project.getBuild().addPlugin(surefire);
-
-      participant.configureSurefirePlugin(project, defaultConfig);
-
-      Xpp3Dom executionConfig =
-          (Xpp3Dom) surefirePlugin().getExecutions().get(0).getConfiguration();
-      assertThat(executionConfig.getChild("argLine").getValue()).isEqualTo("--enable-preview");
-      assertThat(((Xpp3Dom) surefirePlugin().getConfiguration()).getChild("argLine").getValue())
-          .isEqualTo("--enable-preview");
+      return surefire;
     }
 
     @Test
-    @DisplayName("keeps a user argLine and adds --enable-preview once")
-    void keepsUserArgLine() {
+    @DisplayName("adds --enable-preview to the argLine property, writing no element")
+    void addsEnablePreview_toArgLineProperty() {
+      Plugin surefire = addSurefire(null, execution("default-test"));
+
+      participant.configureSurefirePlugin(project, defaultConfig);
+
+      assertThat(project.getProperties().getProperty("argLine")).isEqualTo("--enable-preview");
+      assertThat(surefire.getConfiguration()).isNull();
+      assertThat(surefire.getExecutions().get(0).getConfiguration()).isNull();
+    }
+
+    @Test
+    @DisplayName("keeps what another plugin put in the argLine property, such as JaCoCo's agent")
+    void keepsArgLinePropertyValue() {
+      project.getProperties().setProperty("argLine", "-javaagent:jacoco.jar");
+
+      participant.configureSurefirePlugin(project, defaultConfig);
+
+      assertThat(project.getProperties().getProperty("argLine"))
+          .isEqualTo("-javaagent:jacoco.jar --enable-preview");
+    }
+
+    @Test
+    @DisplayName("adds --enable-preview once to an <argLine> the build writes")
+    void appendsToExplicitArgLine_once() {
       Xpp3Dom cfg = dom("configuration");
       child(cfg, "argLine", "-Xmx1g");
-      Plugin surefire = new Plugin();
-      surefire.setGroupId("org.apache.maven.plugins");
-      surefire.setArtifactId("maven-surefire-plugin");
-      surefire.setConfiguration(cfg);
-      project.getBuild().addPlugin(surefire);
+      Plugin surefire = addSurefire(cfg);
 
       participant.configureSurefirePlugin(project, defaultConfig);
       participant.configureSurefirePlugin(project, defaultConfig);
 
-      assertThat(((Xpp3Dom) surefirePlugin().getConfiguration()).getChild("argLine").getValue())
+      assertThat(((Xpp3Dom) surefire.getConfiguration()).getChild("argLine").getValue())
           .isEqualTo("-Xmx1g --enable-preview");
+      assertThat(project.getProperties().getProperty("argLine")).isEqualTo("--enable-preview");
+    }
+
+    @Test
+    @DisplayName("leaves the argLine alone when preview is off")
+    void leavesArgLine_whenPreviewOff() {
+      participant.configureSurefirePlugin(
+          project, new HKJConfiguration("0.3.7", false, false, false, true));
+
+      assertThat(project.getProperties().getProperty("argLine")).isNull();
     }
   }
 }

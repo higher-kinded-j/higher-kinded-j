@@ -224,7 +224,7 @@ public interface UserClientApi {
 }
 ```
 
-The client is generated at compile time by `io.github.higher-kinded-j:hkj-spring-boot-client-processor`, and a dependency never adds to the processor path, so the starter cannot bring it. Add it to Gradle's `annotationProcessor` or Maven's `<annotationProcessorPaths>`, or enable `spring` on the HKJ build plugin (`spring = true`, `<spring>true</spring>`), which adds the starter and the processor together.
+The client is generated at compile time by `io.github.higher-kinded-j:hkj-spring-boot-client-processor`, and a dependency never adds to the processor path, so the starter cannot bring it. Add it to Gradle's `annotationProcessor` or to Maven's `<annotationProcessorPaths>` beside `hkj-processor-plugins`, or enable `spring` on the HKJ build plugin (`spring = true`, `<spring>true</spring>`), which adds the starter and the processor together.
 
 See [Spring Boot Integration](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html), [Declarative HTTP Clients](https://higher-kinded-j.github.io/latest/spring/declarative_http_clients.html) and the [Migration Guide](https://higher-kinded-j.github.io/latest/spring/migrating_to_functional_errors.html).
 

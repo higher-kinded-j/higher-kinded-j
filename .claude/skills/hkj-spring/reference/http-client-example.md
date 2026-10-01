@@ -11,7 +11,7 @@ that calls the `hkj-spring/example` server.
 Add the starter (it bundles `spring-boot-restclient`, which binds `spring.http.serviceclient.*` and
 applies the base URL; it is not pulled in by `spring-boot-starter-web` alone) and the processor that
 generates the clients. A dependency never adds to the processor path, so the starter alone generates
-nothing; the HKJ build plugin's `spring = true` (Maven: `<spring>true</spring>`) adds both:
+nothing. The HKJ build plugin's `spring = true` (Maven: `<spring>true</spring>`) adds both:
 
 ```gradle
 dependencies {
@@ -20,9 +20,17 @@ dependencies {
 }
 ```
 
+In Maven, `<annotationProcessorPaths>` is the whole processor path, so add the `<path>` to the
+existing list, beside `hkj-processor-plugins`:
+
 ```xml
-<!-- maven-compiler-plugin <configuration>, beside the other processors -->
+<!-- maven-compiler-plugin <configuration>: one list, holding every processor -->
 <annotationProcessorPaths>
+    <path>
+        <groupId>io.github.higher-kinded-j</groupId>
+        <artifactId>hkj-processor-plugins</artifactId>
+        <version>LATEST_VERSION</version>
+    </path>
     <path>
         <groupId>io.github.higher-kinded-j</groupId>
         <artifactId>hkj-spring-boot-client-processor</artifactId>

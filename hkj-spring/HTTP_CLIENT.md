@@ -36,8 +36,10 @@ call it; failures arrive as a `Left` of your declared error type.
 ## Quick Start
 
 Add the starter, which carries the client runtime, and the processor that generates the clients. A
-dependency never adds to the processor path, so the starter cannot bring the processor; the HKJ build
-plugin's `spring = true` (Maven: `<spring>true</spring>`) adds both:
+dependency never adds to the processor path, so the starter cannot bring the processor. The HKJ build
+plugin's `spring = true` (Maven: `<spring>true</spring>`) adds both, and the book's
+[Step 1](https://higher-kinded-j.github.io/latest/spring/declarative_http_clients.html#step-1-add-the-starter)
+shows the Maven form:
 
 ```gradle
 dependencies {

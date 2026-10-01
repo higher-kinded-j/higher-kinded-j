@@ -229,7 +229,7 @@ The plugin automatically adds `hkj-core`, annotation processors, compile-time ch
 </configuration>
 ```
 
-Run diagnostics with `mvn hkj:diagnostics` or install skills with `mvn hkj:install-skills`.
+The plugin writes `<annotationProcessorPaths>` into every compiler execution, which replaces javac's processor discovery, so list any other processor, such as Lombok, there too. Run diagnostics with `mvn hkj:diagnostics` or install skills with `mvn hkj:install-skills`.
 
 ### Manual Maven Setup
 

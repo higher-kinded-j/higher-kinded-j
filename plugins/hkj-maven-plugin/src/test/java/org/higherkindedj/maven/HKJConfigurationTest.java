@@ -5,6 +5,10 @@ package org.higherkindedj.maven;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.Optional;
 import org.apache.maven.model.Plugin;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
@@ -17,7 +21,10 @@ import org.junit.jupiter.api.Test;
 class HKJConfigurationTest {
 
   /** The version the build bundles into the plugin, passed in by the test task. */
-  private static final String EXPECTED_VERSION = System.getProperty("hkj.expectedVersion");
+  private static final String EXPECTED_VERSION =
+      Objects.requireNonNull(
+          System.getProperty("hkj.expectedVersion"),
+          "hkj.expectedVersion is set by the Gradle test task: run the tests through Gradle");
 
   private Plugin plugin;
 
@@ -39,14 +46,30 @@ class HKJConfigurationTest {
 
       HKJConfiguration config = HKJConfiguration.fromPlugin(plugin);
 
-      assertThat(EXPECTED_VERSION).as("hkj.expectedVersion is set by the test task").isNotBlank();
       assertThat(config.version()).isEqualTo(EXPECTED_VERSION);
     }
 
     @Test
-    @DisplayName("defaults() uses the version bundled in the plugin")
-    void defaultsUseBundledVersion() {
-      assertThat(HKJConfiguration.defaults().version()).isEqualTo(EXPECTED_VERSION);
+    @DisplayName(
+        "defaults() uses the bundled version and the same defaults as an empty declaration")
+    void defaultsMatchAnEmptyDeclaration() {
+      assertThat(HKJConfiguration.defaults())
+          .isEqualTo(HKJConfiguration.fromPlugin(new Plugin()))
+          .extracting(HKJConfiguration::version)
+          .isEqualTo(EXPECTED_VERSION);
+    }
+
+    @Test
+    @DisplayName("the plugin descriptor carries the plugin's version")
+    void descriptorCarriesVersion() throws IOException {
+      try (InputStream in =
+          HKJConfiguration.class.getResourceAsStream("/META-INF/maven/plugin.xml")) {
+        assertThat(in).isNotNull();
+        String descriptor = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        assertThat(descriptor)
+            .contains("<version>" + EXPECTED_VERSION + "</version>")
+            .doesNotContain("@hkj.version@");
+      }
     }
 
     @Test
@@ -68,8 +91,10 @@ class HKJConfigurationTest {
     void throwsWithFixLine_whenNeitherBundledNorDeclared() {
       assertThatThrownBy(() -> HKJConfiguration.pluginVersion(Optional.empty(), Optional.empty()))
           .isInstanceOf(IllegalStateException.class)
-          .hasMessage(HKJConfiguration.NO_VERSION_MESSAGE)
-          .hasMessageContaining("<configuration><version>");
+          .hasMessage(
+              "Could not determine the HKJ plugin version. Add <configuration><version>X</version>"
+                  + "</configuration> to the hkj-maven-plugin, where X is the Higher-Kinded-J"
+                  + " release to use.");
     }
 
     @Test

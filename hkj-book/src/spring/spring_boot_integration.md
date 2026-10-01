@@ -108,7 +108,7 @@ Or with Maven:
 The [HKJ Gradle and Maven plugins](../tooling/gradle_plugin.md) add
 `hkj-core`, and with Spring integration enabled the starter and the
 `@HkjHttpClient` processor, all at the plugin's version. They do not add
-`hkj-test`, so give it a version or keep the BOM. This BOM snippet is for Spring
+`hkj-test`: give it a version, or import the BOM for it. This BOM snippet is for Spring
 projects that wire HKJ in by hand.
 ~~~
 

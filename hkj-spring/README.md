@@ -159,8 +159,10 @@ public interface UserClientApi {
 }
 ```
 
-Add the processor that generates the clients; the starter carries only their runtime, since a
-dependency never adds to the processor path (the HKJ build plugin's `spring = true` adds both):
+Add the processor that generates the clients, since a dependency never adds to the processor path
+and the starter carries only their runtime. The HKJ build plugin's `spring = true` adds both, and
+[Declarative HTTP Clients](https://higher-kinded-j.github.io/latest/spring/declarative_http_clients.html#step-1-add-the-starter)
+shows the Maven form:
 
 ```gradle
 dependencies {

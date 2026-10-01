@@ -352,5 +352,18 @@ class HKJPluginTest {
           .anyMatch(dep -> dep.contains("hkj-processor-plugins"))
           .noneMatch(dep -> dep.contains("hkj-checker"));
     }
+
+    @Test
+    @DisplayName("adds the @HkjHttpClient processor to a custom source set when spring is enabled")
+    void plugin_addsClientProcessor_onCustomSourceSet() {
+      applyPlugin();
+      HKJExtension ext = project.getExtensions().getByType(HKJExtension.class);
+      ext.getSpring().set(true);
+      project.getExtensions().getByType(SourceSetContainer.class).create("integrationTest");
+      evaluateProject();
+
+      assertThat(dependencyNotations("integrationTestAnnotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+    }
   }
 }

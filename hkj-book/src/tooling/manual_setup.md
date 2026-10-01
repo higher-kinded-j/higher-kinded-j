@@ -10,7 +10,7 @@ Most projects should use the [HKJ build plugin](gradle_plugin.md): a single line
 
 Both configurations below pin the release to **25** and enable preview features, which go together: `javac` accepts `--enable-preview` only for the release it is running on, so the toolchain has to be Java 25 as well. [Prerequisites](../quickstart.md#prerequisites) explains what the flag is for, and where it is genuinely needed.
 
-The Spring Boot starter, and the processor that generates `@HkjHttpClient` clients, are not covered here: [Declarative HTTP Clients](../spring/declarative_http_clients.md#step-1-add-the-starter) shows both lines.
+The Spring Boot starter, and the processor that generates `@HkjHttpClient` clients, are not covered here: [Declarative HTTP Clients](../spring/declarative_http_clients.md#step-1-add-the-starter) shows both, for Gradle and Maven.
 
 ---
 

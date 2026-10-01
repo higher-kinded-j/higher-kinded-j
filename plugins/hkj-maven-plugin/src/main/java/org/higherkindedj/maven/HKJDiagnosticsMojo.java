@@ -4,6 +4,7 @@ package org.higherkindedj.maven;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.AbstractMojo;
@@ -31,11 +32,10 @@ public class HKJDiagnosticsMojo extends AbstractMojo {
 
   @Override
   public void execute() throws MojoExecutionException {
-    Plugin hkjPlugin = findHKJPlugin();
     HKJConfiguration config;
     try {
       config =
-          hkjPlugin != null ? HKJConfiguration.fromPlugin(hkjPlugin) : HKJConfiguration.defaults();
+          findHKJPlugin().map(HKJConfiguration::fromPlugin).orElseGet(HKJConfiguration::defaults);
     } catch (IllegalStateException e) {
       throw new MojoExecutionException(e.getMessage(), e);
     }
@@ -96,12 +96,9 @@ public class HKJDiagnosticsMojo extends AbstractMojo {
     getLog().info(sb.toString().stripTrailing());
   }
 
-  private Plugin findHKJPlugin() {
-    for (Plugin plugin : project.getBuildPlugins()) {
-      if (PLUGIN_KEY.equals(plugin.getKey())) {
-        return plugin;
-      }
-    }
-    return null;
+  private Optional<Plugin> findHKJPlugin() {
+    return project.getBuildPlugins().stream()
+        .filter(p -> PLUGIN_KEY.equals(p.getKey()))
+        .findFirst();
   }
 }
