@@ -33,7 +33,7 @@ public class HKJDiagnosticsMojo extends AbstractMojo {
     Plugin hkjPlugin = findHKJPlugin();
     HKJConfiguration config;
     if (hkjPlugin != null) {
-      config = HKJConfiguration.fromPlugin(hkjPlugin, project);
+      config = HKJConfiguration.fromPlugin(hkjPlugin);
     } else {
       config = new HKJConfiguration(project.getVersion(), true, false, false, true);
     }

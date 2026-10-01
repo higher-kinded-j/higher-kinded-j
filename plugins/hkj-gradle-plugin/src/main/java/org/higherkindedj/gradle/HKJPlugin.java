@@ -128,9 +128,15 @@ public class HKJPlugin implements Plugin<Project> {
               });
     }
 
-    // Spring integration
+    // Spring integration: the starter, and the processor that generates @HkjHttpClient clients.
+    // The starter's own processor path is not inherited, so a consumer must be given it here.
     if (Boolean.TRUE.equals(extension.getSpring().get())) {
       deps.add("implementation", GROUP_ID + ":hkj-spring-boot-starter:" + version);
+      sourceSets.all(
+          sourceSet ->
+              deps.add(
+                  sourceSet.getAnnotationProcessorConfigurationName(),
+                  GROUP_ID + ":hkj-spring-boot-client-processor:" + version));
     }
   }
 
@@ -267,6 +273,14 @@ public class HKJPlugin implements Plugin<Project> {
                               + GROUP_ID
                               + ":hkj-spring-boot-starter:"
                               + version);
+                      for (var sourceSet : sourceSets) {
+                        String label = sourceSet.getAnnotationProcessorConfigurationName() + ":";
+                        depsAdded.add(
+                            padLabel(label, width)
+                                + GROUP_ID
+                                + ":hkj-spring-boot-client-processor:"
+                                + version);
+                      }
                     }
 
                     List<String> compilerArgs = new ArrayList<>();

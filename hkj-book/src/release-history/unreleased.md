@@ -112,6 +112,7 @@ This release maps the wires that generated clients produce: openapi-generator mo
 ## Spring {#spring}
 
 - **A client keeps the `@OnStatus` overrides it inherits from a jar** ([#849](https://github.com/higher-kinded-j/higher-kinded-j/issues/849)): the annotations are now kept in the class file, and an inherited override is checked as a local one is. See [Declarative HTTP clients](../spring/declarative_http_clients.md#1-per-method-onstatus).
+- **`spring = true` on the build plugins also generates `@HkjHttpClient` clients** ([#1002](https://github.com/higher-kinded-j/higher-kinded-j/pull/1002)): the Gradle and Maven plugins now add `hkj-spring-boot-client-processor` beside the starter, since a build runs only the processors it names. A build that wires Higher-Kinded-J by hand adds the processor itself. See [Declarative HTTP Clients](../spring/declarative_http_clients.md#step-1-add-the-starter).
 
 ---
 
@@ -131,6 +132,8 @@ This release maps the wires that generated clients produce: openapi-generator mo
 - **A dependency's spec with a mix-in off the classpath is passed over** ([#895](https://github.com/higher-kinded-j/higher-kinded-j/pull/895)): the use site's error names the missing type, where javac used to report `cannot access` inside generated source. See [Multi-module builds](../tooling/manual_setup.md#multi-module-builds).
 - **Every processor runs from the module path** ([#889](https://github.com/higher-kinded-j/higher-kinded-j/issues/889)): all twenty run there, and `Path.from()` finds a `VStreamPath`. Builds that use Gradle's `annotationProcessor` or Maven's `<annotationProcessorPaths>` see no change. See [PathProvider SPI Registration](../monads/vstream_advanced.md#pathprovider-spi-registration).
 - **Coverage tools skip every generated type** ([#798](https://github.com/higher-kinded-j/higher-kinded-j/issues/798), [#817](https://github.com/higher-kinded-j/higher-kinded-j/issues/817)): nested generated types carry `@Generated` themselves, and traversals and folds are named nested classes rather than anonymous ones. See [Build-time impact](../optics/production_readiness.md#build-time-impact).
+- **The Maven plugin adds the libraries at its own version** ([#1002](https://github.com/higher-kinded-j/higher-kinded-j/pull/1002)): without a `<version>` in its configuration it uses the plugin's version, as the Gradle plugin does, where it used the consuming project's. See [Maven Users](../tooling/gradle_plugin.md#maven-users).
+- **`hkj-openrewrite` is published, and `hkj-bom` manages every published module** ([#1002](https://github.com/higher-kinded-j/higher-kinded-j/pull/1002)): the migration recipes are on Maven Central from 0.4.11, and the BOM now covers `hkj-processor` and both Spring client modules. See [Migration Recipes](../tooling/openrewrite.md).
 
 ---
 

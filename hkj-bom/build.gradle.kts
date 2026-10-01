@@ -13,10 +13,13 @@ dependencies {
         api(project(":hkj-test"))
         api(project(":hkj-api"))
         api(project(":hkj-annotations"))
+        api(project(":hkj-processor"))
         api(project(":hkj-processor-plugins"))
         api(project(":hkj-checker"))
         api(project(":hkj-spring:starter"))
         api(project(":hkj-spring:autoconfigure"))
+        api(project(":hkj-spring:client"))
+        api(project(":hkj-spring:client-processor"))
         api(project(":hkj-openrewrite"))
     }
 }

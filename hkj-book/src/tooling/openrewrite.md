@@ -67,7 +67,7 @@ mvn rewrite:dryRun   # preview changes
 mvn rewrite:run      # apply changes
 ```
 
-Pick the `hkj-openrewrite` version that contains the recipe you need: the arity recipes exist from 0.3.0 onward, and each 0.5.0 deprecation recipe from the release that deprecates its API onward. Newer releases retain the older recipes.
+`hkj-openrewrite` is published from 0.4.11. Each release keeps every recipe before it, so the latest version carries them all. A 0.5.0 deprecation recipe arrives with the release that deprecates its API.
 
 ---
 

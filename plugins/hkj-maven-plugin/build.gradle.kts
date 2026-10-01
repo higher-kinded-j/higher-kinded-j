@@ -18,6 +18,20 @@ dependencies {
     testImplementation(libs.maven.plugin.api)
 }
 
+// Generate hkj-version.properties so the plugin knows its own version at runtime: without a
+// <version> in its configuration, that is the library version it adds
+val generateVersionProperties = tasks.register("generateVersionProperties") {
+    val outputDir = layout.buildDirectory.dir("generated/resources/hkj")
+    val versionValue = project.version.toString()
+    inputs.property("version", versionValue)
+    outputs.dir(outputDir)
+    doLast {
+        val dir = outputDir.get().asFile
+        dir.mkdirs()
+        dir.resolve("hkj-version.properties").writeText("version=$versionValue\n")
+    }
+}
+
 // Bundle Claude Code skill files so the plugin can install them into consumer projects
 val bundleSkills = tasks.register("bundleSkills") {
     val skillsSourceDir = rootProject.layout.projectDirectory.dir(".claude/skills")
@@ -47,6 +61,7 @@ val bundleSkills = tasks.register("bundleSkills") {
 }
 
 sourceSets.main {
+    resources.srcDir(generateVersionProperties)
     resources.srcDir(bundleSkills)
 }
 

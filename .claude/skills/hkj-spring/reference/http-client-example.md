@@ -9,11 +9,14 @@ that calls the `hkj-spring/example` server.
 ## Setup
 
 Add the starter (it bundles `spring-boot-restclient`, which binds `spring.http.serviceclient.*` and
-applies the base URL; it is not pulled in by `spring-boot-starter-web` alone):
+applies the base URL; it is not pulled in by `spring-boot-starter-web` alone) and the processor that
+generates the clients. A build runs only the processors it names, so the starter alone generates
+nothing; the HKJ build plugin's `spring = true` adds both:
 
 ```gradle
 dependencies {
     implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:LATEST_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-spring-boot-client-processor:LATEST_VERSION")
 }
 ```
 

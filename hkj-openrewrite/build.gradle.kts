@@ -3,6 +3,7 @@
 
 plugins {
     `java-library`
+    id("com.vanniktech.maven.publish")
 }
 
 dependencies {
@@ -24,4 +25,52 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+// Central configuration for publishing. OpenRewrite itself stays compileOnly: the rewrite Gradle or
+// Maven plugin that runs these recipes supplies it.
+mavenPublishing {
+    publishToMavenCentral()
+
+    signAllPublications()
+
+    coordinates(
+        groupId = project.group.toString(),
+        artifactId = "hkj-openrewrite",
+        version = project.version.toString()
+    )
+
+    pom {
+        name.set("Higher-Kinded-J OpenRewrite Recipes")
+        description.set("OpenRewrite recipes for migrating between Higher-Kinded-J releases")
+        url.set("https://github.com/higher-kinded-j/higher-kinded-j")
+
+        licenses {
+            license {
+                name.set("The MIT License")
+                url.set("https://opensource.org/licenses/MIT")
+            }
+        }
+        developers {
+            developer {
+                id.set("higher-kinded-j")
+                name.set("Magnus Smith")
+                email.set("simulation-hkt@gmail.com")
+            }
+        }
+        scm {
+            connection.set("scm:git:git://github.com/higher-kinded-j/higher-kinded-j.git")
+            developerConnection.set("scm:git:ssh://github.com/higher-kinded-j/higher-kinded-j.git")
+            url.set("https://github.com/higher-kinded-j/higher-kinded-j")
+        }
+        inceptionYear.set("2025")
+        organization {
+            name.set("The Higher-Kinded-J Team")
+            url.set("https://github.com/higher-kinded-j")
+        }
+        issueManagement {
+            system.set("GitHub")
+            url.set("https://github.com/higher-kinded-j/higher-kinded-j/issues")
+        }
+    }
 }

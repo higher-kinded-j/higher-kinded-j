@@ -266,4 +266,41 @@ class HKJLifecycleParticipantTest {
           .doesNotContain("-Xplugin:HKJChecker");
     }
   }
+
+  @Nested
+  @DisplayName("spring enabled")
+  class SpringEnabled {
+
+    private HKJConfiguration springConfig() {
+      return new HKJConfiguration("0.3.7", true, true, false, true);
+    }
+
+    @Test
+    @DisplayName("adds the @HkjHttpClient processor to the main and test processor paths")
+    void addsClientProcessor_whenSpringEnabled() {
+      Xpp3Dom cfg = dom("configuration");
+      cfg.addChild(dom("testAnnotationProcessorPaths"));
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(project, springConfig());
+
+      Xpp3Dom finalCfg = (Xpp3Dom) compilerPlugin().getConfiguration();
+      assertThat(processorArtifactIds(finalCfg, "annotationProcessorPaths"))
+          .contains("hkj-processor-plugins", "hkj-spring-boot-client-processor");
+      assertThat(processorArtifactIds(finalCfg, "testAnnotationProcessorPaths"))
+          .contains("hkj-spring-boot-client-processor");
+    }
+
+    @Test
+    @DisplayName("adds no @HkjHttpClient processor when spring is disabled")
+    void addsNoClientProcessor_whenSpringDisabled() {
+      addCompilerPlugin(null);
+
+      participant.configureCompilerPlugin(project, defaultConfig);
+
+      Xpp3Dom cfg = (Xpp3Dom) compilerPlugin().getConfiguration();
+      assertThat(processorArtifactIds(cfg, "annotationProcessorPaths"))
+          .doesNotContain("hkj-spring-boot-client-processor");
+    }
+  }
 }

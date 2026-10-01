@@ -247,6 +247,32 @@ class HKJPluginTest {
     }
 
     @Test
+    @DisplayName("adds the @HkjHttpClient processor to every source set when spring is enabled")
+    void plugin_addsClientProcessor_whenSpringEnabled() {
+      applyPlugin();
+      HKJExtension ext = project.getExtensions().getByType(HKJExtension.class);
+      ext.getSpring().set(true);
+      evaluateProject();
+
+      assertThat(dependencyNotations("annotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+      assertThat(dependencyNotations("testAnnotationProcessor"))
+          .anyMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+    }
+
+    @Test
+    @DisplayName("adds no Spring dependency or processor when spring is disabled")
+    void plugin_addsNoSpring_whenDisabled() {
+      applyPlugin();
+      evaluateProject();
+
+      assertThat(dependencyNotations("implementation"))
+          .noneMatch(dep -> dep.contains("hkj-spring-boot-starter"));
+      assertThat(dependencyNotations("annotationProcessor"))
+          .noneMatch(dep -> dep.contains("hkj-spring-boot-client-processor"));
+    }
+
+    @Test
     @DisplayName("checks(Action) DSL configures pathTypeMismatch")
     void plugin_checksActionDSL_configuresPathTypeMismatch() {
       applyPlugin();

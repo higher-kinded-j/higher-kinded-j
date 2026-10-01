@@ -107,14 +107,17 @@ Profile show(String id) {
 
 ### Step 1: Add the Starter
 
-The client lives in `hkj-spring-boot-starter`; if you already have it for the server side, you have the client too.
+The client runtime lives in `hkj-spring-boot-starter`, and the code generator in `hkj-spring-boot-client-processor`. A build runs only the annotation processors it names, so a starter you already have for the server side brings the runtime but not the generator. Add both:
 
 ```gradle
 // build.gradle.kts
 dependencies {
     implementation("io.github.higher-kinded-j:hkj-spring-boot-starter:LATEST_VERSION")
+    annotationProcessor("io.github.higher-kinded-j:hkj-spring-boot-client-processor:LATEST_VERSION")
 }
 ```
+
+With the [HKJ build plugin](../tooling/gradle_plugin.md#spring-boot-mode), `spring = true` adds both.
 
 ### Step 2: Declare and Configure
 

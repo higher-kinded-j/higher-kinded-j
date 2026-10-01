@@ -45,7 +45,7 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
         continue;
       }
 
-      HKJConfiguration config = HKJConfiguration.fromPlugin(hkjPlugin, project);
+      HKJConfiguration config = HKJConfiguration.fromPlugin(hkjPlugin);
       configureDependencies(project, config);
       configureCompilerPlugin(project, config);
       configureSurefirePlugin(project, config);
@@ -143,6 +143,11 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     addAnnotationProcessorPath(paths, "hkj-processor-plugins", config.version());
     if (config.pathTypeMismatch()) {
       addAnnotationProcessorPath(paths, "hkj-checker", config.version());
+    }
+    // The starter brings the @HkjHttpClient runtime, but not the processor that generates the
+    // clients: a processor path is never inherited from a dependency.
+    if (config.spring()) {
+      addAnnotationProcessorPath(paths, "hkj-spring-boot-client-processor", config.version());
     }
   }
 

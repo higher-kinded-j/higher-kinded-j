@@ -54,7 +54,7 @@ HKJ Configuration:
 |---------|--------------|
 | **Version** | The HKJ library version used for all dependencies |
 | **Preview features** | Whether `--enable-preview` is added to compile, test, exec, and javadoc tasks |
-| **Spring integration** | Whether `hkj-spring-boot-starter` is included |
+| **Spring integration** | Whether `hkj-spring-boot-starter` and the `@HkjHttpClient` processor are included |
 | **Compile-time checks** | Which compile-time checks are active |
 | **Dependencies added** | The exact Maven coordinates added to each configuration |
 | **Compiler args added** | Additional arguments passed to `javac` |

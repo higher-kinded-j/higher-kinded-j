@@ -85,7 +85,7 @@ hkj {
 |----------|---------|-------------|
 | `version` | Plugin version | Version of HKJ libraries to use |
 | `preview` | `true` | Adds `--enable-preview` to compile, test, exec, and javadoc tasks |
-| `spring` | `false` | Adds `hkj-spring-boot-starter` to implementation dependencies |
+| `spring` | `false` | Adds `hkj-spring-boot-starter` to `implementation`, and the `@HkjHttpClient` processor to every annotation processor configuration |
 | `skills` | `false` | Installs Claude Code skills into `.claude/skills/` during build |
 | `checks.pathTypeMismatch` | `true` | Enables compile-time Path type mismatch detection |
 
@@ -110,7 +110,7 @@ hkj {
 }
 ```
 
-This adds `hkj-spring-boot-starter` to the `implementation` configuration, which provides auto-configuration for using HKJ types with Spring's dependency injection and web layer.
+This adds `hkj-spring-boot-starter` to the `implementation` configuration, which provides auto-configuration for using HKJ types with Spring's dependency injection and web layer. It also adds `hkj-spring-boot-client-processor` to every annotation processor configuration, which generates the [`@HkjHttpClient`](../spring/declarative_http_clients.md) clients: a build runs only the processors it names, so the starter alone would not.
 
 ~~~admonish tip title="See Also"
 - [Spring Boot Integration](../spring/spring_boot_integration.md) - Full guide to using HKJ with Spring Boot
@@ -223,7 +223,7 @@ The plugin automatically adds `hkj-core`, annotation processors, compile-time ch
 <configuration>
     <version>0.3.7-SNAPSHOT</version>   <!-- HKJ library version (default: plugin version) -->
     <preview>true</preview>              <!-- add --enable-preview flags (default: true) -->
-    <spring>false</spring>               <!-- add hkj-spring-boot-starter (default: false) -->
+    <spring>false</spring>               <!-- add hkj-spring-boot-starter and the @HkjHttpClient processor (default: false) -->
     <skills>false</skills>               <!-- install Claude Code skills (default: false) -->
     <pathTypeMismatch>true</pathTypeMismatch>  <!-- enable compile-time checks (default: true) -->
 </configuration>

@@ -224,6 +224,8 @@ public interface UserClientApi {
 }
 ```
 
+The client is generated at compile time by `hkj-spring-boot-client-processor`, which a build only runs when it is named: add it to `annotationProcessor`, or set `spring = true` on the HKJ build plugin, which adds the starter and the processor together.
+
 See [Spring Boot Integration](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.html), [Declarative HTTP Clients](https://higher-kinded-j.github.io/latest/spring/declarative_http_clients.html) and the [Migration Guide](https://higher-kinded-j.github.io/latest/spring/migrating_to_functional_errors.html).
 
 ---
