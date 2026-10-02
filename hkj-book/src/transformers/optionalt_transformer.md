@@ -330,7 +330,7 @@ They operate at different levels of the transformer stack.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice async lookup chains in [Tutorial 02: Async with Absence](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial02_AsyncWithAbsence.java) (5 exercises, ~25 minutes).
+Practise async lookup chains in [Tutorial 02: Async with Absence](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial02_AsyncWithAbsence.java) (5 exercises).
 ~~~
 
 ---

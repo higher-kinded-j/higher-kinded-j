@@ -54,8 +54,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: Tutorial 01 (ForState basics) and a passing familiarity with FocusPath.
  *
- * <p>Estimated time: ~12 minutes.
- *
  * <p>Tiered hints. Each exercise uses the Nudge / Strategy / Spoiler ladder. Stop reading the hints
  * as soon as you have what you need.
  *

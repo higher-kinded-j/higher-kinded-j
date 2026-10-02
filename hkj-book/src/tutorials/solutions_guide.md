@@ -39,7 +39,7 @@ The solution files exist to help you learn, not to short-circuit the learning pr
 
 ### ✅ Good Reasons to Check Solutions
 
-1. **After Multiple Genuine Attempts**: You've tried for 10+ minutes and exhausted your ideas
+1. **After Multiple Genuine Attempts**: You've made genuine attempts and exhausted your ideas
 2. **To Verify Your Approach**: You have a working solution but want to compare approaches
 3. **To Learn Idioms**: You want to see the "idiomatic" way to use the library
 4. **When Completely Stuck**: You're blocked on a fundamental concept and can't progress
@@ -51,7 +51,7 @@ The solution files exist to help you learn, not to short-circuit the learning pr
 3. **Copy-Pasting for Green Tests**: You'll pass the tutorial but won't retain the knowledge
 4. **Because It's Available**: Resist the temptation!
 
-> **Rule of Thumb**: If you haven't spent at least 5 minutes thinking about the problem, you're not ready for the solution.
+> **Rule of Thumb**: Try the Nudge and the Strategy hints before opening the solution.
 
 ## How to Learn from Solutions
 

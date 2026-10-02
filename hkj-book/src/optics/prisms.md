@@ -504,7 +504,7 @@ Prisms integrate with For comprehensions via the `match()` operation, which prov
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice prism basics in [Tutorial 03: Prism Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial03_PrismBasics.java) (9 exercises, ~12 minutes).
+Practise prism basics in [Tutorial 03: Prism Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial03_PrismBasics.java) (9 exercises).
 ~~~
 
 ---

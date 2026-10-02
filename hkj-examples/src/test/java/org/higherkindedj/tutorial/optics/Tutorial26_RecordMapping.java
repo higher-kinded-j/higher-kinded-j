@@ -52,8 +52,6 @@ import org.junit.jupiter.api.Test;
  * <p>Prerequisites: Tutorial 25 (ValidatedPrism); Tutorial 12 (Accumulating Assembly). Read the
  * Mapping at the Boundary chapter's Basics page.
  *
- * <p>Estimated time: ~12 minutes.
- *
  * <p>Replace each {@code answerRequired()} placeholder with the correct code to make the tests
  * pass.
  */

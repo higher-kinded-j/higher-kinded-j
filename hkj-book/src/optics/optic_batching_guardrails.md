@@ -189,7 +189,7 @@ public Response handleTeamRequest() {
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice the five exercises (preflight, truncation, refusal, audit, railway) in [Tutorial 22: Plan Introspection and Guardrails](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial22_OpticBatchingGuardrails.java) (5 exercises, ~12 minutes).
+Practise the five exercises (preflight, truncation, refusal, audit, railway) in [Tutorial 22: Plan Introspection and Guardrails](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial22_OpticBatchingGuardrails.java) (5 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

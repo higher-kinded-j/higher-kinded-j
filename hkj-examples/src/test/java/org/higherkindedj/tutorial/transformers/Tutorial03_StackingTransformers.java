@@ -76,8 +76,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: complete Tutorial 01 and 02.
  *
- * <p>Estimated time: 15-20 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 03: Stacking Transformers")

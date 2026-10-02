@@ -11,7 +11,8 @@
 - Fold combination, navigator generation, container-type navigation
 ~~~
 
-**Duration**: ~75 minutes | **Tutorials**: 9 (T12-T20) | **Exercises**: ~80
+**Tutorials**: 9 (T12-T20) | **Exercises**: 90
+<!-- exercises: optics/Tutorial12_FocusDSL optics/Tutorial13_AdvancedFocusDSL optics/Tutorial14_FocusEffectBridge optics/Tutorial15_ListPrisms optics/Tutorial16_OpticsSpecInterfaces optics/Tutorial17_VStreamOptics optics/Tutorial18_FoldCombination optics/Tutorial19_NavigatorGeneration optics/Tutorial20_ContainerNavigation -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 The Focus DSL is the ergonomic layer that lets us write `.focus().attributes().at(key)` from [One Line, Six Layers](../../hkts/one_line_six_layers.md) as a single fluent path. Tutorials 12-13 cover the basics; Tutorial 14 is the bridge to Effect Paths; Tutorials 15-20 cover specialised cases (list prisms, external types, VStream integration, fold combination, navigator generation, container-type navigation). Each tutorial opens with a Pain → Promise header showing the imperative-Java pattern it replaces.
@@ -31,7 +32,7 @@ This is often the most practical way to work with optics in day-to-day code.
 
 ---
 
-## Tutorial 12: Focus DSL Basics (~10 minutes)
+## Tutorial 12: Focus DSL Basics
 **File**: `Tutorial12_FocusDSL.java` | **Exercises**: 10
 
 Learn the Focus DSL for ergonomic, type-safe path navigation through nested data structures.
@@ -90,7 +91,7 @@ Root updated = path.modifyAll(String::toLowerCase, root);
 
 ---
 
-## Tutorial 13: Advanced Focus DSL (~10 minutes)
+## Tutorial 13: Advanced Focus DSL
 **File**: `Tutorial13_AdvancedFocusDSL.java` | **Exercises**: 8
 
 Master advanced Focus DSL features including type class integration, monoid aggregation, and Kind field navigation.
@@ -159,8 +160,8 @@ TraversalPath<User, Role> allRolesPath = rolesKindPath
 
 ---
 
-## Tutorial 19: Navigator Generation (~10 minutes)
-**File**: `Tutorial19_NavigatorGeneration.java` | **Exercises**: 7
+## Tutorial 19: Navigator Generation
+**File**: `Tutorial19_NavigatorGeneration.java` | **Exercises**: 8
 
 Learn how generated navigators enable fluent cross-type navigation, and how SPI-aware path widening determines the correct path type for container fields.
 
@@ -205,7 +206,7 @@ navigator. Containers that arrive through the SPI, such as `Either` here, do.
 
 ---
 
-## Tutorial 20: Container Navigation (~5 minutes)
+## Tutorial 20: Container Navigation
 **File**: `Tutorial20_ContainerNavigation.java` | **Exercises**: 4
 
 Navigate container types discovered via the `TraversableGenerator` SPI, including HKJ native types (`Either`, `Try`, `Validated`) and composition with standard lenses.

@@ -7,7 +7,8 @@
 - The Pain → Promise framing: which Java pain points each abstraction replaces
 ~~~
 
-**Duration**: ~50 minutes (with the new anchor and diagnostic exercises) | **Tutorials**: 5 | **Exercises**: 32
+**Tutorials**: 5 | **Exercises**: 37
+<!-- exercises: coretypes/Tutorial00_OneLineSixLayers coretypes/Tutorial01_KindBasics coretypes/Tutorial02_FunctorMapping coretypes/Tutorial03_ApplicativeCombining coretypes/Tutorial04_MonadChaining -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 This journey is the hands-on counterpart to the [Foundations chapter](../../hkts/foundations_intro.md). Each tutorial exercises one layer of the [One Line, Six Layers](../../hkts/one_line_six_layers.md) anchor:
@@ -43,8 +44,8 @@ A single-page reference to every abstraction in this journey, with imperative-Ja
 
 ---
 
-## Tutorial 00: One Line, Six Layers (~10 minutes)
-**File**: `Tutorial00_OneLineSixLayers.java` | **Exercises**: 8 (7 graded + 1 diagnostic, plus a no-code setup check)
+## Tutorial 00: One Line, Six Layers
+**File**: `Tutorial00_OneLineSixLayers.java` | **Exercises**: 9 (7 graded + 1 diagnostic, plus a no-code setup check)
 
 The chapter anchor and the setup check. We type out one line of working Higher-Kinded-J that touches every layer of the library, then unpack each token in a separate exercise.
 
@@ -59,7 +60,7 @@ The chapter anchor and the setup check. We type out one line of working Higher-K
 
 ---
 
-## Tutorial 01: Kind Basics (~10 minutes)
+## Tutorial 01: Kind Basics
 **File**: `Tutorial01_KindBasics.java` | **Exercises**: 5 (4 graded + 1 diagnostic)
 
 Demystify the `Kind<F, A>` wrapper that makes Higher-Kinded Types possible in Java.
@@ -80,7 +81,7 @@ Demystify the `Kind<F, A>` wrapper that makes Higher-Kinded Types possible in Ja
 
 ---
 
-## Tutorial 02: Functor Mapping (~10 minutes)
+## Tutorial 02: Functor Mapping
 **File**: `Tutorial02_FunctorMapping.java` | **Exercises**: 7 (6 graded + 1 diagnostic)
 
 Learn to transform values inside containers uniformly, regardless of the container type.
@@ -102,7 +103,7 @@ Learn to transform values inside containers uniformly, regardless of the contain
 
 ---
 
-## Tutorial 03: Applicative Combining (~10 minutes)
+## Tutorial 03: Applicative Combining
 **File**: `Tutorial03_ApplicativeCombining.java` | **Exercises**: 8 (7 graded + 1 diagnostic)
 
 Learn to combine multiple independent computations, perfect for validating forms where each field is checked separately.
@@ -123,7 +124,7 @@ Learn to combine multiple independent computations, perfect for validating forms
 
 ---
 
-## Tutorial 04: Monad Chaining (~10 minutes)
+## Tutorial 04: Monad Chaining
 **File**: `Tutorial04_MonadChaining.java` | **Exercises**: 8 (7 graded + 1 diagnostic)
 
 Learn to chain computations where each step depends on the result of the previous one.

@@ -369,7 +369,7 @@ The result type of a composition is not a convenience, it is a promise. When `Le
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice lens composition in [Tutorial 02: Lens Composition](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial02_LensComposition.java) (7 exercises, ~10 minutes).
+Practise lens composition in [Tutorial 02: Lens Composition](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial02_LensComposition.java) (7 exercises).
 ~~~
 
 ---

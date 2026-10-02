@@ -78,8 +78,6 @@ import org.junit.jupiter.api.Test;
  *   <li>Polymorphic functions: accept capability interfaces, not concrete types
  * </ul>
  *
- * <p>Estimated time: 30-40 minutes
- *
  * <p>Replace each placeholder with the correct code to make the tests pass.
  */
 @DisplayName("Tutorial 04: Polymorphic Capabilities (MTL)")

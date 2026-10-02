@@ -52,7 +52,7 @@ flowchart TD
 ```
 
 ~~~admonish info title="Hands-On Learning"
-The [Traversals & Practice Journey](../tutorials/optics/traversals_journey.md) (27 exercises, ~40 minutes) covers filtering and indexed patterns alongside the basics.
+The [Traversals & Practice Journey](../tutorials/optics/traversals_journey.md) (28 exercises) covers filtering and indexed patterns alongside the basics.
 ~~~
 
 ~~~admonish tip title="See Also"

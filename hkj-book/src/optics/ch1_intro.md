@@ -51,7 +51,7 @@ This section introduces the fundamental optics: Lens for product types (records 
 The composition rules table at the section's end is worth bookmarking. You'll refer to it more often than you might expect. The [Optics landing page](ch_intro.md) carries the overall optics hierarchy if you need to see where these four fit in relation to Traversals, Folds, Getters, and Setters.
 
 ~~~admonish info title="Hands-On Learning"
-Practice this section in the [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md) (30 exercises, ~40 minutes).
+Practise this section in the [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md) (30 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

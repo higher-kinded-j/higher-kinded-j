@@ -3,7 +3,7 @@
 ![Diagram showing optics as composable lenses focusing on nested data structures](../images/optics.jpg)
 
 ~~~admonish info title="Hands-On Learning"
-Ready to master optics through practice? The **[Optics Tutorial Track](../tutorials/optics/ch_intro.md)** offers six interactive journeys covering Lenses, Prisms, Traversals, the Fluent and Free DSLs, the Focus DSL, batching, and the generated DTO boundary (134 exercises, ~225 minutes total).
+Ready to master optics through practice? The **[Optics Tutorial Track](../tutorials/optics/ch_intro.md)** (202 exercises) offers six interactive journeys covering Lenses, Prisms, Traversals, the Fluent and Free DSLs, the Focus DSL, batching, and the generated DTO boundary.
 ~~~
 
 ~~~admonish info title="What You'll Learn"

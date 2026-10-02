@@ -1,6 +1,7 @@
 # Monad Transformers Journey
 
-**Estimated Duration**: ~90 minutes (four sub-journeys) | **Exercises**: ~28
+**Tutorials**: 4 | **Exercises**: 29
+<!-- exercises: transformers/Tutorial01_WhenPathIsNotEnough transformers/Tutorial02_AsyncWithAbsence transformers/Tutorial03_StackingTransformers transformers/Tutorial04_PolymorphicCapabilities -->
 
 ~~~admonish info title="When to Take This Journey"
 The Effect Path API ([Tutorial 01: Effect Path Basics](../effect/effect_journey.md)) covers most workflows we will write in Java. Take this journey when we have hit one of the corners that Path types do not reach: integrating with code that returns a different outer monad, or writing library code that should work against any caller's effect stack.
@@ -14,25 +15,25 @@ Monad transformers compose two monads into a single layer (e.g. `CompletableFutu
 
 The Monad Transformers Journey builds on the Effect Path API to cover the cases where we need to drop down to the underlying transformer machinery.
 
-### Tutorial 01: When Path Isn't Enough (~30 min, 6 exercises)
+**Tutorial 01: When Path Isn't Enough**
 - Bridging an existing `CompletableFuture<Either<L, R>>` into `EitherT`
 - Lifting synchronous `Either` values into the same workflow
 - Composing async-and-typed-error steps with `For` comprehensions
 - Recovering from typed errors with `handleErrorWith`
 - Collapsing back to ordinary Java at the boundary
 
-### Tutorial 02: Async with Absence (~25 min, 5 exercises)
+**Tutorial 02: Async with Absence**
 - The same shape applied to `CompletableFuture<Optional<T>>`
 - Chaining async lookups with `For`
 - Providing defaults when a lookup yields nothing
 - A short tour of `MaybeT` for codebases that prefer `Maybe`
 
-### Tutorial 03: Stacking Transformers (~15 min, 4 exercises)
+**Tutorial 03: Stacking Transformers**
 - Two effects in one workflow: `EitherT` over `Optional`
 - Why `For` keeps stacked code readable
 - When stacking gets uncomfortable, what to reach for instead
 
-### Tutorial 04: Polymorphic Capabilities (MTL) (~30-40 min, 14 exercises)
+**Tutorial 04: Polymorphic Capabilities (MTL)**
 - `MonadReader`: read-only access to a shared environment
 - `MonadState`: read-write state threading
 - `MonadWriter`: append-only output accumulation
@@ -54,7 +55,7 @@ The tutorials are located in `hkj-examples/src/test/java/org/higherkindedj/tutor
 
 ### Tutorial 01: When Path Isn't Enough
 
-**File**: `Tutorial01_WhenPathIsNotEnough.java`
+**File**: `Tutorial01_WhenPathIsNotEnough.java` | **Exercises**: 6
 
 <!-- verify -->
 ```java
@@ -71,7 +72,7 @@ var workflow = For.from(eitherTMonad, EitherT.fromKind(fetchWeather("Berlin")))
 
 ### Tutorial 02: Async with Absence
 
-**File**: `Tutorial02_AsyncWithAbsence.java`
+**File**: `Tutorial02_AsyncWithAbsence.java` | **Exercises**: 5
 
 <!-- verify -->
 ```java
@@ -83,7 +84,7 @@ var workflow = For.from(optionalTMonad, OptionalT.fromKind(fetchUser("alice")))
 
 ### Tutorial 03: Stacking Transformers
 
-**File**: `Tutorial03_StackingTransformers.java`
+**File**: `Tutorial03_StackingTransformers.java` | **Exercises**: 4
 
 <!-- verify -->
 ```java
@@ -96,7 +97,7 @@ var sum = For.from(eitherTOverOptional,
 
 ### Tutorial 04: Polymorphic Capabilities (MTL)
 
-**File**: `Tutorial04_PolymorphicCapabilities.java`
+**File**: `Tutorial04_PolymorphicCapabilities.java` | **Exercises**: 14
 
 <!-- verify -->
 ```java

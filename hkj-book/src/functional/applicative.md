@@ -165,7 +165,7 @@ For a longer treatment with a decision flow, see [Choosing Your Abstraction Leve
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice Applicative combining in [Tutorial 03: Applicative Combining](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial03_ApplicativeCombining.java) (7 exercises, ~10 minutes).
+Practise Applicative combining in [Tutorial 03: Applicative Combining](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial03_ApplicativeCombining.java) (8 exercises).
 ~~~
 
 ---

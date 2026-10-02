@@ -16,7 +16,8 @@ var outcome = findOrder(id)
 Same six layers. Same mental model. One expression.
 ~~~
 
-**Duration**: ~30 minutes | **Tutorials**: 1 (capstone) | **Exercises**: 7
+**Tutorials**: 1 (capstone) | **Exercises**: 7
+<!-- exercises: coretypes/TutorialCapstone_OneLineSixLayersGrowsUp -->
 
 **Prerequisites**: complete the [Foundations Journey](../coretypes/foundations_journey.md), the [Effect API Journey](../effect/effect_journey.md), and at least one of [Optics: Lens & Prism](../optics/lens_prism_journey.md) or [Concurrency: VTask](../concurrency/vtask_journey.md).
 
@@ -46,7 +47,7 @@ The capstone is the single best demonstration that the chapter material composes
 
 ## How the Tutorial Works
 
-A single test file with 7 exercises and a matching solution file. Exercises 1-3 build the pipeline incrementally; exercise 4 assembles them all; exercises 5-7 add resilience, an alternative spelling, and recovery.
+A single test file and a matching solution file. Exercises 1-3 build the pipeline incrementally; exercise 4 assembles them all; exercises 5-7 add resilience, an alternative spelling, and recovery.
 
 ```bash
 ./gradlew :hkj-examples:tutorialTest --tests "*TutorialCapstone_OneLineSixLayersGrowsUp*"

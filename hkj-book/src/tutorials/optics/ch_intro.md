@@ -31,14 +31,14 @@ The `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/o
 
 At a glance:
 
-| Journey | Duration | Exercises |
-|---------|----------|-----------|
-| [Lens & Prism](lens_prism_journey.md) | ~40 min | 30 |
-| [Traversals & Practice](traversals_journey.md) | ~40 min | 27 |
-| [Fluent & Free DSL](fluent_free_journey.md) | ~35 min | 22 |
-| [Focus DSL](focus_dsl_journey.md) | ~35 min | 29 |
-| [Batching & Coupled Updates](batching_journey.md) | ~40 min | 13 |
-| [Boundary Mapping](boundary_mapping_journey.md) | ~50 min | 19 |
+| Journey | Exercises |
+|---------|-----------|
+| [Lens & Prism](lens_prism_journey.md) | 30 |
+| [Traversals & Practice](traversals_journey.md) | 28 |
+| [Fluent & Free DSL](fluent_free_journey.md) | 22 |
+| [Focus DSL](focus_dsl_journey.md) | 90 |
+| [Batching & Coupled Updates](batching_journey.md) | 13 |
+| [Boundary Mapping](boundary_mapping_journey.md) | 19 |
 
 ---
 

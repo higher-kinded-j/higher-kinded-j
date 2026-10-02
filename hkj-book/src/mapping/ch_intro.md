@@ -188,7 +188,7 @@ Those pages teach the model and put it behind an endpoint. For a particular task
 - Spring beans, test fakes, and how wide a record may be: [Injecting, Testing, and Diagnostics](testing.md)
 
 ~~~admonish info title="Hands-On Learning"
-Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/boundary_mapping_journey.md) (4 tutorials, 19 exercises, ~50 minutes): hand-written multi-edits, the `ValidatedPrism` leaf, the generated boundary of Tutorial 26, and the edge cases of Tutorial 27.
+Practise the whole lane in the [Boundary Mapping Journey](../tutorials/optics/boundary_mapping_journey.md) (4 tutorials, 19 exercises): hand-written multi-edits, the `ValidatedPrism` leaf, the generated boundary of Tutorial 26, and the edge cases of Tutorial 27.
 ~~~
 
 ---

@@ -280,7 +280,7 @@ repo.find(id)
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice error handling in [Tutorial 05: Monad Error Handling](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial05_MonadErrorHandling.java) (7 exercises, ~10 minutes).
+Practise error handling in [Tutorial 05: Monad Error Handling](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial05_MonadErrorHandling.java) (7 exercises).
 ~~~
 
 ---

@@ -71,8 +71,8 @@ They compose rather than compete: a Focus path hands its underlying optic to `Op
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-- Practice the Focus DSL in the [Focus DSL Journey](../tutorials/optics/focus_dsl_journey.md) (9 tutorials, ~80 exercises, ~75 minutes).
-- Practice the Fluent and Free APIs in the [Fluent & Free DSL Journey](../tutorials/optics/fluent_free_journey.md) (22 exercises, ~35 minutes).
+- Practise the Focus DSL in the [Focus DSL Journey](../tutorials/optics/focus_dsl_journey.md) (9 tutorials, 90 exercises).
+- Practise the Fluent and Free APIs in the [Fluent & Free DSL Journey](../tutorials/optics/fluent_free_journey.md) (22 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

@@ -2,6 +2,9 @@
 
 These tutorials guide us through building fault-tolerant applications with higher-kinded-j's resilience patterns.
 
+**Tutorials**: 4 | **Exercises**: 24
+<!-- exercises: resilience/Tutorial01_CircuitBreaker resilience/Tutorial02_Saga resilience/Tutorial03_RetryBulkheadResilience resilience/Tutorial04_PathResilience -->
+
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 The [One Line, Six Layers](../../hkts/one_line_six_layers.md) anchor uses `Either` short-circuiting to handle a single failure cleanly. This journey covers the patterns we reach for once one failure is not the whole story: retries, timeouts, downstream-protection, multi-step compensations. Reference material lives under [Resilience Patterns](../../resilience/ch_intro.md) in the Effect chapter.
 ~~~
@@ -15,7 +18,7 @@ Before starting, we should be comfortable with:
 
 ## Tutorial Track
 
-### Tutorial 1: Circuit Breaker (~10 minutes)
+### Tutorial 1: Circuit Breaker
 
 Learn to protect services from cascading failures with the circuit breaker pattern.
 
@@ -29,7 +32,7 @@ Learn to protect services from cascading failures with the circuit breaker patte
 
 **File:** `Tutorial01_CircuitBreaker.java`
 
-### Tutorial 2: Saga (~10 minutes)
+### Tutorial 2: Saga
 
 Learn to coordinate multi-step operations with automatic compensation on failure.
 
@@ -42,7 +45,7 @@ Learn to coordinate multi-step operations with automatic compensation on failure
 
 **File:** `Tutorial02_Saga.java`
 
-### Tutorial 3: Retry, Bulkhead & Combined Resilience (~10 minutes)
+### Tutorial 3: Retry, Bulkhead & Combined Resilience
 
 Learn VTask-native retry, concurrency limiting, and combining multiple patterns.
 
@@ -55,7 +58,7 @@ Learn VTask-native retry, concurrency limiting, and combining multiple patterns.
 
 **File:** `Tutorial03_RetryBulkheadResilience.java`
 
-### Tutorial 4: Path API Resilience (~10 minutes)
+### Tutorial 4: Path API Resilience
 
 Learn to use resilience patterns through the fluent Path API.
 

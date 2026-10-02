@@ -394,7 +394,7 @@ Use `Writer` when you need output accumulation in pure code. Use `WriterT` when 
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-The `MonadWriter` capability that wraps `WriterT` is exercised in [Tutorial 04: Polymorphic Capabilities (MTL)](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial04_PolymorphicCapabilities.java) (14 exercises, ~30-40 minutes).
+The `MonadWriter` capability that wraps `WriterT` is exercised in [Tutorial 04: Polymorphic Capabilities (MTL)](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial04_PolymorphicCapabilities.java) (14 exercises).
 ~~~
 
 ---

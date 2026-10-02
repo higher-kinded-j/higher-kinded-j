@@ -368,7 +368,7 @@ EitherPath<AppError, SaveResult> processUserUpdate(UserId userId, UpdateRequest 
 ---
 
 ~~~admonish info title="Hands-On Learning"
-Practice Focus-Effect bridging in [Tutorial 14: Focus-Effect Bridge](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial14_FocusEffectBridge.java) (13 exercises, ~15 minutes).
+Practise Focus-Effect bridging in [Tutorial 14: Focus-Effect Bridge](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial14_FocusEffectBridge.java) (13 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

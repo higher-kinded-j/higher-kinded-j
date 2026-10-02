@@ -849,7 +849,7 @@ public class ForkingOrderService {
 | `DEADLINE` | Timeout propagation | Calculated from timeout policy |
 
 ~~~admonish info title="Hands-On Learning"
-Practice request tracing patterns in [Tutorial 03: Request Tracing Patterns](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/context/Tutorial03_RequestTracingPatterns.java) (6 exercises, ~25 minutes).
+Practise request tracing patterns in [Tutorial 03: RequestContext Patterns](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/context/Tutorial03_RequestContextPatterns.java) (12 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

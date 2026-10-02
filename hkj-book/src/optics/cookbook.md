@@ -909,7 +909,7 @@ Inventory cleared = allProducts.modifyWhen(
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice real-world optics patterns in [Tutorial 08: Real World Optics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial08_RealWorldOptics.java) (6 exercises, ~10 minutes).
+Practise real-world optics patterns in [Tutorial 08: Real World Optics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial08_RealWorldOptics.java) (6 exercises).
 ~~~
 
 ---

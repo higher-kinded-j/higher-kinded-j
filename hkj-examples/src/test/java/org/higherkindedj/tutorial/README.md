@@ -5,9 +5,9 @@ Welcome to the Higher-Kinded-J tutorial series! These hands-on tutorials will te
 ## Overview
 
 This tutorial series consists of three tracks:
-1. **Core Types** (10 tutorials, ~80 minutes) - Learn about Functors, Applicatives, Monads, and more
-2. **Optics** (16 tutorials, ~160 minutes) - Learn about Lenses, Prisms, Traversals, Focus DSL, and advanced patterns
-3. **MTL** (1 tutorial, ~35 minutes) - Learn about MonadReader, MonadState, MonadWriter, and polymorphic functions
+1. **Core Types** (10 tutorials) - Learn about Functors, Applicatives, Monads, and more
+2. **Optics** (16 tutorials) - Learn about Lenses, Prisms, Traversals, Focus DSL, and advanced patterns
+3. **MTL** (1 tutorial) - Learn about MonadReader, MonadState, MonadWriter, and polymorphic functions
 
 Each tutorial contains exercises where you need to replace `___` placeholders with working code. The tests will fail until you complete the exercises correctly.
 
@@ -55,44 +55,44 @@ and must pass to verify the tutorials are correctly designed.
 
 ## Core Types Tutorial Series
 
-### Tutorial 01: Kind Basics (~8 minutes)
+### Tutorial 01: Kind Basics
 Learn the foundation of higher-kinded types in Java:
 - Understanding `Kind<F, A>`
 - Widening and narrowing
 - Witness types
 
-### Tutorial 02: Functor Mapping (~8 minutes)
+### Tutorial 02: Functor Mapping
 Learn to transform values in context:
 - The `map` operation
 - Functor laws
 - Method references
 
-### Tutorial 03: Applicative Combining (~10 minutes)
+### Tutorial 03: Applicative Combining
 Learn to combine independent values:
 - Using `of` to lift values
 - Combining with `map2`, `map3`, `map4`, `map5`
 - Form validation
 
-### Tutorial 04: Monad Chaining (~12 minutes)
+### Tutorial 04: Monad Chaining
 Learn to chain dependent computations:
 - The `flatMap` operation
 - Chaining operations
 - Error short-circuiting
 
-### Tutorial 05: Monad Error Handling (~8 minutes)
+### Tutorial 05: Monad Error Handling
 Learn explicit error handling:
 - `raiseError` and `handleErrorWith`
 - `recover` and `orElse`
 - Try for exceptions
 
-### Tutorial 06: Concrete Types (~10 minutes)
+### Tutorial 06: Concrete Types
 Learn when to use each type:
 - Either for error handling
 - Maybe for optional values
 - List for collections
 - Validated for accumulating errors
 
-### Tutorial 07: Real World (~12 minutes)
+### Tutorial 07: Real World
 Apply everything to real scenarios:
 - Validation pipelines
 - Data processing
@@ -101,56 +101,56 @@ Apply everything to real scenarios:
 
 ## Optics Tutorial Series
 
-### Tutorial 01: Lens Basics (~8 minutes)
+### Tutorial 01: Lens Basics
 Learn immutable field access:
 - `get`, `set`, `modify`
 - Generated lenses
 - Custom lenses
 
-### Tutorial 02: Lens Composition (~10 minutes)
+### Tutorial 02: Lens Composition
 Learn to access nested structures:
 - Composing with `andThen`
 - Deep updates
 - Reusable composed lenses
 
-### Tutorial 03: Prism Basics (~8 minutes)
+### Tutorial 03: Prism Basics
 Learn to work with sum types:
 - `getOptional`, `build`, `modify`
 - Pattern matching
 - Sealed interfaces
 
-### Tutorial 04: Affine Basics (~10 minutes)
+### Tutorial 04: Affine Basics
 Learn to work with optional fields:
 - Zero-or-one focus
 - Lens + Prism composition
 - Optional field access
 
-### Tutorial 05: Traversal Basics (~10 minutes)
+### Tutorial 05: Traversal Basics
 Learn to work with multiple values:
 - Bulk modifications
 - Filtering
 - Composing traversals
 
-### Tutorial 06: Optics Composition (~10 minutes)
+### Tutorial 06: Optics Composition
 Learn to combine different optic types:
 - Lens + Prism
 - Lens + Traversal
 - Complex compositions
 
-### Tutorial 07: Generated Optics (~8 minutes)
+### Tutorial 07: Generated Optics
 Learn annotation-based generation:
 - `@GenerateLenses`
 - `@GeneratePrisms`
 - `@GenerateTraversals`
 
-### Tutorial 08: Real World Optics (~12 minutes)
+### Tutorial 08: Real World Optics
 Apply optics to real problems:
 - User profile management
 - API response processing
 - E-commerce orders
 - Data validation
 
-### Tutorial 09: Fluent Optics API (~12 minutes)
+### Tutorial 09: Fluent Optics API
 Learn the ergonomic fluent API:
 - OpticOps static methods (source-first)
 - Collection operations: getAll, modifyAll, setAll
@@ -158,13 +158,13 @@ Learn the ergonomic fluent API:
 - Validation with Either, Maybe, Validated
 - Real-world form validation
 
-### Tutorial 10: Advanced Prism Patterns (~10 minutes)
+### Tutorial 10: Advanced Prism Patterns
 Master advanced prism techniques:
 - Predicate-based matching with `nearly`
 - Exclusion filtering with `doesNotMatch`
 - Cross-optic composition patterns
 
-### Tutorial 11: Advanced Optics DSL (~15 minutes)
+### Tutorial 11: Advanced Optics DSL
 Master the Free Monad DSL:
 - Building programs as data structures
 - Composing with flatMap
@@ -173,32 +173,32 @@ Master the Free Monad DSL:
 - Logging interpreter (audit trails)
 - Validation interpreter (dry-runs)
 
-### Tutorial 12: Focus DSL (~12 minutes)
+### Tutorial 12: Focus DSL
 Learn type-safe path navigation:
 - FocusPath and AffinePath
 - Fluent chaining with `andThen`
 - Pattern matching with Focus DSL
 
-### Tutorial 13: Advanced Focus DSL (~12 minutes)
+### Tutorial 13: Advanced Focus DSL
 Type class integration with Focus DSL:
 - Functor, Applicative, and Monad integration
 - Effect-aware transformations
 - Complex path compositions
 
-### Tutorial 14: Focus-Effect Bridge (~15 minutes)
+### Tutorial 14: Focus-Effect Bridge
 Connecting optics with effects:
 - Bridging Focus DSL and Effect paths
 - Combining optic access with effectful operations
 - Real-world integration patterns
 
-### Tutorial 15: List Prisms (~12 minutes)
+### Tutorial 15: List Prisms
 Functional list decomposition:
 - Cons (head/tail) and snoc (init/last) patterns
 - head, last, tail, init accessors
 - Stack-safe trampoline operations
 - Composing with other optics
 
-### Tutorial 18: Fold Combination (~10 minutes)
+### Tutorial 18: Fold Combination
 Combining multiple folds into one:
 - `Fold.plus()` for combining two folds
 - `Fold.empty()` as the identity element
@@ -207,7 +207,7 @@ Combining multiple folds into one:
 - Monoid-based aggregation across combined folds
 - Combining filtered folds for categorised results
 
-### Tutorial 19: Navigator Generation (~10 minutes)
+### Tutorial 19: Navigator Generation
 Fluent cross-type navigation with generated navigators:
 - Navigator delegation: wrapping FocusPath with get/set/modify
 - Path widening through Optional (AffinePath) and collections (TraversalPath)
@@ -215,7 +215,7 @@ Fluent cross-type navigation with generated navigators:
 - Compound widening rules (AFFINE + TRAVERSAL = TRAVERSAL)
 - Depth limiting with `maxNavigatorDepth` and fallback to `.via()`
 
-### Tutorial 20: Custom Container Navigation (~12 minutes)
+### Tutorial 20: Custom Container Navigation
 Navigating custom container types with Affines:
 - `Affines.eitherRight()` for Either fields
 - `Affines.trySuccess()` for Try fields
@@ -225,7 +225,7 @@ Navigating custom container types with Affines:
 
 ## MTL Tutorial Series
 
-### Tutorial 02: MTL Basics (~35 minutes)
+### Tutorial 02: MTL Basics
 Learn to write stack-independent effectful code:
 - MonadReader: `ask()`, `reader()`, `local()` for environment access
 - MonadState: `get()`, `modify()`, `gets()` for state threading
@@ -235,14 +235,14 @@ Learn to write stack-independent effectful code:
 
 ## For-Comprehension Tutorial Series
 
-### Tutorial 03: Traverse in For-Comprehensions (~15 minutes)
+### Tutorial 03: Traverse in For-Comprehensions
 Use traverse, sequence, and flatTraverse within For and ForPath comprehension chains:
 - Traversing collections with effectful functions
 - Sequencing pre-built monadic values
 - flatTraverse for nested structures
 - Combining traverse with guards and other steps
 
-### Tutorial 04: Enhanced Optics Integration (~15 minutes)
+### Tutorial 04: Enhanced Optics Integration
 Deep integration between optics and state-threaded comprehensions:
 - `traverseOver`: effectful traversal directly over state elements
 - `modifyThrough`: pure modification via a Traversal (with optional nested Lens)

@@ -1,27 +1,32 @@
 # Learning Paths
 
 ~~~admonish info title="Choose a Path"
-Each journey is designed to be completed in a single sitting (25–65 minutes). The paths below are recommended *sequences* of journeys for different goals.
+Each journey covers one topic. The [recommended paths](#recommended-paths) put them in order for different goals.
 ~~~
 
 ## All Journeys at a Glance
 
-| Journey | Duration | Exercises | Level |
-|---------|----------|-----------|-------|
-| [Core: Foundations](coretypes/foundations_journey.md) | ~40 min | 24 | Beginner |
-| [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min | 20 | Intermediate |
-| [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~40 min | 26 | Advanced |
-| [Effect API](effect/effect_journey.md) | ~65 min | 15 | All Levels |
-| [Concurrency: VTask](concurrency/vtask_journey.md) | ~45 min | 16 | Intermediate |
-| [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | ~30 min | 12 | Intermediate |
-| [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min | 30 | Beginner |
-| [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min | 27 | Intermediate |
-| [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min | 22 | Advanced |
-| [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min | 29 | Intermediate |
-| [Optics: Batching & Coupled Updates](optics/batching_journey.md) | ~40 min | 13 | Advanced |
-| [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~50 min | 19 | Intermediate |
-| [Expression: ForState](expression/forstate_journey.md) | ~25 min | 11 | Intermediate |
-| [Resilience Patterns](resilience/resilience_journey.md) | ~45 min | 22 | Intermediate |
+| Journey | Exercises | Level |
+|---------|-----------|-------|
+| [Core: Foundations](coretypes/foundations_journey.md) | 37 | Beginner |
+| [Core: Error Handling](coretypes/error_handling_journey.md) | 26 | Intermediate |
+| [Core: Advanced Patterns](coretypes/advanced_journey.md) | 26 | Advanced |
+| [Effect API](effect/effect_journey.md) | 17 | All Levels |
+| [Monad Transformers](transformers/transformers_journey.md) | 29 | Advanced |
+| [Concurrency: VTask](concurrency/vtask_journey.md) | 28 | Intermediate |
+| [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | 20 | Intermediate |
+| [Context](context/ch_intro.md) | 59 | Advanced |
+| [Effect Handlers](effecthandlers/ch_intro.md) | 19 | Advanced |
+| [Optics: Lens & Prism](optics/lens_prism_journey.md) | 30 | Beginner |
+| [Optics: Traversals & Practice](optics/traversals_journey.md) | 28 | Intermediate |
+| [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | 22 | Advanced |
+| [Optics: Focus DSL](optics/focus_dsl_journey.md) | 90 | Intermediate |
+| [Optics: Batching & Coupled Updates](optics/batching_journey.md) | 13 | Advanced |
+| [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | 19 | Intermediate |
+| [Expression: ForState](expression/forstate_journey.md) | 13 | Intermediate |
+| [Expression: ForPath Parallel](expression/forpath_parallel_journey.md) | 9 | Intermediate |
+| [Resilience Patterns](resilience/resilience_journey.md) | 24 | Intermediate |
+| [Capstone: One Line, Six Layers Grows Up](capstone/capstone_journey.md) | 7 | Intermediate |
 
 ---
 
@@ -34,15 +39,15 @@ Each journey is designed to be completed in a single sitting (25–65 minutes). 
 ### Path A: Effect-First (Recommended)
 *The modern approach: start with the user-friendly Effect API.*
 
-| Session | Journey | Duration |
-|---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
-| 2 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
-| 3 | [Effect API: Advanced](effect/effect_journey.md) | ~30 min |
-| 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
-| 5 | [Expression: ForState](expression/forstate_journey.md) | ~25 min |
+| Session | Journey |
+|---------|---------|
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) |
+| 2 | [Effect API: Fundamentals](effect/effect_journey.md#part-1-fundamentals) |
+| 3 | [Effect API: Advanced](effect/effect_journey.md#part-2-advanced) |
+| 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) |
+| 5 | [Expression: ForState](expression/forstate_journey.md) |
 
-**Total**: 5 sessions, ~170 min across sessions
+**Total**: 5 sessions
 
 **Best for**: New users who want the recommended learning experience.
 
@@ -51,12 +56,12 @@ Each journey is designed to be completed in a single sitting (25–65 minutes). 
 ### Path B: Quickstart
 *Get productive with Higher-Kinded-J quickly.*
 
-| Session | Journey | Duration |
-|---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
-| 2 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
+| Session | Journey |
+|---------|---------|
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) |
+| 2 | [Effect API: Fundamentals](effect/effect_journey.md#part-1-fundamentals) |
 
-**Total**: 2 sessions, ~75 min across sessions
+**Total**: 2 sessions
 
 **Best for**: Developers who want to use the library immediately without deep theory.
 
@@ -65,15 +70,15 @@ Each journey is designed to be completed in a single sitting (25–65 minutes). 
 ### Path C: Practical FP
 *Core functional patterns for everyday use.*
 
-| Session | Journey | Duration |
-|---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
-| 2 | [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min |
-| 3 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
-| 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
-| 5 | [Expression: ForState](expression/forstate_journey.md) | ~25 min |
+| Session | Journey |
+|---------|---------|
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) |
+| 2 | [Core: Error Handling](coretypes/error_handling_journey.md) |
+| 3 | [Effect API: Fundamentals](effect/effect_journey.md#part-1-fundamentals) |
+| 4 | [Optics: Lens & Prism](optics/lens_prism_journey.md) |
+| 5 | [Expression: ForState](expression/forstate_journey.md) |
 
-**Total**: 5 sessions, ~170 min across sessions
+**Total**: 5 sessions
 
 **Best for**: Developers building production applications who want solid foundations.
 
@@ -82,13 +87,13 @@ Each journey is designed to be completed in a single sitting (25–65 minutes). 
 ### Path D: Core Types Deep Dive
 *Master the theoretical foundation.*
 
-| Session | Journey | Duration |
-|---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
-| 2 | [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min |
-| 3 | [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~40 min |
+| Session | Journey |
+|---------|---------|
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) |
+| 2 | [Core: Error Handling](coretypes/error_handling_journey.md) |
+| 3 | [Core: Advanced Patterns](coretypes/advanced_journey.md) |
 
-**Total**: 3 sessions, ~110 min across sessions
+**Total**: 3 sessions
 
 **Best for**: Developers who want to understand the FP theory deeply before applying it. Pair this path with the [Foundations chapter](../hkts/foundations_intro.md) of the book; the journeys exercise the concepts that the book explains.
 
@@ -97,16 +102,16 @@ Each journey is designed to be completed in a single sitting (25–65 minutes). 
 ### Path E: Optics Specialist
 *Master immutable data manipulation.*
 
-| Session | Journey | Duration |
-|---------|---------|----------|
-| 1 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
-| 2 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min |
-| 3 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min |
-| 4 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min |
-| 5 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) | ~40 min |
-| 6 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~50 min |
+| Session | Journey |
+|---------|---------|
+| 1 | [Optics: Lens & Prism](optics/lens_prism_journey.md) |
+| 2 | [Optics: Traversals & Practice](optics/traversals_journey.md) |
+| 3 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) |
+| 4 | [Optics: Focus DSL](optics/focus_dsl_journey.md) |
+| 5 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) |
+| 6 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) |
 
-**Total**: 6 sessions, ~240 min across sessions
+**Total**: 6 sessions
 
 **Best for**: Developers working with complex immutable data structures who want to master optics, through to the generated DTO boundary.
 
@@ -115,25 +120,30 @@ Each journey is designed to be completed in a single sitting (25–65 minutes). 
 ### Path F: Full Curriculum
 *Everything, done properly over multiple sessions.*
 
-| Session | Journey | Duration |
-|---------|---------|----------|
-| 1 | [Core: Foundations](coretypes/foundations_journey.md) | ~40 min |
-| 2 | [Core: Error Handling](coretypes/error_handling_journey.md) | ~30 min |
-| 3 | [Core: Advanced Patterns](coretypes/advanced_journey.md) | ~40 min |
-| 4 | [Effect API: Fundamentals](effect/effect_journey.md) | ~35 min |
-| 5 | [Effect API: Advanced](effect/effect_journey.md) | ~30 min |
-| 6 | [Expression: ForState](expression/forstate_journey.md) | ~25 min |
-| 7 | [Concurrency: VTask](concurrency/vtask_journey.md) | ~45 min |
-| 8 | [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | ~30 min |
-| 9 | [Resilience Patterns](resilience/resilience_journey.md) | ~45 min |
-| 10 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | ~40 min |
-| 11 | [Optics: Traversals & Practice](optics/traversals_journey.md) | ~40 min |
-| 12 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | ~35 min |
-| 13 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | ~35 min |
-| 14 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) | ~40 min |
-| 15 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | ~50 min |
+| Session | Journey |
+|---------|---------|
+| 1 | [Core: Foundations](coretypes/foundations_journey.md) |
+| 2 | [Core: Error Handling](coretypes/error_handling_journey.md) |
+| 3 | [Core: Advanced Patterns](coretypes/advanced_journey.md) |
+| 4 | [Effect API: Fundamentals](effect/effect_journey.md#part-1-fundamentals) |
+| 5 | [Effect API: Advanced](effect/effect_journey.md#part-2-advanced) |
+| 6 | [Monad Transformers](transformers/transformers_journey.md) |
+| 7 | [Effect Handlers](effecthandlers/ch_intro.md) |
+| 8 | [Expression: ForState](expression/forstate_journey.md) |
+| 9 | [Expression: ForPath Parallel](expression/forpath_parallel_journey.md) |
+| 10 | [Concurrency: VTask](concurrency/vtask_journey.md) |
+| 11 | [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) |
+| 12 | [Context](context/ch_intro.md) |
+| 13 | [Resilience Patterns](resilience/resilience_journey.md) |
+| 14 | [Optics: Lens & Prism](optics/lens_prism_journey.md) |
+| 15 | [Optics: Traversals & Practice](optics/traversals_journey.md) |
+| 16 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) |
+| 17 | [Optics: Focus DSL](optics/focus_dsl_journey.md) |
+| 18 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) |
+| 19 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) |
+| 20 | [Capstone: One Line, Six Layers Grows Up](capstone/capstone_journey.md) |
 
-**Total**: 15 sessions, ~560 min across sessions
+**Total**: 20 sessions
 
 **Best for**: Comprehensive mastery of Higher-Kinded-J.
 
@@ -141,33 +151,33 @@ Each journey is designed to be completed in a single sitting (25–65 minutes). 
 
 ## Combined Journeys
 
-For longer learning sessions, these combinations work well together and stay under 60 minutes:
+These pairs build on each other and work well taken back to back:
 
-### Error Mastery (~70 min)
+### Error Mastery
 Combine [Core: Error Handling](coretypes/error_handling_journey.md) + [Core: Advanced Patterns](coretypes/advanced_journey.md)
 
-Focus: Complete error handling and advanced FP patterns in one sitting.
+Focus: Complete error handling and advanced FP patterns together.
 
-### DSL Power (~70 min)
+### DSL Power
 Combine [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) + [Optics: Focus DSL](optics/focus_dsl_journey.md)
 
 Focus: Master both the Free Monad DSL and the Focus DSL together.
 
-### Effect API Complete (~65 min)
-Combine [Effect API: Fundamentals](effect/effect_journey.md) + [Effect API: Advanced](effect/effect_journey.md)
+### Effect API Complete
+Combine [Effect API: Fundamentals](effect/effect_journey.md#part-1-fundamentals) + [Effect API: Advanced](effect/effect_journey.md#part-2-advanced)
 
 Focus: Master the complete Effect Path API from basics to advanced contexts and annotations.
 
-### Concurrency Complete (~75 min)
+### Concurrency Complete
 Combine [Concurrency: VTask](concurrency/vtask_journey.md) + [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md)
 
-Focus: Master virtual threads, structured concurrency, and resource management in one session.
+Focus: Master virtual threads, structured concurrency, and resource management together.
 
 ---
 
 ## Tips for Success
 
-1. **One journey per sitting.** Each journey is designed to be completed without interruption. Taking breaks between journeys helps consolidation.
+1. **Pause between tutorials, not inside one.** A break between tutorials or journeys helps consolidation.
 2. **Don't skip the struggle.** When an exercise is hard, that is where learning happens. Consult solutions only after genuine effort.
 3. **Run the tests.** The red-to-green feedback loop is essential. Don't just read the exercises.
 4. **Revisit earlier journeys.** After completing later journeys, earlier concepts often make more sense. Circle back.

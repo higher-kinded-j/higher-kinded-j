@@ -7,7 +7,8 @@
 - Applying optics to realistic production scenarios
 ~~~
 
-**Duration**: ~40 minutes | **Tutorials**: 4 | **Exercises**: 27
+**Tutorials**: 4 | **Exercises**: 28
+<!-- exercises: optics/Tutorial05_TraversalBasics optics/Tutorial06_OpticsComposition optics/Tutorial07_GeneratedOptics optics/Tutorial08_RealWorldOptics -->
 
 **Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md)
 
@@ -25,8 +26,8 @@ Traversal (bulk ops) → Composition Rules → Generated Optics → Real World
 
 ---
 
-## Tutorial 05: Traversal Basics (~10 minutes)
-**File**: `Tutorial05_TraversalBasics.java` | **Exercises**: 7
+## Tutorial 05: Traversal Basics
+**File**: `Tutorial05_TraversalBasics.java` | **Exercises**: 8
 
 Learn to work with multiple targets simultaneously using Traversals.
 
@@ -58,7 +59,7 @@ League updated = Traversals.modify(allScores, score -> score + 10, league);
 
 ---
 
-## Tutorial 06: Optics Composition (~10 minutes)
+## Tutorial 06: Optics Composition
 **File**: `Tutorial06_OpticsComposition.java` | **Exercises**: 7
 
 Learn the rules and patterns for composing different optic types.
@@ -93,7 +94,7 @@ Learn the rules and patterns for composing different optic types.
 
 ---
 
-## Tutorial 07: Generated Optics (~10 minutes)
+## Tutorial 07: Generated Optics
 **File**: `Tutorial07_GeneratedOptics.java` | **Exercises**: 7
 
 Learn to leverage annotation-driven code generation for zero-boilerplate optics.
@@ -124,7 +125,7 @@ public record User(String name, String email, Address address) {}
 
 ---
 
-## Tutorial 08: Real World Optics (~10 minutes)
+## Tutorial 08: Real World Optics
 **File**: `Tutorial08_RealWorldOptics.java` | **Exercises**: 6
 
 Apply optics to realistic scenarios that mirror production code.

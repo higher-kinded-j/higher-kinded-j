@@ -407,7 +407,7 @@ If your stateful computation does not need to combine with another effect, use `
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-The `MonadState` capability that wraps `StateT` is exercised in [Tutorial 04: Polymorphic Capabilities (MTL)](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial04_PolymorphicCapabilities.java) (14 exercises, ~30-40 minutes).
+The `MonadState` capability that wraps `StateT` is exercised in [Tutorial 04: Polymorphic Capabilities (MTL)](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial04_PolymorphicCapabilities.java) (14 exercises).
 ~~~
 
 ---

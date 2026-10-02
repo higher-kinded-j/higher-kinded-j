@@ -76,7 +76,7 @@ A critical dependency usually needs several at once; [Combined Patterns](combine
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practise the whole chapter in the [Resilience Patterns Tutorials](../tutorials/resilience/resilience_journey.md) (4 tutorials, ~40 minutes): circuit breaker, saga, retry with bulkhead, and Path API resilience.
+Practise the whole chapter in the [Resilience Patterns Tutorials](../tutorials/resilience/resilience_journey.md) (4 tutorials): circuit breaker, saga, retry with bulkhead, and Path API resilience.
 ~~~
 
 ---

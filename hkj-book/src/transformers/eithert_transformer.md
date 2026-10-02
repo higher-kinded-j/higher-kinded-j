@@ -365,7 +365,7 @@ Without HKT simulation, you would need a separate transformer for each outer mon
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice composing async-and-typed-error workflows in [Tutorial 01: When Path Isn't Enough](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial01_WhenPathIsNotEnough.java) (6 exercises, ~25 minutes).
+Practise composing async-and-typed-error workflows in [Tutorial 01: When Path Isn't Enough](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/transformers/Tutorial01_WhenPathIsNotEnough.java) (6 exercises).
 ~~~
 
 ---

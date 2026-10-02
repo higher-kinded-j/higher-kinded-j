@@ -142,9 +142,8 @@ Every tutorial class must have comprehensive Javadoc that includes:
 4. **Introduction**: 1-2 paragraphs explaining what the tutorial covers
 5. **Key Concepts**: Bulleted list of concepts with brief explanations
 6. **Prerequisites** (if applicable): Reference to prior tutorials
-7. **Estimated time**: When the README time band is not obvious from the file alone (`<p>Estimated time: 25-35 minutes`)
-8. **Tiered hints note**: If the file uses tiered hints (Nudge / Strategy / Spoiler), explain the convention once at class level
-9. **Instruction**: Tell users to replace placeholders with working code
+7. **Tiered hints note**: If the file uses tiered hints (Nudge / Strategy / Spoiler), explain the convention once at class level
+8. **Instruction**: Tell users to replace placeholders with working code
 
 ```java
 /**
@@ -295,9 +294,27 @@ void exerciseN_descriptiveMethodName() {
 
 ### Exercise Naming
 
-- Method names: `exerciseN_descriptiveMethodName` using camelCase
+- Method names: `exerciseN_descriptiveMethodName` using camelCase, or `diagnostic_…` for a diagnostic exercise
 - Use verbs that describe the action: `widenEitherToKind`, `chainingDependentOperations`
 - Keep names concise but meaningful
+
+### Exercise Counts
+
+A tutorial's size is its exercise count, and `bookVerify` checks every count the book and the root README give (`BookTutorialCountTest`).
+
+- **An exercise is a `@Test` method named `exerciseN_…` or `diagnostic_…`.** A worked example under another name, such as `completeWorkflowExample`, does not count.
+- **Name every method that holds an `answerRequired()` placeholder as an exercise.** The gate fails on one that is not.
+- **A journey page lists its tutorial files on the line directly under its `**Tutorials**:` line.** Each is a path under `hkj-examples/src/test/java/org/higherkindedj/tutorial/` without `.java`, and the comment renders invisibly:
+
+  ```markdown
+  **Tutorials**: 4 | **Exercises**: 30
+  <!-- exercises: optics/Tutorial01_LensBasics optics/Tutorial02_LensComposition optics/Tutorial03_PrismBasics optics/Tutorial04_AffineBasics -->
+  ```
+
+- **The `**Tutorials**:` figure is the number of files listed, and `**Exercises**:` their exact sum.** Neither carries a `~`.
+- **A `**File**:` line gives its own file's count.**
+- **Every other count sits beside the link it counts.** Write "[Journey](…) (N exercises)" or "[Journey](…): N exercises", where N is the count of a journey page, a track's introduction (the sum of its journeys) or a tutorial file. A table's Exercises column does the same for the row's link. A count anywhere else fails as unchecked.
+- **A tutorial file in no journey is on the test's `STANDALONE` list.** A new file joins a journey's marker or that list.
 
 ### Comments Within Exercises
 
@@ -581,24 +598,6 @@ Within a single tutorial, exercises should progress from simple to complex:
 4. **Real-world**: Practical application
 5. **Edge cases**: Error handling, empty cases
 
-### Time Estimates
-
-Include time estimates in the README.md for each tutorial:
-
-```markdown
-### Tutorial 01: Kind Basics (~8 minutes)
-Learn the foundation of higher-kinded types in Java:
-- Understanding `Kind<F, A>`
-- Widening and narrowing
-- Witness types
-```
-
-Typical estimates:
-- Basic tutorials: 8-10 minutes
-- Intermediate tutorials: 10-12 minutes
-- Advanced tutorials: 12-15 minutes
-- Transformer / capstone tutorials: 25-35 minutes
-
 ### Tracking Progress
 
 The `tutorialProgress` Gradle task counts unanswered `answerRequired()` placeholders across every track and prints a per-journey progress bar. Authors should ensure that:
@@ -711,7 +710,7 @@ When a documentation page has an associated tutorial, add **two** admonishments:
 
 ```markdown
 ~~~admonish info title="Hands-On Learning"
-Practice Focus-Effect bridging in [Tutorial 14: Focus-Effect Bridge](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial14_FocusEffectBridge.java) (13 exercises, ~15 minutes).
+Practise Focus-Effect bridging in [Tutorial 14: Focus-Effect Bridge](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial14_FocusEffectBridge.java) (13 exercises).
 ~~~
 ```
 
@@ -722,11 +721,11 @@ The two admonishments serve different purposes:
 | Position | Admonishment | Purpose |
 |----------|--------------|---------|
 | After "What You'll Learn" | `~~~admonish title="Hands On Practice"` | Quick access for readers who want to jump straight to exercises |
-| Before "See Also" | `~~~admonish info title="Hands-On Learning"` | Contextual reminder with exercise count and time estimate |
+| Before "See Also" | `~~~admonish info title="Hands-On Learning"` | Contextual reminder with exercise count |
 
 ### Link Format
 
-Always use the full GitHub URL to the tutorial file on the `main` branch:
+A page that practises one tutorial links its file, always by the full GitHub URL on the `main` branch; a page that practises a whole journey links the journey page, and gives the journey's count:
 
 ```
 https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/{track}/TutorialNN_TopicName.java
@@ -735,7 +734,6 @@ https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/te
 Include in the detailed link:
 - Tutorial number and name
 - Exercise count
-- Time estimate (in minutes)
 
 ### Tutorial-to-Doc References
 
@@ -778,7 +776,7 @@ When creating a new tutorial, ensure:
 - [ ] Solution file exists with matching structure
 - [ ] Solution file's every `@Test` has a "Why this is idiomatic / Alternative / Common wrong attempt" teaching block
 - [ ] README.md is updated with the new tutorial
-- [ ] Time estimate is included
+- [ ] The journey page lists the new file, and every count `bookVerify` reports is updated
 - [ ] British English spelling throughout
 - [ ] No emojis (except final 🎉 if appropriate)
 - [ ] Records used for domain modelling
@@ -804,6 +802,7 @@ When creating a new tutorial track, ensure:
 - [ ] Tutorial 00 chapter anchor (optional but recommended where the chapter has a recurring motif)
 - [ ] Capstone tutorial (optional but recommended for chapters whose pieces compose)
 - [ ] `tutorialProgress` continues to count placeholders correctly (every in-progress slot is `answerRequired()`)
+- [ ] A new journey page carries its `<!-- exercises: -->` marker, `MINIMUM_JOURNEYS` in `BookTutorialCountTest` rises with it, and every journey list names it: the tutorials chapter's table and Chapter Contents, the tutorials introduction, Learning Paths, home.md, and the root README's count
 
 ---
 

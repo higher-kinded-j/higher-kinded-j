@@ -154,7 +154,7 @@ Five transformers that layer one monad's effects on top of another. "I need `IO`
 ---
 
 ~~~admonish info title="Hands-On Learning"
-Practice with concrete types in [Tutorial 06: Concrete Types](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial06_ConcreteTypes.java) (7 exercises, ~10 minutes).
+Practise with concrete types in [Tutorial 06: Concrete Types](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial06_ConcreteTypes.java) (7 exercises).
 ~~~
 
 ---

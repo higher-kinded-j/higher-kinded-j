@@ -350,7 +350,7 @@ The whole expression is a `Kind<EitherPathKind.Witness<Error>, Node>` flowing fr
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice Monad chaining in [Tutorial 04: Monad Chaining](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial04_MonadChaining.java) (7 exercises, ~10 minutes).
+Practise Monad chaining in [Tutorial 04: Monad Chaining](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial04_MonadChaining.java) (8 exercises).
 ~~~
 
 ---

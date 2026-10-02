@@ -72,8 +72,6 @@ import org.junit.jupiter.api.Test;
  * Hierarchies, bridges and invariants on Absent Fields and Record Invariants, and PATCH beans on
  * Sparse PATCH.
  *
- * <p>Estimated time: ~15 minutes.
- *
  * <p>Each exercise's hints climb from a nudge to the answer; stop reading as soon as you have what
  * you need. Replace each {@code answerRequired()} placeholder with the correct code to make the
  * tests pass.

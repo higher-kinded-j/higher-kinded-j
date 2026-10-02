@@ -168,7 +168,7 @@ For compile-time path-type checking, see [Compile-Time Checks](../tooling/compil
 - [Optics for External Types](importing_optics.md): the `@ImportOptics` route in full
 - [Taming JSON with Jackson](optics_spec_interfaces.md): the spec-interface route, and when to prefer it
 - [Record Mapping](../mapping/ch_intro.md): the mapping and assembly generators in section 3
-- [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md): 40 minutes and 30 exercises, hands-on
+- [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md): 30 exercises, hands-on
 ~~~
 
 ---

@@ -7,7 +7,8 @@
 - Handling optional fields precisely with Affines
 ~~~
 
-**Duration**: ~40 minutes | **Tutorials**: 4 | **Exercises**: 30
+**Tutorials**: 4 | **Exercises**: 30
+<!-- exercises: optics/Tutorial01_LensBasics optics/Tutorial02_LensComposition optics/Tutorial03_PrismBasics optics/Tutorial04_AffineBasics -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 The `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/one_line_six_layers.md) is composed from the lenses, prisms, and affines this journey teaches. Each tutorial here opens with a Pain → Promise header showing the imperative-Java horror story (copy-constructor cascades, `instanceof` plus mutate-and-rebuild) the optic replaces.
@@ -39,7 +40,7 @@ When you compose a Lens with a Prism, you get an Affine. This journey builds tha
 
 ---
 
-## Tutorial 01: Lens Basics (~10 minutes)
+## Tutorial 01: Lens Basics
 **File**: `Tutorial01_LensBasics.java` | **Exercises**: 7
 
 Learn immutable field access and modification with Lenses, the foundation of the optics library.
@@ -70,7 +71,7 @@ var updated = UserLenses.email().set(newEmail, user);
 
 ---
 
-## Tutorial 02: Lens Composition (~10 minutes)
+## Tutorial 02: Lens Composition
 **File**: `Tutorial02_LensComposition.java` | **Exercises**: 7
 
 Learn to access deeply nested structures by composing simple lenses into powerful paths.
@@ -108,7 +109,7 @@ var withLens = userToStreetName.set("New St", user);
 
 ---
 
-## Tutorial 03: Prism Basics (~10 minutes)
+## Tutorial 03: Prism Basics
 **File**: `Tutorial03_PrismBasics.java` | **Exercises**: 9
 
 Learn to work with sum types (sealed interfaces) safely using Prisms.
@@ -141,7 +142,7 @@ Optional<String> tracking = shippedPrism
 
 ---
 
-## Tutorial 04: Affine Basics (~10 minutes)
+## Tutorial 04: Affine Basics
 **File**: `Tutorial04_AffineBasics.java` | **Exercises**: 7
 
 Learn to work with optional fields and nullable properties using Affines.

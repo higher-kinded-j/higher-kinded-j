@@ -176,7 +176,7 @@ Person older = OpticOps.modify(alice, PersonLenses.age(), a -> a + 1);
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice the fluent API in [Tutorial 09: Fluent Optics API](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial09_FluentOpticsAPI.java) (7 exercises, ~10 minutes).
+Practise the fluent API in [Tutorial 09: Fluent Optics API](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial09_FluentOpticsAPI.java) (7 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

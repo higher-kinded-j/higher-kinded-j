@@ -352,7 +352,7 @@ VStream<Integer> result = VStreamPar.parEvalMap(
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice parallel VStream patterns in [TutorialVStreamParallel](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStreamParallel.java) (10 exercises, ~15 minutes).
+Practise parallel VStream patterns in [TutorialVStreamParallel](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStreamParallel.java) (8 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

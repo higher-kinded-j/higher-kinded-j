@@ -490,7 +490,7 @@ virtual thread integration or error recovery.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice VStream basics in [TutorialVStream](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStream.java) (11 exercises, ~12-15 minutes).
+Practise VStream basics in [TutorialVStream](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStream.java) (11 exercises).
 ~~~
 
 ~~~admonish example title="Benchmarks"

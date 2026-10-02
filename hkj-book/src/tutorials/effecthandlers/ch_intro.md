@@ -8,7 +8,8 @@
 - Static program inspection before execution
 ~~~
 
-**Tutorials**: 6 | **Prerequisites**: complete the [Effect API Journey](../effect/effect_journey.md) and [Core: Advanced Patterns](../coretypes/advanced_journey.md) (Free Monad / Free Applicative).
+**Tutorials**: 6 | **Exercises**: 19 | **Prerequisites**: complete the [Effect API Journey](../effect/effect_journey.md) and [Core: Advanced Patterns](../coretypes/advanced_journey.md) (Free Monad / Free Applicative).
+<!-- exercises: effecthandlers/Tutorial01_EffectAlgebraBasics effecthandlers/Tutorial02_MultipleInterpreters effecthandlers/Tutorial03_ErrorRecovery effecthandlers/Tutorial04_CombiningEffects effecthandlers/Tutorial05_ProgramInspection effecthandlers/Tutorial06_AdvancedInterpreters -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 This journey is the value-level form of "Hexagonal Architecture without DI": instead of injecting interfaces and mocking them in tests, we model the effects as a sealed-interface ADT and write the program as a `Free` value over it. One program, many interpreters: production runs against real services, tests run against in-memory mocks, audit runs accumulate a trace, dry-run runs validate without executing.

@@ -392,7 +392,7 @@ Kind<VStreamKind.Witness, String> users = fetchAndFormat(
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practice VStream HKT encoding in [TutorialVStreamHKT](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStreamHKT.java) (10 exercises, ~12-15 minutes).
+Practise VStream HKT encoding in [TutorialVStreamHKT](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVStreamHKT.java) (10 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

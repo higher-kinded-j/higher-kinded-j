@@ -47,8 +47,6 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Prerequisites: Complete Tutorials 01-03 before this one.
  *
- * <p>Estimated time: ~15 minutes.
- *
  * <p>Replace each {@code answerRequired()} call with the correct code to make the tests pass.
  */
 public class Tutorial04_EnhancedOpticsIntegration {

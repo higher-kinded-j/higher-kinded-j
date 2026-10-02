@@ -89,7 +89,7 @@ Both focus zero or more elements, and both can read. Only a `Traversal` can writ
 | set every focus | `Traversals.modify(t, a -> x, s)` | not available |
 
 ~~~admonish info title="Hands-On Learning"
-Practice this section in the [Traversals & Practice Journey](../tutorials/optics/traversals_journey.md) (27 exercises, ~40 minutes).
+Practise this section in the [Traversals & Practice Journey](../tutorials/optics/traversals_journey.md) (28 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

@@ -8,7 +8,8 @@
 - The edge cases: a `null`, a list index, a left-out field, a record's invariant, and a PATCH bean's default
 ~~~
 
-**Duration**: ~50 minutes | **Tutorials**: 4 (T24-T27) | **Exercises**: 19
+**Tutorials**: 4 (T24-T27) | **Exercises**: 19
+<!-- exercises: optics/Tutorial24_MultiEdit optics/Tutorial25_ValidatedPrism optics/Tutorial26_RecordMapping optics/Tutorial27_BoundaryEdgeCases -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 This journey is the hands-on lane for the [Mapping at the Boundary](../../mapping/ch_intro.md) chapter. Tutorial 24 builds the update-side machinery by hand (`Edits.combine` / `Edits.accumulate`), Tutorial 25 builds the leaf every fallible correspondence rests on (`ValidatedPrism`), and Tutorial 26 lets the processor derive the whole boundary and proves it lawful. Tutorial 27 takes it to the edge cases a real request brings. The [capstone](../../mapping/capstone.md) then shows the same machinery at full scale.
@@ -35,7 +36,7 @@ T27  edge cases          nulls, list indexes, invariants, PATCH defaults
 
 ---
 
-## Tutorial 24: Multi-Edit and Sparse Updates (~12 minutes)
+## Tutorial 24: Multi-Edit and Sparse Updates
 **File**: `Tutorial24_MultiEdit.java` | **Exercises**: 5
 
 Apply N independent edits at different paths in one reusable operation, including the sparse, all-errors-at-once REST PATCH shape.
@@ -50,7 +51,7 @@ Apply N independent edits at different paths in one reusable operation, includin
 
 ---
 
-## Tutorial 25: ValidatedPrism (~10 minutes)
+## Tutorial 25: ValidatedPrism
 **File**: `Tutorial25_ValidatedPrism.java` | **Exercises**: 3
 
 The smart-constructor optic: a `Prism` whose match says *why not*, and all the reasons at once.
@@ -65,7 +66,7 @@ The smart-constructor optic: a `Prism` whose match says *why not*, and all the r
 
 ---
 
-## Tutorial 26: Record Mapping (~12 minutes)
+## Tutorial 26: Record Mapping
 **File**: `Tutorial26_RecordMapping.java` | **Exercises**: 5
 
 The boundary, generated: `@GenerateMapping` derives a total `build` and an accumulating, located `parse` from a spec interface (the specs live in `org.higherkindedj.example.tutorials.mapping`, main sources, where the processor runs).
@@ -80,7 +81,7 @@ The boundary, generated: `@GenerateMapping` derives a total `build` and an accum
 
 ---
 
-## Tutorial 27: Boundary Edge Cases (~15 minutes)
+## Tutorial 27: Boundary Edge Cases
 **File**: `Tutorial27_BoundaryEdgeCases.java` | **Exercises**: 6
 
 A real request is rarely just a bad value. It leaves a field out, sends a list with one bad element, breaks a rule that spans two fields, or arrives as a PATCH bean that fills in a value nobody sent. Each exercise asks where that request lands. Its specs sit beside Tutorial 26's.

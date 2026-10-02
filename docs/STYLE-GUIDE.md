@@ -162,9 +162,11 @@ For pages with associated tutorials, link to them using an info admonition:
 
 ```markdown
 ~~~admonish info title="Hands-On Learning"
-Practice Lens basics in [Tutorial 01: Lens Basics](../tutorials/optics/Tutorial01_LensBasics.java) (7 exercises, ~8 minutes).
+Practise Lens basics in [Tutorial 01: Lens Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial01_LensBasics.java) (7 exercises).
 ~~~
 ```
+
+An exercise count follows the tutorial guide's [Exercise Counts](TUTORIAL-STYLE-GUIDE.md#exercise-counts) rule, which `bookVerify` checks.
 
 ### Further Reading Section
 
@@ -374,6 +376,7 @@ The one exception is a [checkpoint](#checkpoints) answer, which is safe to colla
 
 - **A heading linked from outside its page carries an explicit `{#id}`**, so its wording can change without breaking the link
 - **A heading that moves to another page keeps its id**, and gains an entry in the legacy-anchor map, `hkj-book/theme/legacy-anchors.js`, so old links still land on it
+- **A heading reworded because its old id would mislead**, such as one that carried a time estimate or a count that has since changed, takes a legacy-anchor entry instead of a pin, so the stale words leave the address bar too
 - **A redirect target is document-relative** (`beans.html`), never an absolute versioned URL, or a reader of an older version is sent to the current one
 
 A page redirect cannot rescue a *section* that moves: the redirect is a meta refresh, which drops the fragment. Prefer keeping the page and moving content within it; where a section must move, pin the id and add the legacy-anchor entry in the same change.
