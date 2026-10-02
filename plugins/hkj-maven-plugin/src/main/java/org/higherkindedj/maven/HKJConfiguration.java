@@ -76,6 +76,11 @@ record HKJConfiguration(
         pluginVersion(BUNDLED_VERSION, Optional.empty()), true, false, false, true);
   }
 
+  /** Whether {@code version} is the release this plugin was built with. */
+  static boolean isPluginRelease(String version) {
+    return BUNDLED_VERSION.map(version::equals).orElse(false);
+  }
+
   // Package-private for tests.
   static String pluginVersion(Optional<String> bundled, Optional<String> declared) {
     return bundled

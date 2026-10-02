@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Optional;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Plugin;
-import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -19,7 +18,7 @@ import org.apache.maven.project.MavenProject;
  * <p>Usage: {@code mvn hkj:diagnostics}
  */
 @Mojo(name = "diagnostics", requiresProject = true)
-public class HKJDiagnosticsMojo extends AbstractMojo {
+public class HKJDiagnosticsMojo extends AbstractHKJMojo {
 
   /** Creates a new HKJDiagnosticsMojo. */
   public HKJDiagnosticsMojo() {}

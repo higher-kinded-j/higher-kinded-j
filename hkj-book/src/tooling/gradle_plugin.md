@@ -120,7 +120,7 @@ This adds `hkj-spring-boot-starter` to the `implementation` configuration, which
 
 ## Claude Code Skills
 
-Install six Claude Code skills that provide contextual, in-editor guidance for HKJ:
+Install eight Claude Code skills that provide contextual, in-editor guidance for HKJ:
 
 ```gradle
 hkj {
@@ -128,14 +128,14 @@ hkj {
 }
 ```
 
-This runs the `hkjInstallSkills` task during every build, copying skill files into `.claude/skills/`. You can also run the task manually:
+This runs the `hkjInstallSkills` task during every build, copying skill files into `.claude/skills/`. The Maven plugin's `<skills>true</skills>` binds its `install-skills` goal into the build in the same way. You can also run the task manually:
 
 ```bash
 ./gradlew hkjInstallSkills
 ```
 
 ~~~admonish tip title="See Also"
-- [Claude Code Skills](claude_code_skills.md) - Full reference for the six bundled skills
+- [Claude Code Skills](claude_code_skills.md) - Full reference for the eight bundled skills
 ~~~
 
 ---
@@ -229,7 +229,7 @@ The plugin automatically adds `hkj-core`, annotation processors, compile-time ch
 </configuration>
 ```
 
-The plugin writes `<annotationProcessorPaths>` into every compiler execution, which replaces javac's processor discovery, so list any other processor, such as Lombok, there too. Run diagnostics with `mvn hkj:diagnostics` or install skills with `mvn hkj:install-skills`.
+The plugin writes `<annotationProcessorPaths>` into every compiler execution, which replaces javac's processor discovery, so list any other processor, such as Lombok, there too. A build that names its processors in `<annotationProcessors>` gets HKJ's added to that list while `<version>` is the plugin's own release; with another `<version>`, list HKJ's processors yourself. Run diagnostics with `mvn hkj:diagnostics` or install skills with `mvn hkj:install-skills`.
 
 ### Manual Maven Setup
 
