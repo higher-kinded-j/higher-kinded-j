@@ -73,7 +73,7 @@
     "release-history.html#v014-5-june-2025": "release-history/earlier.html#v014-5-june-2025",
     "release-history.html#v013-31-may-2025": "release-history/earlier.html#v013-31-may-2025",
     "release-history.html#v010-3-may-2025": "release-history/earlier.html#v010-3-may-2025",
-    "release-history.html#0411-snapshot-latest": "release-history/unreleased.html",
+    "release-history.html#0411-snapshot-latest": "release-history/v0_4_11.html",
     "release-history.html#recent-releases": "release-history.html#releases-at-a-glance",
     "release-history.html#earlier-releases": "release-history/earlier.html",
     "release-history.html#documentation--tutorial-improvements": "release-history/v0_4_4.html#documentation--tutorial-improvements",
