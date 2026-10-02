@@ -1,6 +1,6 @@
 # Custom Paths with `@PathSource`
 
-*Give your effect a named Path class, generated when you build.*
+_Give your effect a named Path class, generated when you build._
 
 ~~~admonish info title="What You'll Learn"
 - Decide whether `GenericPath` is enough for your effect, or a generated Path is worth a build step
