@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.maven;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -45,11 +47,20 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
   private static final String SUREFIRE_PLUGIN_KEY =
       "org.apache.maven.plugins:maven-surefire-plugin";
 
-  /** The processors HKJ's jars register, by group, bundled at build time. */
-  private static final Properties REGISTERED_PROCESSORS = loadRegisteredProcessors();
+  /** The processors HKJ's jars register, bundled at build time. */
+  private static final List<String> CORE_PROCESSORS;
+
+  private static final List<String> SPRING_PROCESSORS;
+
+  static {
+    Properties registered = loadRegisteredProcessors();
+    CORE_PROCESSORS = registeredProcessors(registered, "core");
+    SPRING_PROCESSORS = registeredProcessors(registered, "spring");
+  }
 
   @Override
   public void afterProjectsRead(MavenSession session) throws MavenExecutionException {
+    List<MavenProject> wantSkills = new ArrayList<>();
     for (MavenProject project : session.getProjects()) {
       Optional<Plugin> hkjPlugin = findPlugin(project, PLUGIN_KEY);
       if (hkjPlugin.isEmpty()) {
@@ -66,9 +77,24 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
       configureCompilerPlugin(project, config);
       configureSurefirePlugin(project, config);
       if (config.skills()) {
-        bindInstallSkills(hkjPlugin.get());
+        wantSkills.add(project);
       }
     }
+    skillsHome(wantSkills, session.getRequest().getMultiModuleProjectDirectory())
+        .flatMap(home -> findPlugin(home, PLUGIN_KEY))
+        .ifPresent(this::bindInstallSkills);
+  }
+
+  /**
+   * The one project that installs the skills: the reactor's root, where Claude Code reads them, or
+   * else the first project that asks for them. A module inheriting {@code <skills>} from its parent
+   * would otherwise install its own copy.
+   */
+  static Optional<MavenProject> skillsHome(List<MavenProject> wantSkills, File root) {
+    return wantSkills.stream()
+        .filter(project -> root != null && root.equals(project.getBasedir()))
+        .findFirst()
+        .or(() -> wantSkills.stream().findFirst());
   }
 
   private static Optional<Plugin> findPlugin(MavenProject project, String pluginKey) {
@@ -156,20 +182,37 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
   private void addHkjProcessorNames(Xpp3Dom configNode, HKJConfiguration config) {
     // <annotationProcessors> names the processors javac runs, and javac then discovers no other,
     // so HKJ's join a list the build already has. The plugin knows the processors of its own
-    // release only, so a build that pins another <version> lists them itself.
+    // release only, so it adds them only while the processors on the path are that release.
     Xpp3Dom names = configNode.getChild("annotationProcessors");
-    if (names == null || !HKJConfiguration.isPluginRelease(config.version())) {
+    if (names == null || !config.usesPluginRelease()) {
       return;
     }
-    registeredProcessors("core").forEach(name -> addProcessorName(names, name));
-    if (config.spring()) {
-      registeredProcessors("spring").forEach(name -> addProcessorName(names, name));
+    if (pathsAtRelease(configNode, config.version(), "hkj-processor", "hkj-processor-plugins")) {
+      CORE_PROCESSORS.forEach(name -> addProcessorName(names, name));
+    }
+    if (config.spring()
+        && pathsAtRelease(configNode, config.version(), "hkj-spring-boot-client-processor")) {
+      SPRING_PROCESSORS.forEach(name -> addProcessorName(names, name));
     }
   }
 
-  private static List<String> registeredProcessors(String group) {
-    String value = REGISTERED_PROCESSORS.getProperty(group, "");
-    return Arrays.stream(value.split(",")).map(String::trim).filter(n -> !n.isEmpty()).toList();
+  /** Whether every processor path naming one of {@code artifactIds} carries {@code version}. */
+  private static boolean pathsAtRelease(Xpp3Dom configNode, String version, String... artifactIds) {
+    Xpp3Dom paths = configNode.getChild("annotationProcessorPaths");
+    if (paths == null) {
+      return true;
+    }
+    List<String> ids = List.of(artifactIds);
+    return Arrays.stream(paths.getChildren("path"))
+        .filter(path -> childValue(path, "artifactId").filter(ids::contains).isPresent())
+        .allMatch(path -> childValue(path, "version").map(version::equals).orElse(true));
+  }
+
+  private static List<String> registeredProcessors(Properties registered, String group) {
+    return Arrays.stream(registered.getProperty(group, "").split(","))
+        .map(String::trim)
+        .filter(name -> !name.isEmpty())
+        .toList();
   }
 
   private static Properties loadRegisteredProcessors() {
@@ -179,14 +222,15 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
       if (in != null) {
         properties.load(in);
       }
-    } catch (IOException e) {
+    } catch (IOException _) {
       // unreadable: a named-processor list is left as the build wrote it
     }
     return properties;
   }
 
   private void addProcessorName(Xpp3Dom names, String name) {
-    for (Xpp3Dom existing : names.getChildren("annotationProcessor")) {
+    // Maven reads every child of <annotationProcessors>, whatever its element name.
+    for (Xpp3Dom existing : names.getChildren()) {
       if (name.equals(existing.getValue())) {
         return;
       }

@@ -39,28 +39,28 @@
                 </parameter>
                 <parameter>
                     <name>preview</name>
-                    <type>boolean</type>
+                    <type>java.lang.Boolean</type>
                     <required>false</required>
                     <editable>true</editable>
                     <description>Whether to enable preview features (default: true)</description>
                 </parameter>
                 <parameter>
                     <name>spring</name>
-                    <type>boolean</type>
+                    <type>java.lang.Boolean</type>
                     <required>false</required>
                     <editable>true</editable>
                     <description>Whether to add the Spring Boot starter and the @HkjHttpClient processor (default: false)</description>
                 </parameter>
                 <parameter>
                     <name>skills</name>
-                    <type>boolean</type>
+                    <type>java.lang.Boolean</type>
                     <required>false</required>
                     <editable>true</editable>
                     <description>Whether to install the Claude Code skills during the build (default: false)</description>
                 </parameter>
                 <parameter>
                     <name>pathTypeMismatch</name>
-                    <type>boolean</type>
+                    <type>java.lang.Boolean</type>
                     <required>false</required>
                     <editable>true</editable>
                     <description>Whether to enable compile-time Path type checking (default: true)</description>
@@ -100,28 +100,28 @@
                 </parameter>
                 <parameter>
                     <name>preview</name>
-                    <type>boolean</type>
+                    <type>java.lang.Boolean</type>
                     <required>false</required>
                     <editable>true</editable>
                     <description>Whether to enable preview features (default: true)</description>
                 </parameter>
                 <parameter>
                     <name>spring</name>
-                    <type>boolean</type>
+                    <type>java.lang.Boolean</type>
                     <required>false</required>
                     <editable>true</editable>
                     <description>Whether to add the Spring Boot starter and the @HkjHttpClient processor (default: false)</description>
                 </parameter>
                 <parameter>
                     <name>skills</name>
-                    <type>boolean</type>
+                    <type>java.lang.Boolean</type>
                     <required>false</required>
                     <editable>true</editable>
                     <description>Whether to install the Claude Code skills during the build (default: false)</description>
                 </parameter>
                 <parameter>
                     <name>pathTypeMismatch</name>
-                    <type>boolean</type>
+                    <type>java.lang.Boolean</type>
                     <required>false</required>
                     <editable>true</editable>
                     <description>Whether to enable compile-time Path type checking (default: true)</description>

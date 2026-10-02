@@ -76,8 +76,8 @@ record HKJConfiguration(
         pluginVersion(BUNDLED_VERSION, Optional.empty()), true, false, false, true);
   }
 
-  /** Whether {@code version} is the release this plugin was built with. */
-  static boolean isPluginRelease(String version) {
+  /** Whether the configured version is the release this plugin was built with. */
+  boolean usesPluginRelease() {
     return BUNDLED_VERSION.map(version::equals).orElse(false);
   }
 
@@ -96,7 +96,7 @@ record HKJConfiguration(
       Properties props = new Properties();
       props.load(in);
       return nonBlank(props.getProperty("version"));
-    } catch (IOException e) {
+    } catch (IOException _) {
       return Optional.empty(); // unreadable: fall back to the declared version
     }
   }

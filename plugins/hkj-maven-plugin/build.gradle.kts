@@ -73,12 +73,13 @@ val generateProcessorList = tasks.register("generateProcessorList") {
                 .filter { it.isNotEmpty() }
                 .sorted()
                 .joinToString(",")
-        val core = registered(core)
-        check(core.isNotEmpty()) { "hkj-processor registers no annotation processor" }
+        val coreNames = registered(core)
+        val springNames = registered(spring)
+        check(coreNames.isNotEmpty()) { "hkj-processor registers no annotation processor" }
+        check(springNames.isNotEmpty()) { "the @HkjHttpClient processor jar registers none" }
         val dir = outputDir.get().asFile
         dir.mkdirs()
-        dir.resolve("hkj-processors.properties")
-            .writeText("core=$core\nspring=${registered(spring)}\n")
+        dir.resolve("hkj-processors.properties").writeText("core=$coreNames\nspring=$springNames\n")
     }
 }
 

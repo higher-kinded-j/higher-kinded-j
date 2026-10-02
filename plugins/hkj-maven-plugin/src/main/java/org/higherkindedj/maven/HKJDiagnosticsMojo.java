@@ -38,6 +38,7 @@ public class HKJDiagnosticsMojo extends AbstractHKJMojo {
     } catch (IllegalStateException e) {
       throw new MojoExecutionException(e.getMessage(), e);
     }
+    warnAboutExecutionSettings(config);
 
     List<String> depsAdded = new ArrayList<>();
     for (Dependency dep : project.getDependencies()) {

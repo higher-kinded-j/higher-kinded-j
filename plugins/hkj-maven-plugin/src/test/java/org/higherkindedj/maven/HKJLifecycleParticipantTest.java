@@ -4,8 +4,10 @@ package org.higherkindedj.maven;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
@@ -127,7 +129,8 @@ class HKJLifecycleParticipantTest {
     }
 
     @Test
-    @DisplayName("leaves testAnnotationProcessorPaths alone, since no released compiler reads it")
+    @DisplayName(
+        "leaves testAnnotationProcessorPaths alone, which maven-compiler-plugin does not read")
     void leavesTestAnnotationProcessorPaths() {
       Xpp3Dom cfg = dom("configuration");
       Xpp3Dom testPaths = dom("testAnnotationProcessorPaths");
@@ -323,6 +326,12 @@ class HKJLifecycleParticipantTest {
   @DisplayName("named processors")
   class NamedProcessors {
 
+    /** The plugin's own release, which the build passes to the tests. */
+    private static final String RELEASE =
+        Objects.requireNonNull(
+            System.getProperty("hkj.expectedVersion"),
+            "hkj.expectedVersion is set by the Gradle test task: run the tests through Gradle");
+
     private static final String LENS = "org.higherkindedj.optics.processing.LensProcessor";
     private static final String COMPANION =
         "org.higherkindedj.optics.processing.CompanionAnnotationProcessor";
@@ -345,15 +354,13 @@ class HKJLifecycleParticipantTest {
       return cfg;
     }
 
-    private final String release = System.getProperty("hkj.expectedVersion");
-
     @Test
     @DisplayName("adds HKJ's processors to a build that names its processors")
     void addsHkjProcessors_toNamedList() {
       addCompilerPlugin(namingConfig("lombok.launch.AnnotationProcessorHider$AnnotationProcessor"));
 
       participant.configureCompilerPlugin(
-          project, new HKJConfiguration(release, true, false, false, true));
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
 
       assertThat(processorNames(pluginConfig()))
           .startsWith("lombok.launch.AnnotationProcessorHider$AnnotationProcessor")
@@ -363,19 +370,59 @@ class HKJLifecycleParticipantTest {
     }
 
     @Test
-    @DisplayName("adds the @HkjHttpClient processors too when spring is enabled")
+    @DisplayName(
+        "adds the core and @HkjHttpClient processors with spring, repeating none the build names")
     void addsClientProcessors_whenSpringEnabled() {
       addCompilerPlugin(namingConfig(LENS));
 
       participant.configureCompilerPlugin(
-          project, new HKJConfiguration(release, true, true, false, true));
+          project, new HKJConfiguration(RELEASE, true, true, false, true));
 
       assertThat(processorNames(pluginConfig()))
           .contains(
               LENS,
+              COMPANION,
               CLIENT,
               "org.higherkindedj.spring.client.processor.CompanionAnnotationProcessor")
           .doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("adds no core name while the processor path pins hkj-processor at another release")
+    void addsNoCoreNames_whenPathPinsAnotherRelease() {
+      Xpp3Dom cfg = namingConfig(LENS);
+      Xpp3Dom paths = dom("annotationProcessorPaths");
+      Xpp3Dom pinned = dom("path");
+      child(pinned, "groupId", "io.github.higher-kinded-j");
+      child(pinned, "artifactId", "hkj-processor-plugins");
+      child(pinned, "version", "0.4.10");
+      paths.addChild(pinned);
+      cfg.addChild(paths);
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).containsExactly(LENS);
+    }
+
+    @Test
+    @DisplayName("counts a processor under any element name, so none is added twice")
+    void readsAnyElementName() {
+      Xpp3Dom cfg = dom("configuration");
+      Xpp3Dom processors = dom("annotationProcessors");
+      child(processors, "processor", LENS);
+      cfg.addChild(processors);
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(
+              Arrays.stream(pluginConfig().getChild("annotationProcessors").getChildren())
+                  .map(Xpp3Dom::getValue)
+                  .filter(LENS::equals))
+          .hasSize(1);
     }
 
     @Test
@@ -393,7 +440,8 @@ class HKJLifecycleParticipantTest {
     void namesNothing_whenBuildNamesNone() {
       addCompilerPlugin(null);
 
-      participant.configureCompilerPlugin(project, defaultConfig);
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, true, false, true));
 
       assertThat(pluginConfig().getChild("annotationProcessors")).isNull();
     }
@@ -425,6 +473,33 @@ class HKJLifecycleParticipantTest {
                 assertThat(execution.getGoals()).containsExactly("install-skills");
                 assertThat(execution.getPhase()).isEqualTo("generate-resources");
               });
+    }
+
+    @Test
+    @DisplayName("installs the skills once, into the reactor's root")
+    void installsIntoReactorRoot() {
+      MavenProject parent = projectAt("/repo");
+      MavenProject module = projectAt("/repo/module");
+
+      assertThat(HKJLifecycleParticipant.skillsHome(List.of(module, parent), new File("/repo")))
+          .containsSame(parent);
+    }
+
+    @Test
+    @DisplayName("installs into the first project that asks when the root does not")
+    void installsIntoFirstProject_whenRootDoesNotAsk() {
+      MavenProject module = projectAt("/repo/module");
+      MavenProject other = projectAt("/repo/other");
+
+      assertThat(HKJLifecycleParticipant.skillsHome(List.of(module, other), new File("/repo")))
+          .containsSame(module);
+      assertThat(HKJLifecycleParticipant.skillsHome(List.of(), new File("/repo"))).isEmpty();
+    }
+
+    private MavenProject projectAt(String dir) {
+      MavenProject project = new MavenProject();
+      project.setFile(new File(dir, "pom.xml"));
+      return project;
     }
 
     @Test

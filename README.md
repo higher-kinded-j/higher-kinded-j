@@ -111,7 +111,7 @@ One line configures the dependencies, the annotation processors, `-parameters`, 
 </build>
 ```
 
-The Maven plugin hooks into the build lifecycle the same way; `mvn hkj:diagnostics` inspects the resulting configuration, and a `<configuration>` block toggles `preview`, `spring` and `pathTypeMismatch`.
+The Maven plugin hooks into the build lifecycle the same way; `mvn hkj:diagnostics` inspects the resulting configuration, and a `<configuration>` block sets `version`, `preview`, `spring`, `skills` and `pathTypeMismatch`.
 
 For **SNAPSHOT** versions, add `https://central.sonatype.com/repository/maven-snapshots/` to both `pluginManagement` (in `settings.gradle.kts`) and `repositories`.
 

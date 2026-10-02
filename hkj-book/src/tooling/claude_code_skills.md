@@ -95,6 +95,14 @@ The HKJ Maven plugin provides an equivalent goal:
 mvn hkj:install-skills
 ```
 
+To install them during every build instead, set `skills` in the plugin's `<configuration>`. In a multi-module build they go into the reactor's root, once:
+
+```xml
+<configuration>
+    <skills>true</skills>
+</configuration>
+```
+
 ### Manual Installation
 
 If you are not using either build plugin, copy skills directly from the repository:
@@ -102,7 +110,7 @@ If you are not using either build plugin, copy skills directly from the reposito
 ```bash
 # Pin to your release: `main` tracks the unreleased snapshot, whose skills describe
 # APIs your version does not have. The build plugins always install the matching set.
-git clone --depth 1 --branch v0.4.7 https://github.com/higher-kinded-j/higher-kinded-j.git /tmp/hkj-skills
+git clone --depth 1 --branch v0.4.10 https://github.com/higher-kinded-j/higher-kinded-j.git /tmp/hkj-skills
 cp -r /tmp/hkj-skills/.claude/skills/hkj-* .claude/skills/
 rm -rf /tmp/hkj-skills
 ```
@@ -176,7 +184,7 @@ Skills are versioned with the build plugin. When you upgrade the HKJ plugin vers
 mvn hkj:install-skills
 ```
 
-If `skills = true` is set in the Gradle extension, skills update automatically on the next build.
+With `skills = true` in the Gradle extension, or `<skills>true</skills>` in the Maven plugin's configuration, skills update automatically on the next build.
 
 ---
 
