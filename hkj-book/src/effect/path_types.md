@@ -140,7 +140,8 @@ You have a custom monad, or you're writing highly generic code.
 
 **Reach for [`GenericPath`](path_generic.md)** as the escape hatch; it wraps any `Kind<F, A>`
 with a `Monad` instance. When your library ships the effect, and its users write the type in their
-own signatures, [generate a Path class for it with `@PathSource`](path_source.md) instead.
+own signatures, [generate a Path class for it with `@PathSource`](path_source.md) instead. Keep
+`GenericPath` where they need `ForPath`, `Path.from`, or a witness with type arguments.
 
 ---
 
