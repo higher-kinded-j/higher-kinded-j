@@ -106,18 +106,35 @@ def _fence_marker(line):
     return None
 
 
+def _ends_in_comment(line, in_comment):
+    """Whether an HTML comment is still open at the end of `line`.
+
+    Code spans are blanked first, so a `<!--` quoted in prose opens nothing.
+    """
+    text = re.sub(r"`[^`]*`", "", line)
+    pos = 0
+    while True:
+        token = "-->" if in_comment else "<!--"
+        found = text.find(token, pos)
+        if found < 0:
+            return in_comment
+        in_comment = not in_comment
+        pos = found + len(token)
+
+
 def split_blocks(text):
     """Split markdown into top-level blocks.
 
     Blank lines separate blocks, except inside fenced regions (``` code ```
-    and ~~~admonish ... ~~~), which are kept atomic. Returns a list of dicts
-    with the block text and its 0-based start/end line indices.
+    and ~~~admonish ... ~~~) and HTML comments, which are kept atomic. Returns
+    a list of dicts with the block text and its 0-based start/end line indices.
     """
     lines = text.splitlines()
     blocks = []
     current = []
     start = 0
     fence = None  # (char, length) when inside a fence.
+    in_comment = False  # inside an HTML comment that has not closed yet.
 
     def flush(end_idx):
         nonlocal current, start
@@ -136,6 +153,12 @@ def split_blocks(text):
     for i, line in enumerate(lines):
         marker = _fence_marker(line)
         if fence is None:
+            if in_comment:
+                # A comment runs on, blank and fence-like lines included, until
+                # it closes, so a comment-only block is never split in two.
+                current.append(line)
+                in_comment = _ends_in_comment(line, True)
+                continue
             if marker is not None:
                 # Opening a fence: flush any preceding text first so the fence
                 # is its own block even when no blank line separates them.
@@ -152,6 +175,7 @@ def split_blocks(text):
                 if not current:
                     start = i
                 current.append(line)
+                in_comment = _ends_in_comment(line, False)
         else:
             current.append(line)
             # A closing fence uses the same char and at least the same length.

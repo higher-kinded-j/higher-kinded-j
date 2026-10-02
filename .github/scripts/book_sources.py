@@ -160,8 +160,11 @@ def _resolve_include_arg(arg: str, base_dir: str):
             return None, None, f"anchor '{token}' not found in {rel_path}"
         return anchored, file_path, None
     if len(spec) == 2:  # {{#include file:START:END}} (either may be empty)
-        start = int(spec[0]) - 1 if spec[0] else 0
-        stop = int(spec[1]) if spec[1] else len(lines)
+        try:
+            start = int(spec[0]) - 1 if spec[0] else 0
+            stop = int(spec[1]) if spec[1] else len(lines)
+        except ValueError:
+            return None, None, f"unsupported include spec: {arg}"
         return lines[start:stop], file_path, None
     return None, None, f"unsupported include spec: {arg}"
 
