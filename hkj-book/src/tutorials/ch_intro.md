@@ -35,11 +35,13 @@ If we have already shipped something with the library, the **[One Line, Six Laye
                          ▲
                          │  applied through
                          │
-       Optics, Expression, Concurrency, Resilience
+   Optics, Expression, Concurrency, Context, Effect Handlers, Resilience
    ┌───────────────────────────────────────────┐
    │  Lens, Prism, Traversal, Focus DSL        │   immutable updates
    │  ForState, ForPath.par                    │   workflow shape
    │  VTask, Scope, Resource                   │   structured concurrency
+   │  Request, security and trace contexts     │   context as values
+   │  Effect algebras and interpreters         │   programs as data
    │  Circuit Breaker, Saga, Retry, Bulkhead   │   failure handling
    └───────────────────────────────────────────┘
 ```

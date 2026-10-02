@@ -47,7 +47,7 @@ The capstone is the single best demonstration that the chapter material composes
 
 ## How the Tutorial Works
 
-A single test file with 7 exercises and a matching solution file. Exercises 1-3 build the pipeline incrementally; exercise 4 assembles them all; exercises 5-7 add resilience, an alternative spelling, and recovery.
+A single test file and a matching solution file. Exercises 1-3 build the pipeline incrementally; exercise 4 assembles them all; exercises 5-7 add resilience, an alternative spelling, and recovery.
 
 ```bash
 ./gradlew :hkj-examples:tutorialTest --tests "*TutorialCapstone_OneLineSixLayersGrowsUp*"

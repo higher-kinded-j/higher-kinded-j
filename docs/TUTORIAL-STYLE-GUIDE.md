@@ -300,18 +300,21 @@ void exerciseN_descriptiveMethodName() {
 
 ### Exercise Counts
 
-A tutorial's size is its exercise count, and `bookVerify` checks every count the book and README give (`BookTutorialCountTest`).
+A tutorial's size is its exercise count, and `bookVerify` checks every count the book and the root README give (`BookTutorialCountTest`).
 
-- **An exercise is a `@Test` method named `exercise…` or `diagnostic…`.** A worked example under another name, such as `completeWorkflowExample`, is not one. A method holding an `answerRequired()` placeholder must be named as an exercise.
-- **A journey page lists its tutorial files** in a comment under its header, each a path under `hkj-examples/src/test/java/org/higherkindedj/tutorial/` without `.java`:
+- **An exercise is a `@Test` method named `exerciseN_…` or `diagnostic_…`.** A worked example under another name, such as `completeWorkflowExample`, does not count.
+- **Name every method that holds an `answerRequired()` placeholder as an exercise.** The gate fails on one that is not.
+- **A journey page lists its tutorial files on the line directly under its `**Tutorials**:` line.** Each is a path under `hkj-examples/src/test/java/org/higherkindedj/tutorial/` without `.java`, and the comment renders invisibly:
 
   ```markdown
   **Tutorials**: 4 | **Exercises**: 30
   <!-- exercises: optics/Tutorial01_LensBasics optics/Tutorial02_LensComposition optics/Tutorial03_PrismBasics optics/Tutorial04_AffineBasics -->
   ```
 
-- **The page's `**Exercises**:` figure is the sum over those files, written exactly**, with no `~`. A `**File**:` line on the page gives its own file's count.
-- **Every other count copies it.** A table row, or a "(N exercises)" after a link, gives the count of what it links to: a journey page, a track's introduction (the sum of its journeys), or a tutorial file.
+- **The `**Tutorials**:` figure is the number of files listed, and `**Exercises**:` their exact sum.** Neither carries a `~`.
+- **A `**File**:` line gives its own file's count.**
+- **Every other count sits beside the link it counts.** Write "[Journey](…) (N exercises)" or "[Journey](…): N exercises", where N is the count of a journey page, a track's introduction (the sum of its journeys) or a tutorial file. A table's Exercises column does the same for the row's link. A count anywhere else fails as unchecked.
+- **A tutorial file in no journey is on the test's `STANDALONE` list.** A new file joins a journey's marker or that list.
 
 ### Comments Within Exercises
 
@@ -722,7 +725,7 @@ The two admonishments serve different purposes:
 
 ### Link Format
 
-Always use the full GitHub URL to the tutorial file on the `main` branch:
+A page that practises one tutorial links its file, always by the full GitHub URL on the `main` branch; a page that practises a whole journey links the journey page, and gives the journey's count:
 
 ```
 https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/{track}/TutorialNN_TopicName.java
@@ -799,6 +802,7 @@ When creating a new tutorial track, ensure:
 - [ ] Tutorial 00 chapter anchor (optional but recommended where the chapter has a recurring motif)
 - [ ] Capstone tutorial (optional but recommended for chapters whose pieces compose)
 - [ ] `tutorialProgress` continues to count placeholders correctly (every in-progress slot is `answerRequired()`)
+- [ ] A new journey page carries its `<!-- exercises: -->` marker, `MINIMUM_JOURNEYS` in `BookTutorialCountTest` rises with it, and every journey list names it: the tutorials chapter's table and Chapter Contents, the tutorials introduction, Learning Paths, home.md, and the root README's count
 
 ---
 

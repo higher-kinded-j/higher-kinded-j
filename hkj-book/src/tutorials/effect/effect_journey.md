@@ -19,7 +19,7 @@ A single-page reference covering every Path factory, the four core operations, F
 
 The Effect API journey covers the complete Effect Path system:
 
-### Part 1: Fundamentals (9 exercises) {#part-1-fundamentals}
+### Part 1: Fundamentals {#part-1-fundamentals}
 - **Creating Paths**: `Path.just()`, `Path.nothing()`, `Path.maybe()`, `Path.right()`, `Path.left()`, `Path.either()`, `Path.tryOf()`, `Path.io()`
 - **Transforming Values**: `map` to transform success values; errors pass through unchanged
 - **Chaining Operations**: `via` (a.k.a. `flatMap`) for dependent computations; short-circuit on failure
@@ -28,7 +28,7 @@ The Effect API journey covers the complete Effect Path system:
 - **A real-world workflow**: putting it all together
 - **Diagnostic**: `via` vs `map` when the function returns a Path
 
-### Part 2: Advanced (8 exercises) {#part-2-advanced}
+### Part 2: Advanced {#part-2-advanced}
 - **ForPath Comprehensions**: readable multi-step workflows with for-comprehension syntax (and tuple-binding semantics)
 - **Effect Contexts**: `ErrorContext` (typed error + IO), `ConfigContext` (Reader/DI), `MutableContext` (workflow-local state)
 - **Service Integration**: the `@GeneratePathBridge` pattern, by hand

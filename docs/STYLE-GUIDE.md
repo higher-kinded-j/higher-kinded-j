@@ -166,6 +166,8 @@ Practise Lens basics in [Tutorial 01: Lens Basics](https://github.com/higher-kin
 ~~~
 ```
 
+An exercise count follows the tutorial guide's [Exercise Counts](TUTORIAL-STYLE-GUIDE.md#exercise-counts) rule, which `bookVerify` checks.
+
 ### Further Reading Section
 
 Content pages may include a "Further Reading" admonition at the **end** of the page, before the navigation links. This section should contain **external** references only.

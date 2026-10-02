@@ -46,11 +46,16 @@ After completing **Core: Foundations** the **Effect API journey** is the recomme
 | [Concurrency: VTask](concurrency/vtask_journey.md) | 28 | Virtual threads, VTask, VTaskPath, Par combinators |
 | [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | 20 | Structured concurrency, resource management |
 
-### Context and Effect Handlers Journeys
+### Context Journey
 
 | Journey | Exercises | Focus |
 |---------|-----------|-------|
 | [Context](context/ch_intro.md) | 59 | `ScopedValue` contexts for requests, security and tracing |
+
+### Effect Handlers Journey
+
+| Journey | Exercises | Focus |
+|---------|-----------|-------|
 | [Effect Handlers](effecthandlers/ch_intro.md) | 19 | Effect algebras, programs as values, several interpreters |
 
 ### Resilience Journey
@@ -278,8 +283,10 @@ Choose a starting point:
 - [Scope & Resource Journey](concurrency/scope_resource_journey.md) - structured concurrency
 - [Resilience Patterns Journey](resilience/resilience_journey.md) - circuit breaker, saga, retry, bulkhead
 
-**Context and Effect Handlers Track:**
+**Context Track:**
 - [Context Journey](context/ch_intro.md) - request, security and trace contexts as values
+
+**Effect Handlers Track:**
 - [Effect Handlers Journey](effecthandlers/ch_intro.md) - effect algebras and their interpreters
 
 **Optics Track:**

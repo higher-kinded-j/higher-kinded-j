@@ -15,25 +15,25 @@ Monad transformers compose two monads into a single layer (e.g. `CompletableFutu
 
 The Monad Transformers Journey builds on the Effect Path API to cover the cases where we need to drop down to the underlying transformer machinery.
 
-### Tutorial 01: When Path Isn't Enough (6 exercises)
+**Tutorial 01: When Path Isn't Enough**
 - Bridging an existing `CompletableFuture<Either<L, R>>` into `EitherT`
 - Lifting synchronous `Either` values into the same workflow
 - Composing async-and-typed-error steps with `For` comprehensions
 - Recovering from typed errors with `handleErrorWith`
 - Collapsing back to ordinary Java at the boundary
 
-### Tutorial 02: Async with Absence (5 exercises)
+**Tutorial 02: Async with Absence**
 - The same shape applied to `CompletableFuture<Optional<T>>`
 - Chaining async lookups with `For`
 - Providing defaults when a lookup yields nothing
 - A short tour of `MaybeT` for codebases that prefer `Maybe`
 
-### Tutorial 03: Stacking Transformers (4 exercises)
+**Tutorial 03: Stacking Transformers**
 - Two effects in one workflow: `EitherT` over `Optional`
 - Why `For` keeps stacked code readable
 - When stacking gets uncomfortable, what to reach for instead
 
-### Tutorial 04: Polymorphic Capabilities (MTL) (14 exercises)
+**Tutorial 04: Polymorphic Capabilities (MTL)**
 - `MonadReader`: read-only access to a shared environment
 - `MonadState`: read-write state threading
 - `MonadWriter`: append-only output accumulation
@@ -55,7 +55,7 @@ The tutorials are located in `hkj-examples/src/test/java/org/higherkindedj/tutor
 
 ### Tutorial 01: When Path Isn't Enough
 
-**File**: `Tutorial01_WhenPathIsNotEnough.java`
+**File**: `Tutorial01_WhenPathIsNotEnough.java` | **Exercises**: 6
 
 <!-- verify -->
 ```java
@@ -72,7 +72,7 @@ var workflow = For.from(eitherTMonad, EitherT.fromKind(fetchWeather("Berlin")))
 
 ### Tutorial 02: Async with Absence
 
-**File**: `Tutorial02_AsyncWithAbsence.java`
+**File**: `Tutorial02_AsyncWithAbsence.java` | **Exercises**: 5
 
 <!-- verify -->
 ```java
@@ -84,7 +84,7 @@ var workflow = For.from(optionalTMonad, OptionalT.fromKind(fetchUser("alice")))
 
 ### Tutorial 03: Stacking Transformers
 
-**File**: `Tutorial03_StackingTransformers.java`
+**File**: `Tutorial03_StackingTransformers.java` | **Exercises**: 4
 
 <!-- verify -->
 ```java
@@ -97,7 +97,7 @@ var sum = For.from(eitherTOverOptional,
 
 ### Tutorial 04: Polymorphic Capabilities (MTL)
 
-**File**: `Tutorial04_PolymorphicCapabilities.java`
+**File**: `Tutorial04_PolymorphicCapabilities.java` | **Exercises**: 14
 
 <!-- verify -->
 ```java

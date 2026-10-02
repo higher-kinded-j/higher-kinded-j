@@ -406,7 +406,7 @@ Choose `IO` when:
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practise VTask fundamentals in [Tutorial: VTask](../tutorials/concurrency/vtask_journey.md) (28 exercises).
+Practise VTask fundamentals in [TutorialVTask](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVTask.java) (9 exercises), part of the [VTask journey](../tutorials/concurrency/vtask_journey.md).
 ~~~
 
 ~~~admonish example title="Benchmarks"

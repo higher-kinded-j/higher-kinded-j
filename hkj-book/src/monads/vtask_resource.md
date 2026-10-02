@@ -335,7 +335,7 @@ VTask<Data> robust = connResource.use(conn ->
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practise Resource patterns in [Tutorial: Scope & Resource](../tutorials/concurrency/scope_resource_journey.md) (20 exercises).
+Practise Resource patterns in [TutorialResource](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialResource.java) (10 exercises), part of the [Scope & Resource journey](../tutorials/concurrency/scope_resource_journey.md).
 ~~~
 
 ~~~admonish tip title="See Also"
