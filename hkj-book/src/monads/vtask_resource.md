@@ -335,7 +335,7 @@ VTask<Data> robust = connResource.use(conn ->
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practise Resource patterns in [Tutorial: Scope & Resource](../tutorials/concurrency/scope_resource_journey.md) (6 exercises).
+Practise Resource patterns in [Tutorial: Scope & Resource](../tutorials/concurrency/scope_resource_journey.md) (20 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

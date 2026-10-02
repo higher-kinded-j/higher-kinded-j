@@ -8,6 +8,7 @@
 ~~~
 
 **Tutorials**: 4 | **Exercises**: 30
+<!-- exercises: optics/Tutorial01_LensBasics optics/Tutorial02_LensComposition optics/Tutorial03_PrismBasics optics/Tutorial04_AffineBasics -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 The `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/one_line_six_layers.md) is composed from the lenses, prisms, and affines this journey teaches. Each tutorial here opens with a Pain → Promise header showing the imperative-Java horror story (copy-constructor cascades, `instanceof` plus mutate-and-rebuild) the optic replaces.

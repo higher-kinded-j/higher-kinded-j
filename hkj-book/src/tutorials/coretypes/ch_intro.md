@@ -4,7 +4,7 @@ Three journeys that build from the `Kind<F, A>` encoding up through typed error 
 
 | Journey | Focus | Exercises |
 |---------|-------|-----------|
-| [Foundations](foundations_journey.md) | HKT simulation, Functor, Applicative, Monad | 24 |
+| [Foundations](foundations_journey.md) | HKT simulation, Functor, Applicative, Monad | 37 |
 | [Error Handling](error_handling_journey.md) | MonadError, concrete types, real-world patterns, accumulating assembly | 26 |
 | [Advanced](advanced_journey.md) | Natural Transformations, Coyoneda, Free Applicative | 26 |
 

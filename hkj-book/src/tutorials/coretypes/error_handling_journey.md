@@ -8,6 +8,7 @@
 ~~~
 
 **Tutorials**: 4 | **Exercises**: 26
+<!-- exercises: coretypes/Tutorial05_MonadErrorHandling coretypes/Tutorial06_ConcreteTypes coretypes/Tutorial07_RealWorld coretypes/Tutorial12_AccumulatingAssembly -->
 
 **Prerequisites**: [Core Types: Foundations Journey](foundations_journey.md)
 

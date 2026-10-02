@@ -155,6 +155,14 @@ val bookVerify = tasks.register<Test>("bookVerify") {
     inputs.dir(skillsDir).withPropertyName("skillSources").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("hkj.skills.dir", skillsDir.asFile.absolutePath)
 
+    // Every exercise count in the book and README is held to the tutorial code that it counts.
+    val tutorialsDir = layout.projectDirectory.dir("src/test/java/org/higherkindedj/tutorial")
+    inputs.dir(tutorialsDir).withPropertyName("tutorialSources").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("hkj.tutorials.dir", tutorialsDir.asFile.absolutePath)
+    val readme = rootProject.layout.projectDirectory.file("README.md")
+    inputs.file(readme).withPropertyName("readme").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("hkj.readme", readme.asFile.absolutePath)
+
     // The anchored example sources are inputs too. Without this, renaming an `// ANCHOR:` would not
     // re-run the gate: the rename is a comment, so the compiled classes are byte-identical and the
     // task stays UP-TO-DATE while the book silently loses that code block.

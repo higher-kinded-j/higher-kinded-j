@@ -222,7 +222,7 @@ Higher-Kinded-J provides the `org.higherkindedj.hkt.Unit` type to address this.
 ---
 
 ~~~admonish info title="Hands-On Learning"
-Practise Kind basics in [Tutorial 01: Kind Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial01_KindBasics.java) (4 exercises).
+Practise Kind basics in [Tutorial 01: Kind Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/coretypes/Tutorial01_KindBasics.java) (5 exercises).
 ~~~
 
 ---

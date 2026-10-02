@@ -6,7 +6,7 @@
 
 ---
 
-Reading about functional programming is one thing. Writing it is another entirely. This chapter is the writing part: seventeen journeys, each a few test files we open in our IDE and complete by replacing `answerRequired()` with working code. Tests stay red until the solution is right, which makes feedback immediate and the loop tight.
+Reading about functional programming is one thing. Writing it is another entirely. This chapter is the writing part: nineteen journeys, each a few test files we open in our IDE and complete by replacing `answerRequired()` with working code. Tests stay red until the solution is right, which makes feedback immediate and the loop tight.
 
 We can read every other chapter without ever opening this one; the Effect Path API, Optics, and Monad Transformers chapters are designed for that. Most readers find, though, that the patterns "click" only after typing them out. That is what this chapter is for.
 
@@ -54,6 +54,8 @@ We can take the journeys bottom-up (Foundations → Effect API → applications)
 - **Effect API Journey**: The recommended user-facing API for working with functional effects in Java.
 - **Monad Transformers Journey**: When the Path API isn't enough: async with absence, stacking, and MTL capabilities.
 - **Concurrency Journeys**: Two journeys on virtual threads and structured concurrency with `VTask`, `Scope`, and `Resource`.
+- **Context Journey**: `ScopedValue`-backed contexts for request, security and trace data, without `ThreadLocal`.
+- **Effect Handlers Journey**: Effects as algebras, programs as values, and one program run through several interpreters.
 - **Optics Journeys**: Six journeys progressing from Lens basics through Traversals, the Free Monad DSL, and the Focus DSL to batching, coupled updates, and the generated DTO boundary.
 - **Expression Journeys**: Two journeys on comprehension patterns: `ForState` for named state workflows and `ForPath.par` for parallel composition.
 - **Resilience Patterns**: Circuit Breaker, Saga, Retry, and Bulkhead, applied to `VTask` and the Path API.
@@ -63,27 +65,29 @@ We can take the journeys bottom-up (Foundations → Effect API → applications)
 
 ---
 
-## Seventeen Journeys {#journeys}
+## Nineteen Journeys {#journeys}
 
 | Journey | Focus | Exercises |
 |---------|-------|-----------|
-| **Core: Foundations** | HKT simulation, Functor, Applicative, Monad | 24 |
-| **Core: Error Handling** | MonadError, concrete types, real-world patterns | 20 |
-| **Core: Advanced** | Natural Transformations, Coyoneda, Free Applicative | 26 |
-| **Effect API** | Effect paths, ForPath, Effect Contexts | 15 |
-| **Monad Transformers** | When Path isn't enough, async + absence, stacking, MTL | 28 |
-| **Concurrency: VTask** | Virtual threads, Par combinators, VTaskPath, VTaskContext | 16 |
-| **Concurrency: Scope & Resource** | Structured concurrency, resource bracket, cleanup | 12 |
-| **Optics: Lens & Prism** | Lens basics, Prism, Affine | 30 |
-| **Optics: Traversals** | Traversals, composition, practical applications | 27 |
-| **Optics: Fluent & Free** | Fluent API, Free Monad DSL | 22 |
-| **Optics: Focus DSL** | Type-safe path navigation, container widening | 29 |
-| **Optics: Batching & Coupled Updates** | Request batching, plan guardrails, coupled lenses | 13 |
-| **Optics: Boundary Mapping** | Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases | 19 |
-| **Expression: ForState** | Named record state, lens threading, zoom | 11 |
-| **Expression: ForPath Parallel** | Applicative parallel composition for Path types | 9 |
-| **Resilience Patterns** | Circuit Breaker, Saga, Retry, Bulkhead, Path API resilience | 22 |
-| **Capstone: One Line, Six Layers Grows Up** | One pipeline across effects, optics, resilience and concurrency | 7 |
+| **[Core: Foundations](coretypes/foundations_journey.md)** | HKT simulation, Functor, Applicative, Monad | 37 |
+| **[Core: Error Handling](coretypes/error_handling_journey.md)** | MonadError, concrete types, real-world patterns | 26 |
+| **[Core: Advanced](coretypes/advanced_journey.md)** | Natural Transformations, Coyoneda, Free Applicative | 26 |
+| **[Effect API](effect/effect_journey.md)** | Effect paths, ForPath, Effect Contexts | 17 |
+| **[Monad Transformers](transformers/transformers_journey.md)** | When Path isn't enough, async + absence, stacking, MTL | 29 |
+| **[Concurrency: VTask](concurrency/vtask_journey.md)** | Virtual threads, Par combinators, VTaskPath, VTaskContext | 28 |
+| **[Concurrency: Scope & Resource](concurrency/scope_resource_journey.md)** | Structured concurrency, resource bracket, cleanup | 20 |
+| **[Context](context/ch_intro.md)** | `ScopedValue` contexts for requests, security and tracing | 59 |
+| **[Effect Handlers](effecthandlers/ch_intro.md)** | Effect algebras, programs as values, several interpreters | 19 |
+| **[Optics: Lens & Prism](optics/lens_prism_journey.md)** | Lens basics, Prism, Affine | 30 |
+| **[Optics: Traversals](optics/traversals_journey.md)** | Traversals, composition, practical applications | 28 |
+| **[Optics: Fluent & Free](optics/fluent_free_journey.md)** | Fluent API, Free Monad DSL | 22 |
+| **[Optics: Focus DSL](optics/focus_dsl_journey.md)** | Type-safe path navigation, container widening | 90 |
+| **[Optics: Batching & Coupled Updates](optics/batching_journey.md)** | Request batching, plan guardrails, coupled lenses | 13 |
+| **[Optics: Boundary Mapping](optics/boundary_mapping_journey.md)** | Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases | 19 |
+| **[Expression: ForState](expression/forstate_journey.md)** | Named record state, lens threading, zoom | 13 |
+| **[Expression: ForPath Parallel](expression/forpath_parallel_journey.md)** | Applicative parallel composition for Path types | 9 |
+| **[Resilience Patterns](resilience/resilience_journey.md)** | Circuit Breaker, Saga, Retry, Bulkhead, Path API resilience | 24 |
+| **[Capstone: One Line, Six Layers Grows Up](capstone/capstone_journey.md)** | One pipeline across effects, optics, resilience and concurrency | 7 |
 
 Start wherever interests us most. The pattern Pirsig describes applies precisely here: midway through an exercise on Applicative composition, the relationship between `map` and `ap` may feel arbitrary; three tutorials later, building a validation pipeline, it clicks. Looking back, the earlier struggle makes sense. That *is* the learning process.
 
@@ -121,13 +125,15 @@ The loop is simple. The understanding it produces is not. Expect moments of conf
 3. [Effect API](effect/effect_journey.md) - The recommended user-facing API
 4. [Monad Transformers](transformers/transformers_journey.md) - When the Path API isn't enough
 5. [Concurrency Journeys](concurrency/ch_intro.md) - VTask, Scope, Resource
-6. [Optics Journeys](optics/ch_intro.md) - Lens through Focus DSL, batching, boundary mapping
-7. [Expression Journeys](expression/ch_intro.md) - ForState and ForPath.par
-8. [Resilience Patterns](resilience/resilience_journey.md) - Circuit Breaker, Saga, Retry, Bulkhead
-9. [Capstone: One Line, Six Layers Grows Up](capstone/capstone_journey.md) - One pipeline across every layer
-10. [Learning Paths](learning_paths.md) - Recommended journey sequences
-11. [Solutions Guide](solutions_guide.md) - Reference implementations
-12. [Troubleshooting](troubleshooting.md) - Common issues and solutions
+6. [Context Journey](context/ch_intro.md) - Request, security and trace contexts as values
+7. [Effect Handlers Journey](effecthandlers/ch_intro.md) - Effect algebras and their interpreters
+8. [Optics Journeys](optics/ch_intro.md) - Lens through Focus DSL, batching, boundary mapping
+9. [Expression Journeys](expression/ch_intro.md) - ForState and ForPath.par
+10. [Resilience Patterns](resilience/resilience_journey.md) - Circuit Breaker, Saga, Retry, Bulkhead
+11. [Capstone: One Line, Six Layers Grows Up](capstone/capstone_journey.md) - One pipeline across every layer
+12. [Learning Paths](learning_paths.md) - Recommended journey sequences
+13. [Solutions Guide](solutions_guide.md) - Reference implementations
+14. [Troubleshooting](troubleshooting.md) - Common issues and solutions
 
 ---
 

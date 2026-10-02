@@ -12,7 +12,7 @@ Rather than passive reading, we will:
 
 Think of the chapter as a guided laboratory for functional programming patterns in Java.
 
-## Seventeen Focused Journeys {#focused-journeys}
+## Nineteen Focused Journeys {#focused-journeys}
 
 Each journey covers one topic in a handful of tutorials, and the tables give each one's exercise count. The end of a tutorial is a natural place to stop, and `tutorialProgress` shows where we left off.
 
@@ -24,40 +24,47 @@ After completing **Core: Foundations** the **Effect API journey** is the recomme
 
 | Journey | Exercises | Focus |
 |---------|-----------|-------|
-| [Effect API](effect/effect_journey.md) | 15 | Effect paths, ForPath, Contexts |
+| [Effect API](effect/effect_journey.md) | 17 | Effect paths, ForPath, Contexts |
 
 ### Monad Transformers Journey
 
 | Journey | Exercises | Focus |
 |---------|-----------|-------|
-| [Monad Transformers](transformers/transformers_journey.md) | 28 | When Path isn't enough, async + absence, stacking, MTL |
+| [Monad Transformers](transformers/transformers_journey.md) | 29 | When Path isn't enough, async + absence, stacking, MTL |
 
 ### Expression Journeys
 
 | Journey | Exercises | Focus |
 |---------|-----------|-------|
-| [Expression: ForState](expression/forstate_journey.md) | 11 | Named fields, guards, pattern matching, zoom |
+| [Expression: ForState](expression/forstate_journey.md) | 13 | Named fields, guards, pattern matching, zoom |
 | [Expression: ForPath Parallel](expression/forpath_parallel_journey.md) | 9 | Applicative parallel composition for Path types |
 
 ### Concurrency Journeys
 
 | Journey | Exercises | Focus |
 |---------|-----------|-------|
-| [Concurrency: VTask](concurrency/vtask_journey.md) | 16 | Virtual threads, VTask, VTaskPath, Par combinators |
-| [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | 12 | Structured concurrency, resource management |
+| [Concurrency: VTask](concurrency/vtask_journey.md) | 28 | Virtual threads, VTask, VTaskPath, Par combinators |
+| [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | 20 | Structured concurrency, resource management |
+
+### Context and Effect Handlers Journeys
+
+| Journey | Exercises | Focus |
+|---------|-----------|-------|
+| [Context](context/ch_intro.md) | 59 | `ScopedValue` contexts for requests, security and tracing |
+| [Effect Handlers](effecthandlers/ch_intro.md) | 19 | Effect algebras, programs as values, several interpreters |
 
 ### Resilience Journey
 
 | Journey | Exercises | Focus |
 |---------|-----------|-------|
-| [Resilience Patterns](resilience/resilience_journey.md) | 22 | Circuit breaker, saga, retry, bulkhead |
+| [Resilience Patterns](resilience/resilience_journey.md) | 24 | Circuit breaker, saga, retry, bulkhead |
 
 ### Core Types Journeys (Foundation)
 
 | Journey | Exercises | Focus |
 |---------|-----------|-------|
-| [Foundations](coretypes/foundations_journey.md) | 24 | Kind, Functor, Applicative, Monad |
-| [Error Handling](coretypes/error_handling_journey.md) | 20 | MonadError, Either, Maybe, Validated |
+| [Foundations](coretypes/foundations_journey.md) | 37 | Kind, Functor, Applicative, Monad |
+| [Error Handling](coretypes/error_handling_journey.md) | 26 | MonadError, Either, Maybe, Validated |
 | [Advanced Patterns](coretypes/advanced_journey.md) | 26 | Natural Transformations, Coyoneda, Free Ap, Static Analysis |
 
 ### Optics Journeys
@@ -65,9 +72,9 @@ After completing **Core: Foundations** the **Effect API journey** is the recomme
 | Journey | Exercises | Focus |
 |---------|-----------|-------|
 | [Lens & Prism](optics/lens_prism_journey.md) | 30 | Lens, Prism, Affine fundamentals |
-| [Traversals & Practice](optics/traversals_journey.md) | 27 | Traversals, composition, real-world use |
+| [Traversals & Practice](optics/traversals_journey.md) | 28 | Traversals, composition, real-world use |
 | [Fluent & Free DSL](optics/fluent_free_journey.md) | 22 | Fluent API, Free Monad DSL |
-| [Focus DSL](optics/focus_dsl_journey.md) | 29 | Type-safe path navigation, container widening |
+| [Focus DSL](optics/focus_dsl_journey.md) | 90 | Type-safe path navigation, container widening |
 | [Batching & Coupled Updates](optics/batching_journey.md) | 13 | Request batching, plan guardrails, coupled lenses |
 | [Boundary Mapping](optics/boundary_mapping_journey.md) | 19 | Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases |
 
@@ -207,8 +214,8 @@ See the full [Learning Paths](learning_paths.md) guide for detailed sequences. A
 ### Optics Specialist (6 sessions) {#optics-specialist}
 [Lens & Prism](optics/lens_prism_journey.md) → [Traversals](optics/traversals_journey.md) → [Fluent & Free](optics/fluent_free_journey.md) → [Focus DSL](optics/focus_dsl_journey.md) → [Batching & Coupled Updates](optics/batching_journey.md) → [Boundary Mapping](optics/boundary_mapping_journey.md)
 
-### Full Curriculum (18 sessions) {#full-curriculum}
-All seventeen journeys in recommended order, with the Effect API over two sessions. See [Learning Paths](learning_paths.md).
+### Full Curriculum (20 sessions) {#full-curriculum}
+All nineteen journeys in recommended order, with the Effect API over two sessions. See [Learning Paths](learning_paths.md).
 
 ## What We Will Build
 
@@ -270,6 +277,10 @@ Choose a starting point:
 - [VTask Journey](concurrency/vtask_journey.md) - virtual threads and Par combinators
 - [Scope & Resource Journey](concurrency/scope_resource_journey.md) - structured concurrency
 - [Resilience Patterns Journey](resilience/resilience_journey.md) - circuit breaker, saga, retry, bulkhead
+
+**Context and Effect Handlers Track:**
+- [Context Journey](context/ch_intro.md) - request, security and trace contexts as values
+- [Effect Handlers Journey](effecthandlers/ch_intro.md) - effect algebras and their interpreters
 
 **Optics Track:**
 - [Lens & Prism Journey](optics/lens_prism_journey.md) - start here for optics

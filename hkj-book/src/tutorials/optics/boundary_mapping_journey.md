@@ -9,6 +9,7 @@
 ~~~
 
 **Tutorials**: 4 (T24-T27) | **Exercises**: 19
+<!-- exercises: optics/Tutorial24_MultiEdit optics/Tutorial25_ValidatedPrism optics/Tutorial26_RecordMapping optics/Tutorial27_BoundaryEdgeCases -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 This journey is the hands-on lane for the [Mapping at the Boundary](../../mapping/ch_intro.md) chapter. Tutorial 24 builds the update-side machinery by hand (`Edits.combine` / `Edits.accumulate`), Tutorial 25 builds the leaf every fallible correspondence rests on (`ValidatedPrism`), and Tutorial 26 lets the processor derive the whole boundary and proves it lawful. Tutorial 27 takes it to the edge cases a real request brings. The [capstone](../../mapping/capstone.md) then shows the same machinery at full scale.

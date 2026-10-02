@@ -8,7 +8,7 @@ For-comprehensions are the idiom that turns chains of `flatMap` into something t
 
 | Journey | Focus | Exercises |
 |---------|-------|-----------|
-| [ForState](forstate_journey.md) | Named record state, lens threading, `zoom`, `matchThen` | 11 |
+| [ForState](forstate_journey.md) | Named record state, lens threading, `zoom`, `matchThen` | 13 |
 | [ForPath Parallel](forpath_parallel_journey.md) | Applicative parallel composition for Path types | 9 |
 
 ---

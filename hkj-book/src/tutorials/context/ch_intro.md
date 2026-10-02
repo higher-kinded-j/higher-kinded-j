@@ -7,7 +7,8 @@
 - Combining contexts with the Effect Path API for production-shaped flows
 ~~~
 
-**Tutorials**: 6 | **Prerequisites**: complete the [Effect API Journey](../effect/effect_journey.md) and the [Concurrency: VTask Journey](../concurrency/vtask_journey.md) first.
+**Tutorials**: 6 | **Exercises**: 59 | **Prerequisites**: complete the [Effect API Journey](../effect/effect_journey.md) and the [Concurrency: VTask Journey](../concurrency/vtask_journey.md) first.
+<!-- exercises: context/Tutorial01_ContextBasics context/Tutorial02_ContextComposition context/Tutorial03_RequestContextPatterns context/Tutorial04_SecurityContextPatterns context/Tutorial05_ContextWithVTask context/Tutorial06_AdvancedContextPatterns -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 A `Context` is the value-level form of "the request id, principal, or trace id every part of this workflow needs". In production, [One Line, Six Layers](../../hkts/one_line_six_layers.md) almost always runs inside one or more contexts: `RequestContext` for tracing, `SecurityContext` for the principal, custom `Context` for tenant or feature-flag state. This journey teaches the patterns.

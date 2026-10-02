@@ -8,8 +8,8 @@ Two journeys on virtual threads and structured concurrency. Scope & Resource bui
 
 | Journey | Focus | Exercises |
 |---------|-------|-----------|
-| [VTask](vtask_journey.md) | Virtual threads, `Par` combinators, `VTaskPath`, `VTaskContext` | 16 |
-| [Scope & Resource](scope_resource_journey.md) | `Scope` joiners, `Resource` bracket, concurrent cleanup | 12 |
+| [VTask](vtask_journey.md) | Virtual threads, `Par` combinators, `VTaskPath`, `VTaskContext` | 28 |
+| [Scope & Resource](scope_resource_journey.md) | `Scope` joiners, `Resource` bracket, concurrent cleanup | 20 |
 
 ---
 

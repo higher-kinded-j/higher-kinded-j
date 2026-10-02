@@ -390,7 +390,7 @@ Try<Dashboard> dashboard = loadDashboard(userId).runSafe();
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
-Practise VTaskPath composition in [TutorialVTaskPath.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVTaskPath.java) (8 exercises).
+Practise VTaskPath composition in [TutorialVTaskPath.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/concurrency/TutorialVTaskPath.java) (9 exercises).
 ~~~
 
 ~~~admonish example title="Benchmarks"

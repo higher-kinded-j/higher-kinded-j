@@ -8,6 +8,7 @@
 ~~~
 
 **Tutorials**: 4 | **Exercises**: 26
+<!-- exercises: coretypes/Tutorial08_NaturalTransformation coretypes/Tutorial09_Coyoneda coretypes/Tutorial10_FreeApplicative coretypes/Tutorial11_StaticAnalysis -->
 
 **Prerequisites**: [Core Types: Error Handling Journey](error_handling_journey.md)
 

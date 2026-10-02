@@ -1,6 +1,7 @@
 # Monad Transformers Journey
 
-**Tutorials**: 4 | **Exercises**: ~28
+**Tutorials**: 4 | **Exercises**: 29
+<!-- exercises: transformers/Tutorial01_WhenPathIsNotEnough transformers/Tutorial02_AsyncWithAbsence transformers/Tutorial03_StackingTransformers transformers/Tutorial04_PolymorphicCapabilities -->
 
 ~~~admonish info title="When to Take This Journey"
 The Effect Path API ([Tutorial 01: Effect Path Basics](../effect/effect_journey.md)) covers most workflows we will write in Java. Take this journey when we have hit one of the corners that Path types do not reach: integrating with code that returns a different outer monad, or writing library code that should work against any caller's effect stack.

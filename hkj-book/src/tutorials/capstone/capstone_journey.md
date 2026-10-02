@@ -17,6 +17,7 @@ Same six layers. Same mental model. One expression.
 ~~~
 
 **Tutorials**: 1 (capstone) | **Exercises**: 7
+<!-- exercises: coretypes/TutorialCapstone_OneLineSixLayersGrowsUp -->
 
 **Prerequisites**: complete the [Foundations Journey](../coretypes/foundations_journey.md), the [Effect API Journey](../effect/effect_journey.md), and at least one of [Optics: Lens & Prism](../optics/lens_prism_journey.md) or [Concurrency: VTask](../concurrency/vtask_journey.md).
 

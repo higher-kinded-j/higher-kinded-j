@@ -9,6 +9,7 @@
 ~~~
 
 **Tutorials**: 1 | **Exercises**: 9
+<!-- exercises: expression/Tutorial02_ForPathParallel -->
 
 ## Journey Overview
 

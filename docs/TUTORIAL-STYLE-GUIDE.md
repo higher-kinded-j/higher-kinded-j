@@ -294,9 +294,24 @@ void exerciseN_descriptiveMethodName() {
 
 ### Exercise Naming
 
-- Method names: `exerciseN_descriptiveMethodName` using camelCase
+- Method names: `exerciseN_descriptiveMethodName` using camelCase, or `diagnostic_…` for a diagnostic exercise
 - Use verbs that describe the action: `widenEitherToKind`, `chainingDependentOperations`
 - Keep names concise but meaningful
+
+### Exercise Counts
+
+A tutorial's size is its exercise count, and `bookVerify` checks every count the book and README give (`BookTutorialCountTest`).
+
+- **An exercise is a `@Test` method named `exercise…` or `diagnostic…`.** A worked example under another name, such as `completeWorkflowExample`, is not one. A method holding an `answerRequired()` placeholder must be named as an exercise.
+- **A journey page lists its tutorial files** in a comment under its header, each a path under `hkj-examples/src/test/java/org/higherkindedj/tutorial/` without `.java`:
+
+  ```markdown
+  **Tutorials**: 4 | **Exercises**: 30
+  <!-- exercises: optics/Tutorial01_LensBasics optics/Tutorial02_LensComposition optics/Tutorial03_PrismBasics optics/Tutorial04_AffineBasics -->
+  ```
+
+- **The page's `**Exercises**:` figure is the sum over those files, written exactly**, with no `~`. A `**File**:` line on the page gives its own file's count.
+- **Every other count copies it.** A table row, or a "(N exercises)" after a link, gives the count of what it links to: a journey page, a track's introduction (the sum of its journeys), or a tutorial file.
 
 ### Comments Within Exercises
 
@@ -758,6 +773,7 @@ When creating a new tutorial, ensure:
 - [ ] Solution file exists with matching structure
 - [ ] Solution file's every `@Test` has a "Why this is idiomatic / Alternative / Common wrong attempt" teaching block
 - [ ] README.md is updated with the new tutorial
+- [ ] The journey page lists the new file, and every count `bookVerify` reports is updated
 - [ ] British English spelling throughout
 - [ ] No emojis (except final 🎉 if appropriate)
 - [ ] Records used for domain modelling

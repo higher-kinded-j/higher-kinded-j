@@ -34,9 +34,9 @@ At a glance:
 | Journey | Exercises |
 |---------|-----------|
 | [Lens & Prism](lens_prism_journey.md) | 30 |
-| [Traversals & Practice](traversals_journey.md) | 27 |
+| [Traversals & Practice](traversals_journey.md) | 28 |
 | [Fluent & Free DSL](fluent_free_journey.md) | 22 |
-| [Focus DSL](focus_dsl_journey.md) | 29 |
+| [Focus DSL](focus_dsl_journey.md) | 90 |
 | [Batching & Coupled Updates](batching_journey.md) | 13 |
 | [Boundary Mapping](boundary_mapping_journey.md) | 19 |
 

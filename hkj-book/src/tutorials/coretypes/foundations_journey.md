@@ -7,7 +7,8 @@
 - The Pain → Promise framing: which Java pain points each abstraction replaces
 ~~~
 
-**Tutorials**: 5 | **Exercises**: 32
+**Tutorials**: 5 | **Exercises**: 37
+<!-- exercises: coretypes/Tutorial00_OneLineSixLayers coretypes/Tutorial01_KindBasics coretypes/Tutorial02_FunctorMapping coretypes/Tutorial03_ApplicativeCombining coretypes/Tutorial04_MonadChaining -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 This journey is the hands-on counterpart to the [Foundations chapter](../../hkts/foundations_intro.md). Each tutorial exercises one layer of the [One Line, Six Layers](../../hkts/one_line_six_layers.md) anchor:
@@ -44,7 +45,7 @@ A single-page reference to every abstraction in this journey, with imperative-Ja
 ---
 
 ## Tutorial 00: One Line, Six Layers
-**File**: `Tutorial00_OneLineSixLayers.java` | **Exercises**: 8 (7 graded + 1 diagnostic, plus a no-code setup check)
+**File**: `Tutorial00_OneLineSixLayers.java` | **Exercises**: 9 (7 graded + 1 diagnostic, plus a no-code setup check)
 
 The chapter anchor and the setup check. We type out one line of working Higher-Kinded-J that touches every layer of the library, then unpack each token in a separate exercise.
 

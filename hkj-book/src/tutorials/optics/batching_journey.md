@@ -7,6 +7,7 @@
 ~~~
 
 **Tutorials**: 3 (T21-T23) | **Exercises**: 13
+<!-- exercises: optics/Tutorial21_OpticBatching optics/Tutorial22_OpticBatchingGuardrails optics/Tutorial23_CoupledLenses -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 The Focus DSL journey taught paths that read and write one structure in memory. This journey covers what happens when those paths meet the outside world and each other: a traversal whose focuses each cost a remote call (batch it), a batch you want to see and bound before it runs (guardrails), and fields whose updates must move together or not at all (coupled lenses). The reference chapters are [Optic-Driven Batching](../../optics/optic_batching.md), [Plan Introspection and Guardrails](../../optics/optic_batching_guardrails.md), and [Coupled Fields](../../optics/coupled_fields.md).

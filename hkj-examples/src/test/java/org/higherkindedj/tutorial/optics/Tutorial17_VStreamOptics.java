@@ -71,7 +71,7 @@ public class Tutorial17_VStreamOptics {
      */
     @Test
     @DisplayName("Exercise 1: Get all elements with VStream traversal")
-    void getAllWithTraversal() {
+    void exercise1_getAllWithTraversal() {
       VStream<String> stream = VStream.fromList(List.of("alpha", "beta", "gamma"));
 
       // TODO: Create a VStream traversal and get all elements
@@ -91,7 +91,7 @@ public class Tutorial17_VStreamOptics {
      */
     @Test
     @DisplayName("Exercise 2: Modify all elements with VStream traversal")
-    void modifyWithTraversal() {
+    void exercise2_modifyWithTraversal() {
       VStream<String> stream = VStream.fromList(List.of("hello", "world"));
 
       // TODO: Modify all elements to uppercase using VStreamTraversals and Traversals.modify()
@@ -119,7 +119,7 @@ public class Tutorial17_VStreamOptics {
      */
     @Test
     @DisplayName("Exercise 3: Use VStream Each to get all elements")
-    void useVStreamEach() {
+    void exercise3_useVStreamEach() {
       VStream<Integer> numbers = VStream.fromList(List.of(1, 2, 3, 4, 5));
 
       // TODO: Create a VStream Each instance and use it to get all elements
@@ -138,7 +138,7 @@ public class Tutorial17_VStreamOptics {
      */
     @Test
     @DisplayName("Exercise 4: Check VStream indexed support")
-    void checkIndexedSupport() {
+    void exercise4_checkIndexedSupport() {
       Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
 
       // TODO: Call the appropriate method to check indexed support
@@ -171,7 +171,7 @@ public class Tutorial17_VStreamOptics {
      */
     @Test
     @DisplayName("Exercise 5: FocusDSL each() with vstreamEach")
-    void focusDSLWithVStream() {
+    void exercise5_focusDSLWithVStream() {
       Inventory inventory =
           new Inventory(VStream.fromList(List.of("Widget", "Gadget", "Doohickey")));
 
@@ -191,7 +191,7 @@ public class Tutorial17_VStreamOptics {
      */
     @Test
     @DisplayName("Exercise 6: Modify VStream elements via FocusDSL")
-    void modifyViaFocusDSL() {
+    void exercise6_modifyViaFocusDSL() {
       Inventory inventory = new Inventory(VStream.fromList(List.of("alpha", "beta")));
       Each<VStream<String>, String> vstreamEach = EachInstances.vstreamEach();
       TraversalPath<Inventory, String> allItems = FocusPath.of(ITEMS_LENS).each(vstreamEach);
@@ -222,7 +222,7 @@ public class Tutorial17_VStreamOptics {
      */
     @Test
     @DisplayName("Exercise 7: toVStreamPath() bridge")
-    void toVStreamPathBridge() {
+    void exercise7_toVStreamPathBridge() {
       Traversal<List<Integer>, Integer> listTraversal = Traversals.forList();
       TraversalPath<List<Integer>, Integer> path = TraversalPath.of(listTraversal);
       List<Integer> source = List.of(1, 2, 3, 4, 5, 6);
@@ -244,7 +244,7 @@ public class Tutorial17_VStreamOptics {
      */
     @Test
     @DisplayName("Exercise 8: VStreamPath.fromEach() factory")
-    void fromEachFactory() {
+    void exercise8_fromEachFactory() {
       Each<List<String>, String> listEach = EachInstances.listEach();
       List<String> names = List.of("Alice", "Bob", "Charlie");
 

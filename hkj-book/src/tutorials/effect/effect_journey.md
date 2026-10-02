@@ -1,6 +1,7 @@
 # Effect API Journey
 
 **Tutorials**: 2 | **Exercises**: 17 (15 graded + 2 diagnostic)
+<!-- exercises: effect/Tutorial01_EffectPathBasics effect/Tutorial02_EffectPathAdvanced -->
 
 ~~~admonish info title="The Primary API"
 The Effect Path API is the **recommended user-facing API** for Higher-Kinded-J. This journey teaches us to be productive with functional effects without needing deep HKT knowledge.

@@ -8,6 +8,7 @@
 ~~~
 
 **Tutorials**: 3 | **Exercises**: 22
+<!-- exercises: optics/Tutorial09_FluentOpticsAPI optics/Tutorial10_AdvancedPrismPatterns optics/Tutorial11_AdvancedOpticsDSL -->
 
 **Prerequisites**: [Optics: Traversals & Practice Journey](traversals_journey.md)
 

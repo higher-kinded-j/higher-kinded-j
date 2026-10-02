@@ -11,7 +11,8 @@
 - Fold combination, navigator generation, container-type navigation
 ~~~
 
-**Tutorials**: 9 (T12-T20) | **Exercises**: ~80
+**Tutorials**: 9 (T12-T20) | **Exercises**: 90
+<!-- exercises: optics/Tutorial12_FocusDSL optics/Tutorial13_AdvancedFocusDSL optics/Tutorial14_FocusEffectBridge optics/Tutorial15_ListPrisms optics/Tutorial16_OpticsSpecInterfaces optics/Tutorial17_VStreamOptics optics/Tutorial18_FoldCombination optics/Tutorial19_NavigatorGeneration optics/Tutorial20_ContainerNavigation -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 The Focus DSL is the ergonomic layer that lets us write `.focus().attributes().at(key)` from [One Line, Six Layers](../../hkts/one_line_six_layers.md) as a single fluent path. Tutorials 12-13 cover the basics; Tutorial 14 is the bridge to Effect Paths; Tutorials 15-20 cover specialised cases (list prisms, external types, VStream integration, fold combination, navigator generation, container-type navigation). Each tutorial opens with a Pain → Promise header showing the imperative-Java pattern it replaces.
@@ -160,7 +161,7 @@ TraversalPath<User, Role> allRolesPath = rolesKindPath
 ---
 
 ## Tutorial 19: Navigator Generation
-**File**: `Tutorial19_NavigatorGeneration.java` | **Exercises**: 7
+**File**: `Tutorial19_NavigatorGeneration.java` | **Exercises**: 8
 
 Learn how generated navigators enable fluent cross-type navigation, and how SPI-aware path widening determines the correct path type for container fields.
 

@@ -9,7 +9,8 @@
 - Working with VTaskContext for dependency injection
 ~~~
 
-**Tutorials**: 3 (VTask, VTaskPath, ForPath with VTaskPath) | **Exercises**: 18 (16 graded + 2 diagnostic)
+**Tutorials**: 3 (VTask, VTaskPath, ForPath with VTaskPath) | **Exercises**: 28 (26 graded + 2 diagnostic)
+<!-- exercises: concurrency/TutorialVTask concurrency/TutorialVTaskPath concurrency/TutorialVTaskForPath -->
 
 **Requirements**: Java 25 (virtual threads and structured concurrency)
 
@@ -44,7 +45,7 @@ By the end, you'll understand how to build concurrent applications using functio
 ---
 
 ## Tutorial 1: VTask Fundamentals
-**File**: `TutorialVTask.java` | **Exercises**: 8
+**File**: `TutorialVTask.java` | **Exercises**: 9
 
 Master virtual thread-based concurrency with functional composition.
 
@@ -106,7 +107,7 @@ Master virtual thread-based concurrency with functional composition.
 ---
 
 ## Tutorial 2: VTaskPath Effect API
-**File**: `TutorialVTaskPath.java` | **Exercises**: 8
+**File**: `TutorialVTaskPath.java` | **Exercises**: 9
 
 Learn the fluent Effect Path API for VTask-based workflows.
 

@@ -885,7 +885,7 @@ void shouldReturnEmptyMaybeForAnonymous() {
 | `requirePermission(perm)` | `Context<Set<String>, Unit>` | Require permission or fail |
 
 ~~~admonish info title="Hands-On Learning"
-Practise security patterns in [Tutorial 04: SecurityContext Patterns](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/context/Tutorial04_SecurityContextPatterns.java) (6 exercises).
+Practise security patterns in [Tutorial 04: SecurityContext Patterns](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/context/Tutorial04_SecurityContextPatterns.java) (10 exercises).
 ~~~
 
 ~~~admonish tip title="See Also"

@@ -7,7 +7,8 @@
 - Applying optics to realistic production scenarios
 ~~~
 
-**Tutorials**: 4 | **Exercises**: 27
+**Tutorials**: 4 | **Exercises**: 28
+<!-- exercises: optics/Tutorial05_TraversalBasics optics/Tutorial06_OpticsComposition optics/Tutorial07_GeneratedOptics optics/Tutorial08_RealWorldOptics -->
 
 **Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md)
 
@@ -26,7 +27,7 @@ Traversal (bulk ops) → Composition Rules → Generated Optics → Real World
 ---
 
 ## Tutorial 05: Traversal Basics
-**File**: `Tutorial05_TraversalBasics.java` | **Exercises**: 7
+**File**: `Tutorial05_TraversalBasics.java` | **Exercises**: 8
 
 Learn to work with multiple targets simultaneously using Traversals.
 

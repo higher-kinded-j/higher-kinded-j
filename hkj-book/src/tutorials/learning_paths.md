@@ -8,22 +8,24 @@ Each journey covers one topic. The [recommended paths](#recommended-paths) put t
 
 | Journey | Exercises | Level |
 |---------|-----------|-------|
-| [Core: Foundations](coretypes/foundations_journey.md) | 24 | Beginner |
-| [Core: Error Handling](coretypes/error_handling_journey.md) | 20 | Intermediate |
+| [Core: Foundations](coretypes/foundations_journey.md) | 37 | Beginner |
+| [Core: Error Handling](coretypes/error_handling_journey.md) | 26 | Intermediate |
 | [Core: Advanced Patterns](coretypes/advanced_journey.md) | 26 | Advanced |
-| [Effect API](effect/effect_journey.md) | 15 | All Levels |
-| [Monad Transformers](transformers/transformers_journey.md) | 28 | Advanced |
-| [Concurrency: VTask](concurrency/vtask_journey.md) | 16 | Intermediate |
-| [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | 12 | Intermediate |
+| [Effect API](effect/effect_journey.md) | 17 | All Levels |
+| [Monad Transformers](transformers/transformers_journey.md) | 29 | Advanced |
+| [Concurrency: VTask](concurrency/vtask_journey.md) | 28 | Intermediate |
+| [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | 20 | Intermediate |
+| [Context](context/ch_intro.md) | 59 | Advanced |
+| [Effect Handlers](effecthandlers/ch_intro.md) | 19 | Advanced |
 | [Optics: Lens & Prism](optics/lens_prism_journey.md) | 30 | Beginner |
-| [Optics: Traversals & Practice](optics/traversals_journey.md) | 27 | Intermediate |
+| [Optics: Traversals & Practice](optics/traversals_journey.md) | 28 | Intermediate |
 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | 22 | Advanced |
-| [Optics: Focus DSL](optics/focus_dsl_journey.md) | 29 | Intermediate |
+| [Optics: Focus DSL](optics/focus_dsl_journey.md) | 90 | Intermediate |
 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) | 13 | Advanced |
 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | 19 | Intermediate |
-| [Expression: ForState](expression/forstate_journey.md) | 11 | Intermediate |
+| [Expression: ForState](expression/forstate_journey.md) | 13 | Intermediate |
 | [Expression: ForPath Parallel](expression/forpath_parallel_journey.md) | 9 | Intermediate |
-| [Resilience Patterns](resilience/resilience_journey.md) | 22 | Intermediate |
+| [Resilience Patterns](resilience/resilience_journey.md) | 24 | Intermediate |
 | [Capstone: One Line, Six Layers Grows Up](capstone/capstone_journey.md) | 7 | Intermediate |
 
 ---
@@ -126,20 +128,22 @@ Each journey covers one topic. The [recommended paths](#recommended-paths) put t
 | 4 | [Effect API: Fundamentals](effect/effect_journey.md#part-1-fundamentals) |
 | 5 | [Effect API: Advanced](effect/effect_journey.md#part-2-advanced) |
 | 6 | [Monad Transformers](transformers/transformers_journey.md) |
-| 7 | [Expression: ForState](expression/forstate_journey.md) |
-| 8 | [Expression: ForPath Parallel](expression/forpath_parallel_journey.md) |
-| 9 | [Concurrency: VTask](concurrency/vtask_journey.md) |
-| 10 | [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) |
-| 11 | [Resilience Patterns](resilience/resilience_journey.md) |
-| 12 | [Optics: Lens & Prism](optics/lens_prism_journey.md) |
-| 13 | [Optics: Traversals & Practice](optics/traversals_journey.md) |
-| 14 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) |
-| 15 | [Optics: Focus DSL](optics/focus_dsl_journey.md) |
-| 16 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) |
-| 17 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) |
-| 18 | [Capstone: One Line, Six Layers Grows Up](capstone/capstone_journey.md) |
+| 7 | [Effect Handlers](effecthandlers/ch_intro.md) |
+| 8 | [Expression: ForState](expression/forstate_journey.md) |
+| 9 | [Expression: ForPath Parallel](expression/forpath_parallel_journey.md) |
+| 10 | [Concurrency: VTask](concurrency/vtask_journey.md) |
+| 11 | [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) |
+| 12 | [Context](context/ch_intro.md) |
+| 13 | [Resilience Patterns](resilience/resilience_journey.md) |
+| 14 | [Optics: Lens & Prism](optics/lens_prism_journey.md) |
+| 15 | [Optics: Traversals & Practice](optics/traversals_journey.md) |
+| 16 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) |
+| 17 | [Optics: Focus DSL](optics/focus_dsl_journey.md) |
+| 18 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) |
+| 19 | [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) |
+| 20 | [Capstone: One Line, Six Layers Grows Up](capstone/capstone_journey.md) |
 
-**Total**: 18 sessions
+**Total**: 20 sessions
 
 **Best for**: Comprehensive mastery of Higher-Kinded-J.
 
