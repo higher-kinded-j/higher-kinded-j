@@ -1,3 +1,5 @@
+<!-- description: Stack effects such as async work and typed errors with EitherT, MaybeT, OptionalT, ReaderT, StateT and WriterT, and write stack-independent code with MTL. -->
+
 # Monad Transformers
 ## _Combining Effects_
 

@@ -1,3 +1,5 @@
+<!-- description: Gradle and Maven build plugins, compile-time Path checks, OpenRewrite migration recipes, traversal generator plugins, hkj-test assertions, Claude Code skills. -->
+
 # Tooling
 ## _Build-Time Safety for Higher-Kinded-J_
 > _"Make illegal states unrepresentable."_

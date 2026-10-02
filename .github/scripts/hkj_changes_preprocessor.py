@@ -32,6 +32,7 @@ the book through unchanged, so it is always safe to leave enabled.
 import base64
 import json
 import os
+import re
 import subprocess
 import sys
 from difflib import SequenceMatcher
@@ -55,6 +56,8 @@ EXCLUDE_PATHS = frozenset(
 )
 
 MARK_CLASS = "hkj-ct-mark"
+
+COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
 def enabled():
@@ -118,7 +121,9 @@ def split_blocks(text):
 
     def flush(end_idx):
         nonlocal current, start
-        if current and any(l.strip() for l in current):
+        # A block of nothing but HTML comments renders nothing, so it is never
+        # marked: a marker before it would land on the block after it.
+        if current and COMMENT_RE.sub("", "\n".join(current)).strip():
             blocks.append(
                 {
                     "text": "\n".join(current),

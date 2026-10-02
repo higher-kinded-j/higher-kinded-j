@@ -1,3 +1,5 @@
+<!-- description: Return Either, Validated and Effect Paths from Spring Boot controllers, map typed errors to HTTP statuses, and call other services through typed HTTP clients. -->
+
 # Spring Integration
 
 > *"If thought corrupts language, language can also corrupt thought."*

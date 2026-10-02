@@ -1,3 +1,5 @@
+<!-- description: One composable API for absence, exceptions, typed errors, validation and async work in Java: MaybePath, EitherPath, TryPath, ValidationPath, IOPath and more. -->
+
 # Effect Path API
 ## _Navigating Computational Territory_
 

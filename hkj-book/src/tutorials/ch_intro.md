@@ -1,3 +1,5 @@
+<!-- description: Hands-on Higher-Kinded-J exercises: journeys of failing tests you complete in your IDE, from the Kind encoding through effects and optics to DTO mapping. -->
+
 # Hands-On Learning
 
 > _"You look at where you're going and where you are and it never makes sense, but then you look back at where you've been and a pattern seems to emerge."_

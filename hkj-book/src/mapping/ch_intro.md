@@ -1,3 +1,5 @@
+<!-- description: Replace a hand-written DTO mapper with compile-time code generation: a build that cannot fail, and a parse that reports every bad field at once, by its path. -->
+
 # Mapping at the Boundary
 
 > _"I, too, am a translated man. I have been borne across. It is generally believed that something is always lost in translation; I cling to the notion ... that something can also be gained."_

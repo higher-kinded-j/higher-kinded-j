@@ -1,3 +1,5 @@
+<!-- description: Runnable Java applications built with Higher-Kinded-J: an order workflow, a draughts game, a market data pipeline, portfolio risk and payment processing. -->
+
 # Examples Gallery
 
 > *"For the things we have to learn before we can do them, we learn by doing them."*
