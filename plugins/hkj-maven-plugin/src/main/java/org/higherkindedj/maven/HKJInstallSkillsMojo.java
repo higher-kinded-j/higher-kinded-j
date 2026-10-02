@@ -38,6 +38,7 @@ public class HKJInstallSkillsMojo extends AbstractHKJMojo {
 
   @Override
   public void execute() throws MojoExecutionException {
+    readConfiguration(project);
     Path targetDir = project.getBasedir().toPath().resolve(".claude/skills");
 
     try (InputStream manifestStream =

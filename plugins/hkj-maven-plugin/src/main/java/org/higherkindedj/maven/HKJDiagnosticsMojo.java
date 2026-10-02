@@ -4,9 +4,7 @@ package org.higherkindedj.maven;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import org.apache.maven.model.Dependency;
-import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -24,21 +22,13 @@ public class HKJDiagnosticsMojo extends AbstractHKJMojo {
   public HKJDiagnosticsMojo() {}
 
   private static final String GROUP_ID = "io.github.higher-kinded-j";
-  private static final String PLUGIN_KEY = GROUP_ID + ":hkj-maven-plugin";
 
   @Parameter(defaultValue = "${project}", readonly = true, required = true)
   private MavenProject project;
 
   @Override
   public void execute() throws MojoExecutionException {
-    HKJConfiguration config;
-    try {
-      config =
-          findHKJPlugin().map(HKJConfiguration::fromPlugin).orElseGet(HKJConfiguration::defaults);
-    } catch (IllegalStateException e) {
-      throw new MojoExecutionException(e.getMessage(), e);
-    }
-    warnAboutExecutionSettings(config);
+    HKJConfiguration config = readConfiguration(project);
 
     List<String> depsAdded = new ArrayList<>();
     for (Dependency dep : project.getDependencies()) {
@@ -94,11 +84,5 @@ public class HKJDiagnosticsMojo extends AbstractHKJMojo {
     }
 
     getLog().info(sb.toString().stripTrailing());
-  }
-
-  private Optional<Plugin> findHKJPlugin() {
-    return project.getBuildPlugins().stream()
-        .filter(p -> PLUGIN_KEY.equals(p.getKey()))
-        .findFirst();
   }
 }

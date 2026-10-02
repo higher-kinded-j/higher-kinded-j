@@ -95,7 +95,7 @@ The HKJ Maven plugin provides an equivalent goal:
 mvn hkj:install-skills
 ```
 
-To install them during every build instead, set `skills` in the plugin's `<configuration>`. In a multi-module build they go into the reactor's root, once:
+To install them during every build instead, set `skills` in the plugin's `<configuration>`. A multi-module build installs them once: into the reactor's root when the root sets `skills`, and otherwise into the first project that does.
 
 ```xml
 <configuration>

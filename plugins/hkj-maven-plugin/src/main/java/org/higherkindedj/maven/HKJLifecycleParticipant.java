@@ -176,10 +176,11 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     // maven-compiler-plugin 4 reads <testCompilerArgs> in place of <compilerArgs> when it is set,
     // so HKJ joins an existing one; creating it would drop the user's <compilerArgs> from tests.
     addHkjCompilerArgs(configNode, "testCompilerArgs", config, /* create= */ false);
-    addHkjProcessorNames(configNode, config);
+    addHkjProcessorNames(configNode, project, config);
   }
 
-  private void addHkjProcessorNames(Xpp3Dom configNode, HKJConfiguration config) {
+  private void addHkjProcessorNames(
+      Xpp3Dom configNode, MavenProject project, HKJConfiguration config) {
     // <annotationProcessors> names the processors javac runs, and javac then discovers no other,
     // so HKJ's join a list the build already has. The plugin knows the processors of its own
     // release only, so it adds them only while the processors on the path are that release.
@@ -187,25 +188,67 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
     if (names == null || !config.usesPluginRelease()) {
       return;
     }
-    if (pathsAtRelease(configNode, config.version(), "hkj-processor", "hkj-processor-plugins")) {
+    if (pathsAtRelease(
+        project, configNode, config.version(), "hkj-processor", "hkj-processor-plugins")) {
       CORE_PROCESSORS.forEach(name -> addProcessorName(names, name));
     }
     if (config.spring()
-        && pathsAtRelease(configNode, config.version(), "hkj-spring-boot-client-processor")) {
+        && pathsAtRelease(
+            project, configNode, config.version(), "hkj-spring-boot-client-processor")) {
       SPRING_PROCESSORS.forEach(name -> addProcessorName(names, name));
     }
   }
 
   /** Whether every processor path naming one of {@code artifactIds} carries {@code version}. */
-  private static boolean pathsAtRelease(Xpp3Dom configNode, String version, String... artifactIds) {
+  /**
+   * Whether the processors {@code artifactIds} name resolve to {@code version}. A processor path
+   * without a version, and under {@code annotationProcessorPathsUseDepMgmt} every processor jar,
+   * takes its version from the project's dependency management, as maven-compiler-plugin does; a
+   * version that cannot be established counts as another release.
+   */
+  private static boolean pathsAtRelease(
+      MavenProject project, Xpp3Dom configNode, String version, String... artifactIds) {
+    List<String> ids = List.of(artifactIds);
+    boolean useDepMgmt =
+        childValue(configNode, "annotationProcessorPathsUseDepMgmt")
+            .map(Boolean::parseBoolean)
+            .orElse(false);
+    if (useDepMgmt
+        && ids.stream()
+            .map(id -> managedVersion(project, GROUP_ID, id))
+            .flatMap(Optional::stream)
+            .anyMatch(managed -> !managed.equals(version))) {
+      return false;
+    }
     Xpp3Dom paths = configNode.getChild("annotationProcessorPaths");
     if (paths == null) {
       return true;
     }
-    List<String> ids = List.of(artifactIds);
     return Arrays.stream(paths.getChildren("path"))
         .filter(path -> childValue(path, "artifactId").filter(ids::contains).isPresent())
-        .allMatch(path -> childValue(path, "version").map(version::equals).orElse(true));
+        .allMatch(
+            path ->
+                childValue(path, "version")
+                    .or(() -> useDepMgmt ? managedVersion(project, path) : Optional.empty())
+                    .map(version::equals)
+                    .orElse(false));
+  }
+
+  private static Optional<String> managedVersion(MavenProject project, Xpp3Dom path) {
+    return managedVersion(
+        project,
+        childValue(path, "groupId").orElse(GROUP_ID),
+        childValue(path, "artifactId").orElse(""));
+  }
+
+  private static Optional<String> managedVersion(
+      MavenProject project, String groupId, String artifactId) {
+    return Optional.ofNullable(project.getDependencyManagement()).stream()
+        .flatMap(management -> management.getDependencies().stream())
+        .filter(d -> groupId.equals(d.getGroupId()) && artifactId.equals(d.getArtifactId()))
+        .map(Dependency::getVersion)
+        .flatMap(v -> Optional.ofNullable(v).stream())
+        .findFirst();
   }
 
   private static List<String> registeredProcessors(Properties registered, String group) {

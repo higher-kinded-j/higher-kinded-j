@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import org.apache.maven.model.Build;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
@@ -398,6 +400,81 @@ class HKJLifecycleParticipantTest {
       child(pinned, "version", "0.4.10");
       paths.addChild(pinned);
       cfg.addChild(paths);
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).containsExactly(LENS);
+    }
+
+    private Xpp3Dom versionlessPath(boolean useDepMgmt) {
+      Xpp3Dom cfg = namingConfig(LENS);
+      if (useDepMgmt) {
+        child(cfg, "annotationProcessorPathsUseDepMgmt", "true");
+      }
+      Xpp3Dom paths = dom("annotationProcessorPaths");
+      Xpp3Dom path = dom("path");
+      child(path, "groupId", "io.github.higher-kinded-j");
+      child(path, "artifactId", "hkj-processor-plugins");
+      paths.addChild(path);
+      cfg.addChild(paths);
+      return cfg;
+    }
+
+    private void manage(String artifactId, String version) {
+      if (project.getModel().getDependencyManagement() == null) {
+        project.getModel().setDependencyManagement(new DependencyManagement());
+      }
+      Dependency managed = new Dependency();
+      managed.setGroupId("io.github.higher-kinded-j");
+      managed.setArtifactId(artifactId);
+      managed.setVersion(version);
+      project.getModel().getDependencyManagement().addDependency(managed);
+    }
+
+    @Test
+    @DisplayName(
+        "takes a versionless path's version from dependency management, as the compiler does")
+    void addsNames_whenManagedVersionIsTheRelease() {
+      manage("hkj-processor-plugins", RELEASE);
+      addCompilerPlugin(versionlessPath(true));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).contains(LENS, COMPANION);
+    }
+
+    @Test
+    @DisplayName("adds no core name when dependency management pins a versionless path elsewhere")
+    void addsNoCoreNames_whenManagedVersionIsAnotherRelease() {
+      manage("hkj-processor-plugins", "0.4.10");
+      addCompilerPlugin(versionlessPath(true));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).containsExactly(LENS);
+    }
+
+    @Test
+    @DisplayName("adds no core name when a versionless path's version cannot be established")
+    void addsNoCoreNames_whenVersionUnknown() {
+      addCompilerPlugin(versionlessPath(false));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).containsExactly(LENS);
+    }
+
+    @Test
+    @DisplayName("adds no core name when dependency management pins hkj-processor elsewhere")
+    void addsNoCoreNames_whenTransitiveProcessorManagedElsewhere() {
+      manage("hkj-processor", "0.4.10");
+      Xpp3Dom cfg = namingConfig(LENS);
+      child(cfg, "annotationProcessorPathsUseDepMgmt", "true");
       addCompilerPlugin(cfg);
 
       participant.configureCompilerPlugin(

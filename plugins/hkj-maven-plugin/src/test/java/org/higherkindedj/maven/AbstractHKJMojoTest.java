@@ -10,15 +10,20 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.RecordComponent;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.maven.model.Build;
+import org.apache.maven.model.Plugin;
 import org.apache.maven.plugin.logging.SystemStreamLog;
+import org.apache.maven.project.MavenProject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 @DisplayName("AbstractHKJMojo")
 class AbstractHKJMojoTest {
@@ -75,16 +80,19 @@ class AbstractHKJMojoTest {
 
     private final List<String> warnings = new ArrayList<>();
 
+    private SystemStreamLog capturing() {
+      return new SystemStreamLog() {
+        @Override
+        public void warn(CharSequence content) {
+          warnings.add(content.toString());
+        }
+      };
+    }
+
     private HKJDiagnosticsMojo goalWith(String field, Object value)
         throws ReflectiveOperationException {
       HKJDiagnosticsMojo goal = new HKJDiagnosticsMojo();
-      goal.setLog(
-          new SystemStreamLog() {
-            @Override
-            public void warn(CharSequence content) {
-              warnings.add(content.toString());
-            }
-          });
+      goal.setLog(capturing());
       Field setting = AbstractHKJMojo.class.getDeclaredField(field);
       setting.setAccessible(true);
       setting.set(goal, value);
@@ -103,6 +111,35 @@ class AbstractHKJMojoTest {
           .asString()
           .contains("<skills>true</skills> on this execution is not read")
           .contains("where skills is false");
+    }
+
+    @Test
+    @DisplayName("install-skills warns about a differing setting too, and still installs")
+    void installSkillsWarns(@TempDir Path dir) throws Exception {
+      MavenProject project = new MavenProject();
+      project.setFile(dir.resolve("pom.xml").toFile());
+      project.setBuild(new Build());
+      Plugin plugin = new Plugin();
+      plugin.setGroupId("io.github.higher-kinded-j");
+      plugin.setArtifactId("hkj-maven-plugin");
+      project.getBuild().addPlugin(plugin);
+
+      HKJInstallSkillsMojo goal = new HKJInstallSkillsMojo();
+      goal.setLog(capturing());
+      Field projectField = HKJInstallSkillsMojo.class.getDeclaredField("project");
+      projectField.setAccessible(true);
+      projectField.set(goal, project);
+      Field skills = AbstractHKJMojo.class.getDeclaredField("skills");
+      skills.setAccessible(true);
+      skills.set(goal, Boolean.TRUE);
+
+      goal.execute();
+
+      assertThat(warnings)
+          .singleElement()
+          .asString()
+          .contains("<skills>true</skills> on this execution is not read");
+      assertThat(dir.resolve(".claude/skills")).isDirectoryContaining("glob:**/hkj-*");
     }
 
     @Test

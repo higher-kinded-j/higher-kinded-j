@@ -3,7 +3,9 @@
 package org.higherkindedj.maven;
 
 import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
 
 /**
  * A goal of the HKJ plugin, holding the plugin's shared {@code <configuration>} elements.
@@ -11,9 +13,11 @@ import org.apache.maven.plugins.annotations.Parameter;
  * <p>{@code META-INF/maven/plugin.xml} declares them for every goal, so Maven does not report them
  * as unknown, and injects them here. {@link HKJConfiguration} reads the values from the plugin's
  * own {@code <configuration>}, as the lifecycle participant does, so a value set on one execution
- * alone is not read; {@link #warnAboutExecutionSettings} says so.
+ * alone is not read; {@link #readConfiguration} says so.
  */
 abstract class AbstractHKJMojo extends AbstractMojo {
+
+  private static final String PLUGIN_KEY = "io.github.higher-kinded-j:hkj-maven-plugin";
 
   @Parameter private String version;
 
@@ -24,6 +28,26 @@ abstract class AbstractHKJMojo extends AbstractMojo {
   @Parameter private Boolean skills;
 
   @Parameter private Boolean pathTypeMismatch;
+
+  /**
+   * The plugin's configuration for {@code project}, read as the lifecycle participant reads it,
+   * with a warning for each setting this goal was given that differs from it.
+   */
+  HKJConfiguration readConfiguration(MavenProject project) throws MojoExecutionException {
+    HKJConfiguration config;
+    try {
+      config =
+          project.getBuildPlugins().stream()
+              .filter(plugin -> PLUGIN_KEY.equals(plugin.getKey()))
+              .findFirst()
+              .map(HKJConfiguration::fromPlugin)
+              .orElseGet(HKJConfiguration::defaults);
+    } catch (IllegalStateException e) {
+      throw new MojoExecutionException(e.getMessage(), e);
+    }
+    warnAboutExecutionSettings(config);
+    return config;
+  }
 
   /** Warns about each setting this goal was given that differs from the one the plugin reads. */
   void warnAboutExecutionSettings(HKJConfiguration config) {
