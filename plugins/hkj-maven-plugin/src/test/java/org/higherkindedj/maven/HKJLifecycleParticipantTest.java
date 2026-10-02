@@ -4,9 +4,13 @@ package org.higherkindedj.maven;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import org.apache.maven.model.Build;
+import org.apache.maven.model.Dependency;
+import org.apache.maven.model.DependencyManagement;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.model.PluginExecution;
 import org.apache.maven.project.MavenProject;
@@ -128,11 +132,8 @@ class HKJLifecycleParticipantTest {
 
     @Test
     @DisplayName(
-        "appends HKJ entries to pre-existing testAnnotationProcessorPaths without removing"
-            + " user processors")
-    void patchesTestAnnotationProcessorPaths_whenUserDeclared() {
-      // User has set testAnnotationProcessorPaths explicitly - this overrides the fallback to
-      // annotationProcessorPaths for test compilation, so HKJ must land here too.
+        "leaves testAnnotationProcessorPaths alone, which maven-compiler-plugin does not read")
+    void leavesTestAnnotationProcessorPaths() {
       Xpp3Dom cfg = dom("configuration");
       Xpp3Dom testPaths = dom("testAnnotationProcessorPaths");
       testPaths.addChild(path("user-test-processor", "1.0"));
@@ -141,9 +142,8 @@ class HKJLifecycleParticipantTest {
 
       participant.configureCompilerPlugin(project, defaultConfig);
 
-      Xpp3Dom finalCfg = (Xpp3Dom) compilerPlugin().getConfiguration();
-      assertThat(processorArtifactIds(finalCfg, "testAnnotationProcessorPaths"))
-          .containsExactlyInAnyOrder("user-test-processor", "hkj-processor-plugins", "hkj-checker");
+      assertThat(processorArtifactIds(pluginConfig(), "testAnnotationProcessorPaths"))
+          .containsExactly("user-test-processor");
     }
 
     @Test
@@ -163,49 +163,20 @@ class HKJLifecycleParticipantTest {
     }
 
     @Test
-    @DisplayName(
-        "does NOT create testAnnotationProcessorPaths when user hasn't declared it (preserves"
-            + " fallback)")
-    void doesNotCreateTestAnnotationProcessorPaths_whenAbsent() {
+    @DisplayName("does not create testCompilerArgs, which would replace compilerArgs for tests")
+    void doesNotCreateTestCompilerArgs_whenAbsent() {
       addCompilerPlugin(null);
 
       participant.configureCompilerPlugin(project, defaultConfig);
 
-      Xpp3Dom cfg = (Xpp3Dom) compilerPlugin().getConfiguration();
-      // If we created testAnnotationProcessorPaths with only HKJ entries, testCompile would
-      // lose the fallback to annotationProcessorPaths and clobber any user main-side
-      // processors. The plugin must not create this node.
-      assertThat(cfg.getChild("testAnnotationProcessorPaths")).isNull();
-      assertThat(cfg.getChild("testCompilerArgs")).isNull();
+      assertThat(pluginConfig().getChild("testCompilerArgs")).isNull();
+      assertThat(pluginConfig().getChild("testAnnotationProcessorPaths")).isNull();
     }
   }
 
   @Nested
   @DisplayName("execution-level configuration")
   class ExecutionLevel {
-
-    @Test
-    @DisplayName(
-        "appends HKJ entries to default-testCompile execution's testAnnotationProcessorPaths")
-    void patchesExecutionTestAnnotationProcessorPaths() {
-      Xpp3Dom execConfig = dom("configuration");
-      Xpp3Dom testPaths = dom("testAnnotationProcessorPaths");
-      testPaths.addChild(path("user-test-processor", "1.0"));
-      execConfig.addChild(testPaths);
-
-      PluginExecution execution = new PluginExecution();
-      execution.setId("default-testCompile");
-      execution.setConfiguration(execConfig);
-
-      addCompilerPlugin(null, execution);
-
-      participant.configureCompilerPlugin(project, defaultConfig);
-
-      Xpp3Dom finalExecConfig =
-          (Xpp3Dom) compilerPlugin().getExecutions().get(0).getConfiguration();
-      assertThat(processorArtifactIds(finalExecConfig, "testAnnotationProcessorPaths"))
-          .containsExactlyInAnyOrder("user-test-processor", "hkj-processor-plugins", "hkj-checker");
-    }
 
     @Test
     @DisplayName("appends -Xplugin:HKJChecker to execution-level compilerArgs override")
@@ -263,7 +234,6 @@ class HKJLifecycleParticipantTest {
     @DisplayName("does not add hkj-checker or -Xplugin:HKJChecker anywhere")
     void doesNotAddChecker_whenDisabled() {
       Xpp3Dom cfg = dom("configuration");
-      cfg.addChild(dom("testAnnotationProcessorPaths"));
       cfg.addChild(dom("testCompilerArgs"));
       addCompilerPlugin(cfg);
 
@@ -271,9 +241,6 @@ class HKJLifecycleParticipantTest {
 
       Xpp3Dom finalCfg = (Xpp3Dom) compilerPlugin().getConfiguration();
       assertThat(processorArtifactIds(finalCfg, "annotationProcessorPaths"))
-          .contains("hkj-processor-plugins")
-          .doesNotContain("hkj-checker");
-      assertThat(processorArtifactIds(finalCfg, "testAnnotationProcessorPaths"))
           .contains("hkj-processor-plugins")
           .doesNotContain("hkj-checker");
       assertThat(argValues(finalCfg, "testCompilerArgs"))
@@ -354,6 +321,276 @@ class HKJLifecycleParticipantTest {
                   (Xpp3Dom) compilerPlugin().getExecutions().get(0).getConfiguration(),
                   "annotationProcessorPaths"))
           .doesNotContain("hkj-spring-boot-client-processor");
+    }
+  }
+
+  @Nested
+  @DisplayName("named processors")
+  class NamedProcessors {
+
+    /** The plugin's own release, which the build passes to the tests. */
+    private static final String RELEASE =
+        Objects.requireNonNull(
+            System.getProperty("hkj.expectedVersion"),
+            "hkj.expectedVersion is set by the Gradle test task: run the tests through Gradle");
+
+    private static final String LENS = "org.higherkindedj.optics.processing.LensProcessor";
+    private static final String COMPANION =
+        "org.higherkindedj.optics.processing.CompanionAnnotationProcessor";
+    private static final String CLIENT =
+        "org.higherkindedj.spring.client.processor.HkjHttpClientProcessor";
+
+    private List<String> processorNames(Xpp3Dom cfg) {
+      return Arrays.stream(cfg.getChild("annotationProcessors").getChildren("annotationProcessor"))
+          .map(Xpp3Dom::getValue)
+          .toList();
+    }
+
+    private Xpp3Dom namingConfig(String... names) {
+      Xpp3Dom cfg = dom("configuration");
+      Xpp3Dom processors = dom("annotationProcessors");
+      for (String name : names) {
+        child(processors, "annotationProcessor", name);
+      }
+      cfg.addChild(processors);
+      return cfg;
+    }
+
+    @Test
+    @DisplayName("adds HKJ's processors to a build that names its processors")
+    void addsHkjProcessors_toNamedList() {
+      addCompilerPlugin(namingConfig("lombok.launch.AnnotationProcessorHider$AnnotationProcessor"));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig()))
+          .startsWith("lombok.launch.AnnotationProcessorHider$AnnotationProcessor")
+          .contains(LENS, COMPANION)
+          .doesNotContain(CLIENT)
+          .doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName(
+        "adds the core and @HkjHttpClient processors with spring, repeating none the build names")
+    void addsClientProcessors_whenSpringEnabled() {
+      addCompilerPlugin(namingConfig(LENS));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, true, false, true));
+
+      assertThat(processorNames(pluginConfig()))
+          .contains(
+              LENS,
+              COMPANION,
+              CLIENT,
+              "org.higherkindedj.spring.client.processor.CompanionAnnotationProcessor")
+          .doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("adds no core name while the processor path pins hkj-processor at another release")
+    void addsNoCoreNames_whenPathPinsAnotherRelease() {
+      Xpp3Dom cfg = namingConfig(LENS);
+      Xpp3Dom paths = dom("annotationProcessorPaths");
+      Xpp3Dom pinned = dom("path");
+      child(pinned, "groupId", "io.github.higher-kinded-j");
+      child(pinned, "artifactId", "hkj-processor-plugins");
+      child(pinned, "version", "0.4.10");
+      paths.addChild(pinned);
+      cfg.addChild(paths);
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).containsExactly(LENS);
+    }
+
+    private Xpp3Dom versionlessPath(boolean useDepMgmt) {
+      Xpp3Dom cfg = namingConfig(LENS);
+      if (useDepMgmt) {
+        child(cfg, "annotationProcessorPathsUseDepMgmt", "true");
+      }
+      Xpp3Dom paths = dom("annotationProcessorPaths");
+      Xpp3Dom path = dom("path");
+      child(path, "groupId", "io.github.higher-kinded-j");
+      child(path, "artifactId", "hkj-processor-plugins");
+      paths.addChild(path);
+      cfg.addChild(paths);
+      return cfg;
+    }
+
+    private void manage(String artifactId, String version) {
+      if (project.getModel().getDependencyManagement() == null) {
+        project.getModel().setDependencyManagement(new DependencyManagement());
+      }
+      Dependency managed = new Dependency();
+      managed.setGroupId("io.github.higher-kinded-j");
+      managed.setArtifactId(artifactId);
+      managed.setVersion(version);
+      project.getModel().getDependencyManagement().addDependency(managed);
+    }
+
+    @Test
+    @DisplayName(
+        "takes a versionless path's version from dependency management, as the compiler does")
+    void addsNames_whenManagedVersionIsTheRelease() {
+      manage("hkj-processor-plugins", RELEASE);
+      addCompilerPlugin(versionlessPath(true));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).contains(LENS, COMPANION);
+    }
+
+    @Test
+    @DisplayName("adds no core name when dependency management pins a versionless path elsewhere")
+    void addsNoCoreNames_whenManagedVersionIsAnotherRelease() {
+      manage("hkj-processor-plugins", "0.4.10");
+      addCompilerPlugin(versionlessPath(true));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).containsExactly(LENS);
+    }
+
+    @Test
+    @DisplayName("adds no core name when a versionless path's version cannot be established")
+    void addsNoCoreNames_whenVersionUnknown() {
+      addCompilerPlugin(versionlessPath(false));
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).containsExactly(LENS);
+    }
+
+    @Test
+    @DisplayName("adds no core name when dependency management pins hkj-processor elsewhere")
+    void addsNoCoreNames_whenTransitiveProcessorManagedElsewhere() {
+      manage("hkj-processor", "0.4.10");
+      Xpp3Dom cfg = namingConfig(LENS);
+      child(cfg, "annotationProcessorPathsUseDepMgmt", "true");
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(processorNames(pluginConfig())).containsExactly(LENS);
+    }
+
+    @Test
+    @DisplayName("counts a processor under any element name, so none is added twice")
+    void readsAnyElementName() {
+      Xpp3Dom cfg = dom("configuration");
+      Xpp3Dom processors = dom("annotationProcessors");
+      child(processors, "processor", LENS);
+      cfg.addChild(processors);
+      addCompilerPlugin(cfg);
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, false, false, true));
+
+      assertThat(
+              Arrays.stream(pluginConfig().getChild("annotationProcessors").getChildren())
+                  .map(Xpp3Dom::getValue)
+                  .filter(LENS::equals))
+          .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("leaves a named list alone when the build pins another release")
+    void leavesNamedList_whenAnotherReleasePinned() {
+      addCompilerPlugin(namingConfig(LENS));
+
+      participant.configureCompilerPlugin(project, defaultConfig);
+
+      assertThat(processorNames(pluginConfig())).containsExactly(LENS);
+    }
+
+    @Test
+    @DisplayName("names no processor when the build names none, so javac discovers them")
+    void namesNothing_whenBuildNamesNone() {
+      addCompilerPlugin(null);
+
+      participant.configureCompilerPlugin(
+          project, new HKJConfiguration(RELEASE, true, true, false, true));
+
+      assertThat(pluginConfig().getChild("annotationProcessors")).isNull();
+    }
+  }
+
+  @Nested
+  @DisplayName("skills")
+  class Skills {
+
+    private Plugin hkjPlugin() {
+      Plugin plugin = new Plugin();
+      plugin.setGroupId("io.github.higher-kinded-j");
+      plugin.setArtifactId("hkj-maven-plugin");
+      return plugin;
+    }
+
+    @Test
+    @DisplayName("binds install-skills into the build")
+    void bindsInstallSkills() {
+      Plugin plugin = hkjPlugin();
+
+      participant.bindInstallSkills(plugin);
+      participant.bindInstallSkills(plugin);
+
+      assertThat(plugin.getExecutions())
+          .singleElement()
+          .satisfies(
+              execution -> {
+                assertThat(execution.getGoals()).containsExactly("install-skills");
+                assertThat(execution.getPhase()).isEqualTo("generate-resources");
+              });
+    }
+
+    @Test
+    @DisplayName("installs the skills once, into the reactor's root")
+    void installsIntoReactorRoot() {
+      MavenProject parent = projectAt("/repo");
+      MavenProject module = projectAt("/repo/module");
+
+      assertThat(HKJLifecycleParticipant.skillsHome(List.of(module, parent), new File("/repo")))
+          .containsSame(parent);
+    }
+
+    @Test
+    @DisplayName("installs into the first project that asks when the root does not")
+    void installsIntoFirstProject_whenRootDoesNotAsk() {
+      MavenProject module = projectAt("/repo/module");
+      MavenProject other = projectAt("/repo/other");
+
+      assertThat(HKJLifecycleParticipant.skillsHome(List.of(module, other), new File("/repo")))
+          .containsSame(module);
+      assertThat(HKJLifecycleParticipant.skillsHome(List.of(), new File("/repo"))).isEmpty();
+    }
+
+    private MavenProject projectAt(String dir) {
+      MavenProject project = new MavenProject();
+      project.setFile(new File(dir, "pom.xml"));
+      return project;
+    }
+
+    @Test
+    @DisplayName("keeps an install-skills execution the build declares")
+    void keepsDeclaredExecution() {
+      Plugin plugin = hkjPlugin();
+      PluginExecution declared = execution("my-skills");
+      declared.addGoal("install-skills");
+      declared.setPhase("validate");
+      plugin.addExecution(declared);
+
+      participant.bindInstallSkills(plugin);
+
+      assertThat(plugin.getExecutions()).containsExactly(declared);
     }
   }
 

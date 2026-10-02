@@ -26,7 +26,7 @@ The HKJ tooling catches these mistakes before your code ever runs. Both Gradle a
 
 - **[PCollections Optics](pcollections_optics.md)**: Seven `@GenerateTraversals` plugins that recognise `PVector`, `PStack`, `PSet`, `PSortedSet`, `PBag`, `PMap`, and `PSortedMap` fields and generate type-correct traversals against them.
 
-- **[Claude Code Skills](claude_code_skills.md)**: Seven bundled skills that bring contextual HKJ guidance directly into your editor. Covers Path selection, optics, effect handlers, the effects-optics bridge, Spring Boot integration, functional core / imperative shell architecture, and AssertJ-based testing with hkj-test.
+- **[Claude Code Skills](claude_code_skills.md)**: Eight bundled skills that bring contextual HKJ guidance directly into your editor. Covers Path selection, optics, record mapping, effect handlers, the effects-optics bridge, Spring Boot integration, functional core / imperative shell architecture, and AssertJ-based testing with hkj-test.
 
 - **[Testing With hkj-test](test_assertions.md)**: A test-scope dependency that ships fluent AssertJ helpers for every HKJ type. Replaces hand-written unwrapping with assertions that read like the business intent: `isRight()`, `hasJustValue(...)`, `whenExecuted().hasValue(...)`, and so on across discriminated unions, effect types, and monad transformers.
 ~~~

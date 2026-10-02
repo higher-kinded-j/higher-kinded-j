@@ -1,3 +1,5 @@
+import java.util.zip.ZipFile
+
 plugins {
     `java-library`
     id("com.vanniktech.maven.publish")
@@ -32,6 +34,55 @@ val generateVersionProperties = tasks.register("generateVersionProperties") {
     }
 }
 
+// The annotation processors hkj-processor and the @HkjHttpClient processor register, read from
+// their jars, so that a build naming its processors in <annotationProcessors> can be given HKJ's
+fun processorJars(name: String) = configurations.create(name) {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    isTransitive = false
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+    }
+}
+val coreProcessorJars = processorJars("coreProcessorJars")
+val springProcessorJars = processorJars("springProcessorJars")
+dependencies {
+    coreProcessorJars(project(":hkj-processor"))
+    springProcessorJars(project(":hkj-spring:client-processor"))
+}
+
+val generateProcessorList = tasks.register("generateProcessorList") {
+    val outputDir = layout.buildDirectory.dir("generated/resources/hkj-processors")
+    val core: FileCollection = coreProcessorJars
+    val spring: FileCollection = springProcessorJars
+    inputs.files(core, spring)
+    outputs.dir(outputDir)
+    doLast {
+        fun registered(jars: FileCollection): String =
+            jars.files
+                .flatMap { jar ->
+                    ZipFile(jar).use { zip ->
+                        val entry = zip.getEntry("META-INF/services/javax.annotation.processing.Processor")
+                        if (entry == null) emptyList()
+                        else zip.getInputStream(entry).bufferedReader().readLines()
+                    }
+                }
+                .map { it.substringBefore('#').trim() }
+                .filter { it.isNotEmpty() }
+                .sorted()
+                .joinToString(",")
+        val coreNames = registered(core)
+        val springNames = registered(spring)
+        check(coreNames.isNotEmpty()) { "hkj-processor registers no annotation processor" }
+        check(springNames.isNotEmpty()) { "the @HkjHttpClient processor jar registers none" }
+        val dir = outputDir.get().asFile
+        dir.mkdirs()
+        dir.resolve("hkj-processors.properties").writeText("core=$coreNames\nspring=$springNames\n")
+    }
+}
+
 // Bundle Claude Code skill files so the plugin can install them into consumer projects
 val bundleSkills = tasks.register("bundleSkills") {
     val skillsSourceDir = rootProject.layout.projectDirectory.dir(".claude/skills")
@@ -62,6 +113,7 @@ val bundleSkills = tasks.register("bundleSkills") {
 
 sourceSets.main {
     resources.srcDir(generateVersionProperties)
+    resources.srcDir(generateProcessorList)
     resources.srcDir(bundleSkills)
 }
 

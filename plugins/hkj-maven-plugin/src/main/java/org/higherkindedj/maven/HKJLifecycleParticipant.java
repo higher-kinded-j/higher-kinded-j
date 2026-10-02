@@ -2,6 +2,12 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.maven;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import javax.inject.Named;
@@ -35,13 +41,26 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
 
   private static final String GROUP_ID = "io.github.higher-kinded-j";
   private static final String PLUGIN_KEY = GROUP_ID + ":hkj-maven-plugin";
+
   private static final String COMPILER_PLUGIN_KEY =
       "org.apache.maven.plugins:maven-compiler-plugin";
   private static final String SUREFIRE_PLUGIN_KEY =
       "org.apache.maven.plugins:maven-surefire-plugin";
 
+  /** The processors HKJ's jars register, bundled at build time. */
+  private static final List<String> CORE_PROCESSORS;
+
+  private static final List<String> SPRING_PROCESSORS;
+
+  static {
+    Properties registered = loadRegisteredProcessors();
+    CORE_PROCESSORS = registeredProcessors(registered, "core");
+    SPRING_PROCESSORS = registeredProcessors(registered, "spring");
+  }
+
   @Override
   public void afterProjectsRead(MavenSession session) throws MavenExecutionException {
+    List<MavenProject> wantSkills = new ArrayList<>();
     for (MavenProject project : session.getProjects()) {
       Optional<Plugin> hkjPlugin = findPlugin(project, PLUGIN_KEY);
       if (hkjPlugin.isEmpty()) {
@@ -57,7 +76,25 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
       configureDependencies(project, config);
       configureCompilerPlugin(project, config);
       configureSurefirePlugin(project, config);
+      if (config.skills()) {
+        wantSkills.add(project);
+      }
     }
+    skillsHome(wantSkills, session.getRequest().getMultiModuleProjectDirectory())
+        .flatMap(home -> findPlugin(home, PLUGIN_KEY))
+        .ifPresent(this::bindInstallSkills);
+  }
+
+  /**
+   * The one project that installs the skills: the reactor's root, where Claude Code reads them, or
+   * else the first project that asks for them. A module inheriting {@code <skills>} from its parent
+   * would otherwise install its own copy.
+   */
+  static Optional<MavenProject> skillsHome(List<MavenProject> wantSkills, File root) {
+    return wantSkills.stream()
+        .filter(project -> root != null && root.equals(project.getBasedir()))
+        .findFirst()
+        .or(() -> wantSkills.stream().findFirst());
   }
 
   private static Optional<Plugin> findPlugin(MavenProject project, String pluginKey) {
@@ -133,21 +170,131 @@ public class HKJLifecycleParticipant extends AbstractMavenLifecycleParticipant {
         setChildValue(configNode, "release", "25");
       }
     }
-    // testCompile reads annotationProcessorPaths and compilerArgs too, unless the test-specific
-    // overrides below are set.
+    // testCompile reads annotationProcessorPaths and compilerArgs too.
     addHkjProcessorPaths(configNode, "annotationProcessorPaths", config, /* create= */ true);
     addHkjCompilerArgs(configNode, "compilerArgs", config, /* create= */ true);
-    // When <testAnnotationProcessorPaths> / <testCompilerArgs> are set, the testCompile goal
-    // reads from them exclusively, so HKJ must be added there too.
-    applyTestOverrides(configNode, config);
+    // maven-compiler-plugin 4 reads <testCompilerArgs> in place of <compilerArgs> when it is set,
+    // so HKJ joins an existing one; creating it would drop the user's <compilerArgs> from tests.
+    addHkjCompilerArgs(configNode, "testCompilerArgs", config, /* create= */ false);
+    addHkjProcessorNames(configNode, project, config);
   }
 
-  private void applyTestOverrides(Xpp3Dom configNode, HKJConfiguration config) {
-    // Only patch test overrides that already exist - creating them blindly would replace
-    // the fallback to annotationProcessorPaths / compilerArgs and risk clobbering any
-    // user-defined test-only processors or args.
-    addHkjProcessorPaths(configNode, "testAnnotationProcessorPaths", config, /* create= */ false);
-    addHkjCompilerArgs(configNode, "testCompilerArgs", config, /* create= */ false);
+  private void addHkjProcessorNames(
+      Xpp3Dom configNode, MavenProject project, HKJConfiguration config) {
+    // <annotationProcessors> names the processors javac runs, and javac then discovers no other,
+    // so HKJ's join a list the build already has. The plugin knows the processors of its own
+    // release only, so it adds them only while the processors on the path are that release.
+    Xpp3Dom names = configNode.getChild("annotationProcessors");
+    if (names == null || !config.usesPluginRelease()) {
+      return;
+    }
+    if (pathsAtRelease(
+        project, configNode, config.version(), "hkj-processor", "hkj-processor-plugins")) {
+      CORE_PROCESSORS.forEach(name -> addProcessorName(names, name));
+    }
+    if (config.spring()
+        && pathsAtRelease(
+            project, configNode, config.version(), "hkj-spring-boot-client-processor")) {
+      SPRING_PROCESSORS.forEach(name -> addProcessorName(names, name));
+    }
+  }
+
+  /** Whether every processor path naming one of {@code artifactIds} carries {@code version}. */
+  /**
+   * Whether the processors {@code artifactIds} name resolve to {@code version}. A processor path
+   * without a version, and under {@code annotationProcessorPathsUseDepMgmt} every processor jar,
+   * takes its version from the project's dependency management, as maven-compiler-plugin does; a
+   * version that cannot be established counts as another release.
+   */
+  private static boolean pathsAtRelease(
+      MavenProject project, Xpp3Dom configNode, String version, String... artifactIds) {
+    List<String> ids = List.of(artifactIds);
+    boolean useDepMgmt =
+        childValue(configNode, "annotationProcessorPathsUseDepMgmt")
+            .map(Boolean::parseBoolean)
+            .orElse(false);
+    if (useDepMgmt
+        && ids.stream()
+            .map(id -> managedVersion(project, GROUP_ID, id))
+            .flatMap(Optional::stream)
+            .anyMatch(managed -> !managed.equals(version))) {
+      return false;
+    }
+    Xpp3Dom paths = configNode.getChild("annotationProcessorPaths");
+    if (paths == null) {
+      return true;
+    }
+    return Arrays.stream(paths.getChildren("path"))
+        .filter(path -> childValue(path, "artifactId").filter(ids::contains).isPresent())
+        .allMatch(
+            path ->
+                childValue(path, "version")
+                    .or(() -> useDepMgmt ? managedVersion(project, path) : Optional.empty())
+                    .map(version::equals)
+                    .orElse(false));
+  }
+
+  private static Optional<String> managedVersion(MavenProject project, Xpp3Dom path) {
+    return managedVersion(
+        project,
+        childValue(path, "groupId").orElse(GROUP_ID),
+        childValue(path, "artifactId").orElse(""));
+  }
+
+  private static Optional<String> managedVersion(
+      MavenProject project, String groupId, String artifactId) {
+    return Optional.ofNullable(project.getDependencyManagement()).stream()
+        .flatMap(management -> management.getDependencies().stream())
+        .filter(d -> groupId.equals(d.getGroupId()) && artifactId.equals(d.getArtifactId()))
+        .map(Dependency::getVersion)
+        .flatMap(v -> Optional.ofNullable(v).stream())
+        .findFirst();
+  }
+
+  private static List<String> registeredProcessors(Properties registered, String group) {
+    return Arrays.stream(registered.getProperty(group, "").split(","))
+        .map(String::trim)
+        .filter(name -> !name.isEmpty())
+        .toList();
+  }
+
+  private static Properties loadRegisteredProcessors() {
+    Properties properties = new Properties();
+    try (InputStream in =
+        HKJLifecycleParticipant.class.getResourceAsStream("/hkj-processors.properties")) {
+      if (in != null) {
+        properties.load(in);
+      }
+    } catch (IOException _) {
+      // unreadable: a named-processor list is left as the build wrote it
+    }
+    return properties;
+  }
+
+  private void addProcessorName(Xpp3Dom names, String name) {
+    // Maven reads every child of <annotationProcessors>, whatever its element name.
+    for (Xpp3Dom existing : names.getChildren()) {
+      if (name.equals(existing.getValue())) {
+        return;
+      }
+    }
+    Xpp3Dom processor = new Xpp3Dom("annotationProcessor");
+    processor.setValue(name);
+    names.addChild(processor);
+  }
+
+  void bindInstallSkills(Plugin hkjPlugin) {
+    // As the Gradle plugin's skills = true does, install the skills during every build.
+    boolean bound =
+        hkjPlugin.getExecutions().stream().anyMatch(e -> e.getGoals().contains("install-skills"));
+    if (bound) {
+      return;
+    }
+    PluginExecution execution = new PluginExecution();
+    execution.setId("hkj-install-skills");
+    execution.setPhase("generate-resources");
+    execution.addGoal("install-skills");
+    hkjPlugin.addExecution(execution);
   }
 
   private void addHkjProcessorPaths(

@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -26,7 +25,7 @@ import org.apache.maven.project.MavenProject;
  * <p>Usage: {@code mvn hkj:install-skills}
  */
 @Mojo(name = "install-skills", requiresProject = true)
-public class HKJInstallSkillsMojo extends AbstractMojo {
+public class HKJInstallSkillsMojo extends AbstractHKJMojo {
 
   /** Creates a new HKJInstallSkillsMojo. */
   public HKJInstallSkillsMojo() {}
@@ -39,6 +38,7 @@ public class HKJInstallSkillsMojo extends AbstractMojo {
 
   @Override
   public void execute() throws MojoExecutionException {
+    readConfiguration(project);
     Path targetDir = project.getBasedir().toPath().resolve(".claude/skills");
 
     try (InputStream manifestStream =

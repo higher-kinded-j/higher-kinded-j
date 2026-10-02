@@ -22,7 +22,7 @@ A manual setup requires dependencies, annotation processors, the compile-time ch
 ```gradle
 // build.gradle.kts
 plugins {
-    id("io.github.higher-kinded-j.hkj") version "0.3.7-SNAPSHOT"
+    id("io.github.higher-kinded-j.hkj") version "LATEST_VERSION"
 }
 ```
 
@@ -69,7 +69,7 @@ The plugin creates an `hkj` extension block with these options:
 
 ```gradle
 hkj {
-    version = "0.3.7-SNAPSHOT"       // HKJ library version (default: plugin version)
+    version = "LATEST_VERSION"       // HKJ library version (default: plugin version)
     preview = true           // add --enable-preview flags (default: true)
     spring = false           // add the starter and the @HkjHttpClient processor (default: false)
     skills = false           // install Claude Code skills (default: false)
@@ -120,7 +120,7 @@ This adds `hkj-spring-boot-starter` to the `implementation` configuration, which
 
 ## Claude Code Skills
 
-Install six Claude Code skills that provide contextual, in-editor guidance for HKJ:
+Install eight Claude Code skills that provide contextual, in-editor guidance for HKJ:
 
 ```gradle
 hkj {
@@ -134,8 +134,10 @@ This runs the `hkjInstallSkills` task during every build, copying skill files in
 ./gradlew hkjInstallSkills
 ```
 
+With the Maven plugin, `<skills>true</skills>` installs them during every build too.
+
 ~~~admonish tip title="See Also"
-- [Claude Code Skills](claude_code_skills.md) - Full reference for the six bundled skills
+- [Claude Code Skills](claude_code_skills.md) - Full reference for the eight bundled skills
 ~~~
 
 ---
@@ -198,7 +200,7 @@ The HKJ Maven plugin provides similar automation to the Gradle plugin. Add it wi
         <dependency>
             <groupId>io.github.higher-kinded-j</groupId>
             <artifactId>hkj-bom</artifactId>
-            <version>0.3.7-SNAPSHOT</version>
+            <version>LATEST_VERSION</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -210,7 +212,7 @@ The HKJ Maven plugin provides similar automation to the Gradle plugin. Add it wi
         <plugin>
             <groupId>io.github.higher-kinded-j</groupId>
             <artifactId>hkj-maven-plugin</artifactId>
-            <version>0.3.7-SNAPSHOT</version>
+            <version>LATEST_VERSION</version>
             <extensions>true</extensions>
         </plugin>
     </plugins>
@@ -221,7 +223,7 @@ The plugin automatically adds `hkj-core`, annotation processors, compile-time ch
 
 ```xml
 <configuration>
-    <version>0.3.7-SNAPSHOT</version>   <!-- HKJ library version (default: plugin version) -->
+    <version>LATEST_VERSION</version>   <!-- HKJ library version (default: plugin version) -->
     <preview>true</preview>              <!-- add --enable-preview flags (default: true) -->
     <spring>false</spring>               <!-- add hkj-spring-boot-starter and the @HkjHttpClient processor (default: false) -->
     <skills>false</skills>               <!-- install Claude Code skills (default: false) -->
@@ -229,7 +231,7 @@ The plugin automatically adds `hkj-core`, annotation processors, compile-time ch
 </configuration>
 ```
 
-The plugin writes `<annotationProcessorPaths>` into every compiler execution, which replaces javac's processor discovery, so list any other processor, such as Lombok, there too. Run diagnostics with `mvn hkj:diagnostics` or install skills with `mvn hkj:install-skills`.
+The plugin writes `<annotationProcessorPaths>` into every compiler execution, which replaces javac's processor discovery, so list any other processor, such as Lombok, there too. A build that names its processors in `<annotationProcessors>` gets HKJ's added to that list while `<version>` is unset or names the plugin's own release, and no HKJ processor on the path is pinned to another. Otherwise list them yourself: they are the names in that release's `hkj-processor` jar, under `META-INF/services/javax.annotation.processing.Processor`. Run diagnostics with `mvn hkj:diagnostics` or install skills with `mvn hkj:install-skills`.
 
 ### Manual Maven Setup
 
