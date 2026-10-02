@@ -1,3 +1,5 @@
+<!-- description: Learn how Higher-Kinded-J simulates higher-kinded types in Java, and the type classes and core types, such as Either and Validated, built on them. -->
+
 # Foundations
 
 <!-- Drop a hero image file into hkj-book/src/images/ and update the src attribute below. -->

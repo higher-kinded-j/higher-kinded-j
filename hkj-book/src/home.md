@@ -1,3 +1,5 @@
+<!-- description: Functional programming for Java: typed errors with the Effect Path API, optics for immutable records, and compile-time DTO mapping that reports every bad field. -->
+
 <div class="hkj-logo" style="text-align: center; margin: 1rem 0;">
   <img class="hkj-logo-light" src="logos/hkj-logo-light.png" alt="Higher-Kinded-J" width="400">
   <img class="hkj-logo-dark" src="logos/hkj-logo-dark.png" alt="Higher-Kinded-J" width="400">

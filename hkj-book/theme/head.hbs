@@ -14,11 +14,6 @@
     want to completely override mdBook's default title logic, which is complex.
     Ensure your chapter titles in SUMMARY.md and the book title in book.toml are descriptive. }}
 
-{{! Add the site-wide meta description from book.toml }}
-{{#if description}}
-    <meta name="description" content="{{ description }}">
-{{/if}}
-
 {{! Add a meta author tag using authors from book.toml }}
 {{#if book_author}}
     <meta name="author" content="{{ book_author }}">
@@ -26,15 +21,16 @@
     <meta name="author" content="{{ book_authors }}">
 {{/if}}
 
-{{! Keywords for search engines }}
-<meta name="keywords" content="Higher-Kinded Types, Higher-Kinded-J, HKT, Java, Optics, Lens, Prism, Traversal, Iso, Affine, Focus DSL, Effect Path API, Functional Programming, Monad, Functor, Applicative, EitherPath, MaybePath, TryPath, ValidationPath, Java Records, Sealed Interface, Error Handling, Immutable Data">
+{{! Site-wide fallback keywords. In CI, postprocess_seo.py gives each page its
+    own keywords and meta description (the description tag is index.hbs's). }}
+<meta name="keywords" content="Higher-Kinded Types, Higher-Kinded-J, HKT, Java, Optics, Lens, Prism, Traversal, Iso, Affine, Focus DSL, Effect Path API, Functional Programming, Monad, Functor, Applicative, EitherPath, MaybePath, TryPath, ValidationPath, Java Records, Sealed Interface, Error Handling, Immutable Data, DTO Mapping, GenerateMapping, MapStruct Alternative, Request Validation, Spring Boot">
 
 {{! Open Graph tags for social media sharing }}
 <meta property="og:title" content="{{ title }}">
 {{#if description}}
     <meta property="og:description" content="{{ description }}">
 {{else}}
-    <meta property="og:description" content="Unifying Composable Effects and Advanced Optics for Java. The most comprehensive functional programming library with Effect Path API, Focus DSL, and code generation for Java records.">
+    <meta property="og:description" content="Unifying Composable Effects and Advanced Optics for Java. The most comprehensive functional programming library with Effect Path API, Focus DSL, compile-time DTO mapping, and code generation for Java records.">
 {{/if}}
 <meta property="og:type" content="website">
 {{! og:url is a site-wide fallback; postprocess_seo.py rewrites it (and adds
@@ -49,7 +45,11 @@
 {{! Twitter Card tags }}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ title }}">
-<meta name="twitter:description" content="Unifying Composable Effects and Advanced Optics for Java. Effect Path API, Focus DSL, and the most comprehensive optics implementation in the Java ecosystem.">
+{{#if description}}
+    <meta name="twitter:description" content="{{ description }}">
+{{else}}
+    <meta name="twitter:description" content="Unifying Composable Effects and Advanced Optics for Java. Effect Path API, Focus DSL, compile-time DTO mapping, and the most comprehensive optics implementation in the Java ecosystem.">
+{{/if}}
 <meta name="twitter:image" content="https://higher-kinded-j.github.io/preview.png">
 <meta name="twitter:image:alt" content="Higher-Kinded-J: Composable Effects and Advanced Optics for Java">
 
@@ -68,7 +68,7 @@
       "name": "Higher-Kinded-J",
       "alternateName": "HKJ",
       "url": "https://higher-kinded-j.github.io/latest/",
-      "description": "The most comprehensive functional programming library for Java. Composable effects via the Effect Path API and immutable data navigation via the Focus DSL and advanced optics.",
+      "description": "The most comprehensive functional programming library for Java. Composable effects via the Effect Path API, immutable data navigation via the Focus DSL and advanced optics, and compile-time DTO mapping that reports every bad field.",
       "inLanguage": "en-GB",
       "publisher": { "@id": "https://higher-kinded-j.github.io/#author" }
     },
@@ -77,7 +77,20 @@
       "@id": "https://higher-kinded-j.github.io/#software",
       "name": "Higher-Kinded-J",
       "alternateName": "HKJ",
-      "description": "A functional programming library for Java that simulates Higher-Kinded Types and implements advanced optics. Unifies error handling, optional values, and immutable data navigation through the Effect Path API and Focus DSL, with compile-time code generation for Java records and Spring Boot integration.",
+      "description": "A functional programming library for Java that simulates Higher-Kinded Types and implements advanced optics. Unifies error handling, optional values, and immutable data navigation through the Effect Path API and Focus DSL, generates DTO mappers at compile time whose parse reports every bad field by its path, and integrates with Spring Boot.",
+      "featureList": [
+        "Effect Path API: composable, railway-style error handling with MaybePath, EitherPath, TryPath, ValidationPath, IOPath and VTaskPath",
+        "Optics for immutable Java records and sealed interfaces: Lens, Prism, Traversal, Iso and Affine, generated by annotation processors",
+        "Focus DSL for type-safe navigation and update of nested data",
+        "Compile-time DTO mapping with @GenerateMapping: an outbound build() that cannot fail, and an inbound parse() that reports every bad field at once, each located by its path",
+        "Mapping for records, getter/setter and builder beans, protobuf-java messages, sealed hierarchies and generic records, with sparse PATCH",
+        "For-comprehensions, monad transformers and MTL capabilities",
+        "Virtual-thread concurrency with VTask, VStream and structured scopes",
+        "Resilience: retry, circuit breaker, bulkhead and saga",
+        "Spring Boot integration: Path return types, HTTP status mapping, 422 field errors and typed HTTP clients",
+        "Build plugins for Gradle and Maven, compile-time checks, OpenRewrite recipes and AssertJ test assertions"
+      ],
+      "keywords": "functional programming, Java, higher-kinded types, monads, optics, lens, prism, error handling, DTO mapping, MapStruct alternative, request validation, Spring Boot",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Cross-platform (JVM)",
       "url": "https://higher-kinded-j.github.io/latest/",

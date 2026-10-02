@@ -94,6 +94,8 @@ jobs:
           fi
           echo "Restoring hkj-book/src from tag ${VERSION} (theme/scripts stay current)"
           git checkout "refs/tags/${VERSION}" -- hkj-book/src
+          # Date the restored pages from the tag's history, not from HEAD's.
+          echo "HKJ_SOURCE_REF=refs/tags/${VERSION}" >> "$GITHUB_ENV"
         shell: bash
 
       - name: Sanitise hijacked pcollections.org links (issue 681)
@@ -204,24 +206,37 @@ jobs:
           HKJ_CHANGES_SINCE_LABEL: ${{ steps.baseline.outputs.since_label }}
         run: mdbook build
 
-      - name: Post-process SEO tags (og:url + canonical + per-page JSON-LD)
-        run: python .github/scripts/postprocess_seo.py
+      - name: Post-process SEO tags (og:url, canonical, per-page descriptions and JSON-LD)
         env:
           MDBOOK_OUTPUT_DIR: ./${{ env.BOOK_ROOT_DIR }}/book
+          MDBOOK_SRC_DIR: ./${{ env.BOOK_ROOT_DIR }}/src
           # Every deploy (latest and each vX.Y.Z) canonicalises to /latest/ so
           # old versions consolidate ranking onto the current docs.
           HKJ_CANONICAL_BASE: "https://higher-kinded-j.github.io/latest/"
+          DEPLOY_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # softwareVersion names the release a reader can depend on: the tag
+          # being deployed, or for /latest/ the newest release tag.
+          if [[ "$DEPLOY_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            export HKJ_SOFTWARE_VERSION="$DEPLOY_VERSION"
+          else
+            export HKJ_SOFTWARE_VERSION="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
+          fi
+          python .github/scripts/postprocess_seo.py
+        shell: bash
 
-      - name: Generate llms-full.txt (full-text corpus for AI crawlers)
-        run: python .github/scripts/generate_llms_full.py
+      - name: Generate llms-full.txt, chapter files and page Markdown (for AI crawlers)
+        run: python .github/scripts/generate_llms_files.py
         env:
           MDBOOK_SRC_DIR: ./${{ env.BOOK_ROOT_DIR }}/src
           MDBOOK_OUTPUT_DIR: ./${{ env.BOOK_ROOT_DIR }}/book
+          HKJ_CANONICAL_BASE: "https://higher-kinded-j.github.io/latest/"
 
       - name: Generate Sitemap
         run: python .github/scripts/generate_sitemap.py
         env:
           MDBOOK_OUTPUT_DIR: ./${{ env.BOOK_ROOT_DIR }}/book
+          MDBOOK_SRC_DIR: ./${{ env.BOOK_ROOT_DIR }}/src
           MDBOOK_SITE_URL: "https://higher-kinded-j.github.io/${{ steps.version.outputs.deploy_path }}/"
 
       - name: Checkout target repository
@@ -255,6 +270,8 @@ jobs:
         shell: bash
 
       - name: Create/update root index.html, 404.html, robots.txt, llms.txt, and social preview image
+        env:
+          DEPLOY_VERSION: ${{ steps.version.outputs.version }}
         run: |
           # Always copy the redirect page to root to ensure it's up to date
           cp .github/scripts/root-index.html gh-pages-repo/index.html
@@ -268,16 +285,16 @@ jobs:
           cp .github/scripts/robots.txt gh-pages-repo/robots.txt
           echo "robots.txt updated"
 
-          # Copy llms.txt for AI discoverability (from latest build)
-          if [ -f "${{ env.BOOK_ROOT_DIR }}/book/llms.txt" ]; then
-            cp ${{ env.BOOK_ROOT_DIR }}/book/llms.txt gh-pages-repo/llms.txt
-            echo "llms.txt copied to root"
-          fi
-
-          # Copy llms-full.txt (full-text corpus) for AI discoverability
-          if [ -f "${{ env.BOOK_ROOT_DIR }}/book/llms-full.txt" ]; then
-            cp ${{ env.BOOK_ROOT_DIR }}/book/llms-full.txt gh-pages-repo/llms-full.txt
-            echo "llms-full.txt copied to root"
+          # Copy llms.txt and llms-full.txt to the root for AI discoverability.
+          # Only a /latest/ build does: a re-deploy of an old tag would put
+          # that release's index at the root.
+          if [ "$DEPLOY_VERSION" = "latest" ]; then
+            for f in llms.txt llms-full.txt; do
+              if [ -f "${{ env.BOOK_ROOT_DIR }}/book/$f" ]; then
+                cp "${{ env.BOOK_ROOT_DIR }}/book/$f" "gh-pages-repo/$f"
+                echo "$f copied to root"
+              fi
+            done
           fi
 
           # Copy social preview image to root for Open Graph meta tags

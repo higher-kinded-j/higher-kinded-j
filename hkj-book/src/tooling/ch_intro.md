@@ -1,3 +1,5 @@
+<!-- description: Add Higher-Kinded-J with the Gradle or Maven plugin, catch Path type mismatches at compile time, migrate with OpenRewrite recipes, and test with hkj-test. -->
+
 # Tooling
 ## _Build-Time Safety for Higher-Kinded-J_
 > _"Make illegal states unrepresentable."_

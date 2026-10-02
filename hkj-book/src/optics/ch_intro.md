@@ -1,3 +1,5 @@
+<!-- description: Read and update deeply nested immutable Java records with lenses, prisms and traversals, generated from annotations and navigated with the Focus DSL. -->
+
 # Optics
 
 <img src="../images/The-crystal-ball-of-data.jpg" alt="A crystal ball revealing paths through nested data structures" style="width: 100%;" />

@@ -15,12 +15,12 @@ Higher-Kinded-J is built on **Java 25** today, and parts of it are compiled with
 Preview ties the build to that one release, which makes this a version to match rather than a floor:
 
 - `javac` accepts `--enable-preview` only for the release it is running on, so a later JDK cannot target 25 with preview enabled (`error: invalid source release 25 with --enable-preview`).
-- The classes compiled that way, the virtual-thread stream's parallel operations, carry a preview marker, and a JVM of any other version refuses to load them: `UnsupportedClassVersionError: Preview features are not enabled for org/higherkindedj/hkt/vstream/VStreamPar (class file version 69.65535)`.
+- The classes compiled that way carry a preview marker: the structured concurrency behind `VTask`'s `Scope` and `Par`, and the virtual-thread stream's parallel operations. A JVM of any other version refuses to load them: `UnsupportedClassVersionError: Preview features are not enabled for org/higherkindedj/hkt/vstream/VStreamPar (class file version 69.65535)`.
 
 So build on Java 25 until the library itself moves to a later release.
 
 ~~~admonish note title="Where the flag is actually needed"
-Most of the library needs no flag at all: code using `Either`, `Validated`, the optics, the mapper or the plain `VStream` operations compiles and runs on Java 25 without `--enable-preview`. The flag is needed for the parallel virtual-thread stream operations (`VStreamPar`, and the paths, throttles and bulkheads built on them), at compile time and again at run time.
+Most of the library needs no flag at all: code using `Either`, `Validated`, the mapper, the plain `VStream` operations or sequential optics compiles and runs on Java 25 without `--enable-preview`. The flag is needed for code that reaches the structured-concurrency classes: `VTask`'s `Scope` and `Par`, and the parallel stream operations in `VStreamPar`. Several everyday methods reach them, such as `VTaskPath.zipWith`, parallel `ForPath` steps and `TraversalPath.traverseWith`, as do the stream paths, throttles and bulkheads built on `VStreamPar`. Code needs the flag at compile time where it names one of these classes, and at run time wherever it reaches one.
 
 The build plugins add it everywhere rather than asking you to work out which of your code touches those paths. If you configure the flags by hand and see the `UnsupportedClassVersionError` above at run time, that is the one you have missed.
 ~~~

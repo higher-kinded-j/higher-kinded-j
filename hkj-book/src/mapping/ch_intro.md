@@ -1,3 +1,5 @@
+<!-- description: Replace a hand-written or MapStruct DTO mapper with code generated at compile time that reports every bad request field at once, each by its path. -->
+
 # Mapping at the Boundary
 
 > _"I, too, am a translated man. I have been borne across. It is generally believed that something is always lost in translation; I cling to the notion ... that something can also be gained."_

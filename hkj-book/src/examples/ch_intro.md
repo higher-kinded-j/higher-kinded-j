@@ -1,3 +1,5 @@
+<!-- description: See Higher-Kinded-J at work in runnable Java applications: an order workflow, a draughts game, a market data pipeline, portfolio risk and payments. -->
+
 # Examples Gallery
 
 > *"For the things we have to learn before we can do them, we learn by doing them."*

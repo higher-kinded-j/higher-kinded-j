@@ -1,3 +1,5 @@
+<!-- description: Learn Higher-Kinded-J by making failing tests pass in your IDE: exercises on higher-kinded types, effects, optics and DTO mapping. -->
+
 # Hands-On Learning
 
 > _"You look at where you're going and where you are and it never makes sense, but then you look back at where you've been and a pattern seems to emerge."_

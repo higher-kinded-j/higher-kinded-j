@@ -435,6 +435,25 @@ In the practical lane, a heading names what is taught, or states a thesis, which
 - **Before rewording a heading, pin its old anchor** with `{#id}`: see [Anchors](#anchors).
 - A content page may carry **one italic subtitle** under its H1: a single sentence under 20 words, imperative or a plain promise, carrying no coinage the page has not glossed.
 
+### Search Descriptions
+
+Search results, link previews and the page's structured data show a one-sentence description, which CI takes from the page itself, in this order:
+
+1. A `<!-- description: ... -->` line, when the page has one.
+2. The italic subtitle line (`_..._`) under the H1. An italic H2 tagline does not count.
+3. The "What You'll Learn" bullets, as many as fit in 160 characters.
+4. The first paragraph of prose.
+
+A top-level chapter introduction, one that `SUMMARY.md` lists at the left margin, opens with a quote, an image or a figurative tagline. None of those describes the page out of context, so the introduction states its description on its first line:
+
+```markdown
+<!-- description: Replace a hand-written or MapStruct DTO mapper with code generated at compile time that reports every bad request field at once, each by its path. -->
+
+# Mapping at the Boundary
+```
+
+Write it as one sentence of at most 160 characters that says what a reader can do, in the words they would search with. Give any other page one only when its subtitle and bullets would read badly out of context. `.github/scripts/book_sources.py` applies this order and cuts a longer description at a word, with an ellipsis; no check fails.
+
 ### Comparison Tables
 
 When comparing related concepts, use markdown tables:
@@ -762,6 +781,7 @@ When creating a chapter introduction page (`ch_intro.md`), ensure:
 
 - [ ] Title reflects the chapter theme
 - [ ] Opening quote and introductory prose
+- [ ] For a top-level chapter, a `<!-- description: ... -->` first line, since the quote cannot describe the page (see Search Descriptions)
 - [ ] "In This Chapter" admonition with **expanded descriptions** (1-2 sentences per item, not just brief phrases)
 - [ ] "Chapter Contents" section with numbered links and brief descriptions
 - [ ] "In This Chapter" and "Chapter Contents" are distinct (expanded context vs. brief navigation)
