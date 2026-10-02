@@ -1,4 +1,4 @@
-<!-- description: Hands-on Higher-Kinded-J exercises: journeys of failing tests you complete in your IDE, from the Kind encoding through effects and optics to DTO mapping. -->
+<!-- description: Learn Higher-Kinded-J by making failing tests pass in your IDE: exercises on higher-kinded types, effects, optics and DTO mapping. -->
 
 # Hands-On Learning
 

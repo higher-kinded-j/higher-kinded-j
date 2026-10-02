@@ -1,4 +1,4 @@
-<!-- description: Runnable Java applications built with Higher-Kinded-J: an order workflow, a draughts game, a market data pipeline, portfolio risk and payment processing. -->
+<!-- description: See Higher-Kinded-J at work in runnable Java applications: an order workflow, a draughts game, a market data pipeline, portfolio risk and payments. -->
 
 # Examples Gallery
 

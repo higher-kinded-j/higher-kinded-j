@@ -1,14 +1,15 @@
 # Higher-Kinded-J
 
-> Higher-Kinded-J is a functional programming library for Java 25. It gives Java composable, typed error handling (the Effect Path API), optics for immutable records and sealed interfaces (the Focus DSL), compile-time DTO mapping that reports every bad field at once (`@GenerateMapping`), for-comprehensions, monad transformers, virtual-thread concurrency, resilience patterns, and Spring Boot integration.
+> Higher-Kinded-J is a functional programming library for Java 25. Its three main features are typed, composable error handling (the Effect Path API), optics for immutable records and sealed interfaces with the Focus DSL, and compile-time DTO mapping (`@GenerateMapping`), an alternative to MapStruct and Bean Validation that reports every bad field at once. It also offers for-comprehensions, monad transformers, virtual-thread concurrency, resilience patterns and Spring Boot integration.
 
 Key facts:
 
-- Java 25 is required. Parts of the library are compiled with preview features, so the build plugins set `--enable-preview`. Code using `Either`, `Validated`, the optics or the mapper needs no flag; the parallel virtual-thread stream operations (`VStreamPar`) do.
-- Maven group `io.github.higher-kinded-j`. Main artefact `hkj-core`; annotation processors `hkj-processor` and `hkj-processor-plugins`; versions aligned by `hkj-bom`.
+- Build on Java 25. Parts of `hkj-core` use preview features: the structured concurrency behind `VTask`'s `Scope` and `Par`, and the parallel stream operations in `VStreamPar`. The build plugins therefore set `--enable-preview`, which `javac` accepts only on the release it runs on, so the build must use JDK 25 itself. Without the flag, code that reaches those classes fails at run time, including `VTaskPath.zipWith`, parallel `ForPath` steps and `TraversalPath.traverseWith`.
+- Maven group `io.github.higher-kinded-j`. Main artefact `hkj-core`. The annotation processor is `hkj-processor`; put `hkj-processor-plugins` on the processor path, and it brings the processor in. `hkj-bom` aligns versions.
+- `LATEST_VERSION` in a snippet stands for the newest release on [Maven Central](https://central.sonatype.com/artifact/io.github.higher-kinded-j/hkj-core). These docs follow the main branch, which can be ahead of that release; [Unreleased](https://higher-kinded-j.github.io/latest/release-history/unreleased.md) lists what is not out yet.
 - Annotation processors write plain Java at compile time: no reflection, no runtime registry.
 - Every link below is the page's Markdown. Swap `.md` for `.html` to get the rendered page.
-- Each main chapter is also published whole as `llms-<chapter>.txt` (see "Chapter files"), and the entire book as `llms-full.txt`, which runs to several megabytes.
+- Prefer a page's `.md`. Each main chapter is also published whole as `llms-<chapter>.txt` (see "Chapter files"), but a chapter file runs to hundreds of kilobytes, and `llms-full.txt` to several megabytes.
 
 ## Install
 
@@ -20,7 +21,22 @@ plugins {
 }
 ```
 
-The plugin adds `hkj-core`, the annotation processors, `-parameters`, the preview flags and the compile-time Path checks. Maven has an equivalent `hkj-maven-plugin`, added with `<extensions>true</extensions>` beside the `hkj-bom` import.
+Maven:
+
+```xml
+<build>
+    <plugins>
+        <plugin>
+            <groupId>io.github.higher-kinded-j</groupId>
+            <artifactId>hkj-maven-plugin</artifactId>
+            <version>LATEST_VERSION</version>
+            <extensions>true</extensions>
+        </plugin>
+    </plugins>
+</build>
+```
+
+Either plugin adds `hkj-core`, the annotation processors, `-parameters`, the preview flags and the compile-time Path checks. For Spring Boot, set `spring = true` in Gradle's `hkj { }` block or `<spring>true</spring>` in the Maven plugin's `<configuration>`.
 
 - [Quickstart](https://higher-kinded-j.github.io/latest/quickstart.md): Gradle and Maven setup, why Java 25 and preview, a first Effect Path
 - [Build Plugins](https://higher-kinded-j.github.io/latest/tooling/gradle_plugin.md): the Gradle `hkj { }` DSL and the Maven plugin's configuration
@@ -33,6 +49,15 @@ The plugin adds `hkj-core`, the annotation processors, `-parameters`, the previe
 A generated replacement for hand-written DTO mappers, MapStruct mappers and Bean Validation at a service boundary. Declare one interface; the processor writes its Impl at compile time:
 
 ```java
+import java.util.UUID;
+import org.higherkindedj.hkt.nonemptylist.NonEmptyList;
+import org.higherkindedj.hkt.validated.FieldError;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.optics.annotations.GenerateMapping;
+import org.higherkindedj.optics.annotations.MappingSpec;
+import org.higherkindedj.optics.validated.StandardCodecs;
+import org.higherkindedj.optics.validated.ValidatedPrism;
+
 @GenerateMapping
 interface OrderMapping extends MappingSpec<Order, OrderDto> {
     default ValidatedPrism<String, UUID> id() { return StandardCodecs.uuid(); }  // a leaf: one field's conversion
@@ -50,15 +75,15 @@ Validated<NonEmptyList<FieldError>, Order> result = OrderMappingImpl.INSTANCE.pa
 
 Pages:
 
-- [Mapping at the Boundary](https://higher-kinded-j.github.io/latest/mapping/ch_intro.md): why a generated mapper, what it will and will not generate, and how to read the chapter
+- [Mapping at the Boundary](https://higher-kinded-j.github.io/latest/mapping/ch_intro.md): why generate the mapper, the problem it replaces, and a reading order for the chapter
 - [Quickstart: Your First 422](https://higher-kinded-j.github.io/latest/mapping/quickstart.md): from a blank project to a Spring endpoint that answers with every bad field at once
-- [Mapper at a Glance](https://higher-kinded-j.github.io/latest/mapping/at_a_glance.md): what it generates, what it costs, which wire shapes map, and the decisions to know before adopting
+- [Mapper at a Glance](https://higher-kinded-j.github.io/latest/mapping/at_a_glance.md): a one-page adoption sheet: the generated code, its cost, the wire shapes it maps, and the design decisions
 - [Coming from MapStruct and Bean Validation](https://higher-kinded-j.github.io/latest/mapping/from_mapstruct.md): MapStruct and `@Valid` vocabulary translated, migrating one pair, and when to keep MapStruct
 - [Record Mapping Basics](https://higher-kinded-j.github.io/latest/mapping/basics.md): `MappingSpec`, `build` and `parse`, reading the errors, converting a field, `@MapField` renames, derived fields
 - [Standard Codecs and Shared Vocabulary](https://higher-kinded-j.github.io/latest/mapping/codecs.md): `StandardCodecs`, your own canonical formats, and conversions shared across specs through mix-in interfaces
 - [Absent Fields and Record Invariants](https://higher-kinded-j.github.io/latest/mapping/absence.md): `@OptionalBridge`, and a record constructor's refusal returned as a field error
 - [Nesting, Containers, and Sealed Hierarchies](https://higher-kinded-j.github.io/latest/mapping/structure.md): nested specs, lists, maps and `@MapKey`, sealed DTO hierarchies, `@Flatten`, specs across modules
-- [What Your Spec Generates](https://higher-kinded-j.github.io/latest/mapping/tiers.md): which methods a pair earns (`build`, `parse`, `patch`, `asLens`, `asIso`) and why
+- [What Your Spec Generates](https://higher-kinded-j.github.io/latest/mapping/tiers.md): which methods a given pair gets (`build`, `parse`, `patch`, `asLens`, `asIso`), and why
 - [Bean-Shaped Wires](https://higher-kinded-j.github.io/latest/mapping/beans.md): getter/setter and builder beans, JAXB, one-directional beans, `@Unmapped`, `@ReadOnly`
 - [protobuf-java messages](https://higher-kinded-j.github.io/latest/mapping/beans.md#protobuf-java-messages): gRPC messages, unset fields, a `oneof` mapped to a sealed type, updates through a `FieldMask`
 - [Generated clients: a checklist](https://higher-kinded-j.github.io/latest/mapping/beans.md#generated-client-checklist): openapi-generator models and Lombok builders
@@ -68,14 +93,14 @@ Pages:
 - [Injecting, Testing, and Diagnostics](https://higher-kinded-j.github.io/latest/mapping/testing.md): registering a mapping as a Spring bean, test doubles as values, the processor's messages
 - [Capstone: One 422, Every Bad Field](https://higher-kinded-j.github.io/latest/mapping/capstone.md): an order-intake boundary built end to end
 - [Capstone: An Estate in Three Modules](https://higher-kinded-j.github.io/latest/mapping/estate.md): a shared vocabulary, a partner's client jar with Lombok beans, and a PATCH
-- [Rules and Limits](https://higher-kinded-j.github.io/latest/mapping/rules.md): every rule and limit the processor enforces
-- [Compiler Messages](https://higher-kinded-j.github.io/latest/mapping/compiler_errors.md): look up a `@GenerateMapping` compile error and its fix
-- [The 422 leg](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.md#the-422-leg): how Spring Boot renders a failed `parse`, and how to change the status
+- [Rules and Limits](https://higher-kinded-j.github.io/latest/mapping/rules.md): every rule and limit the processor enforces (long; opens with an index of questions)
+- [Compiler Messages](https://higher-kinded-j.github.io/latest/mapping/compiler_errors.md): look up a `@GenerateMapping` error or warning and its fix (long; opens with an index of messages)
+- [422 field-error responses](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.md#the-422-leg): how Spring Boot renders a failed `parse`, and how to change the status
 - [Accumulating Assembly](https://higher-kinded-j.github.io/latest/monads/validated_assembly.md): `fields()`, `accumulate()` and `@GenerateAssembly` build a record from separately validated parts, collecting every error
 
 ## Effect Path API
 
-A railway model: success travels one track and failure another, and `map`, `via`, `recover` and `focus` work the same on every Path type.
+A railway model: success travels one track and failure another. `map` and `via` work on every Path type; recovery and `focus` work where the type supports them.
 
 - `MaybePath<A>`: absence is normal
 - `EitherPath<E, A>`: typed errors
@@ -94,11 +119,12 @@ userService.findById(userId)           // EitherPath<Error, User>
     .via(code -> validatePostcode(code));
 ```
 
-- [Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.md): the chapter and its reading order
+- [Effect Path API](https://higher-kinded-j.github.io/latest/effect/ch_intro.md): why Path types, and a map of the chapter
 - [Effect Path Quickstart](https://higher-kinded-j.github.io/latest/effect/quickstart.md): `MaybePath`, `EitherPath` and `ForPath` in three short examples
 - [Core Paths Overview](https://higher-kinded-j.github.io/latest/effect/effect_path_overview.md): the problem Path types solve, and the railway model
 - [Migration Cookbook](https://higher-kinded-j.github.io/latest/effect/migration_cookbook.md): `try/catch`, nullable lookups, `CompletableFuture` and validation, translated recipe by recipe
 - [Path Types Overview](https://higher-kinded-j.github.io/latest/effect/path_types.md): choosing a Path type
+- [EitherPath](https://higher-kinded-j.github.io/latest/effect/path_either.md), [MaybePath](https://higher-kinded-j.github.io/latest/effect/path_maybe.md), [TryPath](https://higher-kinded-j.github.io/latest/effect/path_try.md): the everyday Path types, one page each
 - [ValidationPath](https://higher-kinded-j.github.io/latest/effect/path_validation.md): accumulating every error
 - [EitherOrBothPath](https://higher-kinded-j.github.io/latest/effect/path_either_or_both.md): success with warnings
 - [Composition Patterns](https://higher-kinded-j.github.io/latest/effect/composition.md): sequential, independent and parallel composition
@@ -107,6 +133,7 @@ userService.findById(userId)           // EitherPath<Error, User>
 - [Effect Contexts](https://higher-kinded-j.github.io/latest/effect/effect_contexts.md): transformer power without transformer syntax
 - [Effect Handlers](https://higher-kinded-j.github.io/latest/effect/effect_handlers_intro.md): `@EffectAlgebra`, programs as values, several interpreters
 - [Resilience Patterns](https://higher-kinded-j.github.io/latest/resilience/ch_intro.md): retry, circuit breaker, bulkhead and saga on Paths and `VTask`
+- [Type Conversions](https://higher-kinded-j.github.io/latest/effect/conversions.md): converting between Path types, such as `Maybe` to `Either` and `Try` to `Validation`
 - [Common Compiler Errors](https://higher-kinded-j.github.io/latest/effect/compiler_errors.md): Path compile errors and their fixes
 
 ## Optics and the Focus DSL
@@ -114,15 +141,17 @@ userService.findById(userId)           // EitherPath<Error, User>
 Type-safe reads and updates of immutable data, generated by annotation processors for records and sealed interfaces.
 
 - Optics: `Lens`, `Prism`, `Iso`, `Affine`, `Traversal`, `Fold`, `Getter`, `Setter`, `At`/`Ixed`, `Each`, and indexed variants
-- Focus DSL: `FocusPath<S, A>` (exactly one), `AffinePath<S, A>` (zero or one), `TraversalPath<S, A>` (zero or more), with containers widened by cardinality under `@GenerateFocus(widenCollections = true)`
+- Focus DSL: `FocusPath<S, A>` (exactly one), `AffinePath<S, A>` (zero or one), `TraversalPath<S, A>` (zero or more). `@GenerateFocus` widens by cardinality: `Optional` to `AffinePath`, and `List`, `Set` and `Collection` to `TraversalPath`; `widenCollections = true` extends this to `Map`, arrays and other containers
 - Annotations: `@GenerateLenses`, `@GeneratePrisms`, `@GenerateFocus`, `@GenerateTraversals`, `@GenerateIsos`, and `@ImportOptics` for types you cannot edit
 - `ValidatedPrism`: parse-don't-validate as an optic, the building block of the mapper
-- `Edits`: several edits as one operation, and sparse REST PATCH
+- `Edits`: several edits as one operation, and a hand-written sparse PATCH (for a mapped DTO, `UpdateSpec` generates it)
 
-- [Optics](https://higher-kinded-j.github.io/latest/optics/ch_intro.md): the chapter and its reading order
+Pages:
+
+- [Optics](https://higher-kinded-j.github.io/latest/optics/ch_intro.md): why optics for Java records, and a map of the chapter
 - [Optics Quickstart](https://higher-kinded-j.github.io/latest/optics/quickstart.md): a deep nested update in one line
 - [Annotations at a Glance](https://higher-kinded-j.github.io/latest/optics/annotations_at_a_glance.md): which annotation generates which optic
-- [What Are Optics?](https://higher-kinded-j.github.io/latest/optics/optics_intro.md): the concepts
+- [What Are Optics?](https://higher-kinded-j.github.io/latest/optics/optics_intro.md): lens, prism, traversal and iso, explained on Java records
 - [Lenses](https://higher-kinded-j.github.io/latest/optics/lenses.md): nested record updates
 - [Prisms](https://higher-kinded-j.github.io/latest/optics/prisms.md): sealed interface variants
 - [Validated Prisms](https://higher-kinded-j.github.io/latest/optics/validated_prism.md): an accumulating parse and a total build
@@ -130,7 +159,8 @@ Type-safe reads and updates of immutable data, generated by annotation processor
 - [Focus DSL](https://higher-kinded-j.github.io/latest/optics/focus_dsl.md): path-based navigation with `@GenerateFocus`
 - [Custom Containers and Code Generation](https://higher-kinded-j.github.io/latest/optics/focus_containers.md): container widening and generator plugins
 - [Optics for External Types](https://higher-kinded-j.github.io/latest/optics/importing_optics.md): `@ImportOptics` for JDK and third-party types
-- [Multi-Edit and Sparse Updates](https://higher-kinded-j.github.io/latest/optics/multi_edit.md): `Edits.combine` and `Edits.accumulate`
+- [Multi-Edit and Sparse Updates](https://higher-kinded-j.github.io/latest/optics/multi_edit.md): `Edits.combine` and `Edits.accumulate`, by hand
+- [Cookbook](https://higher-kinded-j.github.io/latest/optics/cookbook.md): recipes for common optics tasks
 - [Common Compiler Errors](https://higher-kinded-j.github.io/latest/optics/compiler_errors.md): optics processor messages and their fixes
 
 ## Comprehensions, transformers and foundations
@@ -138,18 +168,19 @@ Type-safe reads and updates of immutable data, generated by annotation processor
 - [For Comprehension](https://higher-kinded-j.github.io/latest/functional/for_comprehension.md): `For`, flat sequential steps over any monad
 - [ForState Comprehension](https://higher-kinded-j.github.io/latest/functional/forstate_comprehension.md): named fields instead of tuple positions
 - [Monad Transformers & MTL](https://higher-kinded-j.github.io/latest/transformers/ch_intro.md): `EitherT`, `MaybeT`, `OptionalT`, `ReaderT`, `StateT`, `WriterT`, and the `MonadReader`, `MonadState` and `MonadWriter` capabilities
+- [Transformers at a Glance](https://higher-kinded-j.github.io/latest/transformers/transformers_at_a_glance.md): every transformer, its factories and operations, on one page
 - [Path or Transformer?](https://higher-kinded-j.github.io/latest/transformers/when_to_drop_to_transformers.md): when the Path API is no longer enough
 - [Foundations](https://higher-kinded-j.github.io/latest/hkts/foundations_intro.md): the `Kind<F, A>` encoding, type classes, and the core types
 - [Type Classes](https://higher-kinded-j.github.io/latest/functional/ch_intro.md): `Functor`, `Applicative`, `Monad`, `MonadError`, `Traverse`, `Selective` and more
-- [Core Types](https://higher-kinded-j.github.io/latest/monads/ch_intro.md): `Either`, `Maybe`, `Try`, `Validated`, `EitherOrBoth`, `IO`, `VTask`, `VStream`, `Free` and more
+- [Core Types](https://higher-kinded-j.github.io/latest/monads/ch_intro.md): `Either`, `Maybe`, `Try`, `Validated`, `EitherOrBoth`, `IO`, `VTask`, `VStream`, `Free` and more, one page each, such as [Either](https://higher-kinded-j.github.io/latest/monads/either_monad.md), [Validated](https://higher-kinded-j.github.io/latest/monads/validated_monad.md) and [NonEmptyList](https://higher-kinded-j.github.io/latest/monads/nonemptylist_monad.md)
 - [VTask](https://higher-kinded-j.github.io/latest/monads/vtask_monad.md): virtual-thread tasks, with [structured concurrency](https://higher-kinded-j.github.io/latest/monads/vtask_scope.md) and [resource management](https://higher-kinded-j.github.io/latest/monads/vtask_resource.md)
 
 ## Spring Boot
 
-`hkj-spring-boot-starter` lets a controller return `Either`, `Validated` and the Path types directly, maps typed errors to HTTP statuses, renders field errors as a 422, and serialises the library's types with Jackson.
+`hkj-spring-boot-starter` lets a controller return `Either`, `Validated` and the main Path types directly, maps typed errors to HTTP statuses, renders field errors as a 422, and serialises the library's types with Jackson. The build plugins add it with `spring = true`.
 
-- [Spring Integration](https://higher-kinded-j.github.io/latest/spring/ch_intro.md): the chapter
-- [Spring Boot Integration](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.md): controller return types, error status mapping, configuration properties, testing
+- [Spring Integration](https://higher-kinded-j.github.io/latest/spring/ch_intro.md): why typed errors at the HTTP boundary, and a map of the chapter
+- [Spring Boot Integration](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.md): controller return types, error status mapping, [422 field-error responses](https://higher-kinded-j.github.io/latest/spring/spring_boot_integration.md#the-422-leg), configuration properties, testing
 - [Declarative HTTP Clients](https://higher-kinded-j.github.io/latest/spring/declarative_http_clients.md): `@HkjHttpClient`, a client whose methods return Effect Paths and decode typed errors
 - [Migrating to Functional Errors](https://higher-kinded-j.github.io/latest/spring/migrating_to_functional_errors.md): from exceptions, one endpoint at a time
 - [EffectBoundary Integration](https://higher-kinded-j.github.io/latest/spring/effect_boundary_integration.md): effect handler programs at a Spring boundary
@@ -158,6 +189,7 @@ Type-safe reads and updates of immutable data, generated by annotation processor
 
 - [Compile-Time Checks](https://higher-kinded-j.github.io/latest/tooling/compile_checks.md): `hkj-checker`, a javac plugin that catches Path type mismatches
 - [Migration Recipes](https://higher-kinded-j.github.io/latest/tooling/openrewrite.md): `hkj-openrewrite` recipes for upgrading
+- [Diagnostics](https://higher-kinded-j.github.io/latest/tooling/diagnostics.md): `hkjDiagnostics` and `mvn hkj:diagnostics` report what the plugin configured
 - [Testing With hkj-test](https://higher-kinded-j.github.io/latest/tooling/test_assertions.md): AssertJ assertions for every type (`assertThatEither`, `assertThatValidated` and more), optic and mapping laws, `SteppableClock`
 - [Claude Code Skills](https://higher-kinded-j.github.io/latest/tooling/claude_code_skills.md): agent skills for the library, including `hkj-mapping`, installed with `./gradlew hkjInstallSkills` or `mvn hkj:install-skills`
 
@@ -172,7 +204,7 @@ Each chapter as one Markdown file, in reading order, with its code examples inli
 - [llms-transformers.txt](https://higher-kinded-j.github.io/latest/llms-transformers.txt): Monad Transformers & MTL
 - [llms-hkts.txt](https://higher-kinded-j.github.io/latest/llms-hkts.txt): Foundations: the HKT encoding, type classes, core types
 - [llms-tooling.txt](https://higher-kinded-j.github.io/latest/llms-tooling.txt): Tooling
-- [llms-full.txt](https://higher-kinded-j.github.io/llms-full.txt): the whole book
+- [llms-full.txt](https://higher-kinded-j.github.io/latest/llms-full.txt): the whole book
 
 ## Optional
 
@@ -180,5 +212,5 @@ Each chapter as one Markdown file, in reading order, with its code examples inli
 - [Hands-On Learning](https://higher-kinded-j.github.io/latest/tutorials/ch_intro.md): exercise journeys, including [Boundary Mapping](https://higher-kinded-j.github.io/latest/tutorials/optics/boundary_mapping_journey.md), also as [llms-tutorials.txt](https://higher-kinded-j.github.io/latest/llms-tutorials.txt)
 - [Glossary](https://higher-kinded-j.github.io/latest/glossary.md): terms by category, including [Optics & Mapping](https://higher-kinded-j.github.io/latest/glossary/optics.md)
 - [Release History](https://higher-kinded-j.github.io/latest/release-history.md): what changed in each release, and [upgrading](https://higher-kinded-j.github.io/latest/release-history/upgrading.md)
-- [Benchmarks & Performance](https://higher-kinded-j.github.io/latest/benchmarks.md)
+- [Benchmarks & Performance](https://higher-kinded-j.github.io/latest/benchmarks.md): JMH results for the core types, the effect types and the Path wrappers
 - [Source code](https://github.com/higher-kinded-j/higher-kinded-j): GitHub, MIT licence

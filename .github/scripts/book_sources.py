@@ -23,13 +23,14 @@ SUMMARY_ENTRY_RE = re.compile(r"^(\s*)(-\s+)?\[([^\]]*)\]\(([^)]+\.md)\)")
 # mdBook include-family directives, capturing the argument (path[:spec]).
 INCLUDE_RE = re.compile(r"\{\{#(?:include|rustdoc_include|playground)\s+([^}]+?)\s*\}\}")
 
-# A page subtitle: a whole line in italics directly under the H1, as the
-# Mapping chapter writes them ("_Map a PATCH request so ..._").
-SUBTITLE_RE = re.compile(r"^_([^_].*[^_])_$")
+# A page subtitle: a whole italic sentence directly under the H1, as the
+# Mapping chapter writes them ("_Map a PATCH request so ..._"). A tagline
+# without a full stop ("_Combining Monadic Effects_") describes too little.
+SUBTITLE_RE = re.compile(r"^_([^_].*[.?!])_$")
 
-# An explicit description, for a page whose opening is a quote or a story:
-# <!-- description: One sentence for search results. -->
-DESCRIPTION_MARKER_RE = re.compile(r"^<!--\s*description:\s*(.+?)\s*-->\s*$", re.MULTILINE)
+# An explicit description on a page's first line, for a page whose opening is
+# a quote or a story: <!-- description: One sentence for search results. -->
+DESCRIPTION_MARKER_RE = re.compile(r"\A\s*<!--\s*description:\s*(.+?)\s*-->")
 
 # The opening line of the admonition that lists what a page teaches.
 LEARN_RE = re.compile(
@@ -178,7 +179,7 @@ def resolve_includes(md_text: str, md_path: str, counters: dict = None):
         arg = match.group(1)
         content, file_path, error = _resolve_include_arg(arg, base_dir)
         if error is not None:
-            warn(f"  include unresolved ({md_path}): {arg} - {error}")
+            warn(f"  include unresolved ({md_path}): {arg}: {error}")
             if counters is not None:
                 counters["unresolved"] += 1
             return f"<!-- include unresolved: {arg} -->"
@@ -267,6 +268,12 @@ def _learn_bullets(body: list):
     return []
 
 
+def _fence(line: str):
+    """The fence a line opens or closes (its run of backticks or tildes), or None."""
+    match = re.match(r"(`{3,}|~{3,})", line)
+    return match.group(1) if match else None
+
+
 def _first_paragraph(body: list):
     """The first paragraph of prose on the page, admonitions included.
 
@@ -275,16 +282,24 @@ def _first_paragraph(body: list):
     short to describe anything, such as a lone link.
     """
     paragraph = []
-    in_code = False
+    code_fence = None  # the fence of the code block being skipped
+    admonitions = 0
     for line in body + [""]:
         stripped = line.strip()
-        if stripped.startswith("```"):
-            in_code = not in_code
-            stripped = ""
-        elif in_code:
+        fence = _fence(stripped)
+        if code_fence:
+            if fence and fence[0] == code_fence[0] and len(fence) >= len(code_fence):
+                if stripped == fence:
+                    code_fence = None
             continue
-        if stripped.startswith("~~~"):
-            stripped = ""  # an admonition's fence; its text is prose
+        if fence:
+            if stripped.startswith("~~~admonish"):
+                admonitions += 1  # an admonition's text is prose
+            elif admonitions and stripped == fence and fence[0] == "~":
+                admonitions -= 1
+            else:
+                code_fence = fence
+            stripped = ""
         if not stripped or stripped.startswith("#"):
             text = plain_text(" ".join(paragraph))
             if len(text) >= 50:
@@ -304,7 +319,7 @@ def page_description(md_text: str):
     as many as fit; the first paragraph of prose. The result is at most
     ``DESCRIPTION_LIMIT`` characters.
     """
-    marker = DESCRIPTION_MARKER_RE.search(md_text)
+    marker = DESCRIPTION_MARKER_RE.match(md_text)
     if marker:
         return _truncate(plain_text(marker.group(1)))
 
@@ -324,39 +339,45 @@ def page_description(md_text: str):
             if len(candidate) + 1 > DESCRIPTION_LIMIT:
                 break
             text = candidate
-        return _truncate(text + ".")
+        return _truncate(text if text.endswith(("?", "!")) else text + ".")
 
     paragraph = _first_paragraph(body)
     return _truncate(paragraph) if paragraph else None
 
 
+def _git(args: list, cwd: str) -> str:
+    return subprocess.run(
+        ["git", "-c", "core.quotepath=off"] + args,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+
+
 def last_modified(paths: list) -> dict:
     """Map each tracked file to the date (``YYYY-MM-DD``) of its last commit.
 
-    One ``git log`` covers every path. A file git does not track, or a run
-    outside a repository, has no entry.
+    One ``git log`` covers every path, walking ``HKJ_SOURCE_REF`` (default
+    ``HEAD``): a deploy that builds an older tag's sources names that tag, so
+    its pages are dated from its own history. A file git does not track, a
+    shallow clone, or a run outside a repository gives no dates.
     """
-    paths = [os.path.abspath(p) for p in paths]
+    paths = [os.path.realpath(p) for p in paths]
     if not paths:
         return {}
+    ref = os.environ.get("HKJ_SOURCE_REF", "").strip() or "HEAD"
     try:
-        root = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            cwd=os.path.dirname(paths[0]),
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
+        top = _git(["rev-parse", "--show-toplevel"], os.path.dirname(paths[0]))
+        root = os.path.realpath(top.strip())
+        if _git(["rev-parse", "--is-shallow-repository"], root).strip() == "true":
+            warn("  git dates unavailable: shallow clone")
+            return {}
         relative = sorted({os.path.relpath(p, root) for p in paths})
-        log = subprocess.run(
-            ["git", "log", "--format=%x00%cs", "--name-only", "--"] + relative,
-            cwd=root,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout
+        log = _git(["log", ref, "--format=%x00%cs", "--name-only", "--"] + relative, root)
     except (OSError, subprocess.CalledProcessError) as error:
-        warn(f"  git dates unavailable: {error}")
+        detail = (getattr(error, "stderr", "") or str(error)).strip()
+        warn(f"  git dates unavailable: {detail.splitlines()[0] if detail else error}")
         return {}
 
     dates = {}
@@ -365,7 +386,7 @@ def last_modified(paths: list) -> dict:
         if line.startswith("\x00"):
             date = line[1:]
         elif line and date:
-            path = os.path.join(root, line)
+            path = os.path.normpath(os.path.join(root, line))
             if date > dates.get(path, ""):
                 dates[path] = date
     return dates
@@ -377,8 +398,8 @@ def page_dates(src_dir: str, pages: list) -> dict:
     for page in pages:
         md_path = os.path.join(src_dir, page.path)
         if os.path.isfile(md_path):
-            sources[page.path] = [os.path.abspath(md_path)] + [
-                os.path.abspath(f) for f in included_files(md_path)
+            sources[page.path] = [os.path.realpath(md_path)] + [
+                os.path.realpath(f) for f in included_files(md_path)
             ]
     dates = last_modified([f for files in sources.values() for f in files])
     result = {}

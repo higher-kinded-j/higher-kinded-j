@@ -1,4 +1,4 @@
-<!-- description: Replace a hand-written DTO mapper with compile-time code generation: a build that cannot fail, and a parse that reports every bad field at once, by its path. -->
+<!-- description: Replace a hand-written or MapStruct DTO mapper with code generated at compile time that reports every bad request field at once, each by its path. -->
 
 # Mapping at the Boundary
 

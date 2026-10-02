@@ -1,6 +1,6 @@
 [book]
 title = "Higher-Kinded-J: Composable Effects and Advanced Optics for Java"
-description = "The most comprehensive functional programming library for Java: typed error handling with the Effect Path API, optics and the Focus DSL for immutable records, compile-time DTO mapping that reports every bad field, and Spring Boot integration."
+description = "Functional programming for Java: typed errors with the Effect Path API, optics for immutable records, and compile-time DTO mapping that reports every bad field."
 authors = ["The Higher-Kinded-J Team"]
 language = "en-GB"
 src = "src"

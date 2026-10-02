@@ -18,10 +18,9 @@ Two deliberate choices:
 Every page also gets what ``head.hbs`` can only give site-wide, taken from its
 Markdown source through ``book_sources``:
 
-* **its own description** (subtitle, "What You'll Learn" bullets, or first
-  paragraph) in the ``description``, ``og:description`` and
-  ``twitter:description`` tags, where the site-wide text would otherwise
-  repeat on every page;
+* **its own description** (see ``book_sources.page_description``) in the
+  ``description``, ``og:description`` and ``twitter:description`` tags, where
+  the site-wide text would otherwise repeat on every page;
 * **its chapter's keywords**;
 * a **``TechArticle`` JSON-LD block** carrying the headline, description,
   keywords, chapter and the date the page last changed (the site-wide
@@ -38,11 +37,11 @@ re-injects the article block.
 
 Run from the repository root. Configured via environment variables:
 
-* ``MDBOOK_OUTPUT_DIR`` - built book directory (default ``hkj-book/book``)
-* ``MDBOOK_SRC_DIR`` - book source directory (default ``hkj-book/src``)
-* ``HKJ_CANONICAL_BASE`` - canonical base URL
+* ``MDBOOK_OUTPUT_DIR``: built book directory (default ``hkj-book/book``)
+* ``MDBOOK_SRC_DIR``: book source directory (default ``hkj-book/src``)
+* ``HKJ_CANONICAL_BASE``: canonical base URL
   (default ``https://higher-kinded-j.github.io/latest/``)
-* ``HKJ_SOFTWARE_VERSION`` - the released version the docs describe (optional)
+* ``HKJ_SOFTWARE_VERSION``: the released version the docs describe (optional)
 """
 
 import html
@@ -170,12 +169,16 @@ def techarticle_ldjson(url: str, meta: dict) -> str:
         data["articleSection"] = meta["section"]
     if meta.get("modified"):
         data["dateModified"] = meta["modified"]
-    # json.dumps handles all string escaping, keeping the block valid JSON.
     return (
         f'<script type="application/ld+json" data-hkj="{TECHARTICLE_MARKER}">'
-        + json.dumps(data, ensure_ascii=False)
+        + script_json(data)
         + "</script>"
     )
+
+
+def script_json(data) -> str:
+    """JSON for a ``<script>`` body: ``<`` is escaped, so text cannot close the tag."""
+    return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
 
 
 def set_software_version(content: str, version: str) -> str:
@@ -189,7 +192,7 @@ def set_software_version(content: str, version: str) -> str:
         for node in data.get("@graph", []):
             if node.get("@id", "").endswith("#software"):
                 node["softwareVersion"] = version
-        return match.group(1) + json.dumps(data, ensure_ascii=False) + match.group(3)
+        return match.group(1) + script_json(data) + match.group(3)
 
     return SITE_LDJSON_RE.sub(replace, content, count=1)
 
@@ -248,7 +251,8 @@ def process_file(file_path: str, url: str, base_url: str, meta, version: str) ->
 
     if additions:
         injection = "\n" + "\n".join(additions) + "\n"
-        content = HEAD_CLOSE_RE.sub(injection + "</head>", content, count=1)
+        # A function replacement, so a backslash in a description stays literal.
+        content = HEAD_CLOSE_RE.sub(lambda m: injection + m.group(0), content, count=1)
 
     if content != original:
         with open(file_path, "w", encoding="utf-8") as fh:

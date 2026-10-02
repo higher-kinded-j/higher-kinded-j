@@ -1,4 +1,4 @@
-<!-- description: How Higher-Kinded-J simulates higher-kinded types in Java with the Kind encoding, and the type classes and core types, like Either and Validated, built on it. -->
+<!-- description: Learn how Higher-Kinded-J simulates higher-kinded types in Java, and the type classes and core types, such as Either and Validated, built on them. -->
 
 # Foundations
 

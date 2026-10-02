@@ -1,8 +1,9 @@
 """Generate ``sitemap.xml`` for the built mdBook.
 
-Every built page with a source in ``SUMMARY.md`` is listed. A built file
-without one, such as a redirect stub left for a moved page, is not: a sitemap
-should name only URLs that answer with content.
+Every built page with a source in ``SUMMARY.md`` is listed, at the URL its
+canonical tag names (a directory's ``index.html`` as the directory). A built
+file without a source, such as a redirect stub left for a moved page, is not:
+a sitemap should name only URLs that answer with content.
 
 Each URL's ``lastmod`` is the date of the last commit to the page's source or
 to a file it includes, so a search engine can trust it to recrawl what
@@ -10,10 +11,10 @@ changed. A page git does not track (a file CI copies in) has no ``lastmod``.
 
 Run from the repository root. Configured via environment variables:
 
-* ``MDBOOK_OUTPUT_DIR`` - built book directory (default ``hkj-book/book``)
-* ``MDBOOK_SRC_DIR``    - book source directory (default ``hkj-book/src``)
-* ``MDBOOK_SITE_URL``   - the URL the book is served under
-                          (default ``https://higher-kinded-j.github.io/``)
+* ``MDBOOK_OUTPUT_DIR``: built book directory (default ``hkj-book/book``)
+* ``MDBOOK_SRC_DIR``: book source directory (default ``hkj-book/src``)
+* ``MDBOOK_SITE_URL``: the URL the book is served under
+  (default ``https://higher-kinded-j.github.io/``)
 """
 
 import html
@@ -60,6 +61,15 @@ def priority(rel: str) -> str:
     return "0.5"
 
 
+def location(rel: str) -> str:
+    """A page's path under the base URL, as its canonical tag gives it."""
+    if rel == "index.html":
+        return ""
+    if rel.endswith("/index.html"):
+        return rel[: -len("index.html")]
+    return rel
+
+
 def main() -> None:
     book_dir = os.environ.get("MDBOOK_OUTPUT_DIR", "hkj-book/book")
     src_dir = os.environ.get("MDBOOK_SRC_DIR", "hkj-book/src")
@@ -94,7 +104,7 @@ def main() -> None:
     ]
     for rel, modified in sorted(entries):
         lines.append("  <url>")
-        lines.append(f"    <loc>{html.escape(base_url + rel)}</loc>")
+        lines.append(f"    <loc>{html.escape(base_url + location(rel))}</loc>")
         if modified:
             lines.append(f"    <lastmod>{modified}</lastmod>")
         lines.append("    <changefreq>weekly</changefreq>")

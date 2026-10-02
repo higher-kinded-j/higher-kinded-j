@@ -21,11 +21,11 @@ files that CI copies in later) are skipped with a warning.
 
 Run from the repository root. Configured via environment variables:
 
-* ``MDBOOK_SRC_DIR``     - book source directory (default ``hkj-book/src``)
-* ``MDBOOK_OUTPUT_DIR``  - built book directory, where the files are written
-                           (default ``hkj-book/book``)
-* ``HKJ_CANONICAL_BASE`` - the URL links in the chapter files point under
-                           (default ``https://higher-kinded-j.github.io/latest/``)
+* ``MDBOOK_SRC_DIR``: book source directory (default ``hkj-book/src``)
+* ``MDBOOK_OUTPUT_DIR``: built book directory, where the files are written
+  (default ``hkj-book/book``)
+* ``HKJ_CANONICAL_BASE``: the URL links in the chapter files point under
+  (default ``https://higher-kinded-j.github.io/latest/``)
 """
 
 import os
@@ -45,9 +45,9 @@ LINKED_NOT_INLINED = {
     "optics/compiler_errors.md",
 }
 
-FULL_PREAMBLE = """# Higher-Kinded-J - Full Documentation
+FULL_PREAMBLE = """# Higher-Kinded-J: Full Documentation
 
-> Unifying Composable Effects and Advanced Optics for Java 25+
+> Composable effects, optics and compile-time DTO mapping for Java 25
 
 This file is the complete Higher-Kinded-J documentation concatenated into a
 single document for AI ingestion. It is generated from the book source in
@@ -126,9 +126,13 @@ def main() -> None:
     print(f"Markdown copies: {len(texts)} pages.")
 
     # One file per chapter that has more than its introduction.
+    written = {"full"}
     for chapter in chapters:
         if len(chapter.pages) < 2 or chapter.slug in CORPUS_SKIP:
             continue
+        if chapter.slug in written:
+            raise SystemExit(f"Error: two chapters would both write llms-{chapter.slug}.txt")
+        written.add(chapter.slug)
         name = f"llms-{chapter.slug}.txt"
         size = write(os.path.join(out_dir, name), chapter_file(chapter, texts, base_url))
         print(f"{name}: {len(chapter.pages)} pages, {size / 1024:.0f} KB.")

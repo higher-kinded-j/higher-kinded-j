@@ -1,4 +1,4 @@
-<!-- description: Gradle and Maven build plugins, compile-time Path checks, OpenRewrite migration recipes, traversal generator plugins, hkj-test assertions, Claude Code skills. -->
+<!-- description: Add Higher-Kinded-J with the Gradle or Maven plugin, catch Path type mismatches at compile time, migrate with OpenRewrite recipes, and test with hkj-test. -->
 
 # Tooling
 ## _Build-Time Safety for Higher-Kinded-J_
