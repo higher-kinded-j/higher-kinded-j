@@ -1415,6 +1415,8 @@ When intentional changes are made to code generation:
 ./gradlew :hkj-processor:updateGoldenFiles
 ```
 
+The test above ignores line endings and trailing whitespace, and reads the working-tree copies. To check the committed copies byte for byte, as CI and the release gate do, run `./gradlew :hkj-processor:verifyGoldenFiles`. It regenerates every golden file and fails if git then sees one as changed or new. It refuses to start while a golden file has uncommitted changes, since regenerating would overwrite them.
+
 **Location:** `hkj-processor/src/test/java/org/higherkindedj/optics/processing/GoldenFileTest.java`
 
 ### Mutation Testing
