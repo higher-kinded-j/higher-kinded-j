@@ -130,6 +130,12 @@ subprojects {
 // Custom Tasks
 // =============================================================================
 
+// mustRunAfter, unless the task has already run. A task listing such as `gradle :x:test tasks`
+// configures the tasks below after others have run, and Gradle refuses to order a started task.
+fun Task.mustRunAfterIfPending(vararg paths: Any) {
+    if (!state.executed) mustRunAfter(*paths)
+}
+
 /**
  * Full benchmark validation task.
  *
@@ -153,9 +159,9 @@ tasks.register("benchmarkValidation") {
     dependsOn(":hkj-benchmarks:test")
 
     // Ensure proper ordering
-    tasks.getByPath(":hkj-core:jacocoTestReport").mustRunAfter(":hkj-core:test")
-    tasks.getByPath(":hkj-benchmarks:jmh").mustRunAfter(":hkj-core:jacocoTestReport")
-    tasks.getByPath(":hkj-benchmarks:test").mustRunAfter(":hkj-benchmarks:jmh")
+    tasks.getByPath(":hkj-core:jacocoTestReport").mustRunAfterIfPending(":hkj-core:test")
+    tasks.getByPath(":hkj-benchmarks:jmh").mustRunAfterIfPending(":hkj-core:jacocoTestReport")
+    tasks.getByPath(":hkj-benchmarks:test").mustRunAfterIfPending(":hkj-benchmarks:jmh")
 
     doLast {
         println("\n" + "=".repeat(70))
@@ -171,37 +177,41 @@ tasks.register("benchmarkValidation") {
 
 /**
  * British spelling check over the repository's prose, as docs/STYLE-GUIDE.md asks and CI runs
- * before its build. It needs Node.js.
+ * before its build. It needs Node.js. To rewrite the spellings it reports, run the script
+ * itself: node .github/scripts/british-spelling-check.cjs --fix
  *
  * Usage: ./gradlew britishSpellingCheck
  */
 tasks.register<Exec>("britishSpellingCheck") {
     group = "verification"
     description = "Checks that the repository's prose uses British spelling"
-    workingDir = rootDir
+    workingDir = rootProject.projectDir
     commandLine("node", ".github/scripts/british-spelling-check.cjs")
 }
 
 /**
  * Release readiness quality gate.
  *
- * Runs all verification steps from fastest to slowest, failing fast
+ * Runs the release's checks from fastest to slowest, failing fast
  * on the cheapest checks first:
  *
- * 1. spotlessCheck        — code formatting, every module (seconds)
- * 2. britishSpellingCheck — British spelling in prose (seconds)
- * 3. verifyGoldenFiles    — golden files regenerated and compared with git (about a minute)
+ * 1. britishSpellingCheck — British spelling in prose (seconds)
+ * 2. spotlessCheck        — code formatting, every module (seconds)
+ * 3. verifyGoldenFiles    — golden files regenerated and compared with git (about a minute
+ *                           once the processor is compiled)
  * 4. build                — compile + unit tests, every module but hkj-benchmarks, and the
  *                           JaCoCo limits of the modules that set them (minutes)
  * 5. jmh                  — JMH benchmarks (minutes)
  * 6. benchmark tests      — benchmark assertion tests (seconds, requires jmh)
  * 7. pitest (full)        — mutation testing with STRONGER mutators (slowest)
  *
- * Steps 1 and 4 name every module's task by path. In dependsOn, a bare task name means
- * this root project's own task, which checks nothing; only on the command line does a
- * name select the task in every project. hkj-benchmarks is left out of step 4, as CI
- * leaves it out of its build, because that build includes the benchmark assertion tests,
- * which read the results step 5 writes. Steps 2 and 3 are the checks CI runs before its build.
+ * Steps 1 and 3 are the checks CI runs before its build. Step 3 is stricter than CI's: it
+ * also fails on a golden file git does not track, and it refuses to start while a golden file
+ * has uncommitted changes. Steps 2 and 4 name every module's task by path. In dependsOn, a
+ * bare task name means this root project's own task, which checks nothing; only on the command
+ * line does a name select the task in every project. hkj-benchmarks is left out of step 4, as
+ * CI leaves it out of its build, because that build includes the benchmark assertion tests,
+ * which read the results step 5 writes. The book's own checks are separate: hkj-book/check.sh.
  *
  * Usage: ./gradlew releaseReadiness
  *
@@ -209,14 +219,15 @@ tasks.register<Exec>("britishSpellingCheck") {
  */
 tasks.register("releaseReadiness") {
     group = "verification"
-    description = "Release quality gate: spotless in every module, British spelling, golden files, build in every module but hkj-benchmarks, benchmarks, benchmark assertions, pitest (full profile)"
+    description = "Release quality gate: British spelling, spotless in every module, golden files, build in every module but hkj-benchmarks, benchmarks, benchmark assertions, pitest (full profile)"
 
+    val spelling = ":britishSpellingCheck"
     val formatChecks = subprojects.map { "${it.path}:spotlessCheck" }
-    val quickChecks = formatChecks + ":britishSpellingCheck"
     val goldenFiles = ":hkj-processor:verifyGoldenFiles"
     val builds = subprojects.filter { it.path != ":hkj-benchmarks" }.map { "${it.path}:build" }
 
-    dependsOn(quickChecks)
+    dependsOn(spelling)
+    dependsOn(formatChecks)
     dependsOn(goldenFiles)
     dependsOn(builds)
     dependsOn(":hkj-benchmarks:jmh")
@@ -224,28 +235,34 @@ tasks.register("releaseReadiness") {
     dependsOn("pitestFull")
 
     // Enforce fast-to-slow ordering. mustRunAfter orders a task but not the tasks it depends
-    // on, so every module task waits for the quick checks, not just each build. Spotless's
-    // own tasks are exempt, and so is clean, which Spotless orders before them. Gradle
-    // configures this task only when it is requested or listed, so other builds keep their
-    // order; a listing can follow tasks that have run, which can no longer be ordered.
+    // on, so the rules go on every module task, not just each build: Spotless's tasks after the
+    // spelling check, every other task after both, and every test after the golden files, which
+    // need only compilation first. clean is exempt, since Spotless orders its own tasks after
+    // it. Gradle configures this task only when it is requested or listed, so other builds keep
+    // their order.
     subprojects {
         tasks.configureEach {
-            val exempt = name.startsWith("spotless") || name == "clean" || state.executed
-            if (!exempt) mustRunAfter(quickChecks)
+            when {
+                name == "clean" -> Unit
+                name.startsWith("spotless") -> mustRunAfterIfPending(spelling)
+                else -> {
+                    mustRunAfterIfPending(spelling, formatChecks)
+                    if (this is Test && path != goldenFiles) mustRunAfterIfPending(goldenFiles)
+                }
+            }
         }
     }
-    builds.forEach { tasks.getByPath(it).mustRunAfter(goldenFiles) }
-    tasks.getByPath(":hkj-benchmarks:jmh").mustRunAfter(builds)
-    tasks.getByPath(":hkj-benchmarks:test").mustRunAfter(":hkj-benchmarks:jmh")
-    tasks.getByName("pitestFull").mustRunAfter(builds)
+    tasks.getByPath(":hkj-benchmarks:jmh").mustRunAfterIfPending(builds)
+    tasks.getByPath(":hkj-benchmarks:test").mustRunAfterIfPending(":hkj-benchmarks:jmh")
+    tasks.getByName("pitestFull").mustRunAfterIfPending(builds)
 
     doLast {
         println("\n" + "=".repeat(70))
         println("  RELEASE READINESS — ALL CHECKS PASSED")
         println("=".repeat(70))
         println("\nAll quality gates passed (fast to slow):")
-        println("  1. Spotless           — code formatting, every module")
-        println("  2. British spelling   — prose across the repository")
+        println("  1. British spelling   — prose across the repository")
+        println("  2. Spotless           — code formatting, every module")
         println("  3. Golden files       — regenerated, and identical to the committed copies")
         println("  4. Build              — compile + unit tests, every module but hkj-benchmarks; JaCoCo limits where set")
         println("  5. JMH Benchmarks     — performance benchmarks")
