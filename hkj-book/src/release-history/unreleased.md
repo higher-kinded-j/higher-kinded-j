@@ -5,7 +5,7 @@ _Not released yet: these changes are on `main`, and the `latest` book describes 
 To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradle SNAPSHOT Configuration](../tooling/manual_setup.md#gradle-snapshot-configuration) shows.
 
 ~~~admonish info title="At a glance"
-- **Nothing has changed since 0.4.11 yet.** The [0.4.11 notes](v0_4_11.md) describe the latest release.
+- **`@PathSource` has a page of its own**, beside `GenericPath` in the Effect Path chapter.
 ~~~
 
 ---
@@ -35,6 +35,8 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ---
 
 ## Documentation {#documentation}
+
+- **`@PathSource` has a page of its own** ([#999](https://github.com/higher-kinded-j/higher-kinded-j/issues/999)): [Custom Paths with `@PathSource`](../effect/path_source.md) says when a generated Path is worth it over `GenericPath`, what each capability generates, and how `errorType` types recovery.
 
 ---
 

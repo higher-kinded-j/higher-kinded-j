@@ -33,6 +33,11 @@ import java.lang.annotation.Target;
  * {@code MonadError<ApiResultKind.Witness, ApiError>} as well as the {@code Monad}, and which has
  * {@code recover}, {@code recoverWith} and {@code mapError} beside the chaining methods.
  *
+ * <p>The annotated type gives the Path its name, and the generated Javadoc links to it. The
+ * processor reads none of its methods, such as the {@code map} and {@code flatMap} in the example,
+ * and does not check that the {@link #witness()} is its own: the Path composes through the {@code
+ * Monad} passed to {@code of} and {@code pure}.
+ *
  * <h2>Generated Path Class</h2>
  *
  * <p>The generated class includes:

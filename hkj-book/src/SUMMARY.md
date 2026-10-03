@@ -26,6 +26,7 @@
     - [IdPath](effect/path_id.md)
     - [OptionalPath](effect/path_optional.md)
     - [GenericPath](effect/path_generic.md)
+    - [Custom Paths with @PathSource](effect/path_source.md)
     - [TrampolinePath](effect/path_trampoline.md)
     - [FreePath](effect/path_free.md)
     - [FreeApPath](effect/path_freeap.md)

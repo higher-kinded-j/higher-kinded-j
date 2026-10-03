@@ -232,7 +232,7 @@ tests, audits, or dry-runs.
 If none of the above fits, you are in one of these situations:
 
 - **A custom monad with no Path.** Use [`GenericPath<F, A>`](effect/path_generic.md)
-  given a `Monad<F>` instance.
+  or [`@PathSource`](effect/path_source.md).
 - **You are extending the library itself with a new HKT.** Read
   [Extending](hkts/extending-simulation.md) for the witness arity contract.
 - **You are stuck on a compiler error and the type doesn't make sense.**

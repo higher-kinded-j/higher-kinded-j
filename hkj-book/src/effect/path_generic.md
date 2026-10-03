@@ -57,6 +57,11 @@ List<Integer> list = ListKindHelper.LIST.narrow(kind);
 - Writing highly generic code across multiple monad types
 - Experimenting with new effect types
 
+When your library's users write the type in their own signatures, a Path class generated for your
+effect reads better: for an effect `Traced`, `TracedPath<A>` rather than
+`GenericPath<TracedKind.Witness, A>`.
+[Custom Paths with `@PathSource`](path_source.md#when-genericpath-is-enough) compares the two.
+
 ~~~admonish tip title="Extensibility by Design"
 `GenericPath` demonstrates the power of higher-kinded types in Java: write
 your algorithm once, and it works with `Maybe`, `Either`, `List`, `IO`, or
@@ -65,11 +70,12 @@ like Cats and ZIO flexible in Scala, now available in Java.
 ~~~
 
 ~~~admonish tip title="See Also"
-- [HKT Introduction](../hkts/hkt_introduction.md) - Higher-kinded type basics
-- [Extending](../hkts/extending-simulation.md) - Creating custom types
+- [HKT Introduction](../hkts/hkt_introduction.md): Higher-kinded type basics
+- [Extending](../hkts/extending-simulation.md): Creating custom types
+- [Custom Paths with `@PathSource`](path_source.md): A named Path class generated for your own effect
 ~~~
 
 ---
 
 **Previous:** [OptionalPath](path_optional.md)
-**Next:** [TrampolinePath](path_trampoline.md)
+**Next:** [Custom Paths with `@PathSource`](path_source.md)

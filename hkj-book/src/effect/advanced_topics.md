@@ -23,7 +23,7 @@ when simple composition meets real-world demands.
 ~~~admonish info title="In this section"
 The **Advanced Paths** sub-chapter expands the Effect Path API beyond the core six path types. This page is the narrative tour; the dedicated pages give API-level reference.
 
-- **Advanced path types**: [IdPath](path_id.md), [OptionalPath](path_optional.md), [GenericPath](path_generic.md), [TrampolinePath](path_trampoline.md), [FreePath](path_free.md), [FreeApPath](path_freeap.md), [VStreamPath](path_vstream.md)
+- **Advanced path types**: [IdPath](path_id.md), [OptionalPath](path_optional.md), [GenericPath](path_generic.md), [Custom Paths with `@PathSource`](path_source.md), [TrampolinePath](path_trampoline.md), [FreePath](path_free.md), [FreeApPath](path_freeap.md), [VStreamPath](path_vstream.md)
 - **Advanced ForPath**: [Parallel Composition](forpath_par.md) and [Traverse](forpath_traverse.md) for concurrent and typeclass-level patterns
 - **Advanced effects**: [Reader/State/Writer Paths](advanced_effects.md), [Effect Contexts](effect_contexts.md), and [Effect Handlers](effect_handlers_intro.md)
 - **Production patterns**: [Patterns and Recipes](patterns.md) and the [Resilience Patterns](../resilience/ch_intro.md) sub-chapter

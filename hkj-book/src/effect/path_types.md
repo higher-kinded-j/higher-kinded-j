@@ -139,7 +139,9 @@ No failure case, no absence; you just want Path operations on a pure value.
 You have a custom monad, or you're writing highly generic code.
 
 **Reach for [`GenericPath`](path_generic.md)** as the escape hatch; it wraps any `Kind<F, A>`
-with a `Monad` instance.
+with a `Monad` instance. When your library ships the effect, and its users write the type in their
+own signatures, [generate a Path class for it with `@PathSource`](path_source.md) instead. Keep
+`GenericPath` where they need `ForPath`, `Path.from`, or a witness with type arguments.
 
 ---
 
@@ -204,6 +206,7 @@ These types support building domain-specific languages:
 ### Universal
 
 - **[GenericPath](path_generic.md)** - Works with any monad
+- **[Custom Paths with `@PathSource`](path_source.md)** - A named Path generated for your own effect
 
 ---
 
@@ -222,6 +225,7 @@ These types support building domain-specific languages:
 | Bridging Java's Optional | `OptionalPath` | Stdlib compatibility |
 | Always succeeds, pure value | `IdPath` | Generic/testing contexts |
 | Custom monad | `GenericPath` | Universal escape hatch |
+| Your library's own effect, named in users' signatures | A `@PathSource` Path | One type parameter, typed recovery |
 | Deep recursion without stack overflow | `TrampolinePath` | Stack-safe trampolining |
 | DSL with sequential operations | `FreePath` | Interpretable programs |
 | DSL with independent operations | `FreeApPath` | Static analysis, parallel |
