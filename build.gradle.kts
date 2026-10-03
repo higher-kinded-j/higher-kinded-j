@@ -170,23 +170,38 @@ tasks.register("benchmarkValidation") {
 }
 
 /**
+ * British spelling check over the repository's prose, as docs/STYLE-GUIDE.md asks and CI runs
+ * before its build. It needs Node.js.
+ *
+ * Usage: ./gradlew britishSpellingCheck
+ */
+tasks.register<Exec>("britishSpellingCheck") {
+    group = "verification"
+    description = "Checks that the repository's prose uses British spelling"
+    workingDir = rootDir
+    commandLine("node", ".github/scripts/british-spelling-check.cjs")
+}
+
+/**
  * Release readiness quality gate.
  *
  * Runs all verification steps from fastest to slowest, failing fast
  * on the cheapest checks first:
  *
- * 1. spotlessCheck       — code formatting, every module (seconds)
- * 2. build               — compile + unit tests, every module but hkj-benchmarks, and the
- *                          JaCoCo limits of the modules that set them (minutes)
- * 3. jmh                 — JMH benchmarks (minutes)
- * 4. benchmark tests     — benchmark assertion tests (seconds, requires jmh)
- * 5. pitest (full)       — mutation testing with STRONGER mutators (slowest)
+ * 1. spotlessCheck        — code formatting, every module (seconds)
+ * 2. britishSpellingCheck — British spelling in prose (seconds)
+ * 3. verifyGoldenFiles    — golden files regenerated and compared with git (about a minute)
+ * 4. build                — compile + unit tests, every module but hkj-benchmarks, and the
+ *                           JaCoCo limits of the modules that set them (minutes)
+ * 5. jmh                  — JMH benchmarks (minutes)
+ * 6. benchmark tests      — benchmark assertion tests (seconds, requires jmh)
+ * 7. pitest (full)        — mutation testing with STRONGER mutators (slowest)
  *
- * Steps 1 and 2 name every module's task by path. In dependsOn, a bare task name means
+ * Steps 1 and 4 name every module's task by path. In dependsOn, a bare task name means
  * this root project's own task, which checks nothing; only on the command line does a
- * name select the task in every project. hkj-benchmarks is left out of step 2, as CI
+ * name select the task in every project. hkj-benchmarks is left out of step 4, as CI
  * leaves it out of its build, because that build includes the benchmark assertion tests,
- * which read the results step 3 writes.
+ * which read the results step 5 writes. Steps 2 and 3 are the checks CI runs before its build.
  *
  * Usage: ./gradlew releaseReadiness
  *
@@ -194,28 +209,32 @@ tasks.register("benchmarkValidation") {
  */
 tasks.register("releaseReadiness") {
     group = "verification"
-    description = "Release quality gate: spotless in every module, build in every module but hkj-benchmarks, benchmarks, benchmark assertions, pitest (full profile)"
+    description = "Release quality gate: spotless in every module, British spelling, golden files, build in every module but hkj-benchmarks, benchmarks, benchmark assertions, pitest (full profile)"
 
     val formatChecks = subprojects.map { "${it.path}:spotlessCheck" }
+    val quickChecks = formatChecks + ":britishSpellingCheck"
+    val goldenFiles = ":hkj-processor:verifyGoldenFiles"
     val builds = subprojects.filter { it.path != ":hkj-benchmarks" }.map { "${it.path}:build" }
 
-    dependsOn(formatChecks)
+    dependsOn(quickChecks)
+    dependsOn(goldenFiles)
     dependsOn(builds)
     dependsOn(":hkj-benchmarks:jmh")
     dependsOn(":hkj-benchmarks:test")
     dependsOn("pitestFull")
 
     // Enforce fast-to-slow ordering. mustRunAfter orders a task but not the tasks it depends
-    // on, so every module task waits for the format checks, not just each build. Spotless's
+    // on, so every module task waits for the quick checks, not just each build. Spotless's
     // own tasks are exempt, and so is clean, which Spotless orders before them. Gradle
     // configures this task only when it is requested or listed, so other builds keep their
     // order; a listing can follow tasks that have run, which can no longer be ordered.
     subprojects {
         tasks.configureEach {
             val exempt = name.startsWith("spotless") || name == "clean" || state.executed
-            if (!exempt) mustRunAfter(formatChecks)
+            if (!exempt) mustRunAfter(quickChecks)
         }
     }
+    builds.forEach { tasks.getByPath(it).mustRunAfter(goldenFiles) }
     tasks.getByPath(":hkj-benchmarks:jmh").mustRunAfter(builds)
     tasks.getByPath(":hkj-benchmarks:test").mustRunAfter(":hkj-benchmarks:jmh")
     tasks.getByName("pitestFull").mustRunAfter(builds)
@@ -226,10 +245,12 @@ tasks.register("releaseReadiness") {
         println("=".repeat(70))
         println("\nAll quality gates passed (fast to slow):")
         println("  1. Spotless           — code formatting, every module")
-        println("  2. Build              — compile + unit tests, every module but hkj-benchmarks; JaCoCo limits where set")
-        println("  3. JMH Benchmarks     — performance benchmarks")
-        println("  4. Benchmark Tests    — performance assertions")
-        println("  5. Pitest (full)      — mutation testing (STRONGER mutators)")
+        println("  2. British spelling   — prose across the repository")
+        println("  3. Golden files       — regenerated, and identical to the committed copies")
+        println("  4. Build              — compile + unit tests, every module but hkj-benchmarks; JaCoCo limits where set")
+        println("  5. JMH Benchmarks     — performance benchmarks")
+        println("  6. Benchmark Tests    — performance assertions")
+        println("  7. Pitest (full)      — mutation testing (STRONGER mutators)")
         println("\nReports:")
         println("  - JaCoCo:     hkj-core/build/reports/jacoco/test/html/index.html")
         println("  - JMH JSON:   hkj-benchmarks/build/reports/jmh/results.json")

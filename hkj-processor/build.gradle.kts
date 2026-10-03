@@ -1,3 +1,5 @@
+import java.io.ByteArrayOutputStream
+
 plugins {
     `java-library`
     id("com.vanniktech.maven.publish")
@@ -181,6 +183,33 @@ tasks.register<Test>("updateGoldenFiles") {
     filter {
         includeTestsMatching("*GoldenFileTest.generatedCodeMatchesGolden")
         includeTestsMatching("*ForComprehensionGoldenFileTest.generatedCodeMatchesGolden")
+    }
+    // Gradle does not track the golden files this writes, so it must never be skipped as up to date.
+    outputs.upToDateWhen { false }
+}
+
+// Regenerates the golden files, then fails if any differs from the committed copy or is not
+// committed at all. The golden tests in `test` compare after normalising whitespace, so only
+// this catches a byte-level difference. A failure leaves the regenerated files in place, to
+// review with `git diff -- '*.golden'` and commit.
+//
+//   ./gradlew :hkj-processor:verifyGoldenFiles
+//
+tasks.register<Exec>("verifyGoldenFiles") {
+    description = "Regenerates golden files and fails if any differs from the committed copy"
+    group = "verification"
+    dependsOn("updateGoldenFiles")
+    workingDir = rootDir
+    commandLine("git", "status", "--porcelain", "--untracked-files=all", "--", "*.golden")
+    val changes = ByteArrayOutputStream()
+    standardOutput = changes
+    doLast {
+        if (changes.size() > 0) {
+            throw GradleException(
+                "Golden files differ from the committed copies once regenerated:\n$changes" +
+                    "Review them with git diff -- '*.golden', then commit them or fix the generator."
+            )
+        }
     }
 }
 
