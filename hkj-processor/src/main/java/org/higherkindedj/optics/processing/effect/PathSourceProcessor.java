@@ -48,7 +48,9 @@ import org.higherkindedj.optics.processing.util.TypeKey;
  * </ul>
  *
  * <p>An errorType with a capability that generates no recovery methods, and RECOVERABLE without an
- * errorType, each draw a note: the Path is generated, without recovery methods.
+ * errorType, each draw a note: the Path is generated, without recovery methods. So does a witness
+ * that {@code @EffectAlgebra} generates, in place of those: the Path is generated, and its of and
+ * pure take a Monad the algebra does not come with.
  *
  * @see PathSource
  */
@@ -254,14 +256,24 @@ public class PathSourceProcessor extends AbstractProcessor {
                 : Stream.empty()))) {
       return;
     }
-    noteRecoveryMismatch(
-        sourceElement,
-        mirror,
-        written,
-        hasErrorType,
-        witnessTypeMirror,
-        errorTypeMirror,
-        pathClassName);
+    // checkWitness has refused a witness that is no class. Over an effect algebra's witness the
+    // Path
+    // has no Monad to compose with, which makes recovery beside the point.
+    EffectAlgebraProcessor.algebraOf(
+            processingEnv.getElementUtils(),
+            processingEnv.getTypeUtils().asElement(witnessTypeMirror))
+        .ifPresentOrElse(
+            algebra ->
+                noteEffectAlgebra(sourceElement, mirror, witnessTypeMirror, algebra, pathClassName),
+            () ->
+                noteRecoveryMismatch(
+                    sourceElement,
+                    mirror,
+                    written,
+                    hasErrorType,
+                    witnessTypeMirror,
+                    errorTypeMirror,
+                    pathClassName));
 
     ClassName sourceClassName = ClassName.get(sourceElement);
 
@@ -632,6 +644,40 @@ public class PathSourceProcessor extends AbstractProcessor {
           "Set errorType to the effect's error type, or use capability ="
               + " PathSource.Capability.CHAINABLE, which generates the same class.");
     }
+  }
+
+  /**
+   * Notes a witness that {@code @EffectAlgebra} generates: the algebra comes with a Functor and no
+   * Monad to pass to the Path's of and pure. A note rather than an error, since the Path is sound,
+   * and a Monad written by hand is not ruled out.
+   */
+  private void noteEffectAlgebra(
+      TypeElement source,
+      AnnotationMirror mirror,
+      TypeMirror witness,
+      TypeElement algebra,
+      String pathClassName) {
+    String name = algebra.getSimpleName().toString();
+    report(
+        Diagnostic.Kind.NOTE,
+        source,
+        mirror,
+        "witness",
+        "'"
+            + pathClassName
+            + "' needs a Monad<"
+            + ProcessorUtils.simpleTypeName(witness)
+            + ">, and the effect algebra '"
+            + name
+            + "' has a Functor only",
+        "The Path's of and pure take that Monad, and @EffectAlgebra generates none, since an"
+            + " algebra's operations are instructions: Free chains them, and an interpreter runs"
+            + " them.",
+        "Build programs from "
+            + name
+            + "Ops and wrap each in a FreePath with Path.free(program, "
+            + name
+            + "Functor.instance()), then remove @PathSource.");
   }
 
   /** Reports in the what/why/fix format, at the value the attribute is written with. */

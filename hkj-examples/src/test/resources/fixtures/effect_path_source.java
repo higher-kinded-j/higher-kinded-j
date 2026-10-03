@@ -16,6 +16,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.effect.GenericPath;
 import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.hkt.effect.annotation.PathSource;
 import org.higherkindedj.hkt.either.EitherKind;
 

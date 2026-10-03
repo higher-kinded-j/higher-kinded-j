@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
@@ -19,6 +20,8 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
@@ -121,7 +124,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
             "@EffectAlgebra",
             element,
             Reachability.companion(
-                resolveTargetPackage(typeElement, typeElement.getAnnotation(EffectAlgebra.class)),
+                generatedPackage(processingEnv.getElementUtils(), typeElement),
                 processingEnv
                     .getElementUtils()
                     .getPackageOf(typeElement)
@@ -161,12 +164,39 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                             .map(component -> Reachability.component(operation, component)))));
   }
 
+  /**
+   * The algebra a witness belongs to, where this processor generated it. It writes {@code
+   * XKind.Witness} beside an {@code XKindHelper} whose {@code narrow} returns the algebra {@code
+   * X}, so the helper names it wherever targetPackage put them; the witness's Kind must then be the
+   * one this processor writes for {@code X}. Shared with {@code PathSourceProcessor}, which notes a
+   * Path over such a witness.
+   */
+  static Optional<TypeElement> algebraOf(Elements elements, Element witness) {
+    return witness.getEnclosingElement() instanceof TypeElement kind
+        ? Optional.ofNullable(elements.getTypeElement(kind.getQualifiedName() + "Helper")).stream()
+            .flatMap(helper -> ElementFilter.methodsIn(helper.getEnclosedElements()).stream())
+            .filter(method -> method.getSimpleName().contentEquals("narrow"))
+            .map(ExecutableElement::getReturnType)
+            .filter(DeclaredType.class::isInstance)
+            .map(type -> (TypeElement) ((DeclaredType) type).asElement())
+            .filter(algebra -> algebra.getAnnotation(EffectAlgebra.class) != null)
+            .filter(
+                algebra ->
+                    kind.getQualifiedName()
+                        .contentEquals(
+                            ClassName.get(
+                                    generatedPackage(elements, algebra),
+                                    algebra.getSimpleName() + "Kind")
+                                .canonicalName()))
+            .findFirst()
+        : Optional.empty();
+  }
+
   @ExcludeFromJacocoGeneratedReport
   private void writeAlgebraClasses(
       TypeElement typeElement, List<TypeElement> permits, Element element) {
     try {
-      EffectAlgebra ann = typeElement.getAnnotation(EffectAlgebra.class);
-      String packageName = resolveTargetPackage(typeElement, ann);
+      String packageName = generatedPackage(processingEnv.getElementUtils(), typeElement);
       String baseName = typeElement.getSimpleName().toString();
       ClassName sourceClass = ClassName.get(typeElement);
 
@@ -390,7 +420,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                 baseName)
             .build();
 
-    // narrow method
+    // narrow method, whose return type algebraOf reads to find the algebra from its witness
     MethodSpec narrowMethod =
         MethodSpec.methodBuilder("narrow")
             .addAnnotation(
@@ -949,16 +979,15 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
   // Helpers
   // =========================================================================
 
-  private String resolveTargetPackage(TypeElement typeElement, EffectAlgebra annotation) {
-    String targetPackage = annotation.targetPackage();
-    if (targetPackage.isEmpty()) {
-      return processingEnv
-          .getElementUtils()
-          .getPackageOf(typeElement)
-          .getQualifiedName()
-          .toString();
-    }
-    return targetPackage;
+  /**
+   * The package this processor writes an algebra's types into: its targetPackage, or the algebra's
+   * own. Shared with {@code ComposeEffectsProcessor}, which names those types.
+   */
+  static String generatedPackage(Elements elements, TypeElement algebra) {
+    String targetPackage = algebra.getAnnotation(EffectAlgebra.class).targetPackage();
+    return targetPackage.isEmpty()
+        ? elements.getPackageOf(algebra).getQualifiedName().toString()
+        : targetPackage;
   }
 
   private boolean hasMapKMethod(TypeElement sealedInterface) {

@@ -425,8 +425,28 @@ left for javac to report: `cannot find symbol`, or `package TracedKind does not 
 `Witness` nested in a `Kind` interface that was never generated.
 
 [`@EffectAlgebra`](effect_handlers_intro.md) writes such a witness, but an effect algebra comes with
-a `Functor` and no `Monad`, so you have nothing to pass to `of`. Run an effect algebra through
-[`FreePath`](path_free.md) instead.
+a `Functor` and no `Monad`, so you have nothing to pass to `of`. The Path is generated all the
+same, and the processor writes a note at the witness:
+
+<!-- verify:reports "'ConsoleOpPath' needs a Monad<ConsoleOpKind.Witness>" -->
+```java
+@EffectAlgebra
+@PathSource(witness = ConsoleOpKind.Witness.class)
+public sealed interface ConsoleOp<A> permits ConsoleOp.PrintLine {
+
+  record PrintLine<A>(String message) implements ConsoleOp<A> {}
+}
+```
+
+```
+Note: @PathSource: 'ConsoleOpPath' needs a Monad<ConsoleOpKind.Witness>, and the effect algebra
+'ConsoleOp' has a Functor only. The Path's of and pure take that Monad, and @EffectAlgebra
+generates none, since an algebra's operations are instructions: Free chains them, and an
+interpreter runs them. Build programs from ConsoleOpOps and wrap each in a FreePath with
+Path.free(program, ConsoleOpFunctor.instance()), then remove @PathSource.
+```
+
+[`FreePath`](path_free.md) shows how to build such programs and interpret them.
 
 ### Deprecated capabilities {#deprecated-capabilities}
 
