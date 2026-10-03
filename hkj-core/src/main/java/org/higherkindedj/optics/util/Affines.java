@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.util;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -265,16 +266,16 @@ public final class Affines {
    * @param <A> The element type of the list.
    * @return An affine focusing on the first element of a list.
    */
-  public static <A> Affine<List<A>, A> listHead() {
+  public static <A extends @Nullable Object> Affine<List<A>, A> listHead() {
     return Affine.of(
-        list -> list.isEmpty() ? Optional.empty() : Optional.of(list.getFirst()),
+        list -> list.isEmpty() ? Optional.empty() : Optional.ofNullable(list.getFirst()),
         (list, value) -> {
           if (list.isEmpty()) {
-            return List.of(value);
+            return Collections.singletonList(value);
           }
           List<A> result = new ArrayList<>(list);
           result.set(0, value);
-          return List.copyOf(result);
+          return Collections.unmodifiableList(result);
         });
   }
 
@@ -300,16 +301,16 @@ public final class Affines {
    * @param <A> The element type of the list.
    * @return An affine focusing on the last element of a list.
    */
-  public static <A> Affine<List<A>, A> listLast() {
+  public static <A extends @Nullable Object> Affine<List<A>, A> listLast() {
     return Affine.of(
-        list -> list.isEmpty() ? Optional.empty() : Optional.of(list.getLast()),
+        list -> list.isEmpty() ? Optional.empty() : Optional.ofNullable(list.getLast()),
         (list, value) -> {
           if (list.isEmpty()) {
-            return List.of(value);
+            return Collections.singletonList(value);
           }
           List<A> result = new ArrayList<>(list);
           result.set(result.size() - 1, value);
-          return List.copyOf(result);
+          return Collections.unmodifiableList(result);
         });
   }
 
@@ -339,17 +340,19 @@ public final class Affines {
    * @param <A> The element type of the list.
    * @return An affine focusing on the element at the specified index.
    */
-  public static <A> Affine<List<A>, A> listAt(int index) {
+  public static <A extends @Nullable Object> Affine<List<A>, A> listAt(int index) {
     return Affine.of(
         list ->
-            (index >= 0 && index < list.size()) ? Optional.of(list.get(index)) : Optional.empty(),
+            (index >= 0 && index < list.size())
+                ? Optional.ofNullable(list.get(index))
+                : Optional.empty(),
         (list, value) -> {
           if (index < 0 || index >= list.size()) {
             return list;
           }
           List<A> result = new ArrayList<>(list);
           result.set(index, value);
-          return List.copyOf(result);
+          return Collections.unmodifiableList(result);
         });
   }
 
@@ -376,7 +379,8 @@ public final class Affines {
    * @param <A> The focus type.
    * @return A list containing zero or one element.
    */
-  public static <S, A> List<A> getAll(Affine<S, A> affine, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> List<A> getAll(
+      Affine<S, A> affine, S source) {
     return affine.getOptional(source).map(List::of).orElse(List.of());
   }
 
@@ -393,7 +397,8 @@ public final class Affines {
    * @param <A> The focus type.
    * @return The modified structure.
    */
-  public static <S, A> S modify(Affine<S, A> affine, Function<A, A> modifier, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> S modify(
+      Affine<S, A> affine, Function<A, A> modifier, S source) {
     return affine.modify(modifier, source);
   }
 
@@ -408,7 +413,8 @@ public final class Affines {
    * @param <A> The focus type.
    * @return {@code true} if a value is present, {@code false} otherwise.
    */
-  public static <S, A> boolean matches(Affine<S, A> affine, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> boolean matches(
+      Affine<S, A> affine, S source) {
     return affine.matches(source);
   }
 }

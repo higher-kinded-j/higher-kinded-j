@@ -60,7 +60,7 @@ public final class Traversals {
    * @param <A> The type of the focused parts.
    * @return A new, updated source structure.
    */
-  public static <S, A> @Nullable S modify(
+  public static <S extends @Nullable Object, A extends @Nullable Object> @Nullable S modify(
       final Traversal<S, A> traversal, final Function<A, A> f, S source) {
     Function<A, Kind<IdKind.Witness, A>> fId = a -> Id.of(f.apply(a));
     Kind<IdKind.Witness, S> resultInId = traversal.modifyF(fId, source, IdMonad.instance());
@@ -79,7 +79,8 @@ public final class Traversals {
    * @param <A> The type of the focused parts.
    * @return A {@code List} containing all the focused parts, in the order they were traversed.
    */
-  public static <S, A> List<A> getAll(final Traversal<S, A> traversal, final S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> List<A> getAll(
+      final Traversal<S, A> traversal, final S source) {
     final List<A> results = new ArrayList<>();
     traversal.modifyF(
         a -> {
@@ -128,7 +129,8 @@ public final class Traversals {
    * @param <A> The type of the value to filter
    * @return An affine {@code Traversal} that focuses on the value only if it matches
    */
-  public static <A> Traversal<A, A> filtered(final Predicate<? super A> predicate) {
+  public static <A extends @Nullable Object> Traversal<A, A> filtered(
+      final Predicate<? super A> predicate) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, A> modifyF(
@@ -147,7 +149,7 @@ public final class Traversals {
    * @param <A> The element type of the list.
    * @return A {@code Traversal} for the elements of a list.
    */
-  public static <A> Traversal<List<A>, A> forList() {
+  public static <A extends @Nullable Object> Traversal<List<A>, A> forList() {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
@@ -163,15 +165,15 @@ public final class Traversals {
    * Creates a {@code Traversal} that focuses on a specific value within a {@code Map} by its key.
    *
    * <p>If the key exists in the map, the traversal focuses on its corresponding value. If the key
-   * does not exist, the traversal focuses on zero elements, and any modification will have no
-   * effect.
+   * does not exist, or maps to {@code null}, the traversal focuses on zero elements, and any
+   * modification will have no effect.
    *
    * @param key The key to focus on in the map.
    * @param <K> The type of the map's keys.
    * @param <V> The type of the map's values.
    * @return A {@code Traversal} for a map value.
    */
-  public static <K, V> Traversal<Map<K, V>, V> forMap(final K key) {
+  public static <K, V extends @Nullable Object> Traversal<Map<K, V>, V> forMap(final K key) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
@@ -269,7 +271,7 @@ public final class Traversals {
    * @param <A> The element type of the set.
    * @return A {@code Traversal} for the elements of a set.
    */
-  public static <A> Traversal<Set<A>, A> forSet() {
+  public static <A extends @Nullable Object> Traversal<Set<A>, A> forSet() {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Set<A>> modifyF(
@@ -283,7 +285,7 @@ public final class Traversals {
    * The set every traversal in this class rebuilds into: iteration order preserved, nulls carried
    * through, and unmodifiable, as the list {@link #traverseList} hands back is.
    */
-  private static <A> Set<A> toUnmodifiableSet(final List<A> elements) {
+  private static <A extends @Nullable Object> Set<A> toUnmodifiableSet(final List<A> elements) {
     return Collections.unmodifiableSet(new LinkedHashSet<>(elements));
   }
 
@@ -324,7 +326,7 @@ public final class Traversals {
    * @return A {@code Traversal} for the elements of a collection.
    * @since 0.4.10
    */
-  public static <A> Traversal<Collection<A>, A> forCollection() {
+  public static <A extends @Nullable Object> Traversal<Collection<A>, A> forCollection() {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Collection<A>> modifyF(
@@ -357,8 +359,8 @@ public final class Traversals {
    * @param <A> The element type.
    * @return A {@code Traversal} for the elements of the container.
    */
-  public static <C extends Iterable<A>, A> Traversal<C, A> forIterableCollecting(
-      final Function<List<A>, C> collector) {
+  public static <C extends Iterable<A>, A extends @Nullable Object>
+      Traversal<C, A> forIterableCollecting(final Function<List<A>, C> collector) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, C> modifyF(
@@ -394,7 +396,7 @@ public final class Traversals {
    * @param <A> The element type of the array.
    * @return A {@code Traversal} for the elements of an array.
    */
-  public static <A> Traversal<A[], A> forArray() {
+  public static <A extends @Nullable Object> Traversal<A[], A> forArray() {
     return new Traversal<>() {
       @Override
       @SuppressWarnings("unchecked")
@@ -446,7 +448,7 @@ public final class Traversals {
    * @param <V> The type of the map's values.
    * @return A {@code Traversal} for all map values.
    */
-  public static <K, V> Traversal<Map<K, V>, V> forMapValues() {
+  public static <K, V extends @Nullable Object> Traversal<Map<K, V>, V> forMapValues() {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
@@ -485,7 +487,7 @@ public final class Traversals {
    * @param <V> The type of the map's values.
    * @return A {@code Traversal} for all values of the container.
    */
-  public static <M, K, V> Traversal<M, V> forMapValuesCollecting(
+  public static <M, K, V extends @Nullable Object> Traversal<M, V> forMapValuesCollecting(
       final Function<M, Map<K, V>> view, final Function<Map<K, V>, M> rebuild) {
     return new Traversal<>() {
       @Override
@@ -526,8 +528,8 @@ public final class Traversals {
    * @param <V> The type of the map's values.
    * @return A {@code Traversal} for all values of the map.
    */
-  public static <M extends Map<K, V>, K, V> Traversal<M, V> forMapValuesCollecting(
-      final Function<Map<K, V>, M> collector) {
+  public static <M extends Map<K, V>, K, V extends @Nullable Object>
+      Traversal<M, V> forMapValuesCollecting(final Function<Map<K, V>, M> collector) {
     return forMapValuesCollecting(m -> m, collector);
   }
 
@@ -552,10 +554,14 @@ public final class Traversals {
    * @return A {@code Kind<F, List<B>>}, representing the collected results within the applicative
    *     context.
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, List<B>> traverseList(
-      final List<? extends A> list,
-      final Function<? super A, ? extends Kind<F, ? extends B>> f,
-      final Applicative<F> applicative) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>,
+          A extends @Nullable Object,
+          B extends @Nullable Object>
+      Kind<F, List<B>> traverseList(
+          final List<? extends A> list,
+          final Function<? super A, ? extends Kind<F, ? extends B>> f,
+          final Applicative<F> applicative) {
 
     @SuppressWarnings("unchecked") // f produces Kind of (? extends B); B is the result element
     final Function<? super A, Kind<F, B>> effect = (Function<? super A, Kind<F, B>>) f;
@@ -621,7 +627,11 @@ public final class Traversals {
    * @return A {@code Kind<F, Map<K, W>>}, representing the transformed map within the applicative
    *     context.
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, K, V, W>
+  public static <
+          F extends WitnessArity<TypeArity.Unary>,
+          K,
+          V extends @Nullable Object,
+          W extends @Nullable Object>
       Kind<F, Map<K, W>> traverseMapValues(
           final Map<K, V> map,
           final Function<? super V, ? extends Kind<F, ? extends W>> f,
@@ -672,10 +682,14 @@ public final class Traversals {
    * @return A {@code Kind<F, Set<B>>}, representing the collected results within the applicative
    *     context.
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, Set<B>> traverseSet(
-      final Set<A> set,
-      final Function<? super A, ? extends Kind<F, ? extends B>> f,
-      final Applicative<F> applicative) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>,
+          A extends @Nullable Object,
+          B extends @Nullable Object>
+      Kind<F, Set<B>> traverseSet(
+          final Set<A> set,
+          final Function<? super A, ? extends Kind<F, ? extends B>> f,
+          final Applicative<F> applicative) {
 
     if (set.isEmpty()) {
       return applicative.of(Collections.emptySet());
@@ -709,7 +723,10 @@ public final class Traversals {
    *     applicative context.
    * @since 0.4.10
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, A, B>
+  public static <
+          F extends WitnessArity<TypeArity.Unary>,
+          A extends @Nullable Object,
+          B extends @Nullable Object>
       Kind<F, Collection<B>> traverseCollection(
           final Collection<A> collection,
           final Function<? super A, ? extends Kind<F, ? extends B>> f,
@@ -746,10 +763,14 @@ public final class Traversals {
    *     context. Note: Returns a List because creating generic arrays at runtime is not type-safe
    *     in Java.
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, A, B> Kind<F, List<B>> traverseArray(
-      final A[] array,
-      final Function<? super A, ? extends Kind<F, ? extends B>> f,
-      final Applicative<F> applicative) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>,
+          A extends @Nullable Object,
+          B extends @Nullable Object>
+      Kind<F, List<B>> traverseArray(
+          final A[] array,
+          final Function<? super A, ? extends Kind<F, ? extends B>> f,
+          final Applicative<F> applicative) {
 
     if (array.length == 0) {
       return applicative.of(new ArrayList<>());
@@ -817,7 +838,10 @@ public final class Traversals {
    * @param <B> The element type of the output list
    * @return The transformed list wrapped in the effect
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, A, B>
+  public static <
+          F extends WitnessArity<TypeArity.Unary>,
+          A extends @Nullable Object,
+          B extends @Nullable Object>
       Kind<F, List<B>> speculativeTraverseList(
           final List<A> list,
           final Predicate<? super A> predicate,
@@ -859,11 +883,12 @@ public final class Traversals {
    * @param <A> The element type
    * @return The transformed list wrapped in the effect
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, List<A>> traverseListIf(
-      final List<A> list,
-      final Predicate<? super A> predicate,
-      final Function<? super A, ? extends Kind<F, A>> f,
-      final Selective<F> selective) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A extends @Nullable Object>
+      Kind<F, List<A>> traverseListIf(
+          final List<A> list,
+          final Predicate<? super A> predicate,
+          final Function<? super A, ? extends Kind<F, A>> f,
+          final Selective<F> selective) {
     final Function<A, Kind<F, A>> conditionalF =
         a -> {
           if (predicate.test(a)) {
@@ -904,11 +929,12 @@ public final class Traversals {
    * @param <A> The element type
    * @return The transformed list wrapped in the effect
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, List<A>> traverseListUntil(
-      final List<A> list,
-      final Predicate<? super A> stopCondition,
-      final Function<? super A, ? extends Kind<F, A>> f,
-      final Selective<F> selective) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A extends @Nullable Object>
+      Kind<F, List<A>> traverseListUntil(
+          final List<A> list,
+          final Predicate<? super A> stopCondition,
+          final Function<? super A, ? extends Kind<F, A>> f,
+          final Selective<F> selective) {
 
     // Create a stateful function that tracks whether we've stopped
     final Function<A, State<Boolean, Kind<F, A>>> statefulF =
@@ -1050,7 +1076,8 @@ public final class Traversals {
    * @param <A> The type of the focused elements
    * @return A lens focusing on a list of all traversed elements
    */
-  public static <S, A> Lens<S, List<A>> partsOf(final Traversal<S, A> traversal) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> Lens<S, List<A>> partsOf(
+      final Traversal<S, A> traversal) {
     return Lens.of(
         // Getter: collect all elements into a mutable list
         source -> getAll(traversal, source),
@@ -1096,7 +1123,7 @@ public final class Traversals {
    * @param <A> The type of the focused elements (must be Comparable)
    * @return A new structure with focused elements sorted
    */
-  public static <S, A extends Comparable<? super A>> @Nullable S sorted(
+  public static <S extends @Nullable Object, A extends Comparable<? super A>> @Nullable S sorted(
       final Traversal<S, A> traversal, final S source) {
     final Lens<S, List<A>> partsLens = partsOf(traversal);
     final List<A> parts = new ArrayList<>(partsLens.get(source));
@@ -1134,7 +1161,7 @@ public final class Traversals {
    * @param <A> The type of the focused elements
    * @return A new structure with focused elements sorted
    */
-  public static <S, A> @Nullable S sorted(
+  public static <S extends @Nullable Object, A extends @Nullable Object> @Nullable S sorted(
       final Traversal<S, A> traversal, final Comparator<? super A> comparator, final S source) {
     final Lens<S, List<A>> partsLens = partsOf(traversal);
     final List<A> parts = new ArrayList<>(partsLens.get(source));
@@ -1171,7 +1198,8 @@ public final class Traversals {
    * @param <A> The type of the focused elements
    * @return A new structure with focused elements reversed
    */
-  public static <S, A> @Nullable S reversed(final Traversal<S, A> traversal, final S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> @Nullable S reversed(
+      final Traversal<S, A> traversal, final S source) {
     final Lens<S, List<A>> partsLens = partsOf(traversal);
     final List<A> parts = new ArrayList<>(partsLens.get(source));
     Collections.reverse(parts);
@@ -1210,7 +1238,8 @@ public final class Traversals {
    * @param <A> The type of the focused elements
    * @return A new structure with duplicate focused elements removed
    */
-  public static <S, A> @Nullable S distinct(final Traversal<S, A> traversal, final S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> @Nullable S distinct(
+      final Traversal<S, A> traversal, final S source) {
     final Lens<S, List<A>> partsLens = partsOf(traversal);
     final List<A> parts = partsLens.get(source);
     // Use LinkedHashSet to preserve order while removing duplicates

@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.indexed;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A simple immutable pair of two values, used for composing indices in indexed optics.
@@ -37,7 +38,7 @@ import org.jspecify.annotations.NullMarked;
  * @param second The second element of the pair
  */
 @NullMarked
-public record Pair<A, B>(A first, B second) {
+public record Pair<A extends @Nullable Object, B extends @Nullable Object>(A first, B second) {
 
   /**
    * Creates a new pair with the first element transformed.
@@ -46,7 +47,7 @@ public record Pair<A, B>(A first, B second) {
    * @param <C> The type of the new first element
    * @return A new pair with the transformed first element
    */
-  public <C> Pair<C, B> withFirst(C newFirst) {
+  public <C extends @Nullable Object> Pair<C, B> withFirst(C newFirst) {
     return new Pair<>(newFirst, second);
   }
 
@@ -57,7 +58,7 @@ public record Pair<A, B>(A first, B second) {
    * @param <C> The type of the new second element
    * @return A new pair with the transformed second element
    */
-  public <C> Pair<A, C> withSecond(C newSecond) {
+  public <C extends @Nullable Object> Pair<A, C> withSecond(C newSecond) {
     return new Pair<>(first, newSecond);
   }
 
@@ -79,7 +80,8 @@ public record Pair<A, B>(A first, B second) {
    * @param <B> The type of the second element
    * @return A new pair
    */
-  public static <A, B> Pair<A, B> of(A first, B second) {
+  public static <A extends @Nullable Object, B extends @Nullable Object> Pair<A, B> of(
+      A first, B second) {
     return new Pair<>(first, second);
   }
 }

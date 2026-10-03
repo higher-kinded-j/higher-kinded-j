@@ -15,6 +15,8 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.optics.indexed.Pair;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A **Lens** is an optic that provides a focused view into a part of a data structure. Think of it
@@ -29,7 +31,8 @@ import org.higherkindedj.optics.indexed.Pair;
  * @param <S> The source type of the whole structure (e.g., {@code User}).
  * @param <A> The target type of the focused part (e.g., {@code Address}).
  */
-public interface Lens<S, A> extends Optic<S, S, A, A> {
+public interface Lens<S extends @Nullable Object, A extends @Nullable Object>
+    extends Optic<S, S, A, A> {
 
   /**
    * Gets the focused part {@code A} from the whole structure {@code S}.
@@ -139,7 +142,7 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Lens} that focuses from {@code S} to {@code B}.
    */
-  default <B> Lens<S, B> andThen(Lens<A, B> other) {
+  default <B extends @Nullable Object> Lens<S, B> andThen(Lens<A, B> other) {
     Lens<S, A> self = this;
     return new Lens<>() {
       @Override
@@ -194,7 +197,7 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Lens} that focuses from {@code S} to {@code B}.
    */
-  default <B> Lens<S, B> andThen(final Iso<A, B> iso) {
+  default <B extends @Nullable Object> Lens<S, B> andThen(final Iso<A, B> iso) {
     Lens<S, A> self = this;
     return Lens.of(s -> iso.get(self.get(s)), (s, b) -> self.set(iso.reverseGet(b), s));
   }
@@ -252,11 +255,11 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Affine<S, B> andThen(final Prism<A, B> prism) {
+  default <B extends @Nullable Object> Affine<S, B> andThen(final Prism<A, B> prism) {
     Lens<S, A> self = this;
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return prism.getOptional(self.get(source));
       }
 
@@ -277,11 +280,11 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Affine<S, B> andThen(final Affine<A, B> affine) {
+  default <B extends @Nullable Object> Affine<S, B> andThen(final Affine<A, B> affine) {
     Lens<S, A> self = this;
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return affine.getOptional(self.get(source));
       }
 
@@ -334,7 +337,7 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused parts.
    * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
    */
-  default <B> Traversal<S, B> andThen(final Traversal<A, B> traversal) {
+  default <B extends @Nullable Object> Traversal<S, B> andThen(final Traversal<A, B> traversal) {
     Lens<S, A> self = this;
     return new Traversal<>() {
       @Override
@@ -356,7 +359,8 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * @param <A> The type of the focused part.
    * @return A new {@code Lens} instance.
    */
-  static <S, A> Lens<S, A> of(Function<S, A> getter, BiFunction<S, A, S> setter) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Lens<S, A> of(
+      Function<S, A> getter, BiFunction<S, A, S> setter) {
     return new Lens<>() {
       @Override
       public A get(S source) {
@@ -428,8 +432,9 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the second focused part.
    * @return A lens focusing on a {@link Pair} of both parts.
    */
-  static <S, A, B> Lens<S, Pair<A, B>> paired(
-      Lens<S, A> first, Lens<S, B> second, Function3<S, A, B, S> reconstructor) {
+  static <S extends @Nullable Object, A extends @Nullable Object, B extends @Nullable Object>
+      Lens<S, Pair<A, B>> paired(
+          Lens<S, A> first, Lens<S, B> second, Function3<S, A, B, S> reconstructor) {
     return Lens.of(
         s -> Pair.of(first.get(s), second.get(s)),
         (s, pair) -> reconstructor.apply(s, pair.first(), pair.second()));
@@ -477,8 +482,9 @@ public interface Lens<S, A> extends Optic<S, S, A, A> {
    * @return A lens focusing on a {@link Pair} of both parts.
    * @see #paired(Lens, Lens, Function3) for when other fields need to be preserved
    */
-  static <S, A, B> Lens<S, Pair<A, B>> paired(
-      Lens<S, A> first, Lens<S, B> second, BiFunction<A, B, S> constructor) {
+  static <S extends @Nullable Object, A extends @Nullable Object, B extends @Nullable Object>
+      Lens<S, Pair<A, B>> paired(
+          Lens<S, A> first, Lens<S, B> second, BiFunction<A, B, S> constructor) {
     return paired(first, second, (s, a, b) -> constructor.apply(a, b));
   }
 

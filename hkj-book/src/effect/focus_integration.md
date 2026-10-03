@@ -135,7 +135,7 @@ MaybePath<User> firstEmployee = employeesPath.toMaybePath(company);
 
 | Path Type | Method | Result |
 |-----------|--------|--------|
-| `FocusPath<S, A>` | `toMaybePath(S)` | Always `Just(a)` |
+| `FocusPath<S, A>` | `toMaybePath(S)` | `Just(a)`, or `Nothing` for a null focus |
 | `FocusPath<S, A>` | `toEitherPath(S)` | Always `Right(a)` |
 | `FocusPath<S, A>` | `toTryPath(S)` | Always `Success(a)` |
 | `FocusPath<S, A>` | `toIdPath(S)` | Always `Id(a)` |

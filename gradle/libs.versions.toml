@@ -18,6 +18,9 @@ truth = "1.4.5"
 protobuf = "4.36.2"
 # Compiles the book's .proto with the protoc release that matches protobuf-java
 protobuf-plugin = "0.10.0"
+# A consumer's nullness checker, run over a fixture: the library's own build runs none
+errorprone = "2.50.0"
+nullaway = "0.14.2"
 
 # Benchmarking
 jmh = "1.37"
@@ -87,6 +90,8 @@ archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref
 compile-testing = { module = "com.google.testing.compile:compile-testing", version.ref = "compile-testing" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
+errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
+nullaway = { module = "com.uber.nullaway:nullaway", version.ref = "nullaway" }
 
 # Benchmarking
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }

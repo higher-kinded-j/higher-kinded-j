@@ -46,6 +46,7 @@ Unsure where to begin contributing? You can start by looking through `good first
 * This project uses Gradle. You can use the included Gradle Wrapper (`gradlew`) to build and test.
     * Build the project: `./gradlew build`
     * Run tests: `./gradlew test`
+    * Check optic signatures under a nullness checker: `./gradlew :hkj-processor:nullnessTest` (part of `build`, not of `test`)
     * Generate JaCoCo coverage reports: `./gradlew test jacocoTestReport` (HTML report at `build/reports/jacoco/test/html/index.html`)
 
 ## Project Modules

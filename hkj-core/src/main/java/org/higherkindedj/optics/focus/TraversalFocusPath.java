@@ -13,6 +13,7 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Implementation of {@link TraversalPath} backed by a {@link Traversal}.
@@ -23,8 +24,8 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> the focused type
  */
 @NullMarked
-record TraversalFocusPath<S, A>(Traversal<S, A> traversal, List<String> segments)
-    implements TraversalPath<S, A> {
+record TraversalFocusPath<S extends @Nullable Object, A extends @Nullable Object>(
+    Traversal<S, A> traversal, List<String> segments) implements TraversalPath<S, A> {
 
   TraversalFocusPath {
     Objects.requireNonNull(traversal, "traversal must not be null");
@@ -55,28 +56,28 @@ record TraversalFocusPath<S, A>(Traversal<S, A> traversal, List<String> segments
   // ===== Composition Methods =====
 
   @Override
-  public <B> TraversalPath<S, B> via(Lens<A, B> lens) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Lens<A, B> lens) {
     return new TraversalFocusPath<>(traversal.andThen(lens), segments);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Prism<A, B> prism) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Prism<A, B> prism) {
     return new TraversalFocusPath<>(traversal.andThen(prism), segments);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Affine<A, B> affine) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Affine<A, B> affine) {
     // Traversal >>> Affine requires going through traversal composition
     return new TraversalFocusPath<>(traversal.andThen(affine.asTraversal()), segments);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Traversal<A, B> other) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Traversal<A, B> other) {
     return new TraversalFocusPath<>(traversal.andThen(other), segments);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Iso<A, B> iso) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Iso<A, B> iso) {
     // Compose via lens view of the iso
     Lens<A, B> lensView = Lens.of(iso::get, (a, b) -> iso.reverseGet(b));
     return new TraversalFocusPath<>(traversal.andThen(lensView), segments);

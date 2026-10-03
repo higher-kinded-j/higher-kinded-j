@@ -5,6 +5,7 @@ package org.higherkindedj.optics;
 import java.util.Objects;
 import java.util.Optional;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A type class for structures that have a canonical element-wise traversal.
@@ -99,7 +100,7 @@ import org.higherkindedj.optics.indexed.IndexedTraversal;
  * @see org.higherkindedj.hkt.Traverse
  */
 @FunctionalInterface
-public interface Each<S, A> {
+public interface Each<S extends @Nullable Object, A extends @Nullable Object> {
 
   /**
    * Returns the canonical traversal for all elements in this container.
@@ -177,7 +178,8 @@ public interface Each<S, A> {
    * @param <A> The element type
    * @return An Each instance that delegates to the given traversal
    */
-  static <S, A> Each<S, A> fromTraversal(Traversal<S, A> traversal) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Each<S, A> fromTraversal(
+      Traversal<S, A> traversal) {
     Objects.requireNonNull(traversal, "traversal must not be null");
     return () -> traversal;
   }
@@ -200,8 +202,8 @@ public interface Each<S, A> {
    * @param <A> The element type
    * @return An {@link EachIndexed} that provides both regular and indexed traversal
    */
-  static <I, S, A> EachIndexed<I, S, A> fromIndexedTraversal(
-      IndexedTraversal<I, S, A> indexedTraversal) {
+  static <I, S extends @Nullable Object, A extends @Nullable Object>
+      EachIndexed<I, S, A> fromIndexedTraversal(IndexedTraversal<I, S, A> indexedTraversal) {
     Objects.requireNonNull(indexedTraversal, "indexedTraversal must not be null");
     return () -> indexedTraversal;
   }

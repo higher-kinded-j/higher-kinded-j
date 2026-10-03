@@ -4,6 +4,7 @@ package org.higherkindedj.optics;
 
 import java.util.Optional;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A type class for structures that support indexed access with insertion and deletion semantics.
@@ -61,10 +62,12 @@ import java.util.function.Function;
  *
  * @param <S> The structure type (e.g., {@code Map<K, V>} or {@code List<A>})
  * @param <I> The index type (e.g., {@code K} for maps, {@code Integer} for lists)
- * @param <A> The value type stored at each index
+ * @param <A> The value type stored at each index. Unlike an optic's focus, it is held non-null,
+ *     because the lens focuses an {@code Optional<A>}: over a map whose values may be null, {@code
+ *     AtInstances.mapAt()} reads a null value as absent.
  */
 @FunctionalInterface
-public interface At<S, I, A> {
+public interface At<S extends @Nullable Object, I, A> {
 
   /**
    * Returns a {@link Lens} that focuses on the optional presence of a value at the given index.

@@ -26,6 +26,7 @@ import org.higherkindedj.optics.util.IndexedTraversals;
 import org.higherkindedj.optics.util.Traversals;
 import org.higherkindedj.optics.util.TraverseTraversals;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides standard {@link Each} instances for common Java types.
@@ -93,11 +94,12 @@ public final class EachInstances {
    * @param <A> The element type of the list
    * @return An {@code Each} instance for lists
    */
-  public static <A> EachIndexed<Integer, List<A>, A> listEach() {
+  public static <A extends @Nullable Object> EachIndexed<Integer, List<A>, A> listEach() {
     return new ListEach<>();
   }
 
-  private static final class ListEach<A> implements EachIndexed<Integer, List<A>, A> {
+  private static final class ListEach<A extends @Nullable Object>
+      implements EachIndexed<Integer, List<A>, A> {
     @Override
     public Traversal<List<A>, A> each() {
       return Traversals.forList();
@@ -121,11 +123,11 @@ public final class EachInstances {
    * @param <A> The element type of the set
    * @return An {@code Each} instance for sets
    */
-  public static <A> Each<Set<A>, A> setEach() {
+  public static <A extends @Nullable Object> Each<Set<A>, A> setEach() {
     return new SetEach<>();
   }
 
-  private static final class SetEach<A> implements Each<Set<A>, A> {
+  private static final class SetEach<A extends @Nullable Object> implements Each<Set<A>, A> {
     @Override
     public Traversal<Set<A>, A> each() {
       return Traversals.forSet();
@@ -147,11 +149,12 @@ public final class EachInstances {
    * @return An {@code Each} instance for collections
    * @since 0.4.10
    */
-  public static <A> Each<Collection<A>, A> collectionEach() {
+  public static <A extends @Nullable Object> Each<Collection<A>, A> collectionEach() {
     return new CollectionEach<>();
   }
 
-  private static final class CollectionEach<A> implements Each<Collection<A>, A> {
+  private static final class CollectionEach<A extends @Nullable Object>
+      implements Each<Collection<A>, A> {
     @Override
     public Traversal<Collection<A>, A> each() {
       return Traversals.forCollection();
@@ -171,11 +174,12 @@ public final class EachInstances {
    * @param <V> The value type of the map
    * @return An {@code Each} instance for map values
    */
-  public static <K, V> EachIndexed<K, Map<K, V>, V> mapValuesEach() {
+  public static <K, V extends @Nullable Object> EachIndexed<K, Map<K, V>, V> mapValuesEach() {
     return new MapValuesEach<>();
   }
 
-  private static final class MapValuesEach<K, V> implements EachIndexed<K, Map<K, V>, V> {
+  private static final class MapValuesEach<K, V extends @Nullable Object>
+      implements EachIndexed<K, Map<K, V>, V> {
     @Override
     public Traversal<Map<K, V>, V> each() {
       return Traversals.forMapValues();
@@ -224,11 +228,12 @@ public final class EachInstances {
    * @param <A> The element type of the array
    * @return An {@code Each} instance for arrays
    */
-  public static <A> EachIndexed<Integer, A[], A> arrayEach() {
+  public static <A extends @Nullable Object> EachIndexed<Integer, A[], A> arrayEach() {
     return new ArrayEach<>();
   }
 
-  private static final class ArrayEach<A> implements EachIndexed<Integer, A[], A> {
+  private static final class ArrayEach<A extends @Nullable Object>
+      implements EachIndexed<Integer, A[], A> {
     @Override
     public Traversal<A[], A> each() {
       return FocusPaths.arrayElements();
@@ -459,8 +464,8 @@ public final class EachInstances {
    * @param <A> The element type.
    * @return An {@code Each} instance for the container.
    */
-  public static <C extends Iterable<A>, A> Each<C, A> fromIterableCollecting(
-      Function<List<A>, C> collector) {
+  public static <C extends Iterable<A>, A extends @Nullable Object>
+      Each<C, A> fromIterableCollecting(Function<List<A>, C> collector) {
     return () -> Traversals.forIterableCollecting(collector);
   }
 
@@ -489,7 +494,7 @@ public final class EachInstances {
    * @param <V> The value type of the map.
    * @return An {@code Each} instance for the values of the container.
    */
-  public static <M, K, V> Each<M, V> mapValuesEachCollecting(
+  public static <M, K, V extends @Nullable Object> Each<M, V> mapValuesEachCollecting(
       Function<M, Map<K, V>> view, Function<Map<K, V>, M> rebuild) {
     return () -> Traversals.forMapValuesCollecting(view, rebuild);
   }
@@ -520,8 +525,8 @@ public final class EachInstances {
    * @param <V> The value type of the map.
    * @return An {@code Each} instance for the values of the map.
    */
-  public static <M extends Map<K, V>, K, V> Each<M, V> mapValuesEachCollecting(
-      Function<Map<K, V>, M> collector) {
+  public static <M extends Map<K, V>, K, V extends @Nullable Object>
+      Each<M, V> mapValuesEachCollecting(Function<Map<K, V>, M> collector) {
     return () -> Traversals.forMapValuesCollecting(collector);
   }
 }

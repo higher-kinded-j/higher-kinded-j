@@ -205,7 +205,7 @@ EitherPath<String, String> nickname =
 
 | Method | Return Type | Description |
 |--------|-------------|-------------|
-| `toMaybePath(S)` | `MaybePath<A>` | Always `Just(value)` |
+| `toMaybePath(S)` | `MaybePath<A>` | `Just(value)`, or `Nothing` for a null focus |
 | `toEitherPath(S)` | `EitherPath<E, A>` | Always `Right(value)` |
 | `toTryPath(S)` | `TryPath<A>` | Always `Success(value)` |
 | `toIdPath(S)` | `IdPath<A>` | Trivial effect wrapper |

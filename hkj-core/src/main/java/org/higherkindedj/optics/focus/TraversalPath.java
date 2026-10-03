@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.focus;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -34,7 +35,9 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.TraverseTraversals;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A type-safe path through a data structure that focuses on zero or more elements.
@@ -81,7 +84,8 @@ import org.jspecify.annotations.NullMarked;
  * @see FocusPaths for utility methods and optics factories
  */
 @NullMarked
-public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTraversalFocusPath {
+public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nullable Object>
+    permits TraversalFocusPath, TracedTraversalFocusPath {
 
   /**
    * The field-name segments this path carries, outermost first; empty when unlabelled.
@@ -117,12 +121,14 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
   /**
    * Extracts the first focused value if any.
    *
+   * <p>An {@link Optional} cannot hold {@code null}, so a null focus is passed over: on a {@code
+   * TraversalPath<S, @Nullable String>} this is the first focus that is not null.
+   *
    * @param source the source structure
    * @return Optional containing the first value, or empty if no elements are focused
    */
-  default Optional<A> preview(S source) {
-    List<A> all = getAll(source);
-    return all.isEmpty() ? Optional.empty() : Optional.of(all.get(0));
+  default Optional<@NonNull A> preview(S source) {
+    return getAll(source).stream().filter(Objects::nonNull).findFirst();
   }
 
   /**
@@ -190,12 +196,15 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
   /**
    * Finds the first focused element matching the predicate.
    *
+   * <p>As with {@link #preview(Object)}, a null focus is passed over even when the predicate
+   * accepts it.
+   *
    * @param predicate the condition to test
    * @param source the source structure
    * @return Optional containing the first matching element, or empty
    */
-  default Optional<A> find(Predicate<A> predicate, S source) {
-    return getAll(source).stream().filter(predicate).findFirst();
+  default Optional<@NonNull A> find(Predicate<A> predicate, S source) {
+    return getAll(source).stream().filter(predicate).filter(Objects::nonNull).findFirst();
   }
 
   // ===== Filtering =====
@@ -222,7 +231,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on the composed targets
    */
-  <B> TraversalPath<S, B> via(Lens<A, B> lens);
+  <B extends @Nullable Object> TraversalPath<S, B> via(Lens<A, B> lens);
 
   /**
    * Composes this path with a FocusPath.
@@ -234,7 +243,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on the composed targets
    */
-  default <B> TraversalPath<S, B> via(FocusPath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> via(FocusPath<A, B> other) {
     return new TraversalFocusPath<>(
         toTraversal().andThen(other.toLens()), Segments.concat(segments(), other.segments()));
   }
@@ -249,7 +258,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on the composed targets
    */
-  default <B> TraversalPath<S, B> via(AffinePath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> via(AffinePath<A, B> other) {
     return new TraversalFocusPath<>(
         toTraversal().andThen(other.toAffine().asTraversal()),
         Segments.concat(segments(), other.segments()));
@@ -266,7 +275,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on all nested targets
    */
-  default <B> TraversalPath<S, B> via(TraversalPath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> via(TraversalPath<A, B> other) {
     return new TraversalFocusPath<>(
         toTraversal().andThen(other.toTraversal()), Segments.concat(segments(), other.segments()));
   }
@@ -280,7 +289,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on matching elements
    */
-  <B> TraversalPath<S, B> via(Prism<A, B> prism);
+  <B extends @Nullable Object> TraversalPath<S, B> via(Prism<A, B> prism);
 
   /**
    * Composes this path with an affine, producing a TraversalPath.
@@ -289,7 +298,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on the composed targets
    */
-  <B> TraversalPath<S, B> via(Affine<A, B> affine);
+  <B extends @Nullable Object> TraversalPath<S, B> via(Affine<A, B> affine);
 
   /**
    * Composes this path with another traversal, producing a TraversalPath.
@@ -298,7 +307,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on all nested targets
    */
-  <B> TraversalPath<S, B> via(Traversal<A, B> traversal);
+  <B extends @Nullable Object> TraversalPath<S, B> via(Traversal<A, B> traversal);
 
   /**
    * Composes this path with an iso, producing a TraversalPath.
@@ -307,7 +316,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath with converted values
    */
-  <B> TraversalPath<S, B> via(Iso<A, B> iso);
+  <B extends @Nullable Object> TraversalPath<S, B> via(Iso<A, B> iso);
 
   // ===== then() Aliases =====
 
@@ -321,7 +330,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on the composed targets
    */
-  default <B> TraversalPath<S, B> then(Lens<A, B> lens) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(Lens<A, B> lens) {
     return via(lens);
   }
 
@@ -332,7 +341,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on the composed targets
    */
-  default <B> TraversalPath<S, B> then(FocusPath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(FocusPath<A, B> other) {
     return via(other);
   }
 
@@ -343,7 +352,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on matching elements
    */
-  default <B> TraversalPath<S, B> then(Prism<A, B> prism) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(Prism<A, B> prism) {
     return via(prism);
   }
 
@@ -354,7 +363,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on the composed targets
    */
-  default <B> TraversalPath<S, B> then(Affine<A, B> affine) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(Affine<A, B> affine) {
     return via(affine);
   }
 
@@ -365,7 +374,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on the composed targets
    */
-  default <B> TraversalPath<S, B> then(AffinePath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(AffinePath<A, B> other) {
     return via(other);
   }
 
@@ -376,7 +385,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on all nested targets
    */
-  default <B> TraversalPath<S, B> then(Traversal<A, B> traversal) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(Traversal<A, B> traversal) {
     return via(traversal);
   }
 
@@ -387,7 +396,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath focusing on all nested targets
    */
-  default <B> TraversalPath<S, B> then(TraversalPath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(TraversalPath<A, B> other) {
     return via(other);
   }
 
@@ -398,7 +407,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the new focused type
    * @return a TraversalPath with converted values
    */
-  default <B> TraversalPath<S, B> then(Iso<A, B> iso) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(Iso<A, B> iso) {
     return via(iso);
   }
 
@@ -538,7 +547,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @see #each(Each)
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, E> each() {
+  default <E extends @Nullable Object> TraversalPath<S, E> each() {
     return via((Traversal<A, E>) FocusPaths.listElements());
   }
 
@@ -553,7 +562,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @see org.higherkindedj.optics.Each
    * @see org.higherkindedj.optics.each.EachInstances
    */
-  default <E> TraversalPath<S, E> each(Each<A, E> eachInstance) {
+  default <E extends @Nullable Object> TraversalPath<S, E> each(Each<A, E> eachInstance) {
     return via(eachInstance.each());
   }
 
@@ -565,7 +574,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath focusing on elements at the index (skipping lists that are too short)
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, E> at(int index) {
+  default <E extends @Nullable Object> TraversalPath<S, E> at(int index) {
     // Compose with affine, which gives us a Traversal (Traversal >>> Affine = Traversal)
     Affine<A, E> indexAffine = (Affine<A, E>) FocusPaths.listAt(index);
     return via(indexAffine.asTraversal());
@@ -580,7 +589,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath focusing on values at the key (skipping maps without the key)
    */
   @SuppressWarnings("unchecked")
-  default <K, V> TraversalPath<S, V> atKey(K key) {
+  default <K, V extends @Nullable Object> TraversalPath<S, V> atKey(K key) {
     Affine<A, V> keyAffine = (Affine<A, V>) FocusPaths.mapAt(key);
     return via(keyAffine.asTraversal());
   }
@@ -608,7 +617,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <B> the inner value type
    * @return a TraversalPath focusing on inner values
    */
-  default <B> TraversalPath<S, B> some(Affine<A, B> affine) {
+  default <B extends @Nullable Object> TraversalPath<S, B> some(Affine<A, B> affine) {
     return via(affine);
   }
 
@@ -664,7 +673,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath over (head, tail) pairs
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, Pair<E, List<E>>> cons() {
+  default <E extends @Nullable Object> TraversalPath<S, Pair<E, List<E>>> cons() {
     Prism<A, Pair<E, List<E>>> prism =
         (Prism<A, Pair<E, List<E>>>) (Prism<?, ?>) FocusPaths.<E>listCons();
     return via(prism.asTraversal());
@@ -676,7 +685,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <E> the element type of the lists
    * @return a TraversalPath over (head, tail) pairs
    */
-  default <E> TraversalPath<S, Pair<E, List<E>>> headTail() {
+  default <E extends @Nullable Object> TraversalPath<S, Pair<E, List<E>>> headTail() {
     return cons();
   }
 
@@ -689,7 +698,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath over (init, last) pairs
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, Pair<List<E>, E>> snoc() {
+  default <E extends @Nullable Object> TraversalPath<S, Pair<List<E>, E>> snoc() {
     Prism<A, Pair<List<E>, E>> prism =
         (Prism<A, Pair<List<E>, E>>) (Prism<?, ?>) FocusPaths.<E>listSnoc();
     return via(prism.asTraversal());
@@ -701,7 +710,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <E> the element type of the lists
    * @return a TraversalPath over (init, last) pairs
    */
-  default <E> TraversalPath<S, Pair<List<E>, E>> initLast() {
+  default <E extends @Nullable Object> TraversalPath<S, Pair<List<E>, E>> initLast() {
     return snoc();
   }
 
@@ -714,7 +723,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath over head elements
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, E> head() {
+  default <E extends @Nullable Object> TraversalPath<S, E> head() {
     Affine<A, E> affine = (Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listHead();
     return via(affine.asTraversal());
   }
@@ -728,7 +737,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath over last elements
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, E> last() {
+  default <E extends @Nullable Object> TraversalPath<S, E> last() {
     Affine<A, E> affine = (Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listLast();
     return via(affine.asTraversal());
   }
@@ -742,7 +751,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath over tails
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, List<E>> tail() {
+  default <E extends @Nullable Object> TraversalPath<S, List<E>> tail() {
     Affine<A, List<E>> affine = (Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listTail();
     return via(affine.asTraversal());
   }
@@ -756,7 +765,7 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @return a TraversalPath over inits
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, List<E>> init() {
+  default <E extends @Nullable Object> TraversalPath<S, List<E>> init() {
     Affine<A, List<E>> affine = (Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listInit();
     return via(affine.asTraversal());
   }
@@ -770,7 +779,8 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * element) by focusing only on the first element if present for queries. For modifications, the
    * new value is applied to all elements of the underlying traversal to preserve update semantics.
    *
-   * <p><b>Query behaviour:</b> {@code getOptional} returns only the first element (if any).
+   * <p><b>Query behaviour:</b> {@code getOptional} returns only the first element (if any). A null
+   * first element reads as absent, as any null focus does through an {@link Optional}.
    *
    * <p><b>Modification behaviour:</b> {@code set} and {@code modify} update all elements targeted
    * by the underlying traversal, not just the first. This ensures that modifications are consistent
@@ -799,7 +809,10 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
     TraversalPath<S, A> self = this;
     return AffinePath.of(
         Affine.of(
-            self::preview,
+            s -> {
+              List<A> all = self.getAll(s);
+              return all.isEmpty() ? Optional.empty() : Optional.ofNullable(all.getFirst());
+            },
             (s, a) -> {
               // Set all focused elements to the same value
               // This preserves the semantics of the underlying traversal
@@ -1011,7 +1024,8 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * Extracts the first focused value (if any) and wraps it in a {@link MaybePath}.
    *
    * <p>This bridges from the optics domain to the effect domain, narrowing the traversal to at most
-   * one element. This is useful when you only need the first element of a traversal.
+   * one element. This is useful when you only need the first element of a traversal. As with {@link
+   * #preview(Object)}, a null focus is passed over.
    *
    * <h2>Example Usage</h2>
    *
@@ -1029,9 +1043,8 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param source the source structure
    * @return a MaybePath containing the first value if present
    */
-  default MaybePath<A> toMaybePath(S source) {
-    List<A> all = getAll(source);
-    return all.isEmpty() ? Path.nothing() : Path.just(all.get(0));
+  default MaybePath<@NonNull A> toMaybePath(S source) {
+    return preview(source).map(Path::just).orElseGet(Path::nothing);
   }
 
   // ===== Factory Methods =====
@@ -1044,7 +1057,8 @@ public sealed interface TraversalPath<S, A> permits TraversalFocusPath, TracedTr
    * @param <A> the focused type
    * @return a new TraversalPath
    */
-  static <S, A> TraversalPath<S, A> of(Traversal<S, A> traversal) {
+  static <S extends @Nullable Object, A extends @Nullable Object> TraversalPath<S, A> of(
+      Traversal<S, A> traversal) {
     return new TraversalFocusPath<>(traversal, List.of());
   }
 }

@@ -4,7 +4,9 @@ package org.higherkindedj.optics.extensions;
 
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Getter;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Extension utilities for {@link Getter} that integrate with higher-kinded-j core types.
@@ -153,7 +155,8 @@ public final class GetterExtensions {
    * @return {@code Maybe.just(value)} if the value is non-null, {@code Maybe.nothing()} if the
    *     value is null
    */
-  public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> Maybe<@NonNull A> getMaybe(
+      Getter<S, A> getter, S source) {
     return Maybe.fromNullable(getter.get(source));
   }
 }

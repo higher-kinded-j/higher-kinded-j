@@ -13,6 +13,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A traced implementation of {@link TraversalPath} that invokes an observer during get operations.
@@ -25,7 +26,7 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> the focused type
  */
 @NullMarked
-record TracedTraversalFocusPath<S, A>(
+record TracedTraversalFocusPath<S extends @Nullable Object, A extends @Nullable Object>(
     TraversalPath<S, A> underlying, BiConsumer<S, List<A>> observer)
     implements TraversalPath<S, A> {
 
@@ -62,27 +63,27 @@ record TracedTraversalFocusPath<S, A>(
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Lens<A, B> lens) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Lens<A, B> lens) {
     return underlying.via(lens);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Prism<A, B> prism) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Prism<A, B> prism) {
     return underlying.via(prism);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Affine<A, B> affine) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Affine<A, B> affine) {
     return underlying.via(affine);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Traversal<A, B> traversal) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Traversal<A, B> traversal) {
     return underlying.via(traversal);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Iso<A, B> iso) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Iso<A, B> iso) {
     return underlying.via(iso);
   }
 

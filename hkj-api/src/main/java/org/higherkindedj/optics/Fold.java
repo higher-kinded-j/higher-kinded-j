@@ -13,6 +13,8 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A **Fold** is a read-only optic for querying and extracting data from a structure. Think of it as
@@ -65,7 +67,8 @@ import org.higherkindedj.hkt.WitnessArity;
  * @param <S> The type of the whole structure (e.g., {@code Order}).
  * @param <A> The type of the focused parts (e.g., {@code Item}).
  */
-public interface Fold<S, A> extends Optic<S, S, A, A> {
+public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
+    extends Optic<S, S, A, A> {
 
   /**
    * Folds all focused parts into a summary value using a {@link Monoid}.
@@ -169,6 +172,9 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
   /**
    * Returns the first focused part, if any.
    *
+   * <p>An {@link Optional} cannot hold {@code null}, so a null focus is passed over: on a {@code
+   * Fold<S, @Nullable String>} this is the first focus that is not null.
+   *
    * <p>Example:
    *
    * <pre>{@code
@@ -179,8 +185,8 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
    * @return An {@link Optional} containing the first focused part, or {@code Optional.empty()} if
    *     there are no focuses.
    */
-  default Optional<A> preview(S source) {
-    return foldMap(firstOptionalMonoid(), Optional::of, source);
+  default Optional<@NonNull A> preview(S source) {
+    return foldMap(firstOptionalMonoid(), Optional::ofNullable, source);
   }
 
   /**
@@ -192,14 +198,19 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
    * Optional<Item> expensive = itemsFold.find(item -> item.price() > 100, order);
    * }</pre>
    *
+   * <p>As with {@link #preview(Object)}, a null focus is passed over even when the predicate
+   * accepts it.
+   *
    * @param predicate The predicate to test each focused part.
    * @param source The source structure.
    * @return An {@link Optional} containing the first matching part, or {@code Optional.empty()} if
    *     no part matches.
    */
-  default Optional<A> find(Predicate<? super A> predicate, S source) {
+  default Optional<@NonNull A> find(Predicate<? super A> predicate, S source) {
     return foldMap(
-        firstOptionalMonoid(), a -> predicate.test(a) ? Optional.of(a) : Optional.empty(), source);
+        firstOptionalMonoid(),
+        a -> predicate.test(a) ? Optional.ofNullable(a) : Optional.empty(),
+        source);
   }
 
   /**
@@ -287,7 +298,7 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused parts.
    * @return A new, composed {@link Fold}.
    */
-  default <B> Fold<S, B> andThen(final Fold<A, B> other) {
+  default <B extends @Nullable Object> Fold<S, B> andThen(final Fold<A, B> other) {
     Fold<S, A> self = this;
     return new Fold<>() {
       @Override
@@ -366,7 +377,8 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of values queried by the Fold
    * @return A new {@code Fold} that only focuses on elements where the query matches
    */
-  default <B> Fold<S, A> filterBy(Fold<A, B> query, Predicate<? super B> predicate) {
+  default <B extends @Nullable Object> Fold<S, A> filterBy(
+      Fold<A, B> query, Predicate<? super B> predicate) {
     Fold<S, A> self = this;
     return new Fold<>() {
       @Override
@@ -433,7 +445,7 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
    * @param <A> The type of the focused parts.
    * @return A fold that always returns the monoid identity value.
    */
-  static <S, A> Fold<S, A> empty() {
+  static <S extends @Nullable Object, A extends @Nullable Object> Fold<S, A> empty() {
     return new Fold<>() {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
@@ -463,7 +475,8 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
    * @return A fold that focuses on all parts from all provided folds.
    */
   @SafeVarargs
-  static <S, A> Fold<S, A> sum(Fold<S, A> first, Fold<S, A>... rest) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Fold<S, A> sum(
+      Fold<S, A> first, Fold<S, A>... rest) {
     Fold<S, A> result = first;
     for (Fold<S, A> fold : rest) {
       result = result.plus(fold);
@@ -485,7 +498,8 @@ public interface Fold<S, A> extends Optic<S, S, A, A> {
    * @param <A> The type of the focused parts.
    * @return A new {@code Fold} instance.
    */
-  static <S, A> Fold<S, A> of(Function<S, List<A>> getAll) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Fold<S, A> of(
+      Function<S, List<A>> getAll) {
     return new Fold<>() {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {

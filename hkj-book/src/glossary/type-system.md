@@ -413,7 +413,7 @@ final class Witness implements WitnessArity<TypeArity.Binary> {
 **How It Enforces Safety:**
 ```java
 // Kind requires F to implement WitnessArity
-public interface Kind<F extends WitnessArity<?>, A> {}
+public interface Kind<F extends WitnessArity<?>, A extends @Nullable Object> {}
 
 // Type classes specify the required arity
 public interface Functor<F extends WitnessArity<TypeArity.Unary>> {}

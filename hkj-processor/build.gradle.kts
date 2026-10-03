@@ -163,6 +163,53 @@ tasks.check {
 }
 
 // =============================================================================
+// Nullness checking, from a consumer's side
+// =============================================================================
+//
+// Compiles fixtures with NullAway in JSpecify mode, as a consumer who runs a nullness checker
+// does, over hand-written optics and the code the processors generate. No nullness checker runs
+// over the library itself, so without this suite a declaration that rejects a nullable type
+// argument is invisible to the build.
+//
+// Its own suite for two reasons: Error Prone needs jdk.compiler opened to the test JVM, and its
+// dependencies (Guava, protobuf-java and the rest) resolve on a classpath of their own rather than
+// against the versions the main tests pin.
+testing {
+    suites {
+        register<JvmTestSuite>("nullnessTest") {
+            dependencies {
+                implementation(project())
+                implementation(project(":hkj-core"))
+                implementation(project(":hkj-processor-plugins"))
+                implementation(platform(libs.junit.bom))
+                implementation(libs.junit.jupiter)
+                implementation(libs.compile.testing)
+                implementation(libs.truth)
+                implementation(libs.errorprone.core)
+                implementation(libs.nullaway)
+                runtimeOnly(libs.junit.platform.launcher)
+                // The root build adds -Xplugin:HKJChecker to every compile, this suite's included.
+                annotationProcessor(project(":hkj-checker"))
+            }
+            targets.all {
+                testTask.configure {
+                    useJUnitPlatform()
+                    val javacPackages = listOf("api", "file", "main", "model", "parser", "processing", "tree", "util")
+                    jvmArgs(javacPackages.map { "--add-exports=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
+                    jvmArgs(listOf("code", "comp").map { "--add-opens=jdk.compiler/com.sun.tools.javac.$it=ALL-UNNAMED" })
+                    // The suite checks types, not coverage: JaCoCo's report reads the main suite only.
+                    extensions.configure<JacocoTaskExtension> { isEnabled = false }
+                }
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(testing.suites.named("nullnessTest"))
+}
+
+// =============================================================================
 // Golden File Management
 // =============================================================================
 //

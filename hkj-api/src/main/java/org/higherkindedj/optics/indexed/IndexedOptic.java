@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Optic;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract representation of an indexed optic that provides access to both the index and value
@@ -40,7 +41,7 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> The focused element type
  */
 @NullMarked
-public interface IndexedOptic<I, S, A> {
+public interface IndexedOptic<I, S extends @Nullable Object, A extends @Nullable Object> {
 
   /**
    * The fundamental operation of any indexed optic. It applies a function to the focused parts,
@@ -108,7 +109,8 @@ public interface IndexedOptic<I, S, A> {
    * @param <B> The focus type of the other optic
    * @return A new indexed optic with paired indices
    */
-  default <J, B> IndexedOptic<Pair<I, J>, S, B> iandThen(IndexedOptic<J, A, B> other) {
+  default <J, B extends @Nullable Object> IndexedOptic<Pair<I, J>, S, B> iandThen(
+      IndexedOptic<J, A, B> other) {
     IndexedOptic<I, S, A> self = this;
     return new IndexedOptic<>() {
       @Override
@@ -141,7 +143,7 @@ public interface IndexedOptic<I, S, A> {
    * @param <B> The focus type of the other optic
    * @return A new indexed optic that preserves this optic's index
    */
-  default <B> IndexedOptic<I, S, B> andThen(Optic<A, A, B, B> other) {
+  default <B extends @Nullable Object> IndexedOptic<I, S, B> andThen(Optic<A, A, B, B> other) {
     IndexedOptic<I, S, A> self = this;
     return new IndexedOptic<>() {
       @Override

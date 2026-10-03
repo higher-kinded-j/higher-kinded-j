@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.validated.FieldError;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Setter;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -35,7 +36,8 @@ import org.jspecify.annotations.Nullable;
  * the identity update, so sparse request DTOs land one-to-one with no {@code if} ceremony. This
  * also means a sparse edit cannot <em>clear</em> a field — absent and "set to null" are
  * deliberately the same, in keeping with non-null domain models. The user functions given to {@code
- * modifyIfPresent} and {@code parseIfPresent} are never invoked with {@code null}.
+ * modifyIfPresent} and {@code parseIfPresent} are never invoked with {@code null}. Where a field's
+ * focus is nullable, {@code modify(path, current -> null)} is the edit that clears it.
  *
  * <p>Combine pure edits with {@link Edits#combine} (compile-time purity: a {@link FallibleEdit}
  * does not fit), or mix them with fallible edits in {@link Edits#accumulate}.
@@ -109,7 +111,7 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @return the edit (non-null)
    * @throws NullPointerException if {@code path} or {@code value} is null
    */
-  static <S, A> Edit<S> set(FocusPath<S, A> path, A value) {
+  static <S, A extends @Nullable Object> Edit<S> set(FocusPath<S, A> path, @NonNull A value) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(value, "value must not be null; absence is expressed with setIfPresent");
     return writeEdit(path::set, value);
@@ -126,7 +128,7 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @return the edit (non-null)
    * @throws NullPointerException if {@code setter} or {@code value} is null
    */
-  static <S, A> Edit<S> set(Setter<S, A> setter, A value) {
+  static <S, A extends @Nullable Object> Edit<S> set(Setter<S, A> setter, @NonNull A value) {
     Objects.requireNonNull(setter, "setter must not be null");
     Objects.requireNonNull(value, "value must not be null; absence is expressed with setIfPresent");
     return writeEdit(setter::set, value);
@@ -142,7 +144,7 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @return the edit (non-null)
    * @throws NullPointerException if {@code path} or {@code fn} is null
    */
-  static <S, A> Edit<S> modify(FocusPath<S, A> path, Function<A, A> fn) {
+  static <S, A extends @Nullable Object> Edit<S> modify(FocusPath<S, A> path, Function<A, A> fn) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(fn, "fn must not be null");
     return modifyEdit(path::modify, fn);
@@ -158,7 +160,7 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @return the edit (non-null)
    * @throws NullPointerException if {@code setter} or {@code fn} is null
    */
-  static <S, A> Edit<S> modify(Setter<S, A> setter, Function<A, A> fn) {
+  static <S, A extends @Nullable Object> Edit<S> modify(Setter<S, A> setter, Function<A, A> fn) {
     Objects.requireNonNull(setter, "setter must not be null");
     Objects.requireNonNull(fn, "fn must not be null");
     return modifyEdit(setter::modify, fn);
@@ -177,7 +179,8 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @return the edit (non-null)
    * @throws NullPointerException if {@code path} is null
    */
-  static <S, A> Edit<S> setIfPresent(FocusPath<S, A> path, @Nullable A value) {
+  static <S, A extends @Nullable Object> Edit<S> setIfPresent(
+      FocusPath<S, A> path, @Nullable A value) {
     Objects.requireNonNull(path, "path must not be null");
     return value == null ? noOp() : set(path, value);
   }
@@ -193,7 +196,8 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @return the edit (non-null)
    * @throws NullPointerException if {@code setter} is null
    */
-  static <S, A> Edit<S> setIfPresent(Setter<S, A> setter, @Nullable A value) {
+  static <S, A extends @Nullable Object> Edit<S> setIfPresent(
+      Setter<S, A> setter, @Nullable A value) {
     Objects.requireNonNull(setter, "setter must not be null");
     return value == null ? noOp() : set(setter, value);
   }
@@ -218,7 +222,7 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @return the edit (non-null)
    * @throws NullPointerException if {@code path} or {@code fn} is null
    */
-  static <S, A, B> Edit<S> modifyIfPresent(
+  static <S, A extends @Nullable Object, B> Edit<S> modifyIfPresent(
       FocusPath<S, A> path, @Nullable B value, BiFunction<? super B, ? super A, ? extends A> fn) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(fn, "fn must not be null");
@@ -238,7 +242,7 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @return the edit (non-null)
    * @throws NullPointerException if {@code setter} or {@code fn} is null
    */
-  static <S, A, B> Edit<S> modifyIfPresent(
+  static <S, A extends @Nullable Object, B> Edit<S> modifyIfPresent(
       Setter<S, A> setter, @Nullable B value, BiFunction<? super B, ? super A, ? extends A> fn) {
     Objects.requireNonNull(setter, "setter must not be null");
     Objects.requireNonNull(fn, "fn must not be null");
@@ -266,16 +270,16 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @throws NullPointerException if {@code path} or {@code parser} is null, or the parser returns
    *     null
    */
-  static <S, A, B> FallibleEdit<S> parseIfPresent(
+  static <S, A extends @Nullable Object, B> FallibleEdit<S> parseIfPresent(
       FocusPath<S, A> path,
       @Nullable B raw,
-      Function<? super B, Validated<NonEmptyList<FieldError>, A>> parser) {
+      Function<? super B, Validated<NonEmptyList<FieldError>, @NonNull A>> parser) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(parser, "parser must not be null");
     if (raw == null) {
       return noOp();
     }
-    Validated<NonEmptyList<FieldError>, A> parsed =
+    Validated<NonEmptyList<FieldError>, @NonNull A> parsed =
         Objects.requireNonNull(parser.apply(raw), "parser must not return null");
     return parsedEdit(path::set, locate(parsed, path.segments()));
   }
@@ -295,16 +299,16 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
    * @throws NullPointerException if {@code setter} or {@code parser} is null, or the parser returns
    *     null
    */
-  static <S, A, B> FallibleEdit<S> parseIfPresent(
+  static <S, A extends @Nullable Object, B> FallibleEdit<S> parseIfPresent(
       Setter<S, A> setter,
       @Nullable B raw,
-      Function<? super B, Validated<NonEmptyList<FieldError>, A>> parser) {
+      Function<? super B, Validated<NonEmptyList<FieldError>, @NonNull A>> parser) {
     Objects.requireNonNull(setter, "setter must not be null");
     Objects.requireNonNull(parser, "parser must not be null");
     if (raw == null) {
       return noOp();
     }
-    Validated<NonEmptyList<FieldError>, A> parsed =
+    Validated<NonEmptyList<FieldError>, @NonNull A> parsed =
         Objects.requireNonNull(parser.apply(raw), "parser must not return null");
     return parsedEdit(setter::set, parsed);
   }
@@ -337,11 +341,12 @@ public sealed interface Edit<S> extends FallibleEdit<S> permits Edit.Infallible 
     return new Infallible<>(Update.identity());
   }
 
-  private static <S, A> Edit<S> writeEdit(BiFunction<A, S, S> write, A value) {
+  private static <S, A extends @Nullable Object> Edit<S> writeEdit(
+      BiFunction<A, S, S> write, A value) {
     return new Infallible<>(s -> write.apply(value, s));
   }
 
-  private static <S, A> Edit<S> modifyEdit(
+  private static <S, A extends @Nullable Object> Edit<S> modifyEdit(
       BiFunction<Function<A, A>, S, S> modifier, Function<A, A> fn) {
     return new Infallible<>(s -> modifier.apply(fn, s));
   }

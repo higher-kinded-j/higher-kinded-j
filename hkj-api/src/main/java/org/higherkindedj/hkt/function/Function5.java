@@ -24,7 +24,13 @@ import org.jspecify.annotations.Nullable;
  *     org.higherkindedj.hkt.Kind, Function5)
  */
 @FunctionalInterface
-public interface Function5<T1, T2, T3, T4, T5, R> {
+public interface Function5<
+    T1 extends @Nullable Object,
+    T2 extends @Nullable Object,
+    T3 extends @Nullable Object,
+    T4 extends @Nullable Object,
+    T5 extends @Nullable Object,
+    R extends @Nullable Object> {
 
   /**
    * Applies this function to the given arguments.

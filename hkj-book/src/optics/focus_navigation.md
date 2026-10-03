@@ -143,7 +143,7 @@ The same decompositions are available directly on a path focusing a list, as `.h
 
 For the full treatment, including stack-safe operations on large lists, see [List Decomposition](list_decomposition.md).
 
-### `.nullable()`: Handle Null Values
+### `.nullable()`: Handle Null Values {#nullable-handle-null-values}
 
 For a field that may be null, `.nullable()` turns null into absence:
 
@@ -162,6 +162,8 @@ Optional<String> present = safePath.getOptional(new LegacyUser("Bob", "Bobby"));
 ~~~admonish tip title="A recognised `@Nullable` saves you the chain"
 Annotate the component and the generated method hands you the `AffinePath` already: the processor reads all six recognised annotations wherever their own `@Target` puts them (JSpecify's `TYPE_USE` on the component's type, JetBrains', AndroidX's and SpotBugs' on the accessor, JSR-305's and Jakarta's on the component itself). Chain `.nullable()` yourself for a field nobody annotated, as `LegacyUser` above. Two rules worth knowing: a container decides its own widening, so `@Nullable List<T>` is still `.each()`, and position counts as Java defines it, so `String @Nullable []` is a nullable array while `@Nullable String[]` and `List<@Nullable String>` annotate the elements.
 ~~~
+
+Under a JSpecify checker such as NullAway, every optic and Focus path type takes a nullable focus. So a path typed `FocusPath<LegacyUser, @Nullable String>` checks, and its `.nullable()` is the non-null `AffinePath<LegacyUser, String>`. A read that hands the focus back in an `Optional` or a `Maybe`, such as `getOptional`, `preview` or `toMaybePath`, passes over a null, since neither can hold one.
 
 ---
 

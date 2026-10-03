@@ -5,6 +5,7 @@ _Not released yet: these changes are on `main`, and the `latest` book describes 
 To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradle SNAPSHOT Configuration](../tooling/manual_setup.md#gradle-snapshot-configuration) shows.
 
 ~~~admonish info title="At a glance"
+- **Optics over a nullable field pass a nullness checker**: every optic and Focus path type takes a `@Nullable` focus.
 - **`@PathSource` has a page of its own**, beside `GenericPath` in the Effect Path chapter.
 - **`StateT` is built from its state function alone**, and `mapT` takes only the transformation, as on every other transformer.
 ~~~
@@ -16,6 +17,8 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ---
 
 ## Optics {#optics}
+
+- **Optics over a nullable field pass a nullness checker** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): every optic and Focus path type, and `Kind`, now takes a nullable type. So the `Lens<Config, @Nullable String>` the processor writes for a `@Nullable` component checks under JSpecify. A conversion into `Either`, `Validated` or an Effect Path does not take one yet. See [`.nullable()`: Handle Null Values](../optics/focus_navigation.md#nullable-handle-null-values).
 
 ---
 
@@ -55,6 +58,14 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ### What a running program can notice {#runtime-changes}
 
+#### Optics {#runtime-optics}
+
+- **A read through an `Optional` or a `Maybe` passes over a null focus** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `Fold.preview` and `find` give the first focus that is not null, where they threw `NullPointerException`. So do the same reads on `TraversalPath`, `OpticOps` and `FoldExtensions`.
+- **A positional optic reads a null element as absent** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `FocusPath.asAffine`, `toMaybePath`, `TraversalPath.headOption`, `IxedInstances.get` and the list optics `listAt`, `listHead` and `listLast` used to throw. Their setters, and the list prisms' `build`, now write a null.
+- **The element optics carry a null element through** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `Setter.forList`, and `FocusPaths.listElements`, `arrayElements`, `listCons`, `listSnoc`, `listTail`, `listInit` and `mapValues`, used to throw. A one-entry `mapValues` result is now a `HashMap`, as larger ones were.
+- **`Plans.preflight` walks a batched traversal to the end** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `truncated` is now `false` for one, since the walk's null stub values no longer halt it.
+- **`IxedInstances.contains` counts an index holding a null as present** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)).
+
 #### Effect Paths {#runtime-effect-paths}
 
 - **`StateT` equality leaves out the `Monad`** ([#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445)): two `StateT` values wrapping the same function instance are equal, with equal hash codes, whichever `Monad` built them. `toString` prints only `runStateTFn`, so a test comparing the old text fails.
@@ -63,6 +74,8 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 | Area | Now fails the build | Do this | Issue |
 |---|---|---|---|
+| Optics | Under a nullness checker, `FocusPaths.nullable()` assigned to an `Affine<X, X>` | Declare `Affine<@Nullable X, X>`, the type `Affines.nullable()` returns | [#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767) |
+| Optics | Under a nullness checker, `AtInstances.listAtWithPadding(null)` for a non-null element type | Pad with a value, or name a nullable element type: `AtInstances.<@Nullable String>listAtWithPadding(null)` | [#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767) |
 | Effect Paths | A `Monad` passed to `new StateT<>(fn, monad)`, `StateT.create`, `StateTKindHelper.stateT` or `StateT.mapT` | Run the recipe as [Before you upgrade](#before-you-upgrade) says, or drop the argument by hand | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
 | Effect Paths | A two-component `StateT` record pattern, or `StateT::create` or `StateT::new` as a `BiFunction` | Match the one component, or take a `Function`, by hand | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
 | Effect Paths | A `StateT` in `var` or a chained call over a witness with a type argument, such as `EitherKind.Witness<E>`, which now infers `Object` for it | Name the types, as in `StateT.<S, EitherKind.Witness<E>, A>create(fn)`, or declare the variable | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |

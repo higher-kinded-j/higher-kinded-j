@@ -9,6 +9,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An **Iso** (Isomorphism) is a reversible optic representing a lossless, two-way conversion
@@ -28,7 +30,8 @@ import org.higherkindedj.hkt.WitnessArity;
  * @param <S> The source type of the conversion.
  * @param <A> The target type of the conversion.
  */
-public interface Iso<S, A> extends Optic<S, S, A, A> {
+public interface Iso<S extends @Nullable Object, A extends @Nullable Object>
+    extends Optic<S, S, A, A> {
 
   /**
    * Performs the forward conversion from the source type {@code S} to the target type {@code A}.
@@ -71,7 +74,7 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
    * @param <B> The final target type of the new {@link Lens}.
    * @return A new {@link Lens} that focuses from {@code S} to {@code B}.
    */
-  default <B> Lens<S, B> andThen(Lens<A, B> other) {
+  default <B extends @Nullable Object> Lens<S, B> andThen(Lens<A, B> other) {
     return Lens.of(
         s -> other.get(this.get(s)), (s, b) -> this.reverseGet(other.set(b, this.get(s))));
   }
@@ -104,7 +107,7 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
    * @param <B> The final target type of the new {@link Prism}.
    * @return A new {@link Prism} that focuses from {@code S} to {@code B}.
    */
-  default <B> Prism<S, B> andThen(Prism<A, B> other) {
+  default <B extends @Nullable Object> Prism<S, B> andThen(Prism<A, B> other) {
     Iso<S, A> self = this;
     return Prism.of(s -> other.getOptional(self.get(s)), b -> self.reverseGet(other.build(b)));
   }
@@ -121,11 +124,11 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
    * @param <B> The final target type of the new {@link Affine}.
    * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Affine<S, B> andThen(Affine<A, B> other) {
+  default <B extends @Nullable Object> Affine<S, B> andThen(Affine<A, B> other) {
     Iso<S, A> self = this;
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return other.getOptional(self.get(source));
       }
 
@@ -147,7 +150,7 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
    * @param <B> The final target type of the new {@link Iso}.
    * @return A new {@link Iso} that converts from {@code S} to {@code B}.
    */
-  default <B> Iso<S, B> andThen(Iso<A, B> other) {
+  default <B extends @Nullable Object> Iso<S, B> andThen(Iso<A, B> other) {
     Iso<S, A> self = this;
     return Iso.of(s -> other.get(self.get(s)), b -> self.reverseGet(other.reverseGet(b)));
   }
@@ -218,7 +221,8 @@ public interface Iso<S, A> extends Optic<S, S, A, A> {
    * @param <A> The target type.
    * @return A new {@code Iso} instance.
    */
-  static <S, A> Iso<S, A> of(Function<S, A> get, Function<A, S> reverseGet) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Iso<S, A> of(
+      Function<S, A> get, Function<A, S> reverseGet) {
     return new Iso<>() {
       @Override
       public A get(S s) {

@@ -10,7 +10,9 @@ import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Implementation of {@link AffinePath} backed by an {@link Affine}.
@@ -21,8 +23,8 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> the focused type
  */
 @NullMarked
-record AffineFocusPath<S, A>(Affine<S, A> affine, List<String> segments)
-    implements AffinePath<S, A> {
+record AffineFocusPath<S extends @Nullable Object, A extends @Nullable Object>(
+    Affine<S, A> affine, List<String> segments) implements AffinePath<S, A> {
 
   AffineFocusPath {
     Objects.requireNonNull(affine, "affine must not be null");
@@ -31,7 +33,7 @@ record AffineFocusPath<S, A>(Affine<S, A> affine, List<String> segments)
   }
 
   @Override
-  public Optional<A> getOptional(S source) {
+  public Optional<@NonNull A> getOptional(S source) {
     return affine.getOptional(source);
   }
 
@@ -43,27 +45,27 @@ record AffineFocusPath<S, A>(Affine<S, A> affine, List<String> segments)
   // ===== Composition Methods =====
 
   @Override
-  public <B> AffinePath<S, B> via(Lens<A, B> lens) {
+  public <B extends @Nullable Object> AffinePath<S, B> via(Lens<A, B> lens) {
     return new AffineFocusPath<>(affine.andThen(lens), segments);
   }
 
   @Override
-  public <B> AffinePath<S, B> via(Prism<A, B> prism) {
+  public <B extends @Nullable Object> AffinePath<S, B> via(Prism<A, B> prism) {
     return new AffineFocusPath<>(affine.andThen(prism), segments);
   }
 
   @Override
-  public <B> AffinePath<S, B> via(Affine<A, B> other) {
+  public <B extends @Nullable Object> AffinePath<S, B> via(Affine<A, B> other) {
     return new AffineFocusPath<>(affine.andThen(other), segments);
   }
 
   @Override
-  public <B> AffinePath<S, B> via(Iso<A, B> iso) {
+  public <B extends @Nullable Object> AffinePath<S, B> via(Iso<A, B> iso) {
     return new AffineFocusPath<>(affine.andThen(iso), segments);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Traversal<A, B> traversal) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Traversal<A, B> traversal) {
     return new TraversalFocusPath<>(affine.andThen(traversal), segments);
   }
 

@@ -8,7 +8,9 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Prism;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Static utility methods for using {@link Prism} with hkj-core types (Maybe, Either, Validated).
@@ -56,7 +58,8 @@ public final class PrismExtensions {
    * @param <A> The type of the focused part
    * @return {@code Maybe.just(value)} if the prism matches, {@code Maybe.nothing()} otherwise
    */
-  public static <S, A> Maybe<A> getMaybe(Prism<S, A> prism, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> Maybe<@NonNull A> getMaybe(
+      Prism<S, A> prism, S source) {
     return prism.getOptional(source).map(Maybe::just).orElse(Maybe.nothing());
   }
 

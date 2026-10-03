@@ -29,7 +29,9 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.TraverseTraversals;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A type-safe path through a data structure that focuses on zero or one element.
@@ -77,7 +79,8 @@ import org.jspecify.annotations.NullMarked;
  * @since 0.3.8
  */
 @NullMarked
-public sealed interface AffinePath<S, A> permits AffineFocusPath {
+public sealed interface AffinePath<S extends @Nullable Object, A extends @Nullable Object>
+    permits AffineFocusPath {
 
   /**
    * The field-name segments this path carries, outermost first; empty when unlabelled.
@@ -108,7 +111,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param source the source structure
    * @return Optional containing the value, or empty if not focused
    */
-  Optional<A> getOptional(S source);
+  Optional<@NonNull A> getOptional(S source);
 
   /**
    * Creates a new source with the focused value replaced.
@@ -217,7 +220,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath focusing on the composed target
    */
-  <B> AffinePath<S, B> via(Lens<A, B> lens);
+  <B extends @Nullable Object> AffinePath<S, B> via(Lens<A, B> lens);
 
   /**
    * Composes this path with a FocusPath.
@@ -229,7 +232,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath focusing on the composed target
    */
-  default <B> AffinePath<S, B> via(FocusPath<A, B> other) {
+  default <B extends @Nullable Object> AffinePath<S, B> via(FocusPath<A, B> other) {
     return new AffineFocusPath<>(
         toAffine().andThen(other.toLens()), Segments.concat(segments(), other.segments()));
   }
@@ -244,7 +247,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  default <B> AffinePath<S, B> via(AffinePath<A, B> other) {
+  default <B extends @Nullable Object> AffinePath<S, B> via(AffinePath<A, B> other) {
     return new AffineFocusPath<>(
         toAffine().andThen(other.toAffine()), Segments.concat(segments(), other.segments()));
   }
@@ -259,7 +262,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return a TraversalPath focusing on multiple elements
    */
-  default <B> TraversalPath<S, B> via(TraversalPath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> via(TraversalPath<A, B> other) {
     return new TraversalFocusPath<>(
         toAffine().andThen(other.toTraversal()), Segments.concat(segments(), other.segments()));
   }
@@ -273,7 +276,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  <B> AffinePath<S, B> via(Prism<A, B> prism);
+  <B extends @Nullable Object> AffinePath<S, B> via(Prism<A, B> prism);
 
   /**
    * Composes this path with an affine, producing an AffinePath.
@@ -282,7 +285,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  <B> AffinePath<S, B> via(Affine<A, B> affine);
+  <B extends @Nullable Object> AffinePath<S, B> via(Affine<A, B> affine);
 
   /**
    * Composes this path with an iso, producing an AffinePath.
@@ -291,7 +294,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath focusing on the converted target
    */
-  <B> AffinePath<S, B> via(Iso<A, B> iso);
+  <B extends @Nullable Object> AffinePath<S, B> via(Iso<A, B> iso);
 
   /**
    * Composes this path with a traversal, producing a TraversalPath.
@@ -300,7 +303,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return a TraversalPath focusing on multiple elements
    */
-  <B> TraversalPath<S, B> via(Traversal<A, B> traversal);
+  <B extends @Nullable Object> TraversalPath<S, B> via(Traversal<A, B> traversal);
 
   // ===== then() Aliases =====
 
@@ -314,7 +317,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath focusing on the composed target
    */
-  default <B> AffinePath<S, B> then(Lens<A, B> lens) {
+  default <B extends @Nullable Object> AffinePath<S, B> then(Lens<A, B> lens) {
     return via(lens);
   }
 
@@ -325,7 +328,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath focusing on the composed target
    */
-  default <B> AffinePath<S, B> then(FocusPath<A, B> other) {
+  default <B extends @Nullable Object> AffinePath<S, B> then(FocusPath<A, B> other) {
     return via(other);
   }
 
@@ -336,7 +339,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  default <B> AffinePath<S, B> then(Prism<A, B> prism) {
+  default <B extends @Nullable Object> AffinePath<S, B> then(Prism<A, B> prism) {
     return via(prism);
   }
 
@@ -347,7 +350,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  default <B> AffinePath<S, B> then(Affine<A, B> affine) {
+  default <B extends @Nullable Object> AffinePath<S, B> then(Affine<A, B> affine) {
     return via(affine);
   }
 
@@ -358,7 +361,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  default <B> AffinePath<S, B> then(AffinePath<A, B> other) {
+  default <B extends @Nullable Object> AffinePath<S, B> then(AffinePath<A, B> other) {
     return via(other);
   }
 
@@ -369,7 +372,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath focusing on the composed target
    */
-  default <B> AffinePath<S, B> then(Iso<A, B> iso) {
+  default <B extends @Nullable Object> AffinePath<S, B> then(Iso<A, B> iso) {
     return via(iso);
   }
 
@@ -380,7 +383,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return a TraversalPath focusing on multiple elements
    */
-  default <B> TraversalPath<S, B> then(Traversal<A, B> traversal) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(Traversal<A, B> traversal) {
     return via(traversal);
   }
 
@@ -391,7 +394,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the new focused type
    * @return a TraversalPath focusing on multiple elements
    */
-  default <B> TraversalPath<S, B> then(TraversalPath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(TraversalPath<A, B> other) {
     return via(other);
   }
 
@@ -410,7 +413,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @see #each(Each)
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, E> each() {
+  default <E extends @Nullable Object> TraversalPath<S, E> each() {
     return via((Traversal<A, E>) FocusPaths.listElements());
   }
 
@@ -425,7 +428,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @see org.higherkindedj.optics.Each
    * @see org.higherkindedj.optics.each.EachInstances
    */
-  default <E> TraversalPath<S, E> each(Each<A, E> eachInstance) {
+  default <E extends @Nullable Object> TraversalPath<S, E> each(Each<A, E> eachInstance) {
     return via(eachInstance.each());
   }
 
@@ -437,7 +440,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return an AffinePath that may be empty if the index is out of bounds
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, E> at(int index) {
+  default <E extends @Nullable Object> AffinePath<S, E> at(int index) {
     return via((Affine<A, E>) FocusPaths.listAt(index));
   }
 
@@ -450,7 +453,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return an AffinePath that may be empty if the key is not present
    */
   @SuppressWarnings("unchecked")
-  default <K, V> AffinePath<S, V> atKey(K key) {
+  default <K, V extends @Nullable Object> AffinePath<S, V> atKey(K key) {
     return via((Affine<A, V>) FocusPaths.mapAt(key));
   }
 
@@ -475,7 +478,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <B> the inner value type
    * @return an AffinePath focusing on the inner value
    */
-  default <B> AffinePath<S, B> some(Affine<A, B> affine) {
+  default <B extends @Nullable Object> AffinePath<S, B> some(Affine<A, B> affine) {
     return via(affine);
   }
 
@@ -562,7 +565,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @see #headTail() for Java-familiar alias
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, Pair<E, List<E>>> cons() {
+  default <E extends @Nullable Object> AffinePath<S, Pair<E, List<E>>> cons() {
     return via((Prism<A, Pair<E, List<E>>>) (Prism<?, ?>) FocusPaths.<E>listCons());
   }
 
@@ -572,7 +575,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <E> the element type of the list
    * @return an AffinePath to a (head, tail) pair
    */
-  default <E> AffinePath<S, Pair<E, List<E>>> headTail() {
+  default <E extends @Nullable Object> AffinePath<S, Pair<E, List<E>>> headTail() {
     return cons();
   }
 
@@ -588,7 +591,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @see #initLast() for Java-familiar alias
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, Pair<List<E>, E>> snoc() {
+  default <E extends @Nullable Object> AffinePath<S, Pair<List<E>, E>> snoc() {
     return via((Prism<A, Pair<List<E>, E>>) (Prism<?, ?>) FocusPaths.<E>listSnoc());
   }
 
@@ -598,7 +601,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <E> the element type of the list
    * @return an AffinePath to an (init, last) pair
    */
-  default <E> AffinePath<S, Pair<List<E>, E>> initLast() {
+  default <E extends @Nullable Object> AffinePath<S, Pair<List<E>, E>> initLast() {
     return snoc();
   }
 
@@ -609,7 +612,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return an AffinePath to the head element
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, E> head() {
+  default <E extends @Nullable Object> AffinePath<S, E> head() {
     return via((Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listHead());
   }
 
@@ -620,7 +623,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return an AffinePath to the last element
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, E> last() {
+  default <E extends @Nullable Object> AffinePath<S, E> last() {
     return via((Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listLast());
   }
 
@@ -631,7 +634,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return an AffinePath to the tail
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, List<E>> tail() {
+  default <E extends @Nullable Object> AffinePath<S, List<E>> tail() {
     return via((Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listTail());
   }
 
@@ -642,7 +645,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return an AffinePath to the init
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, List<E>> init() {
+  default <E extends @Nullable Object> AffinePath<S, List<E>> init() {
     return via((Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listInit());
   }
 
@@ -697,12 +700,12 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param observer a consumer that receives the source and focused value during get operations
    * @return a new AffinePath that invokes the observer
    */
-  default AffinePath<S, A> traced(BiConsumer<S, Optional<A>> observer) {
+  default AffinePath<S, A> traced(BiConsumer<S, Optional<@NonNull A>> observer) {
     AffinePath<S, A> self = this;
     return AffinePath.of(
         Affine.of(
             s -> {
-              Optional<A> result = self.getOptional(s);
+              Optional<@NonNull A> result = self.getOptional(s);
               observer.accept(s, result);
               return result;
             },
@@ -769,7 +772,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param source the source structure
    * @return a MaybePath that is Just if the affine matches, Nothing otherwise
    */
-  default MaybePath<A> toMaybePath(S source) {
+  default MaybePath<@NonNull A> toMaybePath(S source) {
     return getOptional(source).map(Path::just).orElseGet(Path::nothing);
   }
 
@@ -797,10 +800,10 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @return an EitherPath containing Right if matched, Left otherwise
    * @throws NullPointerException if errorIfAbsent is null
    */
-  default <E> EitherPath<E, A> toEitherPath(S source, E errorIfAbsent) {
+  default <E> EitherPath<E, @NonNull A> toEitherPath(S source, E errorIfAbsent) {
     Objects.requireNonNull(errorIfAbsent, "errorIfAbsent must not be null");
     return getOptional(source)
-        .<EitherPath<E, A>>map(Path::right)
+        .<EitherPath<E, @NonNull A>>map(Path::right)
         .orElseGet(() -> Path.left(errorIfAbsent));
   }
 
@@ -835,10 +838,11 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @throws NullPointerException if errorSupplier is null, or returns null when the affine doesn't
    *     match
    */
-  default <E> EitherPath<E, A> toEitherPath(S source, Supplier<? extends E> errorSupplier) {
+  default <E> EitherPath<E, @NonNull A> toEitherPath(
+      S source, Supplier<? extends E> errorSupplier) {
     Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
     return getOptional(source)
-        .<EitherPath<E, A>>map(Path::right)
+        .<EitherPath<E, @NonNull A>>map(Path::right)
         .orElseGet(() -> Path.left(suppliedError(errorSupplier)));
   }
 
@@ -873,7 +877,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @throws NullPointerException if exceptionIfAbsent is null, or returns null when the affine
    *     doesn't match
    */
-  default TryPath<A> toTryPath(S source, Supplier<? extends Throwable> exceptionIfAbsent) {
+  default TryPath<@NonNull A> toTryPath(S source, Supplier<? extends Throwable> exceptionIfAbsent) {
     Objects.requireNonNull(exceptionIfAbsent, "exceptionIfAbsent must not be null");
     return getOptional(source)
         .map(Path::success)
@@ -904,7 +908,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param source the source structure
    * @return an OptionalPath containing the value if the affine matches
    */
-  default OptionalPath<A> toOptionalPath(S source) {
+  default OptionalPath<@NonNull A> toOptionalPath(S source) {
     return Path.optional(getOptional(source));
   }
 
@@ -918,7 +922,8 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <A> the focused type
    * @return a new AffinePath
    */
-  static <S, A> AffinePath<S, A> of(Affine<S, A> affine) {
+  static <S extends @Nullable Object, A extends @Nullable Object> AffinePath<S, A> of(
+      Affine<S, A> affine) {
     return new AffineFocusPath<>(affine, List.of());
   }
 
@@ -950,7 +955,7 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <A> the focused subtype
    * @return an AffinePath that focuses only on instances of the specified subclass
    */
-  static <S, A extends S> AffinePath<S, A> instanceOf(Class<A> subclass) {
+  static <S extends @Nullable Object, A extends S> AffinePath<S, A> instanceOf(Class<A> subclass) {
     Affine<S, A> affine =
         Affine.of(
             s -> subclass.isInstance(s) ? Optional.of(subclass.cast(s)) : Optional.empty(),
@@ -990,8 +995,8 @@ public sealed interface AffinePath<S, A> permits AffineFocusPath {
    * @param <A> the focused type (non-null)
    * @return an AffinePath that handles null safely
    */
-  @SuppressWarnings("nullness") // Intentionally working with nullable values
-  static <S, A> AffinePath<S, A> ofNullable(Function<S, A> getter, BiFunction<S, A, S> setter) {
+  static <S extends @Nullable Object, A> AffinePath<S, A> ofNullable(
+      Function<S, @Nullable A> getter, BiFunction<S, A, S> setter) {
     return of(Affine.of(s -> Optional.ofNullable(getter.apply(s)), (s, a) -> setter.apply(s, a)));
   }
 }

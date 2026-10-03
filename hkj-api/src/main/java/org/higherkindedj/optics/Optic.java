@@ -2,12 +2,14 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
+import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An abstract representation of an optic using the Profunctor representation. This is the core,
@@ -19,13 +21,31 @@ import org.jspecify.annotations.NullMarked;
  * <p>With profunctor support, optics can be manipulated using profunctor-style operations like
  * {@code contramap}, {@code map}, and {@code dimap} for powerful type transformations.
  *
+ * <h2>Nullness</h2>
+ *
+ * <p>Every type parameter admits a nullable type, so an optic can focus on a {@code @Nullable}
+ * field, {@code Lens<Config, @Nullable String>}, or take a nullable source, as {@code
+ * Affine<@Nullable A, A>} does when it rules the null out. Under a JSpecify checker the nullness
+ * travels with the type argument: on that lens {@code get} may return {@code null} and {@code set}
+ * accepts it.
+ *
+ * <p>A read that returns the focus in an {@link Optional} is the exception, because an {@code
+ * Optional} cannot hold {@code null}: there a null focus reads as absent, and the result is typed
+ * {@code Optional<@NonNull A>}. A conversion into an effect type that holds a value of its own,
+ * such as {@code Either}, {@code Validated}, {@code Free} or an Effect Path, does not support a
+ * nullable focus yet: those types' value parameters still exclude {@code null}.
+ *
  * @param <S> The type of the original whole structure.
  * @param <T> The type of the resulting whole structure.
  * @param <A> The type of the original focused part.
  * @param <B> The type of the resulting focused part.
  */
 @NullMarked
-public interface Optic<S, T, A, B> {
+public interface Optic<
+    S extends @Nullable Object,
+    T extends @Nullable Object,
+    A extends @Nullable Object,
+    B extends @Nullable Object> {
 
   /**
    * The fundamental operation of any optic. It applies a function to the focused part 'A' to
@@ -50,7 +70,8 @@ public interface Optic<S, T, A, B> {
    * @param <D> The type of the new resulting part.
    * @return A new, composed Optic.
    */
-  default <C, D> Optic<S, T, C, D> andThen(Optic<A, B, C, D> other) {
+  default <C extends @Nullable Object, D extends @Nullable Object> Optic<S, T, C, D> andThen(
+      Optic<A, B, C, D> other) {
     Optic<S, T, A, B> self = this;
     return new Optic<>() {
       @Override
@@ -69,7 +90,8 @@ public interface Optic<S, T, A, B> {
    * @param <C> New source type
    * @return A new optic that first applies {@code f}
    */
-  default <C> Optic<C, T, A, B> contramap(Function<? super C, ? extends S> f) {
+  default <C extends @Nullable Object> Optic<C, T, A, B> contramap(
+      Function<? super C, ? extends S> f) {
     Optic<S, T, A, B> self = this;
     return new Optic<C, T, A, B>() {
       @Override
@@ -88,7 +110,7 @@ public interface Optic<S, T, A, B> {
    * @param <U> New target type
    * @return A new optic that applies {@code g} to the result
    */
-  default <U> Optic<S, U, A, B> map(Function<? super T, ? extends U> g) {
+  default <U extends @Nullable Object> Optic<S, U, A, B> map(Function<? super T, ? extends U> g) {
     Optic<S, T, A, B> self = this;
     return new Optic<S, U, A, B>() {
       @Override
@@ -109,7 +131,7 @@ public interface Optic<S, T, A, B> {
    * @param <U> New target type
    * @return A new transformed optic
    */
-  default <C, U> Optic<C, U, A, B> dimap(
+  default <C extends @Nullable Object, U extends @Nullable Object> Optic<C, U, A, B> dimap(
       Function<? super C, ? extends S> f, Function<? super T, ? extends U> g) {
     // Implement dimap directly to avoid type inference issues with chaining
     Optic<S, T, A, B> self = this;

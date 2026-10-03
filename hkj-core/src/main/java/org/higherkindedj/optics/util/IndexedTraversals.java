@@ -65,7 +65,7 @@ public final class IndexedTraversals {
    * @param <A> The element type of the list
    * @return An {@link IndexedTraversal} for list elements with their indices
    */
-  public static <A> IndexedTraversal<Integer, List<A>, A> forList() {
+  public static <A extends @Nullable Object> IndexedTraversal<Integer, List<A>, A> forList() {
     return new IndexedTraversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> imodifyF(
@@ -115,7 +115,7 @@ public final class IndexedTraversals {
    * @param <V> The value type of the map
    * @return An {@link IndexedTraversal} for map values with their keys as indices
    */
-  public static <K, V> IndexedTraversal<K, Map<K, V>, V> forMap() {
+  public static <K, V extends @Nullable Object> IndexedTraversal<K, Map<K, V>, V> forMap() {
     return new IndexedTraversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> imodifyF(
@@ -158,7 +158,7 @@ public final class IndexedTraversals {
    * @param <A> The element type of the list
    * @return An {@link IndexedFold} for list elements with their indices
    */
-  public static <A> IndexedFold<Integer, List<A>, A> foldList() {
+  public static <A extends @Nullable Object> IndexedFold<Integer, List<A>, A> foldList() {
     return IndexedTraversals.<A>forList().asIndexedFold();
   }
 
@@ -172,7 +172,7 @@ public final class IndexedTraversals {
    * @param <V> The value type of the map
    * @return An {@link IndexedFold} for map values with their keys as indices
    */
-  public static <K, V> IndexedFold<K, Map<K, V>, V> foldMap() {
+  public static <K, V extends @Nullable Object> IndexedFold<K, Map<K, V>, V> foldMap() {
     return IndexedTraversals.<K, V>forMap().asIndexedFold();
   }
 
@@ -203,7 +203,7 @@ public final class IndexedTraversals {
    * @param <A> The element type
    * @return A new, updated source structure
    */
-  public static <I, S, A> @Nullable S imodify(
+  public static <I, S extends @Nullable Object, A extends @Nullable Object> @Nullable S imodify(
       final IndexedTraversal<I, S, A> traversal, final BiFunction<I, A, A> f, final S source) {
     BiFunction<I, A, Kind<IdKind.Witness, A>> fId = (i, a) -> Id.of(f.apply(i, a));
     Kind<IdKind.Witness, S> resultInId = traversal.imodifyF(fId, source, IdMonad.instance());
@@ -231,8 +231,8 @@ public final class IndexedTraversals {
    * @param <A> The element type
    * @return A list of index-value pairs
    */
-  public static <I, S, A> List<Pair<I, A>> toIndexedList(
-      final IndexedTraversal<I, S, A> traversal, final S source) {
+  public static <I, S extends @Nullable Object, A extends @Nullable Object>
+      List<Pair<I, A>> toIndexedList(final IndexedTraversal<I, S, A> traversal, final S source) {
     final List<Pair<I, A>> results = new ArrayList<>();
     traversal.imodifyF(
         (i, a) -> {
@@ -254,7 +254,7 @@ public final class IndexedTraversals {
    * @param <A> The element type
    * @return A list of all focused values
    */
-  public static <I, S, A> List<A> getAll(
+  public static <I, S extends @Nullable Object, A extends @Nullable Object> List<A> getAll(
       final IndexedTraversal<I, S, A> traversal, final S source) {
     final List<A> results = new ArrayList<>();
     traversal.imodifyF(
@@ -277,7 +277,8 @@ public final class IndexedTraversals {
    * @param <A> The element type
    * @return The count of focused elements
    */
-  public static <I, S, A> int length(final IndexedTraversal<I, S, A> traversal, final S source) {
+  public static <I, S extends @Nullable Object, A extends @Nullable Object> int length(
+      final IndexedTraversal<I, S, A> traversal, final S source) {
     return toIndexedList(traversal, source).size();
   }
 
@@ -292,8 +293,8 @@ public final class IndexedTraversals {
    * @param <A> The element type
    * @return A single effect containing the list of results
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, List<A>> sequenceList(
-      final List<Kind<F, A>> effects, final Applicative<F> app) {
+  public static <F extends WitnessArity<TypeArity.Unary>, A extends @Nullable Object>
+      Kind<F, List<A>> sequenceList(final List<Kind<F, A>> effects, final Applicative<F> app) {
     Kind<F, List<A>> result = app.of(new ArrayList<>());
 
     for (Kind<F, A> effect : effects) {
@@ -322,7 +323,7 @@ public final class IndexedTraversals {
    * @param <A> The element type
    * @return An indexed traversal that focuses based on index condition
    */
-  public static <I, A> IndexedTraversal<I, Pair<I, A>, A> filteredByIndex(
+  public static <I, A extends @Nullable Object> IndexedTraversal<I, Pair<I, A>, A> filteredByIndex(
       final Predicate<? super I> indexPredicate) {
     return new IndexedTraversal<>() {
       @Override

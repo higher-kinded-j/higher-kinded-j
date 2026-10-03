@@ -17,6 +17,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Fold;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An indexed fold for read-only querying and extraction with access to indices.
@@ -39,7 +40,8 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> The focused element type
  */
 @NullMarked
-public interface IndexedFold<I, S, A> extends IndexedOptic<I, S, A> {
+public interface IndexedFold<I, S extends @Nullable Object, A extends @Nullable Object>
+    extends IndexedOptic<I, S, A> {
 
   /**
    * Folds all focused parts into a summary value using a {@link Monoid}, with access to both index
@@ -197,6 +199,9 @@ public interface IndexedFold<I, S, A> extends IndexedOptic<I, S, A> {
   /**
    * Finds the first element that satisfies a predicate on the value.
    *
+   * <p>The {@link Optional} holds the pair, not the value, so unlike {@link Fold#find} it finds a
+   * null value like any other.
+   *
    * @param predicate Predicate on the focused value
    * @param source The source structure
    * @return The first matching index-value pair, or empty if none found
@@ -278,7 +283,8 @@ public interface IndexedFold<I, S, A> extends IndexedOptic<I, S, A> {
    * @param <B> The focus type of the other fold
    * @return A new {@link IndexedFold} with paired indices
    */
-  default <J, B> IndexedFold<Pair<I, J>, S, B> iandThen(IndexedFold<J, A, B> other) {
+  default <J, B extends @Nullable Object> IndexedFold<Pair<I, J>, S, B> iandThen(
+      IndexedFold<J, A, B> other) {
     IndexedFold<I, S, A> self = this;
     return new IndexedFold<>() {
       @Override
@@ -300,7 +306,7 @@ public interface IndexedFold<I, S, A> extends IndexedOptic<I, S, A> {
    * @param <B> The focus type of the other fold
    * @return A new {@link IndexedFold} preserving the outer index
    */
-  default <B> IndexedFold<I, S, B> andThen(Fold<A, B> other) {
+  default <B extends @Nullable Object> IndexedFold<I, S, B> andThen(Fold<A, B> other) {
     IndexedFold<I, S, A> self = this;
     return new IndexedFold<>() {
       @Override

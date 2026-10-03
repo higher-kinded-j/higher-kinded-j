@@ -10,6 +10,7 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Implementation of {@link FocusPath} backed by a {@link Lens}.
@@ -20,7 +21,8 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> the focused type
  */
 @NullMarked
-record LensFocusPath<S, A>(Lens<S, A> lens, List<String> segments) implements FocusPath<S, A> {
+record LensFocusPath<S extends @Nullable Object, A extends @Nullable Object>(
+    Lens<S, A> lens, List<String> segments) implements FocusPath<S, A> {
 
   LensFocusPath {
     Objects.requireNonNull(lens, "lens must not be null");
@@ -41,27 +43,27 @@ record LensFocusPath<S, A>(Lens<S, A> lens, List<String> segments) implements Fo
   // ===== Composition Methods =====
 
   @Override
-  public <B> FocusPath<S, B> via(Lens<A, B> other) {
+  public <B extends @Nullable Object> FocusPath<S, B> via(Lens<A, B> other) {
     return new LensFocusPath<>(lens.andThen(other), segments);
   }
 
   @Override
-  public <B> FocusPath<S, B> via(Iso<A, B> iso) {
+  public <B extends @Nullable Object> FocusPath<S, B> via(Iso<A, B> iso) {
     return new LensFocusPath<>(lens.andThen(iso), segments);
   }
 
   @Override
-  public <B> AffinePath<S, B> via(Prism<A, B> prism) {
+  public <B extends @Nullable Object> AffinePath<S, B> via(Prism<A, B> prism) {
     return new AffineFocusPath<>(lens.andThen(prism), segments);
   }
 
   @Override
-  public <B> AffinePath<S, B> via(Affine<A, B> affine) {
+  public <B extends @Nullable Object> AffinePath<S, B> via(Affine<A, B> affine) {
     return new AffineFocusPath<>(lens.andThen(affine), segments);
   }
 
   @Override
-  public <B> TraversalPath<S, B> via(Traversal<A, B> traversal) {
+  public <B extends @Nullable Object> TraversalPath<S, B> via(Traversal<A, B> traversal) {
     return new TraversalFocusPath<>(lens.andThen(traversal), segments);
   }
 

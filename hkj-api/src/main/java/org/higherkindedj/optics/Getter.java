@@ -5,6 +5,7 @@ package org.higherkindedj.optics;
 import java.util.Map;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Monoid;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A **Getter** is a read-only optic that focuses on exactly one element. Think of it as a
@@ -44,7 +45,7 @@ import org.higherkindedj.hkt.Monoid;
  * @param <S> The source type (the structure being queried).
  * @param <A> The target type (the value being extracted).
  */
-public interface Getter<S, A> extends Fold<S, A> {
+public interface Getter<S extends @Nullable Object, A extends @Nullable Object> extends Fold<S, A> {
 
   /**
    * Gets the focused value from the source structure.
@@ -85,7 +86,7 @@ public interface Getter<S, A> extends Fold<S, A> {
    * @param <B> The type of the final focused value.
    * @return A new composed Getter.
    */
-  default <B> Getter<S, B> andThen(Getter<A, B> other) {
+  default <B extends @Nullable Object> Getter<S, B> andThen(Getter<A, B> other) {
     Getter<S, A> self = this;
     return new Getter<>() {
       @Override
@@ -124,7 +125,8 @@ public interface Getter<S, A> extends Fold<S, A> {
    * @param <A> The target type.
    * @return A new Getter.
    */
-  static <S, A> Getter<S, A> of(Function<S, A> getter) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Getter<S, A> of(
+      Function<S, A> getter) {
     return getter::apply;
   }
 
@@ -145,7 +147,8 @@ public interface Getter<S, A> extends Fold<S, A> {
    * @param <A> The target type.
    * @return A new Getter.
    */
-  static <S, A> Getter<S, A> to(Function<S, A> getter) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Getter<S, A> to(
+      Function<S, A> getter) {
     return of(getter);
   }
 
@@ -164,7 +167,7 @@ public interface Getter<S, A> extends Fold<S, A> {
    * @param <A> The target type.
    * @return A Getter that always returns the given value.
    */
-  static <S, A> Getter<S, A> constant(A value) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Getter<S, A> constant(A value) {
     return source -> value;
   }
 
@@ -181,7 +184,7 @@ public interface Getter<S, A> extends Fold<S, A> {
    * @param <S> The source and target type.
    * @return An identity Getter.
    */
-  static <S> Getter<S, S> identity() {
+  static <S extends @Nullable Object> Getter<S, S> identity() {
     return source -> source;
   }
 
@@ -192,7 +195,8 @@ public interface Getter<S, A> extends Fold<S, A> {
    * @param <B> The type of the second element.
    * @return A Getter that extracts the first element.
    */
-  static <A, B> Getter<Map.Entry<A, B>, A> first() {
+  static <A extends @Nullable Object, B extends @Nullable Object>
+      Getter<Map.Entry<A, B>, A> first() {
     return Map.Entry::getKey;
   }
 
@@ -203,7 +207,8 @@ public interface Getter<S, A> extends Fold<S, A> {
    * @param <B> The type of the second element.
    * @return A Getter that extracts the second element.
    */
-  static <A, B> Getter<Map.Entry<A, B>, B> second() {
+  static <A extends @Nullable Object, B extends @Nullable Object>
+      Getter<Map.Entry<A, B>, B> second() {
     return Map.Entry::getValue;
   }
 }
