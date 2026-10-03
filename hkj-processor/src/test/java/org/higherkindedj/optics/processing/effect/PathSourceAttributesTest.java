@@ -27,6 +27,7 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.TypeElement;
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.higherkindedj.hkt.effect.annotation.PathSource;
 import org.higherkindedj.optics.processing.CompanionAnnotationProcessor;
 import org.higherkindedj.optics.processing.GeneratorTestHelper;
@@ -868,6 +869,59 @@ class PathSourceAttributesTest {
 
       assertThat(compilation).succeededWithoutWarnings();
       assertThat(pathSourceNotes(compilation)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("is not drawn by a same-named Kind in another package, which keeps its own notes")
+    void notForASameNamedKindElsewhere() {
+      final JavaFileObject console =
+          JavaFileObjects.forSourceString(
+              "com.other.Console",
+              """
+              package com.other;
+
+              import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+              @PathSource(witness = ConsoleOpKind.Witness.class, errorType = String.class)
+              public interface Console<A> {}
+              """);
+
+      final Compilation compilation =
+          compileWithAlgebras(
+              CONSOLE_OP,
+              JavaFileObjects.forSourceString(
+                  "com.other.ConsoleOpKind",
+                  """
+                  package com.other;
+
+                  import org.higherkindedj.hkt.Kind;
+                  import org.higherkindedj.hkt.TypeArity;
+                  import org.higherkindedj.hkt.WitnessArity;
+
+                  public interface ConsoleOpKind<A> extends Kind<ConsoleOpKind.Witness, A> {
+                    final class Witness implements WitnessArity<TypeArity.Unary> {}
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.other.ConsoleOpKindHelper",
+                  """
+                  package com.other;
+
+                  import com.example.ConsoleOp;
+
+                  public final class ConsoleOpKindHelper {
+                    public static <A> ConsoleOp<A> narrow(ConsoleOpKind<A> kind) {
+                      throw new UnsupportedOperationException();
+                    }
+                  }
+                  """),
+              console);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(pathSourceNotes(compilation))
+          .singleElement(InstanceOfAssertFactories.STRING)
+          .startsWith(
+              "@PathSource: errorType 'String' has no effect on the generated 'ConsolePath'");
     }
 
     @ParameterizedTest(name = "{0}")
