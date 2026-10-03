@@ -202,12 +202,12 @@ tasks.register<Test>("updateGoldenFiles") {
 tasks.register<Test>("verifyGoldenFiles") {
     description = "Regenerates golden files and fails if any differs from the committed copy"
     regeneratesGoldenFiles()
-    val goldenDir = "src/test/resources/golden"
+    val goldenDir = file("src/test/resources/golden").relativeTo(rootDir).invariantSeparatorsPath
     val processFactory = providers
-    val moduleDir = projectDir
+    val repositoryDir = rootDir
     val changedGoldenFiles = {
         processFactory.exec {
-            workingDir = moduleDir
+            workingDir = repositoryDir
             commandLine("git", "--no-optional-locks", "status", "--porcelain", "--untracked-files=all", "--", goldenDir)
         }.standardOutput.asText.get()
     }
