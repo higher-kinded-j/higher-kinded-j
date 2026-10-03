@@ -153,9 +153,9 @@ tasks.register("benchmarkValidation") {
     dependsOn(":hkj-benchmarks:test")
 
     // Ensure proper ordering
-    tasks.findByPath(":hkj-core:jacocoTestReport")?.mustRunAfter(":hkj-core:test")
-    tasks.findByPath(":hkj-benchmarks:jmh")?.mustRunAfter(":hkj-core:jacocoTestReport")
-    tasks.findByPath(":hkj-benchmarks:test")?.mustRunAfter(":hkj-benchmarks:jmh")
+    tasks.getByPath(":hkj-core:jacocoTestReport").mustRunAfter(":hkj-core:test")
+    tasks.getByPath(":hkj-benchmarks:jmh").mustRunAfter(":hkj-core:jacocoTestReport")
+    tasks.getByPath(":hkj-benchmarks:test").mustRunAfter(":hkj-benchmarks:jmh")
 
     doLast {
         println("\n" + "=".repeat(70))
