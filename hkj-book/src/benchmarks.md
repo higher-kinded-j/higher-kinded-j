@@ -310,13 +310,13 @@ The `releaseReadiness` task is a single-command quality gate that runs every ver
 
 | Step | Task | What It Checks | Speed |
 |------|------|---------------|-------|
-| 1 | `spotlessCheck` | Code formatting (Google Java Format) | Seconds |
-| 2 | `build` | Compilation, all unit tests, JaCoCo coverage | Minutes |
+| 1 | `spotlessCheck` | Code formatting (Google Java Format), in every module | Seconds |
+| 2 | `build` | Compilation, all unit tests, JaCoCo coverage, in every module except `hkj-benchmarks` | Minutes |
 | 3 | `:hkj-benchmarks:jmh` | JMH benchmarks execute successfully | Minutes |
 | 4 | `:hkj-benchmarks:test` | Benchmark assertion tests pass | Seconds |
 | 5 | `:hkj-processor:pitest` (full) | Mutation testing with STRONGER mutators | Slowest |
 
-If any step fails, the build stops immediately. All five must pass before a release.
+If any step fails, the build stops immediately. All five must pass before a release. Step 2 leaves out `hkj-benchmarks`, because its build would run the benchmark assertion tests before step 3 has written the results they read.
 
 ~~~admonish info title="Pitest Full Profile"
 The release gate runs pitest with `-Ppitest.profile=full`, which uses STRONGER mutators and all available CPU cores. This is more thorough than the default conservative profile used during local development.
