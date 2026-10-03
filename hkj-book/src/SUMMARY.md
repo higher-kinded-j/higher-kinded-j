@@ -305,7 +305,7 @@
     - [Concurrency & Resilience](glossary/concurrency.md)
   - [Release History](release-history.md)
     - [Upgrading](release-history/upgrading.md)
-    - [Unreleased: 0.4.12](release-history/unreleased.md)
+    - [Unreleased: 0.5.0](release-history/unreleased.md)
     - [v0.4.11](release-history/v0_4_11.md)
     - [v0.4.10](release-history/v0_4_10.md)
     - [v0.4.9](release-history/v0_4_9.md)

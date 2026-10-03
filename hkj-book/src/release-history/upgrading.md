@@ -26,9 +26,9 @@ Each of these compiles today with javac's `[removal]` warning, which fails a `-W
 
 ---
 
-## To 0.4.12 {#to-0412}
+## To 0.5.0 {#to-050}
 
-This release is not out yet. Its notes split what changes into what a running program can notice and what stops a build that compiled: read [Upgrading from 0.4.11](unreleased.md#upgrading) before you move.
+This release is not out yet. Every API in [Removals in 0.5.0](#removals-in-050) is due to go in it, so migrate those first: the `MigrateDeprecationsTo0_5_0` recipe does most of the work. Its notes split what changes into what a running program can notice and what stops a build that compiled: read [Upgrading from 0.4.11](unreleased.md#upgrading) before you move.
 
 ---
 
@@ -104,4 +104,4 @@ Besides the deprecations in [Removals in 0.5.0](#removals-in-050), the notes for
 ---
 
 **Previous:** [Release History](../release-history.md)
-**Next:** [Unreleased: 0.4.12](unreleased.md)
+**Next:** [Unreleased: 0.5.0](unreleased.md)

@@ -3,7 +3,7 @@
 What changed in each version of Higher-Kinded-J, and what to do when you move to it. Each release has notes, most with a link from each change to the issue or pull request behind it.
 
 - **Upgrading?** [Upgrading](release-history/upgrading.md) lists, release by release, what can stop a build that compiled or change what a program does. It also lists every API due for removal in 0.5.0.
-- **Following `main`?** [Unreleased: 0.4.12](release-history/unreleased.md) collects the changes since 0.4.11.
+- **Following `main`?** [Unreleased: 0.5.0](release-history/unreleased.md) collects the changes since 0.4.11.
 - **Looking for a feature?** [Since which version?](#since-which-version) names the release that first shipped it.
 - **Searching every release at once?** The book's search reads every page of this chapter.
 
