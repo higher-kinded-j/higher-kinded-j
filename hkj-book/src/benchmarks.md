@@ -311,12 +311,14 @@ The `releaseReadiness` task is a single-command quality gate that runs every ver
 | Step | Task | What It Checks | Speed |
 |------|------|---------------|-------|
 | 1 | `spotlessCheck` | Code formatting (Google Java Format), in every module | Seconds |
-| 2 | `build` | Compilation and unit tests in every module except `hkj-benchmarks`, and the JaCoCo coverage limits of the modules that set them | Minutes |
-| 3 | `:hkj-benchmarks:jmh` | JMH benchmarks execute successfully | Minutes |
-| 4 | `:hkj-benchmarks:test` | Benchmark assertion tests pass | Seconds |
-| 5 | `:hkj-processor:pitest` (full) | Mutation testing with STRONGER mutators | Slowest |
+| 2 | `britishSpellingCheck` | British spelling in the repository's prose; needs Node.js | Seconds |
+| 3 | `:hkj-processor:verifyGoldenFiles` | The processor's golden files, regenerated, are identical to the committed copies | About a minute |
+| 4 | `build` | Compilation and unit tests in every module except `hkj-benchmarks`, and the JaCoCo coverage limits of the modules that set them | Minutes |
+| 5 | `:hkj-benchmarks:jmh` | JMH benchmarks execute successfully | Minutes |
+| 6 | `:hkj-benchmarks:test` | Benchmark assertion tests pass | Seconds |
+| 7 | `:hkj-processor:pitest` (full) | Mutation testing with STRONGER mutators | Slowest |
 
-If any step fails, the build stops immediately. All five must pass before a release. Step 2 leaves out `hkj-benchmarks`, whose build includes the benchmark assertion tests: they run as step 4, once step 3 has written fresh results.
+If any step fails, the build stops immediately. All seven must pass before a release. Step 3 regenerates the golden files, so when it fails, the regenerated ones are left in place to review and commit. Step 4 leaves out `hkj-benchmarks`, whose build includes the benchmark assertion tests: they run as step 6, once step 5 has written fresh results.
 
 ~~~admonish info title="Pitest Full Profile"
 The release gate runs pitest with `-Ppitest.profile=full`, which uses STRONGER mutators and all available CPU cores. This is more thorough than the default conservative profile used during local development.
