@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.processing.AbstractProcessor;
@@ -19,6 +20,8 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
+import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
 import org.higherkindedj.optics.processing.util.ExcludeFromJacocoGeneratedReport;
@@ -159,6 +162,26 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                                 operation.asType())),
                         operation.getRecordComponents().stream()
                             .map(component -> Reachability.component(operation, component)))));
+  }
+
+  /**
+   * The algebra a witness belongs to, where this processor generated it. It writes {@code
+   * XKind.Witness} beside an {@code XKindHelper} whose {@code narrow} returns the algebra {@code
+   * X}, so the helper names it wherever targetPackage put them. Shared with {@code
+   * PathSourceProcessor}, which notes a Path over such a witness.
+   */
+  static Optional<TypeElement> algebraOf(Elements elements, Element witness) {
+    return witness.getEnclosingElement() instanceof TypeElement kind
+        ? Optional.ofNullable(elements.getTypeElement(kind.getQualifiedName() + "Helper")).stream()
+            .flatMap(helper -> ElementFilter.methodsIn(helper.getEnclosedElements()).stream())
+            .filter(method -> method.getSimpleName().contentEquals("narrow"))
+            .map(ExecutableElement::getReturnType)
+            .filter(DeclaredType.class::isInstance)
+            .map(type -> (TypeElement) ((DeclaredType) type).asElement())
+            .filter(algebra -> algebra.getAnnotation(EffectAlgebra.class) != null)
+            .filter(algebra -> kind.getSimpleName().contentEquals(algebra.getSimpleName() + "Kind"))
+            .findFirst()
+        : Optional.empty();
   }
 
   @ExcludeFromJacocoGeneratedReport
@@ -390,7 +413,7 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
                 baseName)
             .build();
 
-    // narrow method
+    // narrow method, whose return type algebraOf reads to find the algebra from its witness
     MethodSpec narrowMethod =
         MethodSpec.methodBuilder("narrow")
             .addAnnotation(

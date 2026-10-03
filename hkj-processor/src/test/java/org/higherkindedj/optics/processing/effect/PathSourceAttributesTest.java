@@ -42,8 +42,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 /**
  * What each {@code @PathSource} attribute does to the generated Path: the class name its suffix
  * gives, the attributes refused at the annotation, the kinds of type it applies to, the methods it
- * generates, the attributes that wait for a later round, the notes for recovery asked for by
- * halves, and the deprecated capability levels.
+ * generates, the attributes that wait for a later round, the note for a witness an effect algebra
+ * generates, the notes for recovery asked for by halves, and the deprecated capability levels.
  */
 @DisplayName("@PathSource attributes")
 class PathSourceAttributesTest {
@@ -131,6 +131,33 @@ class PathSourceAttributesTest {
         .orElseThrow()
         .getCharContent(true)
         .toString();
+  }
+
+  /** A one-operation effect algebra, with the annotation lines given. */
+  private static JavaFileObject consoleOp(String annotations) {
+    return JavaFileObjects.forSourceString(
+        "com.example.ConsoleOp",
+        """
+        package com.example;
+
+        import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
+        import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+        """
+            + annotations
+            + """
+
+            public sealed interface ConsoleOp<A> permits ConsoleOp.PrintLine {
+              record PrintLine<A>(String message) implements ConsoleOp<A> {}
+            }
+            """);
+  }
+
+  private static List<String> pathSourceNotes(Compilation compilation) {
+    return compilation.notes().stream()
+        .map(note -> note.getMessage(null))
+        .filter(message -> message.startsWith("@PathSource"))
+        .toList();
   }
 
   @Nested
@@ -606,35 +633,6 @@ class PathSourceAttributesTest {
   class Unresolved {
 
     @Test
-    @DisplayName("a witness another processor generates waits for the round that writes it")
-    void witnessFromALaterRound() {
-      final Compilation compilation =
-          javac()
-              .withProcessors(
-                  new EffectAlgebraProcessor(),
-                  new PathSourceProcessor(),
-                  new CompanionAnnotationProcessor())
-              .compile(
-                  JavaFileObjects.forSourceString(
-                      "com.example.ConsoleOp",
-                      """
-                      package com.example;
-
-                      import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
-                      import org.higherkindedj.hkt.effect.annotation.PathSource;
-
-                      @EffectAlgebra
-                      @PathSource(witness = ConsoleOpKind.Witness.class)
-                      public sealed interface ConsoleOp<A> permits ConsoleOp.PrintLine {
-                        record PrintLine<A>(String message) implements ConsoleOp<A> {}
-                      }
-                      """));
-
-      assertThat(compilation).succeeded();
-      assertThat(compilation.generatedSourceFile("com.example.ConsoleOpPath")).isPresent();
-    }
-
-    @Test
     @DisplayName(
         "nothing is written in the last round, which javac makes of the round after an error")
     void nothingWrittenInTheLastRound() {
@@ -648,20 +646,7 @@ class PathSourceAttributesTest {
               .compile(
                   WITNESS,
                   box("suffix = \"-x\""),
-                  JavaFileObjects.forSourceString(
-                      "com.example.ConsoleOp",
-                      """
-                      package com.example;
-
-                      import org.higherkindedj.hkt.effect.annotation.EffectAlgebra;
-                      import org.higherkindedj.hkt.effect.annotation.PathSource;
-
-                      @EffectAlgebra
-                      @PathSource(witness = ConsoleOpKind.Witness.class)
-                      public sealed interface ConsoleOp<A> permits ConsoleOp.PrintLine {
-                        record PrintLine<A>(String message) implements ConsoleOp<A> {}
-                      }
-                      """));
+                  consoleOp("@EffectAlgebra\n@PathSource(witness = ConsoleOpKind.Witness.class)"));
 
       assertThat(compilation).hadErrorCount(1);
       assertThat(compilation).hadErrorContaining("suffix \"-x\"");
@@ -719,6 +704,206 @@ class PathSourceAttributesTest {
 
       assertThat(compilation).hadErrorCount(1);
       assertThat(compilation).hadErrorContaining("cannot find symbol");
+    }
+  }
+
+  @Nested
+  @DisplayName("A witness an effect algebra generates")
+  class EffectAlgebraWitness {
+
+    private static final JavaFileObject CONSOLE_OP = consoleOp("@EffectAlgebra");
+
+    private static final JavaFileObject CONSOLE =
+        JavaFileObjects.forSourceString(
+            "com.example.Console",
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+            @PathSource(witness = ConsoleOpKind.Witness.class)
+            public interface Console<A> {}
+            """);
+
+    private static String note(String pathClassName) {
+      return "@PathSource: '"
+          + pathClassName
+          + "' needs a Monad<ConsoleOpKind.Witness>, and the effect algebra 'ConsoleOp' has a"
+          + " Functor only. The Path's of and pure take that Monad, and @EffectAlgebra generates"
+          + " none, since an algebra's operations are instructions: Free chains them, and an"
+          + " interpreter runs them. Build programs from ConsoleOpOps and wrap each in a FreePath"
+          + " with Path.free(program, ConsoleOpFunctor.instance()), then remove @PathSource.";
+    }
+
+    private static Compilation compileWithAlgebras(JavaFileObject... sources) {
+      return javac()
+          .withProcessors(
+              new EffectAlgebraProcessor(),
+              new PathSourceProcessor(),
+              new CompanionAnnotationProcessor())
+          // An algebra's generated types carry @NullMarked, which no processor here claims.
+          .withOptions("-Xlint:all,-removal,-processing", "-Werror")
+          .compile(sources);
+    }
+
+    @Test
+    @DisplayName("on the algebra itself is noted once, at the witness, after the round it waits")
+    void onTheAlgebraItself() {
+      // The witness on a line of its own tells the value from the annotation.
+      final JavaFileObject consoleOp =
+          consoleOp("@EffectAlgebra\n@PathSource(\n    witness = ConsoleOpKind.Witness.class)");
+
+      final Compilation compilation = compileWithAlgebras(consoleOp);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation)
+          .hadNoteContaining(note("ConsoleOpPath"))
+          .inFile(consoleOp)
+          .onLineContaining("witness");
+      assertThat(pathSourceNotes(compilation)).hasSize(1);
+      assertThat(compilation.generatedSourceFile("com.example.ConsoleOpPath")).isPresent();
+    }
+
+    @Test
+    @DisplayName("on another type, with the algebra's types in a targetPackage, is noted at it")
+    void onAnotherTypeWithATargetPackage() {
+      final JavaFileObject console =
+          JavaFileObjects.forSourceString(
+              "com.example.Console",
+              """
+              package com.example;
+
+              import com.example.generated.ConsoleOpKind;
+              import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+              @PathSource(witness = ConsoleOpKind.Witness.class)
+              public interface Console<A> {}
+              """);
+
+      final Compilation compilation =
+          compileWithAlgebras(
+              consoleOp("@EffectAlgebra(targetPackage = \"com.example.generated\")"), console);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation)
+          .hadNoteContaining(note("ConsolePath"))
+          .inFile(console)
+          .onLineContaining("witness");
+    }
+
+    @Test
+    @DisplayName("from an algebra compiled earlier, as a library's, is noted")
+    void fromACompiledAlgebra(@TempDir Path library) throws IOException {
+      final Compilation algebra = compileWithAlgebras(CONSOLE_OP);
+      assertThat(algebra).succeeded();
+
+      final Compilation compilation =
+          javac()
+              .withProcessors(new PathSourceProcessor(), new CompanionAnnotationProcessor())
+              .withOptions("-Xlint:all,-removal", "-Werror")
+              .withClasspath(classpathWith(classDirectory(algebra, library)))
+              .compile(CONSOLE);
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(compilation).hadNoteContaining(note("ConsolePath")).inFile(CONSOLE);
+    }
+
+    @Test
+    @DisplayName("is the only note, where an errorType would draw one offering RECOVERABLE")
+    void inPlaceOfTheRecoveryNote() {
+      final Compilation compilation =
+          compileWithAlgebras(
+              consoleOp(
+                  "@EffectAlgebra\n"
+                      + "@PathSource(witness = ConsoleOpKind.Witness.class, errorType = String.class)"));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(pathSourceNotes(compilation)).containsExactly(note("ConsoleOpPath"));
+    }
+
+    @Test
+    @DisplayName("is not drawn by another Kind's helper, whatever its narrow overloads return")
+    void notForAnotherKindsHelper() {
+      final Compilation compilation =
+          compileWithAlgebras(
+              CONSOLE_OP,
+              JavaFileObjects.forSourceString(
+                  "com.example.TraceKind",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.Kind;
+                  import org.higherkindedj.hkt.TypeArity;
+                  import org.higherkindedj.hkt.WitnessArity;
+
+                  public interface TraceKind<A> extends Kind<TraceKind.Witness, A> {
+                    final class Witness implements WitnessArity<TypeArity.Unary> {}
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.TraceKindHelper",
+                  """
+                  package com.example;
+
+                  public final class TraceKindHelper {
+                    public static <A> ConsoleOp<A> narrow(TraceKind<A> kind) {
+                      throw new UnsupportedOperationException();
+                    }
+
+                    public static <T> T narrow(Object kind) {
+                      throw new UnsupportedOperationException();
+                    }
+                  }
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.Trace",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.effect.annotation.PathSource;
+
+                  @PathSource(witness = TraceKind.Witness.class)
+                  public interface Trace<A> {}
+                  """));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(pathSourceNotes(compilation)).isEmpty();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @CsvSource(
+        delimiter = '|',
+        textBlock =
+            """
+            a witness nested in a Kind with no helper | BoxKind.Witness
+            a witness whose helper narrows to a type no algebra is | org.higherkindedj.hkt.maybe.MaybeKind.Witness
+            a top-level witness | TopWitness
+            """)
+    @DisplayName("an ordinary witness draws no note")
+    void noNoteForAnOrdinaryWitness(String shape, String witness) {
+      final Compilation compilation =
+          compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.TopWitness",
+                  """
+                  package com.example;
+
+                  import org.higherkindedj.hkt.TypeArity;
+                  import org.higherkindedj.hkt.WitnessArity;
+
+                  public final class TopWitness implements WitnessArity<TypeArity.Unary> {}
+                  """),
+              JavaFileObjects.forSourceString(
+                  "com.example.Box",
+                  "package com.example;\n\n"
+                      + "import org.higherkindedj.hkt.effect.annotation.PathSource;\n\n"
+                      + "@PathSource(witness = "
+                      + witness
+                      + ".class)\n"
+                      + "public interface Box<A> {}\n"));
+
+      assertThat(compilation).succeededWithoutWarnings();
+      assertThat(pathSourceNotes(compilation)).isEmpty();
     }
   }
 
@@ -841,8 +1026,7 @@ class PathSourceAttributesTest {
                   """));
 
       assertThat(compilation).failed();
-      assertThat(compilation.notes().stream().map(note -> note.getMessage(null)))
-          .noneMatch(message -> message.startsWith("@PathSource"));
+      assertThat(pathSourceNotes(compilation)).isEmpty();
     }
 
     @Test
@@ -852,8 +1036,7 @@ class PathSourceAttributesTest {
           compile(box("errorType = Err.class", "capability = PathSource.Capability.RECOVERABLE"));
 
       assertThat(compilation).succeededWithoutWarnings();
-      assertThat(compilation.notes().stream().map(note -> note.getMessage(null)))
-          .noneMatch(message -> message.startsWith("@PathSource"));
+      assertThat(pathSourceNotes(compilation)).isEmpty();
       assertThat(generated(compilation, "BoxPath"))
           .contains("public BoxPath<A> recover(", "public BoxPath<A> mapError(");
     }
