@@ -205,13 +205,14 @@ tasks.register<Exec>("britishSpellingCheck") {
  * 6. benchmark tests      — benchmark assertion tests (seconds, requires jmh)
  * 7. pitest (full)        — mutation testing with STRONGER mutators (slowest)
  *
- * Steps 1 and 3 are the checks CI runs before its build. Step 3 is stricter than CI's: it
- * also fails on a golden file git does not track, and it refuses to start while a golden file
- * has uncommitted changes. Steps 2 and 4 name every module's task by path. In dependsOn, a
- * bare task name means this root project's own task, which checks nothing; only on the command
- * line does a name select the task in every project. hkj-benchmarks is left out of step 4, as
- * CI leaves it out of its build, because that build includes the benchmark assertion tests,
- * which read the results step 5 writes. The book's own checks are separate: hkj-book/check.sh.
+ * Steps 1 and 3 are the checks CI runs before its build, with the same script and task. Step 3
+ * refuses to start while a golden file has uncommitted changes, which it would overwrite, and
+ * fails on a golden file git does not track. Steps 2 and 4 name every module's task by path.
+ * In dependsOn, a bare task name means this root project's own task, which checks nothing;
+ * only on the command line does a name select the task in every project. hkj-benchmarks is
+ * left out of step 4, as CI leaves it out of its build, because that build includes the
+ * benchmark assertion tests, which read the results step 5 writes. The book's own checks are
+ * separate: hkj-book/check.sh.
  *
  * Usage: ./gradlew releaseReadiness
  *
