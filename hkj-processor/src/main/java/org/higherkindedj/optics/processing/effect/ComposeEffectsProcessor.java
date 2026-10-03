@@ -105,7 +105,8 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
         continue;
       }
       String algebraName = algebra.getSimpleName().toString();
-      String packageName = effectAlgebraPackage(algebra);
+      String packageName =
+          EffectAlgebraProcessor.generatedPackage(processingEnv.getElementUtils(), algebra);
       bindings.add(
           new EffectBinding(
               component.getSimpleName().toString(),
@@ -231,7 +232,8 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
           component);
       return false;
     }
-    String algebraPackage = effectAlgebraPackage(algebra);
+    String algebraPackage =
+        EffectAlgebraProcessor.generatedPackage(processingEnv.getElementUtils(), algebra);
     Optional<TypeElement> hidden =
         Reachability.firstHidden(
             processingEnv.getElementUtils(),
@@ -257,14 +259,6 @@ public class ComposeEffectsProcessor extends AbstractProcessor {
       return false;
     }
     return true;
-  }
-
-  /** Where {@code @EffectAlgebra} puts the algebra's generated types. */
-  private String effectAlgebraPackage(TypeElement algebra) {
-    String targetPackage = algebra.getAnnotation(EffectAlgebra.class).targetPackage();
-    return targetPackage.isEmpty()
-        ? processingEnv.getElementUtils().getPackageOf(algebra).getQualifiedName().toString()
-        : targetPackage;
   }
 
   /**

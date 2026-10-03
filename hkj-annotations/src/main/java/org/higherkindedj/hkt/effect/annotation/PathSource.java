@@ -67,6 +67,10 @@ public @interface PathSource {
    * witness that takes type arguments, such as {@code EitherKind.Witness<L>}, use {@code
    * GenericPath}.
    *
+   * <p>A witness that {@code @EffectAlgebra} generates draws a note: the algebra comes with a
+   * {@code Functor} and no {@code Monad} to pass to {@code of} and {@code pure}, so its programs
+   * compose as a {@code FreePath} instead.
+   *
    * @return the witness class
    */
   Class<?> witness();
