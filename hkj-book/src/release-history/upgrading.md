@@ -16,9 +16,9 @@ Each of these compiles today with javac's `[removal]` warning, which fails a `-W
 | `StateT.monadF()` | 0.4.6 | Pass the `Monad<F>` to the runner | By hand |
 | `Try.fold` and `TryPath.fold`, success first | 0.4.6 | `foldFailureFirst(failureMapper, successMapper)` | `SwapTryFoldToFoldFailureFirstRecipe` |
 | `Each.eachWithIndex()` | 0.4.7 | Narrow to `EachIndexed` and call `indexedTraversal()` | By hand |
-| `@PathConfig` | 0.4.11, unreleased | Nothing, since it has no effect; to rename a Path, set `suffix` on `@PathSource` | `RemovePathConfig` |
-| `@PathSource` capability `EFFECTFUL` | 0.4.11, unreleased | `CHAINABLE`, which generates the same | `ReplaceDeprecatedPathSourceCapabilitiesRecipe` |
-| `@PathSource` capability `ACCUMULATING` | 0.4.11, unreleased | `RECOVERABLE`, which generates the same | `ReplaceDeprecatedPathSourceCapabilitiesRecipe` |
+| `@PathConfig` | 0.4.11 | Nothing, since it has no effect; to rename a Path, set `suffix` on `@PathSource` | `RemovePathConfig` |
+| `@PathSource` capability `EFFECTFUL` | 0.4.11 | `CHAINABLE`, which generates the same | `ReplaceDeprecatedPathSourceCapabilitiesRecipe` |
+| `@PathSource` capability `ACCUMULATING` | 0.4.11 | `RECOVERABLE`, which generates the same | `ReplaceDeprecatedPathSourceCapabilitiesRecipe` |
 
 `StateT` also changes shape in 0.5.0: its `monadF` record component goes, so two `StateT` values with the same state function compare equal whichever `Monad` built them. Its `equals`, `hashCode` and `toString` change with it.
 
@@ -26,9 +26,15 @@ Each of these compiles today with javac's `[removal]` warning, which fails a `-W
 
 ---
 
+## To 0.5.0 {#to-050}
+
+This release is not out yet. Every API in [Removals in 0.5.0](#removals-in-050) is due to go in it, so migrate those first: the `MigrateDeprecationsTo0_5_0` recipe does most of the work. Its notes split what changes into what a running program can notice and what stops a build that compiled: read [Upgrading from 0.4.11](unreleased.md#upgrading) before you move.
+
+---
+
 ## To 0.4.11 {#to-0411}
 
-This release is not out yet. Its notes split what changes into what a running program can notice and what stops a build that compiled: read [Upgrading from 0.4.10](unreleased.md#upgrading) before you move.
+The 0.4.11 notes give the details in [Upgrading from 0.4.10](v0_4_11.md#upgrading). Read [Before you upgrade](v0_4_11.md#before-you-upgrade) first, since a library that publishes specs must be rebuilt before the builds that consume it. Then read [What a running program can notice](v0_4_11.md#runtime-changes), because the processor cannot point at those changes. Each entry in [What stops a build that compiled](v0_4_11.md#build-changes) fails at a line the message names, with its fix.
 
 ---
 
@@ -98,4 +104,4 @@ Besides the deprecations in [Removals in 0.5.0](#removals-in-050), the notes for
 ---
 
 **Previous:** [Release History](../release-history.md)
-**Next:** [Unreleased: 0.4.11](unreleased.md)
+**Next:** [Unreleased: 0.5.0](unreleased.md)

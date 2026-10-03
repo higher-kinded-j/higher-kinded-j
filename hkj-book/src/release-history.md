@@ -3,7 +3,7 @@
 What changed in each version of Higher-Kinded-J, and what to do when you move to it. Each release has notes, most with a link from each change to the issue or pull request behind it.
 
 - **Upgrading?** [Upgrading](release-history/upgrading.md) lists, release by release, what can stop a build that compiled or change what a program does. It also lists every API due for removal in 0.5.0.
-- **Following `main`?** [Unreleased: 0.4.11](release-history/unreleased.md) collects the changes since 0.4.10.
+- **Following `main`?** [Unreleased: 0.5.0](release-history/unreleased.md) collects the changes since 0.4.11.
 - **Looking for a feature?** [Since which version?](#since-which-version) names the release that first shipped it.
 - **Searching every release at once?** The book's search reads every page of this chapter.
 
@@ -13,7 +13,7 @@ What changed in each version of Higher-Kinded-J, and what to do when you move to
 
 | Version | Released | Headline | Upgrade notes |
 |---|---|---|---|
-| [0.4.11](release-history/unreleased.md) | not yet | Generated client models map as generated, and the processor stops more shapes at the declaration | [Upgrading from 0.4.10](release-history/unreleased.md#upgrading) |
+| [0.4.11](release-history/v0_4_11.md) | 3 October 2026 | Generated client models map as generated, and the processor stops more shapes at the declaration | [To 0.4.11](release-history/upgrading.md#to-0411) |
 | [0.4.10](release-history/v0_4_10.md) | 30 August 2026 | Standard codecs, generic optics that compile, one answer from the Focus DSL | [To 0.4.10](release-history/upgrading.md#to-0410) |
 | [0.4.9](release-history/v0_4_9.md) | 31 July 2026 | The record mapper: every wire shape, both PATCH styles, one rule for null | [To 0.4.9](release-history/upgrading.md#to-049) |
 | [0.4.8](release-history/v0_4_8.md) | 17 July 2026 | Async typed errors, path-native resilience, accumulating validation and record mapping | None |
@@ -76,7 +76,11 @@ The release that first shipped each feature, with the page that teaches it.
 | `@GenerateMapping` and `@GenerateMerge` | [0.4.8](release-history/v0_4_8.md) | [Mapping at the Boundary](mapping/ch_intro.md) |
 | Bean-shaped wires and sparse PATCH with `UpdateSpec` | [0.4.9](release-history/v0_4_9.md) | [Bean-Shaped Wires](mapping/beans.md), [Sparse PATCH](mapping/beans_patch.md) |
 | Standard codecs | [0.4.10](release-history/v0_4_10.md) | [Standard codecs](mapping/codecs.md#standard-codecs) |
-| protobuf-java messages and openapi-generator models | [0.4.11](release-history/unreleased.md), unreleased | [Bean-Shaped Wires](mapping/beans.md#protobuf-java-messages) |
+| protobuf-java messages and openapi-generator models | [0.4.11](release-history/v0_4_11.md) | [Bean-Shaped Wires](mapping/beans.md#protobuf-java-messages) |
+| One-directional beans and `@ReadOnly` properties | [0.4.11](release-history/v0_4_11.md) | [One-directional beans](mapping/beans.md#one-directional-beans), [Properties you only read](mapping/beans.md#read-only-properties) |
+| `JsonNullable` properties in a sparse PATCH | [0.4.11](release-history/v0_4_11.md) | [What each JSON state does](mapping/beans_patch.md#what-each-json-state-does) |
+| `@Flatten`: a nested record on a flat wire | [0.4.11](release-history/v0_4_11.md) | [Flattening a nested component](mapping/structure.md#flattening-a-nested-component-onto-a-flat-wire) |
+| Specs that nest, dispatch and merge across modules | [0.4.11](release-history/v0_4_11.md) | [Across modules](mapping/structure.md#across-modules) |
 
 ### Concurrency and resilience {#since-concurrency-and-resilience}
 
@@ -106,6 +110,7 @@ The release that first shipped each feature, with the page that teaches it.
 | Claude Code skills | [0.4.2](release-history/v0_4_2.md) | [Claude Code Skills](tooling/claude_code_skills.md) |
 | `hkj-test` assertions | [0.4.4](release-history/v0_4_4.md) | [Testing With hkj-test](tooling/test_assertions.md) |
 | PCollections integration | [0.4.4](release-history/v0_4_4.md) | [PCollections Integration](tooling/pcollections_integration.md) |
+| Migration recipes on Maven Central: `hkj-openrewrite` | [0.4.11](release-history/v0_4_11.md) | [Migration Recipes](tooling/openrewrite.md) |
 
 ---
 
