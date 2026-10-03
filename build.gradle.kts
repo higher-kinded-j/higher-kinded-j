@@ -176,15 +176,17 @@ tasks.register("benchmarkValidation") {
  * on the cheapest checks first:
  *
  * 1. spotlessCheck       — code formatting, every module (seconds)
- * 2. build               — compile + unit tests + JaCoCo, every module but hkj-benchmarks (minutes)
+ * 2. build               — compile + unit tests, every module but hkj-benchmarks, and the
+ *                          JaCoCo limits of the modules that set them (minutes)
  * 3. jmh                 — JMH benchmarks (minutes)
  * 4. benchmark tests     — benchmark assertion tests (seconds, requires jmh)
  * 5. pitest (full)       — mutation testing with STRONGER mutators (slowest)
  *
  * Steps 1 and 2 name every module's task by path. In dependsOn, a bare task name means
  * this root project's own task, which checks nothing; only on the command line does a
- * name select the task in every project. hkj-benchmarks is left out of step 2 because
- * its build includes the benchmark assertion tests, which read the results step 3 writes.
+ * name select the task in every project. hkj-benchmarks is left out of step 2, as CI
+ * leaves it out of its build, because that build includes the benchmark assertion tests,
+ * which read the results step 3 writes.
  *
  * Usage: ./gradlew releaseReadiness
  *
@@ -192,7 +194,7 @@ tasks.register("benchmarkValidation") {
  */
 tasks.register("releaseReadiness") {
     group = "verification"
-    description = "Release quality gate: every module's spotless and build, benchmarks, benchmark assertions, pitest (full profile)"
+    description = "Release quality gate: spotless in every module, build in every module but hkj-benchmarks, benchmarks, benchmark assertions, pitest (full profile)"
 
     val formatChecks = subprojects.map { "${it.path}:spotlessCheck" }
     val builds = subprojects.filter { it.path != ":hkj-benchmarks" }.map { "${it.path}:build" }
@@ -204,10 +206,17 @@ tasks.register("releaseReadiness") {
     dependsOn("pitestFull")
 
     // Enforce fast-to-slow ordering. mustRunAfter orders a task but not the tasks it depends
-    // on, so every other module task waits for the formatting checks, not just each build.
-    subprojects { tasks.configureEach { if (!name.startsWith("spotless")) mustRunAfter(formatChecks) } }
+    // on, so every module task waits for the format checks, not just each build. Spotless's
+    // own tasks are exempt, and so is clean, which Spotless orders before them. Gradle
+    // configures this task only when it is requested or listed, so other builds keep their order.
+    subprojects {
+        tasks.configureEach {
+            if (!name.startsWith("spotless") && name != "clean") mustRunAfter(formatChecks)
+        }
+    }
     tasks.getByPath(":hkj-benchmarks:jmh").mustRunAfter(builds)
     tasks.getByPath(":hkj-benchmarks:test").mustRunAfter(":hkj-benchmarks:jmh")
+    tasks.getByName("pitestFull").mustRunAfter(builds)
 
     doLast {
         println("\n" + "=".repeat(70))
@@ -215,7 +224,7 @@ tasks.register("releaseReadiness") {
         println("=".repeat(70))
         println("\nAll quality gates passed (fast to slow):")
         println("  1. Spotless           — code formatting, every module")
-        println("  2. Build              — compile + unit tests + JaCoCo, every module but hkj-benchmarks")
+        println("  2. Build              — compile + unit tests, every module but hkj-benchmarks; JaCoCo limits where set")
         println("  3. JMH Benchmarks     — performance benchmarks")
         println("  4. Benchmark Tests    — performance assertions")
         println("  5. Pitest (full)      — mutation testing (STRONGER mutators)")
