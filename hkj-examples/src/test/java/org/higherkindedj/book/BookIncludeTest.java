@@ -153,9 +153,10 @@ class BookIncludeTest {
     // unchecked, and would quietly show the wrong lines the moment the file it points into grows.
     //
     // A golden file is the one whole-file include worth allowing. It is generated output, pinned
-    // byte for byte by the processor's own golden-file test, so it cannot carry an ANCHOR comment
-    // (that would change the very bytes under test) and it cannot drift without failing there
-    // first. Showing a reader exactly what the processor writes is worth the exception.
+    // byte for byte by the golden-file check that CI and the release gate run, so it cannot carry
+    // an ANCHOR comment (that would change the very bytes under test) and it cannot drift without
+    // failing there first. Showing a reader exactly what the processor writes is worth the
+    // exception.
     try (Stream<Path> pages = Files.walk(BOOK)) {
       pages
           .filter(p -> p.toString().endsWith(".md"))

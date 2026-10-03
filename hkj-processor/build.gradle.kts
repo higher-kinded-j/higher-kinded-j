@@ -166,13 +166,9 @@ tasks.check {
 // Golden File Management
 // =============================================================================
 //
-// Regenerates all golden files from current code generator output.
-// Run when the code generator changes intentionally:
-//
-//   ./gradlew :hkj-processor:updateGoldenFiles
-//
-tasks.register<Test>("updateGoldenFiles") {
-    description = "Regenerates golden files from current code generator output"
+// Regenerates every golden file from the generator's current output, for the two tasks below.
+// Gradle does not track the golden files they write, so neither is ever skipped as up to date.
+val regeneratesGoldenFiles: Test.() -> Unit = {
     group = "verification"
     useJUnitPlatform()
     testClassesDirs = sourceSets.test.get().output.classesDirs
@@ -181,6 +177,58 @@ tasks.register<Test>("updateGoldenFiles") {
     filter {
         includeTestsMatching("*GoldenFileTest.generatedCodeMatchesGolden")
         includeTestsMatching("*ForComprehensionGoldenFileTest.generatedCodeMatchesGolden")
+    }
+    doNotTrackState("It writes the golden files, which Gradle does not track")
+}
+
+// Regenerates all golden files from current code generator output.
+// Run when the code generator changes intentionally:
+//
+//   ./gradlew :hkj-processor:updateGoldenFiles
+//
+tasks.register<Test>("updateGoldenFiles") {
+    description = "Regenerates golden files from current code generator output"
+    regeneratesGoldenFiles()
+}
+
+// Regenerates the golden files and fails if any then differs from the committed copy, or is not
+// committed at all. The golden tests in `test` read the working-tree copies and ignore line
+// endings and trailing whitespace, so within a build only this checks the committed copies byte
+// for byte. It refuses to start while a golden file has uncommitted changes, which regenerating
+// would overwrite. A failure after regenerating leaves the regenerated files in place to review.
+//
+//   ./gradlew :hkj-processor:verifyGoldenFiles
+//
+tasks.register<Test>("verifyGoldenFiles") {
+    description = "Regenerates golden files and fails if any differs from the committed copy"
+    regeneratesGoldenFiles()
+    val goldenDir = file("src/test/resources/golden").relativeTo(rootDir).invariantSeparatorsPath
+    val processFactory = providers
+    val repositoryDir = rootDir
+    val changedGoldenFiles = {
+        processFactory.exec {
+            workingDir = repositoryDir
+            commandLine("git", "--no-optional-locks", "status", "--porcelain", "--untracked-files=all", "--", goldenDir)
+        }.standardOutput.asText.get()
+    }
+    doFirst {
+        val uncommitted = changedGoldenFiles()
+        if (uncommitted.isNotEmpty()) {
+            throw GradleException(
+                "Golden files have uncommitted changes, which regenerating would overwrite:\n" +
+                    uncommitted + "Commit, stash or restore them first."
+            )
+        }
+    }
+    doLast {
+        val changed = changedGoldenFiles()
+        if (changed.isNotEmpty()) {
+            throw GradleException(
+                "Golden files differ from the committed copies once regenerated:\n" + changed +
+                    "Review them with git diff HEAD -- $goldenDir (a ?? line is a new file to git add), " +
+                    "then commit them or fix the generator."
+            )
+        }
     }
 }
 
