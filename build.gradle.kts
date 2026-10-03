@@ -208,10 +208,12 @@ tasks.register("releaseReadiness") {
     // Enforce fast-to-slow ordering. mustRunAfter orders a task but not the tasks it depends
     // on, so every module task waits for the format checks, not just each build. Spotless's
     // own tasks are exempt, and so is clean, which Spotless orders before them. Gradle
-    // configures this task only when it is requested or listed, so other builds keep their order.
+    // configures this task only when it is requested or listed, so other builds keep their
+    // order; a listing can follow tasks that have run, which can no longer be ordered.
     subprojects {
         tasks.configureEach {
-            if (!name.startsWith("spotless") && name != "clean") mustRunAfter(formatChecks)
+            val exempt = name.startsWith("spotless") || name == "clean" || state.executed
+            if (!exempt) mustRunAfter(formatChecks)
         }
     }
     tasks.getByPath(":hkj-benchmarks:jmh").mustRunAfter(builds)
