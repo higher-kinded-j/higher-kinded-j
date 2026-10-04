@@ -19,6 +19,10 @@
   "use strict";
 
   var MOVED = {
+    "transformers/common_errors.html#3-method-mapt-cannot-be-applied-on-statet": "transformers/statet_transformer.html#transforming-the-outer-monad-with-mapt",
+    "transformers/common_errors.html#4-the-phantom-l-on-eithertfromeither--eitherright": "transformers/common_errors.html#3-the-phantom-l-on-eithertfromeither--eitherright",
+    "transformers/common_errors.html#5-cannot-find-symbol-value-on-a-kind": "transformers/common_errors.html#4-cannot-find-symbol-value-on-a-kind",
+    "transformers/common_errors.html#6-method-forfrom-is-not-applicable-with-the-wrong-monad": "transformers/common_errors.html#5-method-forfrom-is-not-applicable-with-the-wrong-monad",
     "mapping/basics.html#the-null-contract-precisely": "mapping/rules.html#the-null-contract-precisely",
     "mapping/basics.html#same-typed-containers-cross-as-copies": "mapping/rules.html#same-typed-containers-cross-as-copies",
     "mapping/basics.html#how-the-two-default-families-are-told-apart": "mapping/rules.html#how-the-two-default-families-are-told-apart",

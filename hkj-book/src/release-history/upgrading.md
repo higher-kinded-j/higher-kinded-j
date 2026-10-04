@@ -20,7 +20,7 @@ Each of these compiles today with javac's `[removal]` warning, which fails a `-W
 | `@PathSource` capability `EFFECTFUL` | 0.4.11 | `CHAINABLE`, which generates the same | `ReplaceDeprecatedPathSourceCapabilitiesRecipe` |
 | `@PathSource` capability `ACCUMULATING` | 0.4.11 | `RECOVERABLE`, which generates the same | `ReplaceDeprecatedPathSourceCapabilitiesRecipe` |
 
-`StateT` also changes shape in 0.5.0: its `monadF` record component goes, so two `StateT` values with the same state function compare equal whichever `Monad` built them. Its `equals`, `hashCode` and `toString` change with it.
+`StateT` also changes shape in 0.5.0: its `monadF` record component goes, so two `StateT` values with the same state function compare equal whichever `Monad` built them. Its `equals`, `hashCode` and `toString` change with it. Its constructor, `StateT.create` and `StateTKindHelper.stateT` take the state function alone, and `StateT.mapT` takes only the transformation. The `RemoveStateTMonadArgument` recipe drops the `Monad` argument from each call. It ships in `hkj-openrewrite` 0.5.0 and joins the same group, so run the group before your project moves off 0.4.11. A `StateT` held in `var` over a witness with a type argument, such as `EitherKind.Witness<E>`, then needs its types named: `StateT.<S, EitherKind.Witness<E>, A>create(fn)`.
 
 `fold` is planned to return on `Try` and `TryPath` in 0.6.0, with the failure-first order, so migrate to `foldFailureFirst` rather than to a local helper named `fold`.
 

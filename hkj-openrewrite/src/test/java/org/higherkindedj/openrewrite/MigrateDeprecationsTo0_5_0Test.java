@@ -43,6 +43,26 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
         + "   Capability capability() default Capability.CHAINABLE;"
         + "   enum Capability {"
         + "     COMPOSABLE, COMBINABLE, CHAINABLE, RECOVERABLE, EFFECTFUL, ACCUMULATING } }",
+    "package org.higherkindedj.hkt; public interface Monad<F> {}",
+    "package org.higherkindedj.hkt.id;"
+        + " public final class IdMonad implements org.higherkindedj.hkt.Monad<Object> {"
+        + "   public static final IdMonad INSTANCE = new IdMonad(); }",
+    // StateT as 0.4.x declares it, with the Monad the 0.5.0 shape drops
+    "package org.higherkindedj.hkt.state_t;"
+        + " import java.util.function.Function;"
+        + " import org.higherkindedj.hkt.Monad;"
+        + " public final class StateT<S, F, A> {"
+        + "   public StateT(Function<S, Object> runStateTFn, Monad<F> monadF) {}"
+        + "   public static <S, F, A> StateT<S, F, A> create("
+        + "       Function<S, Object> runStateTFn, Monad<F> monadF) { return null; }"
+        + "   public <G> StateT<S, G, A> mapT(Monad<G> monadG, Function<Object, Object> f) {"
+        + "     return null; } }",
+    "package org.higherkindedj.hkt.state_t;"
+        + " import java.util.function.Function;"
+        + " import org.higherkindedj.hkt.Monad;"
+        + " public enum StateTKindHelper { STATE_T;"
+        + "   public <S, F, A> StateT<S, F, A> stateT("
+        + "       Function<S, Object> runStateTFn, Monad<F> monadF) { return null; } }",
   };
 
   @Override
@@ -223,6 +243,97 @@ class MigrateDeprecationsTo0_5_0Test implements RewriteTest {
                     errorType = String.class,
                     capability = PathSource.Capability.RECOVERABLE)
                 interface Result<A> {}
+            }
+            """));
+  }
+
+  @Test
+  void dropsTheMonadArgumentFromStateT() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
+
+            import org.higherkindedj.hkt.Monad;
+            import org.higherkindedj.hkt.state_t.StateT;
+
+            public class Usage {
+                void build(Monad<Object> monad, Monad<String> target) {
+                    StateT<Integer, Object, String> a = new StateT<>(s -> s, monad);
+                    StateT<Integer, Object, String> b = StateT.create(s -> s, monad);
+                    StateT<Integer, Object, String> c = STATE_T.stateT(s -> s, monad);
+                    StateT<Integer, String, String> d = a.mapT(target, k -> k);
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
+
+            import org.higherkindedj.hkt.Monad;
+            import org.higherkindedj.hkt.state_t.StateT;
+
+            public class Usage {
+                void build(Monad<Object> monad, Monad<String> target) {
+                    StateT<Integer, Object, String> a = new StateT<>(s -> s);
+                    StateT<Integer, Object, String> b = StateT.create(s -> s);
+                    StateT<Integer, Object, String> c = STATE_T.stateT(s -> s);
+                    StateT<Integer, String, String> d = a.mapT(k -> k);
+                }
+            }
+            """));
+  }
+
+  @Test
+  void removesAnImportOnlyTheMonadArgumentUsed() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.id.IdMonad;
+            import org.higherkindedj.hkt.state_t.StateT;
+
+            public class Usage {
+                StateT<Integer, Object, String> counter() {
+                    return StateT.create(
+                        s -> s,
+                        IdMonad.INSTANCE);
+                }
+            }
+            """,
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.state_t.StateT;
+
+            public class Usage {
+                StateT<Integer, Object, String> counter() {
+                    return StateT.create(
+                        s -> s);
+                }
+            }
+            """));
+  }
+
+  @Test
+  void leavesAnotherTypesTwoArgumentCreateAlone() {
+    rewriteRun(
+        java(
+            """
+            package com.example;
+
+            import org.higherkindedj.hkt.Monad;
+
+            public class Usage {
+                static Object create(Object fn, Monad<Object> monad) { return fn; }
+
+                Object run(Monad<Object> monad) {
+                    return create("fn", monad);
+                }
             }
             """));
   }

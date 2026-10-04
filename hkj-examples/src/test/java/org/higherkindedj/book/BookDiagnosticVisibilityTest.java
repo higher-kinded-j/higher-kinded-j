@@ -50,7 +50,7 @@ class BookDiagnosticVisibilityTest {
           "optics/compiler_errors.md: 19",
           "optics/focus_containers.md: 1",
           "optics/optics_spec_interfaces.md: 3",
-          "transformers/common_errors.md: 2");
+          "transformers/common_errors.md: 1");
 
   /**
    * Markers the book must not fall below, so deleting the gated snippets cannot pass for

@@ -164,7 +164,6 @@ class CheckerConfigTest {
       assertThat(CheckerConfig.TRANSFORMER_MISSING_MONAD).isEqualTo("transformer-missing-monad");
       assertThat(CheckerConfig.FREE_SWITCH_EXHAUSTIVE).isEqualTo("free-switch-exhaustive");
       assertThat(CheckerConfig.DISCARDED_EFFECT).isEqualTo("discarded-effect");
-      assertThat(CheckerConfig.STATE_T_MAPT_ARITY).isEqualTo("state-t-mapt-arity");
       assertThat(CheckerConfig.ERROR_TYPE_MISMATCH).isEqualTo("error-type-mismatch");
       assertThat(CheckerConfig.KIND_VALUE_NARROW).isEqualTo("kind-value-narrow");
       assertThat(CheckerConfig.WITNESS_ARITY).isEqualTo("witness-arity");

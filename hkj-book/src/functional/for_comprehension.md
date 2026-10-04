@@ -179,10 +179,10 @@ private static void stateTExample() {
 
     // Helper: adds a value to the state (an integer)
     final Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Unit>> add =
-        n -> StateT.create(s -> optionalMonad.of(StateTuple.of(s + n, Unit.INSTANCE)), optionalMonad);
+        n -> StateT.create(s -> optionalMonad.of(StateTuple.of(s + n, Unit.INSTANCE)));
 
     // Helper: gets the current state as the value
-    final var get = StateT.<Integer, OptionalKind.Witness, Integer>create(s -> optionalMonad.of(StateTuple.of(s, s)), optionalMonad);
+    final var get = StateT.<Integer, OptionalKind.Witness, Integer>create(s -> optionalMonad.of(StateTuple.of(s, s)));
 
     // This workflow looks like a simple script, but it's a fully-typed, purely functional composition!
     final var statefulComputation =

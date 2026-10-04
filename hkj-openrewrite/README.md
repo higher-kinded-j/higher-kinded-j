@@ -10,7 +10,7 @@ The module ships three recipe groups:
 |-------|------------------|--------------|
 | Arity migration (0.2.x → 0.3.0) | `org.higherkindedj.openrewrite.AddArityBounds` | Adds `WitnessArity` / `TypeArity` bounds introduced by the embedded kind system |
 | Effect algebra helpers | `org.higherkindedj.openrewrite.EffectAlgebraMigration` | Flags raw `Free` / manual `Inject` usage and incomplete `Free` switches |
-| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Migrates APIs deprecated for removal in 0.5.0 |
+| 0.5.0 deprecations | `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Migrates APIs deprecated for removal or changed in 0.5.0 |
 
 ## Quick Start
 
@@ -180,8 +180,11 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 ### 0.5.0 deprecation migration
 
 Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a
-deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities
-with the levels they generate. The composite recipe runs all sub-recipes in one pass.
+deprecated annotation that has no effect, replaces two deprecated `@PathSource` capabilities
+with the levels they generate, and drops the `Monad` argument that `StateT` no longer takes. The
+composite recipe runs all sub-recipes in one pass. Run it with `hkj-openrewrite` 0.5.0 before the
+project moves to 0.5.0: the recipes match the 0.4.x signatures, and the rewritten `StateT` calls
+compile only against 0.5.0, so bump the library straight after.
 
 | Recipe | Change |
 |--------|--------|
@@ -191,6 +194,7 @@ with the levels they generate. The composite recipe runs all sub-recipes in one 
 | `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(successMapper, failureMapper)` → `foldFailureFirst(failureMapper, successMapper)` (renames the method *and* swaps the two arguments; tracked under [#452](https://github.com/higher-kinded-j/higher-kinded-j/issues/452)) |
 | `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |
 | `org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe` | `@PathSource`'s `EFFECTFUL` → `CHAINABLE` and `ACCUMULATING` → `RECOVERABLE`; each generates the same class as its replacement |
+| `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` → the function alone; `stateT.mapT(monad, f)` → `stateT.mapT(f)` |
 
 ```kotlin
 rewrite {

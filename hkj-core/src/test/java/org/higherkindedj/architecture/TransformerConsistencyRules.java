@@ -98,7 +98,7 @@ class TransformerConsistencyRules {
 
   /** StateT should have a static factory method. */
   @Test
-  @DisplayName("StateT should have static factory (of or lift)")
+  @DisplayName("StateT should have static factory (of, lift or create)")
   void state_t_should_have_factory() {
     classes()
         .that()

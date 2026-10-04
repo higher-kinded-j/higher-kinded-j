@@ -28,12 +28,12 @@ class StateTuple<S, A> {
     ' S: State type
     ' F_WITNESS: Witness for the underlying monad F
     ' A: Value type
-    - run: Function<S, Kind<F_WITNESS, StateTuple<S, A>>>
-    - monadF: Monad<F_WITNESS>
-    + {static} create(run: Function<S, Kind<F_WITNESS, StateTuple<S, A>>>, monadF: Monad<F_WITNESS>): StateT<S, F_WITNESS, A>
+    - runStateTFn: Function<S, Kind<F_WITNESS, StateTuple<S, A>>>
+    + {static} create(runStateTFn: Function<S, Kind<F_WITNESS, StateTuple<S, A>>>): StateT<S, F_WITNESS, A>
     + runStateT(s: S): Kind<F_WITNESS, StateTuple<S, A>>
-    + evalStateT(s: S): Kind<F_WITNESS, A>
-    + execStateT(s: S): Kind<F_WITNESS, S>
+    + evalStateT(s: S, monad: Monad<F_WITNESS>): Kind<F_WITNESS, A>
+    + execStateT(s: S, monad: Monad<F_WITNESS>): Kind<F_WITNESS, S>
+    + mapT(f: Function<Kind<F_WITNESS, StateTuple<S, A>>, Kind<G, StateTuple<S, A>>>): StateT<S, G, A>
   }
 
   interface "StateTKind.Witness<S, F_WITNESS>" as StateTWitness {
@@ -58,9 +58,10 @@ class StateTuple<S, A> {
     + {static} narrow(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>): StateT<S, F_WITNESS, A>
     + {static} widen(stateT: StateT<S, F_WITNESS, A>): Kind<StateTKind.Witness<S, F_WITNESS>, A>
     + {static} runStateT(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>, s: S): Kind<F_WITNESS, StateTuple<S, A>>
-    + {static} evalStateT(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>, s: S): Kind<F_WITNESS, A>
-    + {static} execStateT(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>, s: S): Kind<F_WITNESS, S>
-    + {static} lift(fn: Function<S, Kind<F_WITNESS, StateTuple<S,A>>>, monadF: Monad<F_WITNESS>) : Kind<StateTKind.Witness<S, F_WITNESS>, A>
+    + {static} evalStateT(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>, s: S, monad: Monad<F_WITNESS>): Kind<F_WITNESS, A>
+    + {static} execStateT(kind: Kind<StateTKind.Witness<S, F_WITNESS>, A>, s: S, monad: Monad<F_WITNESS>): Kind<F_WITNESS, S>
+    + {static} stateT(fn: Function<S, Kind<F_WITNESS, StateTuple<S,A>>>) : StateT<S, F_WITNESS, A>
+    + {static} liftF(monadF: Monad<F_WITNESS>, fa: Kind<F_WITNESS, A>) : StateT<S, F_WITNESS, A>
   }
 
 
@@ -70,13 +71,13 @@ StateTKind ..> StateTWitness : uses witness (phantom)
 StateTMonadInstance ..|> Monad : implements
 StateTMonadInstance ..> StateTWitness : uses witness (for Monad<F>)
 StateTMonadInstance ..> Monad : depends on (holds ref to underlying monadF)
-StateT ..> Monad : depends on (holds ref to underlying monadF)
+StateT ..> Monad : uses (eval/exec take the underlying monad)
 StateT ..> StateTuple : uses (in its run function's return type)
 StateTKindHelper ..> StateT : narrows to/ widens from
 StateTKindHelper ..> StateTKind : operates on
 StateTKindHelper ..> StateTWitness : uses witness
 StateTKindHelper ..> StateTuple : uses (in runStateT return type)
-StateTKindHelper ..> Monad : uses (for lift)
+StateTKindHelper ..> Monad : uses (for liftF and the runners)
 
 
 

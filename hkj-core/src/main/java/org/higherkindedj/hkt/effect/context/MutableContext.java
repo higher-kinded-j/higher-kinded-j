@@ -92,7 +92,7 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
     Objects.requireNonNull(computation, "computation must not be null");
 
     StateT<S, IOKind.Witness, A> transformer =
-        StateT.create(s -> IO_OP.widen(IO.delay(() -> computation.apply(s))), IOMonad.INSTANCE);
+        StateT.create(s -> IO_OP.widen(IO.delay(() -> computation.apply(s))));
     return new MutableContext<>(transformer, IOMonad.INSTANCE);
   }
 
@@ -106,7 +106,7 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
    */
   public static <S, A> MutableContext<IOKind.Witness, S, A> pure(A value) {
     StateT<S, IOKind.Witness, A> transformer =
-        StateT.create(s -> IO_OP.widen(IO.delay(() -> StateTuple.of(s, value))), IOMonad.INSTANCE);
+        StateT.create(s -> IO_OP.widen(IO.delay(() -> StateTuple.of(s, value))));
     return new MutableContext<>(transformer, IOMonad.INSTANCE);
   }
 
@@ -118,7 +118,7 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
    */
   public static <S> MutableContext<IOKind.Witness, S, S> get() {
     StateT<S, IOKind.Witness, S> transformer =
-        StateT.create(s -> IO_OP.widen(IO.delay(() -> StateTuple.of(s, s))), IOMonad.INSTANCE);
+        StateT.create(s -> IO_OP.widen(IO.delay(() -> StateTuple.of(s, s))));
     return new MutableContext<>(transformer, IOMonad.INSTANCE);
   }
 
@@ -131,9 +131,7 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
    */
   public static <S> MutableContext<IOKind.Witness, S, Unit> put(S state) {
     StateT<S, IOKind.Witness, Unit> transformer =
-        StateT.create(
-            ignored -> IO_OP.widen(IO.delay(() -> StateTuple.of(state, Unit.INSTANCE))),
-            IOMonad.INSTANCE);
+        StateT.create(ignored -> IO_OP.widen(IO.delay(() -> StateTuple.of(state, Unit.INSTANCE))));
     return new MutableContext<>(transformer, IOMonad.INSTANCE);
   }
 
@@ -149,8 +147,7 @@ public final class MutableContext<F extends WitnessArity<TypeArity.Unary>, S, A>
     Objects.requireNonNull(modifier, "modifier must not be null");
     StateT<S, IOKind.Witness, Unit> transformer =
         StateT.create(
-            s -> IO_OP.widen(IO.delay(() -> StateTuple.of(modifier.apply(s), Unit.INSTANCE))),
-            IOMonad.INSTANCE);
+            s -> IO_OP.widen(IO.delay(() -> StateTuple.of(modifier.apply(s), Unit.INSTANCE))));
     return new MutableContext<>(transformer, IOMonad.INSTANCE);
   }
 

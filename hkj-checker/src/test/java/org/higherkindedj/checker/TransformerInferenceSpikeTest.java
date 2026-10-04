@@ -11,7 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Docs-staleness confirming spike for transformers §4 (`EitherT.fromEither` "cannot infer `L`").
+ * Docs-staleness confirming spike for transformers §3 (`EitherT.fromEither` "cannot infer `L`").
  *
  * <p>This is the same inference family as effect §1 (proven stale by {@code
  * PathRightInferenceSpikeTest}): {@code Either.right(value)} has no Left, so {@code L} is
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
  * optics scaffolding; it is treated as suspected-stale-by-family in the docs note rather than
  * over-invested in here.)
  */
-@DisplayName("Spike: transformers §4 EitherT.fromEither inference")
+@DisplayName("Spike: transformers §3 EitherT.fromEither inference")
 class TransformerInferenceSpikeTest {
 
   @Test
@@ -50,7 +50,7 @@ class TransformerInferenceSpikeTest {
                     }
                     """));
     assertThat(c.status())
-        .as("doc transformers §4 claims a 'cannot infer L' error here; like §1, javac resolves it")
+        .as("doc transformers §3 claims a 'cannot infer L' error here; like §1, javac resolves it")
         .isEqualTo(Compilation.Status.SUCCESS);
   }
 }

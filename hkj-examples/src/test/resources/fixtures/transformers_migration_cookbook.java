@@ -202,8 +202,7 @@ class Fixture {
 
   static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Unit> push(Integer value) {
     return STATE_T.stateT(
-        stack -> OPTIONAL.widen(Optional.of(StateTuple.of(prepend(stack, value), Unit.INSTANCE))),
-        Instances.monadError(optional()));
+        stack -> OPTIONAL.widen(Optional.of(StateTuple.of(prepend(stack, value), Unit.INSTANCE))));
   }
 
   static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> pop() {
@@ -214,7 +213,6 @@ class Fixture {
                 : OPTIONAL.widen(
                     Optional.of(
                         StateTuple.of(
-                            new LinkedList<>(stack.subList(1, stack.size())), stack.get(0)))),
-        Instances.monadError(optional()));
+                            new LinkedList<>(stack.subList(1, stack.size())), stack.get(0)))));
   }
 }

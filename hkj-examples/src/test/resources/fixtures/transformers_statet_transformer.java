@@ -9,7 +9,6 @@
 // (see build.gradle.kts).
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
-import static org.higherkindedj.hkt.instances.Witnesses.id;
 import static org.higherkindedj.hkt.instances.Witnesses.optional;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 import static org.higherkindedj.hkt.state_t.StateTKindHelper.STATE_T;
@@ -52,8 +51,7 @@ class Fixture {
               currentState < 0
                   ? OPTIONAL.widen(Optional.empty())
                   : OPTIONAL.widen(
-                      Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState))),
-          optionalMonad);
+                      Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState))));
 
   static final StateT<Integer, OptionalKind.Witness, String> optStateT = computation;
 
@@ -71,8 +69,7 @@ class Fixture {
   /** The StateT-over-Optional stack the comprehension composes. */
   static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Unit> push(Integer value) {
     return STATE_T.stateT(
-        stack -> OPTIONAL.widen(Optional.of(StateTuple.of(prepend(stack, value), Unit.INSTANCE))),
-        optionalMonad);
+        stack -> OPTIONAL.widen(Optional.of(StateTuple.of(prepend(stack, value), Unit.INSTANCE))));
   }
 
   static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> pop() {
@@ -84,7 +81,6 @@ class Fixture {
           var newStack = new LinkedList<>(stack);
           Integer popped = newStack.remove(0);
           return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, popped)));
-        },
-        optionalMonad);
+        });
   }
 }

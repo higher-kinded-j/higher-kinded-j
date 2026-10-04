@@ -54,7 +54,7 @@ final class StateTLawFixtures {
 
   private static <A> StateT<String, OptionalKind.Witness, A> createStateT(
       Function<String, StateTuple<String, A>> fn) {
-    return StateT.create(s -> OUTER.of(fn.apply(s)), OUTER);
+    return StateT.create(s -> OUTER.of(fn.apply(s)));
   }
 
   private static Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> pureT(int value) {
@@ -68,7 +68,7 @@ final class StateTLawFixtures {
   }
 
   private static Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> emptyT() {
-    return STATE_T.widen(StateT.create(s -> OPTIONAL.widen(Optional.empty()), OUTER));
+    return STATE_T.widen(StateT.create(s -> OPTIONAL.widen(Optional.empty())));
   }
 
   /** pure(0/42/-1), a state-modifying StateT, and an empty outer {@code Optional}. */

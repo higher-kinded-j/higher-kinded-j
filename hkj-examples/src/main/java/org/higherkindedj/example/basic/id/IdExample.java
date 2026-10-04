@@ -80,7 +80,7 @@ public class IdExample {
 
     // Create the StateT (acting as State)
     Kind<StateTKind.Witness<Integer, IdKind.Witness>, Integer> incrementAndGet =
-        STATE_T.stateT(runStateFn, Instances.monad(id()));
+        STATE_T.stateT(runStateFn);
 
     // Run it
     Integer initialState = 10;

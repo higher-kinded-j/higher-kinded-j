@@ -149,13 +149,13 @@ public record EitherT<F extends WitnessArity<TypeArity.Unary>, L, R>(Kind<F, Eit
    * <p>This is useful for applying cross-cutting concerns (logging, retry, timeout) at the monad
    * level, or for switching between monadic contexts via a natural transformation.
    *
-   * <p><b>Example — switching from IO to Task via a natural transformation:</b>
+   * <p><b>Example: switching from IO to a virtual-thread task via a natural transformation:</b>
    *
    * <pre>{@code
    * EitherT<IOKind.Witness, String, Integer> ioResult = ...;
-   * Natural<IOKind.Witness, TaskKind.Witness> ioToTask = ...;
+   * Natural<IOKind.Witness, VTaskKind.Witness> ioToVTask = ...;
    *
-   * EitherT<TaskKind.Witness, String, Integer> taskResult = ioResult.mapT(ioToTask::apply);
+   * EitherT<VTaskKind.Witness, String, Integer> vTaskResult = ioResult.mapT(ioToVTask::apply);
    * }</pre>
    *
    * @param f The function to apply to the underlying {@code Kind<F, Either<L, R>>}. Must not be

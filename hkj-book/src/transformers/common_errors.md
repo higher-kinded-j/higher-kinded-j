@@ -6,16 +6,15 @@ Transformer code is generic-heavy by nature: a typical signature like `Kind<Eith
 - Which transformer mistakes javac catches, which the HKJ checker adds a message to, and which nothing catches
 - How to satisfy the missing-Monad constraint when constructing a transformer monad
 - How to unify error types across an `EitherT` chain
-- Why `StateT.mapT` takes an extra parameter that the other `mapT` methods do not
 - When to call `.value()` and when to leave a transformer alone
 ~~~
 
-~~~admonish tip title="Five of these six are javac errors"
+~~~admonish tip title="Four of these five are javac errors"
 The compiler is mostly on your side here, and that is not an accident. A transformer stack encodes the error type inside the witness itself (`EitherTKind.Witness<F, L>`), so a step with the wrong `L` is a genuinely different type rather than an erased one. The Effect Path API pays for its lighter syntax with exactly that guarantee: compare [Effect §5](../effect/compiler_errors.md#5-the-error-type-is-silently-erased-across-a-chain), where the same mistake compiles.
 
-- **§1, §2, §3, §5 and §6 are javac errors.** The build stops, and the message is quoted in the section.
-- **§1, §3 and §5 also carry an HKJ checker companion**, which adds an actionable message beside javac's own. §2 and §6 javac catches on its own. See [Compile-Time Checks](../tooling/compile_checks.md).
-- **§4 compiles, and nothing reports it**, the checker included. `L` resolves to `Object` and stays there.
+- **§1, §2, §4 and §5 are javac errors.** The build stops, and the message is quoted in the section.
+- **§1 and §4 also carry an HKJ checker companion**, which adds an actionable message beside javac's own. §2 and §5 javac catches on its own. See [Compile-Time Checks](../tooling/compile_checks.md).
+- **§3 compiles, and nothing reports it**, the checker included. `L` resolves to `Object` and stays there.
 ~~~
 
 ---
@@ -26,10 +25,9 @@ The compiler is mostly on your side here, and that is not an accident. A transfo
 |-------------|------------|-----------|
 | [`method eitherT cannot be applied`, expecting `Monad<F>`](#1-method-eithert-cannot-be-applied-to-given-types) | The outer monad was not passed to the factory | javac, plus `transformer-missing-monad` |
 | [`incompatible types`, with two `EitherTKind.Witness` shapes](#2-incompatible-types-error-type-mismatch-in-eithert-chain) | Two different error types `L` in one chain | javac |
-| [`mapT cannot be applied` on `StateT`](#3-method-mapt-cannot-be-applied-on-statet) | `StateT.mapT` needs a leading `Monad<G>` | javac, plus `state-t-mapt-arity` |
-| [`Either.right` silently gets `L = Object`](#4-the-phantom-l-on-eithertfromeither--eitherright) | Nothing constrains `L`, so javac defaults it | Nothing. Add the witness yourself |
-| [`cannot find symbol .value()` on a `Kind`](#5-cannot-find-symbol-value-on-a-kind) | `.value()` is on the concrete transformer, not on `Kind` | javac, plus `kind-value-narrow` |
-| [`For.from` not applicable, naming two stack types](#6-method-forfrom-is-not-applicable-with-the-wrong-monad) | Mixed transformer stacks in one comprehension | javac |
+| [`Either.right` silently gets `L = Object`](#3-the-phantom-l-on-eithertfromeither--eitherright) | Nothing constrains `L`, so javac defaults it | Nothing. Add the witness yourself |
+| [`cannot find symbol .value()` on a `Kind`](#4-cannot-find-symbol-value-on-a-kind) | `.value()` is on the concrete transformer, not on `Kind` | javac, plus `kind-value-narrow` |
+| [`For.from` not applicable, naming two stack types](#5-method-forfrom-is-not-applicable-with-the-wrong-monad) | Mixed transformer stacks in one comprehension | javac |
 
 Which line of defence answers depends on the mistake:
 
@@ -37,10 +35,10 @@ Which line of defence answers depends on the mistake:
 flowchart TD
     C["Your transformer stack"]
     J{"Does javac<br/>reject it?"}
-    N["Nothing says a word<br/>§4, L becomes Object"]
+    N["Nothing says a word<br/>§3, L becomes Object"]
     K{"Does an HKJ check<br/>run beside it?"}
-    KE["javac's error, plus an<br/>actionable HKJ message<br/>§1, §3, §5"]
-    JO["javac's error alone<br/>§2, §6"]
+    KE["javac's error, plus an<br/>actionable HKJ message<br/>§1, §4"]
+    JO["javac's error alone<br/>§2, §5"]
 
     C --> J
     J -->|no| N
@@ -163,47 +161,7 @@ The transformer stack encodes `L` inside the witness itself (`EitherTKind.Witnes
 
 ---
 
-## 3. "Method `mapT` cannot be applied" on `StateT`
-
-**A javac error.** `StateT.mapT` is the one `mapT` that takes a leading `Monad<G>`, because the state-threading function `S -> Kind<G, (S, A)>` has to close over the new monad.
-
-**The error:**
-
-```
-error: method mapT in record StateT<S,F,A> cannot be applied to given types;
-    stateT.mapT(f);
-           ^
-  required: Monad<G>, Function<Kind<F,StateTuple<S,A>>,Kind<G,StateTuple<S,A>>>
-  found:    (idKind)->[...]
-  reason:   cannot infer type-variable(s) G
-    (actual and formal argument lists differ in length)
-```
-
-**The trigger:**
-
-<!-- verify:rejects "method mapT in record org.higherkindedj.hkt.state_t.StateT<S,F,A> cannot be applied" -->
-```java
-// idState is a StateT<Counter, IdKind.Witness, Integer>
-var optionalState = idState.mapT(idKind -> idToOptional.apply(idKind));   // missing first argument
-```
-
-**The fix:** pass the target monad alongside the function.
-
-<!-- verify -->
-```java
-var optionalMonad = Instances.monadError(optional());
-var optionalState = idState.mapT(optionalMonad, idKind -> idToOptional.apply(idKind));
-```
-
-`EitherT.mapT`, `OptionalT.mapT`, `MaybeT.mapT`, `ReaderT.mapT`, and `WriterT.mapT` do not take this extra argument. Only `StateT` does.
-
-~~~admonish tip title="The HKJ checker catches this"
-The `state-t-mapt-arity` check is the companion to javac's own error, and explains that only `StateT.mapT` takes the leading `Monad<G>`. See [Compile-Time Checks](../tooling/compile_checks.md).
-~~~
-
----
-
-## 4. The phantom `L` on `EitherT.fromEither` / `Either.right`
+## 3. The phantom `L` on `EitherT.fromEither` / `Either.right`
 
 **This compiles, and nothing reports it.** `Either.right(value)` has no Left, so when nothing constrains `L`, javac resolves it to `java.lang.Object` and says nothing.
 
@@ -243,9 +201,9 @@ The HKJ checker does not cover it either. This is the excluded inference family:
 
 ---
 
-## 5. "Cannot find symbol `.value()`" on a `Kind`
+## 4. "Cannot find symbol `.value()`" on a `Kind`
 
-**A javac error.** `.value()` is defined on the concrete `EitherT<F, L, R>`, and equivalently on `OptionalT`, `MaybeT`, `ReaderT`, `StateT` and `WriterT`. It is not part of the `Kind` interface, so a `Kind` value has to be narrowed back to the concrete transformer first.
+**A javac error.** `.value()` is defined on the concrete `EitherT<F, L, R>`, and equivalently on `OptionalT` and `MaybeT`. `ReaderT` and `WriterT` expose `run()` instead, and `StateT` exposes `runStateT(state)`. None of them is part of the `Kind` interface, so a `Kind` value has to be narrowed back to the concrete transformer first.
 
 **The error:**
 
@@ -295,7 +253,7 @@ The `kind-value-narrow` check is the companion to javac's own error, and points 
 
 ---
 
-## 6. "Method `For.from` is not applicable" with the wrong monad
+## 5. "Method `For.from` is not applicable" with the wrong monad
 
 **A javac error.** `For.from(monad, source)` requires the source's witness type to match the monad's. Passing an `EitherTMonad` and an `OptionalT` mixes two different transformer stacks.
 
@@ -343,9 +301,8 @@ If you genuinely need to combine two effect layers, typed errors *and* absence i
 ~~~admonish info title="Key Takeaways"
 * **The witness is what makes these errors loud.** A transformer stack carries `L` in the type, so a mismatched error type is a compile error rather than a runtime surprise.
 * **Every transformer factory wants the outer monad.** `Instances.eitherT(futureMonad)`, and a `Monoid<W>` as well for `WriterTMonad`.
-* **`StateT.mapT` is the one that takes a leading `Monad<G>`.** Every other transformer's `mapT` takes the function alone.
 * **`.value()` lives on the concrete transformer, not on `Kind`.** Narrow first, or declare the variable concrete and skip the round trip.
-* **Only §4 is silent.** An unconstrained `L` becomes `Object` with nothing to warn you, so pin it with `Either.<E, A>right(...)` at the source.
+* **Only §3 is silent.** An unconstrained `L` becomes `Object` with nothing to warn you, so pin it with `Either.<E, A>right(...)` at the source.
 ~~~
 
 ~~~admonish tip title="See Also"

@@ -60,6 +60,8 @@ class KindValueNarrowCheckerTest {
     Compilation c = compile(BARE_KIND_VALUE);
     assertThat(c).failed(); // javac's own "cannot find symbol" error
     assertThat(c).hadErrorContaining("value() is defined on the concrete transformer");
+    assertThat(c)
+        .hadErrorContaining("ReaderT and WriterT expose run(), and StateT runStateT(state)");
     assertThat(c).hadErrorContaining("transformers/common_errors.html");
   }
 

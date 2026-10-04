@@ -76,7 +76,7 @@ public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
   @Override
   public <A> Kind<StateTKind.Witness<S, F>, A> of(@Nullable A a) {
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.of(StateTuple.of(s, a));
-    return StateT.<S, F, A>create(runFn, monadF);
+    return StateT.<S, F, A>create(runFn);
   }
 
   /**
@@ -103,7 +103,7 @@ public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
             monadF.map(
                 stateTuple -> StateTuple.of(stateTuple.state(), f.apply(stateTuple.value())),
                 stateT.runStateT(s));
-    return StateT.<S, F, B>create(newRunFn, monadF);
+    return StateT.<S, F, B>create(newRunFn);
   }
 
   /**
@@ -174,7 +174,7 @@ public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
                 },
                 stateTf.runStateT(s0));
 
-    return StateT.create(newRunFn, monadF);
+    return StateT.create(newRunFn);
   }
 
   /**
@@ -233,6 +233,6 @@ public class StateTMonad<S, F extends WitnessArity<TypeArity.Unary>>
                 },
                 stateTa.runStateT(s0));
 
-    return StateT.<S, F, B>create(newRunFn, monadF);
+    return StateT.<S, F, B>create(newRunFn);
   }
 }

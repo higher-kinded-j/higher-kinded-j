@@ -14,7 +14,7 @@ import javax.tools.Diagnostic;
 
 /**
  * Detects {@code value()} called on a bare {@code Kind} ({@code transformers/common_errors.md}
- * section 5).
+ * section 4).
  *
  * <p>{@code org.higherkindedj.hkt.Kind} is an empty marker interface, so {@code kind.value()} is a
  * genuine javac "cannot find symbol" error — {@code value()} lives on the concrete transformer

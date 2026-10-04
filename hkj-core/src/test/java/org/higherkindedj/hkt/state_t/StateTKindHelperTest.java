@@ -18,7 +18,6 @@ import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.state.StateTuple;
 import org.higherkindedj.hkt.test.assertions.ValidationTestBuilder;
-import org.higherkindedj.hkt.util.validation.Operation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -26,7 +25,6 @@ import org.junit.jupiter.api.Test;
 
 @DisplayName("StateTKindHelper Tests ")
 // (F=OptionalKind.Witness)
-@SuppressWarnings("removal") // exercises deprecated-for-removal accessors
 class StateTKindHelperTest {
 
   private static final String TYPE_NAME = "StateT";
@@ -40,7 +38,7 @@ class StateTKindHelperTest {
 
   private <S, A> StateT<S, OptionalKind.Witness, A> createStateT(
       Function<S, Kind<OptionalKind.Witness, StateTuple<S, A>>> runFn) {
-    return StateT.create(runFn, outerMonad);
+    return StateT.create(runFn);
   }
 
   @Nested
@@ -183,39 +181,25 @@ class StateTKindHelperTest {
   class StateTFactoryMethodTests {
 
     @Test
-    @DisplayName("stateT should create StateT instance from function and monad")
+    @DisplayName("stateT should create StateT instance from function")
     void stateT_shouldCreateInstance() {
       Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
           s -> outerMonad.of(StateTuple.of(s + "_modified", 42));
 
-      StateT<String, OptionalKind.Witness, Integer> stateT = STATE_T.stateT(runFn, outerMonad);
+      StateT<String, OptionalKind.Witness, Integer> stateT = STATE_T.stateT(runFn);
 
       assertThat(stateT).isNotNull();
       assertThat(stateT.runStateTFn()).isSameAs(runFn);
-      assertThat(stateT.monadF()).isSameAs(outerMonad);
     }
 
     @Test
     @DisplayName("stateT should throw when function is null")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void stateT_nullFunction_shouldThrow() {
-      assertThatThrownBy(() -> STATE_T.stateT(null, outerMonad))
+      assertThatThrownBy(() -> STATE_T.<String, OptionalKind.Witness, Integer>stateT(null))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("runStateTFn")
           .hasMessageContaining("stateT");
-    }
-
-    @Test
-    @DisplayName("stateT should throw when monad is null")
-    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-    void stateT_nullMonad_shouldThrow() {
-      Function<String, Kind<OptionalKind.Witness, StateTuple<String, Integer>>> runFn =
-          s -> outerMonad.of(StateTuple.of(s, 42));
-
-      ValidationTestBuilder.create()
-          .assertTransformerOuterMonadNull(
-              () -> STATE_T.stateT(runFn, null), StateT.class, Operation.STATE_T)
-          .execute();
     }
   }
 
@@ -237,7 +221,7 @@ class StateTKindHelperTest {
       Kind<OptionalKind.Witness, Integer> fa = outerMonad.of(42);
       String testState = "unchanged";
       StateT<String, OptionalKind.Witness, Integer> stateT = STATE_T.liftF(outerMonad, fa);
-      Kind<OptionalKind.Witness, String> finalState = stateT.execStateT(testState);
+      Kind<OptionalKind.Witness, String> finalState = stateT.execStateT(testState, outerMonad);
       assertThat(finalState).isNotNull();
     }
 
@@ -279,26 +263,6 @@ class StateTKindHelperTest {
     }
 
     @Test
-    @DisplayName("evalStateT should extract value via helper")
-    void evalStateT_shouldExtractValue() {
-      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
-
-      Kind<OptionalKind.Witness, Integer> result = STATE_T.evalStateT(kind, "initial");
-
-      assertThat(result).isNotNull();
-    }
-
-    @Test
-    @DisplayName("execStateT should extract state via helper")
-    void execStateT_shouldExtractState() {
-      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
-
-      Kind<OptionalKind.Witness, String> result = STATE_T.execStateT(kind, "initial");
-
-      assertThat(result).isNotNull();
-    }
-
-    @Test
     @DisplayName("runStateT should throw when Kind is null")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void runStateT_nullKind_shouldThrow() {
@@ -309,10 +273,30 @@ class StateTKindHelperTest {
     }
 
     @Test
+    @DisplayName("evalStateT should extract value via helper")
+    void evalStateT_shouldExtractValue() {
+      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
+
+      Kind<OptionalKind.Witness, Integer> result = STATE_T.evalStateT(kind, "initial", outerMonad);
+
+      assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("execStateT should extract state via helper")
+    void execStateT_shouldExtractState() {
+      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
+
+      Kind<OptionalKind.Witness, String> result = STATE_T.execStateT(kind, "initial", outerMonad);
+
+      assertThat(result).isNotNull();
+    }
+
+    @Test
     @DisplayName("evalStateT should throw when Kind is null")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void evalStateT_nullKind_shouldThrow() {
-      assertThatThrownBy(() -> STATE_T.evalStateT(null, "initial"))
+      assertThatThrownBy(() -> STATE_T.evalStateT(null, "initial", outerMonad))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind")
           .hasMessageContaining("evalStateT");
@@ -322,46 +306,6 @@ class StateTKindHelperTest {
     @DisplayName("execStateT should throw when Kind is null")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void execStateT_nullKind_shouldThrow() {
-      assertThatThrownBy(() -> STATE_T.execStateT(null, "initial"))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind")
-          .hasMessageContaining("execStateT");
-    }
-
-    @Test
-    @DisplayName("evalStateT(kind, state, monad) should extract value via helper")
-    void evalStateTWithExplicitMonad_shouldExtractValue() {
-      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
-
-      Kind<OptionalKind.Witness, Integer> result = STATE_T.evalStateT(kind, "initial", outerMonad);
-
-      assertThat(result).isNotNull();
-    }
-
-    @Test
-    @DisplayName("execStateT(kind, state, monad) should extract state via helper")
-    void execStateTWithExplicitMonad_shouldExtractState() {
-      Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
-
-      Kind<OptionalKind.Witness, String> result = STATE_T.execStateT(kind, "initial", outerMonad);
-
-      assertThat(result).isNotNull();
-    }
-
-    @Test
-    @DisplayName("evalStateT(kind, state, monad) should throw when Kind is null")
-    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-    void evalStateTWithExplicitMonad_nullKind_shouldThrow() {
-      assertThatThrownBy(() -> STATE_T.evalStateT(null, "initial", outerMonad))
-          .isInstanceOf(NullPointerException.class)
-          .hasMessageContaining("Kind")
-          .hasMessageContaining("evalStateT");
-    }
-
-    @Test
-    @DisplayName("execStateT(kind, state, monad) should throw when Kind is null")
-    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-    void execStateTWithExplicitMonad_nullKind_shouldThrow() {
       assertThatThrownBy(() -> STATE_T.execStateT(null, "initial", outerMonad))
           .isInstanceOf(NullPointerException.class)
           .hasMessageContaining("Kind")
@@ -369,9 +313,9 @@ class StateTKindHelperTest {
     }
 
     @Test
-    @DisplayName("evalStateT(kind, state, monad) should throw when monad is null")
+    @DisplayName("evalStateT should throw when monad is null")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-    void evalStateTWithExplicitMonad_nullMonad_shouldThrow() {
+    void evalStateT_nullMonad_shouldThrow() {
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
       assertThatThrownBy(() -> STATE_T.evalStateT(kind, "initial", null))
           .isInstanceOf(NullPointerException.class)
@@ -380,9 +324,9 @@ class StateTKindHelperTest {
     }
 
     @Test
-    @DisplayName("execStateT(kind, state, monad) should throw when monad is null")
+    @DisplayName("execStateT should throw when monad is null")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-    void execStateTWithExplicitMonad_nullMonad_shouldThrow() {
+    void execStateT_nullMonad_shouldThrow() {
       Kind<StateTKind.Witness<String, OptionalKind.Witness>, Integer> kind = STATE_T.widen(stateT);
       assertThatThrownBy(() -> STATE_T.execStateT(kind, "initial", null))
           .isInstanceOf(NullPointerException.class)

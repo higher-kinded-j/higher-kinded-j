@@ -128,27 +128,6 @@ public final class DiagnosticMessages {
   }
 
   /**
-   * Formats the companion diagnostic for {@code StateT.mapT} called without the leading {@code
-   * Monad<G>}.
-   *
-   * <p>{@code StateT} is the only transformer whose {@code mapT} takes the target monad as an extra
-   * first argument (the state-threading function must close over the new monad). {@code
-   * EitherT}/{@code OptionalT}/{@code MaybeT}/{@code ReaderT}/{@code WriterT.mapT} take just the
-   * function, which is why this mistake is so easy to make. Emitted alongside javac's own "method
-   * mapT cannot be applied to given types" error.
-   *
-   * @return a formatted error message
-   */
-  public static String stateTMapTArity() {
-    String body =
-        "StateT.mapT(...) needs the target Monad<G> as its first argument, e.g. "
-            + "stateT.mapT(targetMonad, f). StateT is the only transformer whose mapT takes this "
-            + "extra argument — EitherT/OptionalT/MaybeT/ReaderT/WriterT.mapT take just the "
-            + "function.";
-    return withDocLink(body, "transformers/common_errors.html");
-  }
-
-  /**
    * Formats the diagnostic for a silently-erased error-type mismatch in an error-typed Path chain.
    *
    * <p>{@code via}/{@code flatMap}/{@code then}/{@code zipWith} bind the next step to {@code
@@ -176,16 +155,18 @@ public final class DiagnosticMessages {
    * Formats the companion diagnostic for {@code value()} called on a bare {@code Kind}.
    *
    * <p>{@code org.higherkindedj.hkt.Kind} is an empty marker interface; {@code value()} lives on
-   * the concrete transformer ({@code EitherT}/{@code OptionalT}/{@code MaybeT}/{@code ReaderT}/
-   * {@code StateT}/{@code WriterT}). Emitted alongside javac's own "cannot find symbol" error.
+   * the concrete transformer ({@code EitherT}/{@code OptionalT}/{@code MaybeT}), while {@code
+   * ReaderT} and {@code WriterT} expose {@code run()} and {@code StateT} exposes {@code
+   * runStateT(state)}. Emitted alongside javac's own "cannot find symbol" error.
    *
    * @return a formatted error message
    */
   public static String kindValueNarrow() {
     String body =
-        "value() is defined on the concrete transformer (EitherT/OptionalT/MaybeT/ReaderT/StateT/"
-            + "WriterT), not on Kind. Narrow first, e.g. EITHER_T.narrow(kind).value(), or declare "
-            + "the variable as the concrete transformer type.";
+        "value() is defined on the concrete transformer (EitherT/OptionalT/MaybeT), not on Kind; "
+            + "ReaderT and WriterT expose run(), and StateT runStateT(state). Narrow first, e.g. "
+            + "EITHER_T.narrow(kind).value(), or declare the variable as the concrete transformer "
+            + "type.";
     return withDocLink(body, "transformers/common_errors.html");
   }
 

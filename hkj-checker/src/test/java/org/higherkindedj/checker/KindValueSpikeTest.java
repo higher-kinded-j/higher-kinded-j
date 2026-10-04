@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Reachability spike (verify-before-implement): is {@code .value()} on a {@code Kind}-typed
- * receiver (transformers §5) a real, reachable javac error a companion can annotate?
+ * receiver (transformers §4) a real, reachable javac error a companion can annotate?
  *
  * <p>{@code org.higherkindedj.hkt.Kind} is an empty marker interface, so {@code kind.value()} is
  * structurally a "cannot find symbol" error (not the inference family). This pins that behaviour
