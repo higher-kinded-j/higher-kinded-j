@@ -26,7 +26,9 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.TraverseTraversals;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A type-safe path through a data structure that focuses on exactly one element.
@@ -70,7 +72,8 @@ import org.jspecify.annotations.NullMarked;
  * @see FocusPaths for utility methods and optics factories
  */
 @NullMarked
-public sealed interface FocusPath<S, A> permits LensFocusPath {
+public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullable Object>
+    permits LensFocusPath {
 
   /**
    * The field-name segments this path carries, outermost first; empty when unlabelled.
@@ -177,7 +180,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a new FocusPath focusing on the composed target
    */
-  <B> FocusPath<S, B> via(Lens<A, B> lens);
+  <B extends @Nullable Object> FocusPath<S, B> via(Lens<A, B> lens);
 
   /**
    * Composes this path with another FocusPath.
@@ -189,7 +192,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a new FocusPath focusing on the composed target
    */
-  default <B> FocusPath<S, B> via(FocusPath<A, B> other) {
+  default <B extends @Nullable Object> FocusPath<S, B> via(FocusPath<A, B> other) {
     return new LensFocusPath<>(
         toLens().andThen(other.toLens()), Segments.concat(segments(), other.segments()));
   }
@@ -204,7 +207,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  default <B> AffinePath<S, B> via(AffinePath<A, B> other) {
+  default <B extends @Nullable Object> AffinePath<S, B> via(AffinePath<A, B> other) {
     return new AffineFocusPath<>(
         toLens().andThen(other.toAffine()), Segments.concat(segments(), other.segments()));
   }
@@ -219,7 +222,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a TraversalPath focusing on multiple elements
    */
-  default <B> TraversalPath<S, B> via(TraversalPath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> via(TraversalPath<A, B> other) {
     return new TraversalFocusPath<>(
         toLens().andThen(other.toTraversal()), Segments.concat(segments(), other.segments()));
   }
@@ -233,7 +236,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a new FocusPath focusing on the composed target
    */
-  <B> FocusPath<S, B> via(Iso<A, B> iso);
+  <B extends @Nullable Object> FocusPath<S, B> via(Iso<A, B> iso);
 
   /**
    * Composes this path with a prism, producing an AffinePath.
@@ -244,7 +247,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  <B> AffinePath<S, B> via(Prism<A, B> prism);
+  <B extends @Nullable Object> AffinePath<S, B> via(Prism<A, B> prism);
 
   /**
    * Composes this path with an affine, producing an AffinePath.
@@ -255,7 +258,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  <B> AffinePath<S, B> via(Affine<A, B> affine);
+  <B extends @Nullable Object> AffinePath<S, B> via(Affine<A, B> affine);
 
   /**
    * Composes this path with a traversal, producing a TraversalPath.
@@ -266,7 +269,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a TraversalPath focusing on multiple elements
    */
-  <B> TraversalPath<S, B> via(Traversal<A, B> traversal);
+  <B extends @Nullable Object> TraversalPath<S, B> via(Traversal<A, B> traversal);
 
   // ===== then() Aliases =====
 
@@ -280,7 +283,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a new FocusPath focusing on the composed target
    */
-  default <B> FocusPath<S, B> then(Lens<A, B> lens) {
+  default <B extends @Nullable Object> FocusPath<S, B> then(Lens<A, B> lens) {
     return via(lens);
   }
 
@@ -291,7 +294,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a new FocusPath focusing on the composed target
    */
-  default <B> FocusPath<S, B> then(FocusPath<A, B> other) {
+  default <B extends @Nullable Object> FocusPath<S, B> then(FocusPath<A, B> other) {
     return via(other);
   }
 
@@ -302,7 +305,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a new FocusPath focusing on the composed target
    */
-  default <B> FocusPath<S, B> then(Iso<A, B> iso) {
+  default <B extends @Nullable Object> FocusPath<S, B> then(Iso<A, B> iso) {
     return via(iso);
   }
 
@@ -313,7 +316,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  default <B> AffinePath<S, B> then(Prism<A, B> prism) {
+  default <B extends @Nullable Object> AffinePath<S, B> then(Prism<A, B> prism) {
     return via(prism);
   }
 
@@ -324,7 +327,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  default <B> AffinePath<S, B> then(Affine<A, B> affine) {
+  default <B extends @Nullable Object> AffinePath<S, B> then(Affine<A, B> affine) {
     return via(affine);
   }
 
@@ -335,7 +338,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return an AffinePath that may or may not focus on a value
    */
-  default <B> AffinePath<S, B> then(AffinePath<A, B> other) {
+  default <B extends @Nullable Object> AffinePath<S, B> then(AffinePath<A, B> other) {
     return via(other);
   }
 
@@ -346,7 +349,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a TraversalPath focusing on multiple elements
    */
-  default <B> TraversalPath<S, B> then(Traversal<A, B> traversal) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(Traversal<A, B> traversal) {
     return via(traversal);
   }
 
@@ -357,7 +360,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the new focused type
    * @return a TraversalPath focusing on multiple elements
    */
-  default <B> TraversalPath<S, B> then(TraversalPath<A, B> other) {
+  default <B extends @Nullable Object> TraversalPath<S, B> then(TraversalPath<A, B> other) {
     return via(other);
   }
 
@@ -389,7 +392,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @see #each(Each)
    */
   @SuppressWarnings("unchecked")
-  default <E> TraversalPath<S, E> each() {
+  default <E extends @Nullable Object> TraversalPath<S, E> each() {
     // This cast is safe when A is List<E>
     return via((Traversal<A, E>) FocusPaths.listElements());
   }
@@ -424,7 +427,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @see org.higherkindedj.optics.Each
    * @see org.higherkindedj.optics.each.EachInstances
    */
-  default <E> TraversalPath<S, E> each(Each<A, E> eachInstance) {
+  default <E extends @Nullable Object> TraversalPath<S, E> each(Each<A, E> eachInstance) {
     return via(eachInstance.each());
   }
 
@@ -439,7 +442,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, E> at(int index) {
+  default <E extends @Nullable Object> AffinePath<S, E> at(int index) {
     return via((Affine<A, E>) FocusPaths.listAt(index));
   }
 
@@ -455,7 +458,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @throws ClassCastException if the focused type {@code A} is not a {@code Map}
    */
   @SuppressWarnings("unchecked")
-  default <K, V> AffinePath<S, V> atKey(K key) {
+  default <K, V extends @Nullable Object> AffinePath<S, V> atKey(K key) {
     return via((Affine<A, V>) FocusPaths.mapAt(key));
   }
 
@@ -496,7 +499,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <B> the inner value type
    * @return an AffinePath focusing on the inner value
    */
-  default <B> AffinePath<S, B> some(Affine<A, B> affine) {
+  default <B extends @Nullable Object> AffinePath<S, B> some(Affine<A, B> affine) {
     return via(affine);
   }
 
@@ -605,7 +608,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @see #snoc() for init/last decomposition
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, Pair<E, List<E>>> cons() {
+  default <E extends @Nullable Object> AffinePath<S, Pair<E, List<E>>> cons() {
     return via((Prism<A, Pair<E, List<E>>>) (Prism<?, ?>) FocusPaths.<E>listCons());
   }
 
@@ -616,7 +619,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @return an AffinePath to a (head, tail) pair
    * @see #cons()
    */
-  default <E> AffinePath<S, Pair<E, List<E>>> headTail() {
+  default <E extends @Nullable Object> AffinePath<S, Pair<E, List<E>>> headTail() {
     return cons();
   }
 
@@ -648,7 +651,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @see #cons() for head/tail decomposition
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, Pair<List<E>, E>> snoc() {
+  default <E extends @Nullable Object> AffinePath<S, Pair<List<E>, E>> snoc() {
     return via((Prism<A, Pair<List<E>, E>>) (Prism<?, ?>) FocusPaths.<E>listSnoc());
   }
 
@@ -659,7 +662,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @return an AffinePath to an (init, last) pair
    * @see #snoc()
    */
-  default <E> AffinePath<S, Pair<List<E>, E>> initLast() {
+  default <E extends @Nullable Object> AffinePath<S, Pair<List<E>, E>> initLast() {
     return snoc();
   }
 
@@ -686,7 +689,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, E> head() {
+  default <E extends @Nullable Object> AffinePath<S, E> head() {
     return via((Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listHead());
   }
 
@@ -710,7 +713,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, E> last() {
+  default <E extends @Nullable Object> AffinePath<S, E> last() {
     return via((Affine<A, E>) (Affine<?, ?>) FocusPaths.<E>listLast());
   }
 
@@ -724,7 +727,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, List<E>> tail() {
+  default <E extends @Nullable Object> AffinePath<S, List<E>> tail() {
     return via((Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listTail());
   }
 
@@ -738,7 +741,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @throws ClassCastException if the focused type {@code A} is not a {@code List}
    */
   @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, List<E>> init() {
+  default <E extends @Nullable Object> AffinePath<S, List<E>> init() {
     return via((Affine<A, List<E>>) (Affine<?, ?>) FocusPaths.<E>listInit());
   }
 
@@ -755,13 +758,15 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * Views this path as an AffinePath.
    *
    * <p>This is always valid because a FocusPath (exactly one) is a special case of AffinePath (zero
-   * or one).
+   * or one). An AffinePath reads its focus as an {@link Optional}, which cannot hold {@code null},
+   * so on a {@code FocusPath<S, @Nullable String>} a null focus reads as absent.
    *
    * @return an AffinePath view of this path
    */
   default AffinePath<S, A> asAffine() {
     Lens<S, A> lens = toLens();
-    return AffinePath.of(Affine.of(s -> Optional.of(lens.get(s)), (s, a) -> lens.set(a, s)));
+    return AffinePath.of(
+        Affine.of(s -> Optional.ofNullable(lens.get(s)), (s, a) -> lens.set(a, s)));
   }
 
   /**
@@ -861,7 +866,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    *
    * <p>This bridges from the optics domain to the effect domain, allowing the extracted value to be
    * used in effect-based computations. Since FocusPath always focuses on exactly one element, the
-   * result is always a Just (non-empty) MaybePath.
+   * result is a Just unless that element is {@code null}, which gives Nothing.
    *
    * <h2>Example Usage</h2>
    *
@@ -878,8 +883,8 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param source the source structure
    * @return a MaybePath containing the focused value
    */
-  default MaybePath<A> toMaybePath(S source) {
-    return Path.just(get(source));
+  default MaybePath<@NonNull A> toMaybePath(S source) {
+    return Path.maybe(get(source));
   }
 
   /**
@@ -967,7 +972,8 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <A> the focused type
    * @return a new FocusPath
    */
-  static <S, A> FocusPath<S, A> of(Lens<S, A> lens) {
+  static <S extends @Nullable Object, A extends @Nullable Object> FocusPath<S, A> of(
+      Lens<S, A> lens) {
     return new LensFocusPath<>(lens, List.of());
   }
 
@@ -985,7 +991,8 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @return a labelled FocusPath (non-null)
    * @throws NullPointerException if {@code lens} or {@code segment} is null
    */
-  static <S, A> FocusPath<S, A> of(Lens<S, A> lens, String segment) {
+  static <S extends @Nullable Object, A extends @Nullable Object> FocusPath<S, A> of(
+      Lens<S, A> lens, String segment) {
     java.util.Objects.requireNonNull(segment, "segment must not be null");
     return new LensFocusPath<>(lens, List.of(segment));
   }
@@ -998,7 +1005,7 @@ public sealed interface FocusPath<S, A> permits LensFocusPath {
    * @param <S> the source/target type
    * @return an identity FocusPath
    */
-  static <S> FocusPath<S, S> identity() {
+  static <S extends @Nullable Object> FocusPath<S, S> identity() {
     return of(Lens.of(Function.identity(), (s, a) -> a));
   }
 }

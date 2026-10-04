@@ -15,6 +15,7 @@ import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.indexed.Pair;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A final utility class providing {@link Prism} and {@link Affine} instances for functional list
@@ -107,7 +108,7 @@ public final class ListPrisms {
    * @param <A> The element type of the list.
    * @return A prism that decomposes a list as (head, tail).
    */
-  public static <A> Prism<List<A>, Pair<A, List<A>>> cons() {
+  public static <A extends @Nullable Object> Prism<List<A>, Pair<A, List<A>>> cons() {
     return Prism.of(
         list -> {
           if (list.isEmpty()) {
@@ -135,7 +136,7 @@ public final class ListPrisms {
    * @return A prism that decomposes a list as (head, tail).
    * @see #cons()
    */
-  public static <A> Prism<List<A>, Pair<A, List<A>>> headTail() {
+  public static <A extends @Nullable Object> Prism<List<A>, Pair<A, List<A>>> headTail() {
     return cons();
   }
 
@@ -167,7 +168,7 @@ public final class ListPrisms {
    * @param <A> The element type of the list.
    * @return A prism that decomposes a list as (init, last).
    */
-  public static <A> Prism<List<A>, Pair<List<A>, A>> snoc() {
+  public static <A extends @Nullable Object> Prism<List<A>, Pair<List<A>, A>> snoc() {
     return Prism.of(
         list -> {
           if (list.isEmpty()) {
@@ -195,7 +196,7 @@ public final class ListPrisms {
    * @return A prism that decomposes a list as (init, last).
    * @see #snoc()
    */
-  public static <A> Prism<List<A>, Pair<List<A>, A>> initLast() {
+  public static <A extends @Nullable Object> Prism<List<A>, Pair<List<A>, A>> initLast() {
     return snoc();
   }
 
@@ -228,12 +229,12 @@ public final class ListPrisms {
    * @param <A> The element type of the list.
    * @return An affine focusing on the first element.
    */
-  public static <A> Affine<List<A>, A> head() {
+  public static <A extends @Nullable Object> Affine<List<A>, A> head() {
     return Affine.of(
-        list -> list.isEmpty() ? Optional.empty() : Optional.of(list.getFirst()),
+        list -> list.isEmpty() ? Optional.empty() : Optional.ofNullable(list.getFirst()),
         (list, value) -> {
           if (list.isEmpty()) {
-            return List.of(value);
+            return Collections.singletonList(value);
           }
           List<A> result = new ArrayList<>(list);
           result.set(0, value);
@@ -267,12 +268,12 @@ public final class ListPrisms {
    * @param <A> The element type of the list.
    * @return An affine focusing on the last element.
    */
-  public static <A> Affine<List<A>, A> last() {
+  public static <A extends @Nullable Object> Affine<List<A>, A> last() {
     return Affine.of(
-        list -> list.isEmpty() ? Optional.empty() : Optional.of(list.getLast()),
+        list -> list.isEmpty() ? Optional.empty() : Optional.ofNullable(list.getLast()),
         (list, value) -> {
           if (list.isEmpty()) {
-            return List.of(value);
+            return Collections.singletonList(value);
           }
           List<A> result = new ArrayList<>(list);
           result.set(result.size() - 1, value);
@@ -312,7 +313,7 @@ public final class ListPrisms {
    * @param <A> The element type of the list.
    * @return An affine focusing on the tail of a list.
    */
-  public static <A> Affine<List<A>, List<A>> tail() {
+  public static <A extends @Nullable Object> Affine<List<A>, List<A>> tail() {
     return Affine.of(
         list -> {
           if (list.isEmpty()) {
@@ -363,7 +364,7 @@ public final class ListPrisms {
    * @param <A> The element type of the list.
    * @return An affine focusing on the init of a list.
    */
-  public static <A> Affine<List<A>, List<A>> init() {
+  public static <A extends @Nullable Object> Affine<List<A>, List<A>> init() {
     return Affine.of(
         list -> {
           if (list.isEmpty()) {
@@ -410,7 +411,7 @@ public final class ListPrisms {
    * @param <A> The element type of the list.
    * @return A prism that matches empty lists.
    */
-  public static <A> Prism<List<A>, Unit> empty() {
+  public static <A extends @Nullable Object> Prism<List<A>, Unit> empty() {
     return Prism.of(
         list -> list.isEmpty() ? Optional.of(Unit.INSTANCE) : Optional.empty(), unit -> List.of());
   }
@@ -702,7 +703,7 @@ public final class ListPrisms {
    * @param list the list to copy
    * @return an unmodifiable copy of the list
    */
-  private static <A> List<A> copyList(List<A> list) {
+  private static <A extends @Nullable Object> List<A> copyList(List<A> list) {
     return Collections.unmodifiableList(new ArrayList<>(list));
   }
 }

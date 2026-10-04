@@ -4,8 +4,12 @@ package org.higherkindedj.optics.fetch;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.optics.fetch.FetchKindHelper.FETCH;
 
+import java.util.List;
 import java.util.Set;
+import org.higherkindedj.optics.Traversal;
+import org.higherkindedj.optics.focus.FocusPaths;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -61,6 +65,24 @@ class PlansTest {
       assertThat(plan.rounds()).isEqualTo(1);
       assertThat(plan.fetchedBatches().get(0)).containsExactlyInAnyOrder(1, 2);
       assertThat(plan.totalKeyCount()).isEqualTo(2);
+      assertThat(plan.truncated()).isFalse();
+    }
+
+    @Test
+    @DisplayName("a batched traversal walks to Done: its one round is the whole program")
+    void batchedTraversalWalksFully() {
+      Traversal<List<Integer>, Integer> ids = FocusPaths.listElements();
+      Fetch<Integer, Integer, List<Integer>> program =
+          FETCH.narrow(
+              ids.modifyF(
+                  id -> FETCH.widen(Fetch.<Integer, Integer>fetch(id)),
+                  List.of(1, 2, 3),
+                  FetchApplicative.<Integer, Integer>instance()));
+
+      Plan<Integer> plan = Plans.preflight(program);
+
+      assertThat(plan.rounds()).isEqualTo(1);
+      assertThat(plan.fetchedBatches()).containsExactly(Set.of(1, 2, 3));
       assertThat(plan.truncated()).isFalse();
     }
 

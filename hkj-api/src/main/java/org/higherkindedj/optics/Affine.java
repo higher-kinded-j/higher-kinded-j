@@ -11,6 +11,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An <b>Affine</b> is an optic that focuses on <b>zero or one</b> element within a structure. It
@@ -86,18 +88,22 @@ import org.higherkindedj.hkt.WitnessArity;
  * @param <A> The target type of the focused part (e.g., {@code String} for the email value).
  * @since 0.3.8
  */
-public interface Affine<S, A> extends Optic<S, S, A, A> {
+public interface Affine<S extends @Nullable Object, A extends @Nullable Object>
+    extends Optic<S, S, A, A> {
 
   /**
    * Attempts to get the focused part {@code A} from the whole structure {@code S}.
    *
    * <p>This is the primary "getter" for an Affine. Unlike a {@link Lens}, it may return empty if
-   * the focused element is absent.
+   * the focused element is absent. An {@link Optional} cannot hold {@code null}, so a null focus
+   * reads as absent too: {@link #modify} then leaves the source unchanged, while {@link #set} still
+   * writes the value it is given, {@code null} included. At a null focus, then, {@code set} is not
+   * the no-op the absence law expects of an absent target.
    *
    * @param source The whole structure.
    * @return An {@link Optional} containing the focused part if present, otherwise empty.
    */
-  Optional<A> getOptional(S source);
+  Optional<@NonNull A> getOptional(S source);
 
   /**
    * Sets a new value for the focused part {@code A}, returning a new, updated structure {@code S}.
@@ -171,7 +177,7 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
     return new Fold<>() {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
-        Optional<A> opt = self.getOptional(source);
+        Optional<@NonNull A> opt = self.getOptional(source);
         if (opt.isPresent()) {
           return f.apply(opt.get());
         }
@@ -193,11 +199,11 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Affine<S, B> andThen(Affine<A, B> other) {
+  default <B extends @Nullable Object> Affine<S, B> andThen(Affine<A, B> other) {
     Affine<S, A> self = this;
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return self.getOptional(source).flatMap(other::getOptional);
       }
 
@@ -221,11 +227,11 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Affine<S, B> andThen(Lens<A, B> lens) {
+  default <B extends @Nullable Object> Affine<S, B> andThen(Lens<A, B> lens) {
     Affine<S, A> self = this;
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return self.getOptional(source).map(lens::get);
       }
 
@@ -249,11 +255,11 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Affine<S, B> andThen(Prism<A, B> prism) {
+  default <B extends @Nullable Object> Affine<S, B> andThen(Prism<A, B> prism) {
     Affine<S, A> self = this;
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return self.getOptional(source).flatMap(prism::getOptional);
       }
 
@@ -277,7 +283,7 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Affine<S, B> andThen(Iso<A, B> iso) {
+  default <B extends @Nullable Object> Affine<S, B> andThen(Iso<A, B> iso) {
     Affine<S, A> self = this;
     return Affine.of(
         s -> self.getOptional(s).map(iso::get), (s, b) -> self.set(iso.reverseGet(b), s));
@@ -293,7 +299,7 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused parts.
    * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
    */
-  default <B> Traversal<S, B> andThen(Traversal<A, B> traversal) {
+  default <B extends @Nullable Object> Traversal<S, B> andThen(Traversal<A, B> traversal) {
     Affine<S, A> self = this;
     return new Traversal<>() {
       @Override
@@ -427,10 +433,11 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
    * @param <A> The type of the focused part.
    * @return A new {@code Affine} instance.
    */
-  static <S, A> Affine<S, A> of(Function<S, Optional<A>> getter, BiFunction<S, A, S> setter) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Affine<S, A> of(
+      Function<S, Optional<@NonNull A>> getter, BiFunction<S, A, S> setter) {
     return new Affine<>() {
       @Override
-      public Optional<A> getOptional(S source) {
+      public Optional<@NonNull A> getOptional(S source) {
         return getter.apply(source);
       }
 
@@ -468,11 +475,13 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
    * @param <A> The type of the focused part.
    * @return A new {@code Affine} instance with removal support.
    */
-  static <S, A> Affine<S, A> of(
-      Function<S, Optional<A>> getter, BiFunction<S, A, S> setter, Function<S, S> remover) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Affine<S, A> of(
+      Function<S, Optional<@NonNull A>> getter,
+      BiFunction<S, A, S> setter,
+      Function<S, S> remover) {
     return new Affine<>() {
       @Override
-      public Optional<A> getOptional(S source) {
+      public Optional<@NonNull A> getOptional(S source) {
         return getter.apply(source);
       }
 
@@ -500,10 +509,11 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
    * @param <B> The target type.
    * @return An Affine from S to B.
    */
-  static <S, A, B> Affine<S, B> fromLensAndPrism(Lens<S, A> lens, Prism<A, B> prism) {
+  static <S extends @Nullable Object, A extends @Nullable Object, B extends @Nullable Object>
+      Affine<S, B> fromLensAndPrism(Lens<S, A> lens, Prism<A, B> prism) {
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return prism.getOptional(lens.get(source));
       }
 
@@ -526,10 +536,11 @@ public interface Affine<S, A> extends Optic<S, S, A, A> {
    * @param <B> The target type.
    * @return An Affine from S to B.
    */
-  static <S, A, B> Affine<S, B> fromPrismAndLens(Prism<S, A> prism, Lens<A, B> lens) {
+  static <S extends @Nullable Object, A extends @Nullable Object, B extends @Nullable Object>
+      Affine<S, B> fromPrismAndLens(Prism<S, A> prism, Lens<A, B> lens) {
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return prism.getOptional(source).map(lens::get);
       }
 

@@ -74,7 +74,7 @@ plan.truncated();        // could the walk see all rounds?
 The walk uses stub `null` values where the real run would have real ones. Two outcomes:
 
 - The combine logic survives the null (`"foo" + null` is `"foonull"`, `ArrayList::add(null)` is fine). The walk reaches `Done`; `truncated` is `false`; the plan is complete.
-- Something rejects the null (`List.of(first)`, an `Objects.equals` on a primitive, a `flatMap` that actually reads the value). The walk halts where it stood; `truncated` is `true`. **Round 1 is still accurate**, and that's the dispatch you care about for an audit log or a budget guard.
+- Something rejects the null (a `List.of(value)` in your own combine, an `Objects.equals` on a primitive, a `flatMap` that actually reads the value). The walk halts where it stood; `truncated` is `true`. **Round 1 is still accurate**, and that's the dispatch you care about for an audit log or a budget guard.
 
 ~~~admonish note title="Why round 1 is special"
 A traversal that collapses N foci to a single batched call is *one round*. Its keyset is *the* dispatch. That's the headline case for optic batching, and it's exactly the case preflight observes reliably. Past round 1, programs that mix `flatMap` dependencies with null-rejecting combines lose visibility, and that's honest: a monadic dependency really does need a value to decide what to fetch next.

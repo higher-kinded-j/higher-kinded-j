@@ -3,6 +3,7 @@
 package org.higherkindedj.optics.focus;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,7 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.indexed.Pair;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Static utilities for creating optics used in Focus path navigation.
@@ -61,7 +63,7 @@ public final class FocusPaths {
    * @param <E> the element type
    * @return a traversal focusing on all list elements
    */
-  public static <E> Traversal<List<E>, E> listElements() {
+  public static <E extends @Nullable Object> Traversal<List<E>, E> listElements() {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<E>> modifyF(
@@ -71,7 +73,7 @@ public final class FocusPaths {
         }
 
         // Start with the first element
-        Kind<F, List<E>> result = app.map(List::of, f.apply(source.get(0)));
+        Kind<F, List<E>> result = app.map(Collections::singletonList, f.apply(source.get(0)));
 
         // Combine with remaining elements
         for (int i = 1; i < source.size(); i++) {
@@ -94,10 +96,12 @@ public final class FocusPaths {
    * @param <E> the element type
    * @return an affine focusing on the element at the given index
    */
-  public static <E> Affine<List<E>, E> listAt(int index) {
+  public static <E extends @Nullable Object> Affine<List<E>, E> listAt(int index) {
     return Affine.of(
         list ->
-            (index >= 0 && index < list.size()) ? Optional.of(list.get(index)) : Optional.empty(),
+            (index >= 0 && index < list.size())
+                ? Optional.ofNullable(list.get(index))
+                : Optional.empty(),
         (list, element) -> {
           if (index >= 0 && index < list.size()) {
             List<E> result = new ArrayList<>(list);
@@ -114,7 +118,7 @@ public final class FocusPaths {
    * @param <E> the element type
    * @return an affine focusing on the first element
    */
-  public static <E> Affine<List<E>, E> listHead() {
+  public static <E extends @Nullable Object> Affine<List<E>, E> listHead() {
     return listAt(0);
   }
 
@@ -124,9 +128,9 @@ public final class FocusPaths {
    * @param <E> the element type
    * @return an affine focusing on the last element
    */
-  public static <E> Affine<List<E>, E> listLast() {
+  public static <E extends @Nullable Object> Affine<List<E>, E> listLast() {
     return Affine.of(
-        list -> list.isEmpty() ? Optional.empty() : Optional.of(list.get(list.size() - 1)),
+        list -> list.isEmpty() ? Optional.empty() : Optional.ofNullable(list.get(list.size() - 1)),
         (list, element) -> {
           if (!list.isEmpty()) {
             List<E> result = new ArrayList<>(list);
@@ -160,19 +164,19 @@ public final class FocusPaths {
    * @return a prism from list to (head, tail) pair
    * @see #listSnoc() for the reverse decomposition (init, last)
    */
-  public static <E> Prism<List<E>, Pair<E, List<E>>> listCons() {
+  public static <E extends @Nullable Object> Prism<List<E>, Pair<E, List<E>>> listCons() {
     return Prism.of(
         list -> {
           if (list.isEmpty()) {
             return Optional.empty();
           }
-          return Optional.of(Pair.of(list.get(0), List.copyOf(list.subList(1, list.size()))));
+          return Optional.of(Pair.of(list.get(0), list.subList(1, list.size()).stream().toList()));
         },
         pair -> {
           List<E> result = new ArrayList<>(pair.second().size() + 1);
           result.add(pair.first());
           result.addAll(pair.second());
-          return List.copyOf(result);
+          return Collections.unmodifiableList(result);
         });
   }
 
@@ -183,7 +187,7 @@ public final class FocusPaths {
    * @return a prism from list to (head, tail) pair
    * @see #listCons()
    */
-  public static <E> Prism<List<E>, Pair<E, List<E>>> listHeadTail() {
+  public static <E extends @Nullable Object> Prism<List<E>, Pair<E, List<E>>> listHeadTail() {
     return listCons();
   }
 
@@ -210,20 +214,21 @@ public final class FocusPaths {
    * @return a prism from list to (init, last) pair
    * @see #listCons() for the opposite decomposition (head, tail)
    */
-  public static <E> Prism<List<E>, Pair<List<E>, E>> listSnoc() {
+  public static <E extends @Nullable Object> Prism<List<E>, Pair<List<E>, E>> listSnoc() {
     return Prism.of(
         list -> {
           if (list.isEmpty()) {
             return Optional.empty();
           }
           int lastIndex = list.size() - 1;
-          return Optional.of(Pair.of(List.copyOf(list.subList(0, lastIndex)), list.get(lastIndex)));
+          return Optional.of(
+              Pair.of(list.subList(0, lastIndex).stream().toList(), list.get(lastIndex)));
         },
         pair -> {
           List<E> result = new ArrayList<>(pair.first().size() + 1);
           result.addAll(pair.first());
           result.add(pair.second());
-          return List.copyOf(result);
+          return Collections.unmodifiableList(result);
         });
   }
 
@@ -234,7 +239,7 @@ public final class FocusPaths {
    * @return a prism from list to (init, last) pair
    * @see #listSnoc()
    */
-  public static <E> Prism<List<E>, Pair<List<E>, E>> listInitLast() {
+  public static <E extends @Nullable Object> Prism<List<E>, Pair<List<E>, E>> listInitLast() {
     return listSnoc();
   }
 
@@ -260,7 +265,7 @@ public final class FocusPaths {
    * @param <E> the element type
    * @return a prism matching empty lists
    */
-  public static <E> Prism<List<E>, Unit> listEmpty() {
+  public static <E extends @Nullable Object> Prism<List<E>, Unit> listEmpty() {
     return Prism.of(
         list -> list.isEmpty() ? Optional.of(Unit.INSTANCE) : Optional.empty(), _ -> List.of());
   }
@@ -273,12 +278,12 @@ public final class FocusPaths {
    * @param <E> the element type
    * @return an affine focusing on the tail
    */
-  public static <E> Affine<List<E>, List<E>> listTail() {
+  public static <E extends @Nullable Object> Affine<List<E>, List<E>> listTail() {
     return Affine.of(
         list ->
             list.isEmpty()
                 ? Optional.empty()
-                : Optional.of(List.copyOf(list.subList(1, list.size()))),
+                : Optional.of(list.subList(1, list.size()).stream().toList()),
         (list, newTail) -> {
           if (list.isEmpty()) {
             return list;
@@ -286,7 +291,7 @@ public final class FocusPaths {
           List<E> result = new ArrayList<>(newTail.size() + 1);
           result.add(list.get(0));
           result.addAll(newTail);
-          return List.copyOf(result);
+          return Collections.unmodifiableList(result);
         });
   }
 
@@ -298,12 +303,12 @@ public final class FocusPaths {
    * @param <E> the element type
    * @return an affine focusing on the init
    */
-  public static <E> Affine<List<E>, List<E>> listInit() {
+  public static <E extends @Nullable Object> Affine<List<E>, List<E>> listInit() {
     return Affine.of(
         list ->
             list.isEmpty()
                 ? Optional.empty()
-                : Optional.of(List.copyOf(list.subList(0, list.size() - 1))),
+                : Optional.of(list.subList(0, list.size() - 1).stream().toList()),
         (list, newInit) -> {
           if (list.isEmpty()) {
             return list;
@@ -311,7 +316,7 @@ public final class FocusPaths {
           List<E> result = new ArrayList<>(newInit.size() + 1);
           result.addAll(newInit);
           result.add(list.get(list.size() - 1));
-          return List.copyOf(result);
+          return Collections.unmodifiableList(result);
         });
   }
 
@@ -327,7 +332,7 @@ public final class FocusPaths {
    * @param <V> the value type
    * @return a traversal focusing on all map values
    */
-  public static <K, V> Traversal<Map<K, V>, V> mapValues() {
+  public static <K, V extends @Nullable Object> Traversal<Map<K, V>, V> mapValues() {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
@@ -342,7 +347,7 @@ public final class FocusPaths {
         // Start with the first entry
         Map.Entry<K, V> first = entries.get(0);
         Kind<F, Map<K, V>> result =
-            app.map(v -> Map.of(first.getKey(), v), f.apply(first.getValue()));
+            app.map(v -> putInMap(Map.of(), first.getKey(), v), f.apply(first.getValue()));
 
         // Combine with remaining entries
         for (int i = 1; i < entries.size(); i++) {
@@ -368,7 +373,7 @@ public final class FocusPaths {
    * @param <V> the value type
    * @return an affine focusing on the value at the given key
    */
-  public static <K, V> Affine<Map<K, V>, V> mapAt(K key) {
+  public static <K, V extends @Nullable Object> Affine<Map<K, V>, V> mapAt(K key) {
     return Affine.of(
         map -> Optional.ofNullable(map.get(key)),
         (map, value) -> {
@@ -427,8 +432,7 @@ public final class FocusPaths {
    * @param <E> the element type (non-null)
    * @return an affine that treats null as absent
    */
-  @SuppressWarnings("nullness") // Intentionally working with nullable values
-  public static <E> Affine<E, E> nullable() {
+  public static <E> Affine<@Nullable E, E> nullable() {
     return Affine.of(Optional::ofNullable, (ignored, value) -> value);
   }
 
@@ -440,7 +444,7 @@ public final class FocusPaths {
    * @param <E> the element type
    * @return a traversal focusing on all array elements
    */
-  public static <E> Traversal<E[], E> arrayElements() {
+  public static <E extends @Nullable Object> Traversal<E[], E> arrayElements() {
     return new Traversal<>() {
       @Override
       @SuppressWarnings("unchecked")
@@ -451,7 +455,7 @@ public final class FocusPaths {
         }
 
         // Start with the first element wrapped in a list
-        Kind<F, List<E>> result = app.map(List::of, f.apply(source[0]));
+        Kind<F, List<E>> result = app.map(Collections::singletonList, f.apply(source[0]));
 
         // Combine with remaining elements
         for (int i = 1; i < source.length; i++) {
@@ -478,9 +482,10 @@ public final class FocusPaths {
    * @param <E> the element type
    * @return an affine focusing on the element at the given index
    */
-  public static <E> Affine<E[], E> arrayAt(int index) {
+  public static <E extends @Nullable Object> Affine<E[], E> arrayAt(int index) {
     return Affine.of(
-        arr -> (index >= 0 && index < arr.length) ? Optional.of(arr[index]) : Optional.empty(),
+        arr ->
+            (index >= 0 && index < arr.length) ? Optional.ofNullable(arr[index]) : Optional.empty(),
         (arr, element) -> {
           if (index >= 0 && index < arr.length) {
             E[] result = arr.clone();
@@ -493,13 +498,13 @@ public final class FocusPaths {
 
   // ===== Helper Methods =====
 
-  private static <E> List<E> appendToList(List<E> list, E element) {
+  private static <E extends @Nullable Object> List<E> appendToList(List<E> list, E element) {
     List<E> result = new ArrayList<>(list);
     result.add(element);
     return result;
   }
 
-  private static <K, V> Map<K, V> putInMap(Map<K, V> map, K key, V value) {
+  private static <K, V extends @Nullable Object> Map<K, V> putInMap(Map<K, V> map, K key, V value) {
     Map<K, V> result = new HashMap<>(map);
     result.put(key, value);
     return result;

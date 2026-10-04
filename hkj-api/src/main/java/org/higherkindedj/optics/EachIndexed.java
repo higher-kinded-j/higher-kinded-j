@@ -4,6 +4,7 @@ package org.higherkindedj.optics;
 
 import java.util.Optional;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An {@link Each} whose elements carry a meaningful index, with the index type {@code I} fixed at
@@ -35,7 +36,8 @@ import org.higherkindedj.optics.indexed.IndexedTraversal;
  * @see Ixed
  */
 @FunctionalInterface
-public interface EachIndexed<I, S, A> extends Each<S, A> {
+public interface EachIndexed<I, S extends @Nullable Object, A extends @Nullable Object>
+    extends Each<S, A> {
 
   /**
    * Returns the indexed traversal for this container, with a fixed, compile-time-checked index type

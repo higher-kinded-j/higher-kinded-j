@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Selective;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A **Traversal** is a versatile optic that can focus on zero or more parts 'A' within a larger
@@ -31,7 +32,8 @@ import org.higherkindedj.hkt.WitnessArity;
  * @param <S> The type of the whole structure (e.g., a {@code List<User>}).
  * @param <A> The type of the focused parts (e.g., the {@code User} elements).
  */
-public interface Traversal<S, A> extends Optic<S, S, A, A> {
+public interface Traversal<S extends @Nullable Object, A extends @Nullable Object>
+    extends Optic<S, S, A, A> {
 
   /**
    * {@inheritDoc}
@@ -103,7 +105,7 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused parts.
    * @return A new, composed {@link Traversal}.
    */
-  default <B> Traversal<S, B> andThen(final Traversal<A, B> other) {
+  default <B extends @Nullable Object> Traversal<S, B> andThen(final Traversal<A, B> other) {
     // Use the generic 'andThen' from the parent Optic interface
     // and wrap the result back into the Traversal interface.
     final Optic<S, S, B, B> composedOptic = Optic.super.andThen(other);
@@ -131,7 +133,7 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused parts.
    * @return A new, composed {@link Traversal}.
    */
-  default <B> Traversal<S, B> andThen(final Lens<A, B> lens) {
+  default <B extends @Nullable Object> Traversal<S, B> andThen(final Lens<A, B> lens) {
     Traversal<S, A> self = this;
     return new Traversal<>() {
       @Override
@@ -165,7 +167,7 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused parts.
    * @return A new, composed {@link Traversal}.
    */
-  default <B> Traversal<S, B> andThen(final Prism<A, B> prism) {
+  default <B extends @Nullable Object> Traversal<S, B> andThen(final Prism<A, B> prism) {
     Traversal<S, A> self = this;
     return new Traversal<>() {
       @Override
@@ -327,7 +329,8 @@ public interface Traversal<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of values queried by the Fold
    * @return A new {@code Traversal} that only focuses on elements where the query matches
    */
-  default <B> Traversal<S, A> filterBy(Fold<A, B> query, Predicate<? super B> predicate) {
+  default <B extends @Nullable Object> Traversal<S, A> filterBy(
+      Fold<A, B> query, Predicate<? super B> predicate) {
     Traversal<S, A> self = this;
     return new Traversal<>() {
       @Override

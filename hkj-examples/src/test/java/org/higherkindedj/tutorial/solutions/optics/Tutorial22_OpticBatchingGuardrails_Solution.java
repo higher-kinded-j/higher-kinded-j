@@ -87,10 +87,10 @@ public class Tutorial22_OpticBatchingGuardrails_Solution {
 
     /**
      * Why this is idiomatic: {@link Plan#truncated()} is the honest answer that the walk could not
-     * see further rounds. For a traversal built with {@code FocusPaths.listElements}, the internal
-     * {@code List.of(first)} rejects {@code null}, so the walk halts at the first combine; for a
-     * {@code flatMap} dependency the continuation needs a real value to decide what to fetch next.
-     * Either way, round 1's keyset is reliable; further rounds are not.
+     * see further rounds. The traversal's batched round walks fully, since its combine carries the
+     * walk's {@code null} stub values through. The {@code flatMap} after it cannot: its
+     * continuation needs a real value to decide what to fetch next, and reading the stub halts the
+     * walk. So round 1's keyset is reliable; further rounds are not.
      *
      * <p>Alternative: invent a "best guess" stub value. That would silently mislead callers; we
      * refuse to.
@@ -100,16 +100,19 @@ public class Tutorial22_OpticBatchingGuardrails_Solution {
      * accurate.
      */
     @Test
-    @DisplayName("Exercise 2: a traversal preflights to round 1 with truncated = true")
-    void exercise2_traversalTruncates() {
+    @DisplayName("Exercise 2: a dependent fetch preflights to round 1 with truncated = true")
+    void exercise2_dependentFetchTruncates() {
       Traversal<List<Integer>, Integer> ids = FocusPaths.listElements();
-      var program =
-          ids.modifyF(
-              id -> FETCH.widen(Fetch.<Integer, Integer>fetch(id)),
-              List.of(1, 2, 3, 4, 5),
-              FetchApplicative.<Integer, Integer>instance());
+      Fetch<Integer, Integer, Integer> program =
+          FETCH
+              .narrow(
+                  ids.modifyF(
+                      id -> FETCH.widen(Fetch.<Integer, Integer>fetch(id)),
+                      List.of(1, 2, 3, 4, 5),
+                      FetchApplicative.<Integer, Integer>instance()))
+              .flatMap(values -> Fetch.fetch(values.getFirst() * 10));
 
-      Plan<Integer> plan = Plans.preflight(FETCH.narrow(program));
+      Plan<Integer> plan = Plans.preflight(program);
 
       assertThat(plan.rounds()).isEqualTo(1);
       assertThat(plan.fetchedBatches().get(0)).containsExactlyInAnyOrder(1, 2, 3, 4, 5);

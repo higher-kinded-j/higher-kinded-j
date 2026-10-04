@@ -7,7 +7,9 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Fold;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Extension utilities for {@link Fold} that integrate with higher-kinded-j core types.
@@ -121,9 +123,11 @@ public final class FoldExtensions {
    * @param source The source structure to query
    * @param <S> The source type
    * @param <A> The focused value type
-   * @return {@code Maybe.just(value)} if a focus exists, {@code Maybe.nothing()} otherwise
+   * @return {@code Maybe.just(value)} for the first focus, {@code Maybe.nothing()} if there is none
+   *     or it is null
    */
-  public static <S, A> Maybe<A> previewMaybe(Fold<S, A> fold, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Maybe<@NonNull A> previewMaybe(Fold<S, A> fold, S source) {
     return Maybe.fromOptional(fold.preview(source));
   }
 
@@ -152,10 +156,11 @@ public final class FoldExtensions {
    * @param source The source structure to query
    * @param <S> The source type
    * @param <A> The focused value type
-   * @return {@code Maybe.just(value)} if a matching focus exists, {@code Maybe.nothing()} otherwise
+   * @return {@code Maybe.just(value)} for the first matching focus that is not null, {@code
+   *     Maybe.nothing()} otherwise
    */
-  public static <S, A> Maybe<A> findMaybe(
-      Fold<S, A> fold, Predicate<? super A> predicate, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Maybe<@NonNull A> findMaybe(Fold<S, A> fold, Predicate<? super A> predicate, S source) {
     return Maybe.fromOptional(fold.find(predicate, source));
   }
 
@@ -202,7 +207,8 @@ public final class FoldExtensions {
    * @return {@code Maybe.just(list)} if the list is non-empty, {@code Maybe.nothing()} if the list
    *     is empty
    */
-  public static <S, A> Maybe<List<A>> getAllMaybe(Fold<S, A> fold, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> Maybe<List<A>> getAllMaybe(
+      Fold<S, A> fold, S source) {
     List<A> all = fold.getAll(source);
     return all.isEmpty() ? Maybe.nothing() : Maybe.just(all);
   }

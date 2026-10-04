@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An indexed lens that provides focused access to a single field along with its index/key.
@@ -41,7 +42,8 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> The focused element type
  */
 @NullMarked
-public interface IndexedLens<I, S, A> extends IndexedOptic<I, S, A> {
+public interface IndexedLens<I, S extends @Nullable Object, A extends @Nullable Object>
+    extends IndexedOptic<I, S, A> {
 
   /**
    * Gets the index associated with this lens.
@@ -148,7 +150,8 @@ public interface IndexedLens<I, S, A> extends IndexedOptic<I, S, A> {
    * @param <B> The focus type of the other lens
    * @return A new {@link IndexedLens} with paired indices
    */
-  default <J, B> IndexedLens<Pair<I, J>, S, B> iandThen(IndexedLens<J, A, B> other) {
+  default <J, B extends @Nullable Object> IndexedLens<Pair<I, J>, S, B> iandThen(
+      IndexedLens<J, A, B> other) {
     IndexedLens<I, S, A> self = this;
     return new IndexedLens<>() {
       @Override
@@ -176,7 +179,7 @@ public interface IndexedLens<I, S, A> extends IndexedOptic<I, S, A> {
    * @param <B> The focus type of the other lens
    * @return A new {@link IndexedLens} preserving the outer index
    */
-  default <B> IndexedLens<I, S, B> andThen(Lens<A, B> other) {
+  default <B extends @Nullable Object> IndexedLens<I, S, B> andThen(Lens<A, B> other) {
     IndexedLens<I, S, A> self = this;
     return new IndexedLens<>() {
       @Override
@@ -276,7 +279,7 @@ public interface IndexedLens<I, S, A> extends IndexedOptic<I, S, A> {
    * @param <A> The focused part type
    * @return A new {@code IndexedLens} instance
    */
-  static <I, S, A> IndexedLens<I, S, A> of(
+  static <I, S extends @Nullable Object, A extends @Nullable Object> IndexedLens<I, S, A> of(
       I index, Function<S, A> getter, BiFunction<S, A, S> setter) {
     return new IndexedLens<>() {
       @Override
@@ -308,7 +311,8 @@ public interface IndexedLens<I, S, A> extends IndexedOptic<I, S, A> {
    * @param <A> The focused part type
    * @return A new {@code IndexedLens} wrapping the provided lens
    */
-  static <I, S, A> IndexedLens<I, S, A> from(I index, Lens<S, A> lens) {
+  static <I, S extends @Nullable Object, A extends @Nullable Object> IndexedLens<I, S, A> from(
+      I index, Lens<S, A> lens) {
     return new IndexedLens<>() {
       @Override
       public I index() {

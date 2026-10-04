@@ -26,7 +26,16 @@ import org.jspecify.annotations.Nullable;
  * @see Function7
  */
 @FunctionalInterface
-public interface Function8<T1, T2, T3, T4, T5, T6, T7, T8, R> {
+public interface Function8<
+    T1 extends @Nullable Object,
+    T2 extends @Nullable Object,
+    T3 extends @Nullable Object,
+    T4 extends @Nullable Object,
+    T5 extends @Nullable Object,
+    T6 extends @Nullable Object,
+    T7 extends @Nullable Object,
+    T8 extends @Nullable Object,
+    R extends @Nullable Object> {
 
   /**
    * Applies this function to the given arguments.

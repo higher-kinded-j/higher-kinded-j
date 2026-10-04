@@ -128,12 +128,14 @@ public class Tutorial22_OpticBatchingGuardrails {
   class FlatMapTruncates {
 
     /**
-     * Exercise 2: preflight a traversal-built program.
+     * Exercise 2: preflight a traversal whose result decides the next fetch.
      *
-     * <p>Task: preflight a traversal built with {@code FocusPaths.listElements}. The keyset for
-     * round 1 is reliable; the internal combine ({@code List.of(first)}) rejects {@code null}, so
-     * the walk halts after round 1 and {@link Plan#truncated()} is {@code true}. Round 1 is what an
-     * auditor or budget guard cares about; further rounds are not observable offline.
+     * <p>Task: preflight a program that batches five ids through a traversal built with {@code
+     * FocusPaths.listElements}, then fetches a follow-up keyed by the first result. The keyset for
+     * round 1 is reliable. The follow-up needs a real value to decide its key, and the walk's stub
+     * value is {@code null}, so the walk halts after round 1 and {@link Plan#truncated()} is {@code
+     * true}. Round 1 is what an auditor or budget guard cares about; further rounds are not
+     * observable offline.
      *
      * <pre>
      *   // Hint 1: same call as exercise 1; only the program differs.
@@ -142,14 +144,17 @@ public class Tutorial22_OpticBatchingGuardrails {
      * </pre>
      */
     @Test
-    @DisplayName("Exercise 2: a traversal preflights to round 1 with truncated = true")
-    void exercise2_traversalTruncates() {
+    @DisplayName("Exercise 2: a dependent fetch preflights to round 1 with truncated = true")
+    void exercise2_dependentFetchTruncates() {
       Traversal<List<Integer>, Integer> ids = FocusPaths.listElements();
-      var program =
-          ids.modifyF(
-              id -> FETCH.widen(Fetch.<Integer, Integer>fetch(id)),
-              List.of(1, 2, 3, 4, 5),
-              FetchApplicative.<Integer, Integer>instance());
+      Fetch<Integer, Integer, Integer> program =
+          FETCH
+              .narrow(
+                  ids.modifyF(
+                      id -> FETCH.widen(Fetch.<Integer, Integer>fetch(id)),
+                      List.of(1, 2, 3, 4, 5),
+                      FetchApplicative.<Integer, Integer>instance()))
+              .flatMap(values -> Fetch.fetch(values.getFirst() * 10));
 
       // TODO: preflight the program.
       Plan<Integer> plan = answerRequired();

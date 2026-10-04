@@ -32,7 +32,9 @@ import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Fluent API for common optic operations with Java-friendly naming conventions.
@@ -101,7 +103,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return A Fold that represents the traversal
    */
-  private static <S, A> Fold<S, A> traversalToFold(Traversal<S, A> traversal) {
+  private static <S extends @Nullable Object, A extends @Nullable Object>
+      Fold<S, A> traversalToFold(Traversal<S, A> traversal) {
     return new Fold<>() {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
@@ -141,7 +144,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return The focused value
    */
-  public static <S, A> A get(S source, Getter<S, A> getter) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> A get(
+      S source, Getter<S, A> getter) {
     return getter.get(source);
   }
 
@@ -160,7 +164,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return The focused value
    */
-  public static <S, A> A get(S source, Lens<S, A> lens) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> A get(
+      S source, Lens<S, A> lens) {
     return lens.get(source);
   }
 
@@ -179,9 +184,11 @@ public final class OpticOps {
    * @param fold The optic to focus with
    * @param <S> The source type
    * @param <A> The focused value type
-   * @return An {@link Optional} containing the first focused value, or empty if none exist
+   * @return An {@link Optional} containing the first focused value, or empty if there is none or it
+   *     is null
    */
-  public static <S, A> Optional<A> preview(S source, Fold<S, A> fold) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Optional<@NonNull A> preview(S source, Fold<S, A> fold) {
     return fold.preview(source);
   }
 
@@ -198,9 +205,11 @@ public final class OpticOps {
    * @param traversal The traversal to focus with
    * @param <S> The source type
    * @param <A> The focused value type
-   * @return An {@link Optional} containing the first focused value, or empty if none exist
+   * @return An {@link Optional} containing the first focused value, or empty if there is none or it
+   *     is null
    */
-  public static <S, A> Optional<A> preview(S source, Traversal<S, A> traversal) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Optional<@NonNull A> preview(S source, Traversal<S, A> traversal) {
     return traversalToFold(traversal).preview(source);
   }
 
@@ -222,7 +231,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return An {@link Optional} containing the focused value, or empty if not present
    */
-  public static <S, A> Optional<A> getOptional(S source, Affine<S, A> affine) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Optional<@NonNull A> getOptional(S source, Affine<S, A> affine) {
     return affine.getOptional(source);
   }
 
@@ -245,7 +255,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return A new structure with the value updated
    */
-  public static <S, A> S set(S source, Affine<S, A> affine, A value) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> S set(
+      S source, Affine<S, A> affine, A value) {
     return affine.set(value, source);
   }
 
@@ -268,7 +279,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return A new structure with the value modified, or the original if no value was focused
    */
-  public static <S, A> S modify(S source, Affine<S, A> affine, Function<A, A> modifier) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> S modify(
+      S source, Affine<S, A> affine, Function<A, A> modifier) {
     return affine.modify(modifier, source);
   }
 
@@ -287,7 +299,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return {@code true} if a value is present, {@code false} otherwise
    */
-  public static <S, A> boolean matches(S source, Affine<S, A> affine) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> boolean matches(
+      S source, Affine<S, A> affine) {
     return affine.matches(source);
   }
 
@@ -307,7 +320,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return A list of all focused values
    */
-  public static <S, A> List<A> getAll(S source, Fold<S, A> fold) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> List<A> getAll(
+      S source, Fold<S, A> fold) {
     return fold.getAll(source);
   }
 
@@ -326,7 +340,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return A list of all focused values
    */
-  public static <S, A> List<A> getAll(S source, Traversal<S, A> traversal) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> List<A> getAll(
+      S source, Traversal<S, A> traversal) {
     return traversalToFold(traversal).getAll(source);
   }
 
@@ -346,7 +361,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return A new structure with the value updated
    */
-  public static <S, A> S set(S source, Lens<S, A> lens, A value) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> S set(
+      S source, Lens<S, A> lens, A value) {
     return lens.set(value, source);
   }
 
@@ -366,7 +382,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return A new structure with all focused values updated
    */
-  public static <S, A> S setAll(S source, Traversal<S, A> traversal, A value) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> S setAll(
+      S source, Traversal<S, A> traversal, A value) {
     return Traversals.modify(traversal, ignored -> value, source);
   }
 
@@ -386,7 +403,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return A new structure with the value modified
    */
-  public static <S, A> S modify(S source, Lens<S, A> lens, Function<A, A> modifier) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> S modify(
+      S source, Lens<S, A> lens, Function<A, A> modifier) {
     return lens.modify(modifier, source);
   }
 
@@ -406,7 +424,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return A new structure with all focused values modified
    */
-  public static <S, A> S modifyAll(S source, Traversal<S, A> traversal, Function<A, A> modifier) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> S modifyAll(
+      S source, Traversal<S, A> traversal, Function<A, A> modifier) {
     return Traversals.modify(traversal, modifier, source);
   }
 
@@ -433,8 +452,12 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return The modified structure wrapped in the effect
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, S, A> Kind<F, S> modifyF(
-      S source, Lens<S, A> lens, Function<A, Kind<F, A>> modifier, Functor<F> functor) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>,
+          S extends @Nullable Object,
+          A extends @Nullable Object>
+      Kind<F, S> modifyF(
+          S source, Lens<S, A> lens, Function<A, Kind<F, A>> modifier, Functor<F> functor) {
     return lens.modifyF(modifier, source, functor);
   }
 
@@ -461,11 +484,15 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return The modified structure wrapped in the effect
    */
-  public static <F extends WitnessArity<TypeArity.Unary>, S, A> Kind<F, S> modifyAllF(
-      S source,
-      Traversal<S, A> traversal,
-      Function<A, Kind<F, A>> modifier,
-      Applicative<F> applicative) {
+  public static <
+          F extends WitnessArity<TypeArity.Unary>,
+          S extends @Nullable Object,
+          A extends @Nullable Object>
+      Kind<F, S> modifyAllF(
+          S source,
+          Traversal<S, A> traversal,
+          Function<A, Kind<F, A>> modifier,
+          Applicative<F> applicative) {
     return traversal.modifyF(modifier, source, applicative);
   }
 
@@ -688,7 +715,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return {@code true} if any focused element matches
    */
-  public static <S, A> boolean exists(S source, Fold<S, A> fold, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> boolean exists(
+      S source, Fold<S, A> fold, Predicate<A> predicate) {
     return fold.exists(predicate, source);
   }
 
@@ -708,7 +736,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return {@code true} if any focused element matches
    */
-  public static <S, A> boolean exists(S source, Traversal<S, A> traversal, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> boolean exists(
+      S source, Traversal<S, A> traversal, Predicate<A> predicate) {
     return traversalToFold(traversal).exists(predicate, source);
   }
 
@@ -728,7 +757,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return {@code true} if all focused elements match
    */
-  public static <S, A> boolean all(S source, Fold<S, A> fold, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> boolean all(
+      S source, Fold<S, A> fold, Predicate<A> predicate) {
     return fold.all(predicate, source);
   }
 
@@ -748,7 +778,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return {@code true} if all focused elements match
    */
-  public static <S, A> boolean all(S source, Traversal<S, A> traversal, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> boolean all(
+      S source, Traversal<S, A> traversal, Predicate<A> predicate) {
     return traversalToFold(traversal).all(predicate, source);
   }
 
@@ -768,7 +799,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return An {@link Optional} containing the first matching element, or empty if none match
    */
-  public static <S, A> Optional<A> find(S source, Fold<S, A> fold, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> Optional<@NonNull A> find(
+      S source, Fold<S, A> fold, Predicate<A> predicate) {
     return fold.find(predicate, source);
   }
 
@@ -788,7 +820,7 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return An {@link Optional} containing the first matching element, or empty if none match
    */
-  public static <S, A> Optional<A> find(
+  public static <S extends @Nullable Object, A extends @Nullable Object> Optional<@NonNull A> find(
       S source, Traversal<S, A> traversal, Predicate<A> predicate) {
     return traversalToFold(traversal).find(predicate, source);
   }
@@ -808,7 +840,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return The number of focused elements
    */
-  public static <S, A> int count(S source, Fold<S, A> fold) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> int count(
+      S source, Fold<S, A> fold) {
     return fold.length(source);
   }
 
@@ -827,7 +860,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return The number of focused elements
    */
-  public static <S, A> int count(S source, Traversal<S, A> traversal) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> int count(
+      S source, Traversal<S, A> traversal) {
     return traversalToFold(traversal).length(source);
   }
 
@@ -846,7 +880,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return {@code true} if there are no focused elements
    */
-  public static <S, A> boolean isEmpty(S source, Fold<S, A> fold) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> boolean isEmpty(
+      S source, Fold<S, A> fold) {
     return fold.isEmpty(source);
   }
 
@@ -865,7 +900,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return {@code true} if there are no focused elements
    */
-  public static <S, A> boolean isEmpty(S source, Traversal<S, A> traversal) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> boolean isEmpty(
+      S source, Traversal<S, A> traversal) {
     return traversalToFold(traversal).isEmpty(source);
   }
 
@@ -888,7 +924,7 @@ public final class OpticOps {
    * @param <S> The source type
    * @return A {@link GetBuilder} for fluent method chaining
    */
-  public static <S> GetBuilder<S> getting(S source) {
+  public static <S extends @Nullable Object> GetBuilder<S> getting(S source) {
     return new GetBuilder<>(source);
   }
 
@@ -905,7 +941,7 @@ public final class OpticOps {
    * @param <S> The source type
    * @return A {@link SetBuilder} for fluent method chaining
    */
-  public static <S> SetBuilder<S> setting(S source) {
+  public static <S extends @Nullable Object> SetBuilder<S> setting(S source) {
     return new SetBuilder<>(source);
   }
 
@@ -922,7 +958,7 @@ public final class OpticOps {
    * @param <S> The source type
    * @return A {@link ModifyBuilder} for fluent method chaining
    */
-  public static <S> ModifyBuilder<S> modifying(S source) {
+  public static <S extends @Nullable Object> ModifyBuilder<S> modifying(S source) {
     return new ModifyBuilder<>(source);
   }
 
@@ -940,7 +976,7 @@ public final class OpticOps {
    * @param <S> The source type
    * @return A {@link QueryBuilder} for fluent method chaining
    */
-  public static <S> QueryBuilder<S> querying(S source) {
+  public static <S extends @Nullable Object> QueryBuilder<S> querying(S source) {
     return new QueryBuilder<>(source);
   }
 
@@ -974,7 +1010,7 @@ public final class OpticOps {
    *
    * @param <S> The source type
    */
-  public static final class GetBuilder<S> {
+  public static final class GetBuilder<S extends @Nullable Object> {
     private final S source;
 
     GetBuilder(S source) {
@@ -988,7 +1024,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return The focused value
      */
-    public <A> A through(Getter<S, A> getter) {
+    public <A extends @Nullable Object> A through(Getter<S, A> getter) {
       return getter.get(source);
     }
 
@@ -999,7 +1035,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return The focused value
      */
-    public <A> A through(Lens<S, A> lens) {
+    public <A extends @Nullable Object> A through(Lens<S, A> lens) {
       return lens.get(source);
     }
 
@@ -1008,9 +1044,10 @@ public final class OpticOps {
      *
      * @param fold The optic to focus with
      * @param <A> The focused value type
-     * @return An {@link Optional} containing the first focused value, or empty if none exist
+     * @return An {@link Optional} containing the first focused value, or empty if there is none or
+     *     it is null
      */
-    public <A> Optional<A> maybeThrough(Fold<S, A> fold) {
+    public <A extends @Nullable Object> Optional<@NonNull A> maybeThrough(Fold<S, A> fold) {
       return fold.preview(source);
     }
 
@@ -1019,9 +1056,11 @@ public final class OpticOps {
      *
      * @param traversal The traversal to focus with
      * @param <A> The focused value type
-     * @return An {@link Optional} containing the first focused value, or empty if none exist
+     * @return An {@link Optional} containing the first focused value, or empty if there is none or
+     *     it is null
      */
-    public <A> Optional<A> maybeThrough(Traversal<S, A> traversal) {
+    public <A extends @Nullable Object> Optional<@NonNull A> maybeThrough(
+        Traversal<S, A> traversal) {
       return traversalToFold(traversal).preview(source);
     }
 
@@ -1034,7 +1073,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return An {@link Optional} containing the focused value, or empty if not present
      */
-    public <A> Optional<A> maybeThrough(Affine<S, A> affine) {
+    public <A extends @Nullable Object> Optional<@NonNull A> maybeThrough(Affine<S, A> affine) {
       return affine.getOptional(source);
     }
 
@@ -1045,7 +1084,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return A list of all focused values
      */
-    public <A> List<A> allThrough(Fold<S, A> fold) {
+    public <A extends @Nullable Object> List<A> allThrough(Fold<S, A> fold) {
       return fold.getAll(source);
     }
 
@@ -1056,7 +1095,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return A list of all focused values
      */
-    public <A> List<A> allThrough(Traversal<S, A> traversal) {
+    public <A extends @Nullable Object> List<A> allThrough(Traversal<S, A> traversal) {
       return traversalToFold(traversal).getAll(source);
     }
   }
@@ -1066,7 +1105,7 @@ public final class OpticOps {
    *
    * @param <S> The source type
    */
-  public static final class SetBuilder<S> {
+  public static final class SetBuilder<S extends @Nullable Object> {
     private final S source;
 
     SetBuilder(S source) {
@@ -1081,7 +1120,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return A new structure with the value updated
      */
-    public <A> S through(Lens<S, A> lens, A value) {
+    public <A extends @Nullable Object> S through(Lens<S, A> lens, A value) {
       return lens.set(value, source);
     }
 
@@ -1096,7 +1135,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return A new structure with the value updated
      */
-    public <A> S through(Affine<S, A> affine, A value) {
+    public <A extends @Nullable Object> S through(Affine<S, A> affine, A value) {
       return affine.set(value, source);
     }
 
@@ -1108,7 +1147,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return A new structure with all focused values updated
      */
-    public <A> S allThrough(Traversal<S, A> traversal, A value) {
+    public <A extends @Nullable Object> S allThrough(Traversal<S, A> traversal, A value) {
       return Traversals.modify(traversal, ignored -> value, source);
     }
   }
@@ -1118,7 +1157,7 @@ public final class OpticOps {
    *
    * @param <S> The source type
    */
-  public static final class ModifyBuilder<S> {
+  public static final class ModifyBuilder<S extends @Nullable Object> {
     private final S source;
 
     ModifyBuilder(S source) {
@@ -1133,7 +1172,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return A new structure with the value modified
      */
-    public <A> S through(Lens<S, A> lens, Function<A, A> modifier) {
+    public <A extends @Nullable Object> S through(Lens<S, A> lens, Function<A, A> modifier) {
       return lens.modify(modifier, source);
     }
 
@@ -1148,7 +1187,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return A new structure with the value modified, or unchanged if no value was focused
      */
-    public <A> S through(Affine<S, A> affine, Function<A, A> modifier) {
+    public <A extends @Nullable Object> S through(Affine<S, A> affine, Function<A, A> modifier) {
       return affine.modify(modifier, source);
     }
 
@@ -1160,7 +1199,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return A new structure with all focused values modified
      */
-    public <A> S allThrough(Traversal<S, A> traversal, Function<A, A> modifier) {
+    public <A extends @Nullable Object> S allThrough(
+        Traversal<S, A> traversal, Function<A, A> modifier) {
       return Traversals.modify(traversal, modifier, source);
     }
 
@@ -1174,8 +1214,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return The modified structure wrapped in the effect
      */
-    public <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, S> throughF(
-        Lens<S, A> lens, Function<A, Kind<F, A>> modifier, Functor<F> functor) {
+    public <F extends WitnessArity<TypeArity.Unary>, A extends @Nullable Object>
+        Kind<F, S> throughF(Lens<S, A> lens, Function<A, Kind<F, A>> modifier, Functor<F> functor) {
       return lens.modifyF(modifier, source, functor);
     }
 
@@ -1189,8 +1229,11 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return The modified structure wrapped in the effect
      */
-    public <F extends WitnessArity<TypeArity.Unary>, A> Kind<F, S> allThroughF(
-        Traversal<S, A> traversal, Function<A, Kind<F, A>> modifier, Applicative<F> applicative) {
+    public <F extends WitnessArity<TypeArity.Unary>, A extends @Nullable Object>
+        Kind<F, S> allThroughF(
+            Traversal<S, A> traversal,
+            Function<A, Kind<F, A>> modifier,
+            Applicative<F> applicative) {
       return traversal.modifyF(modifier, source, applicative);
     }
   }
@@ -1200,7 +1243,7 @@ public final class OpticOps {
    *
    * @param <S> The source type
    */
-  public static final class QueryBuilder<S> {
+  public static final class QueryBuilder<S extends @Nullable Object> {
     private final S source;
 
     QueryBuilder(S source) {
@@ -1215,7 +1258,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return {@code true} if any focused element matches
      */
-    public <A> boolean anyMatch(Fold<S, A> fold, Predicate<A> predicate) {
+    public <A extends @Nullable Object> boolean anyMatch(Fold<S, A> fold, Predicate<A> predicate) {
       return fold.exists(predicate, source);
     }
 
@@ -1227,7 +1270,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return {@code true} if any focused element matches
      */
-    public <A> boolean anyMatch(Traversal<S, A> traversal, Predicate<A> predicate) {
+    public <A extends @Nullable Object> boolean anyMatch(
+        Traversal<S, A> traversal, Predicate<A> predicate) {
       return traversalToFold(traversal).exists(predicate, source);
     }
 
@@ -1239,7 +1283,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return {@code true} if all focused elements match
      */
-    public <A> boolean allMatch(Fold<S, A> fold, Predicate<A> predicate) {
+    public <A extends @Nullable Object> boolean allMatch(Fold<S, A> fold, Predicate<A> predicate) {
       return fold.all(predicate, source);
     }
 
@@ -1251,7 +1295,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return {@code true} if all focused elements match
      */
-    public <A> boolean allMatch(Traversal<S, A> traversal, Predicate<A> predicate) {
+    public <A extends @Nullable Object> boolean allMatch(
+        Traversal<S, A> traversal, Predicate<A> predicate) {
       return traversalToFold(traversal).all(predicate, source);
     }
 
@@ -1263,7 +1308,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return An {@link Optional} containing the first matching element, or empty if none match
      */
-    public <A> Optional<A> findFirst(Fold<S, A> fold, Predicate<A> predicate) {
+    public <A extends @Nullable Object> Optional<@NonNull A> findFirst(
+        Fold<S, A> fold, Predicate<A> predicate) {
       return fold.find(predicate, source);
     }
 
@@ -1275,7 +1321,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return An {@link Optional} containing the first matching element, or empty if none match
      */
-    public <A> Optional<A> findFirst(Traversal<S, A> traversal, Predicate<A> predicate) {
+    public <A extends @Nullable Object> Optional<@NonNull A> findFirst(
+        Traversal<S, A> traversal, Predicate<A> predicate) {
       return traversalToFold(traversal).find(predicate, source);
     }
 
@@ -1286,7 +1333,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return The number of focused elements
      */
-    public <A> int count(Fold<S, A> fold) {
+    public <A extends @Nullable Object> int count(Fold<S, A> fold) {
       return fold.length(source);
     }
 
@@ -1297,7 +1344,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return The number of focused elements
      */
-    public <A> int count(Traversal<S, A> traversal) {
+    public <A extends @Nullable Object> int count(Traversal<S, A> traversal) {
       return traversalToFold(traversal).length(source);
     }
 
@@ -1308,7 +1355,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return {@code true} if there are no focused elements
      */
-    public <A> boolean isEmpty(Fold<S, A> fold) {
+    public <A extends @Nullable Object> boolean isEmpty(Fold<S, A> fold) {
       return fold.isEmpty(source);
     }
 
@@ -1319,7 +1366,7 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return {@code true} if there are no focused elements
      */
-    public <A> boolean isEmpty(Traversal<S, A> traversal) {
+    public <A extends @Nullable Object> boolean isEmpty(Traversal<S, A> traversal) {
       return traversalToFold(traversal).isEmpty(source);
     }
   }

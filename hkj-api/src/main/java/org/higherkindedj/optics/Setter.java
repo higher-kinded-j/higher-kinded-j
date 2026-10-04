@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A **Setter** is a write-only optic that can modify focused elements without necessarily reading
@@ -51,7 +52,8 @@ import org.higherkindedj.hkt.WitnessArity;
  * @param <S> The source type (the structure being modified).
  * @param <A> The focus type (the values being modified).
  */
-public interface Setter<S, A> extends Optic<S, S, A, A> {
+public interface Setter<S extends @Nullable Object, A extends @Nullable Object>
+    extends Optic<S, S, A, A> {
 
   /**
    * Modifies the focused elements using a pure function.
@@ -94,7 +96,7 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused values.
    * @return A new composed Setter.
    */
-  default <B> Setter<S, B> andThen(Setter<A, B> other) {
+  default <B extends @Nullable Object> Setter<S, B> andThen(Setter<A, B> other) {
     Setter<S, A> self = this;
     return new Setter<>() {
       @Override
@@ -154,7 +156,8 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
    * @param <A> The focus type.
    * @return A new Setter.
    */
-  static <S, A> Setter<S, A> of(Function<Function<A, A>, Function<S, S>> over) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Setter<S, A> of(
+      Function<Function<A, A>, Function<S, S>> over) {
     return new Setter<>() {
       @Override
       public S modify(Function<A, A> f, S source) {
@@ -194,7 +197,8 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
    * @param <A> The focus type.
    * @return A new Setter.
    */
-  static <S, A> Setter<S, A> fromGetSet(Function<S, A> getter, BiFunction<S, A, S> setter) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Setter<S, A> fromGetSet(
+      Function<S, A> getter, BiFunction<S, A, S> setter) {
     return new Setter<>() {
       @Override
       public S modify(Function<A, A> f, S source) {
@@ -224,7 +228,7 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
    * @param <A> The element type.
    * @return A Setter for list elements.
    */
-  static <A> Setter<List<A>, A> forList() {
+  static <A extends @Nullable Object> Setter<List<A>, A> forList() {
     return new Setter<>() {
       @Override
       public List<A> modify(Function<A, A> f, List<A> source) {
@@ -254,8 +258,9 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
                   });
         }
 
-        // Convert LinkedList to immutable List at the end (O(n) total)
-        return app.map(List::copyOf, acc);
+        // Convert LinkedList to immutable List at the end (O(n) total); toList, unlike
+        // List.copyOf, keeps a null element
+        return app.map(list -> list.stream().toList(), acc);
       }
     };
   }
@@ -276,7 +281,7 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
    * @param <V> The value type.
    * @return A Setter for map values.
    */
-  static <K, V> Setter<Map<K, V>, V> forMapValues() {
+  static <K, V extends @Nullable Object> Setter<Map<K, V>, V> forMapValues() {
     return new Setter<>() {
       @Override
       public Map<K, V> modify(Function<V, V> f, Map<K, V> source) {
@@ -336,7 +341,7 @@ public interface Setter<S, A> extends Optic<S, S, A, A> {
    * @param <S> The source type.
    * @return An identity Setter.
    */
-  static <S> Setter<S, S> identity() {
+  static <S extends @Nullable Object> Setter<S, S> identity() {
     return new Setter<>() {
       @Override
       public S modify(Function<S, S> f, S source) {

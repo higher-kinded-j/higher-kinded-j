@@ -13,6 +13,7 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A runnable example demonstrating all factory methods in the {@link Prisms} utility class.
@@ -138,7 +139,7 @@ public class PrismsUtilityExample {
     System.out.println("Error count: " + errorCount);
 
     // Null sentinel handling
-    Prism<String, Unit> nullPrism = Prisms.only(null);
+    Prism<@Nullable String, Unit> nullPrism = Prisms.only(null);
     System.out.println("Null matches null: " + nullPrism.matches(null));
     System.out.println("Null matches 'text': " + nullPrism.matches("text"));
 
@@ -155,11 +156,11 @@ public class PrismsUtilityExample {
   private static void demonstrateNotNull() {
     System.out.println("--- Prisms.notNull(): Null Safety ---");
 
-    Prism<String, String> notNullPrism = Prisms.notNull();
+    Prism<@Nullable String, String> notNullPrism = Prisms.notNull();
 
     // Safe extraction
     String value = "hello";
-    String nullValue = null;
+    @Nullable String nullValue = null;
 
     System.out.println(
         "Extract from 'hello': " + notNullPrism.getOptional(value).orElse("was null"));
@@ -167,10 +168,10 @@ public class PrismsUtilityExample {
         "Extract from null: " + notNullPrism.getOptional(nullValue).orElse("was null"));
 
     // Practical use: Filter null values in a list
-    List<String> mixedList = Arrays.asList("hello", null, "world", null, "test");
+    List<@Nullable String> mixedList = Arrays.asList("hello", null, "world", null, "test");
 
-    Traversal<List<String>, String> nonNullStrings =
-        Traversals.<String>forList().andThen(Prisms.<String>notNull().asTraversal());
+    Traversal<List<@Nullable String>, String> nonNullStrings =
+        Traversals.<@Nullable String>forList().andThen(Prisms.<String>notNull().asTraversal());
 
     List<String> filtered = Traversals.getAll(nonNullStrings, mixedList);
     System.out.println("Filtered non-null values: " + filtered);

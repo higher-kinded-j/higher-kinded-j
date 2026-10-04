@@ -10,6 +10,7 @@ import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A minimal, package-private Const functor implementation used internally by {@link
@@ -23,7 +24,8 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> The phantom type parameter (ignored).
  */
 @NullMarked
-record ConstForFold<M, A>(M value) implements Kind<ConstForFold.Witness<M>, A> {
+record ConstForFold<M, A extends @Nullable Object>(M value)
+    implements Kind<ConstForFold.Witness<M>, A> {
 
   /** Witness type for the Const functor, parameterised by the monoid type. */
   static final class Witness<M> implements WitnessArity<TypeArity.Unary> {
@@ -31,7 +33,7 @@ record ConstForFold<M, A>(M value) implements Kind<ConstForFold.Witness<M>, A> {
   }
 
   @SuppressWarnings("unchecked")
-  static <M, A> ConstForFold<M, A> narrow(Kind<Witness<M>, A> kind) {
+  static <M, A extends @Nullable Object> ConstForFold<M, A> narrow(Kind<Witness<M>, A> kind) {
     return (ConstForFold<M, A>) Objects.requireNonNull(kind);
   }
 

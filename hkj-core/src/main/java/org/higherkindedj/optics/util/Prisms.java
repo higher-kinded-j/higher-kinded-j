@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.util;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -335,7 +336,7 @@ public final class Prisms {
    * @param <A> The type of the value.
    * @return A prism that matches only the specified value.
    */
-  public static <A> Prism<A, Unit> only(A expected) {
+  public static <A extends @Nullable Object> Prism<A, Unit> only(A expected) {
     return Prism.of(
         actual -> Objects.equals(actual, expected) ? Optional.of(Unit.INSTANCE) : Optional.empty(),
         unit -> expected);
@@ -373,7 +374,8 @@ public final class Prisms {
    * @param <A> The type of the value.
    * @return A prism that matches values satisfying the predicate.
    */
-  public static <A> Prism<A, Unit> nearly(A defaultValue, Predicate<A> predicate) {
+  public static <A extends @Nullable Object> Prism<A, Unit> nearly(
+      A defaultValue, Predicate<A> predicate) {
     return Prism.of(
         actual -> predicate.test(actual) ? Optional.of(Unit.INSTANCE) : Optional.empty(),
         unit -> defaultValue);
@@ -388,12 +390,12 @@ public final class Prisms {
    * <p>Example:
    *
    * <pre>{@code
-   * Prism<String, String> notNullPrism = Prisms.notNull();
+   * Prism<@Nullable String, String> notNullPrism = Prisms.notNull();
    *
    * String value = "hello";
    * Optional<String> result = notNullPrism.getOptional(value);  // Optional.of("hello")
    *
-   * String nullValue = null;
+   * @Nullable String nullValue = null;
    * Optional<String> noMatch = notNullPrism.getOptional(nullValue);  // Optional.empty()
    *
    * String built = notNullPrism.build("world");  // "world"
@@ -445,7 +447,8 @@ public final class Prisms {
    * @param <A> The target type (subtype).
    * @return A prism for safe instanceof-based casting.
    */
-  public static <S, A extends S> Prism<S, A> instanceOf(Class<A> targetClass) {
+  public static <S extends @Nullable Object, A extends S> Prism<S, A> instanceOf(
+      Class<A> targetClass) {
     return Prism.of(
         source ->
             targetClass.isInstance(source)
@@ -484,8 +487,10 @@ public final class Prisms {
    * @param <A> The element type of the list.
    * @return A prism focusing on the first element of a list.
    */
-  public static <A> Prism<List<A>, A> listHead() {
-    return Prism.of(list -> list.isEmpty() ? Optional.empty() : Optional.of(list.get(0)), List::of);
+  public static <A extends @Nullable Object> Prism<List<A>, A> listHead() {
+    return Prism.of(
+        list -> list.isEmpty() ? Optional.empty() : Optional.ofNullable(list.get(0)),
+        Collections::singletonList);
   }
 
   /**
@@ -519,10 +524,12 @@ public final class Prisms {
    * @return A prism focusing on the element at the specified index.
    * @throws UnsupportedOperationException if {@code build} is called.
    */
-  public static <A> Prism<List<A>, A> listAt(int index) {
+  public static <A extends @Nullable Object> Prism<List<A>, A> listAt(int index) {
     return Prism.of(
         list ->
-            (index >= 0 && index < list.size()) ? Optional.of(list.get(index)) : Optional.empty(),
+            (index >= 0 && index < list.size())
+                ? Optional.ofNullable(list.get(index))
+                : Optional.empty(),
         a -> {
           throw new UnsupportedOperationException(
               "Cannot build a list from an indexed element. Use Lens or Traversal for list"
@@ -556,9 +563,9 @@ public final class Prisms {
    * @param <A> The element type of the list.
    * @return A prism focusing on the last element of a list.
    */
-  public static <A> Prism<List<A>, A> listLast() {
+  public static <A extends @Nullable Object> Prism<List<A>, A> listLast() {
     return Prism.of(
-        list -> list.isEmpty() ? Optional.empty() : Optional.of(list.get(list.size() - 1)),
-        List::of);
+        list -> list.isEmpty() ? Optional.empty() : Optional.ofNullable(list.get(list.size() - 1)),
+        Collections::singletonList);
   }
 }

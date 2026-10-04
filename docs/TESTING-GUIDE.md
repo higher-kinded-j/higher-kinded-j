@@ -1268,6 +1268,14 @@ apiProject.sourceSets.main.get().output.classesDirs.map { dir ->
 
 Coverage reports: `build/reports/jacoco/test/html/index.html`
 
+### Run the Nullness Checker Over Optic Signatures
+
+```bash
+./gradlew :hkj-processor:nullnessTest
+```
+
+No nullness checker runs over the library's own sources. This suite compiles fixtures with NullAway in JSpecify mode, as a consumer would, over hand-written optics and the code the processors generate. It is the only check that catches an optic or Focus path signature rejecting a nullable type argument, so run it after changing one in `hkj-api` or `hkj-core`. `./gradlew build` runs it; `./gradlew test` does not.
+
 ### Run Benchmarks
 
 ```bash

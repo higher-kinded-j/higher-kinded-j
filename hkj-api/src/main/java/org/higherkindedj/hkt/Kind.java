@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt;
 
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * The core of the Higher-Kinded Type (HKT) simulation.
@@ -34,10 +35,12 @@ import org.jspecify.annotations.NullMarked;
  * }</pre>
  *
  * @param <F> The witness type for the type constructor. Must implement {@link WitnessArity}.
- * @param <A> The type of the value contained within the context.
+ * @param <A> The type of the value contained within the context. It admits a nullable type, so an
+ *     optic over a nullable focus can name {@code Kind<F, @Nullable String>}; whether a given type
+ *     constructor can hold {@code null} is for that type to declare.
  * @see WitnessArity
  * @see TypeArity
  * @see Kind2
  */
 @NullMarked
-public interface Kind<F extends WitnessArity<?>, A> {}
+public interface Kind<F extends WitnessArity<?>, A extends @Nullable Object> {}

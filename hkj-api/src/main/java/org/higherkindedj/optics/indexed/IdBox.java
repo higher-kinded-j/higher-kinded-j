@@ -9,6 +9,7 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A minimal, package-private identity functor used internally by {@link
@@ -22,7 +23,7 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> the wrapped value type
  */
 @NullMarked
-record IdBox<A>(A value) implements Kind<IdBox.Witness, A> {
+record IdBox<A extends @Nullable Object>(A value) implements Kind<IdBox.Witness, A> {
 
   /** Witness type for the identity functor. */
   static final class Witness implements WitnessArity<TypeArity.Unary> {
@@ -30,7 +31,7 @@ record IdBox<A>(A value) implements Kind<IdBox.Witness, A> {
   }
 
   @SuppressWarnings("unchecked") // every Kind<Witness, A> is an IdBox<A> by construction
-  static <A> IdBox<A> narrow(Kind<Witness, A> kind) {
+  static <A extends @Nullable Object> IdBox<A> narrow(Kind<Witness, A> kind) {
     return (IdBox<A>) Objects.requireNonNull(kind);
   }
 

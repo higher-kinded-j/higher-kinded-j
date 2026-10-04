@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A final utility class providing static factory methods for creating {@link Traversal}s that focus
@@ -75,7 +76,7 @@ public final class ListTraversals {
    * @param <A> The element type of the list.
    * @return A {@code Traversal} focusing on at most the first {@code n} elements.
    */
-  public static <A> Traversal<List<A>, A> taking(final int n) {
+  public static <A extends @Nullable Object> Traversal<List<A>, A> taking(final int n) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
@@ -128,7 +129,7 @@ public final class ListTraversals {
    * @param <A> The element type of the list.
    * @return A {@code Traversal} focusing on elements after skipping the first {@code n}.
    */
-  public static <A> Traversal<List<A>, A> dropping(final int n) {
+  public static <A extends @Nullable Object> Traversal<List<A>, A> dropping(final int n) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
@@ -186,7 +187,7 @@ public final class ListTraversals {
    * @param <A> The element type of the list.
    * @return A {@code Traversal} focusing on at most the last {@code n} elements.
    */
-  public static <A> Traversal<List<A>, A> takingLast(final int n) {
+  public static <A extends @Nullable Object> Traversal<List<A>, A> takingLast(final int n) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
@@ -240,7 +241,7 @@ public final class ListTraversals {
    * @param <A> The element type of the list.
    * @return A {@code Traversal} focusing on all elements except the last {@code n}.
    */
-  public static <A> Traversal<List<A>, A> droppingLast(final int n) {
+  public static <A extends @Nullable Object> Traversal<List<A>, A> droppingLast(final int n) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
@@ -302,7 +303,8 @@ public final class ListTraversals {
    * @param <A> The element type of the list.
    * @return A {@code Traversal} focusing on elements within the specified range.
    */
-  public static <A> Traversal<List<A>, A> slicing(final int from, final int to) {
+  public static <A extends @Nullable Object> Traversal<List<A>, A> slicing(
+      final int from, final int to) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
@@ -366,7 +368,8 @@ public final class ListTraversals {
    * @return A {@code Traversal} focusing on the longest prefix of elements satisfying the
    *     predicate.
    */
-  public static <A> Traversal<List<A>, A> takingWhile(final Predicate<? super A> predicate) {
+  public static <A extends @Nullable Object> Traversal<List<A>, A> takingWhile(
+      final Predicate<? super A> predicate) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
@@ -430,7 +433,8 @@ public final class ListTraversals {
    * @return A {@code Traversal} focusing on elements after the longest prefix satisfying the
    *     predicate.
    */
-  public static <A> Traversal<List<A>, A> droppingWhile(final Predicate<? super A> predicate) {
+  public static <A extends @Nullable Object> Traversal<List<A>, A> droppingWhile(
+      final Predicate<? super A> predicate) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
@@ -502,7 +506,7 @@ public final class ListTraversals {
    * @param <A> The element type of the list.
    * @return A {@code Traversal} focusing on the element at the specified index, if it exists.
    */
-  public static <A> Traversal<List<A>, A> element(final int index) {
+  public static <A extends @Nullable Object> Traversal<List<A>, A> element(final int index) {
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, List<A>> modifyF(
@@ -540,7 +544,7 @@ public final class ListTraversals {
    * @param <A> The element type
    * @return The split point index (0 to source.size())
    */
-  private static <A> int findSplitPoint(
+  private static <A extends @Nullable Object> int findSplitPoint(
       final List<A> source, final Predicate<? super A> predicate) {
     int splitPoint = 0;
     for (int i = 0; i < source.size(); i++) {

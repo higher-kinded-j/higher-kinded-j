@@ -14,6 +14,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Traversal;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An indexed traversal that focuses on zero or more elements within a structure, providing access
@@ -40,7 +41,8 @@ import org.jspecify.annotations.NullMarked;
  * @param <A> The focused element type
  */
 @NullMarked
-public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
+public interface IndexedTraversal<I, S extends @Nullable Object, A extends @Nullable Object>
+    extends IndexedOptic<I, S, A> {
 
   /**
    * {@inheritDoc}
@@ -71,7 +73,8 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
    * @param <B> The focus type of the other traversal
    * @return A new {@link IndexedTraversal} with paired indices
    */
-  default <J, B> IndexedTraversal<Pair<I, J>, S, B> iandThen(IndexedTraversal<J, A, B> other) {
+  default <J, B extends @Nullable Object> IndexedTraversal<Pair<I, J>, S, B> iandThen(
+      IndexedTraversal<J, A, B> other) {
     IndexedTraversal<I, S, A> self = this;
     return new IndexedTraversal<>() {
       @Override
@@ -94,7 +97,7 @@ public interface IndexedTraversal<I, S, A> extends IndexedOptic<I, S, A> {
    * @param <B> The type of the final focused parts
    * @return A new {@link IndexedTraversal} preserving the outer index
    */
-  default <B> IndexedTraversal<I, S, B> andThen(Traversal<A, B> other) {
+  default <B extends @Nullable Object> IndexedTraversal<I, S, B> andThen(Traversal<A, B> other) {
     IndexedTraversal<I, S, A> self = this;
     return new IndexedTraversal<>() {
       @Override

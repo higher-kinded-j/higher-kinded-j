@@ -8,7 +8,9 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Lens;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Static utility methods for using {@link Lens} with hkj-core types (Maybe, Either, Validated,
@@ -57,7 +59,8 @@ public final class LensExtensions {
    * @param <A> The type of the focused part
    * @return {@code Maybe.just(value)} if non-null, {@code Maybe.nothing()} otherwise
    */
-  public static <S, A> Maybe<A> getMaybe(Lens<S, A> lens, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> Maybe<@NonNull A> getMaybe(
+      Lens<S, A> lens, S source) {
     return Maybe.fromNullable(lens.get(source));
   }
 

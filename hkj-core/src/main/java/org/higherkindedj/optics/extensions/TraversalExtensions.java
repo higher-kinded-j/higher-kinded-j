@@ -22,6 +22,7 @@ import org.higherkindedj.hkt.validated.ValidatedMonad;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Static utility methods for using {@link Traversal} with hkj-core types (Maybe, Either,
@@ -76,7 +77,8 @@ public final class TraversalExtensions {
    * @param <A> The type of the focused parts
    * @return {@code Maybe.just(list)} if non-empty, {@code Maybe.nothing()} otherwise
    */
-  public static <S, A> Maybe<List<A>> getAllMaybe(Traversal<S, A> traversal, S source) {
+  public static <S extends @Nullable Object, A extends @Nullable Object> Maybe<List<A>> getAllMaybe(
+      Traversal<S, A> traversal, S source) {
     List<A> results = Traversals.getAll(traversal, source);
     return results.isEmpty() ? Maybe.nothing() : Maybe.just(results);
   }

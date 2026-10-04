@@ -399,7 +399,7 @@ List<String> onlyErrors = statusCodes.stream()
     .collect(Collectors.toList());
 
 // Null sentinel handling
-Prism<String, Unit> nullPrism = Prisms.only(null);
+Prism<@Nullable String, Unit> nullPrism = Prisms.only(null);
 boolean isNull = nullPrism.matches(statusCode);
 ```
 
@@ -407,18 +407,18 @@ boolean isNull = nullPrism.matches(statusCode);
 
 <!-- verify -->
 ```java
-Prism<String, String> notNullPrism = Prisms.notNull();
+Prism<@Nullable String, String> notNullPrism = Prisms.notNull();
 
 // Safe extraction
 @Nullable String nullable = getDatabaseValue();
 Optional<String> safe = notNullPrism.getOptional(nullable);
 
 // Compose to filter null values in pipelines
-Traversal<List<String>, String> nonNullStrings =
-    Traversals.<String>forList()
+Traversal<List<@Nullable String>, String> nonNullStrings =
+    Traversals.<@Nullable String>forList()
         .andThen(Prisms.<String>notNull().asTraversal());
 
-List<@Nullable String> mixedList = List.of("hello", null, "world", null);
+List<@Nullable String> mixedList = Arrays.asList("hello", null, "world", null);
 List<String> filtered = Traversals.getAll(nonNullStrings, mixedList);
 // Result: ["hello", "world"]
 ```

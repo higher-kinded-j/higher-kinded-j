@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A type class for structures that support safe indexed access to existing elements.
  *
@@ -95,7 +97,7 @@ package org.higherkindedj.optics;
  * @param <A> The value type at each index
  */
 @FunctionalInterface
-public interface Ixed<S, I, A> {
+public interface Ixed<S extends @Nullable Object, I, A extends @Nullable Object> {
 
   /**
    * Returns a {@link Traversal} that focuses on zero or one element at the given index.

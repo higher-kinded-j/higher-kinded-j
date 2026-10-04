@@ -10,6 +10,8 @@ import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A **Prism** is an optic that provides a focused view into a part of a sum type (e.g., a {@code
@@ -28,19 +30,21 @@ import org.higherkindedj.hkt.WitnessArity;
  * @param <A> The target type of the focused case (e.g., a specific implementation like {@code
  *     JsonString}).
  */
-public interface Prism<S, A> extends Optic<S, S, A, A> {
+public interface Prism<S extends @Nullable Object, A extends @Nullable Object>
+    extends Optic<S, S, A, A> {
 
   /**
    * Attempts to get the focused part {@code A} from the whole structure {@code S}.
    *
    * <p>This is the primary "getter" for a Prism, providing a safe way to access the value of a
-   * specific case of a sum type.
+   * specific case of a sum type. An {@link Optional} cannot hold {@code null}, so a null focus
+   * reads as no match.
    *
    * @param source The whole structure.
    * @return An {@link Optional} containing the focused part if the prism matches, otherwise an
    *     empty {@code Optional}.
    */
-  Optional<A> getOptional(S source);
+  Optional<@NonNull A> getOptional(S source);
 
   /**
    * Builds the whole structure {@code S} from a part {@code A}.
@@ -97,7 +101,7 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
     return new Fold<>() {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
-        Optional<A> opt = self.getOptional(source);
+        Optional<@NonNull A> opt = self.getOptional(source);
         if (opt.isPresent()) {
           return f.apply(opt.get());
         } else {
@@ -118,11 +122,11 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Prism} that focuses from {@code S} to {@code B}.
    */
-  default <B> Prism<S, B> andThen(final Prism<A, B> other) {
+  default <B extends @Nullable Object> Prism<S, B> andThen(final Prism<A, B> other) {
     Prism<S, A> self = this;
     return new Prism<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return self.getOptional(source).flatMap(other::getOptional);
       }
 
@@ -169,7 +173,7 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Prism} that focuses from {@code S} to {@code B}.
    */
-  default <B> Prism<S, B> andThen(final Iso<A, B> iso) {
+  default <B extends @Nullable Object> Prism<S, B> andThen(final Iso<A, B> iso) {
     Prism<S, A> self = this;
     return Prism.of(s -> self.getOptional(s).map(iso::get), b -> self.build(iso.reverseGet(b)));
   }
@@ -232,11 +236,11 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Affine<S, B> andThen(final Lens<A, B> lens) {
+  default <B extends @Nullable Object> Affine<S, B> andThen(final Lens<A, B> lens) {
     Prism<S, A> self = this;
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return self.getOptional(source).map(lens::get);
       }
 
@@ -258,11 +262,11 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused part.
    * @return A new {@link Affine} that focuses from {@code S} to {@code B}.
    */
-  default <B> Affine<S, B> andThen(final Affine<A, B> affine) {
+  default <B extends @Nullable Object> Affine<S, B> andThen(final Affine<A, B> affine) {
     Prism<S, A> self = this;
     return new Affine<>() {
       @Override
-      public Optional<B> getOptional(S source) {
+      public Optional<@NonNull B> getOptional(S source) {
         return self.getOptional(source).flatMap(affine::getOptional);
       }
 
@@ -321,7 +325,7 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * @param <B> The type of the final focused parts.
    * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
    */
-  default <B> Traversal<S, B> andThen(final Traversal<A, B> traversal) {
+  default <B extends @Nullable Object> Traversal<S, B> andThen(final Traversal<A, B> traversal) {
     Prism<S, A> self = this;
     return new Traversal<>() {
       @Override
@@ -600,10 +604,11 @@ public interface Prism<S, A> extends Optic<S, S, A, A> {
    * @param <A> The type of the focused part.
    * @return A new {@code Prism} instance.
    */
-  static <S, A> Prism<S, A> of(Function<S, Optional<A>> getter, Function<A, S> builder) {
+  static <S extends @Nullable Object, A extends @Nullable Object> Prism<S, A> of(
+      Function<S, Optional<@NonNull A>> getter, Function<A, S> builder) {
     return new Prism<>() {
       @Override
-      public Optional<A> getOptional(S source) {
+      public Optional<@NonNull A> getOptional(S source) {
         return getter.apply(source);
       }
 

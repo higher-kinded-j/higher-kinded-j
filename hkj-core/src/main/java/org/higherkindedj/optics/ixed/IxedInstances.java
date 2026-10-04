@@ -17,6 +17,7 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.at.AtInstances;
 import org.higherkindedj.optics.util.Prisms;
 import org.higherkindedj.optics.util.Traversals;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -111,7 +112,7 @@ public final class IxedInstances {
    * @param <V> The value type of the map
    * @return An {@code Ixed} instance for maps
    */
-  public static <K, V> Ixed<Map<K, V>, K, @Nullable V> mapIx() {
+  public static <K, V extends @Nullable Object> Ixed<Map<K, V>, K, @NonNull V> mapIx() {
     return fromAt(AtInstances.mapAt());
   }
 
@@ -136,7 +137,7 @@ public final class IxedInstances {
    * @param <A> The element type of the list
    * @return An {@code Ixed} instance for lists
    */
-  public static <A> Ixed<List<A>, Integer, A> listIx() {
+  public static <A extends @Nullable Object> Ixed<List<A>, Integer, @NonNull A> listIx() {
     return fromAt(AtInstances.listAt());
   }
 
@@ -186,7 +187,7 @@ public final class IxedInstances {
    * @param <A> The value type
    * @return An {@code Ixed} instance derived from the provided {@code At}
    */
-  public static <S, I, A> Ixed<S, I, A> fromAt(At<S, I, A> at) {
+  public static <S extends @Nullable Object, I, A> Ixed<S, I, A> fromAt(At<S, I, A> at) {
     Prism<Optional<A>, A> somePrism = Prisms.some();
     return index ->
         new Traversal<>() {
@@ -213,12 +214,9 @@ public final class IxedInstances {
   /**
    * Retrieves the value at the given index, if present.
    *
-   * <p>This is a convenience method equivalent to:
-   *
-   * <pre>{@code
-   * List<A> results = Traversals.getAll(ixed.ix(index), source);
-   * return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
-   * }</pre>
+   * <p>This is a convenience method for the first value {@code ixed.ix(index)} focuses. An {@link
+   * Optional} cannot hold {@code null}, so a null value reads as absent; {@link #contains} tells
+   * the two apart.
    *
    * @param ixed The Ixed instance
    * @param index The index to look up
@@ -228,9 +226,10 @@ public final class IxedInstances {
    * @param <A> The value type
    * @return An {@link Optional} containing the value if present, or empty if absent
    */
-  public static <S, I, A> Optional<A> get(Ixed<S, I, A> ixed, I index, S source) {
+  public static <S extends @Nullable Object, I, A extends @Nullable Object>
+      Optional<@NonNull A> get(Ixed<S, I, A> ixed, I index, S source) {
     List<A> results = Traversals.getAll(ixed.ix(index), source);
-    return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    return results.isEmpty() ? Optional.empty() : Optional.ofNullable(results.getFirst());
   }
 
   /**
@@ -248,7 +247,8 @@ public final class IxedInstances {
    * @param <A> The value type
    * @return A new structure with the value updated, or unchanged if the index is absent
    */
-  public static <S, I, A> S update(Ixed<S, I, A> ixed, I index, A value, S source) {
+  public static <S extends @Nullable Object, I, A extends @Nullable Object> S update(
+      Ixed<S, I, A> ixed, I index, A value, S source) {
     return Traversals.modify(ixed.ix(index), _ -> value, source);
   }
 
@@ -266,12 +266,16 @@ public final class IxedInstances {
    * @param <A> The value type
    * @return A new structure with the modified value, or unchanged if absent
    */
-  public static <S, I, A> S modify(Ixed<S, I, A> ixed, I index, Function<A, A> modifier, S source) {
+  public static <S extends @Nullable Object, I, A extends @Nullable Object> S modify(
+      Ixed<S, I, A> ixed, I index, Function<A, A> modifier, S source) {
     return Traversals.modify(ixed.ix(index), modifier, source);
   }
 
   /**
    * Checks if a value is present at the given index.
+   *
+   * <p>A null value the index focuses counts as present: this asks whether the index is there, as
+   * {@link #get} cannot say for a null value.
    *
    * @param ixed The Ixed instance
    * @param index The index to check
@@ -281,7 +285,8 @@ public final class IxedInstances {
    * @param <A> The value type
    * @return {@code true} if a value is present at the index, {@code false} otherwise
    */
-  public static <S, I, A> boolean contains(Ixed<S, I, A> ixed, I index, S source) {
-    return get(ixed, index, source).isPresent();
+  public static <S extends @Nullable Object, I, A extends @Nullable Object> boolean contains(
+      Ixed<S, I, A> ixed, I index, S source) {
+    return !Traversals.getAll(ixed.ix(index), source).isEmpty();
   }
 }

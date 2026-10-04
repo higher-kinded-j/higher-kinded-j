@@ -289,7 +289,8 @@ import static org.higherkindedj.optics.extensions.GetterExtensions.getMaybe;
 
 **Signature:**
 ```java
-public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source)
+public static <S extends @Nullable Object, A extends @Nullable Object>
+    Maybe<@NonNull A> getMaybe(Getter<S, A> getter, S source)
 ```
 
 It extracts a value using the provided `Getter` and wraps it in `Maybe`:

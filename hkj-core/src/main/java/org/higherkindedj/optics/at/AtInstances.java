@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.optics.At;
 import org.higherkindedj.optics.Lens;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -76,7 +77,7 @@ public final class AtInstances {
    * @param <V> The value type of the map
    * @return An {@code At} instance for maps
    */
-  public static <K, V> At<Map<K, V>, K, @Nullable V> mapAt() {
+  public static <K, V extends @Nullable Object> At<Map<K, V>, K, @NonNull V> mapAt() {
     return key ->
         Lens.of(
             map -> Optional.ofNullable(map.get(key)),
@@ -98,8 +99,10 @@ public final class AtInstances {
    * index:
    *
    * <ul>
-   *   <li>{@code get(index)} returns {@code Optional.empty()} if index is out of bounds
-   *   <li>{@code get(index)} returns {@code Optional.of(value)} if index is valid
+   *   <li>{@code get(index)} returns {@code Optional.empty()} if index is out of bounds, or the
+   *       element there is null
+   *   <li>{@code get(index)} returns {@code Optional.of(value)} if index is valid and the element
+   *       is not null
    *   <li>{@code set(Optional.empty())} removes the element at index (shifts subsequent elements)
    *   <li>{@code set(Optional.of(value))} updates the element at index (must be in bounds)
    * </ul>
@@ -118,7 +121,7 @@ public final class AtInstances {
    * @param <A> The element type of the list
    * @return An {@code At} instance for lists
    */
-  public static <A> At<List<A>, Integer, A> listAt() {
+  public static <A extends @Nullable Object> At<List<A>, Integer, @NonNull A> listAt() {
     return index ->
         Lens.of(
             list ->
@@ -159,10 +162,12 @@ public final class AtInstances {
    * caution.
    *
    * @param <A> The element type of the list
-   * @param defaultValue The value to use for padding (typically null)
+   * @param defaultValue The value to use for padding. Padding with {@code null} needs an element
+   *     type that admits it, as in {@code AtInstances.<@Nullable String>listAtWithPadding(null)}.
    * @return An {@code At} instance for lists with padding behaviour
    */
-  public static <A> At<List<A>, Integer, A> listAtWithPadding(@Nullable A defaultValue) {
+  public static <A extends @Nullable Object> At<List<A>, Integer, @NonNull A> listAtWithPadding(
+      A defaultValue) {
     return index ->
         Lens.of(
             list ->
