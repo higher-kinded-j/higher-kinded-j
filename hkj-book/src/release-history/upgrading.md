@@ -13,7 +13,7 @@ Each of these compiles today with javac's `[removal]` warning, which fails a `-W
 | `KindValidator.narrowWithPattern` | 0.4.4 | `KindValidator.narrowHolder` | `RenameKindValidatorNarrowWithPattern` |
 | `StateTKind.narrowK` | 0.4.5 | `StateTKind.narrow` | `RenameStateTKindNarrowK` |
 | `StateT.evalStateT(state)` and `execStateT(state)`, and the `StateTKindHelper` forms without a monad | 0.4.6 | The overloads that take the `Monad<F>` | By hand |
-| `StateT.monadF()` | 0.4.6 | Pass the `Monad<F>` to the runner | By hand |
+| `StateT.monadF()` | 0.4.6 | The outer `Monad<F>` you built the stack with, kept in your own reference | By hand |
 | `Try.fold` and `TryPath.fold`, success first | 0.4.6 | `foldFailureFirst(failureMapper, successMapper)` | `SwapTryFoldToFoldFailureFirstRecipe` |
 | `Each.eachWithIndex()` | 0.4.7 | Narrow to `EachIndexed` and call `indexedTraversal()` | By hand |
 | `@PathConfig` | 0.4.11 | Nothing, since it has no effect; to rename a Path, set `suffix` on `@PathSource` | `RemovePathConfig` |

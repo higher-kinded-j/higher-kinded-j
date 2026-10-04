@@ -66,7 +66,8 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 | Effect Paths | A `Monad` passed to `new StateT<>(fn, monad)`, `StateT.create`, `StateTKindHelper.stateT` or `StateT.mapT` | Run the recipe as [Before you upgrade](#before-you-upgrade) says, or drop the argument by hand | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
 | Effect Paths | A two-component `StateT` record pattern, or `StateT::create` or `StateT::new` as a `BiFunction` | Match the one component, or take a `Function`, by hand | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
 | Effect Paths | A `StateT` in `var` or a chained call over a witness with a type argument, such as `EitherKind.Witness<E>`, which now infers `Object` for it | Name the types, as in `StateT.<S, EitherKind.Witness<E>, A>create(fn)`, or declare the variable | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
-| Effect Paths | `StateT.monadF()`, or `evalStateT` and `execStateT` without a `Monad`, deprecated since 0.4.6 | Pass the outer `Monad<F>`, the one `Instances.stateT` took, as the last argument | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
+| Effect Paths | `evalStateT` and `execStateT` without a `Monad`, deprecated since 0.4.6 | Pass the outer `Monad<F>`, the one `Instances.stateT` took, as the last argument | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
+| Effect Paths | `StateT.monadF()`, deprecated since 0.4.6 | Keep a reference to the outer `Monad<F>` you built the stack with, and use it in place of the call | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
 
 ### Deprecated for removal in 0.6.0 {#deprecated}
 
