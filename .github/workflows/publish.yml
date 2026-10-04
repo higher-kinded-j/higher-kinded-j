@@ -47,20 +47,10 @@ jobs:
             echo "Version from tag: $VERSION"
           elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
             # --- Snapshot: triggered by merge to main ---
-            # Derive snapshot version from latest release tag: v0.4.0 -> 0.4.1-SNAPSHOT
-            LATEST_TAG=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo "")
-            if [[ -n "$LATEST_TAG" ]]; then
-              TAG_VERSION="${LATEST_TAG#v}" # e.g., 0.4.0
-              MAJOR=$(echo "$TAG_VERSION" | cut -d. -f1)
-              MINOR=$(echo "$TAG_VERSION" | cut -d. -f2)
-              PATCH=$(echo "$TAG_VERSION" | cut -d. -f3)
-              NEXT_PATCH=$((PATCH + 1))
-              VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-SNAPSHOT"
-              echo "Snapshot version derived from tag $LATEST_TAG: $VERSION"
-            else
-              VERSION="0.0.1-SNAPSHOT"
-              echo "No release tags found, using default snapshot: $VERSION"
-            fi
+            # gradle.properties declares the snapshot version, and the "Check snapshot version"
+            # step holds it to the latest release tag before anything is published.
+            VERSION=$(sed -n 's/^snapshotVersion=//p' gradle.properties)
+            echo "Snapshot version from gradle.properties: $VERSION"
             IS_SNAPSHOT="true"
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             VERSION="${{ github.event.inputs.version }}"
@@ -84,6 +74,11 @@ jobs:
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "is_snapshot=$IS_SNAPSHOT" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Check snapshot version
+        if: github.event_name == 'push' && steps.versioner.outputs.is_snapshot == 'true'
+        run: ./gradlew checkSnapshotVersion
         shell: bash
 
       - name: Log publish details
