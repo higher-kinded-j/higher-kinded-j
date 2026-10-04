@@ -1,4 +1,6 @@
+import org.gradle.api.internal.tasks.userinput.UserInputHandler
 import org.gradle.external.javadoc.StandardJavadocDocletOptions
+import org.gradle.kotlin.dsl.support.serviceOf
 
 plugins {
     java
@@ -9,7 +11,9 @@ plugins {
 
 // Global properties for all modules
 group = "io.github.higher-kinded-j"
-version = project.findProperty("projectVersion")?.toString() ?: "0.5.0-SNAPSHOT"
+// A release passes projectVersion; otherwise this is gradle.properties' snapshotVersion, which
+// checkSnapshotVersion holds to the latest release tag.
+version = project.findProperty("projectVersion")?.toString() ?: providers.gradleProperty("snapshotVersion").get()
 
 
 // Repositories for root project (required for OpenRewrite dependencies)
@@ -291,4 +295,105 @@ tasks.register<Exec>("pitestFull") {
     doFirst {
         println("\nRunning pitest with FULL profile (STRONGER mutators, all CPU cores)")
     }
+}
+
+/**
+ * Snapshot version check.
+ *
+ * A merge to main publishes gradle.properties' snapshotVersion to the snapshots repository. After
+ * a release a.b.c the usual snapshot is a.b.(c+1)-SNAPSHOT, and that passes as it is. A minor or
+ * major step, a.(b+1).0-SNAPSHOT or (a+1).0.0-SNAPSHOT, is legitimate but deliberate, so this asks
+ * you to confirm it, once, and records the answer as confirmedSnapshotVersion in gradle.properties
+ * for you to commit. A version that is not ahead of the latest release, or that skips one, fails.
+ *
+ * A build that cannot ask, such as CI's, fails on an unconfirmed step instead, naming the fix.
+ * Without release tags, as in a shallow clone, there is nothing to compare with and it passes.
+ *
+ * Usage: ./gradlew checkSnapshotVersion (check runs it, and publish.yml before a snapshot)
+ */
+val checkSnapshotVersion = tasks.register("checkSnapshotVersion") {
+    group = "verification"
+    description = "Checks snapshotVersion follows the latest release tag, asking to confirm a minor or major step"
+
+    val userInput = serviceOf<UserInputHandler>()
+    val propertiesFile = layout.projectDirectory.file("gradle.properties").asFile
+    val declared = providers.gradleProperty("snapshotVersion")
+    val confirmed = providers.gradleProperty("confirmedSnapshotVersion")
+    val tags = providers.exec {
+        commandLine("git", "tag", "--list", "v[0-9]*", "--sort=-v:refname")
+        isIgnoreExitValue = true
+    }.standardOutput.asText
+
+    doLast {
+        val snapshot = declared.get()
+        val snapshotParts = Regex("""(\d+)\.(\d+)\.(\d+)-SNAPSHOT""").matchEntire(snapshot)
+            ?: throw GradleException("snapshotVersion in gradle.properties must read a.b.c-SNAPSHOT, found '$snapshot'.")
+        val latestTag = tags.get().lineSequence().map { it.trim() }
+            .firstOrNull { Regex("""v\d+\.\d+\.\d+""").matches(it) }
+        if (latestTag == null) {
+            logger.lifecycle("checkSnapshotVersion: no release tag to compare $snapshot with")
+            return@doLast
+        }
+        val (major, minor, patch) = latestTag.removePrefix("v").split('.').map { it.toInt() }
+        val nextPatch = "$major.$minor.${patch + 1}-SNAPSHOT"
+        val nextMinor = "$major.${minor + 1}.0-SNAPSHOT"
+        val nextMajor = "${major + 1}.0.0-SNAPSHOT"
+
+        fun record(key: String, value: String) {
+            val lines = propertiesFile.readLines()
+            val updated =
+                if (lines.any { it.startsWith("$key=") }) lines.map { if (it.startsWith("$key=")) "$key=$value" else it }
+                else lines.flatMap { if (it.startsWith("snapshotVersion=")) listOf(it, "$key=$value") else listOf(it) }
+            propertiesFile.writeText(updated.joinToString("\n", postfix = "\n"))
+        }
+
+        val (a, b, c) = snapshotParts.destructured
+        val ahead = compareValuesBy(
+            Triple(a.toInt(), b.toInt(), c.toInt()), Triple(major, minor, patch),
+            { it.first }, { it.second }, { it.third }) > 0
+        when {
+            snapshot == nextPatch ->
+                logger.lifecycle("checkSnapshotVersion: $snapshot follows $latestTag")
+            (snapshot == nextMinor || snapshot == nextMajor) && confirmed.orNull == snapshot ->
+                logger.lifecycle("checkSnapshotVersion: $snapshot follows $latestTag, as confirmed")
+            snapshot == nextMinor || snapshot == nextMajor -> {
+                val step = if (snapshot == nextMinor) "minor" else "major"
+                val answer = userInput.askYesNoQuestion(
+                    "The latest release is $latestTag, so the usual next snapshot is $nextPatch. " +
+                        "snapshotVersion is $snapshot, a $step step. Publish $snapshot from main?")
+                when (answer) {
+                    true -> {
+                        record("confirmedSnapshotVersion", snapshot)
+                        logger.lifecycle("checkSnapshotVersion: confirmed $snapshot in gradle.properties; commit it")
+                    }
+                    false -> throw GradleException(
+                        "snapshotVersion $snapshot is not confirmed. For the next patch release, set snapshotVersion=$nextPatch in gradle.properties.")
+                    null -> throw GradleException(
+                        "snapshotVersion $snapshot is a $step step from $latestTag, where the usual next snapshot is $nextPatch, " +
+                            "and Gradle cannot ask you to confirm it here: this build has no interactive console, as in CI, an IDE " +
+                            "or a shell without a terminal. Run ./gradlew checkSnapshotVersion in a terminal and commit " +
+                            "gradle.properties, or add confirmedSnapshotVersion=$snapshot to it yourself.")
+                }
+            }
+            !ahead -> {
+                val answer = userInput.askYesNoQuestion(
+                    "snapshotVersion $snapshot is not ahead of the latest release $latestTag. Move it to $nextPatch?")
+                if (answer == true) {
+                    record("snapshotVersion", nextPatch)
+                    logger.lifecycle("checkSnapshotVersion: set snapshotVersion=$nextPatch in gradle.properties; commit it")
+                } else {
+                    throw GradleException(
+                        "snapshotVersion $snapshot is not ahead of the latest release $latestTag. Set snapshotVersion in " +
+                            "gradle.properties to $nextPatch, or to $nextMinor or $nextMajor for a minor or major release.")
+                }
+            }
+            else -> throw GradleException(
+                "snapshotVersion $snapshot skips a release after $latestTag. The next snapshot is $nextPatch, " +
+                    "$nextMinor or $nextMajor.")
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(checkSnapshotVersion)
 }
