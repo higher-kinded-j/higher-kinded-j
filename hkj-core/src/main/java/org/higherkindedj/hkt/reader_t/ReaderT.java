@@ -144,13 +144,13 @@ public record ReaderT<F extends WitnessArity<TypeArity.Unary>, R_ENV, A>(
    * <p>This is useful for applying cross-cutting concerns (logging, retry, timeout) at the monad
    * level, or for switching between monadic contexts via a natural transformation.
    *
-   * <p><b>Example — switching from IO to Task via a natural transformation:</b>
+   * <p><b>Example: switching from IO to a virtual-thread task via a natural transformation:</b>
    *
    * <pre>{@code
    * ReaderT<IOKind.Witness, Config, String> ioReader = ...;
-   * Natural<IOKind.Witness, TaskKind.Witness> ioToTask = ...;
+   * Natural<IOKind.Witness, VTaskKind.Witness> ioToVTask = ...;
    *
-   * ReaderT<TaskKind.Witness, Config, String> taskReader = ioReader.mapT(ioToTask::apply);
+   * ReaderT<VTaskKind.Witness, Config, String> vTaskReader = ioReader.mapT(ioToVTask::apply);
    * }</pre>
    *
    * @param f The function to apply to each computed {@code Kind<F, A>}. Must not be null.

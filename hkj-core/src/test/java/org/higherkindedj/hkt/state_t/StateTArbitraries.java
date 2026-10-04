@@ -31,7 +31,7 @@ final class StateTArbitraries {
 
   private static <A> StateT<String, OptionalKind.Witness, A> createStateT(
       Function<String, StateTuple<String, A>> fn) {
-    return StateT.create(s -> OUTER.of(fn.apply(s)), OUTER);
+    return StateT.create(s -> OUTER.of(fn.apply(s)));
   }
 
   private static <A> Kind<StateTKind.Witness<String, OptionalKind.Witness>, A> pureT(A value) {
@@ -44,7 +44,7 @@ final class StateTArbitraries {
   }
 
   private static <A> Kind<StateTKind.Witness<String, OptionalKind.Witness>, A> emptyT() {
-    return STATE_T.widen(StateT.create(_ -> OPTIONAL.widen(Optional.empty()), OUTER));
+    return STATE_T.widen(StateT.create(_ -> OPTIONAL.widen(Optional.empty())));
   }
 
   /** Mix of pure (state-preserving), state-modifying, and empty-outer Optional states. */

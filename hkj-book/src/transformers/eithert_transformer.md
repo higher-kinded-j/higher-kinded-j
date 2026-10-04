@@ -80,7 +80,7 @@ When you need a specific outer monad (here `CompletableFuture`), use `EitherT` w
 ```java
 var futureMonad  = Instances.monadError(completableFuture());
 // Name L: nothing else in `Instances.eitherT(futureMonad)` constrains it, and it would
-// otherwise infer to Object (see Common Compiler Errors, section 4).
+// otherwise infer to Object (see "The phantom L" in Common Compiler Errors).
 var eitherTMonad =
     Instances.<CompletableFutureKind.Witness, DomainError>eitherT(futureMonad);
 
@@ -161,7 +161,7 @@ The `EitherTMonad<F, L>` class implements `MonadError<EitherTKind.Witness<F, L>,
 ```java
 var futureMonad  = Instances.monadError(completableFuture());
 // Name L: nothing else in `Instances.eitherT(futureMonad)` constrains it, and it would
-// otherwise infer to Object (see Common Compiler Errors, section 4).
+// otherwise infer to Object (see "The phantom L" in Common Compiler Errors).
 var eitherTMonad =
     Instances.<CompletableFutureKind.Witness, DomainError>eitherT(futureMonad);
 ```
@@ -241,7 +241,7 @@ record ProcessedData(String data) {}
 
 var futureMonad  = Instances.monadError(completableFuture());
 // Name L: nothing else in `Instances.eitherT(futureMonad)` constrains it, and it would
-// otherwise infer to Object (see Common Compiler Errors, section 4).
+// otherwise infer to Object (see "The phantom L" in Common Compiler Errors).
 var eitherTMonad =
     Instances.<CompletableFutureKind.Witness, DomainError>eitherT(futureMonad);
 

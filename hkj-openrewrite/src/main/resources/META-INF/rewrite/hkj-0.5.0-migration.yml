@@ -1,7 +1,11 @@
 # Higher-Kinded-J 0.5.0 Migration Recipes
 # Rewrites usages of APIs deprecated for removal in 0.5.0 to their replacements,
-# removes a deprecated annotation that has no effect, and replaces two deprecated
-# @PathSource capabilities with the levels they generate.
+# removes a deprecated annotation that has no effect, replaces two deprecated
+# @PathSource capabilities with the levels they generate, and drops the Monad
+# argument that StateT no longer takes.
+#
+# Run these with hkj-openrewrite 0.5.0 before the project moves to 0.5.0: they
+# match the 0.4.x signatures, and the StateT rewrite compiles only against 0.5.0.
 #
 # Usage:
 #   rewrite {
@@ -11,7 +15,7 @@
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0
-displayName: Migrate Higher-Kinded-J APIs deprecated for removal in 0.5.0
+displayName: Migrate Higher-Kinded-J APIs deprecated or changed in 0.5.0
 description: >-
   Rewrites call sites of Higher-Kinded-J methods deprecated for removal in
   0.5.0 to their replacements: StateTKind.narrowK -> StateTKind.narrow,
@@ -19,7 +23,8 @@ description: >-
   Try.fold / TryPath.fold (success-first) -> foldFailureFirst (error-first,
   with arguments swapped). Also removes @PathConfig, which has no effect, and
   replaces @PathSource's EFFECTFUL and ACCUMULATING capabilities with the
-  levels they generate: CHAINABLE and RECOVERABLE.
+  levels they generate, CHAINABLE and RECOVERABLE. Finally drops the Monad
+  argument from StateT construction and StateT.mapT.
 tags:
   - higher-kinded-j
   - migration
@@ -30,6 +35,7 @@ recipeList:
   - org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe
   - org.higherkindedj.openrewrite.RemovePathConfig
   - org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe
+  - org.higherkindedj.openrewrite.RemoveStateTMonadArgument
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
@@ -80,3 +86,31 @@ tags:
 recipeList:
   - org.openrewrite.java.RemoveAnnotation:
       annotationPattern: '@org.higherkindedj.hkt.effect.annotation.PathConfig'
+
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.higherkindedj.openrewrite.RemoveStateTMonadArgument
+displayName: Remove the Monad argument from StateT construction and mapT
+description: >-
+  StateT holds only its state function from 0.5.0, so its constructor,
+  StateT.create and StateTKindHelper.stateT take the function alone, and
+  StateT.mapT takes only the transformation. Removes the Monad argument from
+  each call. Run it before the project moves to 0.5.0, since it matches the
+  0.4.x signatures. A StateT held in var over a witness with a type argument,
+  such as EitherKind.Witness<E>, may then need its type arguments named.
+tags:
+  - higher-kinded-j
+  - migration
+recipeList:
+  - org.openrewrite.java.DeleteMethodArgument:
+      methodPattern: org.higherkindedj.hkt.state_t.StateT <constructor>(java.util.function.Function, org.higherkindedj.hkt.Monad)
+      argumentIndex: 1
+  - org.openrewrite.java.DeleteMethodArgument:
+      methodPattern: org.higherkindedj.hkt.state_t.StateT create(java.util.function.Function, org.higherkindedj.hkt.Monad)
+      argumentIndex: 1
+  - org.openrewrite.java.DeleteMethodArgument:
+      methodPattern: org.higherkindedj.hkt.state_t.StateTKindHelper stateT(java.util.function.Function, org.higherkindedj.hkt.Monad)
+      argumentIndex: 1
+  - org.openrewrite.java.DeleteMethodArgument:
+      methodPattern: org.higherkindedj.hkt.state_t.StateT mapT(org.higherkindedj.hkt.Monad, java.util.function.Function)
+      argumentIndex: 0

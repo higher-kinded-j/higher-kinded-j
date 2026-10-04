@@ -10,8 +10,6 @@
 
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.instances.Witnesses.id;
-import static org.higherkindedj.hkt.instances.Witnesses.io;
-import static org.higherkindedj.hkt.instances.Witnesses.vtask;
 import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.vtask.VTaskKindHelper.VTASK;
 
@@ -72,8 +70,6 @@ class Fixture {
 
   static final Monad<IdKind.Witness> idMonad = Instances.monad(id());
 
-  static final Monad<VTaskKind.Witness> vtaskMonad = Instances.monad(vtask());
-
   static final Customer customer =
       new Customer("Alice", new Address("123 Elm St", "London", "SW1A-1AA"), 100);
 
@@ -87,8 +83,7 @@ class Fixture {
           s ->
               IO_OP.widen(
                   org.higherkindedj.hkt.io.IO.delay(
-                      () -> StateTuple.of(new AppState(s.step() + 1), new Result("done")))),
-          Instances.monad(io()));
+                      () -> StateTuple.of(new AppState(s.step() + 1), new Result("done")))));
 
   static final Natural<IOKind.Witness, VTaskKind.Witness> ioToVTask =
       new Natural<>() {

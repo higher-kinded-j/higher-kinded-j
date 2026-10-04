@@ -154,8 +154,7 @@ The fundamental structure is a function `S -> F<StateTuple<S, A>>`:
 StateT<Integer, OptionalKind.Witness, String> computation = StateT.create(
     currentState -> currentState < 0
         ? OPTIONAL.widen(Optional.empty())
-        : OPTIONAL.widen(Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState))),
-    optionalMonad);
+        : OPTIONAL.widen(Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState))));
 ```
 
 ---
@@ -182,7 +181,7 @@ var stateTMonad   =
 
 ---
 
-## Running StateT Computations
+## Running StateT Computations {#running-statet-computations}
 
 <!-- verify -->
 ```java
@@ -199,8 +198,8 @@ var stateOnly = STATE_T.execStateT(computation, 10, optionalMonad);
 // → Optional.of(11)
 ```
 
-~~~admonish note title="0.4.6 API Note"
-`evalStateT` and `execStateT` now take the `Monad<F>` as an explicit argument. The single-argument forms (`evalStateT(computation, 10)`, `execStateT(computation, 10)`) and the matching instance methods on `StateT` are deprecated for removal in 0.5.0, when the stored `monadF` record component is dropped so that two `StateT` values with the same state function compare equal regardless of the `Monad` instance they were built with. See the [0.4.6 release notes](../release-history/v0_4_6.md), and [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) for the rest of what 0.5.0 removes.
+~~~admonish note title="Why eval and exec take the Monad"
+A `StateT` holds only its state function, not a `Monad<F>`. `runStateT` just applies that function, so it needs nothing more. `evalStateT` and `execStateT` map over the `F` result to keep one half of the pair, so they take the `Monad<F>` as their last argument. Keeping the monad out is what makes two `StateT` values wrapping the same function instance equal.
 ~~~
 
 ---
@@ -225,8 +224,7 @@ Like any monad, `StateT` computations compose with `map` and `flatMap`. Most pag
 <!-- verify -->
 ```java
 var initial = StateT.<Integer, OptionalKind.Witness, Integer>create(
-    s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 2))),
-    optionalMonad);
+    s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 2))));
 
 var mapped = stateTMonad.map(val -> "Computed: " + val, initial);
 
@@ -239,15 +237,13 @@ var mapped = stateTMonad.map(val -> "Computed: " + val, initial);
 <!-- verify -->
 ```java
 var firstStep = StateT.<Integer, OptionalKind.Witness, Integer>create(
-    s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 10))),
-    optionalMonad);
+    s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 10))));
 
 Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>> secondStepFn =
     prevValue -> StateT.create(
         s -> prevValue > 100
             ? OPTIONAL.widen(Optional.of(StateTuple.of(s + prevValue, "Large: " + prevValue)))
-            : OPTIONAL.widen(Optional.empty()),
-        optionalMonad);
+            : OPTIONAL.widen(Optional.empty()));
 
 var combined = stateTMonad.flatMap(secondStepFn, firstStep);
 // state 15: firstStep → (16, 150), secondStep(150) → (166, "Large: 150")
@@ -266,25 +262,25 @@ Common state operations can be constructed using `StateT.create`:
 // get: retrieve the current state as the value
 static <S, F extends WitnessArity<TypeArity.Unary>>
     Kind<StateTKind.Witness<S, F>, S> get(Monad<F> monadF) {
-  return StateT.create(s -> monadF.of(StateTuple.of(s, s)), monadF);
+  return StateT.create(s -> monadF.of(StateTuple.of(s, s)));
 }
 
 // set: replace the state, return Unit
 static <S, F extends WitnessArity<TypeArity.Unary>>
     Kind<StateTKind.Witness<S, F>, Unit> set(S newState, Monad<F> monadF) {
-  return StateT.create(s -> monadF.of(StateTuple.of(newState, Unit.INSTANCE)), monadF);
+  return StateT.create(s -> monadF.of(StateTuple.of(newState, Unit.INSTANCE)));
 }
 
 // modify: update the state with a function, return Unit
 static <S, F extends WitnessArity<TypeArity.Unary>>
     Kind<StateTKind.Witness<S, F>, Unit> modify(Function<S, S> f, Monad<F> monadF) {
-  return StateT.create(s -> monadF.of(StateTuple.of(f.apply(s), Unit.INSTANCE)), monadF);
+  return StateT.create(s -> monadF.of(StateTuple.of(f.apply(s), Unit.INSTANCE)));
 }
 
 // gets: extract a value derived from the state
 static <S, F extends WitnessArity<TypeArity.Unary>, A>
     Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<F> monadF) {
-  return StateT.create(s -> monadF.of(StateTuple.of(s, f.apply(s))), monadF);
+  return StateT.create(s -> monadF.of(StateTuple.of(s, f.apply(s))));
 }
 ```
 
@@ -312,7 +308,7 @@ static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Unit> push(
       var newStack = new LinkedList<>(stack);
       newStack.add(0, value);
       return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, Unit.INSTANCE)));
-  }, OPT_MONAD);
+  });
 }
 
 static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> pop() {
@@ -321,7 +317,7 @@ static Kind<StateTKind.Witness<List<Integer>, OptionalKind.Witness>, Integer> po
       var newStack = new LinkedList<>(stack);
       Integer popped = newStack.remove(0);
       return OPTIONAL.widen(Optional.of(StateTuple.of(newStack, popped)));
-  }, OPT_MONAD);
+  });
 }
 
 // Compose with For:
@@ -343,24 +339,22 @@ var emptyPop = OPTIONAL.narrow(STATE_T.runStateT(pop(), Collections.emptyList())
 
 ---
 
-## Transforming the Outer Monad with `mapT`
+## Transforming the Outer Monad with `mapT` {#transforming-the-outer-monad-with-mapt}
 
 Sometimes you need to change the *outer monad* of a `StateT` without touching the state-threading logic. Perhaps you want to switch from `Optional` to `Id` (guaranteeing a result with a default), or apply a natural transformation to move between effect types.
 
-Because `StateT` stores its `Monad<F>` instance internally, switching from `F` to `G` requires supplying a new `Monad<G>`. This is the one transformer where `mapT` takes an extra parameter:
+Because `StateT` wraps a function rather than a value, `mapT` composes the transformation function after each state transition:
 
 ```
   state ──> runStateTFn() ──> Kind<F, StateTuple<S, A>> ──> f ──> Kind<G, StateTuple<S, A>>
     │                                                                        │
-    └──── combined into new StateT<S, G, A> with monadG ────────────────────┘
+    └──── combined into new StateT<S, G, A> ────────────────────────────────┘
 ```
 
 <!-- verify -->
 ```java
 // optStateT is a StateT<Integer, OptionalKind.Witness, String>
-var idMonad = Instances.monad(id());
-
-var idStateT = optStateT.mapT(idMonad, optKind -> {
+var idStateT = optStateT.mapT(optKind -> {
   Optional<StateTuple<Integer, String>> opt = OPTIONAL.narrow(optKind);
   return ID.widen(Id.of(opt.orElse(StateTuple.of(0, "default"))));
 });
@@ -370,10 +364,6 @@ var idStateT = optStateT.mapT(idMonad, optKind -> {
 `map` transforms the *value* produced by the state computation (the `A` in `StateTuple<S, A>`).
 `mapT` transforms the *outer monad* wrapping each state transition, the `F` in `S -> F<StateTuple<S, A>>`.
 The state-threading is completely unaffected.
-~~~
-
-~~~admonish warning title="StateT requires a new Monad instance"
-Unlike the other five transformers, `StateT.mapT` takes `Monad<G> monadG` as its first parameter. This is because `StateT` stores the monad instance for internal sequencing; when you switch monads, the new `StateT` needs the new monad to continue operating correctly.
 ~~~
 
 ---

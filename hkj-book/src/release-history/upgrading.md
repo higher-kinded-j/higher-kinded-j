@@ -13,14 +13,14 @@ Each of these compiles today with javac's `[removal]` warning, which fails a `-W
 | `KindValidator.narrowWithPattern` | 0.4.4 | `KindValidator.narrowHolder` | `RenameKindValidatorNarrowWithPattern` |
 | `StateTKind.narrowK` | 0.4.5 | `StateTKind.narrow` | `RenameStateTKindNarrowK` |
 | `StateT.evalStateT(state)` and `execStateT(state)`, and the `StateTKindHelper` forms without a monad | 0.4.6 | The overloads that take the `Monad<F>` | By hand |
-| `StateT.monadF()` | 0.4.6 | Pass the `Monad<F>` to the runner | By hand |
+| `StateT.monadF()` | 0.4.6 | The outer `Monad<F>` you built the stack with, kept in your own reference | By hand |
 | `Try.fold` and `TryPath.fold`, success first | 0.4.6 | `foldFailureFirst(failureMapper, successMapper)` | `SwapTryFoldToFoldFailureFirstRecipe` |
 | `Each.eachWithIndex()` | 0.4.7 | Narrow to `EachIndexed` and call `indexedTraversal()` | By hand |
 | `@PathConfig` | 0.4.11 | Nothing, since it has no effect; to rename a Path, set `suffix` on `@PathSource` | `RemovePathConfig` |
 | `@PathSource` capability `EFFECTFUL` | 0.4.11 | `CHAINABLE`, which generates the same | `ReplaceDeprecatedPathSourceCapabilitiesRecipe` |
 | `@PathSource` capability `ACCUMULATING` | 0.4.11 | `RECOVERABLE`, which generates the same | `ReplaceDeprecatedPathSourceCapabilitiesRecipe` |
 
-`StateT` also changes shape in 0.5.0: its `monadF` record component goes, so two `StateT` values with the same state function compare equal whichever `Monad` built them. Its `equals`, `hashCode` and `toString` change with it.
+`StateT` also changes shape in 0.5.0: its `monadF` record component goes, so two `StateT` values with the same state function compare equal whichever `Monad` built them. Its `equals`, `hashCode` and `toString` change with it. Its constructor, `StateT.create` and `StateTKindHelper.stateT` take the state function alone, and `StateT.mapT` takes only the transformation. The `RemoveStateTMonadArgument` recipe drops the `Monad` argument from each call. It ships in `hkj-openrewrite` 0.5.0 and joins the same group, so run the group before your project moves off 0.4.11. A `StateT` held in `var` over a witness with a type argument, such as `EitherKind.Witness<E>`, then needs its types named: `StateT.<S, EitherKind.Witness<E>, A>create(fn)`.
 
 `fold` is planned to return on `Try` and `TryPath` in 0.6.0, with the failure-first order, so migrate to `foldFailureFirst` rather than to a local helper named `fold`.
 

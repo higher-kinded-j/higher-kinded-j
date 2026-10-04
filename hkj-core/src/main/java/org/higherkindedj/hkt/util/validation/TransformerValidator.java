@@ -34,8 +34,8 @@ public enum TransformerValidator {
    *     <p>Example usage:
    *     <pre>
    * // In constructor
-   * Validation.transformer().requireOuterMonad(monadF, StateT.class, CONSTRUCTION);
-   * // Error: "Outer Monad cannot be null for StateT construction"
+   * Validation.transformer().requireOuterMonad(monadF, StateTMonad.class, CONSTRUCTION);
+   * // Error: "Outer Monad cannot be null for StateTMonad construction"
    *
    * // In factory method
    * Validation.transformer().requireOuterMonad(outerMonad, OptionalT.class, LIFT_F);

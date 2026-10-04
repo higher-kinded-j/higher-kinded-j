@@ -37,7 +37,7 @@ class StateTAssertExample {
   void runStateT() {
     Function<Integer, Kind<OptionalKind.Witness, StateTuple<Integer, String>>> runFn =
         s -> outerMonad.of(StateTuple.of(s + 1, "step:" + s));
-    StateT<Integer, OptionalKind.Witness, String> stateT = StateT.create(runFn, outerMonad);
+    StateT<Integer, OptionalKind.Witness, String> stateT = StateT.create(runFn);
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> kind = STATE_T.widen(stateT);
 

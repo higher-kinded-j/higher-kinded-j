@@ -140,7 +140,6 @@
     "transformers/migration_cookbook.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "transformers/mtl_capabilities.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 4, "aboveBelow": 0 },
     "transformers/quickstart.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
-    "transformers/statet_transformer.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "transformers/transformer_axes.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
     "transformers/transformer_capstone.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "transformers/transformers.md": { "long35": 0, "long50": 0, "bullets": 0, "runs": 0, "dashes": 3, "aboveBelow": 0 },

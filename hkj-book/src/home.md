@@ -491,7 +491,7 @@ For the cases where the Path API does not fit (a different outer monad, polymorp
 3. **[Stack Archetypes](transformers/archetypes.md):** Seven named patterns covering the most common composition problems
 4. **[MTL Capabilities](transformers/mtl_capabilities.md):** Stack-independent capability abstractions for polymorphic library code
 5. **[Capstone](transformers/transformer_capstone.md):** End-to-end multi-capability workflow combining typed errors, configuration, audit, and async
-6. **[Common Compiler Errors](transformers/common_errors.md):** Six common errors and the fix for each
+6. **[Common Compiler Errors](transformers/common_errors.md):** Five common errors and the fix for each
 ~~~
 
 ~~~admonish note title="Effect Handlers" collapsible=true

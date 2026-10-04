@@ -73,8 +73,8 @@ Every transformer exposes a small set of static factories. The names follow a co
 
 | Factory | Produces |
 |---------|----------|
-| `StateT.create(s -> fStateTuple, monad)` | from a state-transition function |
-| `StateTKindHelper.stateT(...)`           | helper that returns the `Kind<>` form directly |
+| `StateT.create(s -> fStateTuple)` | from a state-transition function |
+| `StateTKindHelper.STATE_T.stateT(s -> fStateTuple)` | the same, from the helper |
 
 ### WriterT
 
@@ -99,7 +99,7 @@ Every transformer exposes a small set of static factories. The names follow a co
 | `StateT`    | `get`, `put(s)`, `modify(f)`, `gets(f)`, `inspect(f)` |
 | `WriterT`   | `tell(w)`, `listen(ma)`, `pass(ma)`, `listens(f, ma)`, `censor(f, ma)` |
 
-Every transformer supports `mapT(f)` to change the outer monad without touching the inner effect. Note that `StateT.mapT` requires an extra `Monad<G>` parameter because `StateT` stores its monad instance internally.
+Every transformer supports `mapT(f)` to change the outer monad without touching the inner effect.
 
 ---
 
@@ -151,8 +151,7 @@ var reader = ReaderT.<CompletableFutureKind.Witness, AppConfig, String>reader(
 var optMonad = Instances.monadError(optional());
 var stMonad  = Instances.stateT(optMonad);
 var counter  = StateT.create(
-    (Integer s) -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s))),
-    optMonad);
+    (Integer s) -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s))));
 ```
 
 ### WriterT

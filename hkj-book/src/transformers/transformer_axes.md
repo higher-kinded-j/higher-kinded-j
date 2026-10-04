@@ -49,10 +49,9 @@ Every monad transformer in the library exposes a `mapT` method that transforms t
 //   StateT<AppState, IOKind.Witness, Result> ioWorkflow
 //   Natural<IOKind.Witness, VTaskKind.Witness> ioToVTask
 
-// The same workflow, now over a virtual-thread task. StateT.mapT is the one mapT
-// that needs the target monad as well as the transformation.
+// The same workflow, now over a virtual-thread task
 StateT<AppState, VTaskKind.Witness, Result> vTaskWorkflow =
-    ioWorkflow.mapT(vtaskMonad, ioToVTask::apply);
+    ioWorkflow.mapT(ioToVTask::apply);
 ```
 
 Use `mapT` when the *outer* effect is what does not fit. If you are in a `ReaderT<F, R, A>` and need a `ReaderT<G, R, A>` because a downstream collaborator is in `G`, `mapT` is the right tool. The state, environment, or log carrier is untouched. See the per-transformer pages ([ReaderT](readert_transformer.md), [StateT](statet_transformer.md), [WriterT](writert_transformer.md)) for the exact `mapT` shapes.

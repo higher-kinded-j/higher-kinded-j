@@ -38,8 +38,10 @@
  * <h2>0.5.0 Deprecation Migration</h2>
  *
  * <p>Rewrites usages of APIs deprecated for removal in 0.5.0 to their replacements, removes a
- * deprecated annotation that has no effect, and replaces two deprecated {@code @PathSource}
- * capabilities with the levels they generate.
+ * deprecated annotation that has no effect, replaces two deprecated {@code @PathSource}
+ * capabilities with the levels they generate, and drops the {@code Monad} argument that {@code
+ * StateT} no longer takes. The recipes match the 0.4.x signatures, so run them from this module's
+ * 0.5.0 release before the project moves to 0.5.0.
  *
  * <ul>
  *   <li>{@code org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0} - Runs all 0.5.0
@@ -54,6 +56,8 @@
  *       has no effect
  *   <li>{@code org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe} -
  *       {@code EFFECTFUL} to {@code CHAINABLE} and {@code ACCUMULATING} to {@code RECOVERABLE}
+ *   <li>{@code org.higherkindedj.openrewrite.RemoveStateTMonadArgument} - Drops the {@code Monad}
+ *       argument from {@code StateT} construction and {@code StateT.mapT}
  * </ul>
  *
  * <h2>Usage</h2>

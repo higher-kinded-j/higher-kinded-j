@@ -115,7 +115,7 @@ Same semantics. Vastly different ergonomics.
 - **StateT** – Manages state within effectful computations. Track state changes across async boundaries or error-handling paths.
 - **WriterT** – Accumulates output (logs, audit trails, diagnostics) alongside computation. Each step appends to the output via a `Monoid`, and `flatMap` combines outputs automatically.
 - **MTL Capabilities** – `MonadReader`, `MonadState`, and `MonadWriter` abstract effect capabilities independently of the concrete transformer stack. Write polymorphic functions that declare *what they need* without specifying *how* it is assembled.
-- **Common Compiler Errors** – The six error messages developers hit most often when working with raw transformers, with the minimal trigger for each and the fix.
+- **Common Compiler Errors** – The five error messages developers hit most often when working with raw transformers, with the minimal trigger for each and the fix.
 - **Capstone: A Multi-Capability Workflow** – A complete order-processing example that combines typed errors, configuration, audit, and async execution. Three side-by-side versions (imperative, MTL polymorphic, Effect Path) make the trade-offs concrete.
 
 See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for a complete example combining effect paths with optics in a single pipeline.
@@ -142,7 +142,7 @@ See also [Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) for
     - [MonadState](mtl_state.md) - State threading and mutation
     - [MonadWriter](mtl_writer.md) - Output accumulation and log inspection
     - [Combining Capabilities](mtl_combining.md) - Multi-capability functions and concrete instances
-14. [Common Compiler Errors](common_errors.md) - The six errors developers hit most often, with the fix for each
+14. [Common Compiler Errors](common_errors.md) - The five errors developers hit most often, with the fix for each
 15. [Capstone: A Multi-Capability Workflow](transformer_capstone.md) - End-to-end example combining typed errors, config, audit, and async
 
 ---

@@ -52,9 +52,6 @@ public final class CheckerConfig {
   /** Check id for {@link DiscardedEffectChecker}. */
   public static final String DISCARDED_EFFECT = "discarded-effect";
 
-  /** Check id for {@link StateTMapTArityChecker}. */
-  public static final String STATE_T_MAPT_ARITY = "state-t-mapt-arity";
-
   /** Check id for {@link ErrorTypeMismatchChecker}. */
   public static final String ERROR_TYPE_MISMATCH = "error-type-mismatch";
 

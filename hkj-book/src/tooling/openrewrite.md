@@ -67,7 +67,7 @@ mvn rewrite:dryRun   # preview changes
 mvn rewrite:run      # apply changes
 ```
 
-`hkj-openrewrite` is published from 0.4.11. Each release keeps every recipe before it, so the latest version carries them all. A recipe for an API deprecated after 0.4.11 arrives with the release that deprecates it.
+`hkj-openrewrite` is published from 0.4.11. Each release keeps every recipe before it, so the latest version carries them all. A recipe for an API deprecated after 0.4.11 arrives with the release that deprecates it. A recipe for a signature that changes with no deprecation first, such as `StateT`'s in 0.5.0, arrives with the release that changes it: run it before the project moves to that release.
 
 ---
 
@@ -131,16 +131,19 @@ Review the matches with `./gradlew rewriteDryRun` (Gradle) or `mvn rewrite:dryRu
 
 ### 0.5.0 deprecation migration
 
-Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. These recipes do rewrite source.
+Rewrites call sites of APIs deprecated for removal in 0.5.0 to their replacements, removes a deprecated annotation that has no effect, and replaces two deprecated `@PathSource` capabilities with the levels they generate. It also drops the `Monad` argument that `StateT` no longer takes. These recipes do rewrite source.
+
+Run them before your build moves to 0.5.0, with `hkj-openrewrite` 0.5.0 on the rewrite classpath. The recipes match the 0.4.x signatures, and the `StateT` calls they rewrite compile only against 0.5.0, so bump the library straight after. A `StateT` held in `var` over a witness with a type argument may then need its types named, as [Removals in 0.5.0](../release-history/upgrading.md#removals-in-050) shows.
 
 | Recipe | Change |
 |--------|--------|
-| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all five recipes below |
+| `org.higherkindedj.openrewrite.MigrateDeprecationsTo0_5_0` | Composite; runs all six recipes below |
 | `org.higherkindedj.openrewrite.RenameStateTKindNarrowK` | `StateTKind.narrowK(..)` becomes `StateTKind.narrow(..)`; the wildcard `Kind` overload bypassed witness type safety |
 | `org.higherkindedj.openrewrite.RenameKindValidatorNarrowWithPattern` | `KindValidator.narrowWithPattern(..)` becomes `KindValidator.narrowHolder(..)` |
 | `org.higherkindedj.openrewrite.SwapTryFoldToFoldFailureFirstRecipe` | `Try.fold(successMapper, failureMapper)` and `TryPath.fold(...)` become `foldFailureFirst(failureMapper, successMapper)`, swapping the two arguments as well as renaming the method |
 | `org.higherkindedj.openrewrite.RemovePathConfig` | Removes `@PathConfig` from a `package-info.java`; no processor reads it, so nothing generated changes |
 | `org.higherkindedj.openrewrite.ReplaceDeprecatedPathSourceCapabilitiesRecipe` | `@PathSource`'s `EFFECTFUL` becomes `CHAINABLE` and `ACCUMULATING` becomes `RECOVERABLE`; each generates the same class as its replacement |
+| `org.higherkindedj.openrewrite.RemoveStateTMonadArgument` | `new StateT<>(fn, monad)`, `StateT.create(fn, monad)` and `StateTKindHelper.stateT(fn, monad)` take the function alone, and `stateT.mapT(monad, f)` becomes `stateT.mapT(f)` |
 
 ```kotlin
 rewrite {

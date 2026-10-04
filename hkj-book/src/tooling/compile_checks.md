@@ -52,7 +52,6 @@ soak.
 | `transformer-missing-monad` | Zero-arg construction of `EitherT`/`OptionalT`/`MaybeT`/`ReaderT`/`StateT`/`WriterTMonad` (the outer `Monad<F>`, and `Monoid<W>` for WriterT, is required) | error | Companion |
 | `free-switch-exhaustive` | A `switch` over `Free` matching `Pure`/`Suspend`/`FlatMapped` but missing `HandleError`/`Ap` | error | Companion |
 | `discarded-effect` | A **deferred** path (`IOPath`/`VTaskPath`/`LazyPath`/`FreePath` — the `Deferred` capability) built then dropped as a bare statement, a silent no-op. Eager paths are out of scope: their work has already happened | error | No: sole signal |
-| `state-t-mapt-arity` | `StateT.mapT(f)` missing the leading `Monad<G>` (only `StateT.mapT` takes it) | error | Companion |
 | `error-type-mismatch` | An Either chain step whose error type `E` differs from the chain's and is silently erased through `Chainable<B>` (latent `ClassCastException`) | **warn** | No: sole signal |
 | `kind-value-narrow` | `.value()` on a bare `Kind` (it is on the concrete transformer; narrow first) | error | Companion |
 | `witness-arity` | A higher-kinded witness (type parameter or class) not `WitnessArity`-bounded, used as `Kind`/`Kind2`/`Monad`/`Functor`/`Applicative` | error | Companion |

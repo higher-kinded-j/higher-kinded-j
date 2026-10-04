@@ -37,8 +37,7 @@ public class StateTExample {
               Optional.of(StateTuple.of(currentState + 1, "Value: " + currentState)));
         };
 
-    StateT<Integer, OptionalKind.Witness, String> stateTExplicit =
-        StateT.create(runFn, optionalMonad);
+    StateT<Integer, OptionalKind.Witness, String> stateTExplicit = StateT.create(runFn);
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> stateTKind = stateTExplicit;
 
@@ -77,7 +76,7 @@ public class StateTExample {
     // Composing StateT Actions
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> initialComputation =
-        StateT.create(s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 2))), optionalMonad);
+        StateT.create(s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 2))));
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> mappedComputation =
         stateTMonad.map(val -> "Computed: " + val, initialComputation);
@@ -94,8 +93,7 @@ public class StateTExample {
 
     // stateTMonad and optionalMonad are defined
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, Integer> firstStep =
-        StateT.create(
-            s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 10))), optionalMonad);
+        StateT.create(s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, s * 10))));
 
     Function<Integer, Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String>>
         secondStepFn =
@@ -108,8 +106,7 @@ public class StateTExample {
                       } else {
                         return OPTIONAL.widen(Optional.empty());
                       }
-                    },
-                    optionalMonad);
+                    });
 
     Kind<StateTKind.Witness<Integer, OptionalKind.Witness>, String> combined =
         stateTMonad.flatMap(secondStepFn, firstStep);
@@ -145,49 +142,42 @@ public class StateTExample {
   public static <S, F extends WitnessArity<TypeArity.Unary>> Kind<StateTKind.Witness<S, F>, S> get(
       Monad<F> monadF) {
     Function<S, Kind<F, StateTuple<S, S>>> runFn = s -> monadF.of(StateTuple.of(s, s));
-    return StateT.create(runFn, monadF);
+    return StateT.create(runFn);
   }
 
   // Usage: stateTMonad.flatMap(currentState -> ..., get(optionalMonad))
 
   public static <S, F extends WitnessArity<TypeArity.Unary>>
-      Kind<StateTKind.Witness<S, F>, Void> set(S newState, Monad<F> monadF) {
-    Function<S, Kind<F, StateTuple<S, Void>>> runFn =
-        s -> monadF.of(StateTuple.of(newState, (Void) null));
-    return StateT.create(runFn, monadF);
+      Kind<StateTKind.Witness<S, F>, Unit> set(S newState, Monad<F> monadF) {
+    Function<S, Kind<F, StateTuple<S, Unit>>> runFn =
+        s -> monadF.of(StateTuple.of(newState, Unit.INSTANCE));
+    return StateT.create(runFn);
   }
 
   public static <S, F extends WitnessArity<TypeArity.Unary>>
-      Kind<StateTKind.Witness<S, F>, Void> modify(Function<S, S> f, Monad<F> monadF) {
-    Function<S, Kind<F, StateTuple<S, Void>>> runFn =
-        s -> monadF.of(StateTuple.of(f.apply(s), (Void) null));
-    return StateT.create(runFn, monadF);
+      Kind<StateTKind.Witness<S, F>, Unit> modify(Function<S, S> f, Monad<F> monadF) {
+    Function<S, Kind<F, StateTuple<S, Unit>>> runFn =
+        s -> monadF.of(StateTuple.of(f.apply(s), Unit.INSTANCE));
+    return StateT.create(runFn);
   }
 
   public static <S, F extends WitnessArity<TypeArity.Unary>, A>
       Kind<StateTKind.Witness<S, F>, A> gets(Function<S, A> f, Monad<F> monadF) {
     Function<S, Kind<F, StateTuple<S, A>>> runFn = s -> monadF.of(StateTuple.of(s, f.apply(s)));
-    return StateT.create(runFn, monadF);
+    return StateT.create(runFn);
   }
 
   // --- mapT: Switching from Optional to Id ---
   //
   // mapT swaps the outer monad without touching the state-threading logic.
-  // StateT uniquely requires a new Monad instance because it stores its monad
-  // for internal sequencing.
 
   public static void mapTExample() {
-    MonadError<OptionalKind.Witness, Unit> optionalMonad = Instances.monadError(optional());
-    Monad<IdKind.Witness> idMonad = Instances.monad(id());
-
     StateT<Integer, OptionalKind.Witness, String> optionalStateT =
-        StateT.create(
-            s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, "count=" + s))), optionalMonad);
+        StateT.create(s -> OPTIONAL.widen(Optional.of(StateTuple.of(s + 1, "count=" + s))));
 
     // Use mapT to switch from Optional to Id, providing a default for empty results
     StateT<Integer, IdKind.Witness, String> idStateT =
         optionalStateT.mapT(
-            idMonad,
             optKind -> {
               Optional<StateTuple<Integer, String>> opt = OPTIONAL.narrow(optKind);
               return IdKindHelper.ID.widen(Id.of(opt.orElse(StateTuple.of(0, "empty"))));

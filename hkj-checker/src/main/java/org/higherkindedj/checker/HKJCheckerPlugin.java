@@ -107,8 +107,6 @@ public class HKJCheckerPlugin implements Plugin {
         CheckerConfig.DISCARDED_EFFECT,
         severity -> new DiscardedEffectChecker(trees, types, elements, severity));
     enable.accept(
-        CheckerConfig.STATE_T_MAPT_ARITY, severity -> new StateTMapTArityChecker(trees, severity));
-    enable.accept(
         CheckerConfig.ERROR_TYPE_MISMATCH,
         severity -> new ErrorTypeMismatchChecker(trees, types, severity));
     enable.accept(
