@@ -37,13 +37,14 @@ jobs:
         run: chmod +x gradlew
 
       # 5. Verify golden files are up to date.
-      #    Regenerates golden files and fails if they differ from what's committed.
-      #    This ensures code generator changes are always accompanied by updated golden files.
+      #    Regenerates golden files and fails if any differs from what's committed, or is new
+      #    and not committed at all, which the build's own tests would not notice. This ensures
+      #    code generator changes are always accompanied by updated golden files. The release
+      #    gate (releaseReadiness) runs the same task.
       - name: Verify golden files are up to date
         run: |
-          ./gradlew :hkj-processor:updateGoldenFiles
-          if ! git diff --exit-code -- '*.golden'; then
-            echo "::error::Golden files are out of date. Run: ./gradlew :hkj-processor:updateGoldenFiles"
+          if ! ./gradlew :hkj-processor:verifyGoldenFiles; then
+            echo "::error::Golden file check failed (see the log). If the golden files are out of date, run ./gradlew :hkj-processor:updateGoldenFiles and commit them."
             exit 1
           fi
 
