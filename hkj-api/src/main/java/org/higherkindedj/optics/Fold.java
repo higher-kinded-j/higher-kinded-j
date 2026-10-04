@@ -186,8 +186,10 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    *     there are no focuses or the first is null.
    */
   default Optional<@NonNull A> preview(S source) {
-    List<A> all = getAll(source);
-    return all.isEmpty() ? Optional.empty() : Optional.ofNullable(all.getFirst());
+    // The outer Optional says a focus was seen, the inner holds it: the first focus wins, null or
+    // not, and no later focus is kept.
+    return foldMap(firstOptionalMonoid(), a -> Optional.of(Optional.ofNullable(a)), source)
+        .flatMap(Function.identity());
   }
 
   /**
