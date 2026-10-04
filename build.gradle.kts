@@ -370,7 +370,8 @@ val checkSnapshotVersion = tasks.register("checkSnapshotVersion") {
                         "snapshotVersion $snapshot is not confirmed. For the next patch release, set snapshotVersion=$nextPatch in gradle.properties.")
                     null -> throw GradleException(
                         "snapshotVersion $snapshot is a $step step from $latestTag, where the usual next snapshot is $nextPatch, " +
-                            "and this build cannot ask you to confirm it. Run ./gradlew checkSnapshotVersion in a terminal and commit " +
+                            "and Gradle cannot ask you to confirm it here: this build has no interactive console, as in CI, an IDE " +
+                            "or a shell without a terminal. Run ./gradlew checkSnapshotVersion in a terminal and commit " +
                             "gradle.properties, or add confirmedSnapshotVersion=$snapshot to it yourself.")
                 }
             }
