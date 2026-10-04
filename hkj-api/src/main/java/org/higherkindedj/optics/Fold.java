@@ -172,8 +172,8 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
   /**
    * Returns the first focused part, if any.
    *
-   * <p>An {@link Optional} cannot hold {@code null}, so a null focus is passed over: on a {@code
-   * Fold<S, @Nullable String>} this is the first focus that is not null.
+   * <p>An {@link Optional} cannot hold {@code null}, so a null first focus reads as absent. For the
+   * first focus that is not null, use {@code find(Objects::nonNull, source)}.
    *
    * <p>Example:
    *
@@ -183,10 +183,11 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    *
    * @param source The source structure.
    * @return An {@link Optional} containing the first focused part, or {@code Optional.empty()} if
-   *     there are no focuses.
+   *     there are no focuses or the first is null.
    */
   default Optional<@NonNull A> preview(S source) {
-    return foldMap(firstOptionalMonoid(), Optional::ofNullable, source);
+    List<A> all = getAll(source);
+    return all.isEmpty() ? Optional.empty() : Optional.ofNullable(all.getFirst());
   }
 
   /**
@@ -198,8 +199,8 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    * Optional<Item> expensive = itemsFold.find(item -> item.price() > 100, order);
    * }</pre>
    *
-   * <p>As with {@link #preview(Object)}, a null focus is passed over even when the predicate
-   * accepts it.
+   * <p>An {@link Optional} cannot hold {@code null}, so a null focus is passed over even when the
+   * predicate accepts it: the result is the first match that is not null.
    *
    * @param predicate The predicate to test each focused part.
    * @param source The source structure.

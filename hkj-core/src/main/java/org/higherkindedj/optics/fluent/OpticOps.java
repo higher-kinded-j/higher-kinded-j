@@ -184,8 +184,8 @@ public final class OpticOps {
    * @param fold The optic to focus with
    * @param <S> The source type
    * @param <A> The focused value type
-   * @return An {@link Optional} containing the first focused value that is not null, or empty if
-   *     none exists
+   * @return An {@link Optional} containing the first focused value, or empty if there is none or it
+   *     is null
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Optional<@NonNull A> preview(S source, Fold<S, A> fold) {
@@ -205,8 +205,8 @@ public final class OpticOps {
    * @param traversal The traversal to focus with
    * @param <S> The source type
    * @param <A> The focused value type
-   * @return An {@link Optional} containing the first focused value that is not null, or empty if
-   *     none exists
+   * @return An {@link Optional} containing the first focused value, or empty if there is none or it
+   *     is null
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Optional<@NonNull A> preview(S source, Traversal<S, A> traversal) {
@@ -1044,8 +1044,8 @@ public final class OpticOps {
      *
      * @param fold The optic to focus with
      * @param <A> The focused value type
-     * @return An {@link Optional} containing the first focused value that is not null, or empty if
-     *     none exists
+     * @return An {@link Optional} containing the first focused value, or empty if there is none or
+     *     it is null
      */
     public <A extends @Nullable Object> Optional<@NonNull A> maybeThrough(Fold<S, A> fold) {
       return fold.preview(source);
@@ -1056,8 +1056,8 @@ public final class OpticOps {
      *
      * @param traversal The traversal to focus with
      * @param <A> The focused value type
-     * @return An {@link Optional} containing the first focused value that is not null, or empty if
-     *     none exists
+     * @return An {@link Optional} containing the first focused value, or empty if there is none or
+     *     it is null
      */
     public <A extends @Nullable Object> Optional<@NonNull A> maybeThrough(
         Traversal<S, A> traversal) {

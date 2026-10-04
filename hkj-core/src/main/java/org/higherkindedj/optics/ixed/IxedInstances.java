@@ -4,7 +4,6 @@ package org.higherkindedj.optics.ixed;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
@@ -229,7 +228,8 @@ public final class IxedInstances {
    */
   public static <S extends @Nullable Object, I, A extends @Nullable Object>
       Optional<@NonNull A> get(Ixed<S, I, A> ixed, I index, S source) {
-    return Traversals.getAll(ixed.ix(index), source).stream().filter(Objects::nonNull).findFirst();
+    List<A> results = Traversals.getAll(ixed.ix(index), source);
+    return results.isEmpty() ? Optional.empty() : Optional.ofNullable(results.getFirst());
   }
 
   /**

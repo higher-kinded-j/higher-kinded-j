@@ -58,30 +58,35 @@ class NullFocusTest {
   class ReadAsAbsent {
 
     @Test
-    @DisplayName("Fold.preview and Fold.find pass over a null focus")
-    void foldPassesOverANullFocus() {
+    @DisplayName("Fold.preview reads a null first focus as absent; find passes over a null match")
+    void foldReadsANullFocusAsAbsent() {
       Fold<List<@Nullable String>, @Nullable String> elements =
           Traversals.<@Nullable String>forList().asFold();
       List<@Nullable String> source = nullsAround("b");
 
-      assertThat(elements.preview(source)).contains("b");
+      assertThat(elements.preview(source)).isEmpty();
+      assertThat(elements.preview(Arrays.asList("a", null))).contains("a");
       assertThat(elements.find(_ -> true, source)).contains("b");
+      assertThat(elements.find(Objects::nonNull, source)).contains("b");
       assertThat(elements.find(Objects::isNull, source)).isEmpty();
       assertThat(API_KEY.asFold().preview(NO_KEY)).isEmpty();
     }
 
     @Test
-    @DisplayName("TraversalPath.preview, find and toMaybePath pass over a null focus")
-    void traversalPathPassesOverANullFocus() {
+    @DisplayName(
+        "TraversalPath.preview and toMaybePath read a null first focus as absent; find passes over"
+            + " a null match")
+    void traversalPathReadsANullFocusAsAbsent() {
       TraversalPath<List<@Nullable String>, @Nullable String> elements =
           TraversalPath.of(Traversals.forList());
       List<@Nullable String> source = nullsAround("b");
 
-      assertThat(elements.preview(source)).contains("b");
+      assertThat(elements.preview(source)).isEmpty();
+      assertThat(elements.preview(Arrays.asList("a", null))).contains("a");
       assertThat(elements.find(_ -> true, source)).contains("b");
       assertThat(elements.find(Objects::isNull, source)).isEmpty();
-      assertThatMaybe(elements.toMaybePath(source).run()).hasValue("b");
-      assertThatMaybe(elements.toMaybePath(Arrays.asList((String) null)).run()).isNothing();
+      assertThatMaybe(elements.toMaybePath(source).run()).isNothing();
+      assertThatMaybe(elements.toMaybePath(Arrays.asList("a", null)).run()).hasValue("a");
     }
 
     @Test

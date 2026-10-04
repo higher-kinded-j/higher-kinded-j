@@ -255,7 +255,7 @@ int headcount = employeesPath.count(department);
 | `setAll(A, S)` | `S` | Replace all focused values |
 | `modifyAll(Function<A,A>, S)` | `S` | Transform all focused values |
 | `filter(Predicate<A>)` | `TraversalPath<S, A>` | Narrow to the matching elements (on a raw `Traversal` the same narrowing is spelled `filtered`) |
-| `preview(S)` | `Optional<A>` | The first focused value that is not null, if any |
+| `preview(S)` | `Optional<A>` | The first focused value, if there is one and it is not null |
 | `count(S)`, `isEmpty(S)` | `int`, `boolean` | Query the number in focus |
 | `exists(Predicate<A>, S)`, `all(Predicate<A>, S)` | `boolean` | Does any, or every, focused value match |
 | `find(Predicate<A>, S)` | `Optional<A>` | The first focused value that matches and is not null |

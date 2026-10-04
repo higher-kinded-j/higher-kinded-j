@@ -123,8 +123,8 @@ public final class FoldExtensions {
    * @param source The source structure to query
    * @param <S> The source type
    * @param <A> The focused value type
-   * @return {@code Maybe.just(value)} for the first focus that is not null, {@code Maybe.nothing()}
-   *     otherwise
+   * @return {@code Maybe.just(value)} for the first focus, {@code Maybe.nothing()} if there is none
+   *     or it is null
    */
   public static <S extends @Nullable Object, A extends @Nullable Object>
       Maybe<@NonNull A> previewMaybe(Fold<S, A> fold, S source) {

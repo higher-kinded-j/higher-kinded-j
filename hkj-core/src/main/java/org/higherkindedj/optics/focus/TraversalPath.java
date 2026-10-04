@@ -121,14 +121,16 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
   /**
    * Extracts the first focused value if any.
    *
-   * <p>An {@link Optional} cannot hold {@code null}, so a null focus is passed over: on a {@code
-   * TraversalPath<S, @Nullable String>} this is the first focus that is not null.
+   * <p>An {@link Optional} cannot hold {@code null}, so a null first focus reads as absent. For the
+   * first focus that is not null, use {@code find(Objects::nonNull, source)}.
    *
    * @param source the source structure
-   * @return Optional containing the first value, or empty if no elements are focused
+   * @return Optional containing the first value, or empty if no elements are focused or the first
+   *     is null
    */
   default Optional<@NonNull A> preview(S source) {
-    return getAll(source).stream().filter(Objects::nonNull).findFirst();
+    List<A> all = getAll(source);
+    return all.isEmpty() ? Optional.empty() : Optional.ofNullable(all.getFirst());
   }
 
   /**
@@ -196,8 +198,8 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
   /**
    * Finds the first focused element matching the predicate.
    *
-   * <p>As with {@link #preview(Object)}, a null focus is passed over even when the predicate
-   * accepts it.
+   * <p>An {@link Optional} cannot hold {@code null}, so a null focus is passed over even when the
+   * predicate accepts it: the result is the first match that is not null.
    *
    * @param predicate the condition to test
    * @param source the source structure
@@ -809,10 +811,7 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
     TraversalPath<S, A> self = this;
     return AffinePath.of(
         Affine.of(
-            s -> {
-              List<A> all = self.getAll(s);
-              return all.isEmpty() ? Optional.empty() : Optional.ofNullable(all.getFirst());
-            },
+            self::preview,
             (s, a) -> {
               // Set all focused elements to the same value
               // This preserves the semantics of the underlying traversal
@@ -1025,7 +1024,7 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    *
    * <p>This bridges from the optics domain to the effect domain, narrowing the traversal to at most
    * one element. This is useful when you only need the first element of a traversal. As with {@link
-   * #preview(Object)}, a null focus is passed over.
+   * #preview(Object)}, a null first element gives Nothing.
    *
    * <h2>Example Usage</h2>
    *
