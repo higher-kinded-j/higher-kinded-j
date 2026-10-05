@@ -40,7 +40,7 @@ The account starts on 100 and the withdrawal is 30. `Fixture` is the compiled ex
 ~~~admonish warning title="`validating()` is a checked run, not a dry run"
 Despite the name, `validate` **executes** the program. Its own javadoc is explicit: operations are run so that `flatMap` chaining produces the right values, and the validation is collected alongside. A `modify` modifier is applied twice, once to check it and once to perform it. So it is safe for pure modifiers over immutable data, and unsafe for anything with a side effect.
 
-For genuine inspection with nothing executed, use `ProgramAnalyser.analyse(program)`, whose traversal is structural and never runs a step. Its counts are a lower bound: a step reached through `flatMap` stays out of sight until the program runs, and `hasOpaqueRegions()` tells you whether the program has any.
+For genuine inspection with nothing executed, use `ProgramAnalyser.analyse(program)`, whose traversal is structural and never runs a step. Its counts are a lower bound: a step reached through `flatMap`, inside an error handler, or under an `Ap` node stays out of sight until the program runs. `hasOpaqueRegions()` reports only the `flatMap` continuations, so `false` does not mean every step was inspected.
 ~~~
 
 ~~~admonish tip title="Why this matters"

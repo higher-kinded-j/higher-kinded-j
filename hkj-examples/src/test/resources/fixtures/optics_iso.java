@@ -1,6 +1,6 @@
 // Fixture for hkj-book/src/optics/iso.md
 //
-// The page converts a Point to a tuple, cents to dollars and a date to its epoch day, and weaves
+// The page converts a Point to a tuple, cents to dollars and a wrapper to the value it wraps, and weaves
 // cents and temperatures into comprehensions. The domain and the instances those need are declared here.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes

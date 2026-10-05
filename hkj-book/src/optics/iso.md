@@ -223,12 +223,12 @@ For the full range of optics operations within comprehensions (including travers
 
 <!-- verify -->
 ```java
-// A date and its day number since 1970: the same information both ways, for any day LocalDate holds
-Iso<LocalDate, Long> epochDayIso = Iso.of(LocalDate::toEpochDay, LocalDate::ofEpochDay);
+// A wrapper and the value it wraps: the same information, convertible both ways for every value
+Iso<UserId, Long> userIdIso = Iso.of(UserId::value, UserId::new);
 
-// Use with any date-focused lens
-Lens<Person, Long> birthEpochDayLens =
-    PersonLenses.birthDate().andThen(epochDayIso);
+// Use with any lens that focuses a UserId
+@GenerateLenses record Account(UserId id, String owner) {}
+Lens<Account, Long> rawAccountId = AccountLenses.id().andThen(userIdIso);
 ```
 
 ### Use Direct Conversion Methods When:
