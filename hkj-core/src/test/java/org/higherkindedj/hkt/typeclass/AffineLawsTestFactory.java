@@ -22,15 +22,19 @@ import org.junit.jupiter.api.TestFactory;
  * runtime, providing comprehensive law testing across all affine implementations with minimal
  * boilerplate.
  *
- * <p>Affine laws tested:
+ * <p>Affine laws tested, the ones every affine keeps:
  *
  * <ul>
- *   <li><b>Get-Set:</b> {@code getOptional(set(a, s))} = {@code Optional.of(a)} &mdash; Setting a
- *       value then getting it returns what was set
- *   <li><b>Set-Set:</b> {@code set(b, set(a, s))} = {@code set(b, s)} &mdash; Second set wins
- *   <li><b>GetOptional-Set:</b> If {@code getOptional(s)} = {@code Optional.of(a)}, then {@code
- *       set(a, s)} = {@code s} &mdash; Setting the current value changes nothing
+ *   <li><b>Set-Get:</b> on a present target, {@code getOptional(set(a, s))} = {@code
+ *       Optional.of(a)}: setting a value then getting it returns what was set
+ *   <li><b>Set-Set:</b> {@code set(b, set(a, s))} = {@code set(b, s)}: the second set wins
+ *   <li><b>Get-Set:</b> if {@code getOptional(s)} = {@code Optional.of(a)}, then {@code set(a, s)}
+ *       = {@code s}: setting the current value changes nothing
+ *   <li><b>Modify-absence:</b> on an absent target, {@code modify} changes nothing
  * </ul>
+ *
+ * <p>What {@code set} does on an absent target is not a law here: these affines build the value and
+ * write it, by design.
  *
  * <p>Benefits of @TestFactory approach:
  *
@@ -261,6 +265,29 @@ class AffineLawsTestFactory {
                 DynamicTest.dynamicTest(
                     data.name() + " satisfies getOptional-set law",
                     () -> testGetOptionalSetLaw(data)));
+  }
+
+  /**
+   * Every library affine passes {@code AffineLaws.assertAffineLaws}, which checks the laws every
+   * affine keeps, including {@code modify} as a no-op on the absent target.
+   */
+  @TestFactory
+  @DisplayName("assertAffineLaws: every library affine keeps the laws every affine keeps")
+  Stream<DynamicTest> assertAffineLawsHolds() {
+    return allAffines()
+        .map(
+            data ->
+                DynamicTest.dynamicTest(
+                    data.name() + " passes assertAffineLaws", () -> testAllAffineLaws(data)));
+  }
+
+  private <S, A> void testAllAffineLaws(AffineTestData<S, A> data) {
+    AffineLaws.assertAffineLaws(
+        data.affine(),
+        data.presentValue(),
+        data.absentValue(),
+        data.testValue(),
+        data.alternateValue());
   }
 
   /**

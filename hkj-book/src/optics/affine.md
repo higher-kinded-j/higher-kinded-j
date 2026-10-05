@@ -531,7 +531,7 @@ affine.getOptional(affine.set(a, s)) == Optional.of(a)
 ### When the focus is absent {#when-the-focus-is-absent}
 Neither Get-Set nor Set-Get covers `set` on an absent focus, and affines differ there. One whose last step can build the value writes it: `Affines.some().set("x", Optional.empty())` returns `Optional.of("x")`. A `Lens.andThen(Prism)` affine likewise replaces whatever variant is present with the one the prism builds. One that cannot build, such as an index past the end of a list, returns the structure unchanged. The [Focus DSL page](focus_dsl.md#affinepath-zero-or-one-element) gives the rule by position along a path. When you mean "only if it is there", use `modify`: it never writes to an absent focus.
 
-`hkj-test`'s `AffineLaws.assertAffineLaws` also checks that `set` leaves an absent focus alone, so an affine that writes through fails it. Test one of those with the three checks for a present focus: `assertGetSetWhenPresent`, `assertSetGetWhenPresent` and `assertSetSetWhenPresent`.
+`hkj-test`'s `AffineLaws.assertAffineLaws` checks the laws every affine keeps: the three laws on a present focus, and that `modify` leaves an absent focus alone. For an affine that must also leave an absent focus alone on `set`, add `AffineLaws.assertSetNoOpWhenAbsent`.
 
 ---
 

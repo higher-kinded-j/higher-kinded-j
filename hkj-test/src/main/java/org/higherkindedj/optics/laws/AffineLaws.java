@@ -12,6 +12,12 @@ import org.higherkindedj.optics.Affine;
  *
  * <p>Flat {@code assert...} helpers in the same style as {@code org.higherkindedj.hkt.laws};
  * comparison is by {@code equals} — right for records.
+ *
+ * <p>Affines differ in what {@code set} does when the focus is absent. One whose last step can
+ * build the value writes it, as {@code Affines.some()} and a {@code Lens.andThen(Prism)}
+ * composition do; one that cannot leaves the target unchanged. {@link #assertAffineLaws} checks
+ * only the laws every affine keeps. For an affine that must also leave an absent target alone, add
+ * {@link #assertSetNoOpWhenAbsent}.
  */
 public final class AffineLaws {
 
@@ -59,7 +65,33 @@ public final class AffineLaws {
         .isEqualTo(once);
   }
 
-  /** Absence is stable: on an absent target, {@code set} is a no-op and the target stays absent. */
+  /**
+   * Modify on an absent target is a no-op: {@code getOptional(s)} empty {@code => modify(f, s) ==
+   * s}. Every affine keeps this law, whatever its {@code set} does on an absent target.
+   */
+  public static <S, A> void assertModifyNoOpWhenAbsent(Affine<S, A> affine, S absentSource, A a) {
+    assertThat(affine.getOptional(absentSource))
+        .as(
+            "Affine modify-absence law needs an ABSENT target; getOptional(%s) was present",
+            absentSource)
+        .isEmpty();
+    S result = affine.modify(ignored -> a, absentSource);
+    assertThat(result)
+        .as(
+            "Affine modify-absence: modify on an absent target %s changes nothing; got %s",
+            absentSource, result)
+        .isEqualTo(absentSource);
+  }
+
+  /**
+   * Absence is stable under {@code set}: on an absent target, {@code set} is a no-op and the target
+   * stays absent.
+   *
+   * <p>Opt in to this law for an affine that guards absence. An affine whose last step can build
+   * the value writes it on {@code set} by design, as {@code Affines.some()} and a {@code
+   * Lens.andThen(Prism)} composition do, so it fails here and {@link #assertAffineLaws} does not
+   * ask for it.
+   */
   public static <S, A> void assertSetNoOpWhenAbsent(Affine<S, A> affine, S absentSource, A a) {
     assertThat(affine.getOptional(absentSource))
         .as("Affine absence law needs an ABSENT target; getOptional(%s) was present", absentSource)
@@ -72,7 +104,12 @@ public final class AffineLaws {
         .isEqualTo(absentSource);
   }
 
-  /** All affine laws for one present and one absent fixture, with distinct focus values. */
+  /**
+   * The laws every affine keeps, for one present and one absent fixture with distinct focus values:
+   * get-set, set-get and set-set on the present target, and {@code modify} as a no-op on the absent
+   * one. It does not check {@code set} on the absent target; add {@link #assertSetNoOpWhenAbsent}
+   * for an affine that guards absence.
+   */
   public static <S, A> void assertAffineLaws(
       Affine<S, A> affine, S presentSource, S absentSource, A a1, A a2) {
     Optional<A> current = affine.getOptional(presentSource);
@@ -96,6 +133,6 @@ public final class AffineLaws {
     assertSetGetWhenPresent(affine, presentSource, a1);
     assertSetGetWhenPresent(affine, presentSource, a2);
     assertSetSetWhenPresent(affine, presentSource, a1, a2);
-    assertSetNoOpWhenAbsent(affine, absentSource, a1);
+    assertModifyNoOpWhenAbsent(affine, absentSource, a1);
   }
 }

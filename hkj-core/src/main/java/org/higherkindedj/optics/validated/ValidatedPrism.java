@@ -124,7 +124,8 @@ public sealed interface ValidatedPrism<S, A> extends ValidatedParse<S, A>, Valid
 
   /**
    * Forgets the reasons: an {@link Affine} whose {@code set} rewrites only sources that parse (a
-   * non-parsing source is left unchanged, preserving the affine absence law).
+   * non-parsing source is left unchanged, so the affine also passes {@code
+   * AffineLaws.assertSetNoOpWhenAbsent}).
    *
    * @return the affine (non-null)
    */

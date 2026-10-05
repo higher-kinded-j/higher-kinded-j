@@ -47,12 +47,18 @@ import org.jspecify.annotations.Nullable;
  * <p>A well-behaved Affine must satisfy these laws:
  *
  * <ul>
- *   <li><b>Get-Set:</b> {@code getOptional(set(a, s))} = {@code Optional.of(a)} &mdash; Setting a
- *       value then getting it returns what was set
- *   <li><b>Set-Set:</b> {@code set(b, set(a, s))} = {@code set(b, s)} &mdash; Second set wins
- *   <li><b>GetOptional-Set:</b> If {@code getOptional(s)} = {@code Optional.of(a)}, then {@code
- *       set(a, s)} = {@code s} &mdash; Setting the current value changes nothing
+ *   <li><b>Get-Set:</b> if {@code getOptional(s)} = {@code Optional.of(a)}, then {@code set(a, s)}
+ *       = {@code s}: setting the current value changes nothing
+ *   <li><b>Set-Get:</b> if {@code getOptional(s)} is present, then {@code getOptional(set(a, s))} =
+ *       {@code Optional.of(a)}: setting a value then getting it returns what was set
+ *   <li><b>Set-Set:</b> {@code set(b, set(a, s))} = {@code set(b, s)}: the second set wins
+ *   <li><b>Modify-absence:</b> if {@code getOptional(s)} is empty, then {@code modify(f, s)} =
+ *       {@code s}
  * </ul>
+ *
+ * <p>No law fixes what {@code set} does when the focus is absent. An affine whose last step can
+ * build the value writes it, as {@link #set} describes and as the example that follows does; one
+ * that cannot build, such as an index past the end of a list, leaves the source unchanged.
  *
  * <h2>Example</h2>
  *
@@ -97,8 +103,7 @@ public interface Affine<S extends @Nullable Object, A extends @Nullable Object>
    * <p>This is the primary "getter" for an Affine. Unlike a {@link Lens}, it may return empty if
    * the focused element is absent. An {@link Optional} cannot hold {@code null}, so a null focus
    * reads as absent too: {@link #modify} then leaves the source unchanged, while {@link #set} still
-   * writes the value it is given, {@code null} included. At a null focus, then, {@code set} is not
-   * the no-op the absence law expects of an absent target.
+   * writes the value it is given, {@code null} included.
    *
    * @param source The whole structure.
    * @return An {@link Optional} containing the focused part if present, otherwise empty.

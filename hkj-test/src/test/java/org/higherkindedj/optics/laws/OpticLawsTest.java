@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
@@ -67,6 +68,7 @@ class OpticLawsTest {
       LensLaws.assertLensLaws(NAME, ADA, "Grace", "Alan");
       PrismLaws.assertPrismLaws(PARSE_INT, "42", "not-a-number");
       AffineLaws.assertAffineLaws(NICKNAME, ADA, ANON, "Lady", "Countess of Lovelace");
+      AffineLaws.assertSetNoOpWhenAbsent(NICKNAME, ANON, "Ghost");
       TraversalLaws.assertTraversalLaws(
           Traversals.forList(), List.of("a", "bb"), s -> s + "!", String::toUpperCase);
       ValidatedPrismLaws.assertValidatedPrismLaws(INT_PRISM, "42", "not-a-number");
@@ -74,8 +76,56 @@ class OpticLawsTest {
   }
 
   @Nested
+  @DisplayName("An affine that writes through an absent target")
+  class WriteThroughAffine {
+
+    private final Affine<Person, String> forcesNickname =
+        Affine.of(Person::nickname, (p, n) -> new Person(p.name(), Optional.of(n)));
+
+    @Test
+    @DisplayName("passes assertAffineLaws, which checks only the laws every affine keeps")
+    void passesTheLawsEveryAffineKeeps() {
+      AffineLaws.assertAffineLaws(forcesNickname, ADA, ANON, "Lady", "Countess of Lovelace");
+    }
+
+    @Test
+    @DisplayName("fails the opt-in assertSetNoOpWhenAbsent")
+    void failsTheOptInAbsenceLaw() {
+      assertThatThrownBy(() -> AffineLaws.assertSetNoOpWhenAbsent(forcesNickname, ANON, "Ghost"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("absence");
+    }
+  }
+
+  @Nested
   @DisplayName("Unlawful optics fail with the law named in the message")
   class UnlawfulOptics {
+
+    @Test
+    @DisplayName("an affine whose modify writes into an absent target fails the modify-absence law")
+    void modifyingAffineFailsModifyAbsenceLaw() {
+      Affine<Person, String> modifiesAbsent =
+          new Affine<>() {
+            @Override
+            public Optional<String> getOptional(Person source) {
+              return source.nickname();
+            }
+
+            @Override
+            public Person set(String nickname, Person source) {
+              return new Person(source.name(), Optional.of(nickname));
+            }
+
+            @Override
+            public Person modify(Function<String, String> modifier, Person source) {
+              return set(modifier.apply(""), source);
+            }
+          };
+
+      assertThatThrownBy(() -> AffineLaws.assertModifyNoOpWhenAbsent(modifiesAbsent, ANON, "Ghost"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("modify-absence");
+    }
 
     @Test
     @DisplayName("a set-ignoring lens fails set-get with a counterexample message")
@@ -115,17 +165,6 @@ class OpticLawsTest {
       assertThatThrownBy(() -> PrismLaws.assertMatchBuild(zeroPadded, "42"))
           .isInstanceOf(AssertionError.class)
           .hasMessageContaining("match-build");
-    }
-
-    @Test
-    @DisplayName("an affine that writes into an absent target fails the absence law")
-    void writingAffineFailsAbsenceLaw() {
-      Affine<Person, String> forcesNickname =
-          Affine.of(Person::nickname, (p, n) -> new Person(p.name(), Optional.of(n)));
-
-      assertThatThrownBy(() -> AffineLaws.assertSetNoOpWhenAbsent(forcesNickname, ANON, "Ghost"))
-          .isInstanceOf(AssertionError.class)
-          .hasMessageContaining("absence");
     }
 
     @Test
