@@ -102,8 +102,27 @@ class OpticLawsTest {
   class UnlawfulOptics {
 
     @Test
+    @DisplayName("an affine that writes a placeholder into an absent target fails both absent laws")
+    void placeholderAffineFailsTheAbsentLaws() {
+      Affine<Person, String> writesPlaceholder =
+          Affine.of(
+              Person::nickname,
+              (p, n) -> new Person(p.name(), Optional.of(p.nickname().isPresent() ? n : "TODO")));
+
+      assertThatThrownBy(
+              () -> AffineLaws.assertSetWhenAbsentLeavesOrWrites(writesPlaceholder, ANON, "Ghost"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("set-when-absent");
+      assertThatThrownBy(() -> AffineLaws.assertSetSetWhenAbsent(writesPlaceholder, ANON, "A", "B"))
+          .isInstanceOf(AssertionError.class)
+          .hasMessageContaining("set-set on an absent target");
+    }
+
+    @Test
     @DisplayName("an affine whose modify writes into an absent target fails the modify-absence law")
     void modifyingAffineFailsModifyAbsenceLaw() {
+      // Its modify calls the modifier, which is the only path that runs the function
+      // assertModifyNoOpWhenAbsent passes to modify.
       Affine<Person, String> modifiesAbsent =
           new Affine<>() {
             @Override

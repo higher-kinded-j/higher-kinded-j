@@ -221,7 +221,7 @@ boolean hasEmail = emailPath.matches(employee);
 | `toAffine()` | `Affine<S, A>` | Extract the underlying optic |
 
 ~~~admonish warning title="Set on an absent focus writes anyway"
-`set` through an `AffinePath` is not conditional. `EmployeeFocus.email().set(x, employee)` on an employee with no email returns an employee *with* that email, because the last step's setter rebuilds the present case unconditionally: `Affine.set` "always updates the structure", as its own javadoc puts it. `modify` is the operation that no-ops on an absent focus.
+`set` through an `AffinePath` is not conditional. `EmployeeFocus.email().set(x, employee)` on an employee with no email returns an employee *with* that email, because the last step's setter rebuilds the present case unconditionally. As `Affine.set`'s javadoc puts it, an affine whose last step can build the value writes it. `modify` is the operation that no-ops on an absent focus.
 
 The rule is positional. A miss at the *last* step writes through and creates the focus when that step can build the value (a prism, `.some()`, `.nullable()`). A miss at an *earlier* step of a multi-step path skips the whole set, because `Affine.andThen(Affine)` does guard. When absence must be preserved, reach for `modify`, or test with `matches` first.
 ~~~

@@ -10,7 +10,7 @@ import org.higherkindedj.optics.Lens;
  * Law-verification helpers for {@link Lens}: get-set, set-get and set-set.
  *
  * <p>Flat {@code assert...} helpers in the same style as {@code org.higherkindedj.hkt.laws};
- * comparison is by {@code equals} — right for records.
+ * comparison is by {@code equals}, which suits records.
  */
 public final class LensLaws {
 

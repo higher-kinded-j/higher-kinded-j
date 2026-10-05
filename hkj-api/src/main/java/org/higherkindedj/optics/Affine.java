@@ -53,12 +53,14 @@ import org.jspecify.annotations.Nullable;
  *       {@code Optional.of(a)}: setting a value then getting it returns what was set
  *   <li><b>Set-Set:</b> {@code set(b, set(a, s))} = {@code set(b, s)}: the second set wins
  *   <li><b>Modify-absence:</b> if {@code getOptional(s)} is empty, then {@code modify(f, s)} =
- *       {@code s}
+ *       {@code s}: modifying a missing focus changes nothing
+ *   <li><b>Set-when-absent:</b> if {@code getOptional(s)} is empty, then {@code set(a, s)} either
+ *       equals {@code s} or reads back {@code Optional.of(a)}
  * </ul>
  *
- * <p>No law fixes what {@code set} does when the focus is absent. An affine whose last step can
- * build the value writes it, as {@link #set} describes and as the example that follows does; one
- * that cannot build, such as an index past the end of a list, leaves the source unchanged.
+ * <p>Which of the two {@code set} does on an absent focus depends on the affine. An affine whose
+ * last step can build the value writes it, as the example that follows does; one that cannot build,
+ * such as an index past the end of a list, leaves the source unchanged.
  *
  * <h2>Example</h2>
  *
@@ -113,9 +115,10 @@ public interface Affine<S extends @Nullable Object, A extends @Nullable Object>
   /**
    * Sets a new value for the focused part {@code A}, returning a new, updated structure {@code S}.
    *
-   * <p>Unlike a {@link Prism}, this operation always succeeds. If the focused element was
-   * previously absent, it becomes present with the new value. This operation must be immutable; the
-   * original {@code source} object is not changed.
+   * <p>Unlike a {@link Prism}, this operation always returns a structure. If the focused element
+   * was absent, an affine whose last step can build the value makes it present; one that cannot,
+   * such as an index past the end of a list, returns the source unchanged. This operation must be
+   * immutable; the original {@code source} object is not changed.
    *
    * @param newValue The new value for the focused part.
    * @param source The original structure.
@@ -127,7 +130,7 @@ public interface Affine<S extends @Nullable Object, A extends @Nullable Object>
    * Modifies the focused part {@code A} using a pure function, if present.
    *
    * <p>If the focused element is absent, the original structure is returned unchanged. This differs
-   * from {@link #set}, which always updates the structure.
+   * from {@link #set}, which may write to an absent focus.
    *
    * @param modifier The function to apply to the focused part.
    * @param source The whole structure.

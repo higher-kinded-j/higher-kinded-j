@@ -339,7 +339,7 @@ void statusPrismIsLawful() {
 }
 ```
 
-`ValidatedPrismLaws` joins the family for the validated-boundary optic (parse-build and the section law build-parse). Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, `assertModifyNoOpWhenAbsent`, …) for targeted checks. `AffineLaws.assertSetNoOpWhenAbsent` is the opt-in law for an affine that must leave an absent target alone on `set`. Failures name the violated law with the offending values: `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
+`ValidatedPrismLaws` joins the family for the validated-boundary optic (parse-build and the section law build-parse). Each family also exposes the individual laws (`assertGetSet`, `assertBuildMatch`, the opt-in `assertSetNoOpWhenAbsent`, …) for targeted checks, and failures name the violated law with the offending values: `"Lens set-get: get(set(Grace, …)) == the value set; got Ada"`. Guard rails reject vacuous fixtures (equal set-set values, non-matching prism sources). Drive broader coverage with `@ParameterizedTest` or property fixtures at the call site.
 
 `MappingLaws` completes the family for [`@GenerateMapping`](../mapping/ch_intro.md) Impls, law-checking a mapping through its exposed surface. There is one `assertMappingLaws` overload per emission tier:
 

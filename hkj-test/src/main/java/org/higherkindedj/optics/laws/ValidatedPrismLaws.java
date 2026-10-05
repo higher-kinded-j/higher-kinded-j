@@ -14,7 +14,7 @@ import org.higherkindedj.optics.validated.ValidatedPrism;
  * boundary.
  *
  * <p>Flat {@code assert...} helpers in the same style as the other optic-law classes; comparison is
- * by {@code equals} — right for records.
+ * by {@code equals}, which suits records.
  */
 public final class ValidatedPrismLaws {
 

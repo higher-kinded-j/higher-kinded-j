@@ -11,7 +11,7 @@ import org.higherkindedj.optics.Prism;
  * Law-verification helpers for {@link Prism}: build-match and the partial match-build round trip.
  *
  * <p>Flat {@code assert...} helpers in the same style as {@code org.higherkindedj.hkt.laws};
- * comparison is by {@code equals} — right for records.
+ * comparison is by {@code equals}, which suits records.
  */
 public final class PrismLaws {
 
