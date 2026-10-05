@@ -326,9 +326,8 @@ public final class FocusPaths {
   /**
    * Creates a traversal over all values in a map.
    *
-   * <p>Values are visited in the map's iteration order, and the rebuilt map is a {@link
-   * LinkedHashMap} in that same order, so a {@code LinkedHashMap} or {@code TreeMap} source keeps
-   * its order. It delegates to {@link Traversals#forMapValues()}.
+   * <p>Values are visited in the map's iteration order, and the rebuilt map keeps that order. It
+   * delegates to {@link Traversals#forMapValues()}.
    *
    * @param <K> the key type
    * @param <V> the value type
@@ -342,7 +341,8 @@ public final class FocusPaths {
    * Creates an affine focusing on a specific key in a map.
    *
    * <p>The affine will return empty if the key is not present. Setting a value will add or update
-   * the key.
+   * the key. The new map is in the source's iteration order: an updated key keeps its place, and a
+   * new key goes at the end.
    *
    * @param key the key to focus on
    * @param <K> the key type

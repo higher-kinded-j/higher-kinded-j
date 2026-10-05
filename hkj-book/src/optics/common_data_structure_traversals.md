@@ -181,7 +181,7 @@ This pattern doesn't compose and requires reconstructing the entire map.
 
 ### The Solution: `forMapValues()` Traversal
 
-The `forMapValues()` method creates a traversal focusing on **all values** whilst preserving key structure.
+The `forMapValues()` method creates a traversal focusing on **all values** whilst preserving key structure. The map it hands back keeps the source's iteration order; a `Map.of` has no fixed order of its own, so start from a `LinkedHashMap` or `TreeMap` when order matters.
 
 <!-- verify -->
 ```java
@@ -281,7 +281,7 @@ ServiceRegistry updated = Traversals.modify(
 
 ### Persistent and Third-Party Maps: `forMapValuesCollecting()`
 
-`forMapValues()` always hands back a `java.util.LinkedHashMap`, in the source's iteration order. To traverse the values of a *persistent* or *specialised* map (PCollections `PMap` / `PSortedMap`, Guava `ImmutableMap`, Eclipse Collections `ImmutableMap`, Vavr `io.vavr.collection.Map`), use `forMapValuesCollecting()`. It is the map-shaped companion to `forIterableCollecting()`, which does the same job for non-`Iterable` collections.
+`forMapValues()` hands back a plain `java.util.Map` whatever map it was given: the source's iteration order survives, its type does not. To traverse the values of a *persistent* or *specialised* map (PCollections `PMap` / `PSortedMap`, Guava `ImmutableMap`, Eclipse Collections `ImmutableMap`, Vavr `io.vavr.collection.Map`), use `forMapValuesCollecting()`. It is the map-shaped companion to `forIterableCollecting()`, which does the same job for non-`Iterable` collections.
 
 For any map type that *implements* `java.util.Map` (PCollections maps, Guava `ImmutableMap`, Apache Commons map decorators, …), pass a single rebuild function:
 
@@ -570,7 +570,7 @@ public class ConfigOptics {
 
 ~~~admonish info title="Key Takeaways"
 * **`forOptional()` treats absence as zero targets**: modifications on an empty `Optional` are safe no-ops, so nested optional fields compose without `.map()` chains
-* **`forMapValues()` rewrites values, never keys**: the key set survives a bulk transformation intact, and the result is a `LinkedHashMap` in the source's iteration order, so a `TreeMap` keeps its order but not its type
+* **`forMapValues()` rewrites values, never keys**: the key set survives a bulk transformation intact, and the result keeps the source's iteration order, so a `TreeMap` keeps its order but not its type
 * **`forMapValuesCollecting()` reaches beyond JDK maps**: persistent and third-party maps traverse through a collector you supply, and that collector, not the traversal, decides the rebuilt map's type and ordering
 * **`TupleTraversals.both()` updates a pair in one pass**: homogeneous pairs stop needing two separate reconstructions
 * **They are ordinary traversals**: everything from `modifyF` effects to `asFold()` queries applies unchanged

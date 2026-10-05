@@ -166,8 +166,7 @@ public final class Traversals {
    *
    * <p>If the key exists in the map, the traversal focuses on its corresponding value. If the key
    * does not exist, or maps to {@code null}, the traversal focuses on zero elements, and any
-   * modification will have no effect. A modified map is a {@link LinkedHashMap} that keeps the
-   * source's iteration order.
+   * modification will have no effect. A modified map is a new map in the source's iteration order.
    *
    * @param key The key to focus on in the map.
    * @param <K> The type of the map's keys.
@@ -191,7 +190,7 @@ public final class Traversals {
         // Map the result back into the map structure.
         return applicative.map(
             newValue -> {
-              // Create a new map to preserve immutability, in the source's iteration order.
+              // Copy the map in the source's iteration order, leaving the source untouched.
               Map<K, V> newMap = new LinkedHashMap<>(source);
               newMap.put(key, newValue);
               return newMap;
@@ -421,10 +420,8 @@ public final class Traversals {
    * keys.
    *
    * <p>This traversal applies an effectful function to each value in the map while keeping all keys
-   * unchanged. The order of traversal follows the map's iteration order, and the rebuilt map is a
-   * {@link LinkedHashMap} in that same order, so a {@code LinkedHashMap} or {@code TreeMap} source
-   * keeps its order (though a {@code TreeMap} does not stay a {@code TreeMap}; use {@link
-   * #forMapValuesCollecting(Function)} to rebuild the map type).
+   * unchanged. The order of traversal follows the map's iteration order, and the rebuilt map keeps
+   * that order, as {@link #traverseMapValues} describes.
    *
    * <p>This is distinct from {@link #forMap(Object)} which focuses on a single key-value pair. This
    * traversal focuses on all values simultaneously.
@@ -470,7 +467,8 @@ public final class Traversals {
    *
    * <p>The traversal exposes the source as a {@code java.util.Map} via {@code view}, applies the
    * effectful function to each value while keeping the keys unchanged, then hands the rebuilt JDK
-   * map to {@code rebuild} to produce a fresh instance of the container type {@code M}.
+   * map to {@code rebuild} to produce a fresh instance of the container type {@code M}. The rebuilt
+   * map is in the source's iteration order, as {@link #traverseMapValues} describes.
    *
    * <p>Use this overload for map types that do <em>not</em> implement {@link Map} — for example
    * Eclipse Collections {@code ImmutableMap} or Vavr {@code io.vavr.collection.Map}. For types that
@@ -620,7 +618,12 @@ public final class Traversals {
    * each value while keeping the keys unchanged. The result is a {@code F<Map<K, W>>} where all
    * effects have been sequenced.
    *
-   * <p>If the map is empty, returns {@code applicative.of(emptyMap)}.
+   * <p>Each run of the resulting effect builds its own map, an empty one when the map is empty.
+   *
+   * <p>The rebuilt map is a new map in the source's iteration order. Every optic that writes a
+   * {@code Map} keeps that order, so a {@code LinkedHashMap} or {@code TreeMap} source comes back
+   * in its own order (a {@code TreeMap} does not stay a {@code TreeMap}; collect with {@link
+   * #forMapValuesCollecting(Function)} to rebuild the map type).
    *
    * @param map The source map to traverse.
    * @param f The effectful function to apply to each value.
@@ -642,10 +645,6 @@ public final class Traversals {
           final Function<? super V, ? extends Kind<F, ? extends W>> f,
           final Applicative<F> applicative) {
 
-    if (map.isEmpty()) {
-      return applicative.of(new LinkedHashMap<>());
-    }
-
     // The values are traversed as a list and the keys zipped back onto the result, which walks the
     // map once. Accumulating into the effect an entry at a time copies the map being built on every
     // entry, and that is quadratic in the size of the map.
@@ -658,8 +657,7 @@ public final class Traversals {
 
     return applicative.map(
         newValues -> {
-          // A LinkedHashMap keeps the source's iteration order, so a collector sees the entries in
-          // it.
+          // A LinkedHashMap keeps the source's iteration order, which a collector then sees.
           final Map<K, W> result = LinkedHashMap.newLinkedHashMap(newValues.size());
           for (int index = 0; index < newValues.size(); index++) {
             result.put(keys.get(index), newValues.get(index));

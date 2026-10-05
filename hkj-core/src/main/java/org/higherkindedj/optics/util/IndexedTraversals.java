@@ -91,7 +91,7 @@ public final class IndexedTraversals {
    * entry's key as the index.
    *
    * <p>This traversal provides access to all map values along with their keys. A modified map is a
-   * {@link LinkedHashMap} that keeps the source's iteration order.
+   * new map in the source's iteration order.
    *
    * <p>Example:
    *

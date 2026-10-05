@@ -64,7 +64,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 - **A read through an `Optional` or a `Maybe` reads a null focus as absent** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `Fold.preview`, `TraversalPath.preview` and `toMaybePath`, and `FocusPath.toMaybePath` used to throw `NullPointerException`. So did `FocusPath.asAffine`, `headOption`, `IxedInstances.get` and the list optics `listAt`, `listHead` and `listLast`, whose setters, and the list prisms' `build`, now write a null.
 - **`find` passes over a null focus to the next match** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): on `Fold`, `TraversalPath`, `OpticOps` and `FoldExtensions`, where a null match threw.
-- **The element optics carry a null element through** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `Setter.forList`, and `FocusPaths.listElements`, `arrayElements`, `listCons`, `listSnoc`, `listTail`, `listInit` and `mapValues`, used to throw. A one-entry `mapValues` result is now a `HashMap`, as larger ones were.
+- **The element optics carry a null element through** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `Setter.forList`, and `FocusPaths.listElements`, `arrayElements`, `listCons`, `listSnoc`, `listTail`, `listInit` and `mapValues`, used to throw.
 - **`Plans.preflight` walks a batched traversal to the end** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `truncated` is now `false` for one, since the walk's null stub values no longer halt it.
 - **`IxedInstances.contains` counts an index holding a null as present** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)).
 

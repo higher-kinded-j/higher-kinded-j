@@ -8,6 +8,9 @@ import static org.assertj.core.api.Assertions.entry;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKindHelper;
+import org.higherkindedj.hkt.id.IdMonad;
 import org.higherkindedj.optics.at.AtInstances;
 import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.util.IndexedTraversals;
@@ -86,6 +89,20 @@ class MapIterationOrderTest {
         .containsExactly(entry("c", 3), entry("b", 2), entry("a", 1), entry("d", 4));
     assertThat(at.at("b").set(Optional.empty(), source()))
         .containsExactly(entry("c", 3), entry("a", 1));
+  }
+
+  @Test
+  @DisplayName("Setter.forMapValues() keeps the order, through modify and modifyF")
+  void setterForMapValues() {
+    Setter<Map<String, Integer>, Integer> values = Setter.forMapValues();
+
+    assertThat(values.modify(v -> v * 10, source()))
+        .containsExactly(entry("c", 30), entry("b", 20), entry("a", 10));
+    Map<String, Integer> viaEffect =
+        IdKindHelper.ID
+            .narrow(values.modifyF(v -> Id.of(v * 10), source(), IdMonad.instance()))
+            .value();
+    assertThat(viaEffect).containsExactly(entry("c", 30), entry("b", 20), entry("a", 10));
   }
 
   @Test

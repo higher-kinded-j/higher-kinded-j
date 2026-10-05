@@ -65,8 +65,8 @@ public final class AtInstances {
    *   <li>{@code set(Optional.of(value))} puts the key-value pair in the map
    * </ul>
    *
-   * <p>The new map is a {@link LinkedHashMap} in the source's iteration order: an updated key keeps
-   * its place, and a new key goes at the end.
+   * <p>The new map is in the source's iteration order: an updated key keeps its place, and a new
+   * key goes at the end.
    *
    * <p><strong>Null Value Limitation:</strong> Due to Java's {@link Optional} semantics, null map
    * values cannot be distinguished from absent keys. {@code Optional.ofNullable(null)} returns

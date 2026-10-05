@@ -277,6 +277,8 @@ public interface Setter<S extends @Nullable Object, A extends @Nullable Object>
    * // doubled = {a=2, b=4}
    * }</pre>
    *
+   * <p>The modified map is a new map in the source's iteration order.
+   *
    * @param <K> The key type.
    * @param <V> The value type.
    * @return A Setter for map values.
@@ -285,7 +287,7 @@ public interface Setter<S extends @Nullable Object, A extends @Nullable Object>
     return new Setter<>() {
       @Override
       public Map<K, V> modify(Function<V, V> f, Map<K, V> source) {
-        Map<K, V> result = new HashMap<>();
+        Map<K, V> result = LinkedHashMap.newLinkedHashMap(source.size());
         for (Map.Entry<K, V> entry : source.entrySet()) {
           result.put(entry.getKey(), f.apply(entry.getValue()));
         }
@@ -320,7 +322,7 @@ public interface Setter<S extends @Nullable Object, A extends @Nullable Object>
         // Convert to Map at the end (O(n) total)
         return app.map(
             values -> {
-              Map<K, V> resultMap = new HashMap<>();
+              Map<K, V> resultMap = LinkedHashMap.newLinkedHashMap(keys.size());
               Iterator<V> valIter = values.iterator();
               for (K key : keys) {
                 resultMap.put(key, valIter.next());

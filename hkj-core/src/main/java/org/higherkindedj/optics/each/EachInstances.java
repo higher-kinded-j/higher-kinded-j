@@ -504,6 +504,8 @@ public final class EachInstances {
    * a function that reconstructs the container from a {@code java.util.Map}. Companion to {@link
    * #fromIterableCollecting} for non-{@code Iterable} containers.
    *
+   * <p>The map handed to the function is in the source's iteration order.
+   *
    * <p>The bound {@code M extends Map} keeps the helper applicable to any persistent or specialised
    * map whose interface inherits from {@link Map}: PCollections {@code PMap} / {@code PSortedMap},
    * Guava {@code ImmutableMap}, Apache Commons map decorators, etc. For map types that are not
