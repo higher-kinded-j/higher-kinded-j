@@ -64,14 +64,13 @@ public class ConfigAuditExample {
     // finds all Base64-encoded passwords.
     Traversal<AppConfig, byte[]> auditTraversal =
         AppConfigTraversals.settings()
-            .andThen(SettingLenses.value().asTraversal())
-            .andThen(SettingValuePrisms.encryptedValue().asTraversal())
-            .andThen(EncryptedValueLenses.base64Value().asTraversal())
-            .andThen(EncryptedValueIsos.base64.asTraversal());
+            .andThen(SettingLenses.value())
+            .andThen(SettingValuePrisms.encryptedValue())
+            .andThen(EncryptedValueLenses.base64Value())
+            .andThen(EncryptedValueIsos.base64);
 
     // Further compose it to only apply to configs matching the prism.
-    Traversal<AppConfig, byte[]> finalAuditor =
-        gcpLiveOnlyPrism.asTraversal().andThen(auditTraversal);
+    Traversal<AppConfig, byte[]> finalAuditor = gcpLiveOnlyPrism.andThen(auditTraversal);
 
     System.out.println("\n🔎 Running audit across all configurations...");
     for (AppConfig config : configs) {

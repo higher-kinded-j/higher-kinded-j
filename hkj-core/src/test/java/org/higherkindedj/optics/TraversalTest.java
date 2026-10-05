@@ -18,6 +18,8 @@ import org.higherkindedj.hkt.id.IdSelective;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.list.ListTraverse;
+import org.higherkindedj.optics.laws.TraversalLaws;
+import org.higherkindedj.optics.util.Affines;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -762,6 +764,61 @@ class TraversalTest {
 
       List<User> resultList = IdKindHelper.ID.narrow(result).value();
       assertThat(resultList).isEmpty();
+    }
+  }
+
+  @Nested
+  @DisplayName("andThen(Affine) and andThen(Iso) Composition")
+  class AndThenAffineAndIsoTests {
+
+    record Member(String name, Optional<String> nickname) {}
+
+    record UserId(long value) {}
+
+    private final Lens<Member, Optional<String>> nicknameLens =
+        Lens.of(Member::nickname, (m, n) -> new Member(m.name(), n));
+
+    @Test
+    @DisplayName(
+        "andThen(Affine) should focus each element's value where present, without asTraversal()")
+    void andThenAffine() {
+      Traversal<List<Member>, Member> eachMember = listElements();
+      Traversal<List<Member>, String> nicknames =
+          eachMember.andThen(nicknameLens).andThen(Affines.some());
+
+      List<Member> members =
+          List.of(
+              new Member("Ada", Optional.of("countess")),
+              new Member("Alan", Optional.empty()),
+              new Member("Grace", Optional.of("amazing")));
+
+      assertThat(Traversals.getAll(nicknames, members)).containsExactly("countess", "amazing");
+      assertThat(Traversals.modify(nicknames, String::toUpperCase, members))
+          .containsExactly(
+              new Member("Ada", Optional.of("COUNTESS")),
+              new Member("Alan", Optional.empty()),
+              new Member("Grace", Optional.of("AMAZING")));
+
+      assertThat(Traversals.modify(nicknames, String::toUpperCase, List.<Member>of())).isEmpty();
+
+      TraversalLaws.assertTraversalLaws(nicknames, members, String::toUpperCase, n -> n + "!");
+    }
+
+    @Test
+    @DisplayName("andThen(Iso) should convert each element and convert it back on write")
+    void andThenIso() {
+      Iso<UserId, Long> userIdIso = Iso.of(UserId::value, UserId::new);
+      Traversal<List<UserId>, UserId> eachId = listElements();
+      Traversal<List<UserId>, Long> rawIds = eachId.andThen(userIdIso);
+
+      List<UserId> ids = List.of(new UserId(1), new UserId(2));
+
+      assertThat(Traversals.getAll(rawIds, ids)).containsExactly(1L, 2L);
+      assertThat(Traversals.modify(rawIds, id -> id * 10, ids))
+          .containsExactly(new UserId(10), new UserId(20));
+      assertThat(Traversals.modify(rawIds, id -> id * 10, List.<UserId>of())).isEmpty();
+
+      TraversalLaws.assertTraversalLaws(rawIds, ids, id -> id + 1, id -> id * 2);
     }
   }
 

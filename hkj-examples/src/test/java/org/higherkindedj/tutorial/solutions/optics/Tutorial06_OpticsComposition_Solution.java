@@ -250,9 +250,10 @@ public class Tutorial06_OpticsComposition_Solution {
    * <p>Alternative: a pattern-matching {@code switch} on {@code JsonValue}. Equivalent; the optic
    * chain composes with other paths and survives schema changes more gracefully.
    *
-   * <p>Common wrong attempt: forget to lift the trailing lens with {@code asTraversal()}. The arity
-   * mismatch ({@code Traversal.andThen(Lens)} would require an overload that accepts a {@code
-   * Lens}) is what the compiler complains about; lift the lens explicitly.
+   * <p>Common wrong attempt: leave the trailing lens unlifted and still declare a {@code
+   * Traversal}. A lens then a prism then a lens is an {@code Affine}, so the compiler reports that
+   * an {@code Affine} cannot be converted to a {@code Traversal}. Lift the last step, as here, or
+   * declare an {@code Affine} and read it with {@code getOptional}.
    */
   @Test
   void exercise4_complexComposition() {
@@ -284,7 +285,8 @@ public class Tutorial06_OpticsComposition_Solution {
     Lens<JsonString1, String> valueLens = JsonStringLenses.value();
 
     // SOLUTION: Chain Lens + Prism + Lens = Traversal
-    // Note: After Lens.andThen(Prism) returns Traversal, we need .asTraversal() on the Lens
+    // Note: After Lens.andThen(Prism) we have an Affine; lifting the lens makes the result a
+    // Traversal
     Traversal<JsonObject1, String> valueAccess =
         dataLens.andThen(stringPrism).andThen(valueLens.asTraversal());
 
@@ -306,9 +308,9 @@ public class Tutorial06_OpticsComposition_Solution {
   }
 
   /**
-   * Why this is idiomatic: {@code traversal.andThen(prism.asTraversal())} walks a list and keeps
-   * only the elements that match the prism. Combine that with the leaf lens and {@code getAll}
-   * extracts every {@code JsonString} value in one pass.
+   * Why this is idiomatic: {@code traversal.andThen(prism)} walks a list and keeps only the
+   * elements that match the prism. Combine that with the leaf lens and {@code getAll} extracts
+   * every {@code JsonString} value in one pass.
    *
    * <p>Alternative: a stream filter with {@code instanceof} guards. Equivalent for reads; the optic
    * version makes the corresponding update available for free.
@@ -340,13 +342,11 @@ public class Tutorial06_OpticsComposition_Solution {
     Prism<JsonValue1, JsonString1> stringPrism = JsonValuePrisms.jsonString();
 
     // SOLUTION: Compose Traversal + Prism to focus only on JsonString values
-    Traversal<JsonArray1, JsonString1> stringValues =
-        valuesTraversal.andThen(stringPrism.asTraversal());
+    Traversal<JsonArray1, JsonString1> stringValues = valuesTraversal.andThen(stringPrism);
 
     List<String> strings =
         Traversals.getAll(
-            stringValues.andThen(
-                Lens.of(JsonString1::value, (js, v) -> new JsonString1(v)).asTraversal()),
+            stringValues.andThen(Lens.of(JsonString1::value, (js, v) -> new JsonString1(v))),
             array);
 
     assertThat(strings).containsExactly("hello", "world");
@@ -405,9 +405,7 @@ public class Tutorial06_OpticsComposition_Solution {
 
     // SOLUTION: Compose League -> teams -> players -> score
     Traversal<League, Integer> allScores =
-        LeagueTraversals.teams()
-            .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.score().asTraversal());
+        LeagueTraversals.teams().andThen(TeamTraversals.players()).andThen(PlayerLenses.score());
 
     List<Integer> scores = Traversals.getAll(allScores, league);
     assertThat(scores).containsExactly(100, 90, 110);
@@ -487,7 +485,8 @@ public class Tutorial06_OpticsComposition_Solution {
     Lens<User, String> userToCity = userToAddress.andThen(addressToCity);
 
     // 2. User -> email address (Lens + Prism + Lens = Traversal)
-    // Note: After Lens.andThen(Prism) returns Traversal, we need .asTraversal() on the Lens
+    // Note: After Lens.andThen(Prism) we have an Affine; lifting the lens makes the result a
+    // Traversal
     Traversal<User, String> userToEmailAddress =
         userToContact.andThen(emailPrism).andThen(emailToAddress.asTraversal());
 

@@ -438,8 +438,7 @@ public final class Prisms {
    * Prism<JsonValue, JsonString> stringPrism = Prisms.instanceOf(JsonString.class);
    * Lens<JsonString, String> valueLens = JsonStringLenses.value();
    *
-   * Traversal<JsonValue, String> jsonStringValue =
-   *     stringPrism.asTraversal().andThen(valueLens.asTraversal());
+   * Affine<JsonValue, String> jsonStringValue = stringPrism.andThen(valueLens);
    * }</pre>
    *
    * @param targetClass The class to match against.

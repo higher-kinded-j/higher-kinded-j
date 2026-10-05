@@ -189,12 +189,11 @@ public class CompositionRecipes {
 
     Lens<Success, String> valueLens = Lens.of(Success::value, (s, v) -> new Success(v, s.meta()));
 
-    // Build from inside out: Prism + Lens = Affine, convert to Traversal for list composition
-    // (Prism.andThen(Lens) = Affine, Traversal.andThen(Traversal) = Traversal)
+    // Build from inside out: Prism + Lens = Affine, then Traversal + Affine = Traversal
     Affine<Result, String> resultToValueAffine = successPrism.andThen(valueLens);
     Traversal<List<Result>, String> listToValues =
-        Traversals.<Result>forList().andThen(resultToValueAffine.asTraversal());
-    Traversal<Batch, String> allSuccessValues = resultsLens.asTraversal().andThen(listToValues);
+        Traversals.<Result>forList().andThen(resultToValueAffine);
+    Traversal<Batch, String> allSuccessValues = resultsLens.andThen(listToValues);
 
     Batch batch =
         new Batch(
@@ -298,9 +297,7 @@ public class CompositionRecipes {
 
     Affine<Result, String> resultToValue = successPrism.andThen(valueLens);
     Traversal<Batch, String> allSuccessValues =
-        resultsLens
-            .asTraversal()
-            .andThen(Traversals.<Result>forList().andThen(resultToValue.asTraversal()));
+        resultsLens.andThen(Traversals.<Result>forList().andThen(resultToValue));
 
     // Convert to Fold for read-only aggregation
     Fold<Batch, String> successValuesFold = allSuccessValues.asFold();
@@ -321,10 +318,7 @@ public class CompositionRecipes {
     // Combine traversal-derived fold with another fold via plus()
     Affine<Result, String> resultToSource = successPrism.andThen(metaLens).andThen(sourceLens);
     Fold<Batch, String> sourcesFold =
-        resultsLens
-            .asTraversal()
-            .andThen(Traversals.<Result>forList().andThen(resultToSource.asTraversal()))
-            .asFold();
+        resultsLens.andThen(Traversals.<Result>forList().andThen(resultToSource)).asFold();
 
     Fold<Batch, String> allStringsFold = successValuesFold.plus(sourcesFold);
     System.out.println("All strings (values + sources): " + allStringsFold.getAll(batch));

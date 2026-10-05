@@ -23,9 +23,9 @@ This page covers (1). For (2), see the rules table.
 |---|---|---|---|
 | `lens.asTraversal()` | `Lens<S, A>` | `Traversal<S, A>` | You need to call a traversal-only API (`Traversals.modify`, traversal `andThen`) on a lens. |
 | `lens.asFold()` | `Lens<S, A>` | `Fold<S, A>` | You want to express read-only intent or use fold-only operations like `exists`, `find`, `all`. |
-| `prism.asTraversal()` | `Prism<S, A>` | `Traversal<S, A>` | Same as for lenses, lifting a prism into a traversal-shaped pipeline. |
+| `prism.asTraversal()` | `Prism<S, A>` | `Traversal<S, A>` | Same as for lenses: to call a `Traversal`-only utility such as `Traversals.modify`. |
 | `prism.asFold()` | `Prism<S, A>` | `Fold<S, A>` | Read-only query of a sum-type variant. |
-| `affine.asTraversal()` | `Affine<S, A>` | `Traversal<S, A>` | Lifting an affine for use in a traversal-shaped pipeline. |
+| `affine.asTraversal()` | `Affine<S, A>` | `Traversal<S, A>` | To call a `Traversal`-only utility such as `Traversals.modify`. |
 | `affine.asFold()` | `Affine<S, A>` | `Fold<S, A>` | Read-only access to the optional field. |
 | `iso.asLens()` | `Iso<S, A>` | `Lens<S, A>` | When you only need the forward direction; the `reverseGet` capability is dropped. |
 | `iso.asTraversal()` | `Iso<S, A>` | `Traversal<S, A>` | Same lifting as for a lens. |
@@ -41,7 +41,7 @@ You cannot widen the other direction: a `Traversal` does not become a `Lens`, be
 
 ## Implicit lifting during composition
 
-`andThen` infers the result type automatically. You do not need to call `asTraversal()` before composing a `Lens` with a `Traversal`; the compiler picks the [Composition Rules](composition_rules.md) result.
+`andThen` infers the result type automatically. Any two of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal` compose directly, with no `asTraversal()` first; the [composition rules table](composition_rules.md#composition-rules-table) gives the result for each pair.
 
 ```java
 Lens<User, List<Order>> ordersLens = UserLenses.orders();

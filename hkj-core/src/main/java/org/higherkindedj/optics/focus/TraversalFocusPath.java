@@ -68,7 +68,7 @@ record TraversalFocusPath<S extends @Nullable Object, A extends @Nullable Object
   @Override
   public <B extends @Nullable Object> TraversalPath<S, B> via(Affine<A, B> affine) {
     // Traversal >>> Affine requires going through traversal composition
-    return new TraversalFocusPath<>(traversal.andThen(affine.asTraversal()), segments);
+    return new TraversalFocusPath<>(traversal.andThen(affine), segments);
   }
 
   @Override

@@ -18,6 +18,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Optics {#optics}
 
+- **Any two of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal` compose directly with `andThen`** ([#1021](https://github.com/higher-kinded-j/higher-kinded-j/pull/1021)). An `Iso` followed by a `Traversal` now returns a `Traversal`, and so does a `Traversal` followed by an `Affine` or an `Iso`, with no `asTraversal()` first. The composition table is read from the overloads, so it always matches the library. See [Composition Rules Table](../optics/composition_rules.md#composition-rules-table).
 - **Optics over a nullable field pass a nullness checker** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): every optic and Focus path type, and `Kind`, now takes a nullable type. So the `Lens<Config, @Nullable String>` the processor writes for a `@Nullable` component checks under JSpecify. A conversion into `Either`, `Validated` or an Effect Path does not take one yet. See [`.nullable()`: Handle Null Values](../optics/focus_navigation.md#nullable-handle-null-values).
 
 ---
@@ -77,6 +78,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 |---|---|---|---|
 | Optics | Under a nullness checker, `FocusPaths.nullable()` assigned to an `Affine<X, X>` | Declare `Affine<@Nullable X, X>`, the type `Affines.nullable()` returns | [#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767) |
 | Optics | Under a nullness checker, `AtInstances.listAtWithPadding(null)` for a non-null element type | Pad with a value, or name a nullable element type: `AtInstances.<@Nullable String>listAtWithPadding(null)` | [#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767) |
+| Optics | `var x = iso.andThen(traversal);` (or `traversal.andThen(affine)` or `traversal.andThen(iso)`) followed by assigning another kind of optic to `x`; your own `use(Optic)` and `use(Traversal)` overloads now pick the `Traversal` one | Declare `x` as the `Optic` you mean to hold, or call the overload you mean | [#1021](https://github.com/higher-kinded-j/higher-kinded-j/pull/1021) |
 | Effect Paths | A `Monad` passed to `new StateT<>(fn, monad)`, `StateT.create`, `StateTKindHelper.stateT` or `StateT.mapT` | Run the recipe as [Before you upgrade](#before-you-upgrade) says, or drop the argument by hand | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
 | Effect Paths | A two-component `StateT` record pattern, or `StateT::create` or `StateT::new` as a `BiFunction` | Match the one component, or take a `Function`, by hand | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
 | Effect Paths | A `StateT` in `var` or a chained call over a witness with a type argument, such as `EitherKind.Witness<E>`, which now infers `Object` for it | Name the types, as in `StateT.<S, EitherKind.Witness<E>, A>create(fn)`, or declare the variable | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |

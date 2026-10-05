@@ -1,44 +1,28 @@
 # Optic Composition Rules
 
-## Optic Hierarchy (most specific to most general)
-
-```
-Iso
- ├──> Lens ──> Getter
- │       └──────────────────┐
- └──> Prism ──> Affine ──> Fold
-          │         └──────────────┐
-          └──────────────────> Traversal
-                                    └──> Setter
-```
-
-**Key rule**: composing two different optic types yields the **least general common ancestor**.
-
 ## Composition Table
 
-| First       | Second    | Result        | Reason                          |
-|-------------|-----------|---------------|---------------------------------|
-| Iso         | Iso       | **Iso**       | Both directions preserved       |
-| Iso         | Lens      | **Lens**      | Lens is more restrictive        |
-| Iso         | Prism     | **Prism**     | Prism is more restrictive       |
-| Iso         | Affine    | **Affine**    | Affine is more restrictive      |
-| Iso         | Traversal | **Traversal** | Traversal is most general       |
-| Lens        | Lens      | **Lens**      | Same type                       |
-| Lens        | Prism     | **Affine**    | May not match (0-1 targets)     |
-| Lens        | Affine    | **Affine**    | Affine preserves partiality     |
-| Lens        | Traversal | **Traversal** | Traversal is more general       |
-| Lens        | Iso       | **Lens**      | Iso subsumes Lens               |
-| Prism       | Prism     | **Prism**     | Same type                       |
-| Prism       | Lens      | **Affine**    | May not match + field access    |
-| Prism       | Affine    | **Affine**    | Affine preserves partiality     |
-| Prism       | Traversal | **Traversal** | Traversal is more general       |
-| Prism       | Iso       | **Prism**     | Iso subsumes Prism              |
-| Affine      | Affine    | **Affine**    | Same type                       |
-| Affine      | Lens      | **Affine**    | Affine preserves partiality     |
-| Affine      | Prism     | **Affine**    | Both may not match              |
-| Affine      | Traversal | **Traversal** | Traversal is more general       |
-| Affine      | Iso       | **Affine**    | Iso subsumes Affine             |
-| Traversal   | any       | **Traversal** | Traversal is already general    |
+What `first.andThen(second)` returns, with the row as `first`. The book's build reads this table from
+the `andThen` overloads, and a test holds this copy to it:
+
+| `first.andThen(second)` | Iso | Lens | Prism | Affine | Traversal |
+|---|---|---|---|---|---|
+| **Iso** | Iso | Lens | Prism | Affine | Traversal |
+| **Lens** | Lens | Lens | Affine | Affine | Traversal |
+| **Prism** | Prism | Affine | Prism | Affine | Traversal |
+| **Affine** | Affine | Affine | Affine | Affine | Traversal |
+| **Traversal** | Traversal | Traversal | Traversal | Traversal | Traversal |
+
+Each optic is fixed by how many values it reaches and whether it can build the whole from its part:
+
+| Reaches | Can build the whole | Cannot |
+|---|---|---|
+| exactly one | `Iso` | `Lens` |
+| zero or one | `Prism` | `Affine` |
+| zero or more | | `Traversal` |
+
+A composition reaches the wider of its two steps' reaches, and can build only if both steps can. Every
+pair of these five composes directly with `andThen`; no `asTraversal()` is needed first.
 
 ## Summary by Use Case
 
@@ -123,11 +107,11 @@ Fold<Team, String> allEmails = Fold.sum(
 
 <!-- verify -->
 ```java
-// Pattern 1: Optional field access (Lens + Prism + Lens = Traversal)
-Traversal<User, String> userCity =
+// Pattern 1: Optional field access (Lens + Prism + Lens = Affine)
+Affine<User, String> userCity =
     UserLenses.address()           // Lens<User, Optional<Address>>
         .andThen(Prisms.some())    // Prism<Optional<Address>, Address>
-        .andThen(AddressLenses.city().asTraversal());
+        .andThen(AddressLenses.city());
 
 // Pattern 2: Sum type field access (Prism + Lens = Affine)
 Affine<Payment, String> creditCardNumber =
@@ -145,13 +129,13 @@ Traversal<List<Order>, Order> activeOrders =
 <!-- verify -->
 ```java
 public final class OrderOptics {
-    public static final Traversal<Order, String> CUSTOMER_EMAIL =
+    public static final Affine<Order, String> CUSTOMER_EMAIL =
         OrderLenses.customer()
             .andThen(CustomerPrisms.activeCustomer())
-            .andThen(ActiveCustomerLenses.email().asTraversal());
+            .andThen(ActiveCustomerLenses.email());
 
     public static final Traversal<Order, Money> LINE_ITEM_PRICES =
         OrderTraversals.lineItems()
-            .andThen(LineItemLenses.price().asTraversal());
+            .andThen(LineItemLenses.price());
 }
 ```

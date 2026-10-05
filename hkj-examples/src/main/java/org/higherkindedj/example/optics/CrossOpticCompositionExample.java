@@ -195,9 +195,10 @@ public class CrossOpticCompositionExample {
             DatabaseSettings::host,
             (db, host) -> new DatabaseSettings(host, db.port(), db.username()));
 
-    // Chain: Lens >>> Prism = Traversal, then Traversal >>> Lens.asTraversal() = Traversal
+    // Chain: Lens >>> Prism = Affine, then Affine >>> Lens = Affine, viewed as a Traversal
+    // so Traversals.getAll and Traversals.modify can take it
     Traversal<Config, String> hostTraversal =
-        databaseLens.andThen(somePrism).andThen(hostLens.asTraversal());
+        databaseLens.andThen(somePrism).andThen(hostLens).asTraversal();
 
     // Test data
     Config config =
@@ -247,9 +248,9 @@ public class CrossOpticCompositionExample {
     System.out.println("Original shapes: " + shapes);
     System.out.println();
 
-    // Extract all circle radii using Traversals.forList() combined with our affine (as Traversal)
+    // Extract all circle radii: Traversals.forList() followed by our affine is a Traversal
     Traversal<List<Shape>, Double> allCircleRadii =
-        Traversals.<Shape>forList().andThen(circleRadiusAffine.asTraversal());
+        Traversals.<Shape>forList().andThen(circleRadiusAffine);
 
     List<Double> radii = Traversals.getAll(allCircleRadii, shapes);
     System.out.println("All circle radii: " + radii);
@@ -261,7 +262,7 @@ public class CrossOpticCompositionExample {
 
     // Change all circle colours to "purple"
     Traversal<List<Shape>, String> allCircleColours =
-        Traversals.<Shape>forList().andThen(circleColourAffine.asTraversal());
+        Traversals.<Shape>forList().andThen(circleColourAffine);
 
     List<Shape> recolouredShapes =
         Traversals.modify(allCircleColours, _ -> "purple", modifiedShapes);

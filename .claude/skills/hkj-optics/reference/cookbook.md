@@ -12,15 +12,16 @@ record User(String name, Optional<Profile> profile) {}
 record Profile(String bio, Optional<Settings> settings) {}
 record Settings(boolean darkMode, int fontSize) {}
 
-Traversal<User, Integer> userFontSize =
-    UserLenses.profile()                                    // Lens<User, Optional<Profile>>
-        .andThen(Prisms.some())                             // Prism -> Profile
-        .andThen(ProfileLenses.settings().asTraversal())    // Lens -> Optional<Settings>
-        .andThen(Prisms.<Settings>some().asTraversal())     // Prism -> Settings
-        .andThen(SettingsLenses.fontSize().asTraversal());  // Lens -> Integer
+// Zero or one font size, so andThen gives an Affine: no asTraversal() needed
+Affine<User, Integer> userFontSize =
+    UserLenses.profile()                       // Lens<User, Optional<Profile>>
+        .andThen(Prisms.some())                // Prism -> Profile
+        .andThen(ProfileLenses.settings())     // Lens -> Optional<Settings>
+        .andThen(Prisms.<Settings>some())      // Prism -> Settings
+        .andThen(SettingsLenses.fontSize());   // Lens -> Integer
 
 // Increase font size if it exists; otherwise unchanged
-User updated = Traversals.modify(userFontSize, size -> size + 2, user);
+User updated = userFontSize.modify(size -> size + 2, user);
 ```
 
 Each `Prisms.some()` safely handles Optional: if any is empty, modification is skipped.
@@ -40,12 +41,11 @@ Prism<ApiResponse, Success> successPrism = Prism.of(
     s -> s
 );
 
-Traversal<ApiResponse, Data> successData =
-    successPrism.andThen(SuccessLenses.data().asTraversal());
+// Prism + Lens = Affine: zero or one Data
+Affine<ApiResponse, Data> successData = successPrism.andThen(SuccessLenses.data());
 
 // Transform data only for Success responses; AppError/Loading pass through unchanged
-ApiResponse modified = Traversals.modify(
-    successData, data -> new Data(data.value().toUpperCase()), response);
+ApiResponse modified = successData.modify(data -> new Data(data.value().toUpperCase()), response);
 ```
 
 ---
@@ -58,7 +58,7 @@ record Order(String id, List<LineItem> items) {}
 record LineItem(String productId, int quantity, Money price) {}
 
 Traversal<Order, LineItem> allItems =
-    OrderLenses.items().asTraversal().andThen(Traversals.forList());
+    OrderLenses.items().andThen(Traversals.forList());
 
 // Filter to high-quantity items only
 Traversal<Order, LineItem> bulkItems =
@@ -87,8 +87,8 @@ Prism<Event, UserEvent> userEventPrism = Prism.of(
 
 Traversal<List<Event>, String> userActions =
     Traversals.<Event>forList()
-        .andThen(userEventPrism.asTraversal())
-        .andThen(UserEventLenses.action().asTraversal());
+        .andThen(userEventPrism)
+        .andThen(UserEventLenses.action());
 
 List<String> actions = Traversals.getAll(userActions, events);
 // Only UserEvent actions extracted; SystemEvents skipped
@@ -103,8 +103,7 @@ List<String> actions = Traversals.getAll(userActions, events);
 record Config(Map<String, String> settings) {}
 
 Traversal<Config, String> databaseUrl =
-    ConfigLenses.settings().asTraversal()
-        .andThen(Traversals.forMap("database.url"));
+    ConfigLenses.settings().andThen(Traversals.forMap("database.url"));
 
 List<String> urls = Traversals.getAll(databaseUrl, config);
 String url = urls.isEmpty() ? "jdbc:postgresql://localhost/default" : urls.get(0);
@@ -121,11 +120,11 @@ record Department(String name, List<Employee> employees) {}
 record Employee(String name, int salary) {}
 
 Traversal<Company, Integer> allSalaries =
-    CompanyLenses.departments().asTraversal()
+    CompanyLenses.departments()
         .andThen(Traversals.forList())
-        .andThen(DepartmentLenses.employees().asTraversal())
+        .andThen(DepartmentLenses.employees())
         .andThen(Traversals.forList())
-        .andThen(EmployeeLenses.salary().asTraversal());
+        .andThen(EmployeeLenses.salary());
 
 // Give everyone a 5% raise
 Company afterRaise = Traversals.modify(allSalaries, s -> (int)(s * 1.05), company);
@@ -146,7 +145,7 @@ record Product(String name, Money price, boolean onSale) {}
 Traversal<List<Product>, Money> salePrices =
     Traversals.<Product>forList()
         .andThen(Traversals.filtered(Product::onSale))
-        .andThen(ProductLenses.price().asTraversal());
+        .andThen(ProductLenses.price());
 
 List<Product> discounted = Traversals.modify(
     salePrices, price -> price.multiply(0.8), products);
@@ -320,9 +319,9 @@ Kind<MaybeKind.Witness, Config> result =
 ```java
 public final class OrderOptics {
     public static final Traversal<Order, Money> ALL_PRICES =
-        OrderLenses.items().asTraversal()
+        OrderLenses.items()
             .andThen(Traversals.forList())
-            .andThen(LineItemLenses.price().asTraversal());
+            .andThen(LineItemLenses.price());
 }
 ```
 
@@ -345,10 +344,10 @@ Traversal<Config, Settings> manual =
 public static final Traversal<Order, String> ACTIVE_PROMO_CODES =
     OrderLenses.customer()
         .andThen(CustomerPrisms.loyaltyMember())
-        .andThen(LoyaltyLenses.promotions().asTraversal())
+        .andThen(LoyaltyLenses.promotions())
         .andThen(Traversals.forList())
         .andThen(Traversals.filtered(Promotion::isActive))
-        .andThen(PromotionLenses.code().asTraversal());
+        .andThen(PromotionLenses.code());
 ```
 
 **4. Prefer specific types when available:**

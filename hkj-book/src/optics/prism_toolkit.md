@@ -451,7 +451,7 @@ List<Animal> animals = List.of(
 );
 
 List<String> breeds = Traversals.getAll(
-    Traversals.<Animal>forList().andThen(dogBreed.asTraversal()),
+    Traversals.<Animal>forList().andThen(dogBreed),
     animals
 );
 // Result: ["German Shepherd", "Beagle"]

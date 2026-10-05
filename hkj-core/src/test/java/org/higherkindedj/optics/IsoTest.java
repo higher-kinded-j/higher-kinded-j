@@ -5,6 +5,7 @@ package org.higherkindedj.optics;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import org.assertj.core.api.Assertions;
@@ -14,6 +15,8 @@ import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
+import org.higherkindedj.optics.laws.TraversalLaws;
+import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -347,6 +350,26 @@ class IsoTest {
       // Test round-trip (Iso law)
       UserId roundTrip = composed.reverseGet(composed.get(userId));
       assertThat(roundTrip).isEqualTo(userId);
+    }
+
+    @Test
+    @DisplayName("andThen(Traversal) should compose an Iso with a Traversal to produce a Traversal")
+    void isoAndThenTraversal() {
+      record Tags(List<String> values) {}
+
+      Iso<Tags, List<String>> tagsIso = Iso.of(Tags::values, Tags::new);
+
+      // Compose: Iso >>> Traversal = Traversal, with no asTraversal() on the Iso
+      Traversal<Tags, String> eachTag = tagsIso.andThen(Traversals.forList());
+
+      Tags tags = new Tags(List.of("red", "green"));
+      assertThat(Traversals.getAll(eachTag, tags)).containsExactly("red", "green");
+      assertThat(Traversals.modify(eachTag, String::toUpperCase, tags))
+          .isEqualTo(new Tags(List.of("RED", "GREEN")));
+      assertThat(Traversals.modify(eachTag, String::toUpperCase, new Tags(List.of())))
+          .isEqualTo(new Tags(List.of()));
+
+      TraversalLaws.assertTraversalLaws(eachTag, tags, String::toUpperCase, s -> s + "!");
     }
   }
 

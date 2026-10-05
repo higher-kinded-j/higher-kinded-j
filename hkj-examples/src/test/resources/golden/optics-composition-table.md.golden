@@ -1,0 +1,7 @@
+| `first.andThen(second)` | Iso | Lens | Prism | Affine | Traversal |
+|---|---|---|---|---|---|
+| **Iso** | Iso | Lens | Prism | Affine | Traversal |
+| **Lens** | Lens | Lens | Affine | Affine | Traversal |
+| **Prism** | Prism | Affine | Prism | Affine | Traversal |
+| **Affine** | Affine | Affine | Affine | Affine | Traversal |
+| **Traversal** | Traversal | Traversal | Traversal | Traversal | Traversal |
