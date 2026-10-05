@@ -319,7 +319,7 @@ Optional<User> invalidValidated = OptionalKindHelper.OPTIONAL.narrow(invalidResu
 // Result: Optional.empty (validation failed)
 ```
 
-#### Sequencing Effects in Collections
+#### Sequencing Effects in Collections {#sequencing-effects-in-collections}
 
 <!-- verify -->
 ```java
@@ -349,6 +349,8 @@ Kind<OptionalKind.Witness, List<Integer>> failedResult =
 Optional<List<Integer>> failed = OptionalKindHelper.OPTIONAL.narrow(failedResult);
 // Result: Optional.empty (validation failed on -2)
 ```
+
+Each time the effect from `modifyF` runs, it builds a fresh list. So an `IO` gives an equal list on every run, and the `List` applicative gives one list per combination of choices. `forMapValues()` does the same with a map.
 
 ### Step 7: Converting to Traversal
 
@@ -577,17 +579,17 @@ Setters are **lightweight and efficient**:
 * **Minimal overhead**: Just function composition
 * **No reflection**: Direct method calls
 * **JIT-friendly**: Can be inlined by the JVM
-* **O(n) collection operations**: `forList()` and `forMapValues()` are optimised to avoid quadratic time complexity
+* **O(n) collection construction**: `forList()` and `forMapValues()` build their result without copying it at each step
 
 ### Optimised Collection Operations
 
 The `modifyF` implementations in `forList()` and `forMapValues()` use efficient algorithms:
 
-* **Right-to-left folding**: Uses `LinkedList` with O(1) prepending instead of repeated array copying
+* **Right-to-left folding**: Prepends each result onto an immutable list in constant time, instead of copying an array at each step
 * **Single pass construction**: Collects effects first, sequences them, then builds the final collection once
-* **Linear time complexity**: O(n) for lists and maps with n elements
+* **Linear-time construction**: Building the result takes O(n) for n elements
 
-This means you can safely use effectful modifications on large collections without performance concerns:
+So rebuilding a large collection takes linear time:
 
 <!-- verify -->
 ```java

@@ -17,9 +17,9 @@ import org.jspecify.annotations.NullMarked;
 /**
  * Provides a {@link Traversal} instance for {@link VStream} elements.
  *
- * <p>The traversal materialises the VStream to a list, sequences each element effect using
- * copy-safe accumulation via {@link IndexedTraversals#sequenceList}, and reconstructs a VStream
- * from the result via {@link VStream#fromList}.
+ * <p>The traversal materialises the VStream to a list, sequences each element effect via {@link
+ * IndexedTraversals#sequenceList}, which builds a fresh list on each run of the effect, and
+ * reconstructs a VStream from the result via {@link VStream#fromList}.
  *
  * <p><b>Materialisation Warning:</b> The VStream is fully consumed during traversal. This is only
  * safe for finite streams. Using this traversal on infinite streams will not terminate.
@@ -51,8 +51,8 @@ public final class VStreamTraversals {
    * Creates a {@link Traversal} for {@link VStream} elements.
    *
    * <p>The traversal materialises the stream to a list (consuming it), applies the effectful
-   * function to each element and sequences the results using copy-safe accumulation via {@link
-   * IndexedTraversals#sequenceList}, then converts the result back to a VStream.
+   * function to each element and sequences the results via {@link IndexedTraversals#sequenceList},
+   * then converts the result back to a VStream.
    *
    * <p><b>Warning:</b> The VStream is fully evaluated during traversal. Only use with finite
    * streams. Infinite streams will cause non-termination.
@@ -74,7 +74,7 @@ public final class VStreamTraversals {
           modifiedEffects.add(f.apply(a));
         }
 
-        // Sequence effects using copy-safe accumulation, then convert back to VStream
+        // Sequence the effects, then convert back to VStream
         Kind<G, List<A>> result = IndexedTraversals.sequenceList(modifiedEffects, applicative);
         return applicative.map(VStream::fromList, result);
       }

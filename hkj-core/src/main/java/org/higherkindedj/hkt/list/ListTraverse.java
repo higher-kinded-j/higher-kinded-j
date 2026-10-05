@@ -74,10 +74,11 @@ public enum ListTraverse implements Traverse<ListKind.Witness> {
    *       org.higherkindedj.hkt.trampoline.TrampolineUtils#traverseListStackSafe} instead.
    * </ul>
    *
-   * <p><b>Performance Note:</b> This implementation creates a new {@code LinkedList} on each
-   * iteration to ensure correct behaviour for all {@code Applicative} types, including those that
-   * create multiple branches (like {@code List}). For large lists, consider using more efficient
-   * data structures or the stack-safe alternative in {@code TrampolineUtils}.
+   * <p><b>Performance Note:</b> Each step prepends its result onto an immutable cons list in
+   * constant time, and one reversal at the end restores the order, so building the list takes time
+   * linear in its length. No step mutates a shared list, so the traversal is also correct for an
+   * {@code Applicative} that calls its combining function more than once (each branch of {@code
+   * List}, each run of {@code IO}).
    *
    * @param <G> The higher-kinded type witness for the {@link Applicative} context.
    * @param <A> The type of elements in the input list {@code ta}.

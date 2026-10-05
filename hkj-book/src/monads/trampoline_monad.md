@@ -80,7 +80,7 @@ Step 3: Wrap recursive calls          f(x)        -->  Trampoline.defer(() -> f(
 That is it. No restructuring, no cleverness. Follow these three steps and your function becomes stack-safe. Call `.run()` on the result to execute it.
 ~~~
 
-## Core Components
+## Core Components {#core-components}
 
 | Component | Role |
 |-----------|------|
@@ -93,7 +93,7 @@ That is it. No restructuring, no cleverness. Follow these three steps and your f
 | `TrampolineKind<A>` | HKT marker (`Kind<TrampolineKind.Witness, A>`) so Trampoline works with generic typeclasses |
 | `TrampolineKindHelper` | Provides `widen`, `narrow`, `done`, `defer`, and `run` for the HKT bridge |
 | `TrampolineMonad` | `Monad<TrampolineKind.Witness>` instance: gives you `of`, `map`, and `flatMap` through the typeclass |
-| `TrampolineUtils` | Stack-safe applicative operations: `traverseListStackSafe`, `map2StackSafe`, `sequenceStackSafe` |
+| `TrampolineUtils` | Stack-safe traversal of a list under any applicative: `traverseListStackSafe`, `sequenceStackSafe` |
 
 ~~~admonish example title="Example 1: Stack-Safe Factorial"
 **Before** (naive recursion that blows the stack):
@@ -191,35 +191,34 @@ Each call to `isEven` defers to `isOdd` and vice versa. The `run()` loop handles
 ~~~
 
 ~~~admonish example title="Example 3: TrampolineUtils for Large Collections"
-When traversing large collections with custom applicatives, standard recursive `traverse` can overflow. `TrampolineUtils` provides drop-in stack-safe replacements:
+Under a lazy applicative such as `IO`, a traverse that folds from the left nests one call per element, so running the result can overflow. `TrampolineUtils` provides drop-in replacements that combine the effects as a balanced tree:
 
 <!-- verify -->
 ```java
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.trampoline.TrampolineUtils;
-import org.higherkindedj.hkt.id.*;
-import static org.higherkindedj.hkt.instances.Witnesses.id;
+import static org.higherkindedj.hkt.instances.Witnesses.io;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-List<Integer> largeList = IntStream.range(0, 100_000)
-    .boxed()
-    .collect(Collectors.toList());
+List<Integer> largeList = IntStream.range(0, 100_000).boxed().toList();
 
-Kind<IdKind.Witness, List<String>> result =
+Kind<IOKind.Witness, List<String>> result =
     TrampolineUtils.traverseListStackSafe(
         largeList,
-        i -> Id.of("item-" + i),
-        Instances.monad(id())
+        i -> IO_OP.widen(IO.delay(() -> "item-" + i)),
+        Instances.monad(io())
     );
 
-List<String> items = IdKindHelper.ID.narrow(result).value();
+List<String> items = IO_OP.narrow(result).unsafeRunSync();
 System.out.println("Traversed " + items.size() + " elements safely");
 ```
 
-Key utilities: `traverseListStackSafe` and `sequenceStackSafe`. Use these when your collection might exceed 10,000 elements.
+Key utilities: `traverseListStackSafe` and `sequenceStackSafe`. Use them for a large collection under a lazy or custom applicative. They sit beside `Trampoline` but need no trampoline, since no call nests deeper than about log₂(n).
 ~~~
 
 ## When to Use Trampoline
@@ -228,7 +227,7 @@ Key utilities: `traverseListStackSafe` and `sequenceStackSafe`. Use these when y
 |----------|----------------|
 | Deep single recursion (>5,000 frames) | Use Trampoline: this is exactly what it is for |
 | Mutual recursion at any depth | Use Trampoline: you cannot convert mutual recursion to a simple loop |
-| Traversing large collections with custom applicatives | Use `TrampolineUtils` |
+| Traversing large collections with a lazy or custom applicative | Use `TrampolineUtils` |
 | Recursive tree walking (JSON, XML, file systems) | Use Trampoline: tree depth is unpredictable in production |
 | Shallow recursion (<1,000 frames) | Skip it: the overhead is not justified |
 | Performance-critical tight loops | Skip it: a hand-written `while` loop will always be faster |
@@ -268,7 +267,7 @@ public sealed interface Trampoline<T> permits Done, More {
 }
 ```
 
-Higher-Kinded-J extends this foundation in several ways: adding `FlatMap<A,B>` as a third variant for monadic sequencing, integrating with the HKT simulation so `Trampoline` participates in generic typeclass code, and providing `TrampolineUtils` for stack-safe applicative traversal of large collections. The `Free` monad's `foldMap` also uses `Trampoline` internally for stack-safe interpretation, a direct payoff of having a first-class trampoline abstraction in the library.
+Higher-Kinded-J extends this foundation in two ways: adding `FlatMap<A,B>` as a third variant for monadic sequencing, and integrating with the HKT simulation so `Trampoline` participates in generic typeclass code. The `Free` monad's `foldMap` also uses `Trampoline` internally for stack-safe interpretation, a direct payoff of having a first-class trampoline abstraction in the library.
 ~~~
 
 ~~~admonish example title="Benchmarks"

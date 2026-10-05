@@ -3,9 +3,15 @@
 package org.higherkindedj.optics.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.id.IdKindHelper.ID;
+import static org.higherkindedj.hkt.instances.Witnesses.id;
 
 import java.util.List;
 import java.util.Map;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.id.Id;
+import org.higherkindedj.hkt.id.IdKind;
+import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.optics.indexed.IndexedFold;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
@@ -239,6 +245,30 @@ class IndexedTraversalsTest {
       // Test isEmpty
       assertThat(fold.isEmpty(source)).isFalse();
       assertThat(fold.isEmpty(List.of())).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("sequenceList() - Sequencing a list of effects")
+  class SequenceListTests {
+
+    @Test
+    @DisplayName("should sequence no effects to an unmodifiable empty list")
+    void sequencesNoEffectsToUnmodifiableEmptyList() {
+      Kind<IdKind.Witness, List<String>> result =
+          IndexedTraversals.sequenceList(List.of(), Instances.monad(id()));
+
+      assertThat(ID.narrow(result).value()).isUnmodifiable().isEmpty();
+    }
+
+    @Test
+    @DisplayName("should sequence effects in order into an unmodifiable list")
+    void sequencesEffectsInOrderToUnmodifiableList() {
+      Kind<IdKind.Witness, List<String>> result =
+          IndexedTraversals.sequenceList(
+              List.<Kind<IdKind.Witness, String>>of(Id.of("a"), Id.of("b")), Instances.monad(id()));
+
+      assertThat(ID.narrow(result).value()).isUnmodifiable().containsExactly("a", "b");
     }
   }
 

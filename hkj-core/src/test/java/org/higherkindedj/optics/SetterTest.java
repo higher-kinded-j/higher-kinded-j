@@ -4,14 +4,26 @@ package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
+import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.optional.OptionalKind;
 import org.higherkindedj.hkt.optional.OptionalKindHelper;
 import org.junit.jupiter.api.DisplayName;
@@ -369,6 +381,48 @@ class SetterTest {
     }
 
     @Test
+    @DisplayName("modifyF with forList() reports the earliest failure under Either")
+    void modifyFListReportsEarliestFailure() {
+      Setter<List<Integer>, Integer> listSetter = Setter.forList();
+
+      Kind<EitherKind.Witness<String>, List<Integer>> result =
+          listSetter.modifyF(
+              n -> EITHER.widen(n > 0 ? Either.right(n) : Either.left("rejected " + n)),
+              List.of(1, -2, -3),
+              Instances.monadError(either()));
+
+      assertThatEither(result).hasLeft("rejected -2");
+    }
+
+    @Test
+    @DisplayName("modifyF with forList() gives an equal list on every run of the effect")
+    void modifyFListRunsRepeatably() {
+      Setter<List<String>, String> listSetter = Setter.forList();
+
+      Kind<IOKind.Witness, List<String>> result =
+          listSetter.modifyF(
+              s -> IO_OP.widen(IO.delay(s::toUpperCase)), List.of("a", "b"), Instances.monad(io()));
+
+      assertThatIO(result).hasValue(List.of("A", "B")).isRepeatable();
+    }
+
+    @Test
+    @DisplayName("modifyF with forList() gives every combination under the List applicative")
+    void modifyFListGivesEveryCombination() {
+      Setter<List<String>, String> listSetter = Setter.forList();
+
+      Kind<ListKind.Witness, List<String>> result =
+          listSetter.modifyF(
+              s -> LIST.widen(List.of(s + "1", s + "2")),
+              List.of("a", "b"),
+              Instances.monad(list()));
+
+      assertThatList(result)
+          .containsExactly(
+              List.of("a1", "b1"), List.of("a1", "b2"), List.of("a2", "b1"), List.of("a2", "b2"));
+    }
+
+    @Test
     @DisplayName("modifyF with forMapValues() should sequence effects")
     void modifyFMapValuesSequencesEffects() {
       Setter<Map<String, Integer>, Integer> mapSetter = Setter.forMapValues();
@@ -436,6 +490,39 @@ class SetterTest {
       Optional<Map<String, Integer>> optResult = OptionalKindHelper.OPTIONAL.narrow(result);
       assertThat(optResult).isPresent();
       assertThat(optResult.get()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("modifyF with forMapValues() gives an equal map on every run of the effect")
+    void modifyFMapValuesRunsRepeatably() {
+      Setter<Map<String, String>, String> mapSetter = Setter.forMapValues();
+
+      Kind<IOKind.Witness, Map<String, String>> result =
+          mapSetter.modifyF(
+              s -> IO_OP.widen(IO.delay(s::toUpperCase)),
+              Map.of("first", "a", "second", "b"),
+              Instances.monad(io()));
+
+      assertThatIO(result).hasValue(Map.of("first", "A", "second", "B")).isRepeatable();
+    }
+
+    @Test
+    @DisplayName("modifyF with forMapValues() gives every combination under the List applicative")
+    void modifyFMapValuesGivesEveryCombination() {
+      Setter<Map<String, String>, String> mapSetter = Setter.forMapValues();
+
+      Kind<ListKind.Witness, Map<String, String>> result =
+          mapSetter.modifyF(
+              s -> LIST.widen(List.of(s + "1", s + "2")),
+              new TreeMap<>(Map.of("first", "a", "second", "b")),
+              Instances.monad(list()));
+
+      assertThatList(result)
+          .containsExactly(
+              Map.of("first", "a1", "second", "b1"),
+              Map.of("first", "a1", "second", "b2"),
+              Map.of("first", "a2", "second", "b1"),
+              Map.of("first", "a2", "second", "b2"));
     }
 
     @Test

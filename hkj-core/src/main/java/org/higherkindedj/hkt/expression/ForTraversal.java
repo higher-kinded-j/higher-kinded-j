@@ -129,12 +129,12 @@ public final class ForTraversal {
     Kind<F, S> run();
 
     /**
-     * Collects all focused elements into a list.
+     * Collects the focused elements that pass every {@link #filter} into a list.
      *
      * <p>Note: This operation extracts the current state of elements and collects them. It does not
      * apply any pending transformations that would modify the structure.
      *
-     * @return A list of all focused elements in the applicative context.
+     * @return An unmodifiable list of the matching focused elements in the applicative context.
      */
     Kind<F, List<A>> toList();
   }
@@ -215,7 +215,8 @@ public final class ForTraversal {
 
     @Override
     public Kind<F, List<A>> toList() {
-      return applicative.of(traversal.asFold().getAll(source));
+      return applicative.of(
+          traversal.asFold().getAll(source).stream().filter(filterPredicate).toList());
     }
   }
 }

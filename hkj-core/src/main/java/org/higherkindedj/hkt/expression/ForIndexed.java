@@ -147,9 +147,10 @@ public final class ForIndexed {
     Kind<F, S> run();
 
     /**
-     * Collects all focused elements along with their indices into a list.
+     * Collects the focused elements that pass every {@link #filterIndex} and {@link #filter}, along
+     * with their indices, into a list.
      *
-     * @return A list of index-value pairs in the applicative context.
+     * @return An unmodifiable list of the matching index-value pairs in the applicative context.
      */
     Kind<F, List<Pair<I, A>>> toIndexedList();
   }
@@ -242,7 +243,10 @@ public final class ForIndexed {
 
     @Override
     public Kind<F, List<Pair<I, A>>> toIndexedList() {
-      return applicative.of(traversal.asIndexedFold().toIndexedList(source));
+      return applicative.of(
+          traversal.asIndexedFold().toIndexedList(source).stream()
+              .filter(pair -> filterPredicate.test(pair.first(), pair.second()))
+              .toList());
     }
   }
 }
