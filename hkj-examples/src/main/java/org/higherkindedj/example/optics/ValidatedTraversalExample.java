@@ -4,7 +4,6 @@ package org.higherkindedj.example.optics;
 
 // ANCHOR: complete_example
 
-import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.List;
@@ -169,11 +168,13 @@ public class ValidatedTraversalExample {
   }
 
   /**
-   * Demonstrates using Selective for smarter validation. Skip expensive validations if cheap checks
-   * fail.
+   * Demonstrates using Selective to keep the expensive validation's result only where a cheap check
+   * passes. {@code modifyWhen} still calls the function for every element; the cheap check decides
+   * which result is kept.
    */
   private static void selectiveValidationExample() {
-    System.out.println("--- Scenario 7: Selective Validation (Smart Short-Circuiting) ---");
+    System.out.println(
+        "--- Scenario 7: Selective Validation (Keeping the Result Conditionally) ---");
 
     var userWithInvalidPerms =
         new VTUser(
@@ -187,7 +188,7 @@ public class ValidatedTraversalExample {
 
     System.out.println("Input: " + form);
 
-    // Two-stage validation: cheap check first, expensive check only if needed
+    // Two-stage validation: the cheap check decides whose expensive result is kept
     Predicate<String> notEmpty = name -> !name.isEmpty();
 
     Function<String, Kind<ValidatedKind.Witness<String>, String>> expensiveValidation =
@@ -202,12 +203,14 @@ public class ValidatedTraversalExample {
     Kind<ValidatedKind.Witness<String>, Form> selectiveResult =
         FORM_TO_PERMISSION_NAMES.modifyWhen(
             notEmpty, // Cheap check
-            expensiveValidation, // Expensive check (only if cheap passes)
+            expensiveValidation, // Runs for every element; kept only where the cheap check passes
             form,
             selective);
 
     System.out.println("Result: " + VALIDATED.narrow(selectiveResult));
-    System.out.println("Note: Expensive validation only ran for non-empty permissions\n");
+    System.out.println(
+        "Note: the expensive result was kept only for non-empty permissions,"
+            + " though the function ran for every element\n");
   }
 }
 // ANCHOR_END: complete_example

@@ -45,7 +45,7 @@ User updated = userFontSize.modify(size -> size + 2, user);
 
 ### Why It Works
 
-Each `Prisms.some()` safely handles the Optional: if any Optional is empty, `modify` is skipped and the original structure is returned unchanged. (`set` would behave differently on an empty last step: [Affines](affine.md#when-the-focus-is-absent) explains.)
+Each `Prisms.some()` safely handles the Optional: if any Optional is empty, `modify` leaves the structure unchanged, and so does `set` here, because the path ends in a lens. A path that *ends* in an optional step writes even when it is empty: see [When the focus is absent](affine.md#when-the-focus-is-absent).
 
 ---
 

@@ -8,6 +8,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -46,16 +47,19 @@ public class PrismUsageExample {
 
   public static void main(String[] args) {
 
-    // 2. Create an initial, nested JSON-like structure.
+    // 2. Create an initial, nested JSON-like structure. TreeMap keeps the printed key order stable.
     var data =
         new JsonObject(
-            Map.of(
-                "user",
-                new JsonObject(Map.of("name", new JsonString("Alice"), "id", new JsonNumber(123))),
-                "status",
-                new JsonString("active"),
-                "empty_field",
-                new JsonString("")));
+            new TreeMap<>(
+                Map.of(
+                    "user",
+                    new JsonObject(
+                        new TreeMap<>(
+                            Map.of("name", new JsonString("Alice"), "id", new JsonNumber(123)))),
+                    "status",
+                    new JsonString("active"),
+                    "empty_field",
+                    new JsonString(""))));
 
     System.out.println("Original Data: " + data);
     System.out.println("------------------------------------------");
@@ -70,7 +74,6 @@ public class PrismUsageExample {
     Lens<JsonString, String> jsonStringValueLens = JsonStringLenses.value();
 
     // Compose the optics to create the full path from the root to the user's name.
-    // The local `mapValue` helper has been replaced with the static `Traversal.forMap` method.
     Traversal<JsonObject, String> userToJsonName =
         fieldsLens
             .andThen(Traversals.forMap("user"))

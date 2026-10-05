@@ -18,7 +18,7 @@ The Focus DSL provides a fluent, path-based syntax for working with optics. Inst
 
 ---
 
-## The Whole Feature on One Screen {#five-minute-focus-dsl}
+## The Whole Feature on One Screen
 
 If you only have a few minutes, this is the entire feature.
 
@@ -165,7 +165,7 @@ Company updated = allEmployeeNames.modifyAll(String::toUpperCase, company);
 
 ## The Three Path Types
 
-Focus DSL provides three path types, one for each answer to "how many values does this path reach?". Each hop can only keep the count or widen it:
+Focus DSL provides three path types, one for each answer to "how many values does this path reach?". Each navigation hop keeps the count or widens it, and `headOption()` is the one step back, from many to at most one:
 
 | Path type | Reaches | After an optional step | After a collection step |
 |---|---|---|---|
@@ -223,7 +223,7 @@ boolean hasEmail = emailPath.matches(employee);
 ~~~admonish warning title="Set on an absent focus writes anyway"
 `set` through an `AffinePath` is not conditional. `EmployeeFocus.email().set(x, employee)` on an employee with no email returns an employee *with* that email, because the last step's setter rebuilds the present case unconditionally: `Affine.set` "always updates the structure", as its own javadoc puts it. `modify` is the operation that no-ops on an absent focus.
 
-The rule is positional. A miss at the *last* step writes through and creates the focus; a miss at an *earlier* step of a multi-step path skips the whole set, because `Affine.andThen(Affine)` does guard. When absence must be preserved, reach for `modify`, or test with `matches` first.
+The rule is positional. A miss at the *last* step writes through and creates the focus when that step can build the value (a prism, `.some()`, `.nullable()`). A miss at an *earlier* step of a multi-step path skips the whole set, because `Affine.andThen(Affine)` does guard. When absence must be preserved, reach for `modify`, or test with `matches` first.
 ~~~
 
 ### TraversalPath: Zero or More Elements

@@ -175,6 +175,8 @@ Kind<IdKind.Witness, String> result =
 // Result: "Budget: 50000 cents = $500.00"
 ```
 
+This Iso is lossless only for amounts in whole cents: `intValueExact` refuses a value with more than two decimal places. That is why the `ForState` example in this section rounds back to whole cents before it stores the result.
+
 Both values are available in `yield()` without any manual conversion. When used with a `MonadZero` such as `Maybe` or `List`, `through()` preserves the ability to apply `when()` guards on the converted values:
 
 <!-- verify -->
@@ -221,7 +223,7 @@ For the full range of optics operations within comprehensions (including travers
 
 <!-- verify -->
 ```java
-// A date and its day number since 1970: the same information, convertible both ways
+// A date and its day number since 1970: the same information both ways, for any day LocalDate holds
 Iso<LocalDate, Long> epochDayIso = Iso.of(LocalDate::toEpochDay, LocalDate::ofEpochDay);
 
 // Use with any date-focused lens

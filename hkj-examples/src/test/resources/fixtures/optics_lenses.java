@@ -8,6 +8,7 @@
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
 // (see build.gradle.kts).
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.optics.Affine;

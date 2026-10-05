@@ -4,7 +4,11 @@ package org.higherkindedj.example.optics;
 
 // ANCHOR: complete_example
 
-import java.util.*;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Fold;

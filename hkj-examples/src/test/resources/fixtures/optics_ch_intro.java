@@ -12,6 +12,10 @@ import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
 class Fixture {
-  static final User user =
-      new User("Ada", new Address(new Street("Fleet Street", 1), "London"));
+  /** The page names a user but does not build one: snippets are compiled, never run. */
+  static <A> A sample() {
+    throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
+  }
+
+  static final User user = sample();
 }

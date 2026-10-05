@@ -50,7 +50,7 @@ private static final TraversalPath<Order, BigDecimal> ALL_PRICES =
 
 This matters most for paths constructed by `andThen` chains, where the whole composition is rebuilt on every call. The saving is smaller but real for a single accessor too, because a generated accessor is a factory rather than a constant: `CompanyLenses.name()` calls `Lens.of(...)` and allocates a fresh `Lens` every time, and `CompanyFocus.name()` allocates a `Lens` and a `FocusPath`.
 
-Both cases assume the path is used more than once. A path used once has no allocation to amortise, which is why the table that follows still says to inline it at the call site.
+Both cases assume the path is used more than once. A path used once has no allocation to amortise, which is why [When to extract optics](#when-to-extract-optics) still says to inline it at the call site.
 
 ---
 

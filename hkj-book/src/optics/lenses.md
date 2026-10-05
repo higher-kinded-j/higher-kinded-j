@@ -207,18 +207,17 @@ Affine<User, Settings> userSettings = settingsLens.andThen(somePrism);
 See [Composition Rules](composition_rules.md) for the complete reference on how different optics compose.
 ~~~
 
-### Use Manual Lens Creation When:
+### Use Manual Lens Creation When: {#use-manual-lens-creation-when}
 
-* **Legacy integration** - A type you cannot annotate; for a whole library of them, [Optics for External Types](importing_optics.md) generates the lenses instead
-* **A shortcut path** - One hand-written lens for a hop your code makes often
+* **A type you cannot annotate**: a JDK or library class. For a whole library of them, [Optics for External Types](importing_optics.md) generates the lenses instead
 
 
 <!-- verify -->
 ```java
-// A shortcut straight from an employee to their company's address
-Lens<Employee, Address> employeeToAddress = Lens.of(
-    emp -> emp.company().address(),
-    (emp, address) -> new Employee(emp.name(), new Company(emp.company().name(), address))
+// java.time.Duration cannot carry @GenerateLenses, so write its lens by hand
+Lens<Duration, Long> seconds = Lens.of(
+    Duration::getSeconds,
+    (duration, s) -> Duration.ofSeconds(s, duration.getNano())
 );
 ```
 
@@ -245,7 +244,7 @@ A wither knows only its own record. A change three records deep takes one wither
 
 Neither creates a value, so a lens can replace `@With`, never `@Builder`. A class built with Lombok gets lenses through [`@Wither` or `@ViaBuilder`](copy_strategies.md), with Lombok listed before `hkj-processor` ([Lombok setup](../tooling/manual_setup.md#lombok)).
 
-Java 25, which the library is built on, has no wither in the language. [JEP 468](https://openjdk.org/jeps/468) proposes one: a `with` block that changes any components of one record through one constructor call. A block constructs once, as `Lens.paired` does, but it changes one record, so the street change nests three blocks where the composed lens is one call.
+Java 25, which the library is built on today, has no wither in the language. [JEP 468](https://openjdk.org/jeps/468) proposes one: a `with` block that changes any components of one record through one constructor call. A block constructs once, as `Lens.paired` does, but it changes one record, so the street change nests three blocks where the composed lens is one call.
 
 ---
 

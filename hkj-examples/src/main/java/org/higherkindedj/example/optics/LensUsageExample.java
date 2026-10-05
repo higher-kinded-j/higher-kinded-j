@@ -35,10 +35,10 @@ public class LensUsageExample {
     System.out.println("------------------------------------------");
 
     // =======================================================================
-    // SCENARIO 1: Using the new `with*` helper methods for shallow updates
+    // SCENARIO 1: Using the generated `with*` helper methods for shallow updates
     // =======================================================================
 
-    // The generated `EmployeeLenses` class now contains static `with*` methods.
+    // The generated `EmployeeLenses` class contains static `with*` methods.
     // This is highly discoverable in an IDE by typing `EmployeeLenses.with...`
     Employee employeeWithNewName = EmployeeLenses.withName(initialEmployee, "Bob");
     System.out.println("After `withName`:    " + employeeWithNewName);

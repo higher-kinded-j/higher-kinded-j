@@ -117,7 +117,7 @@ JsonValue result3 = jsonStringPrism.build(new JsonString("world"));
 
 ### Step 3: Composing Prisms for Deep Access
 
-The true power is composing `Prism`s with other optics. When a `Prism` meets a `Lens` or an `Affine`, the focus can be missing and nothing can build the whole from it, so the result is an `Affine`. Two prisms stay a `Prism`, and anything combined with a `Traversal` is a `Traversal`.
+The true power is composing `Prism`s with other optics. When a `Prism` meets a `Lens` or an `Affine`, the focus can be missing and nothing can build the whole from it, so the result is an `Affine`. Two prisms stay a `Prism`. A `Prism`, `Lens` or `Affine` followed by a `Traversal`, or a `Traversal` followed by a `Lens` or `Prism`, is a `Traversal`.
 
 ~~~admonish tip title="Direct Composition Methods"
 higher-kinded-j provides direct composition methods that automatically return the correct type:
@@ -352,7 +352,7 @@ This example puts it all together, showing how to use the composed `Traversal` t
 **Expected Output:**
 
 ```
-Original Data: JsonObject[fields={status=JsonString[value=active], empty_field=JsonString[value=], user=JsonObject[fields={name=JsonString[value=Alice], id=JsonNumber[value=123.0]}]}]
+Original Data: JsonObject[fields={empty_field=JsonString[value=], status=JsonString[value=active], user=JsonObject[fields={id=JsonNumber[value=123.0], name=JsonString[value=Alice]}]}]
 ------------------------------------------
 --- Scenario 1: Using Composed Traversal for Deep Updates ---
 After deep `modify`:    JsonObject[fields={empty_field=JsonString[value=], user=JsonObject[fields={name=JsonString[value=ALICE], id=JsonNumber[value=123.0]}], status=JsonString[value=active]}]

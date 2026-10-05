@@ -63,8 +63,8 @@ A `Lens` provides focused access to a field within a product type (like a Java `
 
 An `Iso` (Isomorphism) defines a lossless, two-way conversion between two types. It's perfect for handling different representations of the same data.
 
-* `DeploymentTarget <-> String`: We model our deployment target as a structured record, and render it as a raw string like `"gcp|live"`. The example only reads in that direction, from the record to the string. A string that came from outside could fail to parse, and an `Iso` has no way to say so: text from outside is a [Validated Prism](validated_prism.md)'s job.
-* `String -> byte[]`: decoding Base64 fails on a malformed string, so it is **not** an `Iso` either. [Safe decoding](#do-this-instead) uses a prism, and [the Validated Prism version](#1-safe-decoding-with-a-validatedprism) keeps the reason a decode failed.
+* `DeploymentTarget <-> String`: the example renders a structured target as a raw string like `"gcp|live"`, and only reads that way. Parsing a string from outside could fail, which is a [Validated Prism](validated_prism.md)'s job.
+* `String -> byte[]` looks like a second Iso, but decoding fails on malformed Base64, so the solution decodes through a **prism**: a bad value is skipped rather than thrown. [Safe Decoding with a `ValidatedPrism`](#1-safe-decoding-with-a-validatedprism) also keeps the reason.
 
 ### 3. **Prism**: The Safe Filter
 
@@ -98,7 +98,7 @@ Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
         .andThen(ProductionTraversals.credentials())
         .andThen(CredentialPrisms.encryptedCredential())
         .andThen(EncryptedCredentialLenses.base64Secret())
-        .andThen(EncryptedCredentialIsos.base64ToBytes.asTraversal());
+        .andThen(base64Decoded);   // decoding can fail, so a prism
 ```
 
 ### Use Stream Processing When:
@@ -170,17 +170,8 @@ Iso<String, byte[]> unsafeBase64 = Iso.of(
 // Use appropriate tools for simple cases
 String configName = config.name();   // direct access is fine
 
-// Create well-named, reusable compositions
-public static final Traversal<AppConfig, byte[]> GCP_LIVE_ENCRYPTED_PASSWORDS =
-    gcpLiveOnlyPrism
-        .andThen(AppConfigTraversals.settings())
-        .andThen(SettingLenses.value())
-        .andThen(SettingValuePrisms.encryptedValue())
-        .andThen(EncryptedValueLenses.base64Value())
-        .andThen(EncryptedValueIsos.base64.asTraversal());
-
-// Handle errors gracefully
-Prism<String, byte[]> safeBase64Prism = Prism.of(
+// Handle errors gracefully: decoding can fail, so decode through a prism
+public static final Prism<String, byte[]> BASE64_DECODED = Prism.of(
     str -> {
         try {
             return Optional.of(Base64.getDecoder().decode(str));
@@ -190,12 +181,21 @@ Prism<String, byte[]> safeBase64Prism = Prism.of(
     },
     bytes -> Base64.getEncoder().encodeToString(bytes));
 
+// Create well-named, reusable compositions
+public static final Traversal<AppConfig, byte[]> GCP_LIVE_ENCRYPTED_PASSWORDS =
+    gcpLiveOnlyPrism
+        .andThen(AppConfigTraversals.settings())
+        .andThen(SettingLenses.value())
+        .andThen(SettingValuePrisms.encryptedValue())
+        .andThen(EncryptedValueLenses.base64Value())
+        .andThen(BASE64_DECODED);
+
 // Test your compositions
 @Test
 public void testBase64RoundTrip() {
     String original = "test data";
     String encoded = Base64.getEncoder().encodeToString(original.getBytes());
-    byte[] decoded = EncryptedValueIsos.base64.get(encoded);
+    byte[] decoded = BASE64_DECODED.getOptional(encoded).orElseThrow();
     assertEquals(original, new String(decoded));
 }
 ```
@@ -243,7 +243,7 @@ public class AuditPerformance {
 
 ## Composing the Solution
 
-Here's how we chain these optics together. Each `andThen` returns the most precise optic its two steps allow, and the chain starts from a traversal over the settings, so the result is a `Traversal`. The one conversion left is on the Iso at the end: a `Traversal` has no `andThen` for an `Iso`, so the Iso joins the chain as `.asTraversal()`.
+Here's how we chain these optics together. Each `andThen` returns the most precise optic its two steps allow, and the chain starts from a traversal over the settings, so the result is a `Traversal`, with no conversions along the way. The last step decodes the Base64 through a prism, so a malformed value drops out of the audit rather than throwing.
 
 The final composed optic has the type `Traversal<AppConfig, byte[]>` and reads like a declarative path: **`AppConfig -> (Filter for GCP/Live) -> each Setting -> its Value -> (Filter for Encrypted) -> the inner String -> the raw bytes`**
 
@@ -260,18 +260,29 @@ Prism<AppConfig, AppConfig> gcpLiveOnlyPrism = Prism.of(
     config -> config // The 'build' function is just identity
 );
 
-// B. Define the main traversal path to get to the data we want to audit.
+// B. Decoding Base64 can fail, so it is a prism rather than an Iso.
+Prism<String, byte[]> base64Decoded = Prism.of(
+    str -> {
+        try {
+            return Optional.of(Base64.getDecoder().decode(str));
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+    },
+    bytes -> Base64.getEncoder().encodeToString(bytes));
+
+// C. Define the main traversal path to get to the data we want to audit.
 Traversal<AppConfig, byte[]> auditTraversal =
     AppConfigTraversals.settings()                             // Traversal<AppConfig, Setting>
         .andThen(SettingLenses.value())        // Traversal<AppConfig, SettingValue>
         .andThen(SettingValuePrisms.encryptedValue()) // Traversal<AppConfig, EncryptedValue>
         .andThen(EncryptedValueLenses.base64Value())  // Traversal<AppConfig, String>
-        .andThen(EncryptedValueIsos.base64.asTraversal());   // Traversal<AppConfig, byte[]>
+        .andThen(base64Decoded);                      // Traversal<AppConfig, byte[]>
 
-// C. Combine the filter and the main traversal into the final optic.
+// D. Combine the filter and the main traversal into the final optic.
 Traversal<AppConfig, byte[]> finalAuditor = gcpLiveOnlyPrism.andThen(auditTraversal);
 
-// D. Using the final optic is now trivial.
+// E. Using the final optic is now trivial.
 // We call a static helper method from our Traversals utility class.
 List<byte[]> passwords = Traversals.getAll(finalAuditor, someConfig);
 ```
@@ -283,7 +294,7 @@ When we call `Traversals.getAll(finalAuditor, config)`, it performs the entire, 
 ## Why This is a Powerful Approach
 
 * **Declarative & Readable**: The optic chain describes *what* data to get, not *how* to loop and check for it. The logic reads like a path, making it self-documenting.
-* **Composable & Reusable**: Every optic, and every composition, is a reusable component. We could reuse `gcpLiveOnlyPrism` for other tasks, or swap out the final `base64` Iso to perform a different transformation.
+* **Composable & Reusable**: Every optic, and every composition, is a reusable component. We could reuse `gcpLiveOnlyPrism` for other tasks, or swap out the final decoding prism to perform a different transformation.
 * **Type-Safe**: The entire operation is checked by the Java compiler. It's impossible to, for example, try to decode a `StringValue` as if it were encrypted. A mismatch in the optic chain results in a compile-time error, not a runtime `ClassCastException`.
 * **Architectural Purity**: By having all optics share a common abstract parent (`Optic`), the library provides universal, lawful composition while allowing for specialised, efficient implementations.
 * **Testable**: Each component can be tested independently, and the composition can be tested as a whole.

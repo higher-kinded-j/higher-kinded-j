@@ -131,7 +131,7 @@ record Roster(String coach, List<? extends Player> players) {}
 Traversal<Roster, Player> everyPlayer = RosterTraversals.players();
 ```
 
-A wildcard cannot be written into the generated source, because `Traversal<Roster, ? extends Player>` is not a type an implementation can be declared with, so the bound is what the method hands back. It is the element type [`@GenerateFocus`](focus_containers.md) reads wherever it looks inside a container, so a Focus path over the same component reaches `Player` too. That annotation has the stricter job of composing an optic instance to widen an **SPI** container, and rejects a wildcard there rather than guessing one.
+The generated source cannot hold a wildcard: `Traversal<Roster, ? extends Player>` cannot declare an implementation. So the method hands back the bound. It is the element type [`@GenerateFocus`](focus_containers.md) reads wherever it looks inside a container, so a Focus path over the same component reaches `Player` too. That annotation has the stricter job of composing an optic instance to widen an **SPI** container, and rejects a wildcard there rather than guessing one.
 
 Modifying through the traversal builds a **fresh** container and hands it to the record's constructor, so a narrower list the field was constructed from is never written into.
 
@@ -845,7 +845,7 @@ After branching bonuses (experts +100, others +20):
     Expert: 350
 ```
 
-The program also covers three scenarios this page has not shown yet: converting the traversal to a `Fold` for aggregation (which the next section covers), selective updates with `modifyWhen`, and branching.
+Scenarios 7 to 9 convert the traversal to a `Fold` for aggregation (see [Converting to Read-Only Folds](#converting-to-read-only-folds-with-asfold)), make selective updates with `modifyWhen`, and branch.
 
 ---
 

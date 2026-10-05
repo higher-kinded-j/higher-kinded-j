@@ -605,13 +605,10 @@ Optional<Product> fifth = IxedInstances.get(IxedInstances.listIx(), 4, products)
 
 ## Performance Notes
 
-Limiting traversals are optimised for efficiency:
+What a limiting traversal costs:
 
-* **One new list per modify**: the elements outside the slice keep their references, and the list holding them is rebuilt
-* **Structural sharing**: Unchanged portions of the list are reused, not copied
-* **Lazy bounds checking**: Index calculations are minimal and performed once
-* **No boxing overhead**: Direct list operations without stream intermediaries
-* **Composable without penalty**: Chaining with other optics adds no extra iteration
+* **Element references are shared**: the elements outside the slice are reused as they are, while the list holding them is rebuilt on every modify
+* **Reusable**: store a limiting traversal as a constant and compose it like any other optic
 
 **Best Practice**: Store frequently-used limiting traversals as constants:
 

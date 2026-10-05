@@ -401,6 +401,8 @@ public static Validated<String, Form> validatePermissionsForUser(Form form) {
 With our composed `Traversal`, we can now use `modifyF` to run our validation logic. The `Traversal` handles the navigation and filtering, while the `Validated` applicative (created with a `Semigroup` for joining error strings) handles the effects and error accumulation.
 
 
+The program names its record `VTUser`, to keep it apart from the other examples in its package, so its generated prism is `PrincipalPrisms.vTUser()` where this page writes `user()`.
+
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/ValidatedTraversalExample.java:complete_example}}
 ```
@@ -436,16 +438,18 @@ Batch validation results:
 --- Scenario 6: Different Error Accumulation Strategy ---
 Input: Form[formId=3, principal=VTUser[username=charlie, permissions=[Permission[name=PERM_EXECUTE], Permission[name=PERM_WRITE], Permission[name=PERM_SUDO], Permission[name=PERM_READ]]]]
 Result with list accumulation: Invalid([Invalid permission: PERM_EXECUTE, Invalid permission: PERM_SUDO])
---- Scenario 7: Selective Validation (Smart Short-Circuiting) ---
+--- Scenario 7: Selective Validation (Keeping the Result Conditionally) ---
 Input: Form[formId=7, principal=VTUser[username=eve, permissions=[Permission[name=], Permission[name=PERM_READ], Permission[name=INVALID_PERM]]]]
   Running EXPENSIVE validation for:
   Running EXPENSIVE validation for: PERM_READ
   Running EXPENSIVE validation for: INVALID_PERM
 Result: Invalid(Invalid permission: INVALID_PERM)
-Note: Expensive validation only ran for non-empty permissions
+Note: the expensive result was kept only for non-empty permissions, though the function ran for every element
 ```
 
 This shows how our single, composed optic correctly handled all cases: it accumulated multiple failures into a single `Invalid` result, and it correctly did nothing (resulting in a `Valid` state) when the path did not match. This is the power of composing simple, reusable optics to solve complex problems in a safe, declarative, and boilerplate-free way.
+
+Scenario 7 runs the same path through `modifyWhen` with a `Selective`. The cheap check decides which result is kept, but the expensive function still runs for every element, as its output shows: use it to choose a result, not to save the work.
 
 ---
 
@@ -688,7 +692,7 @@ See [FluentValidationExample.java](https://github.com/higher-kinded-j/higher-kin
 
 ~~~admonish info title="Key Takeaways"
 * **Four optics, three kinds, one value.** `Lens >>> Prism >>> Traversal >>> Lens` collapses into a single `Traversal<Form, String>` that you name once and reuse for reads, writes and validations.
-* **`andThen` works out the result type.** Composing mixed optic kinds gives the least capable kind in the chain, which is why the composed path is a `Traversal` rather than a `Lens`, with no conversion needed.
+* **`andThen` works out the result type.** Composing mixed optic kinds gives the most precise kind that covers every step, which is why the composed path is a `Traversal` rather than a `Lens`, with no conversion needed.
 * **The prism is the safety.** A `Form` holding a `Guest` puts nothing in focus, so the whole pipeline returns cleanly with no branch written for the absent case.
 * **`Validated` accumulates, `Either` keeps the first.** The optic never changes; only the `Applicative` handed to `modifyF` does, and that single choice is the whole difference between a full report and one message. Neither skips elements.
 * **The fluent methods remove the ceremony, not the power.** `OpticOps` gives the same accumulation without `widen`, `narrow` or an explicit `Applicative` at the call site.

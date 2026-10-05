@@ -1,7 +1,7 @@
 // Fixture for hkj-book/src/optics/iso.md
 //
-// The page converts a Point to a tuple, cents to dollars and a date to a string, and weaves the
-// last two into comprehensions. The domain and the instances those need are declared here.
+// The page converts a Point to a tuple, cents to dollars and a date to its epoch day, and weaves
+// cents and temperatures into comprehensions. The domain and the instances those need are declared here.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures

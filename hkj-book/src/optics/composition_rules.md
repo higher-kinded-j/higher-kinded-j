@@ -13,7 +13,7 @@ When composing optics, the resulting optic type follows precise mathematical rul
 
 ---
 
-## The Optic Hierarchy
+## Ranking by Capability {#the-optic-hierarchy}
 
 Optics order themselves by capability, from most specific (most operations available) to most general (fewest). An arrow points from an optic to one that can do less:
 
@@ -36,7 +36,7 @@ flowchart TD
 ```
 
 ~~~admonish note title="Capability, not Java subtyping"
-These arrows rank what each optic can do; they are not `extends` edges. `Getter extends Fold` is the only inheritance between two optic types, and every other step across this diagram is an explicit conversion such as `asFold()` or `asTraversal()`. [Conversions](conversions.md) lists the ones that exist, and [Optic Capabilities](optic_capabilities.md) has the per-method table.
+These arrows rank what each optic can do; they are not `extends` edges. `Getter extends Fold` is the only inheritance between two optic types. Some steps are explicit conversions such as `asFold()` or `asTraversal()`; others, such as Lens to Affine, are reached only by composing. [Conversions](conversions.md) lists the ones that exist, and [Optic Capabilities](optic_capabilities.md) has the per-method table.
 ~~~
 
 **What is Affine?** An Affine optic focuses on **zero or one** element within a structure. It combines the partial access of a Prism with the update capability of a Lens. Common use cases include:

@@ -38,7 +38,7 @@ List<String> stillEmpty = firstElement.set("X", empty);  // [] (unchanged)
 - Optional fields in product types
 - Composing Lens with Prism (result is Affine)
 
-**Composition:** `Lens.andThen(Prism)`, `Prism.andThen(Lens)` and `Affine.andThen(Lens)` give an Affine; an Affine composed with a Traversal gives a Traversal.
+**Composition:** `Lens.andThen(Prism)`, `Prism.andThen(Lens)` and `Affine.andThen(Lens)` give an Affine; an Affine followed by a Traversal gives a Traversal.
 
 **Related:** [Lens](#lens), [Prism](#prism), [Affine Documentation](../optics/affine.md)
 
@@ -146,7 +146,7 @@ FieldError located = bare.at("zip").at("address");      // pathString() == "addr
 
 **Definition:** A domain-specific language for fluent, type-safe navigation and manipulation of immutable data structures. The Focus DSL provides a composable way to build paths through nested records without manual lens composition.
 
-**Core Concept:** Instead of composing optics manually, the Focus DSL lets you chain `.via(...)` hops off a generated path (or `.field()` hops, with navigators on), with the optic types inferred automatically.
+**Core Concept:** Instead of composing optics manually, the Focus DSL lets you chain `.via(...)` hops off a generated path, with the optic types inferred automatically. With navigators on, a hop can be named after its field instead, such as `.address()`.
 
 **Example:**
 <!-- verify -->

@@ -171,6 +171,17 @@ class Fixture {
 
   static final Traversal<AppConfig, byte[]> auditTraversal = sample();
 
+  static final Prism<String, byte[]> base64Decoded =
+      Prism.of(
+          str -> {
+            try {
+              return Optional.of(Base64.getDecoder().decode(str));
+            } catch (IllegalArgumentException e) {
+              return Optional.empty();
+            }
+          },
+          bytes -> Base64.getEncoder().encodeToString(bytes));
+
   static final Prism<AppConfig, AppConfig> devEnvironmentPrism = sample();
 
   static final Prism<AppConfig, AppConfig> stagingEnvironmentPrism = sample();

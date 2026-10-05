@@ -118,6 +118,7 @@
     "tutorials/optics/fluent_free_journey.html#tutorial-09-fluent-optics-api-10-minutes": "tutorials/optics/fluent_free_journey.html#tutorial-09-fluent-optics-api",
     "tutorials/optics/fluent_free_journey.html#tutorial-10-advanced-prism-patterns-10-minutes": "tutorials/optics/fluent_free_journey.html#tutorial-10-advanced-prism-patterns",
     "tutorials/optics/fluent_free_journey.html#tutorial-11-free-monad-dsl-15-minutes": "tutorials/optics/fluent_free_journey.html#tutorial-11-free-monad-dsl",
+    "optics/focus_dsl.html#five-minute-focus-dsl": "optics/focus_dsl.html#the-whole-feature-on-one-screen",
     "tutorials/optics/focus_dsl_journey.html#tutorial-12-focus-dsl-basics-10-minutes": "tutorials/optics/focus_dsl_journey.html#tutorial-12-focus-dsl-basics",
     "tutorials/optics/focus_dsl_journey.html#tutorial-13-advanced-focus-dsl-10-minutes": "tutorials/optics/focus_dsl_journey.html#tutorial-13-advanced-focus-dsl",
     "tutorials/optics/focus_dsl_journey.html#tutorial-19-navigator-generation-10-minutes": "tutorials/optics/focus_dsl_journey.html#tutorial-19-navigator-generation",

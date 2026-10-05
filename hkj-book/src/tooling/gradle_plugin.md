@@ -169,7 +169,7 @@ hkj {
 ```
 
 ~~~admonish warning
-With `preview = false` the plugin adds no `--enable-preview` flags. Code that reaches the preview classes (`VTask`'s `Scope` and `Par`, and the parallel `VStream` operations) then fails to compile or to load, so add the flags yourself wherever it does. [Prerequisites](../quickstart.md#prerequisites) says which code that is; `Either`, `Validated`, the mapper and sequential optics need no flag.
+With `preview = false` the plugin adds no `--enable-preview` flags, so code that reaches the preview classes fails to compile or to load. Add the flags yourself for that code; [Prerequisites](../quickstart.md#prerequisites) says which code it is.
 ~~~
 
 ### Disable Compile-Time Checks

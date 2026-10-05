@@ -60,8 +60,8 @@ Think of an optic as a *zoom lens* for your data. It's a first-class object that
 
 Every optic answers two questions about a structure `S` and a part `A` inside it:
 
-1. **How many parts does it reach?** A Lens reaches exactly one, a Prism or an Affine zero or one, and a Traversal or a Fold any number. So each reads in its own way: a Lens has `get`, a Prism and an Affine have `getOptional`, and a Traversal or a Fold gives you all of them as a list.
-2. **Can it write?** Lens, Prism, Affine, Iso and Traversal can: give them new parts and you get back a new `S` with those parts updated. A write never mutates; a new copy of `S` is returned. The read-only `Fold` is the deliberate exception: it queries but never writes.
+1. **How many parts does it reach?** A Lens or an Iso reaches exactly one, a Prism or an Affine zero or one, and a Traversal or a Fold any number. Each reads accordingly: with `get`, with `getOptional`, or as a list of them all.
+2. **Can it write?** Lens, Prism, Affine, Iso and Traversal can: give them new parts and you get back a new `S` with those parts updated. A write never mutates; a new copy of `S` is returned. The read-only `Fold` and `Getter` are the exceptions: they query but never write.
 
 The real power comes from their **composability**. You can chain optics together to peer deeply into nested structures and perform targeted updates with ease.
 
@@ -254,7 +254,7 @@ This brings us to the unique advantages `higher-kinded-j` offers for optics in J
 
 * **Use `with*` helpers** for simple, top-level field updates
 * **Use composed lenses** for deep updates or when you need to reuse the path
-* **Use manual lens creation** for a type you cannot annotate. A lens over a *computed* property is usually unlawful (setting a value and reading it back need not give the same value), so check one with `LensLaws` before you rely on it
+* **Use manual lens creation** for a type you cannot annotate, and test it with `LensLaws`: see [Use Manual Lens Creation When](lenses.md#use-manual-lens-creation-when)
 
 ### Decision Guide
 
