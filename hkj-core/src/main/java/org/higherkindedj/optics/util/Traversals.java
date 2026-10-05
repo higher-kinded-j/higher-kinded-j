@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -166,7 +166,8 @@ public final class Traversals {
    *
    * <p>If the key exists in the map, the traversal focuses on its corresponding value. If the key
    * does not exist, or maps to {@code null}, the traversal focuses on zero elements, and any
-   * modification will have no effect.
+   * modification will have no effect. A modified map is a {@link LinkedHashMap} that keeps the
+   * source's iteration order.
    *
    * @param key The key to focus on in the map.
    * @param <K> The type of the map's keys.
@@ -190,8 +191,8 @@ public final class Traversals {
         // Map the result back into the map structure.
         return applicative.map(
             newValue -> {
-              // Create a new map to preserve immutability.
-              Map<K, V> newMap = new HashMap<>(source);
+              // Create a new map to preserve immutability, in the source's iteration order.
+              Map<K, V> newMap = new LinkedHashMap<>(source);
               newMap.put(key, newValue);
               return newMap;
             },
@@ -420,7 +421,10 @@ public final class Traversals {
    * keys.
    *
    * <p>This traversal applies an effectful function to each value in the map while keeping all keys
-   * unchanged. The order of traversal follows the map's iteration order.
+   * unchanged. The order of traversal follows the map's iteration order, and the rebuilt map is a
+   * {@link LinkedHashMap} in that same order, so a {@code LinkedHashMap} or {@code TreeMap} source
+   * keeps its order (though a {@code TreeMap} does not stay a {@code TreeMap}; use {@link
+   * #forMapValuesCollecting(Function)} to rebuild the map type).
    *
    * <p>This is distinct from {@link #forMap(Object)} which focuses on a single key-value pair. This
    * traversal focuses on all values simultaneously.
@@ -506,11 +510,12 @@ public final class Traversals {
    *
    * <p>The traversal applies the effectful function to each value of {@code source} while keeping
    * the keys unchanged, then hands the rebuilt JDK map to {@code collector} to produce a fresh
-   * instance of {@code M}. The bound {@code M extends Map} keeps the helper applicable to any
-   * persistent or specialised map whose interface inherits from {@link Map}: PCollections {@code
-   * PMap} / {@code PSortedMap}, Guava {@code ImmutableMap}, Apache Commons map decorators, etc. For
-   * map types that are not {@code java.util.Map}s, use {@link #forMapValuesCollecting(Function,
-   * Function)}.
+   * instance of {@code M}. The rebuilt map is in the source's iteration order, so a collector such
+   * as {@code LinkedHashMap::new} keeps that order. The bound {@code M extends Map} keeps the
+   * helper applicable to any persistent or specialised map whose interface inherits from {@link
+   * Map}: PCollections {@code PMap} / {@code PSortedMap}, Guava {@code ImmutableMap}, Apache
+   * Commons map decorators, etc. For map types that are not {@code java.util.Map}s, use {@link
+   * #forMapValuesCollecting(Function, Function)}.
    *
    * <pre>{@code
    * // PCollections HashTreePMap
@@ -638,7 +643,7 @@ public final class Traversals {
           final Applicative<F> applicative) {
 
     if (map.isEmpty()) {
-      return applicative.of(new HashMap<>());
+      return applicative.of(new LinkedHashMap<>());
     }
 
     // The values are traversed as a list and the keys zipped back onto the result, which walks the
@@ -653,7 +658,9 @@ public final class Traversals {
 
     return applicative.map(
         newValues -> {
-          final Map<K, W> result = new HashMap<>(newValues.size());
+          // A LinkedHashMap keeps the source's iteration order, so a collector sees the entries in
+          // it.
+          final Map<K, W> result = LinkedHashMap.newLinkedHashMap(newValues.size());
           for (int index = 0; index < newValues.size(); index++) {
             result.put(keys.get(index), newValues.get(index));
           }
