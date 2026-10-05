@@ -14,7 +14,7 @@ Consider an order containing a list of items, each with a price. Applying a disc
 ```java
 var everyScore = LeagueTraversals.teams()
     .andThen(TeamTraversals.players())
-    .andThen(PlayerLenses.score().asTraversal());
+    .andThen(PlayerLenses.score());
 
 League bonus = Traversals.modify(everyScore, score -> score + 5, league);
 // Traversals.getAll(everyScore, league) -> [100, 90, 110, 120]

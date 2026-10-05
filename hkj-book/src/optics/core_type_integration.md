@@ -305,8 +305,8 @@ Lens<Customer, String> emailLens = CustomerLenses.email();
 
 Traversal<ApiResponse, String> emailPath = dataLens
     .andThen(orderTraversal)
-    .andThen(customerLens.asTraversal())
-    .andThen(emailLens.asTraversal());
+    .andThen(customerLens)
+    .andThen(emailLens);
 
 List<String> emails = Traversals.getAll(emailPath, response);
 // Result: ["customer@example.com"] or [] if no order data

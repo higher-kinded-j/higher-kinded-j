@@ -449,7 +449,7 @@ The ladder caps at `coupled9` because cross-field invariants past five fields ar
 
 ## Lens Laws
 
-Paired lenses satisfy the standard lens laws:
+Paired lenses satisfy the standard lens laws when the two lenses focus on different components and the constructor accepts the values you set:
 
 - **GetPut:** `set(get(s), s) == s`
 - **PutGet:** `get(set(a, s)) == a`

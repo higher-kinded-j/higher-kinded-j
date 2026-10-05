@@ -108,11 +108,11 @@ Prism<ConfigValue, NestedConfig> nested = ConfigValuePrisms.nestedConfig();
 Lens<NestedConfig, Map<String, ConfigValue>> values = NestedConfigLenses.values();
 
 Traversal<ConfigValue, ConfigValue> databaseConfig =
-    nested.asTraversal()
-        .andThen(values.asTraversal())
+    nested
+        .andThen(values)
         .andThen(Traversals.forMap("database"))
-        .andThen(nested.asTraversal())
-        .andThen(values.asTraversal())
+        .andThen(nested)
+        .andThen(values)
         .andThen(Traversals.forMap("connection"));
 
 // Extract with fallback

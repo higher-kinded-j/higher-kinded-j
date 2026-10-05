@@ -159,7 +159,7 @@ Prism<Value, ObjectValue> object();
 Both produce a `Prism`, so both compose the same way afterwards. Pick by what the library gives you: a type to test, or a method to ask.
 
 ~~~admonish warning title="The focus has to be a variant, not the value it carries"
-A prism runs both ways. The generated one builds back with identity — it returns the value it narrowed — so the focus must be a type the source accepts:
+A prism runs both ways. The generated one builds back with identity (it returns the value it narrowed), so the focus must be a type the source accepts:
 
 <!-- verify:rejects "focuses 'String', which is not a 'Value'" -->
 ```java
@@ -171,12 +171,12 @@ interface ValueOpticsSpec extends OpticsSpec<Value> {
 }
 ```
 
-There is nothing the processor could rebuild a `Value` from a bare `String` with. Focus the variant that carries it — `StringValue`, `TextNode` — and read the payload with a lens or a further optic. Where the value type really is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
+There is nothing the processor could rebuild a `Value` from a bare `String` with. Focus the variant that carries it, such as `StringValue` or `TextNode`, and read the payload with a lens or a further optic. Where the value type really is the point, write that prism by hand with `Prism.of` and a build side that constructs the source, such as `TextNode::valueOf`.
 ~~~
 
 ### Parameterised Targets
 
-`@InstanceOf` takes a class constant, which is always raw, and the generated test runs after erasure. A parameterised target may therefore only be narrowed to the type arguments the source type *pins down* — the ones a value of that source type must already have had to reach the test at all.
+`@InstanceOf` takes a class constant, which is always raw, and the generated test runs after erasure. A parameterised target may therefore only be narrowed to the type arguments the source type *pins down*: the ones a value of that source type must already have had to reach the test at all.
 
 ```mermaid
 flowchart TD
@@ -224,7 +224,7 @@ interface ShapeOpticsSpec<T> extends OpticsSpec<Shape> {
 }
 ```
 
-Widened to the wildcard, which is what the test earns, it is accepted — and the spec needs no type parameter of its own once the prism stops promising one:
+Widened to the wildcard, which is what the test earns, it is accepted, and the spec needs no type parameter of its own once the prism stops promising one:
 
 <!-- verify -->
 ```java
@@ -281,7 +281,7 @@ Each method declares the parameters **its own** source and focus types reach, wh
 
 The third row is worth noting: the source type need not be generic at all. A prism or traversal whose *focus* is parameterised brings the parameter in on its own.
 
-One parameter is carried without being reached directly — one that a kept parameter's bound names, since the bound has to resolve. `interface SubjectOpticsSpec<T, V extends List<T>> extends OpticsSpec<Box<V>>` focused through `V` generates `static <T, V extends List<T>> Lens<Box<V>, String> label()`: `T` appears nowhere in the signature's source or focus, and is declared anyway so that `V`'s bound means something.
+One parameter is carried without being reached directly: one that a kept parameter's bound names, since the bound has to resolve. `interface SubjectOpticsSpec<T, V extends List<T>> extends OpticsSpec<Box<V>>` focused through `V` generates `static <T, V extends List<T>> Lens<Box<V>, String> label()`: `T` appears nowhere in the signature's source or focus, and is declared anyway so that `V`'s bound means something.
 
 An optic method cannot declare parameters of its own. The source type is fixed by `OpticsSpec<S>`, so nothing could ever bind them, and the declaration is rejected rather than generating a method no call could resolve:
 

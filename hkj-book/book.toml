@@ -25,6 +25,12 @@ level = 1
 "/extending-simulation.html" = "https://higher-kinded-j.github.io/hkts/extending-simulation.html"
 "/for-comprehension.html" = "https://higher-kinded-j.github.io/functional/for-comprehension.html"
 "/optics/record_mapping.html" = "https://higher-kinded-j.github.io/mapping/ch_intro.html"
+"/optics/at.html" = "indexed_access.html"
+"/optics/ixed.html" = "indexed_access.html"
+"/optics/lens_extensions.html" = "optics_extensions.html"
+"/optics/traversal_extensions.html" = "optics_extensions.html"
+"/optics/core_type_prisms.html" = "core_type_integration.html"
+"/optics/optics_examples.html" = "cookbook.html"
 
 [preprocessor.alerts]
 [preprocessor.admonish]

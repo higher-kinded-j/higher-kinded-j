@@ -23,10 +23,12 @@ flowchart TD
     I --> P(["Prism"])
     L --> G(["Getter"])
     L --> F(["Fold"])
-    P --> A(["Affine"])
+    L --> A(["Affine"])
+    P --> A
     A --> F
     A --> T(["Traversal"])
     P --> T
+    T --> F
     T --> St(["Setter"])
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
@@ -226,9 +228,9 @@ This approach always works but loses type information (you get a Traversal even 
 
 <!-- verify -->
 ```java
-// Preferred: uses direct andThen for correct return type
-Traversal<Config, String> hostTraversal =
-    databaseLens.andThen(somePrism).andThen(hostLens.asTraversal());
+// Preferred: direct andThen keeps the precise type, here zero or one host
+Affine<Config, String> host =
+    databaseLens.andThen(somePrism).andThen(hostLens);
 ```
 
 ### 2. Chain Multiple Compositions
@@ -236,10 +238,10 @@ Traversal<Config, String> hostTraversal =
 <!-- verify -->
 ```java
 // Multiple compositions
-Traversal<Order, String> customerEmail =
-    orderCustomerLens           // Lens<Order, Customer>
+Affine<Order, String> customerEmail =
+    orderCustomerLens                    // Lens<Order, Customer>
         .andThen(customerContactPrism)   // Prism<Customer, ContactInfo>
-        .andThen(contactEmailLens.asTraversal());  // Lens<ContactInfo, String>
+        .andThen(contactEmailLens);      // Lens<ContactInfo, String>
 ```
 
 ### 3. Store Complex Compositions as Constants
@@ -248,14 +250,14 @@ Traversal<Order, String> customerEmail =
 ```java
 public final class OrderOptics {
     // Reusable compositions
-    public static final Traversal<Order, String> CUSTOMER_EMAIL =
+    public static final Affine<Order, String> CUSTOMER_EMAIL =
         OrderLenses.customer()
             .andThen(CustomerPrisms.activeCustomer())
-            .andThen(ActiveCustomerLenses.email().asTraversal());
+            .andThen(ActiveCustomerLenses.email());
 
     public static final Traversal<Order, Money> LINE_ITEM_PRICES =
         OrderTraversals.lineItems()
-            .andThen(LineItemLenses.price().asTraversal());
+            .andThen(LineItemLenses.price());
 }
 ```
 
@@ -301,10 +303,10 @@ Navigate to an optional field that may not exist:
 @GenerateLenses record Address(String street, String city) {}
 
 // Lens to Optional, Prism to extract, Lens to field
-Traversal<User, String> userCity =
+Affine<User, String> userCity =
     UserLenses.address()           // Lens<User, Optional<Address>>
         .andThen(Prisms.some())    // Prism<Optional<Address>, Address>
-        .andThen(AddressLenses.city().asTraversal()); // Lens<Address, String>
+        .andThen(AddressLenses.city()); // Lens<Address, String>
 ```
 
 ### Pattern 2: Sum Type Field Access

@@ -18,7 +18,7 @@ The Focus DSL provides a fluent, path-based syntax for working with optics. Inst
 
 ---
 
-## Five-Minute Focus DSL
+## The Whole Feature on One Screen {#five-minute-focus-dsl}
 
 If you only have a few minutes, this is the entire feature.
 
@@ -68,7 +68,7 @@ Deep updates without optics mean rebuilding every record on the way down. With r
 Traversal<Company, String> employeeNames =
     CompanyTraversals.departments()
         .andThen(DepartmentTraversals.employees())
-        .andThen(EmployeeLenses.name().asTraversal());
+        .andThen(EmployeeLenses.name());
 
 List<String> names = Traversals.getAll(employeeNames, company);
 ```
@@ -89,7 +89,7 @@ List<String> names =
 ## Think of Focus Paths Like...
 
 - **File system paths**: `/company/departments/employees/name`
-- **JSON pointers**: `$.departments[*].employees[*].name`
+- **JSONPath**: `$.departments[*].employees[*].name`
 - **XPath expressions**: `//department/employee/name`
 - **IDE navigation**: click through nested fields with autocomplete
 
@@ -165,18 +165,13 @@ Company updated = allEmployeeNames.modifyAll(String::toUpperCase, company);
 
 ## The Three Path Types
 
-Focus DSL provides three path types, mirroring the optic hierarchy:
+Focus DSL provides three path types, one for each answer to "how many values does this path reach?". Each hop can only keep the count or widen it:
 
-```
-         FocusPath<S, A>
-        (exactly one focus)
-               |
-        AffinePath<S, A>
-      (zero or one focus)
-               |
-      TraversalPath<S, A>
-      (zero or more focus)
-```
+| Path type | Reaches | After an optional step | After a collection step |
+|---|---|---|---|
+| `FocusPath<S, A>` | exactly one value | `AffinePath` | `TraversalPath` |
+| `AffinePath<S, A>` | zero or one value | `AffinePath` | `TraversalPath` |
+| `TraversalPath<S, A>` | zero or more values | `TraversalPath` | `TraversalPath` |
 
 ### FocusPath: Exactly One Element
 

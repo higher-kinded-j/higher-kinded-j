@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.At;
 import org.higherkindedj.optics.Ixed;
 import org.higherkindedj.optics.Lens;

@@ -273,7 +273,7 @@ Ixed<Map<String, Integer>, String, Integer> mapIx = IxedInstances.mapIx();
 
 // Compose: Config → Map<String, Integer> → Integer (0-or-1)
 Traversal<Config, Integer> maxConnectionsTraversal =
-    settingsLens.asTraversal().andThen(mapIx.ix("maxConnections"));
+    settingsLens.andThen(mapIx.ix("maxConnections"));
 
 Config config = new Config(new HashMap<>(Map.of("maxConnections", 100)));
 
@@ -283,7 +283,7 @@ Config updated = Traversals.modify(maxConnectionsTraversal, x -> x * 2, config);
 
 // Missing key = empty focus, modification is no-op
 Traversal<Config, Integer> missingTraversal =
-    settingsLens.asTraversal().andThen(mapIx.ix("nonexistent"));
+    settingsLens.andThen(mapIx.ix("nonexistent"));
 
 Config unchanged = Traversals.modify(missingTraversal, x -> x + 1, config);
 // Result: Config unchanged, no "nonexistent" key added
@@ -369,11 +369,11 @@ Lens<Config, Optional<String>> settingLens =
     settingsLens.andThen(settingsAt.at("theme"));
 
 Prism<Optional<String>, String> some = Prisms.some();
-Traversal<Config, String> valueTraversal =
-    settingLens.asTraversal().andThen(some.asTraversal());
+Affine<Config, String> value =
+    settingLens.andThen(some);
 
 // Now you can work with the actual String, not Optional<String>
-Config result = Traversals.modify(valueTraversal, String::trim, config);
+Config result = value.modify(String::trim, config);
 ```
 ~~~
 

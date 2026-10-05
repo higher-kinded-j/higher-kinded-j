@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+// ANCHOR: complete_example
+
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
@@ -71,13 +73,12 @@ public class PrismUsageExample {
     // The local `mapValue` helper has been replaced with the static `Traversal.forMap` method.
     Traversal<JsonObject, String> userToJsonName =
         fieldsLens
-            .asTraversal()
             .andThen(Traversals.forMap("user"))
-            .andThen(jsonObjectPrism.asTraversal())
-            .andThen(fieldsLens.asTraversal())
+            .andThen(jsonObjectPrism)
+            .andThen(fieldsLens)
             .andThen(Traversals.forMap("name"))
-            .andThen(jsonStringPrism.asTraversal())
-            .andThen(jsonStringValueLens.asTraversal());
+            .andThen(jsonStringPrism)
+            .andThen(jsonStringValueLens);
 
     var updatedData =
         IdKindHelper.ID
@@ -96,8 +97,8 @@ public class PrismUsageExample {
 
     Traversal<JsonObject, String> allTopLevelStringValues =
         JsonObjectTraversals.fields() // Traverses all values in the `fields` map
-            .andThen(jsonStringPrism.asTraversal()) // Filters for strings
-            .andThen(jsonStringValueLens.asTraversal()); // Gets the string content
+            .andThen(jsonStringPrism) // Filters for strings
+            .andThen(jsonStringValueLens); // Gets the string content
 
     Function<String, Kind<ValidatedKind.Witness<String>, String>> checkNonEmpty =
         s ->
@@ -114,3 +115,4 @@ public class PrismUsageExample {
     System.out.println("Validation Result: " + VALIDATED.narrow(validationResult));
   }
 }
+// ANCHOR_END: complete_example

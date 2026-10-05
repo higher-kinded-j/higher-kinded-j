@@ -12,6 +12,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.list;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.UUID;
 import java.time.format.DateTimeFormatter;
@@ -84,8 +85,8 @@ class Fixture {
           c -> new Fahrenheit(c.value() * 9 / 5 + 32),
           f -> new Celsius((f.value() - 32) * 5 / 9));
 
-  static final Iso<Integer, Double> centsToDollars =
-      Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
+  static final Iso<Integer, BigDecimal> centsToDollars =
+      Iso.of(cents -> BigDecimal.valueOf(cents, 2), dollars -> dollars.movePointRight(2).intValueExact());
 
   static final Department department = new Department("Sales", 70000);
 

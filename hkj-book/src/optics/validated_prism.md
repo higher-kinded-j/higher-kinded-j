@@ -158,7 +158,7 @@ The [null doctrine](../mapping/basics.md#null-doctrine) reaches inside all of th
 
 Mapping is not injective, so a container can **collapse**: a prism mapping both `"1"` and `"01"` to one domain value leaves a smaller set, and the source spellings cannot be recovered. A set drops the duplicate **silently** - the domain values that remain are equal to the ones dropped, so the set still holds every distinct value it was given. Two map keys parsing to one domain key are a located `duplicates an earlier key` instead: there the dropped entry takes its own value with it, and that value need not be equal to anything. Either way the prism doing it already breaks the [section law](#laws), which is what stops a lawful mapping collapsing at all.
 
-(Bracketed index rendering, `emails[1]`, is deliberately deferred to the future sealed path-segment model; today's paths are flat dotted segments, and the positional segment matches the map-key grammar.)
+(Bracketed index rendering, `emails[1]`, is not supported yet: paths are flat dotted segments, and the positional segment matches the map-key grammar.)
 
 ---
 

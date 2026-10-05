@@ -26,7 +26,6 @@ Consider these real-world requirements:
 - **Audit trails**: Record every data change for compliance
 - **Validation**: Check all constraints before making any changes
 - **Testing**: Verify your logic without touching real data
-- **Optimisation**: Analyse and fuse multiple operations for efficiency
 - **Structural analysis**: count what a program contains, with `ProgramAnalyser.analyse`, without running a step
 
 This is where the Free Monad DSL comes in. It lets you **describe** a sequence of optic operations as data, then **interpret** that description in different ways.
@@ -223,14 +222,14 @@ Team team = new Team("Wildcats",
 Free<OpticOpKind.Witness, Boolean> scoreUpdateProgram =
     OpticPrograms.modifyAll(
         team,
-        TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
+        TeamTraversals.players().andThen(PlayerLenses.score()),
         score -> score * 2
     )
     .flatMap(updatedTeam ->
         // Now check if all players have passing scores
         OpticPrograms.all(
             updatedTeam,
-            TeamTraversals.players().andThen(PlayerLenses.score().asTraversal()),
+            TeamTraversals.players().andThen(PlayerLenses.score()),
             score -> score >= 100
         )
     );
@@ -387,7 +386,7 @@ Free<OpticOpKind.Witness, ProductCatalogue> bulkPriceUpdate(
     return OpticPrograms.modifyAll(
         catalogue,
         ProductCatalogueTraversals.products()
-            .andThen(ProductLenses.price().asTraversal()),
+            .andThen(ProductLenses.price()),
         price -> price.multiply(BigDecimal.ONE.add(markup))
     );
 }
@@ -565,8 +564,7 @@ Free<OpticOpKind.Witness, Tuple2<Team, ProcessingStats>> processTeamWithStats(
 - Validation before execution
 - Testing complex logic
 - Multiple execution strategies
-- Optimisation opportunities
-- Dry-run capabilities
+- Structural analysis before anything runs
 
 ### When to Use Direct Execution
 

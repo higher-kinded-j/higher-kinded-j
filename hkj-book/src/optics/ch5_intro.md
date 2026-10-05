@@ -11,10 +11,10 @@ Theory is useful; working code is better. Here is the chapter's capstone in mini
 <!-- verify -->
 ```java
 Traversal<Form, String> everyPermissionName =
-    FormLenses.principal().asTraversal()
-        .andThen(PrincipalPrisms.user().asTraversal())
+    FormLenses.principal()
+        .andThen(PrincipalPrisms.user())
         .andThen(UserTraversals.permissions())
-        .andThen(PermissionLenses.name().asTraversal());
+        .andThen(PermissionLenses.name());
 
 Validated<String, Form> checked =
     VALIDATED.narrow(

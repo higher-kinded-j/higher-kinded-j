@@ -29,7 +29,7 @@ An **`Iso`** (Isomorphism) is a "two-way street." It is an optic that represents
 An `Iso` is the right tool when you need to:
 
 * Convert a wrapper type to its raw value (e.g., `UserId(long id)` <-> `long`).
-* Handle data encoding and decoding (e.g., `byte[]` <-> `Base64 String`).
+* Change units or representation without losing anything (e.g., whole cents <-> the same amount written to two decimal places).
 * Bridge two data structures that are informationally identical (e.g., a custom record and a generic tuple).
 
 Let us explore that last case. Imagine we have a `Point` record and want to convert it to a generic `Tuple2` to use with a library that operates on tuples.
@@ -51,7 +51,7 @@ These two records can hold the same information. An `Iso` is the perfect way to 
 * **A universal translator**: Perfect two-way conversion between equivalent representations
 * **A reversible adapter**: Converts between formats without losing information
 * **A bridge**: Connects two different structures that represent the same data
-* **A currency exchange**: Converts between equivalent values at a 1:1 rate
+* **A unit conversion**: The same quantity in two units, convertible both ways with nothing lost
 
 ---
 
@@ -100,7 +100,7 @@ public class Converters {
 
 This is useful when you need to avoid name collisions or organise generated code separately.
 
-The annotated method has to be `static`, take no arguments, be reachable from the generated package, and return an `Iso` whose two type arguments name no type variable. Each of those is a question about the *field*: `@GenerateIsos` publishes the iso as a `public static final` field, and a field has nowhere to declare a `<T>` and no receiver to call an instance method on. It is alone in this among the optics annotations — the rest generate static *methods*, which can declare type parameters and do.
+The annotated method has to be `static`, take no arguments, be reachable from the generated package, and return an `Iso` whose two type arguments name no type variable. Each of those is a question about the *field*: `@GenerateIsos` publishes the iso as a `public static final` field, and a field has nowhere to declare a `<T>` and no receiver to call an instance method on. It is alone in this among the optics annotations: the rest generate static *methods*, which can declare type parameters and do.
 
 So `<T> Iso<Box<T>, T> boxIso()` is refused where it is written rather than generating a field naming a `T` that nothing declares. Note the rule is about what the **iso** names, not what the method declares: `<T> Iso<Box, String> boxIso()` generates fine, because `T` is inferred at the call and never reaches the field's type. Give the iso concrete type arguments (`Iso<Box<String>, String>`), or call the method directly and skip the generated field.
 
@@ -162,15 +162,17 @@ The `For` comprehension's `through()` method does exactly this. It converts the 
 
 <!-- verify -->
 ```java
-Iso<Integer, Double> centsToDollars =
-    Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
+// Whole cents, and the same amount in dollars to two decimal places
+Iso<Integer, BigDecimal> centsToDollars =
+    Iso.of(cents -> BigDecimal.valueOf(cents, 2),
+           dollars -> dollars.movePointRight(2).intValueExact());
 
 Kind<IdKind.Witness, String> result =
     For.from(idMonad, Id.of(50000))
         .through(centsToDollars)
         .yield((cents, dollars) ->
             "Budget: " + cents + " cents = $" + dollars);
-// Result: "Budget: 50000 cents = $500.0"
+// Result: "Budget: 50000 cents = $500.00"
 ```
 
 Both values are available in `yield()` without any manual conversion. When used with a `MonadZero` such as `Maybe` or `List`, `through()` preserves the ability to apply `when()` guards on the converted values:
@@ -188,14 +190,15 @@ Within a [ForState](../functional/forstate_comprehension.md) workflow, two addit
 
 <!-- verify -->
 ```java
-// Increase budget by 10%, reasoning in dollars, storing in cents
+// Increase budget by 10%, reasoning in dollars, rounding back to whole cents
 ForState.withState(idMonad, Id.of(department))
-    .modifyVia(budgetLens, centsToDollars, dollars -> dollars * 1.1)
+    .modifyVia(budgetLens, centsToDollars,
+        dollars -> dollars.multiply(new BigDecimal("1.1")).setScale(2, RoundingMode.HALF_EVEN))
     .yield();
 
 // Set budget to exactly $750.00 (stored internally as 75000 cents)
 ForState.withState(idMonad, Id.of(department))
-    .updateVia(budgetLens, centsToDollars, 750.0)
+    .updateVia(budgetLens, centsToDollars, new BigDecimal("750.00"))
     .yield();
 ```
 
@@ -218,15 +221,12 @@ For the full range of optics operations within comprehensions (including travers
 
 <!-- verify -->
 ```java
-// Perfect for format conversion
-Iso<LocalDate, String> dateStringIso = Iso.of(
-    date -> date.format(DateTimeFormatter.ISO_LOCAL_DATE),
-    dateStr -> LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
-);
+// A date and its day number since 1970: the same information, convertible both ways
+Iso<LocalDate, Long> epochDayIso = Iso.of(LocalDate::toEpochDay, LocalDate::ofEpochDay);
 
 // Use with any date-focused lens
-Lens<Person, String> birthDateStringLens =
-    PersonLenses.birthDate().andThen(dateStringIso);
+Lens<Person, Long> birthEpochDayLens =
+    PersonLenses.birthDate().andThen(epochDayIso);
 ```
 
 ### Use Direct Conversion Methods When:
@@ -293,13 +293,10 @@ var iso3 = Iso.of(Point::x, x -> new Point(x, 0));
 
 <!-- verify -->
 ```java
-// True isomorphism - perfect round-trip
-Iso<Point, String> goodPointIso = Iso.of(
-    point -> point.x() + "," + point.y(),
-    str -> {
-        String[] parts = str.split(",");
-        return new Point(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
-    }
+// True isomorphism: every Point has exactly one Tuple2, and back
+Iso<Point, Tuple2<Integer, Integer>> goodPointIso = Iso.of(
+    point -> Tuple.of(point.x(), point.y()),
+    tuple -> new Point(tuple._1(), tuple._2())
 );
 
 // Test your isomorphisms
@@ -323,8 +320,6 @@ public static final Iso<Point, Tuple2<Integer, Integer>> POINT_TO_TUPLE =
 
 Isos are designed for efficient, lossless conversion:
 
-* **Zero overhead composition**: Multiple Iso compositions are fused into single operations
-* **Lazy evaluation**: Conversions only happen when needed
 * **Type safety**: All conversions are checked at compile time
 * **Reusable**: Isos can be stored and reused across your application
 

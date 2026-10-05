@@ -72,7 +72,7 @@ This code is deeply nested and mixes the *what* (add 5 to a score) with the *how
 
 The library provides a rich set of tools for creating `Traversal` instances, found in the **`Traversals`** utility class and through annotations.
 
-* **`@GenerateTraversals`**: Annotating a record generates a `Traversal` for every component whose container a generator recognises: `List`, `Set`, `Collection`, `Map` (its values), `Optional` and arrays from the JDK; `Maybe`, `Either`, `Try` and `Validated` from HKJ; and the third-party collections the [generator plugins](../tooling/generator_plugins.md) cover. A component that holds elements but reaches no traversal — a `Deque`, a `SortedMap`, a raw `List` — is reported as a compile-time **note** where it is declared, because the generated class compiles perfectly well without the method and the gap would otherwise be found at the call site. A component that is not a container at all is passed over silently.
+* **`@GenerateTraversals`**: Annotating a record generates a `Traversal` for every component whose container a generator recognises: `List`, `Set`, `Collection`, `Map` (its values), `Optional` and arrays from the JDK; `Maybe`, `Either`, `Try` and `Validated` from HKJ; and the third-party collections the [generator plugins](../tooling/generator_plugins.md) cover. A component that holds elements but reaches no traversal (a `Deque`, a `SortedMap`, a raw `List`) is reported as a compile-time **note** where it is declared, because the generated class compiles perfectly well without the method and the gap would otherwise be found at the call site. A component that is not a container at all is passed over silently.
 
 **Standard Container Traversals:**
 
@@ -131,7 +131,7 @@ record Roster(String coach, List<? extends Player> players) {}
 Traversal<Roster, Player> everyPlayer = RosterTraversals.players();
 ```
 
-A wildcard cannot be written into the generated source — `Traversal<Roster, ? extends Player>` is not a type an implementation can be declared with — so the bound is what the method hands back. It is the element type [`@GenerateFocus`](focus_containers.md) reads wherever it looks inside a container, so a Focus path over the same component reaches `Player` too. That annotation has the stricter job of composing an optic instance to widen an **SPI** container, and rejects a wildcard there rather than guessing one.
+A wildcard cannot be written into the generated source, because `Traversal<Roster, ? extends Player>` is not a type an implementation can be declared with, so the bound is what the method hands back. It is the element type [`@GenerateFocus`](focus_containers.md) reads wherever it looks inside a container, so a Focus path over the same component reaches `Player` too. That annotation has the stricter job of composing an optic instance to widen an **SPI** container, and rejects a wildcard there rather than guessing one.
 
 Modifying through the traversal builds a **fresh** container and hands it to the record's constructor, so a narrower list the field was constructed from is never written into.
 
@@ -148,7 +148,7 @@ record Squad<T>(String coach, List<T> members) {}
 Traversal<Squad<Player>, Player> everyMember = SquadTraversals.members();
 ```
 
-Arrays work the same way, whatever their element type: an `int[]` is focused as `Integer` and boxed on the way through, and an element type the traversal cannot name in a `new` expression — `List<Player>[]`, `Player[][]`, `T[]` — is rebuilt by copying the source array to length, which keeps its runtime component type.
+Arrays work the same way, whatever their element type: an `int[]` is focused as `Integer` and boxed on the way through, and an element type the traversal cannot name in a `new` expression (`List<Player>[]`, `Player[][]`, `T[]`) is rebuilt by copying the source array to length, which keeps its runtime component type.
 
 #### Collection Components
 
@@ -162,11 +162,11 @@ record Crew(String name, Collection<Player> members) {}
 Traversal<Crew, Player> everyMember = CrewTraversals.members();
 ```
 
-A `Collection` names no more than "holds elements", so the generated traversal does not settle on a shape of its own. It calls `Traversals.traverseCollection`, which rebuilds a `Set` source as an unmodifiable set in the source's iteration order and every other source as a list — the one rebuild policy behind `Traversals.forCollection()` and `EachInstances.collectionEach()`, so a `Collection` reached through `@GenerateTraversals`, [`@GenerateFocus`](focus_containers.md#supported-container-types), `@ImportOptics` or `@ThroughField` comes back the same way. Rebuilding a set as a list would let a modification that maps two elements onto the same value leave duplicates in a collection that had none.
+A `Collection` names no more than "holds elements", so the generated traversal does not settle on a shape of its own. It calls `Traversals.traverseCollection`, which rebuilds a `Set` source as an unmodifiable set in the source's iteration order and every other source as a list: the one rebuild policy behind `Traversals.forCollection()` and `EachInstances.collectionEach()`, so a `Collection` reached through `@GenerateTraversals`, [`@GenerateFocus`](focus_containers.md#supported-container-types), `@ImportOptics` or `@ThroughField` comes back the same way. Rebuilding a set as a list would let a modification that maps two elements onto the same value leave duplicates in a collection that had none.
 
-Two limits follow from `Collection` being all the declaration says, and `Traversals.forCollection()` documents both: a `SortedSet` source keeps its elements but not its comparator, and a source that is neither a `List` nor a `Set` — an `ArrayDeque`, a `PriorityQueue` — comes back a `List`. Declare the component as the `List` or `Set` it really is if that matters.
+Two limits follow from `Collection` being all the declaration says, and `Traversals.forCollection()` documents both: a `SortedSet` source keeps its elements but not its comparator, and a source that is neither a `List` nor a `Set` (an `ArrayDeque`, a `PriorityQueue`) comes back a `List`. Declare the component as the `List` or `Set` it really is if that matters.
 
-A component declared as some *other* `Collection` subtype — `Deque<Task>`, `SortedSet<Tag>`, `ArrayList<String>` — has no generator, and is not silently skipped: the processor reports a note on the component, naming the type nothing supports and what to do about it. A note rather than a warning, because the annotation has no per-component opt-out and a processor warning would fail a `-Werror` build with no way to answer it. See [Compiler Errors](compiler_errors.md#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note).
+A component declared as some *other* `Collection` subtype (`Deque<Task>`, `SortedSet<Tag>`, `ArrayList<String>`) has no generator, and is not silently skipped: the processor reports a note on the component, naming the type nothing supports and what to do about it. A note rather than a warning, because the annotation has no per-component opt-out and a processor warning would fail a `-Werror` build with no way to answer it. See [Compiler Errors](compiler_errors.md#generatetraversals-no-traversal-was-generated-for-component-xy-of-type-dequet-a-note).
 
 ### Step 2: Composing a Deep Traversal
 
@@ -183,7 +183,7 @@ Lens<Player, Integer> playerToScore = PlayerLenses.score();
 Traversal<League, Integer> leagueToAllPlayerScores =
     leagueToTeams
         .andThen(teamToPlayers)
-        .andThen(playerToScore.asTraversal()); // Convert the final Lens
+        .andThen(playerToScore); // a Lens after a Traversal: still a Traversal
 ```
 
 The result is a single `Traversal<League, Integer>` that declaratively represents the path to all player scores.
@@ -236,7 +236,7 @@ flowchart TD
 // Perfect for bulk updates with type safety
 Traversal<Company, String> allEmails = CompanyTraversals.employees()
     .andThen(EmployeeTraversals.contactInfo())
-    .andThen(ContactInfoLenses.email().asTraversal());
+    .andThen(ContactInfoLenses.email());
 
 Company withNormalisedEmails = Traversals.modify(allEmails, String::toLowerCase, company);
 ```
@@ -288,7 +288,7 @@ for (Team team : league.teams()) {
 ```java
 // Inefficient: Creating traversals repeatedly
 teams.forEach(team -> {
-    var traversal = TeamTraversals.players().andThen(PlayerLenses.score().asTraversal());
+    var traversal = TeamTraversals.players().andThen(PlayerLenses.score());
     Traversals.modify(traversal, score -> score + 1, team);
 });
 
@@ -309,7 +309,7 @@ List<Integer> scores = Traversals.getAll(leagueToAllPlayerScores, emptyLeague); 
 // Efficient: Create traversals once, use many times
 var scoreTraversal = LeagueTraversals.teams()
     .andThen(TeamTraversals.players())
-    .andThen(PlayerLenses.score().asTraversal());
+    .andThen(PlayerLenses.score());
 
 League bonusLeague = Traversals.modify(scoreTraversal, score -> score + 5, league);
 League doubledLeague = Traversals.modify(scoreTraversal, score -> score * 2, league);
@@ -340,12 +340,12 @@ public class LeagueOptics {
     public static final Traversal<League, Integer> ALL_PLAYER_SCORES = 
         LeagueTraversals.teams()
             .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.score().asTraversal());
+            .andThen(PlayerLenses.score());
       
     public static final Traversal<League, String> ALL_PLAYER_NAMES = 
         LeagueTraversals.teams()
             .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.name().asTraversal());
+            .andThen(PlayerLenses.name());
 }
 ```
 
@@ -361,7 +361,7 @@ public class LeagueOptics {
 // Validate every email address in the company
 Traversal<Company, String> allEmails = CompanyTraversals.employees()
     .andThen(EmployeeTraversals.contactInfo())
-    .andThen(ContactInfoLenses.email().asTraversal());
+    .andThen(ContactInfoLenses.email());
 
 Function<String, Kind<ValidatedKind.Witness<List<String>>, String>> validateEmail = 
     email -> email.contains("@") 
@@ -448,7 +448,7 @@ public record DatabaseConfig(String host, int port, String name) {}
 public class ConfigValidation {
     private static final Traversal<ServerConfig, Integer> ALL_DB_PORTS = 
         ServerConfigTraversals.databases()
-            .andThen(DatabaseConfigLenses.port().asTraversal());
+            .andThen(DatabaseConfigLenses.port());
   
     public static Validated<List<String>, ServerConfig> validateConfig(ServerConfig config) {
         Function<Integer, Kind<ValidatedKind.Witness<List<String>>, Integer>> validatePort = 
@@ -502,7 +502,7 @@ Consider this scenario: you have a catalogue of products across multiple categor
 // This doesn't work - modify operates on each element independently
 Traversal<Catalogue, Double> allPrices = CatalogueTraversals.categories()
     .andThen(CategoryTraversals.products())
-    .andThen(ProductLenses.price().asTraversal());
+    .andThen(ProductLenses.price());
 
 // This sorts nothing - each price is transformed in isolation
 Catalogue result = Traversals.modify(allPrices, price -> price, catalogue);
@@ -548,7 +548,7 @@ The `Traversals` utility class provides convenience methods that combine `partsO
 <!-- verify -->
 ```java
 Traversal<List<Product>, Double> priceTraversal =
-    Traversals.<Product>forList().andThen(ProductLenses.price().asTraversal());
+    Traversals.<Product>forList().andThen(ProductLenses.price());
 
 // Sort prices in ascending order
 List<Product> sortedProducts = Traversals.sorted(priceTraversal, products);
@@ -559,7 +559,7 @@ List<Product> sortedProducts = Traversals.sorted(priceTraversal, products);
 <!-- verify -->
 ```java
 Traversal<List<Product>, String> nameTraversal =
-    Traversals.<Product>forList().andThen(ProductLenses.name().asTraversal());
+    Traversals.<Product>forList().andThen(ProductLenses.name());
 
 // Sort names case-insensitively
 List<Product> sortedByName = Traversals.sorted(
@@ -581,7 +581,7 @@ List<Product> sortedByLength = Traversals.sorted(
 <!-- verify -->
 ```java
 Traversal<Project, Integer> priorityTraversal =
-    ProjectTraversals.tasks().andThen(TaskLenses.priority().asTraversal());
+    ProjectTraversals.tasks().andThen(TaskLenses.priority());
 
 // Reverse all priorities
 Project reversedProject = Traversals.reversed(priorityTraversal, project);
@@ -594,7 +594,7 @@ Project reversedProject = Traversals.reversed(priorityTraversal, project);
 <!-- verify -->
 ```java
 Traversal<List<Product>, String> tagTraversal =
-    Traversals.<Product>forList().andThen(ProductLenses.tag().asTraversal());
+    Traversals.<Product>forList().andThen(ProductLenses.tag());
 
 // Remove duplicate tags (preserves first occurrence)
 List<Product> deduplicatedProducts = Traversals.distinct(tagTraversal, products);
@@ -641,7 +641,7 @@ The `partsOf` combinator produces a lawful `Lens` when the list sizes match:
 * **Set-Get Law**: `get(set(a, s)) = a` (when `a.size() = targets`)
 * **Set-Set Law**: `set(b, set(a, s)) = set(b, s)`
 
-When sizes don't match, the laws still hold for the elements that *are* provided.
+When the sizes differ, `partsOf` is not lawful: it fills the positions it can and leaves the rest, so reading back what you set need not give the list you set.
 
 ### Advanced Use Cases
 
@@ -655,7 +655,7 @@ Filtered optics are covered properly in [Filtered Optics](filtered_optics.md); h
 Traversal<List<Product>, Double> inStockPrices =
     Traversals.<Product>forList()
         .filtered(p -> p.stockLevel() > 0)
-        .andThen(ProductLenses.price().asTraversal());
+        .andThen(ProductLenses.price());
 
 List<Product> result = Traversals.sorted(inStockPrices, products);
 // Out-of-stock products unchanged, in-stock prices sorted
@@ -696,7 +696,7 @@ public class CatalogueOptics {
     private static final Traversal<Catalogue, Double> ALL_PRICES =
         CatalogueTraversals.categories()
             .andThen(CategoryTraversals.products())
-            .andThen(ProductLenses.price().asTraversal());
+            .andThen(ProductLenses.price());
 
     public static final Lens<Catalogue, List<Double>> PRICES_AS_LIST =
         Traversals.partsOf(ALL_PRICES);
@@ -763,125 +763,10 @@ Traversals.getAll(priceTraversal, products).forEach(System.out::println);
 
 ## Complete, Runnable Example
 
-This example demonstrates how to use the `with*` helpers for a targeted update and how to use a composed `Traversal` with the new utility methods for bulk operations.
+This example demonstrates how to use the `with*` helpers for a targeted update and how to use a composed `Traversal` with the `Traversals` utility methods for bulk operations.
 
 ```java
-package org.higherkindedj.example.optics;
-
-import java.util.ArrayList;
-import java.util.List;
-import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
-import org.higherkindedj.optics.util.Traversals;
-
-public class TraversalUsageExample {
-
-    @GenerateLenses
-    public record Player(String name, int score) {}
-  
-    @GenerateLenses
-    @GenerateTraversals
-    public record Team(String name, List<Player> players) {}
-  
-    @GenerateLenses
-    @GenerateTraversals
-    public record League(String name, List<Team> teams) {}
-  
-    public static void main(String[] args) {
-        var team1 = new Team("Team Alpha", List.of(
-            new Player("Alice", 100), 
-            new Player("Bob", 90)
-        ));
-        var team2 = new Team("Team Bravo", List.of(
-            new Player("Charlie", 110), 
-            new Player("Diana", 120)
-        ));
-        var league = new League("Pro League", List.of(team1, team2));
-  
-        System.out.println("=== TRAVERSAL USAGE EXAMPLE ===");
-        System.out.println("Original League: " + league);
-        System.out.println("------------------------------------------");
-  
-        // --- SCENARIO 1: Using `with*` helpers for a targeted, shallow update ---
-        System.out.println("--- Scenario 1: Shallow Update with `with*` Helpers ---");
-        var teamToUpdate = league.teams().get(0);
-        var updatedTeam = TeamLenses.withName(teamToUpdate, "Team Omega");
-        var newTeamsList = new ArrayList<>(league.teams());
-        newTeamsList.set(0, updatedTeam);
-        var leagueWithUpdatedTeam = LeagueLenses.withTeams(league, newTeamsList);
-  
-        System.out.println("After updating one team's name:");
-        System.out.println(leagueWithUpdatedTeam);
-        System.out.println("------------------------------------------");
-  
-        // --- SCENARIO 2: Using composed Traversals for deep, bulk updates ---
-        System.out.println("--- Scenario 2: Bulk Updates with Composed Traversals ---");
-    
-        // Create the composed traversal
-        Traversal<League, Integer> leagueToAllPlayerScores =
-            LeagueTraversals.teams()
-                .andThen(TeamTraversals.players())
-                .andThen(PlayerLenses.score().asTraversal());
-  
-        // Use the `modify` helper to add 5 bonus points to every score.
-        League updatedLeague = Traversals.modify(leagueToAllPlayerScores, score -> score + 5, league);
-        System.out.println("After adding 5 bonus points to all players:");
-        System.out.println(updatedLeague);
-        System.out.println();
-    
-        // --- SCENARIO 3: Extracting data with `getAll` ---
-        System.out.println("--- Scenario 3: Data Extraction ---");
-    
-        List<Integer> allScores = Traversals.getAll(leagueToAllPlayerScores, league);
-        System.out.println("All player scores: " + allScores);
-        System.out.println("Total players: " + allScores.size());
-        System.out.println("Average score: " + allScores.stream().mapToInt(Integer::intValue).average().orElse(0.0));
-        System.out.println();
-    
-        // --- SCENARIO 4: Conditional updates ---
-        System.out.println("--- Scenario 4: Conditional Updates ---");
-    
-        // Give bonus points only to players with scores >= 100
-        League bonusLeague = Traversals.modify(
-            leagueToAllPlayerScores, 
-            score -> score >= 100 ? score + 20 : score, 
-            league
-        );
-        System.out.println("After conditional bonus (20 points for scores >= 100):");
-        System.out.println(bonusLeague);
-        System.out.println();
-    
-        // --- SCENARIO 5: Multiple traversals ---
-        System.out.println("--- Scenario 5: Multiple Traversals ---");
-    
-        // Create a traversal for player names
-        Traversal<League, String> leagueToAllPlayerNames =
-            LeagueTraversals.teams()
-                .andThen(TeamTraversals.players())
-                .andThen(PlayerLenses.name().asTraversal());
-    
-        // Normalise all names to uppercase
-        League upperCaseLeague = Traversals.modify(leagueToAllPlayerNames, String::toUpperCase, league);
-        System.out.println("After converting all names to uppercase:");
-        System.out.println(upperCaseLeague);
-        System.out.println();
-    
-        // --- SCENARIO 6: Working with empty collections ---
-        System.out.println("--- Scenario 6: Empty Collections ---");
-    
-        League emptyLeague = new League("Empty League", List.of());
-        List<Integer> emptyScores = Traversals.getAll(leagueToAllPlayerScores, emptyLeague);
-        League emptyAfterUpdate = Traversals.modify(leagueToAllPlayerScores, score -> score + 100, emptyLeague);
-    
-        System.out.println("Empty league: " + emptyLeague);
-        System.out.println("Scores from empty league: " + emptyScores);
-        System.out.println("Empty league after update: " + emptyAfterUpdate);
-    
-        System.out.println("------------------------------------------");
-        System.out.println("Original league unchanged: " + league);
-    }
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java:complete_example}}
 ```
 
 **Expected Output:**
@@ -917,9 +802,50 @@ Scores from empty league: []
 Empty league after update: League[name=Empty League, teams=[]]
 ------------------------------------------
 Original league unchanged: League[name=Pro League, teams=[Team[name=Team Alpha, players=[Player[name=Alice, score=100], Player[name=Bob, score=90]]], Team[name=Team Bravo, players=[Player[name=Charlie, score=110], Player[name=Diana, score=120]]]]]
+--- Scenario 7: Traversal.asFold() for Aggregation ---
+Total score across all players: 420
+Number of players: 4
+First score: 100
+All scores above 50: true
+Any score above 115: true
+High scores (>= 110): [110, 120]
+
+--- Scenario 8: Selective Conditional Updates ---
+Original league:
+  Team Alpha:
+    Alice: 150
+    Bob: 90
+    Charlie: 110
+  Team Bravo:
+    Diana: 200
+    Eve: 80
+
+After selective bonus (only >= 100):
+  Team Alpha:
+    Alice: 200
+    Bob: 90
+    Charlie: 160
+  Team Bravo:
+    Diana: 250
+    Eve: 80
+
+--- Scenario 9: Selective Branching Updates ---
+Original scores:
+  Mixed Team:
+    Veteran: 180
+    Rookie: 50
+    MidLevel: 100
+    Expert: 250
+
+After branching bonuses (experts +100, others +20):
+  Mixed Team:
+    Veteran: 200
+    Rookie: 70
+    MidLevel: 120
+    Expert: 350
 ```
 
-The repository copy of [TraversalUsageExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/TraversalUsageExample.java) adds three further scenarios: converting the traversal to a `Fold` for aggregation (which the next section covers), selective updates with `modifyWhen`, and branching.
+The program also covers three scenarios this page has not shown yet: converting the traversal to a `Fold` for aggregation (which the next section covers), selective updates with `modifyWhen`, and branching.
 
 ---
 
@@ -953,7 +879,7 @@ A `Traversal` already provides `getAll` (via `Traversals.getAll()`), but convert
 Traversal<League, Integer> allScores =
     LeagueTraversals.teams()
         .andThen(TeamTraversals.players())
-        .andThen(PlayerLenses.score().asTraversal());
+        .andThen(PlayerLenses.score());
 
 // Convert to a Fold for read-only queries
 Fold<League, Integer> scoresFold = allScores.asFold();
@@ -1002,7 +928,7 @@ This is the reason they can all be composed together so seamlessly.
 - [Folds](folds.md): the read-only side of this page, with monoid-based aggregation
 - [Common Data Structures](common_data_structure_traversals.md): ready-made traversals for Optional, Map, and tuple types
 - [Limiting Traversals](limiting_traversals.md): focusing on slices of a list instead of every element
-- [Composition Rules](composition_rules.md): why `asTraversal()` appears at the end of composed chains
+- [Composition Rules](composition_rules.md): what type `andThen` returns for each pair of optics
 - [Bulk Operations with ForTraversal](../functional/for_optics.md#bulk-operations-with-fortraversal): comprehension-style filtering, modifying, and collecting through a traversal
 ~~~
 

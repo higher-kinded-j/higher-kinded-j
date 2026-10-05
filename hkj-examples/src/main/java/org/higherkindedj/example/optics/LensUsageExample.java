@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+// ANCHOR: complete_example
+
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
@@ -80,3 +82,4 @@ public class LensUsageExample {
     System.out.println("Original is unchanged:  " + initialEmployee);
   }
 }
+// ANCHOR_END: complete_example

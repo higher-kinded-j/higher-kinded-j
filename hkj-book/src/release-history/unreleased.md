@@ -46,6 +46,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Documentation {#documentation}
 
+- **The Optics chapter's examples match the library**: the first example compiles, composed optics show the type `andThen` returns, and the runnable programs come from the compiled examples. The Affines page says what `set` does on an absent focus. See [When the focus is absent](../optics/affine.md#when-the-focus-is-absent).
 - **`@PathSource` has a page of its own** ([#999](https://github.com/higher-kinded-j/higher-kinded-j/issues/999)): [Custom Paths with `@PathSource`](../effect/path_source.md) says when a generated Path is worth it over `GenericPath`, what each capability generates, and how `errorType` types recovery.
 
 ---

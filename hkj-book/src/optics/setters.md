@@ -576,7 +576,6 @@ Setters are **lightweight and efficient**:
 
 * **Minimal overhead**: Just function composition
 * **No reflection**: Direct method calls
-* **Lazy application**: Modifications only applied when executed
 * **JIT-friendly**: Can be inlined by the JVM
 * **O(n) collection operations**: `forList()` and `forMapValues()` are optimised to avoid quadratic time complexity
 

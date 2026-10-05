@@ -451,7 +451,7 @@ Lens<Product, Double> priceLens = ProductLenses.price();
 
 // Compose: first 5 products → their prices
 Traversal<List<Product>, Double> first5Prices =
-    first5.andThen(priceLens.asTraversal());
+    first5.andThen(priceLens);
 
 // Increase prices of first 5 products by 10%
 List<Product> result = Traversals.modify(first5Prices, price -> price * 1.1, products);
@@ -508,9 +508,9 @@ List<Order> processed = Traversals.modify(
 ```java
 // Perfect: Declarative, composable, reusable
 Traversal<Catalogue, Double> first10Prices =
-    CatalogueLenses.products().asTraversal()
+    CatalogueLenses.products()
         .andThen(ListTraversals.taking(10))
-        .andThen(ProductLenses.price().asTraversal());
+        .andThen(ProductLenses.price());
 
 Catalogue updated = Traversals.modify(first10Prices, p -> p * 0.9, catalogue);
 ```
@@ -607,7 +607,7 @@ Optional<Product> fifth = IxedInstances.get(IxedInstances.listIx(), 4, products)
 
 Limiting traversals are optimised for efficiency:
 
-* **Single pass**: No intermediate list creation; slicing happens during traversal
+* **One new list per modify**: the elements outside the slice keep their references, and the list holding them is rebuilt
 * **Structural sharing**: Unchanged portions of the list are reused, not copied
 * **Lazy bounds checking**: Index calculations are minimal and performed once
 * **No boxing overhead**: Direct list operations without stream intermediaries
@@ -627,17 +627,17 @@ public class CatalogueOptics {
 
     // Featured products (first 5)
     public static final Traversal<Catalogue, Product> FEATURED =
-        CatalogueLenses.products().asTraversal()
+        CatalogueLenses.products()
             .andThen(ListTraversals.taking(5));
 
     // Latest additions (last 10)
     public static final Traversal<Catalogue, Product> LATEST =
-        CatalogueLenses.products().asTraversal()
+        CatalogueLenses.products()
             .andThen(ListTraversals.takingLast(10));
 
     // Exclude promotional items at end
     public static final Traversal<Catalogue, Product> NON_PROMOTIONAL =
-        CatalogueLenses.products().asTraversal()
+        CatalogueLenses.products()
             .andThen(ListTraversals.droppingLast(3));
 }
 ```

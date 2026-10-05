@@ -63,8 +63,8 @@ A `Lens` provides focused access to a field within a product type (like a Java `
 
 An `Iso` (Isomorphism) defines a lossless, two-way conversion between two types. It's perfect for handling different representations of the same data.
 
-* `DeploymentTarget <-> String`: We model our deployment target as a structured record but recognise it's isomorphic to a raw string like `"gcp|live"`. An `Iso` lets us switch between these representations.
-* `String <-> byte[]`: Base64 is just an encoded representation of a byte array. An `Iso` is the perfect tool for handling this encoding and decoding.
+* `DeploymentTarget <-> String`: We model our deployment target as a structured record, and render it as a raw string like `"gcp|live"`. The example only reads in that direction, from the record to the string. A string that came from outside could fail to parse, and an `Iso` has no way to say so: text from outside is a [Validated Prism](validated_prism.md)'s job.
+* `String -> byte[]`: decoding Base64 fails on a malformed string, so it is **not** an `Iso` either. [Safe decoding](#do-this-instead) uses a prism, and [the Validated Prism version](#1-safe-decoding-with-a-validatedprism) keeps the reason a decode failed.
 
 ### 3. **Prism**: The Safe Filter
 
@@ -94,10 +94,10 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 // Perfect for reusable, conditional audit logic
 Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
     ServerConfigTraversals.environments()
-        .andThen(EnvironmentPrisms.production().asTraversal())
+        .andThen(EnvironmentPrisms.production())
         .andThen(ProductionTraversals.credentials())
-        .andThen(CredentialPrisms.encryptedCredential().asTraversal())
-        .andThen(EncryptedCredentialLenses.base64Secret().asTraversal())
+        .andThen(CredentialPrisms.encryptedCredential())
+        .andThen(EncryptedCredentialLenses.base64Secret())
         .andThen(EncryptedCredentialIsos.base64ToBytes.asTraversal());
 ```
 
@@ -147,8 +147,8 @@ Traversal<String, String> stringIdentity = Iso.<String, String>of(s -> s, s -> s
 
 // Creating complex compositions inline
 var passwords = AppConfigTraversals.settings()
-    .andThen(SettingLenses.value().asTraversal())
-    .andThen(SettingValuePrisms.encryptedValue().asTraversal())
+    .andThen(SettingLenses.value())
+    .andThen(SettingValuePrisms.encryptedValue())
     // ... ten more lines of composition
     ;
 var inlineResult = Traversals.getAll(passwords, config);
@@ -172,11 +172,11 @@ String configName = config.name();   // direct access is fine
 
 // Create well-named, reusable compositions
 public static final Traversal<AppConfig, byte[]> GCP_LIVE_ENCRYPTED_PASSWORDS =
-    gcpLiveOnlyPrism.asTraversal()
+    gcpLiveOnlyPrism
         .andThen(AppConfigTraversals.settings())
-        .andThen(SettingLenses.value().asTraversal())
-        .andThen(SettingValuePrisms.encryptedValue().asTraversal())
-        .andThen(EncryptedValueLenses.base64Value().asTraversal())
+        .andThen(SettingLenses.value())
+        .andThen(SettingValuePrisms.encryptedValue())
+        .andThen(EncryptedValueLenses.base64Value())
         .andThen(EncryptedValueIsos.base64.asTraversal());
 
 // Handle errors gracefully
@@ -243,7 +243,7 @@ public class AuditPerformance {
 
 ## Composing the Solution
 
-Here's how we chain these optics together. To create the most robust and general-purpose optic (a `Traversal`), we convert each part of our chain into a `Traversal` using `.asTraversal()` before composing it. This ensures type-safety and clarity throughout the process.
+Here's how we chain these optics together. Each `andThen` returns the most precise optic its two steps allow, and the chain starts from a traversal over the settings, so the result is a `Traversal`. The one conversion left is on the Iso at the end: a `Traversal` has no `andThen` for an `Iso`, so the Iso joins the chain as `.asTraversal()`.
 
 The final composed optic has the type `Traversal<AppConfig, byte[]>` and reads like a declarative path: **`AppConfig -> (Filter for GCP/Live) -> each Setting -> its Value -> (Filter for Encrypted) -> the inner String -> the raw bytes`**
 
@@ -263,13 +263,13 @@ Prism<AppConfig, AppConfig> gcpLiveOnlyPrism = Prism.of(
 // B. Define the main traversal path to get to the data we want to audit.
 Traversal<AppConfig, byte[]> auditTraversal =
     AppConfigTraversals.settings()                             // Traversal<AppConfig, Setting>
-        .andThen(SettingLenses.value().asTraversal())        // Traversal<AppConfig, SettingValue>
-        .andThen(SettingValuePrisms.encryptedValue().asTraversal()) // Traversal<AppConfig, EncryptedValue>
-        .andThen(EncryptedValueLenses.base64Value().asTraversal())  // Traversal<AppConfig, String>
+        .andThen(SettingLenses.value())        // Traversal<AppConfig, SettingValue>
+        .andThen(SettingValuePrisms.encryptedValue()) // Traversal<AppConfig, EncryptedValue>
+        .andThen(EncryptedValueLenses.base64Value())  // Traversal<AppConfig, String>
         .andThen(EncryptedValueIsos.base64.asTraversal());   // Traversal<AppConfig, byte[]>
 
 // C. Combine the filter and the main traversal into the final optic.
-Traversal<AppConfig, byte[]> finalAuditor = gcpLiveOnlyPrism.asTraversal().andThen(auditTraversal);
+Traversal<AppConfig, byte[]> finalAuditor = gcpLiveOnlyPrism.andThen(auditTraversal);
 
 // D. Using the final optic is now trivial.
 // We call a static helper method from our Traversals utility class.
@@ -316,7 +316,7 @@ Validated<NonEmptyList<FieldError>, byte[]> decoded = SAFE_BASE64.parse(encodedV
 ValidationPath<NonEmptyList<FieldError>, byte[]> railway = SAFE_BASE64.parsePath(encodedValue);
 
 // Need the reason-less form for composing into the audit traversal? Forget on demand:
-Traversal<AppConfig, byte[]> lossy = base64Strings.andThen(SAFE_BASE64.toPrism().asTraversal());
+Traversal<AppConfig, byte[]> lossy = base64Strings.andThen(SAFE_BASE64.toPrism());
 ```
 
 To audit a whole config and report **every** bad entry at once, parse each string through `SAFE_BASE64.parse` and accumulate the results with the [assembly builders](../monads/validated_assembly.md). Sibling accumulation is their job; `ValidatedPrism` supplies the located leaf.
@@ -386,9 +386,9 @@ public static final Prism<AppConfig, AppConfig> cloudLiveOnlyPrism = Prism.of(
 
 // Environment-specific processing
 public static final Map<String, Traversal<AppConfig, byte[]>> ENVIRONMENT_AUDITORS = Map.of(
-    "development", devEnvironmentPrism.asTraversal().andThen(auditTraversal),
-    "staging", stagingEnvironmentPrism.asTraversal().andThen(auditTraversal),
-    "production", cloudLiveOnlyPrism.asTraversal().andThen(auditTraversal)
+    "development", devEnvironmentPrism.andThen(auditTraversal),
+    "staging", stagingEnvironmentPrism.andThen(auditTraversal),
+    "production", cloudLiveOnlyPrism.andThen(auditTraversal)
 );
 
 public static List<byte[]> auditForEnvironment(String environment, AppConfig config) {
@@ -411,9 +411,9 @@ Use the same optics to validate your configuration. You could compose a traversa
 public static final Traversal<AppConfig, Integer> SERVER_PORTS =
     AppConfigTraversals.settings()
         .andThen(Traversals.filtered(setting -> setting.key().equals("server.port")))
-        .andThen(SettingLenses.value().asTraversal())
-        .andThen(SettingValuePrisms.intValue().asTraversal())
-        .andThen(IntValueLenses.value().asTraversal());
+        .andThen(SettingLenses.value())
+        .andThen(SettingValuePrisms.intValue())
+        .andThen(IntValueLenses.value());
 
 public static List<String> validatePorts(AppConfig config) {
     return Traversals.getAll(SERVER_PORTS, config).stream()
@@ -434,7 +434,7 @@ public record AuditEntry(String configName, String settingKey, String encryptedV
                         Instant auditTime, String auditorId) {}
 
 public static final Traversal<AppConfig, AuditEntry> AUDIT_TRAIL_GENERATOR =
-    gcpLiveOnlyPrism.asTraversal()
+    gcpLiveOnlyPrism
         .andThen(AppConfigTraversals.settings())
         .andThen(settingFilter)
         .andThen(auditEntryMapper);

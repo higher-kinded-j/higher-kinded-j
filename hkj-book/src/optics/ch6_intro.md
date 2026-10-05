@@ -8,7 +8,7 @@
 
 Most optic work involves the everyday tools: lenses, prisms, traversals, and the Focus DSL on top of them. But sometimes the problem at hand is not "update this nested field" but "describe a sequence of optic operations as data, then decide later how to run them."
 
-This chapter is for those occasions. The Free Monad DSL turns optic operations into a value you can pass around, inspect, and execute under different strategies (production, audit, dry-run, mock). Interpreters are the strategies that turn descriptions into results.
+This chapter is for those occasions. The Free Monad DSL turns optic operations into a value you can pass around, inspect, and execute under different strategies (production, audit, a checked run, or a test interpreter of your own). Interpreters are the strategies that turn descriptions into results.
 
 Here is the whole idea before any of the theory. One program, described once, run three different ways. Every line compiles against the real library on every build:
 
@@ -40,7 +40,7 @@ The account starts on 100 and the withdrawal is 30. `Fixture` is the compiled ex
 ~~~admonish warning title="`validating()` is a checked run, not a dry run"
 Despite the name, `validate` **executes** the program. Its own javadoc is explicit: operations are run so that `flatMap` chaining produces the right values, and the validation is collected alongside. A `modify` modifier is applied twice, once to check it and once to perform it. So it is safe for pure modifiers over immutable data, and unsafe for anything with a side effect.
 
-For genuine inspection with nothing executed, use `ProgramAnalyser.analyse(program)`, whose traversal is structural and never runs a step.
+For genuine inspection with nothing executed, use `ProgramAnalyser.analyse(program)`, whose traversal is structural and never runs a step. Its counts are a lower bound: a step reached through `flatMap` stays out of sight until the program runs, and `hasOpaqueRegions()` tells you whether the program has any.
 ~~~
 
 ~~~admonish tip title="Why this matters"
@@ -50,7 +50,7 @@ The three blocks differ by one line. `withdrawal` is an ordinary value: it can b
 If you have not yet hit a problem that needs this, you do not need this chapter. Come back when an audit requirement, a testability concern, or a multi-mode execution scenario forces the issue.
 
 ~~~admonish info title="In This Chapter"
-- **Free Monad DSL** – Describe optic operations as composable data structures rather than executing them immediately. Enables dry-runs, audit trails, and the same program running under different execution policies.
+- **Free Monad DSL** – Describe optic operations as composable data structures rather than executing them immediately. Enables audit trails, structural analysis before anything runs, and the same program running under different execution policies.
 - **Interpreters** – The execution strategies for Free Monad DSL programs. Covers direct execution for production, logging for debugging, validating for safety, and how to define your own interpreter for custom needs.
 ~~~
 

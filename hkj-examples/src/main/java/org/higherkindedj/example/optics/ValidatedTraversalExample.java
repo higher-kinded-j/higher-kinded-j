@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+// ANCHOR: complete_example
+
 import static org.higherkindedj.hkt.instances.Witnesses.*;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
@@ -59,10 +61,9 @@ public class ValidatedTraversalExample {
   // --- Reusable Optic Compositions ---
   public static final Traversal<Form, String> FORM_TO_PERMISSION_NAMES =
       FormLenses.principal()
-          .asTraversal()
-          .andThen(PrincipalPrisms.vTUser().asTraversal())
+          .andThen(PrincipalPrisms.vTUser())
           .andThen(VTUserTraversals.permissions())
-          .andThen(PermissionLenses.name().asTraversal());
+          .andThen(PermissionLenses.name());
 
   // --- Helper Methods ---
   private static Applicative<ValidatedKind.Witness<String>> getValidatedApplicative() {
@@ -209,3 +210,4 @@ public class ValidatedTraversalExample {
     System.out.println("Note: Expensive validation only ran for non-empty permissions\n");
   }
 }
+// ANCHOR_END: complete_example

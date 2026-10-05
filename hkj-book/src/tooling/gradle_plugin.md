@@ -169,7 +169,7 @@ hkj {
 ```
 
 ~~~admonish warning
-Higher-Kinded-J requires `--enable-preview` on Java 25. Disabling this means you must configure the flags yourself, or compilation will fail.
+With `preview = false` the plugin adds no `--enable-preview` flags. Code that reaches the preview classes (`VTask`'s `Scope` and `Par`, and the parallel `VStream` operations) then fails to compile or to load, so add the flags yourself wherever it does. [Prerequisites](../quickstart.md#prerequisites) says which code that is; `Either`, `Validated`, the mapper and sequential optics need no flag.
 ~~~
 
 ### Disable Compile-Time Checks

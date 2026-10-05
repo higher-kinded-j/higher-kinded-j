@@ -24,19 +24,16 @@ Lens (product types) → Lens Composition → Prism (sum types) → Affine (opti
 
 ---
 
-## The Optics Hierarchy (Preview)
+## The Optics You Will Meet (Preview) {#the-optics-hierarchy-preview}
 
-```
-         Lens (single required field)
-              ↓
-         Prism (one variant of sum type)
-              ↓
-         Affine (zero or one element)
-              ↓
-         Traversal (zero or more elements)
-```
+| Optic | Focuses on | Example |
+|---|---|---|
+| Lens | exactly one value: a field that is always there | a user's `name` |
+| Prism | one variant of a sealed type, which may not match | the `Card` case of a `Payment` |
+| Affine | zero or one value | the city of an optional address |
+| Traversal | zero or more values | every item in an order |
 
-When you compose a Lens with a Prism, you get an Affine. This journey builds that intuition.
+When you compose a Lens with a Prism, you get an Affine: the lens always finds its field, but the prism may not match. This journey builds that intuition.
 
 ---
 
