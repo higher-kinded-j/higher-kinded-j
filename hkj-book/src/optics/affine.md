@@ -44,27 +44,17 @@ record ContactInfo(String email, Optional<String> phone) {}
 
 ---
 
-## Understanding the Optic Hierarchy
+## Where an Affine Comes From {#understanding-the-optic-hierarchy}
 
-An Affine sits between Lens and Traversal in the optic hierarchy:
-
-```
-         Iso
-        /   \
-     Lens   Prism
-        \   /
-        Affine
-          |
-       Traversal
-```
+In Java the optic types are siblings, not subtypes ([How the optic types relate](ch_intro.md#how-the-optic-types-relate)), so a method that takes an `Affine` will not accept a `Lens`. You *compose* your way to an Affine.
 
 **Key insight:** When you compose a Lens (exactly one element) with a Prism (zero or one element), the result focuses on zero or one element, which is an Affine.
 
 | Optic | Focus | Get | Set |
 |-------|-------|-----|-----|
 | **Lens** | Exactly one | Always succeeds | Always succeeds |
-| **Prism** | Zero or one | May fail | Can build from scratch |
-| **Affine** | Zero or one | May fail | Requires existing structure |
+| **Prism** | Zero or one | May fail | No `set`: `build` makes a whole from a part, `modify` changes a match |
+| **Affine** | Zero or one | May fail | Writes into a structure you already have |
 | **Traversal** | Zero or more | Multiple values | Multiple values |
 
 ---
@@ -175,15 +165,15 @@ Since a Lens always provides one element and a Prism may match zero or one, the 
 
 ## Affine vs Prism: The Key Difference
 
-Both Affine and Prism focus on zero-or-one elements, but they differ in one crucial way:
+Both Affine and Prism focus on zero-or-one elements, but they differ in what they can write:
 
 | Operation | Prism | Affine |
 |-----------|-------|--------|
 | **getOptional** | ✅ Yes | ✅ Yes |
-| **set** | ✅ Yes | ✅ Yes |
+| **set** | ❌ No (`modify` changes a match) | ✅ Yes |
 | **build** | ✅ Yes (construct from part) | ❌ No |
 
-A **Prism** can *construct* a complete structure from just the focused part (via `build`). An **Affine** cannot; it can only *modify* an existing structure.
+A **Prism** can *construct* a complete structure from just the focused part (via `build`). An **Affine** cannot; it writes into a structure you already have.
 
 ```java
 // Prism: can build from scratch
@@ -302,7 +292,7 @@ Optional<String> cleared = removableAffine.remove(present);
 ```
 
 ~~~admonish warning title="Remove Support"
-Not all affines support the `remove` operation. Calling `remove` on an affine that doesn't support it will return the source unchanged. Use `Affines.someWithRemove()` instead of `Affines.some()` when you need removal support.
+Not all affines support the `remove` operation. Calling `remove` on an affine that doesn't support it throws an `UnsupportedOperationException`. Use `Affines.someWithRemove()` instead of `Affines.some()` when you need removal support.
 ~~~
 
 ---
@@ -517,7 +507,7 @@ Optional<String> postcode = postcodeAffine.getOptional(user);
 
 ## The Affine Laws
 
-Well-behaved affines satisfy these laws:
+Every affine the library builds satisfies these three laws, with one exception: `TraversalPath.headOption()` reads the first element and writes every element, so Get-Set fails when the elements differ.
 
 ### Get-Set Law
 If a value is present, getting and then setting returns the original:
@@ -531,13 +521,17 @@ Setting twice is equivalent to setting once with the final value:
 affine.set(b, affine.set(a, s)) == affine.set(b, s)
 ```
 
-### GetOptional-Set Law
-Setting a value and then getting returns that value (if the structure allows):
+### Set-Get Law
+When the focus is present, setting a value and then getting returns that value:
 ```java
-// When getOptional returns a value after set:
+// Whenever affine.getOptional(s) is present:
 affine.getOptional(affine.set(a, s)) == Optional.of(a)
-// (or Optional.empty() if the structure doesn't support the focus)
 ```
+
+### When the focus is absent {#when-the-focus-is-absent}
+Neither Get-Set nor Set-Get covers `set` on an absent focus, and affines differ there. One whose last step can build the value writes it: `Affines.some().set("x", Optional.empty())` returns `Optional.of("x")`. A `Lens.andThen(Prism)` affine likewise replaces whatever variant is present with the one the prism builds. One that cannot build, such as an index past the end of a list, returns the structure unchanged. The [Focus DSL page](focus_dsl.md#affinepath-zero-or-one-element) gives the rule by position along a path. When you mean "only if it is there", use `modify`: it never writes to an absent focus.
+
+`hkj-test`'s `AffineLaws.assertAffineLaws` also checks that `set` leaves an absent focus alone, so an affine that writes through fails it. Test one of those with the three checks for a present focus: `assertGetSetWhenPresent`, `assertSetGetWhenPresent` and `assertSetSetWhenPresent`.
 
 ---
 
@@ -650,9 +644,8 @@ public class ConfigOptics {
 Affines are designed for both safety and efficiency:
 
 * **Zero allocation for absent values**: `getOptional` returns `Optional.empty()` without allocating
-* **Short-circuit evaluation**: Composed affines stop at the first absent value
+* **Short-circuit reads**: `getOptional` on a composed affine stops at the first absent value
 * **Immutable by design**: All operations return new values, enabling safe concurrent use
-* **Inlinable**: Simple affines are candidates for JVM inlining
 
 **Best Practice**: Create composed affines once and reuse them:
 

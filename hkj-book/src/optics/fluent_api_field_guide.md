@@ -77,7 +77,7 @@ Traversal<Team, Player> topPerformers =
 
 Team starred =
     Traversals.modify(
-        topPerformers.andThen(PlayerLenses.status().asTraversal()), status -> "STAR", team);
+        topPerformers.andThen(PlayerLenses.status()), status -> "STAR", team);
 
 List<Player> stars = OpticOps.getAll(starred, topPerformers);
 // read back from `starred`: the same players, now carrying status "STAR"
@@ -91,7 +91,7 @@ A `Fold` collapses every focused element through a `Monoid`, which is usually cl
 ```java
 int totalQuantity =
     OrderTraversals.items()
-        .andThen(OrderItemLenses.quantity().asTraversal())
+        .andThen(OrderItemLenses.quantity())
         .asFold()
         .foldMap(Monoids.integerAddition(), q -> q, order);
 // 15
@@ -140,7 +140,7 @@ Person updated =
 ```java
 // Compose once, above the loop
 Traversal<Order, BigDecimal> prices =
-    OrderTraversals.items().andThen(OrderItemLenses.price().asTraversal());
+    OrderTraversals.items().andThen(OrderItemLenses.price());
 
 for (Order o : Fixture.orders) {
   List<BigDecimal> values = OpticOps.getAll(o, prices);

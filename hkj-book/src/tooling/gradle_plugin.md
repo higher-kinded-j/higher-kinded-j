@@ -169,7 +169,7 @@ hkj {
 ```
 
 ~~~admonish warning
-Higher-Kinded-J requires `--enable-preview` on Java 25. Disabling this means you must configure the flags yourself, or compilation will fail.
+With `preview = false` the plugin adds no `--enable-preview` flags, so code that reaches the preview classes fails to compile or to load. Add the flags yourself for that code; [Prerequisites](../quickstart.md#prerequisites) says which code it is.
 ~~~
 
 ### Disable Compile-Time Checks

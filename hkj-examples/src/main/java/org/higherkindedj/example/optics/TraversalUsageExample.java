@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+// ANCHOR: complete_example
+
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 
 import java.util.ArrayList;
@@ -63,9 +65,7 @@ public class TraversalUsageExample {
 
     // Create the composed traversal
     Traversal<League, Integer> leagueToAllPlayerScores =
-        LeagueTraversals.teams()
-            .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.score().asTraversal());
+        LeagueTraversals.teams().andThen(TeamTraversals.players()).andThen(PlayerLenses.score());
 
     // Use the `modify` helper to add 5 bonus points to every score.
     League updatedLeague = Traversals.modify(leagueToAllPlayerScores, score -> score + 5, league);
@@ -99,9 +99,7 @@ public class TraversalUsageExample {
 
     // Create a traversal for player names
     Traversal<League, String> leagueToAllPlayerNames =
-        LeagueTraversals.teams()
-            .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.name().asTraversal());
+        LeagueTraversals.teams().andThen(TeamTraversals.players()).andThen(PlayerLenses.name());
 
     // Normalise all names to uppercase
     League upperCaseLeague = Traversals.modify(leagueToAllPlayerNames, String::toUpperCase, league);
@@ -140,9 +138,7 @@ public class TraversalUsageExample {
 
     // Build a traversal for all player scores
     Traversal<League, Integer> scoreTraversal =
-        LeagueTraversals.teams()
-            .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.score().asTraversal());
+        LeagueTraversals.teams().andThen(TeamTraversals.players()).andThen(PlayerLenses.score());
 
     // Convert to Fold when you only need read-only queries
     Fold<League, Integer> scoreFold = scoreTraversal.asFold();
@@ -182,9 +178,7 @@ public class TraversalUsageExample {
     var league = new League("Pro League", List.of(team1, team2));
 
     Traversal<League, Integer> leagueToAllPlayerScores =
-        LeagueTraversals.teams()
-            .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.score().asTraversal());
+        LeagueTraversals.teams().andThen(TeamTraversals.players()).andThen(PlayerLenses.score());
 
     // Only give bonus to high scorers (>= 100)
     Predicate<Integer> isHighScorer = score -> score >= 100;
@@ -218,9 +212,7 @@ public class TraversalUsageExample {
     var league = new League("Diverse League", List.of(team));
 
     Traversal<League, Integer> scoreTraversal =
-        LeagueTraversals.teams()
-            .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.score().asTraversal());
+        LeagueTraversals.teams().andThen(TeamTraversals.players()).andThen(PlayerLenses.score());
 
     // Different bonuses for different score ranges
     Predicate<Integer> isExpert = score -> score >= 200;
@@ -252,3 +244,4 @@ public class TraversalUsageExample {
             });
   }
 }
+// ANCHOR_END: complete_example

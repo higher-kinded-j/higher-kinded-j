@@ -18,7 +18,7 @@ The Focus DSL provides a fluent, path-based syntax for working with optics. Inst
 
 ---
 
-## Five-Minute Focus DSL
+## The Whole Feature on One Screen
 
 If you only have a few minutes, this is the entire feature.
 
@@ -68,7 +68,7 @@ Deep updates without optics mean rebuilding every record on the way down. With r
 Traversal<Company, String> employeeNames =
     CompanyTraversals.departments()
         .andThen(DepartmentTraversals.employees())
-        .andThen(EmployeeLenses.name().asTraversal());
+        .andThen(EmployeeLenses.name());
 
 List<String> names = Traversals.getAll(employeeNames, company);
 ```
@@ -89,7 +89,7 @@ List<String> names =
 ## Think of Focus Paths Like...
 
 - **File system paths**: `/company/departments/employees/name`
-- **JSON pointers**: `$.departments[*].employees[*].name`
+- **JSONPath**: `$.departments[*].employees[*].name`
 - **XPath expressions**: `//department/employee/name`
 - **IDE navigation**: click through nested fields with autocomplete
 
@@ -165,18 +165,13 @@ Company updated = allEmployeeNames.modifyAll(String::toUpperCase, company);
 
 ## The Three Path Types
 
-Focus DSL provides three path types, mirroring the optic hierarchy:
+Focus DSL provides three path types, one for each answer to "how many values does this path reach?". Each navigation hop keeps the count or widens it, and `headOption()` is the one step back, from many to at most one:
 
-```
-         FocusPath<S, A>
-        (exactly one focus)
-               |
-        AffinePath<S, A>
-      (zero or one focus)
-               |
-      TraversalPath<S, A>
-      (zero or more focus)
-```
+| Path type | Reaches | After an optional step | After a collection step |
+|---|---|---|---|
+| `FocusPath<S, A>` | exactly one value | `AffinePath` | `TraversalPath` |
+| `AffinePath<S, A>` | zero or one value | `AffinePath` | `TraversalPath` |
+| `TraversalPath<S, A>` | zero or more values | `TraversalPath` | `TraversalPath` |
 
 ### FocusPath: Exactly One Element
 
@@ -228,7 +223,7 @@ boolean hasEmail = emailPath.matches(employee);
 ~~~admonish warning title="Set on an absent focus writes anyway"
 `set` through an `AffinePath` is not conditional. `EmployeeFocus.email().set(x, employee)` on an employee with no email returns an employee *with* that email, because the last step's setter rebuilds the present case unconditionally: `Affine.set` "always updates the structure", as its own javadoc puts it. `modify` is the operation that no-ops on an absent focus.
 
-The rule is positional. A miss at the *last* step writes through and creates the focus; a miss at an *earlier* step of a multi-step path skips the whole set, because `Affine.andThen(Affine)` does guard. When absence must be preserved, reach for `modify`, or test with `matches` first.
+The rule is positional. A miss at the *last* step writes through and creates the focus when that step can build the value (a prism, `.some()`, `.nullable()`). A miss at an *earlier* step of a multi-step path skips the whole set, because `Affine.andThen(Affine)` does guard. When absence must be preserved, reach for `modify`, or test with `matches` first.
 ~~~
 
 ### TraversalPath: Zero or More Elements

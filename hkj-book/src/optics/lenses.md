@@ -42,7 +42,7 @@ Without optics, changing the street requires manually rebuilding the entire `Emp
 
 ### Step 1: Generating the Lenses
 
-Manually writing `Lens` implementations is tedious boilerplate. The `hkj-optics` library automates this with an annotation processor. To begin, we simply annotate our records with **`@GenerateLenses`**.
+Manually writing `Lens` implementations is tedious boilerplate. Higher-Kinded-J's annotation processor (`hkj-processor`) automates this. To begin, we simply annotate our records with **`@GenerateLenses`**.
 
 This process creates a companion class for each record (e.g., `EmployeeLenses`, `CompanyLenses`) that contains two key features:
 
@@ -207,25 +207,23 @@ Affine<User, Settings> userSettings = settingsLens.andThen(somePrism);
 See [Composition Rules](composition_rules.md) for the complete reference on how different optics compose.
 ~~~
 
-### Use Manual Lens Creation When:
+### Use Manual Lens Creation When: {#use-manual-lens-creation-when}
 
-* **Computed properties** - The lens represents derived data
-* **Complex transformations** - Custom getter/setter logic
-* **Legacy integration** - Working with existing APIs
+* **A type you cannot annotate**: a JDK or library class. For a whole library of them, [Optics for External Types](importing_optics.md) generates the lenses instead
 
 
 <!-- verify -->
 ```java
-// For computed or derived properties
-Lens<Employee, String> fullAddressLens = Lens.of(
-    emp -> emp.company().address().street() + ", " + emp.company().address().city(),
-    (emp, fullAddr) -> {
-        String[] parts = fullAddr.split(", ");
-        return employeeToCompany.andThen(companyToAddress).set(
-            new Address(parts[0], parts[1]), emp);
-    }
+// java.time.Duration cannot carry @GenerateLenses, so write its lens by hand
+Lens<Duration, Long> seconds = Lens.of(
+    Duration::getSeconds,
+    (duration, s) -> Duration.ofSeconds(s, duration.getNano())
 );
 ```
+
+~~~admonish warning title="A lens over derived data is usually unlawful"
+A lens must give back what you set: `get(set(a, s))` is `a`. A lens over a *computed* value rarely can. A "full address" lens that joins `street + ", " + city` and splits on `", "` to write reads back something else for a street that itself contains a comma. Nothing checks this for you, so test a hand-written lens with `LensLaws.assertLensLaws` from `hkj-test`.
+~~~
 
 ---
 
@@ -257,7 +255,7 @@ Java 25, which the library is built on today, has no wither in the language. [JE
 
 <!-- verify -->
 ```java
-// Inefficient: Calling get() multiple times
+// Repetitive: Reading through the path, then writing through it again
 var currentStreet = employeeToStreet.get(employee);
 var newEmployee = employeeToStreet.set(currentStreet.toUpperCase(), employee);
 
@@ -276,7 +274,7 @@ var finalEmployee = EmployeeLenses.withCompany(employee, updatedCompany);
 
 <!-- verify -->
 ```java
-// Efficient: Use modify() for transformations
+// Clear: Use modify() for transformations
 var newEmployee = employeeToStreet.modify(String::toUpperCase, employee);
 
 // Reusable: Create the lens once, use many times
@@ -299,7 +297,6 @@ Lenses are optimised for immutable updates:
 * **Memory efficient**: Only creates new objects along the path that changes
 * **Reusable**: Composed lenses can be stored and reused across your application
 * **Type-safe**: All operations are checked at compile time
-* **Lazy**: Operations are only performed when needed
 
 **Best Practice**: For frequently used paths, create the composed lens once and store it as a static field:
 
@@ -324,72 +321,7 @@ public class EmployeeOptics {
 The following standalone example puts all these steps together. You can run it to see the output and the immutability in action.
 
 ```java
-package org.higherkindedj.example.lens;
-
-// The generated AddressLenses / CompanyLenses / EmployeeLenses are top-level classes in this
-// same package, so they need no import.
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import java.util.List;
-
-public class LensUsageExample {
-
-    // 1. Define a nested, immutable data model.
-    @GenerateLenses
-    public record Address(String street, String city) {}
-
-    @GenerateLenses
-    public record Company(String name, Address address) {}
-
-    @GenerateLenses
-    public record Employee(String name, Company company) {}
-
-
-    public static void main(String[] args) {
-        // 2. Create an initial, nested immutable object.
-        var initialAddress = new Address("123 Fake St", "Anytown");
-        var initialCompany = new Company("Initech Inc.", initialAddress);
-        var initialEmployee = new Employee("Alice", initialCompany);
-
-        System.out.println("Original Employee: " + initialEmployee);
-        System.out.println("------------------------------------------");
-
-
-        // --- SCENARIO 1: Simple update with a `with*` helper ---
-        System.out.println("--- Scenario 1: Using `with*` Helper ---");
-        var employeeWithNewName = EmployeeLenses.withName(initialEmployee, "Bob");
-        System.out.println("After `withName`:    " + employeeWithNewName);
-        System.out.println("------------------------------------------");
-
-        // --- SCENARIO 2: Deep update with a composed Lens ---
-        System.out.println("--- Scenario 2: Using Composed Lens ---");
-        Lens<Employee, String> employeeToStreet =
-            EmployeeLenses.company()
-                .andThen(CompanyLenses.address())
-                .andThen(AddressLenses.street());
-
-        // Use `set` to replace a value
-        Employee updatedEmployeeSet = employeeToStreet.set("456 Main St", initialEmployee);
-        System.out.println("After deep `set`:       " + updatedEmployeeSet);
-
-        // Use `modify` to apply a function
-        Employee updatedEmployeeModify = employeeToStreet.modify(String::toUpperCase, initialEmployee);
-        System.out.println("After deep `modify`:    " + updatedEmployeeModify);
-        System.out.println("Original is unchanged:  " + initialEmployee);
-      
-        // --- SCENARIO 3: Demonstrating reusability ---
-        System.out.println("--- Scenario 3: Reusing Composed Lens ---");
-        var employee2 = new Employee("Charlie", new Company("Tech Corp", new Address("789 Oak Ave", "Tech City")));
-      
-        // Same lens works on different employee instances
-        var bothUpdated = List.of(initialEmployee, employee2)
-            .stream()
-            .map(emp -> employeeToStreet.modify(street -> "Remote: " + street, emp))
-            .toList();
-          
-        System.out.println("Batch updated: " + bothUpdated);
-    }
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java:complete_example}}
 ```
 
 **Expected Output:**
@@ -397,16 +329,14 @@ public class LensUsageExample {
 ```
 Original Employee: Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=123 Fake St, city=Anytown]]]
 ------------------------------------------
---- Scenario 1: Using `with*` Helper ---
 After `withName`:    Employee[name=Bob, company=Company[name=Initech Inc., address=Address[street=123 Fake St, city=Anytown]]]
+After chaining `with*`: Employee[name=Alice, company=Company[name=Megacorp, address=Address[street=123 Fake St, city=Anytown]]]
 ------------------------------------------
---- Scenario 2: Using Composed Lens ---
 After deep `set`:       Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=456 Main St, city=Anytown]]]
-After deep `modify`:    Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=123 FAKE ST, city=Anytown]]]
 Original is unchanged:  Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=123 Fake St, city=Anytown]]]
 ------------------------------------------
---- Scenario 3: Reusing Composed Lens ---
-Batch updated: [Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=Remote: 123 Fake St, city=Anytown]]], Employee[name=Charlie, company=Company[name=Tech Corp, address=Address[street=Remote: 789 Oak Ave, city=Tech City]]]]
+After deep `modify`:    Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=123 FAKE ST, city=Anytown]]]
+Original is unchanged:  Employee[name=Alice, company=Company[name=Initech Inc., address=Address[street=123 Fake St, city=Anytown]]]
 ```
 
 As you can see, the generated optics provide a clean, declarative, and type-safe API for working with immutable data, whether your updates are simple and shallow or complex and deep.

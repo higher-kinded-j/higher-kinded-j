@@ -36,7 +36,7 @@ TraversalPath<Container, Item> sameThing = FocusPath.of(ContainerLenses.items())
 
 ### `.each(Each)`: Traverse with a Custom Each Instance
 
-The no-argument `.each()` carries a `List` traversal and nothing else. Every other container — a `Set`, a `Collection`, a `Map`, an array, a third-party collection — takes an explicit `Each` instead. The generated method already does this for you: `EachInstances.setEach()` for a `Set` field, `EachInstances.collectionEach()` for a `Collection`. Hand-built paths have to say it themselves, and this works on `FocusPath`, `AffinePath` and `TraversalPath` alike:
+The no-argument `.each()` carries a `List` traversal and nothing else. Every other container (a `Set`, a `Collection`, a `Map`, an array, a third-party collection) takes an explicit `Each` instead. The generated method already does this for you: `EachInstances.setEach()` for a `Set` field, `EachInstances.collectionEach()` for a `Collection`. Hand-built paths have to say it themselves, and this works on `FocusPath`, `AffinePath` and `TraversalPath` alike:
 
 <!-- verify -->
 ```java
@@ -177,7 +177,7 @@ Under a JSpecify checker such as NullAway, every optic and Focus path type takes
 FocusPath<Company, String> hqStreet =
     FocusPath.of(CompanyLenses.headquarters()).via(AddressLenses.street());
 
-// Path + Affine (a prism is one) = AffinePath
+// Path + Prism or Affine = AffinePath
 AffinePath<Container, Item> firstItem =
     FocusPath.of(ContainerLenses.items()).via(ListPrisms.head());
 
@@ -233,7 +233,7 @@ flowchart TD
 
 The middle branch is the one that surprises people. `Optional`, `List`, `Set` and `Collection` are widened by the processor before navigators are considered, so a `List<Department> departments` field gives you a `TraversalPath<Company, Department>` and never a `DepartmentsNavigator`. Container types that arrive through the SPI (a `Map`, an Eclipse Collections `ImmutableList`, an `Either`) *are* eligible, and get a navigator when their element type is itself annotated.
 
-A target that declares type parameters of its own does not. A navigator is an inner class parameterised by the source type alone, so it has no way to name them — `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case.
+A target that declares type parameters of its own does not. A navigator is an inner class parameterised by the source type alone, so it has no way to name them: `Inner<String> inner` keeps the plain path, chained with `.via()`. `Map<String, Inner<String>> inners` keeps the plain path too, but focused on the *map*: an SPI container of this shape is only stepped into when `widenCollections = true` says so, and the `.via()` chain reaches the element only after that. The processor says so as a note against the field, naming the chain to write in each case.
 
 **A target in a dependency is navigable too.** The processor asks the field's type whether it carries `@GenerateFocus`, which is kept in the class file, so a record read from a jar is recognised as a sibling source file is. Navigating into it composes the `Focus` class that record's own module generated, reading each field's path type from the method that module published rather than working it out again, so a navigator never composes a method or path type the dependency did not publish, whichever processor version or generator plugins built it. An API module can therefore own the records, and each consuming module's `Focus` classes chain straight into them.
 
@@ -342,7 +342,7 @@ FocusPath<Warehouse, Map<String, Integer>> inventory = WarehouseFocus.inventory(
 TraversalPath<Warehouse, Integer> quantities = inventory.each(EachInstances.mapValuesEach());
 ```
 
-`ZERO_OR_MORE` SPI types are the one asymmetry: a Focus method leaves them un-widened by default, for backwards compatibility. Add `widenCollections = true` to the annotation and `WarehouseFocus.inventory()` returns the `TraversalPath` directly. A navigator method reports the same path type as the static method for the same component — the container is stepped into either way only when its element is a navigable record, which is how the navigator reaches it. [Custom Containers and Code Generation](focus_containers.md#the-zero_or_more-asymmetry-and-widencollections) states the rule in full, alongside the table of every supported container.
+`ZERO_OR_MORE` SPI types are the one asymmetry: a Focus method leaves them un-widened by default, for backwards compatibility. Add `widenCollections = true` to the annotation and `WarehouseFocus.inventory()` returns the `TraversalPath` directly. A navigator method reports the same path type as the static method for the same component. Without the flag, the path still steps into a container whose element is a navigable record, because the navigator has to reach it; with the flag, it steps into every such container. [Custom Containers and Code Generation](focus_containers.md#the-zero_or_more-asymmetry-and-widencollections) states the rule in full, alongside the table of every supported container.
 
 ### Compound widening
 

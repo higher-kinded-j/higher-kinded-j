@@ -1,7 +1,7 @@
 // Fixture for hkj-book/src/optics/iso.md
 //
-// The page converts a Point to a tuple, cents to dollars and a date to a string, and weaves the
-// last two into comprehensions. The domain and the instances those need are declared here.
+// The page converts a Point to a tuple, cents to dollars and a wrapper to the value it wraps, and weaves
+// cents and temperatures into comprehensions. The domain and the instances those need are declared here.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -12,6 +12,7 @@ import static org.higherkindedj.hkt.instances.Witnesses.list;
 import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.UUID;
 import java.time.format.DateTimeFormatter;
@@ -84,8 +85,8 @@ class Fixture {
           c -> new Fahrenheit(c.value() * 9 / 5 + 32),
           f -> new Celsius((f.value() - 32) * 5 / 9));
 
-  static final Iso<Integer, Double> centsToDollars =
-      Iso.of(cents -> cents / 100.0, dollars -> (int) (dollars * 100));
+  static final Iso<Integer, BigDecimal> centsToDollars =
+      Iso.of(cents -> BigDecimal.valueOf(cents, 2), dollars -> dollars.movePointRight(2).intValueExact());
 
   static final Department department = new Department("Sales", 70000);
 

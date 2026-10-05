@@ -799,10 +799,8 @@ Getter<NullableRecord, String> safeGetter = Getter.of(r ->
 
 Getters are **extremely lightweight**:
 
-* **Zero overhead**: Just a function wrapper
 * **No reflection**: Direct method references
 * **Inline-friendly**: JIT can optimise away the abstraction
-* **Lazy evaluation**: Values computed only when `get()` is called
 
 **Best Practice**: Use Getters freely; they add minimal runtime cost whilst providing excellent composability and type safety.
 

@@ -14,16 +14,17 @@ Immutable records in Java are safer, easier to reason about, and, when you need 
 
 An **optic** is a first-class, composable path from a whole structure to one or more of its parts. Once you have the path, reading, writing, and transforming the focused value all come for free, and the paths themselves compose: a lens into a record composed with a prism into a sealed field composed with a traversal over a list is a single optic that knows how to operate on the whole route.
 
-Higher-Kinded-J's optics are **annotation-driven**. You write a record, add `@GenerateLenses` and `@GenerateFocus`, and the processor writes a typed path builder for you. The same applies to sealed types (`@GeneratePrisms`), collections (`@GenerateTraversals`), and even types you can't modify (`@ImportOptics` for Jackson, JOOQ, JDK types). No boilerplate, no runtime reflection, no manual composition unless you want it.
+Higher-Kinded-J's optics are **annotation-driven**. You write a record, add `@GenerateLenses` and `@GenerateFocus(generateNavigators = true)`, and the processor writes a typed path builder for you: the navigators are what let each hop chain straight into the next record's fields. The same applies to sealed types (`@GeneratePrisms`), collections (`@GenerateTraversals`), and even types you can't modify (`@ImportOptics` for Jackson, JOOQ, JDK types). No boilerplate, no runtime reflection, no manual composition unless you want it.
 
+<!-- verify -->
 ```java
-@GenerateLenses @GenerateFocus
+@GenerateLenses @GenerateFocus(generateNavigators = true)
 public record Street(String name, int number) {}
 
-@GenerateLenses @GenerateFocus
+@GenerateLenses @GenerateFocus(generateNavigators = true)
 public record Address(Street street, String city) {}
 
-@GenerateLenses @GenerateFocus
+@GenerateLenses @GenerateFocus(generateNavigators = true)
 public record User(String name, Address address) {}
 
 User updated = UserFocus.address().street().name().set("New Street", user);
@@ -64,7 +65,7 @@ What the diagram groups instead is capability, and that is the useful question: 
 - **Fundamentals** – Lens, Prism, Affine, and Iso: the four optics for working with single values. Introduces the composition rules and the paired-lens pattern for fields that share invariants. Start here if you are new to optics.
 - **Collections** – Traversals and Folds for zero-or-more focus, plus the asymmetric specialists Getter (read-only) and Setter (write-only). Covers the ready-made traversals for Java's standard collections and monoid-based aggregation.
 - **Precision and Filtering** – Narrow focus by predicate or index. Filtered and indexed traversals, the `Each`, `At`, and `Ixed` type classes, character-level string traversals, and advanced Prism patterns, including predicate matching with `nearly`.
-- **Java-Friendly APIs** – Three complementary APIs that make optics feel native to Java: the Focus DSL for path-based navigation, the Fluent API for validation-aware updates, and the Free Monad DSL for programs-as-data. Backed by annotation-driven code generation (`@GenerateLenses`, `@GenerateFocus`, `@GeneratePrisms`, and friends). For the domain ↔ DTO boundary, see the dedicated [Mapping at the Boundary](../mapping/ch_intro.md) chapter.
+- **Java-Friendly APIs** – Two complementary APIs that make optics feel native to Java: the Focus DSL for path-based navigation and the Fluent API for validation-aware updates. Backed by annotation-driven code generation (`@GenerateLenses`, `@GenerateFocus`, `@GeneratePrisms`, and friends). For the domain ↔ DTO boundary, see the dedicated [Mapping at the Boundary](../mapping/ch_intro.md) chapter.
 - **Integration and Recipes** – A complete walkthrough composing Lens, Prism, and Traversal into a validation pipeline, integration with the library's core types (Either, Maybe, Validated, Optional), multi-edit and sparse REST PATCH updates, and a cookbook of ready-to-use solutions for the nested-update problems you will actually meet in production.
 - **Advanced Optics** – Optic operations built as a value first and executed second: the Free Monad DSL that describes the program, and the interpreters that run, log or check it.
 - **Reference** – The lookup half of the chapter. What each optic type declares, how to convert between them, what the processor's error messages mean, and the decision trees for picking one.

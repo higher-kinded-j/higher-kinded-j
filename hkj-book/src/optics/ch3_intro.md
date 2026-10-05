@@ -13,7 +13,7 @@ Optics handle this through filtering and indexing: techniques that narrow focus 
 <!-- verify -->
 ```java
 var pricey = OrderTraversals.items()
-    .andThen(ItemLenses.price().asTraversal())
+    .andThen(ItemLenses.price())
     .filtered(price -> price > 100.0);
 
 Order discounted = Traversals.modify(pricey, price -> price - 50.0, order);

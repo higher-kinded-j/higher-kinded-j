@@ -163,8 +163,8 @@ List<String> created = head.set("New", List.of());
 // created = ["New"]
 ```
 
-~~~admonish note title="A deliberate deviation"
-The convention [Affines](affine.md) taught is that `set` on an absent focus is a no-op. `head()` deliberately deviates: setting through it on an empty list *creates* a singleton, which makes it handy for upsert-style code. Keep the difference in mind when reasoning with affine laws on empty lists.
+~~~admonish note title="Setting on an empty list"
+`head()` can build the element it focuses, so `set` on an empty list writes through and *creates* a singleton, which makes it handy for upsert-style code. [Affines](affine.md#when-the-focus-is-absent) explains which affines write through on an absent focus and which leave the structure alone. When you mean "only if there is a first element", use `modify`.
 ~~~
 
 ### Accessing the Last Element

@@ -204,7 +204,7 @@ Returns `Maybe.just(values)` if any elements exist, `Maybe.nothing()` for empty 
 ```java
 Lens<OrderItem, BigDecimal> priceLens = OrderItemLenses.price();
 Traversal<List<OrderItem>, BigDecimal> allPrices =
-    Traversals.<OrderItem>forList().andThen(priceLens.asTraversal());
+    Traversals.<OrderItem>forList().andThen(priceLens);
 
 Maybe<List<BigDecimal>> prices = getAllMaybe(allPrices, items);
 // Maybe.just([999.99, 29.99]) or Maybe.nothing()
@@ -295,7 +295,7 @@ Modifies elements where the function returns `Maybe.just(value)`, leaves others 
 ```java
 Lens<OrderItem, String> statusLens = OrderItemLenses.status();
 Traversal<List<OrderItem>, String> allStatuses =
-    Traversals.<OrderItem>forList().andThen(statusLens.asTraversal());
+    Traversals.<OrderItem>forList().andThen(statusLens);
 
 // Update only "pending" items
 List<OrderItem> updated = modifyWherePossible(
@@ -367,9 +367,9 @@ public ValidationResult validateOrder(Order order) {
     Lens<OrderItem, Integer> quantityLens = OrderItemLenses.quantity();
 
     Traversal<List<OrderItem>, BigDecimal> allPrices =
-        Traversals.<OrderItem>forList().andThen(priceLens.asTraversal());
+        Traversals.<OrderItem>forList().andThen(priceLens);
     Traversal<List<OrderItem>, Integer> allQuantities =
-        Traversals.<OrderItem>forList().andThen(quantityLens.asTraversal());
+        Traversals.<OrderItem>forList().andThen(quantityLens);
 
     // Step 1: Validate all prices (accumulate errors)
     List<String> priceErrors = collectErrors(

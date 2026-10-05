@@ -7,11 +7,12 @@
 
 ## Affine
 
-**Definition:** An optic that focuses on zero or one values within a structure. Affine sits between Lens (exactly one) and Prism (zero or one for sum types) in the optic hierarchy. It combines the "might not be there" aspect of Prism with the "focus on part of a product" aspect of Lens.
+**Definition:** An optic that focuses on zero or one values within a structure. It combines the "might not be there" aspect of Prism with the "focus on part of a product" aspect of Lens, and composing a Lens with a Prism gives one.
 
 **Core Operations:**
-- `preview(S source)` - Try to extract the value (returns Optional)
-- `set(A value, S source)` - Set the value if the focus exists
+- `getOptional(S source)` - Try to extract the value (returns Optional)
+- `set(A value, S source)` - Write the value; on an absent focus, an affine that can build the value writes it, and one that cannot leaves the structure unchanged
+- `modify(Function<A, A> f, S source)` - Transform the value only if it is present
 
 **Example:**
 <!-- verify -->
@@ -24,11 +25,11 @@ Affine<List<String>, String> firstElement = Affine.of(
 );
 
 List<String> items = List.of("a", "b", "c");
-Optional<String> first = firstElement.preview(items);  // Optional["a"]
+Optional<String> first = firstElement.getOptional(items);  // Optional[a]
 List<String> updated = firstElement.set("X", items);   // ["X", "b", "c"]
 
 List<String> empty = List.of();
-Optional<String> noFirst = firstElement.preview(empty);  // Optional.empty()
+Optional<String> noFirst = firstElement.getOptional(empty);  // Optional.empty
 List<String> stillEmpty = firstElement.set("X", empty);  // [] (unchanged)
 ```
 
@@ -37,8 +38,7 @@ List<String> stillEmpty = firstElement.set("X", empty);  // [] (unchanged)
 - Optional fields in product types
 - Composing Lens with Prism (result is Affine)
 
-**Hierarchy Position:** `Iso → Lens → Affine → Traversal`
-                        `Iso → Prism → Affine → Traversal`
+**Composition:** `Lens.andThen(Prism)`, `Prism.andThen(Lens)` and `Affine.andThen(Lens)` give an Affine; an Affine followed by a Traversal gives a Traversal.
 
 **Related:** [Lens](#lens), [Prism](#prism), [Affine Documentation](../optics/affine.md)
 
@@ -146,7 +146,7 @@ FieldError located = bare.at("zip").at("address");      // pathString() == "addr
 
 **Definition:** A domain-specific language for fluent, type-safe navigation and manipulation of immutable data structures. The Focus DSL provides a composable way to build paths through nested records without manual lens composition.
 
-**Core Concept:** Instead of composing optics manually, the Focus DSL lets you chain `.then(...)` hops off a generated navigator, with the optic types inferred automatically.
+**Core Concept:** Instead of composing optics manually, the Focus DSL lets you chain `.via(...)` hops off a generated path, with the optic types inferred automatically. With navigators on, a hop can be named after its field instead, such as `.address()`.
 
 **Example:**
 <!-- verify -->
@@ -160,14 +160,14 @@ String composedStreet = streetLens.get(employee);
 
 // With Focus DSL: the generated paths compose, and the source is named once, at the end
 String street = EmployeeFocus.company()
-    .then(CompanyFocus.address())
-    .then(AddressFocus.street())
+    .via(CompanyFocus.address())
+    .via(AddressFocus.street())
     .get(employee);
 
 // Modification is equally fluent
 Employee updated = EmployeeFocus.company()
-    .then(CompanyFocus.address())
-    .then(AddressFocus.city())
+    .via(CompanyFocus.address())
+    .via(AddressFocus.city())
     .modify(String::toUpperCase, employee);
 
 // Mix with Effect Paths for effectful navigation
@@ -189,7 +189,7 @@ EitherPath<AppError, String> effectfulCity = employeeService.findById(id)
 
 ## FocusPath
 
-**Definition:** A generated helper class that provides pre-composed optic paths for navigating into record types. The annotation processor creates FocusPath classes for each annotated record, offering a fluent API for accessing fields and nested structures.
+**Definition:** The Focus DSL's path type for a field that is always there: a `FocusPath<S, A>` reaches exactly one value and wraps a `Lens<S, A>`. `@GenerateFocus` on a record generates a `FooFocus` class whose static methods return these paths, or an `AffinePath` for an optional field and a `TraversalPath` for a collection.
 
 **Generation:** Add `@GenerateFocus` to your record to generate the corresponding Focus class.
 
@@ -209,12 +209,12 @@ public record Address(String street, String city, String postcode) {}
 
 // Use in Focus DSL
 String city = UserFocus.address()
-    .then(AddressFocus.city())
+    .via(AddressFocus.city())
     .get(user);
 
 // Compose for reusable paths
 FocusPath<User, String> userCity = UserFocus.address()
-    .then(AddressFocus.city());
+    .via(AddressFocus.city());
 
 // Use with Effect Paths
 EitherPath<AppError, String> cityPath = loadUser(id)

@@ -48,7 +48,7 @@ Three things separate these optics from a bag of getter helpers. They are **gene
 
 This section introduces the fundamental optics: Lens for product types (records with fields), Prism for sum types (sealed interfaces with variants), Affine for zero-or-one focus, and Iso for reversible conversions. By the end, you'll understand not only how each works, but when to reach for one over another.
 
-The composition rules table at the section's end is worth bookmarking. You'll refer to it more often than you might expect. The [Optics landing page](ch_intro.md) carries the overall optics hierarchy if you need to see where these four fit in relation to Traversals, Folds, Getters, and Setters.
+The [composition rules table](composition_rules.md) is worth bookmarking. You'll refer to it more often than you might expect. [How the optic types relate](ch_intro.md#how-the-optic-types-relate) shows where these four sit beside Traversals, Folds, Getters, and Setters.
 
 ~~~admonish info title="Hands-On Learning"
 Practise this section in the [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md) (30 exercises).

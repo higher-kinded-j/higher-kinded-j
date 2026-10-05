@@ -115,9 +115,9 @@ List<Integer> values = Traversals.getAll(optTraversal, maybePort);
 ```java
 // Compose Optional traversal with lens traversal
 Traversal<ApplicationConfig, Integer> serverPorts =
-    ApplicationConfigLenses.server().asTraversal()
+    ApplicationConfigLenses.server()
         .andThen(Traversals.forOptional())
-        .andThen(ServerConfigLenses.port().asTraversal())
+        .andThen(ServerConfigLenses.port())
         .andThen(Traversals.forOptional());
 
 // Offset all server ports in one operation
@@ -267,9 +267,9 @@ public record ServiceRegistry(
 
 // Transform all server ports across all services
 Traversal<ServiceRegistry, Integer> allServicePorts =
-    ServiceRegistryLenses.services().asTraversal()
+    ServiceRegistryLenses.services()
         .andThen(Traversals.forMapValues())
-        .andThen(ServerConfigLenses.port().asTraversal())
+        .andThen(ServerConfigLenses.port())
         .andThen(Traversals.forOptional());
 
 ServiceRegistry updated = Traversals.modify(
@@ -418,7 +418,7 @@ public record BoundingBox(
 
 // Scale coordinates in the top-left corner
 Traversal<BoundingBox, Integer> topLeftCoords =
-    BoundingBoxLenses.topLeft().asTraversal()
+    BoundingBoxLenses.topLeft()
         .andThen(TupleTraversals.both());
 
 BoundingBox scaled = Traversals.modify(topLeftCoords, coord -> coord * 2, box);
@@ -443,9 +443,9 @@ BoundingBox scaled = Traversals.modify(topLeftCoords, coord -> coord * 2, box);
 ```java
 // Perfect: Declarative, composable, reusable
 Traversal<ServiceConfig, Integer> allTimeouts =
-    ServiceConfigLenses.endpoints().asTraversal()
+    ServiceConfigLenses.endpoints()
         .andThen(Traversals.forMapValues())
-        .andThen(EndpointLenses.timeout().asTraversal())
+        .andThen(EndpointLenses.timeout())
         .andThen(Traversals.forOptional());
 
 ServiceConfig increased = Traversals.modify(allTimeouts, t -> t + 1000, serviceConfig);
@@ -559,7 +559,7 @@ public class ConfigOptics {
 
     // Domain-specific compositions
     public static final Traversal<ServiceConfig, Integer> ALL_PORTS =
-        ServiceConfigLenses.ports().asTraversal()
+        ServiceConfigLenses.ports()
             .andThen(MAP_INT_VALUES);
 }
 ```

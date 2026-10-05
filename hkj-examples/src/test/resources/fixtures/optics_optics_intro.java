@@ -12,6 +12,7 @@ import static java.util.stream.Collectors.toList;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
@@ -22,6 +23,7 @@ import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFolds;
+import org.higherkindedj.optics.fluent.OpticOps;
 import org.higherkindedj.optics.annotations.GenerateIsos;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GeneratePrisms;

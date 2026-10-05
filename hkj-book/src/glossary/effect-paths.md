@@ -219,7 +219,7 @@ EitherPath<AppError, String> city = userService.findById(userId)  // Effect: fet
 
 // Modify nested data within an effectful context
 EitherPath<AppError, User> updated = userService.findById(userId)
-    .map(user -> UserFocus.address().then(AddressFocus.postcode())
+    .map(user -> UserFocus.address().via(AddressFocus.postcode())
         .modify(String::toUpperCase, user));
 
 // Combine multiple effect sources with optic navigation. `focus` narrows through a single-target

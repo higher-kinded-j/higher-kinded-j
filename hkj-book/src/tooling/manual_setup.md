@@ -29,11 +29,11 @@ java {
 dependencies {
     implementation("io.github.higher-kinded-j:hkj-core:LATEST_VERSION")
 
-    // Optional: generates Focus paths and Effect paths for your records
+    // The annotation processor: generates the optics, Focus paths and Effect paths your annotations ask for
     annotationProcessor("io.github.higher-kinded-j:hkj-processor-plugins:LATEST_VERSION")
 }
 
-// Required: enable Java preview features
+// Enable Java preview features, for code that reaches the preview classes (see Prerequisites)
 tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.add("--enable-preview")
 }
@@ -80,7 +80,7 @@ repositories {
 
 <build>
     <plugins>
-        <!-- Optional: generates Focus paths and Effect paths for your records -->
+        <!-- The annotation processor: generates the optics, Focus paths and Effect paths your annotations ask for -->
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
@@ -95,7 +95,7 @@ repositories {
                 </annotationProcessorPaths>
             </configuration>
         </plugin>
-        <!-- Required: enable preview features for tests -->
+        <!-- Enable preview features for tests, for code that reaches the preview classes -->
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
@@ -103,7 +103,7 @@ repositories {
                 <argLine>--enable-preview</argLine>
             </configuration>
         </plugin>
-        <!-- Required: enable preview features for application execution -->
+        <!-- Enable preview features for application execution, for code that reaches the preview classes -->
         <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>

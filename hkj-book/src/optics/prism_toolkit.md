@@ -416,7 +416,7 @@ Optional<String> safe = notNullPrism.getOptional(nullable);
 // Compose to filter null values in pipelines
 Traversal<List<@Nullable String>, String> nonNullStrings =
     Traversals.<@Nullable String>forList()
-        .andThen(Prisms.<String>notNull().asTraversal());
+        .andThen(Prisms.<String>notNull());
 
 List<@Nullable String> mixedList = Arrays.asList("hello", null, "world", null);
 List<String> filtered = Traversals.getAll(nonNullStrings, mixedList);
@@ -441,8 +441,8 @@ Optional<Dog> maybeDog = dogPrism.getOptional(animal); // Optional.of(Dog(...))
 
 // Compose with lenses for deep access
 Lens<Dog, String> breedLens = DogLenses.breed();
-Traversal<Animal, String> dogBreed =
-    dogPrism.asTraversal().andThen(breedLens.asTraversal());
+Affine<Animal, String> dogBreed =
+    dogPrism.andThen(breedLens);
 
 List<Animal> animals = List.of(
     new Dog("Rex", "German Shepherd"),
@@ -451,7 +451,7 @@ List<Animal> animals = List.of(
 );
 
 List<String> breeds = Traversals.getAll(
-    Traversals.<Animal>forList().andThen(dogBreed),
+    Traversals.<Animal>forList().andThen(dogBreed.asTraversal()),
     animals
 );
 // Result: ["German Shepherd", "Beagle"]
@@ -522,19 +522,16 @@ The real power emerges when composing these utility prisms with your domain opti
 @GenerateLenses record Config(Optional<Either<String, DatabaseSettings>> database) {}
 @GenerateLenses record DatabaseSettings(String host, int port) {}
 
-// Build a path through Optional -> Either -> Settings -> host
-// (a chain through asTraversal is a Traversal, not a Prism)
-Traversal<Config, String> databaseHost =
+// Build a path through Optional -> Either -> Settings -> host: zero or one host
+Affine<Config, String> databaseHost =
     ConfigLenses.database()                    // Lens<Config, Optional<Either<...>>>
-        .asTraversal()
         // explicit witnesses: chained receivers lose the target types
-        .andThen(Prisms.<Either<String, DatabaseSettings>>some().asTraversal())
-        .andThen(Prisms.<String, DatabaseSettings>right().asTraversal())
-        .andThen(DatabaseSettingsLenses.host().asTraversal()); // -> String
+        .andThen(Prisms.<Either<String, DatabaseSettings>>some())
+        .andThen(Prisms.<String, DatabaseSettings>right())
+        .andThen(DatabaseSettingsLenses.host()); // -> String
 
 Config config = new Config(Optional.of(Either.right(new DatabaseSettings("localhost", 5432))));
-Optional<String> host = Traversals.getAll(databaseHost, config)
-    .stream().findFirst();
+Optional<String> host = databaseHost.getOptional(config);
 ```
 
 ~~~admonish tip title="Performance Considerations"

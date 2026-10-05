@@ -14,7 +14,7 @@ Ready to master optics through practice? The **[Optics Tutorial Track](../tutori
 - Performing effectful modifications with Higher-Kinded Types using `modifyF` and Applicatives
 ~~~
 
-As Java developers, we appreciate the safety and predictability of immutable objects, especially with the introduction of records. However, this safety comes at a cost: updating nested immutable data can be a verbose and error-prone nightmare.
+As Java developers, we appreciate the safety and predictability of immutable objects, especially with the introduction of records. However, this safety comes at a cost: updating nested immutable data is verbose and error-prone.
 
 Consider a simple nested record structure:
 
@@ -39,7 +39,7 @@ public User updateStreetName(User user, String newStreetName) {
 }
 ```
 
-This is tedious, hard to read, and gets exponentially worse with deeper nesting. What if there was a way to "zoom in" on the data you want to change, update it, and get a new copy of the top-level object back, all in one clean operation?
+This is tedious, hard to read, and grows by another rebuild with every level of nesting. What if there was a way to "zoom in" on the data you want to change, update it, and get a new copy of the top-level object back, all in one clean operation?
 
 This is the problem that **Optics** solve.
 
@@ -58,18 +58,16 @@ Think of an optic as a *zoom lens* for your data. It's a first-class object that
 * **Traversal**: A spotlight that can illuminate many targets at once
 * **Fold**: A read-only query tool that extracts and aggregates data
 
-Every optic provides two basic capabilities:
+Every optic answers two questions about a structure `S` and a part `A` inside it:
 
-1. **`get`**: Focus on a structure `S` and retrieve a part `A`.
-2. **`set`**: Focus on a structure `S`, provide a new part `A`, and receive a new `S` with the part updated. This is always an immutable operation: a new copy of `S` is returned.
-
-The read-only `Fold` is the deliberate exception: it queries but never writes.
+1. **How many parts does it reach?** A Lens or an Iso reaches exactly one, a Prism or an Affine zero or one, and a Traversal or a Fold any number. Each reads accordingly: with `get`, with `getOptional`, or as a list of them all.
+2. **Can it write?** Lens, Prism, Affine, Iso and Traversal can: give them new parts and you get back a new `S` with those parts updated. A write never mutates; a new copy of `S` is returned. The read-only `Fold` and `Getter` are the exceptions: they query but never write.
 
 The real power comes from their **composability**. You can chain optics together to peer deeply into nested structures and perform targeted updates with ease.
 
 ## The Optics Family in Higher-Kinded-J
 
-The `higher-kinded-j` library provides the foundation for a rich optics library built around six core types. Each is designed to solve a specific kind of data access problem.
+Higher-Kinded-J builds its optics around six core types, each designed for a specific kind of data access problem. Two specialists complete the family of eight that the [chapter introduction](ch_intro.md#how-the-optic-types-relate) draws: the read-only Getter and the write-only Setter, covered in [Collections](ch2_intro.md).
 
 ### 1. Lens: For "Has-A" Relationships
 
@@ -178,20 +176,21 @@ ContactInfo updated = contactToPhone.modify(String::trim, contact); // no-op whe
 A **Traversal** is an optic that can focus on multiple targets at once, typically all the items within a collection inside a larger structure.
 
 * **Problem it solves**: Applying an operation to every element in a `List`, `Set`, or other collection that is a field within an object.
-* **Example**: To validate a list of promo codes in an order with `Validated`:
+* **Example**: To validate every promo code in an order, collecting every bad one rather than stopping at the first:
 
+  <!-- verify -->
   ```java
   @GenerateTraversals
-  public record OrderData(..., List<String> promoCodes) {}
-  var codesTraversal = OrderDataTraversals.promoCodes();
-  // returns Validated<AppError, Code>
-  var validationFunction = (String code) -> validate(code); 
+  record OrderData(String id, List<String> promoCodes) {}
 
-  // Use the traversal to apply the function to every code.
-  // The Applicative for Validated handles the error accumulation automatically.
-  Validated<AppError, OrderData> result = codesTraversal.modifyF(
-      validationFunction, orderData, validatedApplicative
-  );
+  Function<String, Validated<String, String>> checkCode = code ->
+      code.matches("[A-Z0-9]{6}")
+          ? Validated.valid(code)
+          : Validated.invalid("not a promo code: " + code);
+
+  // Every invalid code is reported, in order; an all-valid order comes back unchanged.
+  Validated<List<String>, OrderData> result =
+      OpticOps.modifyAllValidated(orderData, OrderDataTraversals.promoCodes(), checkCode);
   ```
 
 ### 6. Fold: For "Has-Many" Queries
@@ -242,12 +241,12 @@ In practice most adaptation is done by composing (when the new source contains t
 
 This brings us to the unique advantages `higher-kinded-j` offers for optics in Java.
 
-1. **An Annotation-Driven Workflow**: Manually writing optics is boilerplate. The `higher-kinded-j` approach automates this. By simply adding an annotation (`@GenerateLenses`, `@GeneratePrisms`, etc.) to your data classes, you get fully-functional, type-safe optics for free. This is a massive productivity boost and eliminates a major barrier to using optics in Java.
-2. **Higher-Kinded Types for Effectful Updates**: This is the most powerful feature. Because `higher-kinded-j` provides an HKT abstraction (`Kind<F, A>`) and type classes like `Functor` and `Applicative`, the optics can perform *effectful* modifications. The `modifyF` method is generic over an `Applicative` effect `F`. This means you can perform an update within the context of any data type that has an `Applicative` instance:
+1. **An Annotation-Driven Workflow**: Manually writing optics is boilerplate. The `higher-kinded-j` approach automates this. By simply adding an annotation (`@GenerateLenses`, `@GeneratePrisms`, etc.) to your data classes, you get fully-functional, type-safe optics for free. That removes the boilerplate that keeps most Java code away from optics.
+2. **Higher-Kinded Types for Effectful Updates**: Because `higher-kinded-j` provides an HKT abstraction (`Kind<F, A>`) and type classes like `Functor` and `Applicative`, the optics can perform *effectful* modifications. The `modifyF` method is generic over an `Applicative` effect `F`. This means you can perform an update within the context of any data type that has an `Applicative` instance:
    * Want to perform an update that might fail? Use `Optional` or `Either` as your `F`.
    * Want to perform an asynchronous update? Use `CompletableFuture` as your `F`.
    * Want to accumulate validation errors? Use `Validated` as your `F`.
-3. **Profunctor Adaptability**: Every optic is fundamentally a profunctor, meaning it can be adapted to work with different data types and structures. This provides incredible flexibility for integrating with external systems, handling legacy data formats, and working with strongly-typed wrappers.
+3. **Adaptable to other types**: an optic can be adapted with `contramap`, `map` and `dimap` to work over different source and target types, which helps when integrating with external systems, legacy data formats and strongly-typed wrappers.
 
 ## Common Patterns
 
@@ -255,7 +254,7 @@ This brings us to the unique advantages `higher-kinded-j` offers for optics in J
 
 * **Use `with*` helpers** for simple, top-level field updates
 * **Use composed lenses** for deep updates or when you need to reuse the path
-* **Use manual lens creation** for computed properties or complex transformations
+* **Use manual lens creation** for a type you cannot annotate, and test it with `LensLaws`: see [Use Manual Lens Creation When](lenses.md#use-manual-lens-creation-when)
 
 ### Decision Guide
 
@@ -270,7 +269,7 @@ The [decision flow at the chapter opening](ch1_intro.md#which-optic-do-you-need)
 
 <!-- verify -->
 ```java
-// Get-then-set traverses the path twice
+// Get-then-set repeats the path and leaves a gap between the read and the write
 var street = userToStreetName.get(user);
 var updatedUser = userToStreetName.set(street.toUpperCase(), user);
 ```

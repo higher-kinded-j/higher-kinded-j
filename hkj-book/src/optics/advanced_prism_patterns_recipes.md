@@ -38,9 +38,8 @@ public class OptimisedPrismCache {
         Objects.requireNonNull(key, "key");   // else settingAt(null) and settingAt("null") share a cache entry
         return getCached("settings." + key, () ->
             SettingsLenses.entries()
-                .asTraversal()
                 .andThen(Traversals.forMap(key))
-                .andThen(Prisms.<String>some().asTraversal()));
+                .andThen(Prisms.<String>some()));
     }
 }
 ```

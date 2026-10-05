@@ -26,8 +26,8 @@ You are helping a developer use HKJ's optics system for type-safe immutable data
 | `@GenerateLenses` | `record` | `{Record}Lenses` class with `Lens<S, A>` for each field |
 | `@GenerateFocus` | `record` | `{Record}Focus` class with `FocusPath`/`AffinePath`/`TraversalPath` builders. Add `(generateNavigators = true)` for cross-type chaining |
 | `@GenerateTraversals` | `record` with collection fields | `{Record}Traversals` with `Traversal<S, A>` for collection fields; a component that holds elements but has no generator (`Deque`, `SortedMap`, a raw `List`) draws a processor note (a note, not a warning: there is no per-component opt-out) |
-| `@GeneratePrisms` | `sealed interface` | `{Interface}Prisms` class with `Prism<S, A>` for each permitted record |
-| `@GenerateIsos` | `record` with single field | `{Record}Isos` class with `Iso<S, A>` |
+| `@GeneratePrisms` | `sealed interface` or `enum` | `{Type}Prisms` class with a `Prism<S, A>` for each permitted subtype or constant |
+| `@GenerateIsos` | a `static`, no-argument method returning an `Iso` with concrete type arguments | a companion class holding that `Iso<S, A>` as a static field |
 | `@GenerateGetters` | `record` | `{Record}Getters` class with `Getter<S, A>` for each field |
 | `@GenerateSetters` | `record` | `{Record}Setters` class with `Setter<S, A>` for each field |
 | `@GenerateFolds` | `record` | `{Record}Folds` class with `Fold<S, A>` for each field |

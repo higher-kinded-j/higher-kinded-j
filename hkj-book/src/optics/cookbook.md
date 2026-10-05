@@ -26,13 +26,13 @@ You have a deeply nested structure with optional fields and need to update a val
 @GenerateLenses record Profile(String bio, Optional<Settings> settings) {}
 @GenerateLenses record Settings(boolean darkMode, int fontSize) {}
 
-// Build the traversal path
-Traversal<User, Integer> userFontSize =
+// Build the path: zero or one font size, so the type is an Affine
+Affine<User, Integer> userFontSize =
     UserLenses.profile()              // Lens<User, Optional<Profile>>
         .andThen(Prisms.some())       // Prism<Optional<Profile>, Profile>
-        .andThen(ProfileLenses.settings().asTraversal())  // Lens<Profile, Optional<Settings>>
-        .andThen(Prisms.<Settings>some().asTraversal())    // Prism<Optional<Settings>, Settings>
-        .andThen(SettingsLenses.fontSize().asTraversal()); // Lens<Settings, Integer>
+        .andThen(ProfileLenses.settings())  // Lens<Profile, Optional<Settings>>
+        .andThen(Prisms.<Settings>some())    // Prism<Optional<Settings>, Settings>
+        .andThen(SettingsLenses.fontSize()); // Lens<Settings, Integer>
 
 // Usage
 User user = new User("Alice", Optional.of(
@@ -40,12 +40,12 @@ User user = new User("Alice", Optional.of(
 ));
 
 // Increase font size if it exists, otherwise leave unchanged
-User updated = Traversals.modify(userFontSize, size -> size + 2, user);
+User updated = userFontSize.modify(size -> size + 2, user);
 ```
 
 ### Why It Works
 
-Each `Prisms.some()` safely handles the Optional - if any Optional is empty, the modification is skipped and the original structure is returned unchanged.
+Each `Prisms.some()` safely handles the Optional: if any Optional is empty, `modify` leaves the structure unchanged, and so does `set` here, because the path ends in a lens. A path that *ends* in an optional step writes even when it is empty: see [When the focus is absent](affine.md#when-the-focus-is-absent).
 
 ---
 
@@ -110,7 +110,7 @@ record LineItem(String productId, int quantity, Money price) {}
 
 // Traversal to all line items
 Traversal<Order, LineItem> allItems =
-    OrderLenses.items().asTraversal()
+    OrderLenses.items()
         .andThen(Traversals.forList());
 
 // Traversal to high-quantity items only
@@ -161,8 +161,8 @@ Prism<Event, UserEvent> userEventPrism = Prism.of(
 // Traversal from list of events to user actions
 Traversal<List<Event>, String> userActions =
     Traversals.<Event>forList()
-        .andThen(userEventPrism.asTraversal())
-        .andThen(UserEventLenses.action().asTraversal());
+        .andThen(userEventPrism)
+        .andThen(UserEventLenses.action());
 
 // Usage
 List<Event> events = List.of(
@@ -192,7 +192,7 @@ You need to access a value in a Map that may not exist, with a sensible default.
 
 // Traversal to a specific key
 Traversal<Config, String> databaseUrl =
-    ConfigLenses.settings().asTraversal()
+    ConfigLenses.settings()
         .andThen(Traversals.forMap("database.url"));
 
 // Get with default
@@ -279,11 +279,11 @@ You have nested collections and need to transform items at the innermost level.
 
 // Traversal to all employee salaries across all departments
 Traversal<Company, Integer> allSalaries =
-    CompanyLenses.departments().asTraversal()
+    CompanyLenses.departments()
         .andThen(Traversals.forList())
-        .andThen(DepartmentLenses.employees().asTraversal())
+        .andThen(DepartmentLenses.employees())
         .andThen(Traversals.forList())
-        .andThen(EmployeeLenses.salary().asTraversal());
+        .andThen(EmployeeLenses.salary());
 
 // Give everyone a 5% raise
 Company company = new Company(List.of(
@@ -331,7 +331,7 @@ public Product applyDiscount(Product product, double discountRate) {
 Traversal<List<Product>, Money> salePrices =
     Traversals.<Product>forList()
         .andThen(Traversals.filtered(Product::onSale))
-        .andThen(priceLens.asTraversal());
+        .andThen(priceLens);
 
 List<Product> products = List.of(new Product("Widget", new Money(100), true));
 List<Product> discounted = Traversals.modify(
@@ -397,9 +397,9 @@ You need to sort or reorder the elements focused by a Traversal.
 
 // Traversal to all scores
 Traversal<Scoreboard, Integer> scores =
-    ScoreboardLenses.players().asTraversal()
+    ScoreboardLenses.players()
         .andThen(Traversals.forList())
-        .andThen(PlayerLenses.score().asTraversal());
+        .andThen(PlayerLenses.score());
 
 // Sort scores (highest first)
 Scoreboard board = new Scoreboard(List.of(
@@ -429,7 +429,7 @@ reduced one the earlier recipes declare:
 
 <!-- verify -->
 ```java
-@GenerateLenses record Money(double amount) {}
+@GenerateLenses record Money(BigDecimal amount) {}
 @GenerateLenses record LineItem(String productId, int quantity, Money price) {}
 @GenerateLenses record Promotion(String code, boolean isActive) {}
 
@@ -446,16 +446,16 @@ reduced one the earlier recipes declare:
 ```java
 public final class OrderOptics {
     public static final Traversal<Order, Money> ALL_PRICES =
-        OrderLenses.items().asTraversal()
+        OrderLenses.items()
             .andThen(Traversals.forList())
-            .andThen(LineItemLenses.price().asTraversal());
+            .andThen(LineItemLenses.price());
 
     // The prism narrows Customer to Verified, so the next hop is a lens on
     // Verified, not on Customer.
-    public static final Traversal<Order, String> CUSTOMER_EMAIL =
+    public static final Affine<Order, String> CUSTOMER_EMAIL =
         OrderLenses.customer()
             .andThen(CustomerPrisms.verified())
-            .andThen(VerifiedLenses.email().asTraversal());
+            .andThen(VerifiedLenses.email());
 }
 ```
 
@@ -486,10 +486,10 @@ Traversal<Config, Settings> manual =
 public static final Traversal<Order, String> ACTIVE_PROMO_CODES =
     OrderLenses.customer()
         .andThen(CustomerPrisms.loyaltyMember())
-        .andThen(LoyaltyMemberLenses.promotions().asTraversal())
+        .andThen(LoyaltyMemberLenses.promotions())
         .andThen(Traversals.forList())
         .andThen(Traversals.filtered(Promotion::isActive))
-        .andThen(PromotionLenses.code().asTraversal());
+        .andThen(PromotionLenses.code());
 ```
 
 ### 4. Prefer Specific Types When Available
@@ -500,12 +500,14 @@ public static final Traversal<Order, String> ACTIVE_PROMO_CODES =
 Lens<User, String> name = UserLenses.name();
 String userName = name.get(user);
 
-// Only use Traversal when you need the flexibility, such as a nickname that may be absent
-Traversal<User, String> optionalNickname =
-    UserLenses.profile().asTraversal()
-        .andThen(Prisms.<Profile>some().asTraversal())
-        .andThen(ProfileLenses.bio().asTraversal());
-List<String> nicknames = Traversals.getAll(optionalNickname, user);
+// A value that may be absent, such as a bio on an optional profile, is an Affine
+Affine<User, String> optionalBio =
+    UserLenses.profile()
+        .andThen(Prisms.<Profile>some())
+        .andThen(ProfileLenses.bio());
+Optional<String> bio = optionalBio.getOptional(user);
+
+// Reach for a Traversal only when there can be many values
 ```
 
 ---
@@ -568,32 +570,33 @@ You have a `Traversal` built for modifications, but now need to perform read-onl
 <!-- verify -->
 ```java
 @GenerateLenses record Order(String id, List<LineItem> items) {}
-@GenerateLenses record LineItem(String product, int quantity, double price) {}
+// Prices in pence, so sums are exact
+@GenerateLenses record LineItem(String product, int quantity, int pricePence) {}
 
 // Existing traversal for modifications
-Traversal<Order, Double> allPrices =
-    OrderLenses.items().asTraversal()
+Traversal<Order, Integer> allPrices =
+    OrderLenses.items()
         .andThen(Traversals.forList())
-        .andThen(LineItemLenses.price().asTraversal());
+        .andThen(LineItemLenses.pricePence());
 
 // Convert to fold for read-only queries
-Fold<Order, Double> pricesFold = allPrices.asFold();
+Fold<Order, Integer> pricesFold = allPrices.asFold();
 
 Order order = new Order("ORD-1", List.of(
-    new LineItem("Widget", 2, 29.99),
-    new LineItem("Gadget", 1, 149.99),
-    new LineItem("Gizmo", 3, 9.99)
+    new LineItem("Widget", 2, 2999),
+    new LineItem("Gadget", 1, 14999),
+    new LineItem("Gizmo", 3, 999)
 ));
 
 // Aggregation with foldMap
-double total = pricesFold.foldMap(Monoids.doubleAddition(), p -> p, order);
-// Result: 189.97
+int total = pricesFold.foldMap(Monoids.integerAddition(), p -> p, order);
+// Result: 18997
 
 // Query operations
-boolean hasExpensive = pricesFold.exists(p -> p > 100.0, order);
+boolean hasExpensive = pricesFold.exists(p -> p > 10000, order);
 // Result: true
 
-boolean allAffordable = pricesFold.all(p -> p < 200.0, order);
+boolean allAffordable = pricesFold.all(p -> p < 20000, order);
 // Result: true
 
 int itemCount = pricesFold.length(order);

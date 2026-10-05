@@ -259,7 +259,7 @@ public record Document(String title, List<String> paragraphs) {}
 
 // Capitalise first letter of each word in all paragraphs
 Traversal<Document, String> allWords =
-    DocumentLenses.paragraphs().asTraversal()
+    DocumentLenses.paragraphs()
         .andThen(Traversals.forList())
         .andThen(StringTraversals.worded());
 
@@ -375,7 +375,7 @@ String normalised = Traversals.modify(
 ```java
 // Perfect: Reusable, composable, declarative
 Traversal<Config, String> allPropertyValues =
-    ConfigLenses.properties().asTraversal()
+    ConfigLenses.properties()
         .andThen(StringTraversals.lined())
         .andThen(StringTraversals.worded());
 

@@ -2,7 +2,13 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
-import java.util.*;
+// ANCHOR: complete_example
+
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Fold;
@@ -167,9 +173,8 @@ public class FoldUsageExample {
 
     Traversal<OrderHistory, ProductItem> allItemsTraversal =
         ordersLens
-            .asTraversal()
             .andThen(Traversals.<Order>forList())
-            .andThen(itemsLens.asTraversal())
+            .andThen(itemsLens)
             .andThen(Traversals.forList());
 
     // Convert to Fold — now we have the same query power as generated folds
@@ -196,3 +201,4 @@ public class FoldUsageExample {
     System.out.println("\n=== END OF EXAMPLE ===");
   }
 }
+// ANCHOR_END: complete_example

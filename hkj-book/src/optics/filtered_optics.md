@@ -81,7 +81,7 @@ This approach forces you to abandon the declarative power of optics, manually ma
 
 ## Think of Filtered Optics Like...
 
-* **A SQL WHERE clause**: `SELECT * FROM users WHERE active = true`
+* **A SQL `UPDATE ... WHERE`**: `UPDATE users SET tier = 'gold' WHERE active = true` changes only the matching rows and keeps the rest, just as a filtered write does
 * **A spotlight with a mask**: Illuminates only the items that match your criteria
 * **A sieve**: Allows matching elements to pass through whilst blocking others
 * **A conditional lens**: Focuses only on elements satisfying a predicate
@@ -164,7 +164,7 @@ The real power emerges when you compose filtered optics with other optics:
 Traversal<List<User>, String> activeUserNames =
     Traversals.<User>forList()
         .filtered(User::active)
-        .andThen(UserLenses.name().asTraversal());
+        .andThen(UserLenses.name());
 
 List<User> users = List.of(
     new User("alice", true, 100, SubscriptionTier.PREMIUM),
@@ -219,7 +219,7 @@ User result = Traversals.modify(activeFilter, User::grantBonus, user);
 Traversal<List<User>, String> activeUserNames =
     Traversals.<User>forList()
         .andThen(Traversals.filtered(User::active))  // Static combinator
-        .andThen(UserLenses.name().asTraversal());
+        .andThen(UserLenses.name());
 ```
 
 **When to use the static combinator vs instance method:**
@@ -254,7 +254,7 @@ Traversal<List<Customer>, Customer> customersWithOverdue =
 // Update tier for customers with overdue invoices
 Lens<Customer, SubscriptionTier> tierLens = CustomerLenses.tier();
 List<Customer> updated = Traversals.modify(
-    customersWithOverdue.andThen(tierLens.asTraversal()),
+    customersWithOverdue.andThen(tierLens),
     tier -> SubscriptionTier.BASIC,  // Downgrade tier
     customers
 );
@@ -276,7 +276,7 @@ Traversal<List<Customer>, Customer> keyAccounts =
 
 // Tag them in the name
 Traversal<List<Customer>, String> keyAccountNames =
-    keyAccounts.andThen(CustomerLenses.name().asTraversal());
+    keyAccounts.andThen(CustomerLenses.name());
 
 List<Customer> result = Traversals.modify(
     keyAccountNames,
@@ -556,7 +556,7 @@ public class CustomerAnalytics {
             Lens.of(Customer::vip, (c, v) -> new Customer(c.name(), c.orders(), v));
 
         List<Customer> updatedCustomers = Traversals.modify(
-            potentialVIPs.andThen(vipLens.asTraversal()),
+            potentialVIPs.andThen(vipLens),
             _ -> true,
             customers
         );

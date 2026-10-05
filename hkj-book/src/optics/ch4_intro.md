@@ -44,7 +44,7 @@ flowchart TD
     Q{"What does the<br/>operation need to do?"}
     Q -->|"read or update a value<br/>somewhere in the structure"| F(["Focus DSL<br/>start here"])
     Q -->|"the update can fail,<br/>accumulate errors, or run async"| O(["Fluent API<br/>OpticOps"])
-    Q -->|"record the plan first:<br/>audit, dry-run, replay"| R(["Free Monad DSL<br/>Advanced Optics"])
+    Q -->|"record the plan first:<br/>audit, analyse, replay"| R(["Free Monad DSL<br/>Advanced Optics"])
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634

@@ -50,7 +50,7 @@ private static final TraversalPath<Order, BigDecimal> ALL_PRICES =
 
 This matters most for paths constructed by `andThen` chains, where the whole composition is rebuilt on every call. The saving is smaller but real for a single accessor too, because a generated accessor is a factory rather than a constant: `CompanyLenses.name()` calls `Lens.of(...)` and allocates a fresh `Lens` every time, and `CompanyFocus.name()` allocates a `Lens` and a `FocusPath`.
 
-Both cases assume the path is used more than once. A path used once has no allocation to amortise, which is why the table above still says to inline it at the call site.
+Both cases assume the path is used more than once. A path used once has no allocation to amortise, which is why [When to extract optics](#when-to-extract-optics) still says to inline it at the call site.
 
 ---
 
@@ -109,7 +109,7 @@ These are the conventions the library's own examples and tests follow. Treat the
 - **Name paths after the field they end at.** `companyName`, not `companyToName` or `getCompanyName`. The receiver-style naming reads naturally at call sites: `Optics.companyName.set("...", company)`.
 - **Use `Fold` when you only read.** Even when a `Lens` would work, expressing read-only intent makes reviews easier and prevents accidental mutations.
 - **Reach for the Focus DSL first.** Manual `andThen` composition is fine and sometimes clearer, but the DSL gives you better IDE support and shorter call sites for nested updates.
-- **Reserve the Free Monad DSL for problems that demand it.** If you do not have an audit, dry-run, or multi-mode requirement, the everyday APIs are simpler.
+- **Reserve the Free Monad DSL for problems that demand it.** If you do not have an audit, structural-analysis, or multi-mode requirement, the everyday APIs are simpler.
 
 ~~~admonish info title="Key Takeaways"
 * **Immutability is the cost, not optics.** A composed lens allocates one record per touched layer, the same count a hand-written `with*` cascade would.
