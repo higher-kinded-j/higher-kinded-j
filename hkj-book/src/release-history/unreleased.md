@@ -19,6 +19,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ## Optics {#optics}
 
 - **Any two of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal` compose directly with `andThen`** ([#1021](https://github.com/higher-kinded-j/higher-kinded-j/pull/1021)). An `Iso` followed by a `Traversal` now returns a `Traversal`, and so does a `Traversal` followed by an `Affine` or an `Iso`, with no `asTraversal()` first. The composition table is read from the overloads, so it always matches the library. See [Composition Rules Table](../optics/composition_rules.md#composition-rules-table).
+- **A map written through an optic keeps its source's order** ([#1022](https://github.com/higher-kinded-j/higher-kinded-j/pull/1022)): every optic that writes a `Map`, from `Traversals.forMapValues` to `AtInstances.mapAt` and `Setter.forMapValues`, hands back a map in the source's iteration order. An updated key keeps its place and a new key goes at the end. See [Persistent and Third-Party Maps](../optics/common_data_structure_traversals.md#persistent-and-third-party-maps-formapvaluescollecting).
 - **Optics over a nullable field pass a nullness checker** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): every optic and Focus path type, and `Kind`, now takes a nullable type. So the `Lens<Config, @Nullable String>` the processor writes for a `@Nullable` component checks under JSpecify. A conversion into `Either`, `Validated` or an Effect Path does not take one yet. See [`.nullable()`: Handle Null Values](../optics/focus_navigation.md#nullable-handle-null-values).
 
 ---
@@ -67,6 +68,8 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **The element optics carry a null element through** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `Setter.forList`, and `FocusPaths.listElements`, `arrayElements`, `listCons`, `listSnoc`, `listTail`, `listInit` and `mapValues`, used to throw.
 - **`Plans.preflight` walks a batched traversal to the end** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)): `truncated` is now `false` for one, since the walk's null stub values no longer halt it.
 - **`IxedInstances.contains` counts an index holding a null as present** ([#767](https://github.com/higher-kinded-j/higher-kinded-j/issues/767)).
+
+- **A map an optic writes iterates in the source's order** ([#1022](https://github.com/higher-kinded-j/higher-kinded-j/pull/1022)): it came back in hash order, so printed output or a test of a map's iteration order can change. A `TreeMap` keeps its order but not its type; collect with `forMapValuesCollecting(TreeMap::new)` to keep both. `FocusPaths.mapValues` over an empty map returns a new map.
 
 #### Effect Paths {#runtime-effect-paths}
 
