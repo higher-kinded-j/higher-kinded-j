@@ -37,7 +37,7 @@ import java.nio.file.Path;
 Path path = Path.of("data.txt"); // the file to stream
 
 VStream<String> lines = VStream.bracket(
-    // Acquire: open the resource (runs lazily on first pull)
+    // Acquire: open the resource (runs lazily, each time the stream is consumed)
     VTask.of(() -> Files.newBufferedReader(path)),
 
     // Use: produce a stream from the resource
@@ -60,13 +60,13 @@ VStream<String> lines = VStream.bracket(
 
 Three key properties make this safe:
 
-1. **Lazy acquisition**: The resource is acquired on the first `pull()`, not when `bracket`
-   is called. This means creating the stream is free; the resource only opens when consumption
-   begins.
+1. **Lazy acquisition**: The resource is acquired when the `VTask` that `pull()` returns runs,
+   afresh on each run, not when `bracket` is called. This means creating the stream is free; the
+   resource only opens when consumption begins.
 
-2. **Guaranteed release**: The release function runs exactly once, regardless of how the
-   stream terminates, whether by normal completion, error, or partial consumption via `take`,
-   `headOption`, or `find`.
+2. **Guaranteed release**: The release function runs once for each acquisition, regardless of
+   how the stream terminates, whether by normal completion, error, a `use` function that throws,
+   or partial consumption via `take`, `headOption`, or `find`.
 
 3. **Exactly-once semantics**: An internal `AtomicBoolean` ensures the release function
    cannot run twice, even if multiple terminal paths converge.
@@ -83,8 +83,8 @@ List<String> firstTen = lines.take(10).toList().run();
 // File handle is closed when take(10) triggers the finaliser
 ```
 
-This works because `take(n)` wraps the stream with a counter that produces `Done` after n
-elements, and `Done` triggers the release.
+This works because `take(n)` closes the rest of the stream after its nth element, and closing
+runs the release.
 
 ### Nested Brackets
 
@@ -118,9 +118,12 @@ VStream<String> stream = VStream.of("a", "b", "c")
     .onFinalize(VTask.exec(() -> System.out.println("Stream completed")));
 ```
 
-The finaliser runs once each time the stream is consumed, when that consumption completes or
-encounters an error. Multiple finalisers can be chained; when the stream completes, they
-execute in the order they were attached:
+The finaliser runs once each time the stream is consumed: when that consumption completes,
+fails, or stops early. An operation that stops early, such as `take`, `takeWhile`, `zipWith`,
+`headOption`, `find`, `exists` or `forAll`, closes the rest of the stream, and so does a terminal
+operation that fails. Closing reaches every finaliser upstream that the stream has started
+reading, through any operator in between.
+Multiple finalisers can be chained; they execute in the order they were attached:
 
 <!-- verify -->
 ```java
@@ -132,7 +135,10 @@ VStream<Integer> stream = VStream.of(1, 2, 3)
 ### Error Handling in Finalisers
 
 If the finaliser itself throws an exception and the stream also failed, the original error
-is preserved and the finaliser error is added as a suppressed exception:
+is preserved and the finaliser error is added as a suppressed exception. If the stream did not
+fail, a finaliser that throws fails the operation that completed or closed it, such as `toList`
+or `headOption`. The other finalisers still run, and a later failure is suppressed onto the
+first:
 
 <!-- verify -->
 ```java
@@ -172,22 +178,22 @@ VStreamPath<String> withCleanup = lines.onFinalize(
 
 ## Known Limitations
 
-~~~admonish warning title="GC-Dependent Release"
-If the consumer simply stops pulling without running the stream to completion and without
-using a terminal operation that triggers the finaliser (such as `toList`, `take`, `headOption`,
-`find`, `fold`, etc.), the release depends on garbage collection. This is a known limitation
-of pull-based streams. Always use terminal operations to ensure cleanup runs promptly.
+~~~admonish warning title="Abandoned Streams"
+A finaliser runs when its stream completes, fails or is closed. If you pull steps by hand and
+drop the tail without draining it or calling `close()`, the finaliser never runs. Every terminal
+operation, `take` and `takeWhile` handle this for you. Closing a `bracket` head closes only its
+latest run, so if you run its pulled `VTask` more than once, close the tail of each run.
 ~~~
 
 ## Key Takeaways
 
 ~~~admonish tip title="Key Takeaways"
 - `bracket(acquire, use, release)` ties resource lifecycle to stream lifecycle
-- Resources are acquired lazily and released exactly once
+- Resources are acquired lazily, each time the stream is consumed, and released once for each acquisition
 - Partial consumption (take, headOption, find) still triggers release
 - `onFinalize` provides lightweight cleanup for streams that do not need full bracket
 - Nested brackets release in reverse order (inner before outer)
-- Finaliser errors are suppressed; original errors are preserved
+- A finaliser error is suppressed onto the stream's own failure; otherwise it fails the operation that completed or closed the stream
 ~~~
 
 ## See Also

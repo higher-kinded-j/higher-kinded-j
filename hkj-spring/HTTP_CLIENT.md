@@ -212,8 +212,8 @@ retrying blindly.
 
 A streaming endpoint that the server renders with a `VStreamPath` (its `VStreamPathReturnValueHandler`
 SSE format) is consumed with the runtime translator. Decoding is lazy and resource-safe: the response
-stream is opened when the path is pulled and closed when it is drained to completion or fails (bracket
-semantics over `VStream.unfold`):
+stream is opened when the path is pulled and closed when it is drained to completion, fails, or is
+stopped early by `take(n)`, `headOption()` or `find(...)` (bracket semantics over `VStream.unfold`):
 
 ```java
 VStreamPath<Tick> ticks =
@@ -226,9 +226,7 @@ List<Tick> all = ticks.run().toList();   // draining terminal
 
 Each `data:` frame decodes into the element type; an `event: complete` frame ends the stream; an
 `event: error` frame fails it with `SseStreamException`. Each line is capped at 1 MiB to bound memory
-against a hostile or buggy upstream. Prefer a draining or `take`-bounded terminal: a short-circuiting
-terminal such as `headOption()`/`find(...)` may return before the stream completes and leave the
-HTTP response open.
+against a hostile or buggy upstream.
 
 ## Generic Clients
 

@@ -633,6 +633,7 @@ public VStreamPath<User> streamUsers() {
 3. Each element is written as an SSE `data:` event with JSON payload
 4. A completion event is sent when the stream ends
 5. On error, an SSE error event is sent
+6. If the client disconnects, the request times out or an element fails to serialise, the stream is closed, so its finalisers run
 
 #### Parameterised Streams
 

@@ -6,14 +6,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.*;
 
+import jakarta.servlet.AsyncEvent;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -123,7 +128,7 @@ class VStreamPathReturnValueHandlerTest {
   }
 
   @Nested
-  @DisplayName("Client Disconnect Tests")
+  @DisplayName("Client Disconnect and Timeout Tests")
   class ClientDisconnectTests {
 
     @Test
@@ -142,6 +147,83 @@ class VStreamPathReturnValueHandlerTest {
       // Without checkError() detection this would pull (and leak a virtual thread) forever
       verify(metricsService, timeout(2000)).recordVStreamError("ClientDisconnected");
       verify(metricsService, never()).recordVStreamSuccess();
+    }
+
+    @Test
+    @DisplayName("A client disconnect closes the stream, so its finaliser runs")
+    void disconnectClosesTheStream() throws Exception {
+      BrokenPipeResponse brokenResponse = new BrokenPipeResponse(3);
+      ServletWebRequest brokenWebRequest = new ServletWebRequest(mockRequest, brokenResponse);
+      WebAsyncUtils.getAsyncManager(brokenWebRequest)
+          .setAsyncWebRequest(new StandardServletAsyncWebRequest(mockRequest, brokenResponse));
+      AtomicBoolean finalised = new AtomicBoolean(false);
+
+      VStreamPath<Integer> path =
+          Path.vstream(
+              VStream.iterate(0, n -> n + 1).onFinalize(VTask.exec(() -> finalised.set(true))));
+
+      handler.handleReturnValue(path, returnType, mavContainer, brokenWebRequest);
+
+      verify(metricsService, timeout(2000)).recordVStreamError("ClientDisconnected");
+      await().atMost(Duration.ofSeconds(2)).untilTrue(finalised);
+    }
+
+    @Test
+    @DisplayName(
+        "A finaliser failing when a disconnect closes the stream still leaves the response settled")
+    void failingCloseAfterDisconnectIsSettled() throws Exception {
+      BrokenPipeResponse brokenResponse = new BrokenPipeResponse(3);
+      ServletWebRequest brokenWebRequest = new ServletWebRequest(mockRequest, brokenResponse);
+      WebAsyncUtils.getAsyncManager(brokenWebRequest)
+          .setAsyncWebRequest(new StandardServletAsyncWebRequest(mockRequest, brokenResponse));
+      AtomicBoolean finalised = new AtomicBoolean(false);
+
+      VStreamPath<Integer> path =
+          Path.vstream(
+              VStream.iterate(0, n -> n + 1)
+                  .onFinalize(
+                      VTask.exec(
+                          () -> {
+                            finalised.set(true);
+                            throw new IllegalStateException("finaliser failed");
+                          })));
+
+      handler.handleReturnValue(path, returnType, mavContainer, brokenWebRequest);
+
+      verify(metricsService, timeout(2000)).recordVStreamError("ClientDisconnected");
+      await().atMost(Duration.ofSeconds(2)).untilTrue(finalised);
+    }
+
+    @Test
+    @DisplayName("A timeout during the first pull closes the stream once that pull returns")
+    void timeoutDuringFirstPullClosesTheStream() throws Exception {
+      CountDownLatch pulling = new CountDownLatch(1);
+      CountDownLatch proceed = new CountDownLatch(1);
+      AtomicBoolean finalised = new AtomicBoolean(false);
+      VStreamPath<Integer> path =
+          Path.vstream(
+              VStream.iterate(0, n -> n + 1)
+                  .onFinalize(VTask.exec(() -> finalised.set(true)))
+                  .mapTask(
+                      n ->
+                          VTask.of(
+                              () -> {
+                                pulling.countDown();
+                                proceed.await();
+                                return n;
+                              })));
+      StandardServletAsyncWebRequest asyncWebRequest =
+          new StandardServletAsyncWebRequest(mockRequest, mockResponse);
+      WebAsyncUtils.getAsyncManager(webRequest).setAsyncWebRequest(asyncWebRequest);
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+      assertThat(pulling.await(2, TimeUnit.SECONDS)).isTrue();
+      // Simulate the container's async timeout event while the first pull is still running
+      asyncWebRequest.onTimeout(new AsyncEvent(mockRequest.getAsyncContext()));
+      proceed.countDown();
+
+      await().atMost(Duration.ofSeconds(2)).untilTrue(finalised);
+      assertThat(mockResponse.getStatus()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT.value());
     }
   }
 

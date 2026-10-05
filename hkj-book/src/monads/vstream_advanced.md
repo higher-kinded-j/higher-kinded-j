@@ -119,7 +119,12 @@ Flow.Publisher<String> publisher = VStreamReactive.toPublisher(stream);
 ```
 
 The publisher respects backpressure: elements are only pulled from the VStream when the
-subscriber has outstanding demand via `request(n)`. Each subscriber receives all elements.
+subscriber has outstanding demand via `request(n)`, plus one step ahead to notice the end of the
+stream. Each subscriber receives all elements.
+
+When a subscriber cancels, or the stream fails, the publisher closes what is left of the stream,
+so its finalisers run. A subscriber that cancels before it requests anything closes nothing, so
+it cannot end another subscriber's reading of a shared stream.
 
 ### Publisher to VStream
 
@@ -131,7 +136,8 @@ VStream<Event> events = VStreamReactive.fromPublisher(eventPublisher, 64);
 
 The publisher is subscribed to immediately. Incoming elements are buffered in a bounded queue
 (configurable via the `bufferSize` parameter). The VStream pulls from this queue, converting
-push-based delivery to pull-based consumption.
+push-based delivery to pull-based consumption. Closing the VStream cancels the subscription, so
+`events.take(5)` stops the publisher once it has its five elements.
 
 ### Round-Trip
 

@@ -174,7 +174,7 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
   VStreamPath<A> filter(Predicate<? super A> predicate);
 
   /**
-   * Takes at most the first {@code n} elements.
+   * Takes at most the first {@code n} elements, then closes the rest of the stream.
    *
    * @param n the maximum number of elements to take
    * @return a new VStreamPath limited to n elements
@@ -190,7 +190,7 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
   VStreamPath<A> drop(long n);
 
   /**
-   * Takes elements while the predicate holds, then completes.
+   * Takes elements while the predicate holds, then completes, closing the rest of the stream.
    *
    * @param predicate the predicate to test elements against; must not be null
    * @return a new VStreamPath that completes when the predicate fails
@@ -270,7 +270,7 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
   <M> VTaskPath<M> foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f);
 
   /**
-   * Returns the first element, or empty if the stream is empty.
+   * Returns the first element, or empty if the stream is empty, closing the rest of the stream.
    *
    * @return a VTaskPath producing the first element as an Optional
    */
@@ -295,7 +295,8 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
   VTaskPath<Long> count();
 
   /**
-   * Checks whether any element matches the given predicate. Short-circuits on the first match.
+   * Checks whether any element matches the given predicate. Short-circuits on the first match,
+   * closing the rest of the stream.
    *
    * @param predicate the predicate to test; must not be null
    * @return a VTaskPath producing true if any element matches
@@ -304,7 +305,8 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
   VTaskPath<Boolean> exists(Predicate<? super A> predicate);
 
   /**
-   * Checks whether all elements match the given predicate. Short-circuits on the first non-match.
+   * Checks whether all elements match the given predicate. Short-circuits on the first non-match,
+   * closing the rest of the stream.
    *
    * @param predicate the predicate to test; must not be null
    * @return a VTaskPath producing true if all elements match
@@ -313,7 +315,7 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
   VTaskPath<Boolean> forAll(Predicate<? super A> predicate);
 
   /**
-   * Finds the first element matching the given predicate.
+   * Finds the first element matching the given predicate, closing the rest of the stream.
    *
    * @param predicate the predicate to test; must not be null
    * @return a VTaskPath producing the first match as an Optional
@@ -546,13 +548,15 @@ public sealed interface VStreamPath<A> extends Chainable<A>, Deferred<A>
   // ===== Resource management =====
 
   /**
-   * Ensures a finaliser runs when this stream completes or encounters an error.
+   * Ensures a finaliser runs when this stream completes, encounters an error, or is closed.
    *
-   * <p>The finaliser VTask is executed exactly once when:
+   * <p>The finaliser VTask is executed exactly once for each consumption, when:
    *
    * <ul>
    *   <li>The stream completes normally
    *   <li>An error occurs during pulling
+   *   <li>The stream stops early, through {@link #take(long)} or {@link #headOption()} for example,
+   *       or is closed
    * </ul>
    *
    * <p>Delegates to {@link VStream#onFinalize(VTask)}.

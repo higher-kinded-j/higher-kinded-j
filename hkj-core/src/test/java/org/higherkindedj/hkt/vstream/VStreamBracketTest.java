@@ -162,32 +162,36 @@ class VStreamBracketTest {
     @Test
     @DisplayName("headOption() from bracketed stream releases resource")
     void headOptionReleasesResource() {
+      AtomicBoolean released = new AtomicBoolean(false);
       VStream<Integer> stream =
           VStream.bracket(
-              VTask.succeed("resource"), _ -> VStream.of(1, 2, 3), _ -> VTask.exec(() -> {}));
+              VTask.succeed("resource"),
+              _ -> VStream.of(1, 2, 3),
+              _ -> VTask.exec(() -> released.set(true)));
 
-      var result = stream.headOption().run();
+      var result = stream.map(x -> x * 10).headOption().run();
 
-      assertThat(result).hasValue(1);
-      // headOption pulls one element, then the stream is not fully consumed.
-      // Release happens when Done is reached or on error.
-      // With take(1).toList(), Done is reached, so released should be true.
+      assertThat(result).hasValue(10);
+      assertThat(released).isTrue();
     }
 
     @Test
     @DisplayName("find() short-circuit releases resource")
     void findShortCircuitReleasesResource() {
       AtomicInteger pullCount = new AtomicInteger(0);
+      AtomicBoolean released = new AtomicBoolean(false);
 
       VStream<Integer> stream =
           VStream.bracket(
               VTask.succeed("resource"),
               _ -> VStream.of(1, 2, 3, 4, 5).peek(_ -> pullCount.incrementAndGet()),
-              _ -> VTask.exec(() -> {}));
+              _ -> VTask.exec(() -> released.set(true)));
 
       var result = stream.find(x -> x == 3).run();
 
       assertThat(result).hasValue(3);
+      assertThat(pullCount).hasValue(3);
+      assertThat(released).isTrue();
     }
   }
 

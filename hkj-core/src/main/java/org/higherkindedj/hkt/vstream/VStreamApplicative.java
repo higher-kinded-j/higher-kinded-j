@@ -94,11 +94,13 @@ public class VStreamApplicative extends VStreamFunctor implements Applicative<VS
     // Without this, flatMap would consume aStream on the first function and subsequent
     // functions would see an empty/exhausted stream, breaking Cartesian product semantics.
     VStream<B> result =
-        VStream.defer(
+        DeferredStream.deferring(
             () -> {
               List<A> values = aStream.toList().run();
               return fStream.flatMap(f -> VStream.fromList(values).map(f));
-            });
+            },
+            fStream,
+            aStream);
     return VSTREAM.widen(result);
   }
 }

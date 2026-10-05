@@ -158,6 +158,12 @@ VStream<Event> allEvents = VStreamPar.merge(List.of(
 // Elements arrive as they become available from any source
 ```
 
+When the consumer stops early, with `take(n)` or `headOption()` for example, the merge is
+closed. It interrupts any source still being pulled and waits for the source threads to stop.
+Then it closes each source that had not finished, so each source's finalisers run. A source
+failing stops the merge the same way. A source finaliser that fails while the merge closes is
+dropped, since the merge has already stopped.
+
 ### parCollect: Parallel Batch Collection
 
 Terminal operation that collects all elements using parallel batch processing.
