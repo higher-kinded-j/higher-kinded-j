@@ -811,13 +811,15 @@ public final class Traversals {
   }
 
   /**
-   * Traverse a list with speculative execution for each element. Both branches are visible upfront,
-   * allowing selective implementations to potentially execute them in parallel.
+   * Traverse a list with speculative execution for each element. Both functions are applied to
+   * every element, and {@code ifS} then keeps the effect the predicate picked. Where only the
+   * chosen function should run, choose inside the function given to {@link #traverseList}, as
+   * {@link Traversal#branch} does for a traversal.
    *
    * <p>Example:
    *
    * <pre>{@code
-   * // Try cache first, API as fallback - both can start immediately
+   * // Cache and API are both called for every id; the predicate picks which result is kept
    * List<UserId> ids = List.of(id1, id2, id3);
    * Kind<F, List<User>> users = Traversals.speculativeTraverseList(
    *   ids,
@@ -830,8 +832,8 @@ public final class Traversals {
    *
    * @param list The list to traverse
    * @param predicate Determines which branch to take for each element
-   * @param thenBranch Function to apply when predicate is true
-   * @param elseBranch Function to apply when predicate is false
+   * @param thenBranch Function whose result is kept when the predicate is true
+   * @param elseBranch Function whose result is kept when the predicate is false
    * @param selective The Selective instance
    * @param <F> The effect type
    * @param <A> The element type of the input list

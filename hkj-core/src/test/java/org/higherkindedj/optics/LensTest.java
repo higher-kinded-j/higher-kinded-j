@@ -307,15 +307,20 @@ class LensTest {
     }
 
     @Test
-    @DisplayName("setIf should not set value when predicate is false")
+    @DisplayName("setIf should return the source without calling set when predicate is false")
     void setIfFalse() {
       Street street = new Street("Main St");
+      Lens<Street, String> unsettable =
+          Lens.of(
+              Street::name,
+              (s, n) -> {
+                throw new AssertionError("setIf called set although the predicate failed");
+              });
 
       Kind<IdKind.Witness, Street> result =
-          lens.setIf(s -> s.isEmpty(), "New Street", street, selective);
+          unsettable.setIf(s -> s.isEmpty(), "New Street", street, selective);
 
-      Street resultStreet = IdKindHelper.ID.narrow(result).value();
-      assertThat(resultStreet.name()).isEqualTo("Main St");
+      assertThat(IdKindHelper.ID.narrow(result).value()).isSameAs(street);
     }
 
     @Test
@@ -331,38 +336,55 @@ class LensTest {
     }
 
     @Test
-    @DisplayName("modifyWhen should not modify when predicate is false")
+    @DisplayName("modifyWhen should return the source without calling the modifier when false")
     void modifyWhenFalse() {
       Street street = new Street("This is a very long street name");
 
       Kind<IdKind.Witness, Street> result =
-          lens.modifyWhen(s -> s.length() < 10, String::toUpperCase, street, selective);
+          lens.modifyWhen(
+              s -> s.length() < 10,
+              s -> {
+                throw new AssertionError("modifyWhen called the modifier for " + s);
+              },
+              street,
+              selective);
 
-      Street resultStreet = IdKindHelper.ID.narrow(result).value();
-      assertThat(resultStreet.name()).isEqualTo("This is a very long street name");
+      assertThat(IdKindHelper.ID.narrow(result).value()).isSameAs(street);
     }
 
     @Test
-    @DisplayName("modifyBranch should use thenModifier when predicate is true")
+    @DisplayName("modifyBranch should use only thenModifier when predicate is true")
     void modifyBranchTrue() {
       Street street = new Street("short");
 
       Kind<IdKind.Witness, Street> result =
           lens.modifyBranch(
-              s -> s.length() < 10, String::toUpperCase, s -> s + " (long)", street, selective);
+              s -> s.length() < 10,
+              String::toUpperCase,
+              s -> {
+                throw new AssertionError("modifyBranch called elseModifier for " + s);
+              },
+              street,
+              selective);
 
       Street resultStreet = IdKindHelper.ID.narrow(result).value();
       assertThat(resultStreet.name()).isEqualTo("SHORT");
     }
 
     @Test
-    @DisplayName("modifyBranch should use elseModifier when predicate is false")
+    @DisplayName("modifyBranch should use only elseModifier when predicate is false")
     void modifyBranchFalse() {
       Street street = new Street("This is a long name");
 
       Kind<IdKind.Witness, Street> result =
           lens.modifyBranch(
-              s -> s.length() < 10, String::toUpperCase, s -> s + " (long)", street, selective);
+              s -> s.length() < 10,
+              s -> {
+                throw new AssertionError("modifyBranch called thenModifier for " + s);
+              },
+              s -> s + " (long)",
+              street,
+              selective);
 
       Street resultStreet = IdKindHelper.ID.narrow(result).value();
       assertThat(resultStreet.name()).isEqualTo("This is a long name (long)");

@@ -155,8 +155,8 @@ public class SelectiveOpticsExample {
   }
 
   /**
-   * Example 4: Speculative Execution Both branches visible upfront - can potentially execute in
-   * parallel.
+   * Example 4: Speculative Execution. Both functions run for every account, and the predicate picks
+   * the result that is kept.
    */
   private static void speculativeTraversalExample() {
     System.out.println("--- Example 4: Speculative Execution ---");
@@ -260,8 +260,8 @@ public class SelectiveOpticsExample {
                 validator, bank, Instances.validated(Semigroups.string("; "))));
     System.out.println("Result: " + applicativeResult);
 
-    // Approach 2: Selective - can implement early termination
-    System.out.println("\nSelective approach (can short-circuit):");
+    // Approach 2: Selective - validate only the accounts the predicate admits
+    System.out.println("\nSelective approach (validates only accounts the predicate admits):");
 
     Predicate<Account> isValid = account -> account.balance() >= 0;
 
@@ -274,6 +274,8 @@ public class SelectiveOpticsExample {
                 isValid, validator, // Only validate if basic check passes
                 bank, selective));
     System.out.println("Result: " + selectiveResult);
+    System.out.println(
+        "Note: rejected accounts are kept unvalidated, so their overdrafts are not reported");
     System.out.println();
   }
 }

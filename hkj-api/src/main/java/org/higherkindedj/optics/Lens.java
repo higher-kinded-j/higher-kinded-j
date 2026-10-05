@@ -490,7 +490,7 @@ public interface Lens<S extends @Nullable Object, A extends @Nullable Object>
 
   /**
    * Conditionally set a new value based on a predicate. Returns the original structure if the
-   * predicate is false.
+   * predicate is false, without calling {@code set}.
    *
    * <p>Example:
    *
@@ -513,15 +513,13 @@ public interface Lens<S extends @Nullable Object, A extends @Nullable Object>
    */
   default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> setIf(
       Predicate<? super A> predicate, A newValue, S source, Selective<F> selective) {
-    return selective.ifS(
-        selective.of(predicate.test(newValue)),
-        selective.of(set(newValue, source)),
-        selective.of(source));
+    return predicate.test(newValue) ? selective.of(set(newValue, source)) : selective.of(source);
   }
 
   /**
    * Modify the value only when the current value meets a condition. Useful for conditional field
-   * updates based on current state.
+   * updates based on current state. The predicate is tested first, and {@code modifier} is called
+   * only when it holds, so the modifier may assume the condition.
    *
    * <p>Example:
    *
@@ -548,14 +546,14 @@ public interface Lens<S extends @Nullable Object, A extends @Nullable Object>
       S source,
       Selective<F> selective) {
     A current = get(source);
-    return selective.ifS(
-        selective.of(shouldModify.test(current)),
-        selective.of(set(modifier.apply(current), source)),
-        selective.of(source));
+    return shouldModify.test(current)
+        ? selective.of(set(modifier.apply(current), source))
+        : selective.of(source);
   }
 
   /**
-   * Branch between two modification strategies based on current value.
+   * Branch between two modification strategies based on current value. The predicate is tested
+   * first, and only the modifier it picks is called.
    *
    * <p>Example:
    *
@@ -585,9 +583,7 @@ public interface Lens<S extends @Nullable Object, A extends @Nullable Object>
       S source,
       Selective<F> selective) {
     A current = get(source);
-    return selective.ifS(
-        selective.of(predicate.test(current)),
-        selective.of(set(thenModifier.apply(current), source)),
-        selective.of(set(elseModifier.apply(current), source)));
+    A updated = predicate.test(current) ? thenModifier.apply(current) : elseModifier.apply(current);
+    return selective.of(set(updated, source));
   }
 }

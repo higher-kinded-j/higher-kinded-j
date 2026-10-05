@@ -4,6 +4,7 @@ package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -687,23 +688,28 @@ class TraversalTest {
     private final Traversal<List<User>, User> listTraversal = listElements();
 
     @Test
-    @DisplayName("branch should apply different functions based on predicate")
+    @DisplayName("branch applies to each element only the function its predicate picks")
     void branchAppliesDifferentFunctions() {
       List<User> users =
           List.of(
               new User("Alice", true, 100),
               new User("Bob", false, 200),
               new User("Charlie", true, 150));
+      List<String> calls = new ArrayList<>();
 
       Kind<IdKind.Witness, List<User>> result =
           listTraversal.branch(
               User::active,
-              u ->
-                  IdKindHelper.ID.widen(
-                      Id.of(new User(u.name().toUpperCase(), u.active(), u.score()))),
-              u ->
-                  IdKindHelper.ID.widen(
-                      Id.of(new User(u.name() + "_inactive", u.active(), u.score()))),
+              u -> {
+                calls.add("then " + u.name());
+                return IdKindHelper.ID.widen(
+                    Id.of(new User(u.name().toUpperCase(), u.active(), u.score())));
+              },
+              u -> {
+                calls.add("else " + u.name());
+                return IdKindHelper.ID.widen(
+                    Id.of(new User(u.name() + "_inactive", u.active(), u.score())));
+              },
               users,
               selective);
 
@@ -713,20 +719,28 @@ class TraversalTest {
               new User("ALICE", true, 100),
               new User("Bob_inactive", false, 200),
               new User("CHARLIE", true, 150));
+      assertThat(calls).containsExactly("then Alice", "else Bob", "then Charlie");
     }
 
     @Test
-    @DisplayName("modifyWhen should only modify when predicate is true")
+    @DisplayName("modifyWhen calls the function only for the elements the predicate accepts")
     void modifyWhenAppliesConditionally() {
       List<User> users =
           List.of(
               new User("Alice", true, 100),
               new User("Bob", false, 200),
               new User("Charlie", true, 150));
+      List<String> calls = new ArrayList<>();
 
       Kind<IdKind.Witness, List<User>> result =
           listTraversal.modifyWhen(
-              User::active, u -> IdKindHelper.ID.widen(Id.of(u.grantBonus())), users, selective);
+              User::active,
+              u -> {
+                calls.add(u.name());
+                return IdKindHelper.ID.widen(Id.of(u.grantBonus()));
+              },
+              users,
+              selective);
 
       List<User> resultList = IdKindHelper.ID.narrow(result).value();
       assertThat(resultList)
@@ -734,16 +748,22 @@ class TraversalTest {
               new User("Alice", true, 200), // bonus applied
               new User("Bob", false, 200), // unchanged
               new User("Charlie", true, 250)); // bonus applied
+      assertThat(calls).containsExactly("Alice", "Charlie");
     }
 
     @Test
-    @DisplayName("modifyWhen should leave all unchanged when no elements match")
+    @DisplayName("modifyWhen leaves every element unchanged, and calls nothing, when none match")
     void modifyWhenNoMatches() {
       List<User> users = List.of(new User("Alice", false, 100), new User("Bob", false, 200));
 
       Kind<IdKind.Witness, List<User>> result =
           listTraversal.modifyWhen(
-              User::active, u -> IdKindHelper.ID.widen(Id.of(u.grantBonus())), users, selective);
+              User::active,
+              u -> {
+                throw new AssertionError("modifyWhen called the function for " + u.name());
+              },
+              users,
+              selective);
 
       List<User> resultList = IdKindHelper.ID.narrow(result).value();
       assertThat(resultList).containsExactlyElementsOf(users);

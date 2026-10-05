@@ -236,8 +236,9 @@ public interface Traversal<S extends @Nullable Object, A extends @Nullable Objec
   }
 
   /**
-   * Branch between two modification strategies based on a predicate. Both branches are visible
-   * upfront, allowing selective implementations to potentially execute them in parallel.
+   * Branch between two modification strategies based on a predicate. Each focused element is tested
+   * first, and only the branch the predicate picks is applied to it, so a branch may assume the
+   * condition it is guarded by.
    *
    * <p>Example:
    *
@@ -267,16 +268,14 @@ public interface Traversal<S extends @Nullable Object, A extends @Nullable Objec
       S source,
       Selective<F> selective) {
     return this.modifyF(
-        a ->
-            selective.ifS(
-                selective.of(predicate.test(a)), thenBranch.apply(a), elseBranch.apply(a)),
-        source,
-        selective);
+        a -> predicate.test(a) ? thenBranch.apply(a) : elseBranch.apply(a), source, selective);
   }
 
   /**
-   * Apply a function only when a condition is met, otherwise leave unchanged. This is useful for
-   * performing effects only on elements that need processing.
+   * Apply a function only when a condition is met, otherwise leave unchanged. Each focused element
+   * is tested first: {@code f} is called only for the elements the predicate accepts, and the rest
+   * are kept as they are with no effect. This is useful for performing effects only on elements
+   * that need processing.
    *
    * <p>Example:
    *
@@ -303,9 +302,7 @@ public interface Traversal<S extends @Nullable Object, A extends @Nullable Objec
       S source,
       Selective<F> selective) {
     return this.modifyF(
-        a -> selective.ifS(selective.of(shouldModify.test(a)), f.apply(a), selective.of(a)),
-        source,
-        selective);
+        a -> shouldModify.test(a) ? f.apply(a) : selective.of(a), source, selective);
   }
 
   /**
