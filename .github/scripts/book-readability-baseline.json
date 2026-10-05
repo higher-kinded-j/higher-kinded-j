@@ -82,7 +82,7 @@
     "optics/common_data_structure_traversals.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "optics/compiler_errors.md": { "long35": 22, "long50": 5, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 10 },
     "optics/composing_optics.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 2 },
-    "optics/composition_rules.md": { "long35": 3, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
+    "optics/composition_rules.md": { "long35": 3, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "optics/conversions.md": { "long35": 2, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 0 },
     "optics/cookbook.md": { "long35": 1, "long50": 0, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },
     "optics/copy_strategies.md": { "long35": 9, "long50": 1, "bullets": 0, "runs": 0, "dashes": 0, "aboveBelow": 1 },

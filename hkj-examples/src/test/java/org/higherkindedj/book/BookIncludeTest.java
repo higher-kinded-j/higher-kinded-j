@@ -45,7 +45,7 @@ class BookIncludeTest {
    * <p>It counts the anchored includes and the whole-file golden ones together, so dropping either
    * kind fails.
    */
-  private static final int MINIMUM_INCLUDES = 224;
+  private static final int MINIMUM_INCLUDES = 253;
 
   /** Any include, in any form, so an unanchored one cannot slip past unchecked. */
   private static final Pattern ANY_INCLUDE = Pattern.compile("\\{\\{#include\\s+([^}]+)}}");
@@ -152,11 +152,11 @@ class BookIncludeTest {
     // The resolve test only understands `file:anchor`. A line-range include would be silently
     // unchecked, and would quietly show the wrong lines the moment the file it points into grows.
     //
-    // A golden file is the one whole-file include worth allowing. It is generated output, pinned
-    // byte for byte by the golden-file check that CI and the release gate run, so it cannot carry
-    // an ANCHOR comment (that would change the very bytes under test) and it cannot drift without
-    // failing there first. Showing a reader exactly what the processor writes is worth the
-    // exception.
+    // A golden file is the one whole-file include worth allowing. It is generated output pinned
+    // byte for byte by a test: the processor's golden-file check, or a book test such as
+    // BookCompositionTableTest. So it cannot carry an ANCHOR comment (that would change the very
+    // bytes under test), and it cannot drift without failing there first. Showing a reader exactly
+    // what the processor writes, or what the API declares, is worth the exception.
     try (Stream<Path> pages = Files.walk(BOOK)) {
       pages
           .filter(p -> p.toString().endsWith(".md"))

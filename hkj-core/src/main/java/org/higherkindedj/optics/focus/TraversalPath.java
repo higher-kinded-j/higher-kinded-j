@@ -262,8 +262,7 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    */
   default <B extends @Nullable Object> TraversalPath<S, B> via(AffinePath<A, B> other) {
     return new TraversalFocusPath<>(
-        toTraversal().andThen(other.toAffine().asTraversal()),
-        Segments.concat(segments(), other.segments()));
+        toTraversal().andThen(other.toAffine()), Segments.concat(segments(), other.segments()));
   }
 
   /**

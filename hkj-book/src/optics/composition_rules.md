@@ -45,17 +45,25 @@ These arrows rank what each optic can do; they are not `extends` edges. `Getter 
 - Working with nullable properties
 - Navigating through optional intermediate structures
 
-**Key insight**: When composing two different optic types, the result is always the **most specific optic type that can represent both operations**.
+**Key insight**: composing two optics gives the most capable optic that both steps can support; the [composition rules table](#composition-rules-table) states the rule exactly.
 
 ---
 
 ## Composition Rules Table {#composition-rules-table}
 
-Read each cell as what `first.andThen(second)` returns, with the row as `first`. The build reads this table from the `andThen` overloads themselves, so it cannot promise a composition the library does not have:
+Read each cell as what `first.andThen(second)` returns, with the row as `first`. A test in the examples module reads this table from the `andThen` overloads themselves, so it cannot promise a composition the library does not have:
 
 {{#include ../../../hkj-examples/src/test/resources/golden/optics-composition-table.md.golden}}
 
-One rule produces every cell. First, take the larger of the two counts: exactly one, then zero or one, then zero or more. Then the result can build a whole from its part only if both steps can, and only an `Iso` and a `Prism` can. So a `Lens` then a `Prism` reaches zero or one value and cannot build: an `Affine`. Two prisms reach zero or one and both build: a `Prism`.
+Each optic is fixed by two answers: how many values it reaches, and whether it can build the whole from its part.
+
+| Reaches | Can build the whole | Cannot |
+|---|---|---|
+| exactly one | `Iso` | `Lens` |
+| zero or one | `Prism` | `Affine` |
+| zero or more | | `Traversal` |
+
+A composition reaches the wider of its two steps' reaches, and can build only if both steps can. So a `Lens` and a `Prism` reach zero or one value, and the lens cannot build: an `Affine`. Two prisms reach zero or one and both build: a `Prism`.
 
 `Fold`, `Getter` and `Setter` compose with their own kind (`fold.andThen(otherFold)`), and with the others after a conversion such as `asFold()`; [Conversions](conversions.md) lists them.
 
@@ -192,7 +200,7 @@ Traversal<A, C> result = traversalAB.andThen(traversalBC);
 
 ### Via asTraversal (Universal Fallback)
 
-When you need to compose optics in a generic way, convert everything to Traversal:
+Every pair of the five optics composes directly, so you rarely need this. Convert to `Traversal` when you want to hold optics of different kinds as one type, such as in a list of paths:
 
 ```java
 // Any optic composition via Traversal
@@ -202,7 +210,7 @@ Traversal<A, D> result =
         .andThen(optic3.asTraversal());
 ```
 
-This approach always works but loses type information (you get a Traversal even when a more specific type would be possible).
+It loses type information: you get a `Traversal` even where a more specific optic was possible. `Fold` and `Getter` do not convert to a `Traversal` at all.
 
 ---
 
@@ -249,7 +257,7 @@ public final class OrderOptics {
 
 ## Parallel Composition with `Fold.plus()`
 
-The composition rules above describe **sequential** composition (`andThen`): navigating deeper into a structure. Higher-Kinded-J also supports **parallel** composition via `Fold.plus()`, which combines results from multiple paths at the same level.
+The [composition rules](#composition-rules-table) describe **sequential** composition (`andThen`): navigating deeper into a structure. Higher-Kinded-J also supports **parallel** composition via `Fold.plus()`, which combines results from multiple paths at the same level.
 
 | Operation | Type | Purpose |
 |-----------|------|---------|
@@ -342,7 +350,7 @@ The result type of a composition is not a convenience, it is a promise. When `Le
 ~~~
 
 ~~~admonish info title="Key Takeaways"
-* **The result is the most specific type that honours both**: composing two optics yields the least powerful interface both operations can satisfy
+* **The result is the most capable optic both steps support**: it reaches the wider of the two reaches, and builds only if both steps build
 * **A prism anywhere makes absence possible**: mixed with a `Lens` or `Affine` the chain drops to `Affine`, and through a `Traversal` the whole chain is a `Traversal`; `Prism >>> Prism` itself stays a `Prism`, still zero-or-one but keeping `build`
 * **`Iso` is invisible in composition**: `Iso >>> X = X`, which is what makes it the universal adapter
 * **`andThen` keeps precise types; `asTraversal` is the generic fallback**; `plus()` combines parallel paths read-only, as a `Fold`

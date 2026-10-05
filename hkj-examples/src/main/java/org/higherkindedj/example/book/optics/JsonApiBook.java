@@ -37,15 +37,13 @@ public final class JsonApiBook {
   static final Traversal<JsonNode, JsonNode> EACH_USER =
       JsonPaths.field("data").andThen(JsonPaths.field("users")).andThen(JsonPaths.elements());
 
-  // A Traversal composes with an Affine through asTraversal(): there is no
-  // Traversal.andThen(Affine) overload, because the result is a Traversal either way.
-  /** Every user's email address, as a String. */
+  /** Every user's email address, as a String: a Traversal followed by an Affine. */
   static final Traversal<JsonNode, String> USER_EMAILS =
-      EACH_USER.andThen(JsonPaths.field("email").andThen(JsonPaths.textValue()).asTraversal());
+      EACH_USER.andThen(JsonPaths.field("email").andThen(JsonPaths.textValue()));
 
   /** Every user's age, as a double. */
   static final Traversal<JsonNode, Double> USER_AGES =
-      EACH_USER.andThen(JsonPaths.field("age").andThen(JsonPaths.numericValue()).asTraversal());
+      EACH_USER.andThen(JsonPaths.field("age").andThen(JsonPaths.numericValue()));
 
   /** The page number: a single value, so an Affine rather than a Traversal. */
   static final Affine<JsonNode, Double> PAGE =

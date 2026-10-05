@@ -302,11 +302,11 @@ public class Tutorial06_OpticsComposition {
   }
 
   /**
-   * Exercise 4: Three-step Lens + Prism + Lens = Traversal.
+   * Exercise 4: Three-step Lens + Prism + Lens, lifted to a Traversal.
    *
    * <pre>
-   *   // Nudge:    After Lens.andThen(Prism) we already have a Traversal; the trailing Lens
-   *   //           must become a Traversal too.
+   *   // Nudge:    After Lens.andThen(Prism) we have an Affine (zero or one); lifting the
+   *   //           trailing Lens with asTraversal() makes the whole chain a Traversal.
    *   // Strategy: dataLens.andThen(stringPrism).andThen(valueLens.asTraversal())
    *   // Spoiler:  exactly that.
    * </pre>
@@ -341,10 +341,11 @@ public class Tutorial06_OpticsComposition {
     Prism<JsonValue1, JsonString1> stringPrism = JsonValuePrisms.jsonString();
     Lens<JsonString1, String> valueLens = JsonStringLenses.value();
 
-    // TODO: Replace null with a chain: Lens + Prism + Lens = Traversal
+    // TODO: Replace null with a chain: Lens + Prism + Lens, lifted to a Traversal
     // to access the string value inside the JsonObject's data field
     // Hint: dataLens.andThen(stringPrism).andThen(valueLens.asTraversal())
-    // Note: After Lens.andThen(Prism) returns Traversal, we need .asTraversal() on the Lens
+    // Note: After Lens.andThen(Prism) we have an Affine; lifting the lens makes the result a
+    // Traversal
     Traversal<JsonObject1, String> valueAccess = answerRequired();
 
     // Use Traversals.getAll to get the value (returns list with 0 or 1 element)
@@ -403,8 +404,7 @@ public class Tutorial06_OpticsComposition {
 
     List<String> strings =
         Traversals.getAll(
-            stringValues.andThen(
-                Lens.of(JsonString1::value, (js, v) -> new JsonString1(v)).asTraversal()),
+            stringValues.andThen(Lens.of(JsonString1::value, (js, v) -> new JsonString1(v))),
             array);
 
     assertThat(strings).containsExactly("hello", "world");
@@ -414,10 +414,9 @@ public class Tutorial06_OpticsComposition {
    * Exercise 6: Deep nested composition (League → Team → Player → score).
    *
    * <pre>
-   *   // Nudge:    Three steps; the final lens needs asTraversal because everything before
-   *   //           it is a Traversal.
+   *   // Nudge:    Three steps; a Traversal followed by a Lens is still a Traversal.
    *   // Strategy: LeagueTraversals.teams().andThen(TeamTraversals.players())
-   *   //               .andThen(PlayerLenses.score().asTraversal())
+   *   //               .andThen(PlayerLenses.score())
    *   // Spoiler:  exactly that.
    * </pre>
    */
@@ -478,7 +477,7 @@ public class Tutorial06_OpticsComposition {
    * Exercise 7: Building reusable optic pipelines
    *
    * <pre>
-   *   // Nudge:    Two pipelines: Lens+Lens stays a Lens; Lens+Prism+Lens becomes a Traversal.
+   *   // Nudge:    Two pipelines: Lens+Lens stays a Lens; Lens+Prism+Lens is an Affine, lifted to a Traversal.
    *   // Strategy: userToAddress.andThen(addressToCity)
    *   //           userToContact.andThen(emailPrism).andThen(emailToAddress.asTraversal())
    *   // Spoiler:  exactly that.
@@ -541,7 +540,7 @@ public class Tutorial06_OpticsComposition {
     // 1. User -> city (Lens + Lens = Lens)
     Lens<User, String> userToCity = answerRequired();
 
-    // 2. User -> email address (Lens + Prism + Lens = Traversal, not Prism!)
+    // 2. User -> email address (Lens + Prism + Lens = Affine; lift the last step for a Traversal)
     // Hint: userToContact.andThen(emailPrism).andThen(emailToAddress.asTraversal())
     Traversal<User, String> userToEmailAddress = answerRequired();
 

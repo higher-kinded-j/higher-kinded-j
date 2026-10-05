@@ -163,17 +163,17 @@ public interface Iso<S extends @Nullable Object, A extends @Nullable Object>
    * The conversion is lossless, so a modification converts {@code S} to {@code A}, runs the
    * traversal there, and converts the result back with {@link #reverseGet}.
    *
-   * @param traversal The {@link Traversal} to compose with.
-   * @param <B> The type of the final focused parts.
+   * @param other The {@link Traversal} to compose with.
+   * @param <B> The final target type of the new {@link Traversal}.
    * @return A new {@link Traversal} that focuses from {@code S} to {@code B}.
    */
-  default <B extends @Nullable Object> Traversal<S, B> andThen(Traversal<A, B> traversal) {
+  default <B extends @Nullable Object> Traversal<S, B> andThen(Traversal<A, B> other) {
     Iso<S, A> self = this;
     return new Traversal<>() {
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
           Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
-        return app.map(self::reverseGet, traversal.modifyF(f, self.get(source), app));
+        return app.map(self::reverseGet, other.modifyF(f, self.get(source), app));
       }
     };
   }

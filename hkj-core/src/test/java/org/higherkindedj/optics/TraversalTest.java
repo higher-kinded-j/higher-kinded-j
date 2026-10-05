@@ -782,8 +782,9 @@ class TraversalTest {
     @DisplayName(
         "andThen(Affine) should focus each element's value where present, without asTraversal()")
     void andThenAffine() {
+      Traversal<List<Member>, Member> eachMember = listElements();
       Traversal<List<Member>, String> nicknames =
-          TraversalTest.this.<Member>listElements().andThen(nicknameLens).andThen(Affines.some());
+          eachMember.andThen(nicknameLens).andThen(Affines.some());
 
       List<Member> members =
           List.of(
@@ -798,6 +799,8 @@ class TraversalTest {
               new Member("Alan", Optional.empty()),
               new Member("Grace", Optional.of("AMAZING")));
 
+      assertThat(Traversals.modify(nicknames, String::toUpperCase, List.<Member>of())).isEmpty();
+
       TraversalLaws.assertTraversalLaws(nicknames, members, String::toUpperCase, n -> n + "!");
     }
 
@@ -805,8 +808,8 @@ class TraversalTest {
     @DisplayName("andThen(Iso) should convert each element and convert it back on write")
     void andThenIso() {
       Iso<UserId, Long> userIdIso = Iso.of(UserId::value, UserId::new);
-      Traversal<List<UserId>, Long> rawIds =
-          TraversalTest.this.<UserId>listElements().andThen(userIdIso);
+      Traversal<List<UserId>, UserId> eachId = listElements();
+      Traversal<List<UserId>, Long> rawIds = eachId.andThen(userIdIso);
 
       List<UserId> ids = List.of(new UserId(1), new UserId(2));
 

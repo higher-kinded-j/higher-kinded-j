@@ -151,16 +151,18 @@ String result = maybe.orElse("default");
 
 ### Optic Composition Type Errors
 
-**Symptom**: `incompatible types: Optic<...> cannot be converted to Prism<...>`
+**Symptom**: `incompatible types: Affine<...> cannot be converted to Prism<...>`
 
-**Cause**: Cross-type optic composition returns the more general `Optic` type.
+**Cause**: `andThen` returns the most precise optic its two steps allow, which is not always the one you expected. A `Lens` then a `Prism` may find nothing, and cannot build the whole from its part, so it is an `Affine`.
 
 **Composition Rules**:
 - Lens + Lens = Lens
-- Lens + Prism = **Optic** (not Prism!)
+- Lens + Prism = **Affine** (not Prism!)
 - Lens + Traversal = Traversal
 - Prism + Prism = Prism
 - Traversal + Lens = Traversal
+
+[Composition Rules](../optics/composition_rules.md#composition-rules-table) gives the result for every pair.
 
 **Fix**: Use the correct return type:
 ```java
@@ -168,8 +170,8 @@ String result = maybe.orElse("default");
 Prism<Order, CreditCard> orderToCreditCard =
     orderToPayment.andThen(creditCardPrism);
 
-// ✅ Correct - Lens + Prism = Optic
-Optic<Order, Order, CreditCard, CreditCard> orderToCreditCard =
+// ✅ Correct - Lens + Prism = Affine
+Affine<Order, CreditCard> orderToCreditCard =
     orderToPayment.andThen(creditCardPrism);
 ```
 
