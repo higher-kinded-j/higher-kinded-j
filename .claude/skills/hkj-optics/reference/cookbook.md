@@ -12,15 +12,16 @@ record User(String name, Optional<Profile> profile) {}
 record Profile(String bio, Optional<Settings> settings) {}
 record Settings(boolean darkMode, int fontSize) {}
 
-Traversal<User, Integer> userFontSize =
-    UserLenses.profile()                                    // Lens<User, Optional<Profile>>
-        .andThen(Prisms.some())                             // Prism -> Profile
-        .andThen(ProfileLenses.settings().asTraversal())    // Lens -> Optional<Settings>
-        .andThen(Prisms.<Settings>some().asTraversal())     // Prism -> Settings
-        .andThen(SettingsLenses.fontSize().asTraversal());  // Lens -> Integer
+// Zero or one font size, so andThen gives an Affine: no asTraversal() needed
+Affine<User, Integer> userFontSize =
+    UserLenses.profile()                       // Lens<User, Optional<Profile>>
+        .andThen(Prisms.some())                // Prism -> Profile
+        .andThen(ProfileLenses.settings())     // Lens -> Optional<Settings>
+        .andThen(Prisms.<Settings>some())      // Prism -> Settings
+        .andThen(SettingsLenses.fontSize());   // Lens -> Integer
 
 // Increase font size if it exists; otherwise unchanged
-User updated = Traversals.modify(userFontSize, size -> size + 2, user);
+User updated = userFontSize.modify(size -> size + 2, user);
 ```
 
 Each `Prisms.some()` safely handles Optional: if any is empty, modification is skipped.

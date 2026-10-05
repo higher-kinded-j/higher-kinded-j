@@ -135,6 +135,7 @@ The most powerful feature of an `Iso` is its ability to act as an adapter or "gl
 * `Iso + Iso = Iso`
 * **`Iso + Lens = Lens`**
 * **`Iso + Prism = Prism`**
+* **`Iso + Affine = Affine`**
 * **`Iso + Traversal = Traversal`**
 
 This second rule is incredibly useful. We can compose our `Iso<Point, Tuple2>` with a `Lens` that operates on a `Tuple2` to create a brand new `Lens` that operates directly on our `Point`:
@@ -560,7 +561,7 @@ New circle: Circle[centre=Point[x=20, y=30], radius=5]
 
 ~~~admonish info title="Key Takeaways"
 * **An Iso is a lossless two-way street**: `get` and `reverseGet` convert between equivalent representations, and `reverse()` flips the direction for free
-* **Isos are the composition bridge**: composed with a Lens, Prism, or Affine they preserve that optic's shape (`asTraversal()` bridges to Traversals), so a generic optic works on your domain type
+* **Isos are the composition bridge**: composed with a Lens, Prism, Affine or Traversal they preserve that optic's shape, so a generic optic works on your domain type
 * **Losslessness is the law**: a conversion that drops information or can fail in either direction is not an Iso; test the round trip, and reach for [Validated Prisms](validated_prism.md) when parsing can fail
 * **Reuse as constants**: define each Iso once, test it, and compose it everywhere the representation boundary appears
 ~~~

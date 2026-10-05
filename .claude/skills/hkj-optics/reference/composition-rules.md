@@ -123,11 +123,11 @@ Fold<Team, String> allEmails = Fold.sum(
 
 <!-- verify -->
 ```java
-// Pattern 1: Optional field access (Lens + Prism + Lens = Traversal)
-Traversal<User, String> userCity =
+// Pattern 1: Optional field access (Lens + Prism + Lens = Affine)
+Affine<User, String> userCity =
     UserLenses.address()           // Lens<User, Optional<Address>>
         .andThen(Prisms.some())    // Prism<Optional<Address>, Address>
-        .andThen(AddressLenses.city().asTraversal());
+        .andThen(AddressLenses.city());
 
 // Pattern 2: Sum type field access (Prism + Lens = Affine)
 Affine<Payment, String> creditCardNumber =
@@ -145,13 +145,13 @@ Traversal<List<Order>, Order> activeOrders =
 <!-- verify -->
 ```java
 public final class OrderOptics {
-    public static final Traversal<Order, String> CUSTOMER_EMAIL =
+    public static final Affine<Order, String> CUSTOMER_EMAIL =
         OrderLenses.customer()
             .andThen(CustomerPrisms.activeCustomer())
-            .andThen(ActiveCustomerLenses.email().asTraversal());
+            .andThen(ActiveCustomerLenses.email());
 
     public static final Traversal<Order, Money> LINE_ITEM_PRICES =
         OrderTraversals.lineItems()
-            .andThen(LineItemLenses.price().asTraversal());
+            .andThen(LineItemLenses.price());
 }
 ```

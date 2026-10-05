@@ -130,8 +130,8 @@ Those four constants are the whole abstraction. `Traversals.getAll` reads throug
 The JSON structure is now stated in one place. When the API moves `users` under a `payload` wrapper, you change one composition and every reader and writer follows. Compare the defensive version, where the shape is restated at every access site as a chain of `has()` and `isArray()` checks, and a structural change means finding all of them.
 ~~~
 
-~~~admonish warning title="Composing a Traversal with an Affine"
-`Traversal` has `andThen` overloads for `Traversal`, `Lens` and `Prism`, but not for `Affine`. Convert first: `traversal.andThen(affine.asTraversal())`. The result is a `Traversal` either way, since a traversal composed with anything stays a traversal.
+~~~admonish note title="Composing a Traversal with an Affine"
+`traversal.andThen(affine)` composes directly and gives a `Traversal`: an element where the affine finds nothing is left unchanged. [Composition Rules](composition_rules.md#composition-rules-table) has the result for every pair.
 ~~~
 
 ---

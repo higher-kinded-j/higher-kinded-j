@@ -117,7 +117,7 @@ JsonValue result3 = jsonStringPrism.build(new JsonString("world"));
 
 ### Step 3: Composing Prisms for Deep Access
 
-The true power is composing `Prism`s with other optics. When a `Prism` meets a `Lens` or an `Affine`, the focus can be missing and nothing can build the whole from it, so the result is an `Affine`. Two prisms stay a `Prism`. A `Prism`, `Lens` or `Affine` followed by a `Traversal`, or a `Traversal` followed by a `Lens` or `Prism`, is a `Traversal`.
+The true power is composing `Prism`s with other optics. When a `Prism` meets a `Lens` or an `Affine`, the focus can be missing and nothing can build the whole from it, so the result is an `Affine`. Two prisms stay a `Prism`, and anything composed with a `Traversal`, on either side, is a `Traversal`.
 
 ~~~admonish tip title="Direct Composition Methods"
 higher-kinded-j provides direct composition methods that automatically return the correct type:
@@ -148,7 +148,7 @@ Traversal<JsonObject, String> userNameTraversal =
         .andThen(jsonObjectPrism)   // -> JsonObject (if it's an object)
         .andThen(fieldsLens)        // -> Map<String, JsonValue>
         .andThen(Traversals.forMap("name"))       // -> JsonValue (if "name" key exists)
-        .andThen(jsonStringValue.asTraversal());  // -> String (if it's a string)
+        .andThen(jsonStringValue);  // -> String (if it's a string)
 ```
 
 This composed `Traversal` now represents a safe, deep path that will only succeed if every step in the chain matches.

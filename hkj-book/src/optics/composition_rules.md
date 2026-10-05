@@ -49,31 +49,15 @@ These arrows rank what each optic can do; they are not `extends` edges. `Getter 
 
 ---
 
-## Composition Rules Table
+## Composition Rules Table {#composition-rules-table}
 
-| First Optic | >>> | Second Optic | = | Result Optic | Reason |
-|-------------|-----|--------------|---|--------------|--------|
-| **Iso** | >>> | Iso | = | **Iso** | Both directions preserved |
-| **Iso** | >>> | Lens | = | **Lens** | Lens is more restrictive |
-| **Iso** | >>> | Prism | = | **Prism** | Prism is more restrictive |
-| **Iso** | >>> | Affine | = | **Affine** | Affine is more restrictive |
-| **Iso** | >>> | Traversal | = | **Traversal** | Traversal is most general |
-| **Lens** | >>> | Lens | = | **Lens** | Same type |
-| **Lens** | >>> | Prism | = | **Affine** | May not match (0-1 targets) |
-| **Lens** | >>> | Affine | = | **Affine** | Affine preserves partiality |
-| **Lens** | >>> | Traversal | = | **Traversal** | Traversal is more general |
-| **Lens** | >>> | Iso | = | **Lens** | Iso subsumes Lens |
-| **Prism** | >>> | Prism | = | **Prism** | Same type |
-| **Prism** | >>> | Lens | = | **Affine** | May not match + field access |
-| **Prism** | >>> | Affine | = | **Affine** | Affine preserves partiality |
-| **Prism** | >>> | Traversal | = | **Traversal** | Traversal is more general |
-| **Prism** | >>> | Iso | = | **Prism** | Iso subsumes Prism |
-| **Affine** | >>> | Affine | = | **Affine** | Same type |
-| **Affine** | >>> | Lens | = | **Affine** | Affine preserves partiality |
-| **Affine** | >>> | Prism | = | **Affine** | Both may not match |
-| **Affine** | >>> | Traversal | = | **Traversal** | Traversal is more general |
-| **Affine** | >>> | Iso | = | **Affine** | Iso subsumes Affine |
-| **Traversal** | >>> | any | = | **Traversal** | Traversal is already general |
+Read each cell as what `first.andThen(second)` returns, with the row as `first`. The build reads this table from the `andThen` overloads themselves, so it cannot promise a composition the library does not have:
+
+{{#include ../../../hkj-examples/src/test/resources/golden/optics-composition-table.md.golden}}
+
+One rule produces every cell. First, take the larger of the two counts: exactly one, then zero or one, then zero or more. Then the result can build a whole from its part only if both steps can, and only an `Iso` and a `Prism` can. So a `Lens` then a `Prism` reaches zero or one value and cannot build: an `Affine`. Two prisms reach zero or one and both build: a `Prism`.
+
+`Fold`, `Getter` and `Setter` compose with their own kind (`fold.andThen(otherFold)`), and with the others after a conversion such as `asFold()`; [Conversions](conversions.md) lists them.
 
 ---
 

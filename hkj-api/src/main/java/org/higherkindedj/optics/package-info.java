@@ -45,9 +45,9 @@
  *
  * <pre>{@code
  * // Example: Composing a Prism and a Lens
- * // Given a Prism<Result, Json> and a Lens<Json, String>
- * // You can compose them to create a Traversal<Result, String>
- * Traversal<Result, String> composed = successPrism.asTraversal().andThen(jsonStringLens.asTraversal());
+ * // Given a Prism<Result, Json> and a Lens<Json, String>,
+ * // andThen gives an Affine<Result, String>: zero or one string
+ * Affine<Result, String> composed = successPrism.andThen(jsonStringLens);
  * }</pre>
  *
  * <h2>Indexed Access with At and Ixed</h2>

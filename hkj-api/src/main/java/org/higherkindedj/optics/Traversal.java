@@ -183,6 +183,59 @@ public interface Traversal<S extends @Nullable Object, A extends @Nullable Objec
   }
 
   /**
+   * Composes this {@code Traversal<S, A>} with an {@code Affine<A, B>} to create a new {@code
+   * Traversal<S, B>}.
+   *
+   * <p>This allows you to focus through multiple elements (via the Traversal) and then on the value
+   * that may or may not be inside each one (via the Affine). An element where the affine finds
+   * nothing is left unchanged, exactly as the affine's own {@link Affine#modifyF modifyF} leaves
+   * it.
+   *
+   * <p>Example: If you have a traversal for all users in a list and an affine for each user's
+   * optional nickname, composing them gives you a traversal for every nickname that is present.
+   *
+   * @param affine The {@link Affine} to compose with.
+   * @param <B> The type of the final focused parts.
+   * @return A new, composed {@link Traversal}.
+   */
+  default <B extends @Nullable Object> Traversal<S, B> andThen(final Affine<A, B> affine) {
+    Traversal<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+        return self.modifyF(a -> affine.modifyF(f, a, app), source, app);
+      }
+    };
+  }
+
+  /**
+   * Composes this {@code Traversal<S, A>} with an {@code Iso<A, B>} to create a new {@code
+   * Traversal<S, B>}.
+   *
+   * <p>This allows you to focus through multiple elements (via the Traversal) and then see each one
+   * in another representation (via the Iso). Each modified value is converted back with {@link
+   * Iso#reverseGet}, so the traversal still focuses on exactly the elements it did before.
+   *
+   * <p>Example: If you have a traversal for all user ids in a list and an iso from a {@code UserId}
+   * wrapper to its raw {@code long}, composing them gives you a traversal for every raw id.
+   *
+   * @param iso The {@link Iso} to compose with.
+   * @param <B> The type of the final focused parts.
+   * @return A new, composed {@link Traversal}.
+   */
+  default <B extends @Nullable Object> Traversal<S, B> andThen(final Iso<A, B> iso) {
+    Traversal<S, A> self = this;
+    return new Traversal<>() {
+      @Override
+      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
+          Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
+        return self.modifyF(a -> iso.modifyF(f, a, app), source, app);
+      }
+    };
+  }
+
+  /**
    * Branch between two modification strategies based on a predicate. Both branches are visible
    * upfront, allowing selective implementations to potentially execute them in parallel.
    *

@@ -357,9 +357,8 @@ If the DTO and the domain config hold the same information, the conversion pair 
 // A lossless pair: ConfigDto <-> AppConfig
 Iso<ConfigDto, AppConfig> dtoIso = Iso.of(Auditing::toAppConfig, Auditing::toConfigDto);
 
-// Iso has andThen overloads for Lens, Prism, Affine and Iso, but not Traversal.
-// Widen it first: Traversal >>> Traversal = Traversal.
-Traversal<ConfigDto, byte[]> legacyAuditor = dtoIso.asTraversal().andThen(finalAuditor);
+// An Iso followed by a Traversal is a Traversal
+Traversal<ConfigDto, byte[]> legacyAuditor = dtoIso.andThen(finalAuditor);
 
 List<byte[]> passwords = Traversals.getAll(legacyAuditor, someDto);
 ```
