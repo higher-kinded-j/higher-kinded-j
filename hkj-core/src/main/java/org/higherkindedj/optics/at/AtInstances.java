@@ -3,7 +3,7 @@
 package org.higherkindedj.optics.at;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +65,9 @@ public final class AtInstances {
    *   <li>{@code set(Optional.of(value))} puts the key-value pair in the map
    * </ul>
    *
+   * <p>The new map is in the source's iteration order: an updated key keeps its place, and a new
+   * key goes at the end.
+   *
    * <p><strong>Null Value Limitation:</strong> Due to Java's {@link Optional} semantics, null map
    * values cannot be distinguished from absent keys. {@code Optional.ofNullable(null)} returns
    * {@code Optional.empty()}, so a key with null value appears the same as an absent key. If you
@@ -82,7 +85,7 @@ public final class AtInstances {
         Lens.of(
             map -> Optional.ofNullable(map.get(key)),
             (map, optValue) -> {
-              Map<K, V> newMap = new HashMap<>(map);
+              Map<K, V> newMap = new LinkedHashMap<>(map);
               if (optValue.isPresent()) {
                 newMap.put(key, optValue.get());
               } else {

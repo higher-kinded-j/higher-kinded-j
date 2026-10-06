@@ -3,7 +3,7 @@
 package org.higherkindedj.optics.util;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -90,7 +90,8 @@ public final class IndexedTraversals {
    * Creates an {@link IndexedTraversal} that focuses on every value within a {@link Map}, with the
    * entry's key as the index.
    *
-   * <p>This traversal provides access to all map values along with their keys.
+   * <p>This traversal provides access to all map values along with their keys. A modified map is a
+   * new map in the source's iteration order.
    *
    * <p>Example:
    *
@@ -138,7 +139,7 @@ public final class IndexedTraversals {
         // Build the final map in one step
         return app.map(
             newValues -> {
-              Map<K, V> newMap = new HashMap<>(keys.size());
+              Map<K, V> newMap = LinkedHashMap.newLinkedHashMap(keys.size());
               for (int i = 0; i < keys.size(); i++) {
                 newMap.put(keys.get(i), newValues.get(i));
               }

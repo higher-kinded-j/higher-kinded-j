@@ -355,7 +355,7 @@ This example puts it all together, showing how to use the composed `Traversal` t
 Original Data: JsonObject[fields={empty_field=JsonString[value=], status=JsonString[value=active], user=JsonObject[fields={id=JsonNumber[value=123.0], name=JsonString[value=Alice]}]}]
 ------------------------------------------
 --- Scenario 1: Using Composed Traversal for Deep Updates ---
-After deep `modify`:    JsonObject[fields={empty_field=JsonString[value=], user=JsonObject[fields={name=JsonString[value=ALICE], id=JsonNumber[value=123.0]}], status=JsonString[value=active]}]
+After deep `modify`:    JsonObject[fields={empty_field=JsonString[value=], status=JsonString[value=active], user=JsonObject[fields={id=JsonNumber[value=123.0], name=JsonString[value=ALICE]}]}]
 ------------------------------------------
 --- Scenario 2: Using Generated Traversal to Validate All Fields ---
 Validation Result: Invalid(A string field was empty)

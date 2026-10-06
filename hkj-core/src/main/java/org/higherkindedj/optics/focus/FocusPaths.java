@@ -4,7 +4,7 @@ package org.higherkindedj.optics.focus;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,6 +18,7 @@ import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.indexed.Pair;
+import org.higherkindedj.optics.util.Traversals;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -325,48 +326,23 @@ public final class FocusPaths {
   /**
    * Creates a traversal over all values in a map.
    *
-   * <p>Note: The traversal order depends on the map implementation. For predictable ordering, use a
-   * {@code LinkedHashMap} or {@code TreeMap}.
+   * <p>Values are visited in the map's iteration order, and the rebuilt map keeps that order. It
+   * delegates to {@link Traversals#forMapValues()}.
    *
    * @param <K> the key type
    * @param <V> the value type
    * @return a traversal focusing on all map values
    */
   public static <K, V extends @Nullable Object> Traversal<Map<K, V>, V> mapValues() {
-    return new Traversal<>() {
-      @Override
-      public <F extends WitnessArity<TypeArity.Unary>> Kind<F, Map<K, V>> modifyF(
-          Function<V, Kind<F, V>> f, Map<K, V> source, Applicative<F> app) {
-        if (source.isEmpty()) {
-          return app.of(source);
-        }
-
-        // Convert to list for ordered processing
-        List<Map.Entry<K, V>> entries = new ArrayList<>(source.entrySet());
-
-        // Start with the first entry
-        Map.Entry<K, V> first = entries.get(0);
-        Kind<F, Map<K, V>> result =
-            app.map(v -> putInMap(Map.of(), first.getKey(), v), f.apply(first.getValue()));
-
-        // Combine with remaining entries
-        for (int i = 1; i < entries.size(); i++) {
-          Map.Entry<K, V> entry = entries.get(i);
-          Kind<F, V> modifiedValue = f.apply(entry.getValue());
-          K key = entry.getKey();
-          result = app.map2(result, modifiedValue, (map, v) -> putInMap(map, key, v));
-        }
-
-        return result;
-      }
-    };
+    return Traversals.forMapValues();
   }
 
   /**
    * Creates an affine focusing on a specific key in a map.
    *
    * <p>The affine will return empty if the key is not present. Setting a value will add or update
-   * the key.
+   * the key. The new map is in the source's iteration order: an updated key keeps its place, and a
+   * new key goes at the end.
    *
    * @param key the key to focus on
    * @param <K> the key type
@@ -377,12 +353,12 @@ public final class FocusPaths {
     return Affine.of(
         map -> Optional.ofNullable(map.get(key)),
         (map, value) -> {
-          Map<K, V> result = new HashMap<>(map);
+          Map<K, V> result = new LinkedHashMap<>(map);
           result.put(key, value);
           return result;
         },
         map -> {
-          Map<K, V> result = new HashMap<>(map);
+          Map<K, V> result = new LinkedHashMap<>(map);
           result.remove(key);
           return result;
         });
@@ -501,12 +477,6 @@ public final class FocusPaths {
   private static <E extends @Nullable Object> List<E> appendToList(List<E> list, E element) {
     List<E> result = new ArrayList<>(list);
     result.add(element);
-    return result;
-  }
-
-  private static <K, V extends @Nullable Object> Map<K, V> putInMap(Map<K, V> map, K key, V value) {
-    Map<K, V> result = new HashMap<>(map);
-    result.put(key, value);
     return result;
   }
 }
