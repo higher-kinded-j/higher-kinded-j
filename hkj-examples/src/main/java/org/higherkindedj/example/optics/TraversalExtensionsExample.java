@@ -19,7 +19,7 @@ import org.higherkindedj.optics.util.Traversals;
  * org.higherkindedj.optics.extensions.TraversalExtensions} for bulk operations with error handling.
  *
  * <p>This example showcases how to process collections using traversals whilst handling validation
- * errors, with support for fail-fast and error accumulation strategies.
+ * errors, keeping either the first error or every error.
  *
  * <p><b>Scenario:</b> Bulk order processing system for an e-commerce platform. We validate and
  * process multiple order items, demonstrating different error handling strategies appropriate for
@@ -30,7 +30,7 @@ import org.higherkindedj.optics.util.Traversals;
  * <ul>
  *   <li>{@code getAllMaybe} - Extract all values if present
  *   <li>{@code modifyAllMaybe} - All-or-nothing modifications
- *   <li>{@code modifyAllEither} - Fail-fast validation (stop at first error)
+ *   <li>{@code modifyAllEither} - First error only (every element is still validated)
  *   <li>{@code modifyAllValidated} - Error accumulation (collect all errors)
  *   <li>{@code modifyWherePossible} - Selective modification (best-effort)
  *   <li>{@code countValid} - Count items passing validation
@@ -155,7 +155,7 @@ public class TraversalExtensionsExample {
   }
 
   private static void demonstrateModifyAllEither() {
-    System.out.println("--- modifyAllEither: Fail-Fast Validation ---");
+    System.out.println("--- modifyAllEither: First Error Only ---");
 
     List<TEOrderItem> items =
         List.of(
@@ -167,7 +167,7 @@ public class TraversalExtensionsExample {
     Traversal<List<TEOrderItem>, BigDecimal> allPrices =
         Traversals.<TEOrderItem>forList().andThen(priceLens.asTraversal());
 
-    // Fail-fast validation (stops at first error)
+    // Keeps only the first error; every price is still validated
     Either<String, List<TEOrderItem>> result =
         modifyAllEither(
             allPrices,

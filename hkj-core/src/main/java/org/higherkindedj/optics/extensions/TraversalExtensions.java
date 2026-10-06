@@ -42,7 +42,7 @@ import org.jspecify.annotations.Nullable;
  * // Get all values as Maybe (empty if no targets)
  * Maybe<List<String>> emails = getAllMaybe(allEmails, users);
  *
- * // Modify with validation (fail-fast on first error)
+ * // Modify with validation (keep only the first error)
  * Either<String, List<User>> result = modifyAllEither(
  *     allEmails,
  *     email -> email.contains("@")
@@ -107,7 +107,8 @@ public final class TraversalExtensions {
   /**
    * Modifies all targets with a function that returns {@link Either}.
    *
-   * <p>This is fail-fast: the first error encountered will be returned immediately.
+   * <p>The result keeps only the first error, in traversal order. The function still runs on every
+   * target: the {@code Either} shapes the answer, not the work.
    *
    * @param traversal The traversal to modify through
    * @param f The modification function returning {@code Either}

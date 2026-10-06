@@ -432,10 +432,10 @@ private Either<String, Integer> validateQuantity(Integer qty) {
 ## Best Practices
 
 ~~~admonish tip title="Choose the Right Strategy"
-**Fail-fast (`modifyAllEither`):**
-- API requests (reject immediately)
-- Critical validations (stop on first error)
+**First error only (`modifyAllEither`):**
+- API requests rejected with one reason
 - Internal callers that act on the first problem
+- Every element is still validated, so this does not save the work
 
 **Error accumulation (`modifyAllValidated`):**
 - Form validation (show all errors)

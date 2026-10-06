@@ -55,7 +55,7 @@ Six independent ideas, none of which needed to be wired together by hand.
 |-------|-------|------------------------|
 | `repo.find(id)` | A concrete instance of an effect type | [Core Types](../monads/ch_intro.md) |
 | `.toEitherPath()` | A natural transformation between effects | [Natural Transformation](../functional/natural_transformation.md) |
-| `.focus().attributes().at(key)` | A profunctor optic composed from lens and traversal | [Profunctor](../functional/profunctor.md), [Optics chapter](../optics/ch_intro.md) |
+| `.focus().attributes().at(key)` | An optic composed from lens and traversal, and a profunctor in its outer types | [Profunctor](../functional/profunctor.md), [Optics chapter](../optics/ch_intro.md) |
 | `.modify(spec::validateAndCoerce)` | A `Functor` `map` running through the optic | [Functor](../functional/functor.md) |
 | `.flatMap(repo::save)` | The `Monad` instance for `EitherPath` | [Monad](../functional/monad.md) |
 | The whole expression | A `Kind<F, A>` flowing through type-class methods | [Higher-Kinded Types](ch_intro.md) |

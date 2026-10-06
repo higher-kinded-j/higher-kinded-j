@@ -29,7 +29,7 @@ import org.higherkindedj.optics.util.Traversals;
  *   <li>Single-field validation with {@code modifyEither} (short-circuiting)
  *   <li>Optional validation with {@code modifyMaybe}
  *   <li>Multi-field validation with {@code modifyAllValidated} (error accumulation)
- *   <li>Multi-field validation with {@code modifyAllEither} (short-circuiting)
+ *   <li>Multi-field validation with {@code modifyAllEither} (first error only)
  *   <li>Fluent builder style with {@code modifyingWithValidation}
  *   <li>Real-world scenarios: user registration, order processing, configuration validation
  * </ul>
@@ -37,7 +37,7 @@ import org.higherkindedj.optics.util.Traversals;
  * <p>The key difference between validation approaches:
  *
  * <ul>
- *   <li><b>Either</b>: Short-circuits on first error (fail-fast)
+ *   <li><b>Either</b>: Reports only the first error
  *   <li><b>Maybe</b>: Returns success or nothing (no error details)
  *   <li><b>Validated</b>: Accumulates all errors (comprehensive feedback)
  * </ul>
@@ -358,15 +358,15 @@ public class FluentValidationExample {
         });
     System.out.println();
 
-    // Example 6: modifyAllEither - Multi-field validation with short-circuiting
-    System.out.println("Example 6: Validate all prices with modifyAllEither (short-circuits)");
+    // Example 6: modifyAllEither - Multi-field validation keeping only the first error
+    System.out.println("Example 6: Validate all prices with modifyAllEither (first error only)");
     Either<String, OrderForm> pricesEitherResult =
         OpticOps.modifyAllEither(
             order, ALL_ITEM_PRICES, FluentValidationExample::validatePriceEither);
 
     pricesEitherResult.fold(
         error -> {
-          System.out.println("  ✗ Validation stopped at first error: " + error);
+          System.out.println("  ✗ First error: " + error);
           return null;
         },
         validOrder -> {
@@ -442,7 +442,7 @@ public class FluentValidationExample {
         });
     System.out.println();
 
-    // Example 4: allThroughEither - Fluent multi-field validation with short-circuit
+    // Example 4: allThroughEither - Fluent multi-field validation keeping only the first error
     System.out.println("Example 4: Validate all prices with allThroughEither");
     OrderForm invalidOrder =
         new OrderForm(
@@ -648,8 +648,8 @@ public class FluentValidationExample {
     System.out.println("  Prices: " + testOrder.itemPrices());
     System.out.println();
 
-    // Strategy 1: Either (short-circuits)
-    System.out.println("Strategy 1: Using Either (short-circuits at first error)");
+    // Strategy 1: Either (first error only)
+    System.out.println("Strategy 1: Using Either (reports the first error)");
     Either<String, OrderForm> eitherResult =
         OpticOps.modifyAllEither(
             testOrder, ALL_ITEM_PRICES, FluentValidationExample::validatePriceEither);
@@ -684,7 +684,7 @@ public class FluentValidationExample {
     System.out.println();
 
     System.out.println("Key Differences:");
-    System.out.println("  • Either: Fast failure, reports only first error");
+    System.out.println("  • Either: Checks all fields, reports only the first error");
     System.out.println("  • Validated: Checks all fields, reports all errors");
     System.out.println("  • Maybe: No error details, just success/nothing");
     System.out.println();
