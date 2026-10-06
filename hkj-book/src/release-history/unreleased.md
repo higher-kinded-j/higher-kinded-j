@@ -37,6 +37,8 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 ## Testing {#testing}
 
+- **`assertAffineLaws` law-checks an affine that writes to an absent focus** ([#1023](https://github.com/higher-kinded-j/higher-kinded-j/pull/1023)): `Affines.some()` and a `Lens.andThen(Prism)` affine now pass. On the absent target it checks that `modify` changes nothing, that `set` either changes nothing or writes a value that reads back, and set-set. Add `assertSetNoOpWhenAbsent` for an affine that must leave it alone. See [When the focus is absent](../optics/affine.md#when-the-focus-is-absent).
+
 ---
 
 ## Build and tooling {#build-and-tooling}
@@ -74,6 +76,10 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 #### Effect Paths {#runtime-effect-paths}
 
 - **`StateT` equality leaves out the `Monad`** ([#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445)): two `StateT` values wrapping the same function instance are equal, with equal hash codes, whichever `Monad` built them. `toString` prints only `runStateTFn`, so a test comparing the old text fails.
+
+#### Testing {#runtime-testing}
+
+- **`assertAffineLaws` no longer requires `set` to leave an absent target alone** ([#1023](https://github.com/higher-kinded-j/higher-kinded-j/pull/1023)): a test that relied on it to catch an affine writing there now passes. Add `AffineLaws.assertSetNoOpWhenAbsent(affine, absentSource, value)` to keep that check.
 
 ### What stops a build that compiled {#build-changes}
 

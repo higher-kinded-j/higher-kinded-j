@@ -95,7 +95,7 @@ Only compositions that preserve the **total build** yield a `ValidatedPrism`:
 
 - `ValidatedPrism.fromIso(iso)`: a parse that never fails.
 - `ValidatedPrism.fromPrism(prism, reason)`: lift a plain prism by supplying the reason its `Optional.empty` cannot express.
-- `toPrism()` / `toAffine()`: forget the reasons (the affine's `set` leaves non-parsing sources unchanged, preserving the affine laws).
+- `toPrism()` / `toAffine()`: forget the reasons (the affine's `set` leaves a non-parsing source unchanged, so it also passes `AffineLaws.assertSetNoOpWhenAbsent`).
 
 ---
 

@@ -22,15 +22,22 @@ import org.junit.jupiter.api.TestFactory;
  * runtime, providing comprehensive law testing across all affine implementations with minimal
  * boilerplate.
  *
- * <p>Affine laws tested:
+ * <p>Affine laws tested, the ones every lawful affine keeps:
  *
  * <ul>
- *   <li><b>Get-Set:</b> {@code getOptional(set(a, s))} = {@code Optional.of(a)} &mdash; Setting a
- *       value then getting it returns what was set
- *   <li><b>Set-Set:</b> {@code set(b, set(a, s))} = {@code set(b, s)} &mdash; Second set wins
- *   <li><b>GetOptional-Set:</b> If {@code getOptional(s)} = {@code Optional.of(a)}, then {@code
- *       set(a, s)} = {@code s} &mdash; Setting the current value changes nothing
+ *   <li><b>Get-Set:</b> if {@code getOptional(s)} = {@code Optional.of(a)}, then {@code set(a, s)}
+ *       = {@code s}: setting the current value changes nothing
+ *   <li><b>Set-Get:</b> on a present target, {@code getOptional(set(a, s))} = {@code
+ *       Optional.of(a)}: setting a value then getting it returns what was set
+ *   <li><b>Set-Set:</b> {@code set(b, set(a, s))} = {@code set(b, s)}: the second set wins, on a
+ *       present or an absent target
+ *   <li><b>Modify-absence:</b> on an absent target, {@code modify} changes nothing
+ *   <li><b>Set-when-absent:</b> on an absent target, {@code set} either changes nothing or writes a
+ *       value that reads back
  * </ul>
+ *
+ * <p>Whether {@code set} on an absent target must change nothing is not a law here: some of these
+ * affines write through an absent target and some leave it alone, both by design.
  *
  * <p>Benefits of @TestFactory approach:
  *
@@ -180,87 +187,26 @@ class AffineLawsTestFactory {
   }
 
   /**
-   * Helper method to test Get-Set law for a specific affine.
-   *
-   * <p>Law: {@code getOptional(set(a, s))} = {@code Optional.of(a)}
-   *
-   * <p>Setting a value then getting it returns what was set.
-   */
-  private <S, A> void testGetSetLaw(AffineTestData<S, A> data) {
-    AffineLaws.assertSetGetWhenPresent(data.affine(), data.presentValue(), data.testValue());
-  }
-
-  /**
-   * Dynamically generates tests for the Get-Set law: {@code getOptional(set(a, s)) =
-   * Optional.of(a)}
-   *
-   * <p>This test factory creates one test per affine implementation, each verifying that setting a
-   * value and then getting it returns the value that was set.
+   * Every library affine passes {@code AffineLaws.assertAffineLaws}, which checks the laws every
+   * lawful affine keeps on a present and an absent target.
    */
   @TestFactory
-  @DisplayName("Get-Set Law: getOptional(set(a, s)) = Optional.of(a)")
-  Stream<DynamicTest> getSetLaw() {
+  @DisplayName("Affine laws: every library affine passes assertAffineLaws")
+  Stream<DynamicTest> assertAffineLawsHolds() {
     return allAffines()
         .map(
             data ->
                 DynamicTest.dynamicTest(
-                    data.name() + " satisfies get-set law", () -> testGetSetLaw(data)));
+                    data.name() + " passes assertAffineLaws", () -> testAllAffineLaws(data)));
   }
 
-  /**
-   * Helper method to test Set-Set law for a specific affine.
-   *
-   * <p>Law: {@code set(b, set(a, s))} = {@code set(b, s)}
-   *
-   * <p>Second set wins - setting twice is the same as setting once with the second value.
-   */
-  private <S, A> void testSetSetLaw(AffineTestData<S, A> data) {
-    AffineLaws.assertSetSetWhenPresent(
-        data.affine(), data.presentValue(), data.testValue(), data.alternateValue());
-  }
-
-  /**
-   * Dynamically generates tests for the Set-Set law: {@code set(b, set(a, s)) = set(b, s)}
-   *
-   * <p>This test factory creates one test per affine implementation, each verifying that setting
-   * twice in succession is equivalent to just setting the second value.
-   */
-  @TestFactory
-  @DisplayName("Set-Set Law: set(b, set(a, s)) = set(b, s)")
-  Stream<DynamicTest> setSetLaw() {
-    return allAffines()
-        .map(
-            data ->
-                DynamicTest.dynamicTest(
-                    data.name() + " satisfies set-set law", () -> testSetSetLaw(data)));
-  }
-
-  /**
-   * Helper method to test GetOptional-Set law for a specific affine.
-   *
-   * <p>Law: If {@code getOptional(s)} = {@code Optional.of(a)}, then {@code set(a, s)} = {@code s}
-   *
-   * <p>Setting the current value changes nothing.
-   */
-  private <S, A> void testGetOptionalSetLaw(AffineTestData<S, A> data) {
-    AffineLaws.assertGetSetWhenPresent(data.affine(), data.presentValue());
-  }
-
-  /**
-   * Dynamically generates tests for the GetOptional-Set law.
-   *
-   * <p>This test factory creates one test per affine implementation, each verifying that setting
-   * the value you just got doesn't change the structure.
-   */
-  @TestFactory
-  @DisplayName("GetOptional-Set Law: set(getOptional(s).get(), s) = s (when present)")
-  Stream<DynamicTest> getOptionalSetLaw() {
-    return allAffines()
-        .map(
-            data ->
-                DynamicTest.dynamicTest(
-                    data.name() + " satisfies getOptional-set law",
-                    () -> testGetOptionalSetLaw(data)));
+  private <S, A> void testAllAffineLaws(AffineTestData<S, A> data) {
+    AffineLaws.assertAffineLaws(
+        data.affine(),
+        data.presentValue(),
+        data.absentValue(),
+        data.testValue(),
+        data.alternateValue());
   }
 
   /**

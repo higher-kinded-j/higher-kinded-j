@@ -12,7 +12,7 @@ import org.higherkindedj.optics.util.Traversals;
  * Law-verification helpers for {@link Traversal}: identity and fusion (composition).
  *
  * <p>Flat {@code assert...} helpers in the same style as {@code org.higherkindedj.hkt.laws};
- * comparison is by {@code equals} — right for records and standard collections.
+ * comparison is by {@code equals}, which suits records and standard collections.
  */
 public final class TraversalLaws {
 

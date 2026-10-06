@@ -347,10 +347,10 @@ class OrderOpticsLawsTest {
 **Fixture preconditions.** The aggregate entry points guard these and fail with a diagnostic if you get them wrong:
 
 - `assertLensLaws(lens, s, a1, a2)`: `a1` and `a2` must differ **from each other and from the current focus** `lens.get(s)`. A lens whose set-set law is broken cannot be detected with duplicate fixtures.
-- `assertAffineLaws(...)`: same distinctness rule on `a1`/`a2`; `presentSource` must have a target and `absentSource` must not.
+- `assertAffineLaws(...)`: same distinctness rule on `a1`/`a2`; `presentSource` must have a target and `absentSource` must not. It checks the laws every lawful affine keeps: on the absent target, `modify` changes nothing, set-set holds, and `set` either changes nothing or writes a value that reads back, since an affine that can build the value (`Affines.some()`, `Lens.andThen(Prism)`) writes it. Add `assertSetNoOpWhenAbsent` for an affine that must leave an absent target alone.
 - `assertPrismLaws(...)` / `assertValidatedPrismLaws(...)`: the first source must match/parse, the second must not.
 
-The individual laws are also exposed if you want them as separate test methods: `LensLaws.assertGetSet` / `assertSetGet` / `assertSetSet`, `IsoLaws.assertGetReverseGet` / `assertReverseGetGet`, `PrismLaws.assertBuildMatch` / `assertMatchBuild` / `assertNoMatch`, `AffineLaws.assertGetSetWhenPresent` / `assertSetGetWhenPresent` / `assertSetSetWhenPresent` / `assertSetNoOpWhenAbsent`, `TraversalLaws.assertIdentity` / `assertFusion`, `ValidatedPrismLaws.assertParseBuild` / `assertBuildParse` / `assertNoParse`.
+The individual laws are also exposed if you want them as separate test methods: `LensLaws.assertGetSet` / `assertSetGet` / `assertSetSet`, `IsoLaws.assertGetReverseGet` / `assertReverseGetGet`, `PrismLaws.assertBuildMatch` / `assertMatchBuild` / `assertNoMatch`, `AffineLaws.assertGetSetWhenPresent` / `assertSetGetWhenPresent` / `assertSetSetWhenPresent` / `assertModifyNoOpWhenAbsent` / `assertSetWhenAbsentLeavesOrWrites` / `assertSetSetWhenAbsent` / `assertSetNoOpWhenAbsent` (opt-in), `TraversalLaws.assertIdentity` / `assertFusion`, `ValidatedPrismLaws.assertParseBuild` / `assertBuildParse` / `assertNoParse`.
 
 ### MappingLaws (`@GenerateMapping`)
 

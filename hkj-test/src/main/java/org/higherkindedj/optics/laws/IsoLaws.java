@@ -11,7 +11,7 @@ import org.higherkindedj.optics.Iso;
  *
  * <p>Flat {@code assert...} helpers in the same style as {@code org.higherkindedj.hkt.laws}; drive
  * coverage with {@code @ParameterizedTest} or property fixtures from the call site. Comparison is
- * by {@code equals} — right for records.
+ * by {@code equals}, which suits records.
  */
 public final class IsoLaws {
 
