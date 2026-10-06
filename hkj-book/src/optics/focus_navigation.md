@@ -281,16 +281,15 @@ Company relocated =
 
 ### Controlling Navigator Generation
 
-**Depth limiting** stops the processor generating navigator classes all the way down a deep graph:
+**Depth limiting**: `maxNavigatorDepth = 1` makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain: each hop into another navigable record returns that record's own navigator.
 
 <!-- verify -->
 ```java
-@GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
+@GenerateFocus(generateNavigators = true, maxNavigatorDepth = 1)
 record Root(Level1 child) {}
 
-// Depth 1: child() returns a navigator
-// Depth 2: child().nested() returns a navigator
-// Depth 3 and beyond: a plain path; compose with .via()
+// child() returns a navigator
+// child().nested() returns a plain path; compose further hops with .via()
 ```
 
 **Field filtering** picks which fields are worth a navigator:
@@ -420,4 +419,4 @@ Beyond three levels, compose the rest with `.via()`.
 ---
 
 **Previous:** [Focus DSL](focus_dsl.md)
-**Next:** [Type Class and Effect Integration](focus_effects.md)
+**Next:** [What Are Optics?](optics_intro.md)

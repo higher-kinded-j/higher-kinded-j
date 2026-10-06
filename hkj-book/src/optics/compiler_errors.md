@@ -1,17 +1,8 @@
 # Common Compiler Errors
 
-## _Diagnosing what the annotation processor and type checker tell you_
+_Find the message your compiler printed, then read what it means and how to fix it._
 
-~~~admonish info title="What You'll Learn"
-- How to find your compiler message in the table below and go straight to its entry.
-- Which messages stop the build, which stop it only under `-Werror`, and which stop nothing.
-- The most common errors from the `@Generate*` annotations and how to fix them.
-- Errors that surface from `@ImportOptics` and `OpticsSpec` interfaces, including the spec-method hint annotations.
-- Type-inference traps when chaining the Focus DSL through `.each()`, `.via()`, and `traverseOver`.
-- Free Monad DSL pitfalls and the witness-type errors they produce.
-~~~
-
-This page is for the moment a build fails and you want to know what the message means. Find the fragment your compiler printed in the table below and follow it to its entry. Every entry says what the message means, gives the fix, and keeps the reasoning in a **Why** you can open if you want it.
+This page is for the moment a build fails and you want to know what the message means. Find the fragment your compiler printed in [Find your message](#find-your-message) and follow it to its entry. Every entry says what the message means, gives the fix, and keeps the reasoning in a **Why** you can open if you want it.
 
 ~~~admonish info title="Error, warning, or note?"
 - An **error** stops the build. Almost everything here is an error.
@@ -1841,15 +1832,6 @@ Person result = OpticInterpreters.direct().run(program);
 3. Is the IDE indexing the generated sources directory? Refresh the project after a build.
 4. If it is none of these, please file an issue at the [Higher-Kinded-J GitHub repository](https://github.com/higher-kinded-j/higher-kinded-j) with the minimal reproducer and the full error.
 
-~~~admonish info title="Key Takeaways"
-* **"cannot find symbol: XLenses" is almost always a build problem**, not a code problem: the processor did not run, or the IDE has not indexed the generated sources.
-* **A note is not a failure.** An error always stops the build, a warning stops it only under `-Werror`, and a note stops nothing. The heading says which whenever it is not an error.
-* **The annotations are shape-specific.** `@GenerateLenses` wants a record, `@GeneratePrisms` wants a sealed interface or enum, and using one on the other is rejected at the declaration.
-* **A spec interface needs a copy strategy** for every lens method, because the processor has no way to guess how your external type rebuilds itself.
-* **Most Focus DSL errors are one hop too many, or one witness too few.** A generated collection accessor is already element-level, so an extra `.each()` is the common cause; and only the final `each()` in a chain can infer its element type.
-* **Read the processor's own message first.** It names the element it rejected, which is faster than working backwards from the downstream "cannot find symbol".
-~~~
-
 ~~~admonish tip title="See Also"
 - [Annotations at a Glance](annotations_at_a_glance.md): which annotation to reach for, and what it generates
 - [Optics for External Types](importing_optics.md): the `@ImportOptics` and spec-interface rules these errors enforce
@@ -1858,5 +1840,4 @@ Person result = OpticInterpreters.direct().run(program);
 
 ---
 
-**Previous:** [Conversions](conversions.md)
-**Next:** [Production Readiness](production_readiness.md)
+**Previous:** [Focus DSL Reference](focus_reference.md)

@@ -258,7 +258,7 @@ This brings us to the unique advantages `higher-kinded-j` offers for optics in J
 
 ### Decision Guide
 
-The [decision flow at the chapter opening](ch1_intro.md#which-optic-do-you-need) routes the core choices; two further tools complete the family:
+The [first decision tree](decision_trees.md#tree-1-which-optic-do-i-need) routes the core choices; two further tools complete the family:
 
 * **Need to query or extract data without modification?** → **Fold**
 * **Need to adapt existing optics to other types?** → **Profunctor operations**
@@ -290,12 +290,10 @@ var updatedUser = userToStreetName.modify(String::toUpperCase, user);
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Java-Friendly APIs](ch4_intro.md): Three Java-native ways to use optics: the Focus DSL for path-based navigation, the Fluent API for validation-aware updates, and the Free Monad DSL for programs-as-data.
+- [Decision Trees](decision_trees.md#tree-2-which-api-style): Three Java-native ways to use optics: the Focus DSL for path-based navigation, the Fluent API for validation-aware updates, and the Free Monad DSL for programs-as-data.
 ~~~
 
 ---
 
-**Previous:** [Fundamentals](ch1_intro.md)
-**Next:** [Lenses: Working with Product Types](lenses.md)
-
-
+**Previous:** [Navigation and Composition](focus_navigation.md)
+**Next:** [Fluent API](fluent_api.md)

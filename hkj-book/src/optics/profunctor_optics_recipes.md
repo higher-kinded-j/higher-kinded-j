@@ -191,4 +191,4 @@ This adaptability is what lets you keep well-tested optics through data-format c
 ---
 
 **Previous:** [Profunctor Optics](profunctor_optics.md)
-**Next:** [Java-Friendly APIs](ch4_intro.md)
+**Next:** [Collections](ch2_intro.md)

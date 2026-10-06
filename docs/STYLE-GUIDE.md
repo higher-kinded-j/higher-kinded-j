@@ -107,6 +107,18 @@ Guidelines for Chapter Contents:
 - Descriptions should be concise (under 10 words), introduced by a colon
 - Follow the list with a horizontal rule and a "Next" link to the first page
 - A chapter over eight pages may group the list under **Ship** (the path a reader needs to ship), **On demand** (read when the boundary calls for it) and **Look it up** (reference), with the numbering running on across the groups. The grouping makes the reading lane visible without adding sub-chapter intro pages
+- Where a chapter keeps [group introductions](#group-introductions), its list names each introduction rather than every page, and each introduction lists its own pages
+
+### Group Introductions
+
+A chapter large enough to keep sub-chapter introductions, one leading each group of On demand pages,
+keeps each one short, because a reader arrives there to choose a page rather than to learn:
+
+- **At most 400 words of prose**, and one list of the group's pages. An "In This Chapter" list beside
+  a "Chapter Contents" list of the same pages is navigation twice, not orientation.
+- **Link the chapter's decision page rather than draw a tree of its own.** A tree redrawn in each
+  introduction drifts from the others.
+- **Say when to read the group**, and that a reader can skip it until then.
 
 ### Example Code Section
 
@@ -203,6 +215,7 @@ Notes:
 - The first page in a chapter should only have a **Next** link
 - The last page in a chapter should only have a **Previous** link
 - Chapter introduction pages (`ch_intro.md`) should only have a **Next** link
+- A [group introduction](#group-introductions) is a page in its chapter's reading order, so it carries both links
 - Exception: a chapter **nested inside another chapter's reading order** (per SUMMARY.md) links both ways at its boundaries, so its `ch_intro.md` carries a Previous link to the preceding sibling page and its last page a Next link onward, each reciprocated by the neighbouring page
 
 ## Content Patterns
@@ -652,8 +665,9 @@ Use backticks for:
 
 Within a chapter, pages should follow this order:
 1. Chapter introduction (`ch_intro.md`)
-2. Core concepts in logical order
-3. More advanced topics towards the end
+2. The pages a reader needs to ship, ordered by what they do first. Where the everyday API is built on concepts, these pages teach the API and then name what it is made of. A chapter that groups its contents calls them **Ship**
+3. The concept pages and the more advanced topics, read when a task needs them (**On demand**)
+4. Reference pages, for a reader holding a question (**Look it up**)
 
 ### Chapter Guides
 
@@ -664,6 +678,7 @@ guides, and the chapter guide links here rather than repeating this guide.
 | Chapter | Directory | Guide |
 |---|---|---|
 | Mapping at the Boundary | `hkj-book/src/mapping/` | [Mapping Chapter Guide](MAPPING-CHAPTER-GUIDE.md) |
+| Optics | `hkj-book/src/optics/` | [Optics Chapter Guide](OPTICS-CHAPTER-GUIDE.md) |
 
 To give a chapter a guide, write `docs/<CHAPTER>-CHAPTER-GUIDE.md` and add its row here. Procedure
 and traps for Claude Code sessions go in the `book-authoring` skill, as a

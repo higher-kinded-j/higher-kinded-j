@@ -402,5 +402,5 @@ Practise prism basics in [Tutorial 03: Prism Basics](https://github.com/higher-k
 
 ---
 
-**Previous:** [Lenses: Working with Product Types](lenses.md)
+**Previous:** [Coupled Fields](coupled_fields.md)
 **Next:** [Prism Toolkit](prism_toolkit.md)

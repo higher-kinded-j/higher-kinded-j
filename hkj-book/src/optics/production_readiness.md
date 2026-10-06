@@ -1,14 +1,6 @@
 # Production Readiness
 
-## _Honest answers about runtime cost, build impact, and team conventions_
-
-~~~admonish info title="What You'll Learn"
-- The runtime cost profile of generated optics: what `modify` allocates, where the lambdas live, and whether `static final` caching matters.
-- Build-time impact of the annotation processor and how it scales with codebase size.
-- When to extract optics into reusable values versus inlining at call sites.
-- Versioning expectations: which surfaces are stable, where to expect change, and how generated code interacts with library upgrades.
-- Team conventions that have proven valuable in production codebases.
-~~~
+_What optics cost at run time and build time, and the conventions that keep a team consistent._
 
 This page does not offer a marketing case for using optics in production; it offers honest answers to the questions a senior engineer asks before adopting a new abstraction in a codebase others must maintain.
 
@@ -111,14 +103,6 @@ These are the conventions the library's own examples and tests follow. Treat the
 - **Reach for the Focus DSL first.** Manual `andThen` composition is fine and sometimes clearer, but the DSL gives you better IDE support and shorter call sites for nested updates.
 - **Reserve the Free Monad DSL for problems that demand it.** If you do not have an audit, structural-analysis, or multi-mode requirement, the everyday APIs are simpler.
 
-~~~admonish info title="Key Takeaways"
-* **Immutability is the cost, not optics.** A composed lens allocates one record per touched layer, the same count a hand-written `with*` cascade would.
-* **A path is a value: build it once.** `static final` removes the construction cost; it cannot remove the cost of rebuilding the structure you update.
-* **A no-op modify still rebuilds.** Optics do not compare references to skip work.
-* **Neither error strategy saves work.** `Validated` accumulates and `Either` keeps the first, but every element is visited either way.
-* **Annotation processing is a build-time cost, paid once per compile**, and it buys compile-time errors instead of runtime ones.
-~~~
-
 ~~~admonish tip title="See Also"
 - [Optic Capabilities](optic_capabilities.md): what each optic can do before you tune how it does it
 - [Optic-Driven Batching](optic_batching.md): the one place where an optic's cost is I/O rather than allocation
@@ -127,5 +111,5 @@ These are the conventions the library's own examples and tests follow. Treat the
 
 ---
 
-**Previous:** [Common Compiler Errors](compiler_errors.md)
-**Next:** [Decision Trees](decision_trees.md)
+**Previous:** [Look It Up](ch7_intro.md)
+**Next:** [Annotations at a Glance](annotations_at_a_glance.md)

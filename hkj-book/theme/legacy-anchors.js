@@ -144,6 +144,23 @@
     "tutorials/tutorials_intro.html#practical-fp-4-sessions": "tutorials/tutorials_intro.html#practical-fp",
     "tutorials/tutorials_intro.html#optics-specialist-4-sessions": "tutorials/tutorials_intro.html#optics-specialist",
     "tutorials/tutorials_intro.html#full-curriculum-13-sessions": "tutorials/tutorials_intro.html#full-curriculum",
+    "optics/ch1_intro.html#which-optic-do-you-need": "optics/decision_trees.html#tree-1-which-optic-do-i-need",
+    "optics/ch2_intro.html#which-optic-do-you-need": "optics/decision_trees.html#tree-1-which-optic-do-i-need",
+    "optics/ch2_intro.html#traversal-vs-fold": "optics/optic_capabilities.html#method-support",
+    "optics/ch3_intro.html#which-tool-do-you-need": "optics/decision_trees.html#tree-3-which-advanced-feature",
+    "optics/ch3_intro.html#filtering-in-action": "optics/filtered_optics.html#three-ways-to-filter",
+    "optics/ch3_intro.html#indexed-access": "optics/indexed_optics.html#the-three-indexed-optics",
+    "optics/ch4_intro.html#which-api-should-i-use": "optics/decision_trees.html#tree-2-which-api-style",
+    "optics/ch5_intro.html#which-optic-do-i-need": "optics/decision_trees.html#tree-1-which-optic-do-i-need",
+    "optics/ch5_intro.html#the-complete-pipeline": "optics/composing_optics.html#the-scenario-validating-user-permissions",
+    "optics/ch1_intro.html#chapter-contents": "optics/ch1_intro.html#pages-in-this-group",
+    "optics/ch2_intro.html#chapter-contents": "optics/ch2_intro.html#pages-in-this-group",
+    "optics/ch3_intro.html#chapter-contents": "optics/ch3_intro.html#pages-in-this-group",
+    "optics/ch4_intro.html#chapter-contents": "optics/ch4_intro.html#pages-in-this-group",
+    "optics/ch5_intro.html#chapter-contents": "optics/ch5_intro.html#pages-in-this-group",
+    "optics/ch6_intro.html#chapter-contents": "optics/ch6_intro.html#pages-in-this-group",
+    "optics/ch6_intro.html#which-interpreter-do-you-need": "optics/decision_trees.html#tree-4-which-interpreter",
+    "optics/ch7_intro.html#chapter-contents": "optics/ch7_intro.html#look-it-up"
   };
 
   function target() {

@@ -486,5 +486,5 @@ Practise both the binary form and the arity ladder in [Tutorial 23: N-ary Couple
 
 ---
 
-**Previous:** [Composition Rules](composition_rules.md)
-**Next:** [Introduction to Collection Optics](ch2_intro.md)
+**Previous:** [Lenses](lenses.md)
+**Next:** [Prisms](prisms.md)

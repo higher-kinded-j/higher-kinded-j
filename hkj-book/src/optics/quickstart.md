@@ -183,7 +183,7 @@ Same composition, same vocabulary, applied to a type you can't modify. See [Tami
 ~~~admonish tip title="See Also"
 - [Annotations at a Glance](annotations_at_a_glance.md): every `@Generate*` and spec hint, with its target and what it produces
 - [Focus DSL](focus_dsl.md): the path-based API this page previews, in full
-- [Java-Friendly APIs](ch4_intro.md): choosing between the Focus DSL, the Fluent API and the Free Monad DSL
+- [Decision Trees](decision_trees.md#tree-2-which-api-style): choosing between the Focus DSL, the Fluent API and the Free Monad DSL
 - [What Are Optics?](optics_intro.md): the conceptual introduction, if you would rather start with the idea
 - [Record Mapping](../mapping/ch_intro.md): the domain to wire boundary, which needs none of this chapter first
 ~~~
@@ -195,4 +195,4 @@ The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) (202 exercises) is 
 ---
 
 **Previous:** [Optics](ch_intro.md)
-**Next:** [Annotations at a Glance](annotations_at_a_glance.md)
+**Next:** [Focus DSL](focus_dsl.md)

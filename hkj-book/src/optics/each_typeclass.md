@@ -253,7 +253,7 @@ Map<String, String> labelled =
 
 ## Integration with Focus DSL
 
-The Focus DSL is covered properly in [Java-Friendly APIs](ch4_intro.md); this section shows only where `Each` plugs into it, so skim it now and return when you reach that chapter.
+The Focus DSL is covered properly in [Focus DSL](focus_dsl.md); this section shows only where `Each` plugs into it, so skim it now and return when you reach that chapter.
 
 The Focus DSL provides an `.each(Each)` method on `FocusPath`, `AffinePath`, and `TraversalPath`. This enables fluent navigation through custom container types:
 

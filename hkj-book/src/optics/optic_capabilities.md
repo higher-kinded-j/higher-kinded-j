@@ -1,13 +1,6 @@
 # Optic Capabilities
 
-## _Which operations work on which optic_
-
-~~~admonish info title="What You'll Learn"
-- The cardinality of focus for each optic type (exactly one, zero or one, zero or more, none).
-- Which read, write, modify, query, and effectful operations each optic supports.
-- Which type conversion methods are available on each optic.
-- Where collection-shaped operations live (some on optics, some on the `Traversals` and `Fold` utilities).
-~~~
+_Which operations each optic type declares, and which a conversion reaches instead._
 
 This is the lookup table for "can a `Prism` do `getAll`? does a `Getter` have `set`?" The narrative pages explain *why* each optic has the capabilities it does; this page just lists them.
 
@@ -50,7 +43,7 @@ One deliberate exception: `Fold` declares its own read-only `modifyF`, which run
 | `foldMap(monoid, f, S) → M` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | ✓ | ✓ |   |
 | `exists`, `all`, `find`, `isEmpty`, `length` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | via `asFold()` | ✓ | ✓ |   |
 
-Two rows are worth reading twice. `Iso` carries only `get`, `reverseGet` and `modifyF`: it has no `set` and no `modify` of its own, because `reverseGet` already rebuilds the whole structure from the focus. And `Getter` extends `Fold`, so it inherits the entire query family, `getAll` and `preview` included; every other read-only capability in the `Fold` column applies to `Getter` too.
+Three rows are worth reading twice. `Traversal` declares no plain read or write: beside `modifyF` it has `filtered`, `filterBy`, `branch` and `modifyWhen`, and every `get`, `set` and `modify` goes through [`Traversals`](traversals.md) or `asFold()`. `Iso` carries only `get`, `reverseGet` and `modifyF`: it has no `set` and no `modify` of its own, because `reverseGet` already rebuilds the whole structure from the focus; `asLens()` gives you both. And `Getter` extends `Fold`, so it inherits the entire query family, `getAll` and `preview` included; every other read-only capability in the `Fold` column applies to `Getter` too.
 
 ---
 
@@ -79,15 +72,6 @@ Stay in the static-method utility for one-off bulk operations; reach for the [Fl
 
 All optic types expose `andThen(other)` for composition; the result type follows the rules in [Composition Rules](composition_rules.md). The conversion methods between optic types are catalogued in [Conversions](conversions.md).
 
-~~~admonish info title="Key Takeaways"
-* **A `✓` means the method is on the type.** A cell naming a conversion means you can still get there, one `asFold()`, `asTraversal()` or `Traversals` call later.
-* **An empty cell means only that the type does not declare it.** Sometimes the operation is meaningless there: a `Setter` has no read at all, and `matches` cannot fail on a `Lens`. Sometimes a conversion still reaches it, as `iso.asLens().set(...)` does.
-* **`Iso` is smaller than it looks.** `get`, `reverseGet` and `modifyF`: no `set` and no `modify` of its own, because `reverseGet` already rebuilds the whole structure. `asLens()` is the route when you want them.
-* **`Traversal` declares no plain read or write.** It has `modifyF` (plus `filtered`, `filterBy`, `branch` and `modifyWhen`); every `get`, `set` and `modify` goes through `Traversals` or `asFold()`.
-* **`Getter` extends `Fold`**, so it inherits the whole query family: `getAll`, `preview`, `exists`, `all`, `find`, `isEmpty` and `length`.
-* **`Setter` is zero-or-more and write-only.** It has `set` and `modify` and no way to read at all.
-~~~
-
 ~~~admonish tip title="See Also"
 - [Conversions](conversions.md): how to reach the capabilities a given optic lacks
 - [Composition Rules](composition_rules.md): what type results from combining two optics
@@ -96,5 +80,5 @@ All optic types expose `andThen(other)` for composition; the result type follows
 
 ---
 
-**Previous:** [Reference](ch7_intro.md)
+**Previous:** [Cookbook](cookbook.md)
 **Next:** [Conversions](conversions.md)

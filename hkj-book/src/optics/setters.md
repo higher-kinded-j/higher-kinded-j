@@ -790,5 +790,5 @@ Normalised product names:
 
 ---
 
-**Previous:** [Getters: Composable Read-Only Access](getters.md)
+**Previous:** [Getters](getters.md)
 **Next:** [Common Data Structures](common_data_structure_traversals.md)

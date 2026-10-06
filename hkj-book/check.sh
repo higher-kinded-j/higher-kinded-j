@@ -26,6 +26,7 @@ else
   status=1
 fi
 
+python3 .github/scripts/chapter_footers.py optics mapping --check || status=1
 node .github/scripts/book-readability-check.cjs --strict || status=1
 node .github/scripts/british-spelling-check.cjs || status=1
 exit "$status"

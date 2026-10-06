@@ -169,4 +169,4 @@ Practise advanced prism patterns in [Tutorial 10: Advanced Prism Patterns](https
 ---
 
 **Previous:** [Advanced Prism Patterns](advanced_prism_patterns.md)
-**Next:** [Profunctor Optics](profunctor_optics.md)
+**Next:** [Affines](affine.md)

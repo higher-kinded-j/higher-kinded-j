@@ -1,4 +1,4 @@
-<!-- description: Read and update deeply nested immutable Java records with lenses, prisms and traversals, generated from annotations and navigated with the Focus DSL. -->
+<!-- description: Read and update deeply nested immutable Java records through generated, compile-checked paths: the Focus DSL first, then lenses, prisms and traversals. -->
 
 # Optics
 
@@ -10,36 +10,68 @@
 
 ---
 
-Immutable records in Java are safer, easier to reason about, and, when you need to change something three layers down, a bit of an ordeal. The conventional approach is to copy and rebuild each layer by hand; the result is the sort of code nobody enjoys writing and reviewers quietly resent reading.
+Immutable records in Java are safer, easier to reason about, and, when you need to change something three layers down, a bit of an ordeal. Here is that ordeal as many Spring teams write it, with Lombok's `@With` on each record:
 
-An **optic** is a first-class, composable path from a whole structure to one or more of its parts. Once you have the path, reading, writing, and transforming the focused value all come for free, and the paths themselves compose: a lens into a record composed with a prism into a sealed field composed with a traversal over a list is a single optic that knows how to operate on the whole route.
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/intro/IntroBook.java:cascade}}
+```
 
-Higher-Kinded-J's optics are **annotation-driven**. You write a record, add `@GenerateLenses` and `@GenerateFocus(generateNavigators = true)`, and the processor writes a typed path builder for you: the navigators are what let each hop chain straight into the next record's fields. The same applies to sealed types (`@GeneratePrisms`), collections (`@GenerateTraversals`), and even types you can't modify (`@ImportOptics` for Jackson, JOOQ, JDK types). No boilerplate, no runtime reflection, no manual composition unless you want it.
+A wither knows only its own record, so every enclosing layer is threaded through by hand, and each level of nesting adds another. Here is the same change through a generated path:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/intro/IntroBook.java:focus}}
+```
+
+The annotation processor writes `EmployeeFocus` from one annotation on each record, which can sit beside Lombok's `@With`:
 
 <!-- verify -->
 ```java
-@GenerateLenses @GenerateFocus(generateNavigators = true)
-public record Street(String name, int number) {}
+@GenerateFocus(generateNavigators = true)
+record Address(String street, String city) {}
 
-@GenerateLenses @GenerateFocus(generateNavigators = true)
-public record Address(Street street, String city) {}
+@GenerateFocus(generateNavigators = true)
+record Company(String name, Address address) {}
 
-@GenerateLenses @GenerateFocus(generateNavigators = true)
-public record User(String name, Address address) {}
-
-User updated = UserFocus.address().street().name().set("New Street", user);
+@GenerateFocus(generateNavigators = true)
+record Employee(String name, Company company) {}
 ```
 
-The same record can carry several annotations, each generating its own companion class for a different use case. The seven sections of this chapter take you from the foundational optics through the Java-friendly APIs and the recipe cookbook, and end at a reference you can look things up in.
+Every hop is an ordinary generated method, so the compiler checks the whole path and the IDE completes it for you. The path is also a value: store it in a field, pass it to a method, and reuse it to read, update, change every element of a list, or validate.
+
+That path is an **optic**: a first-class, composable route from a whole structure to one or more of its parts. Lenses, prisms and traversals are the optics underneath, and the generated Focus paths are how you use them day to day. Sealed types (`@GeneratePrisms`), collections, and types you cannot modify (`@ImportOptics`, for Jackson, JOOQ and JDK types) get the same treatment. There is no reflection at runtime, and no hand-written composition unless you want it.
+
+~~~admonish warning title="Before you start"
+Your project builds and runs on **Java 25**. Higher-Kinded-J is built on it today, and parts of the library use preview features, which tie the build to that one release. Most optics need no preview flag of their own, and [Prerequisites](../quickstart.md#prerequisites) lists the code that does. The [HKJ Gradle or Maven plugin](../tooling/gradle_plugin.md) sets the flags and wires in the annotation processor. With Lombok in the build as well, its processor goes ahead of `hkj-processor`, as [Build-time impact](production_readiness.md#build-time-impact) explains. The processor writes `EmployeeFocus` and its siblings when the project compiles, so until the first build an IDE shows them as missing.
+~~~
 
 ---
 
-## How the optic types relate
+## How to read this chapter {#how-to-read-this-chapter}
+
+Start from what you came for.
+
+| You want | Start at |
+|---|---|
+| A nested record updated, with the least reading | [Quickstart](quickstart.md), then the [Focus DSL](focus_dsl.md) |
+| The everyday API, learned properly | The pages under **Ship** in the [Chapter Contents](#chapter-contents), read in order |
+| An update that can fail, with every bad value reported | [Fluent API](fluent_api.md) |
+| A PATCH endpoint, or several edits applied as one | [Multi-Edit and Sparse Updates](multi_edit.md) |
+| A lens, prism, affine or iso explained in depth | [The Optic Types](ch1_intro.md) |
+| A traversal, fold, getter or setter explained in depth | [Collections](ch2_intro.md) |
+| To judge whether optics fit your codebase | [Production Readiness](production_readiness.md) |
+| An answer to a specific question | [Look It Up](ch7_intro.md) |
+| A domain record mapped to and from a wire DTO | [Mapping at the Boundary](../mapping/ch_intro.md), which needs none of this chapter first |
+
+---
+
+## How the optic types relate {#how-the-optic-types-relate}
 
 Eight optic types, one shared supertype, and one real specialisation between them:
 
 ```mermaid
 flowchart BT
+    accTitle: How the eight optic types relate
+    accDescr: Fold, Traversal, Setter, Lens, Affine, Prism and Iso each extend Optic directly. Getter extends Fold, the only inheritance between two optic types.
     F(["Fold<br/>read, zero or more"]) --> O(["Optic"])
     T(["Traversal<br/>read+write, zero or more"]) --> O
     St(["Setter<br/>write, zero or more"]) --> O
@@ -55,54 +87,39 @@ flowchart BT
     class F,T,St,L,A,P,I,G tier
 ```
 
-Each arrow reads *extends*, pointing from a type to the one it extends: `Fold extends Optic`, `Getter extends Fold`. That last is the **only** inheritance between two optic types: everything else extends `Optic` directly, which makes them siblings rather than a hierarchy. So a `Lens` is not a `Fold`, and you cannot pass one where a `Fold` is expected. `lens.asFold()` is an explicit conversion, and [Conversions](conversions.md) lists every conversion that exists.
-
-What the diagram groups instead is capability, and that is the useful question: how many values does the optic focus, and may you write through it? Those two answers pick your optic, which is what [Decision Trees](decision_trees.md) walks you through.
+Each arrow reads *extends*: `Fold extends Optic`, and `Getter extends Fold`. That last is the **only** inheritance between two optic types. Everything else extends `Optic` directly, so they are siblings: a `Lens` is not a `Fold`, and `lens.asFold()` is an explicit conversion, one of those [Conversions](conversions.md) lists. What separates the types is capability: how many values an optic focuses, and whether you may write through it. [Decision Trees](decision_trees.md) turns those two questions into a choice.
 
 ---
 
-~~~admonish info title="In This Chapter"
-- **Fundamentals** – Lens, Prism, Affine, and Iso: the four optics for working with single values. Introduces the composition rules and the paired-lens pattern for fields that share invariants. Start here if you are new to optics.
-- **Collections** – Traversals and Folds for zero-or-more focus, plus the asymmetric specialists Getter (read-only) and Setter (write-only). Covers the ready-made traversals for Java's standard collections and monoid-based aggregation.
-- **Precision and Filtering** – Narrow focus by predicate or index. Filtered and indexed traversals, the `Each`, `At`, and `Ixed` type classes, character-level string traversals, and advanced Prism patterns, including predicate matching with `nearly`.
-- **Java-Friendly APIs** – Two complementary APIs that make optics feel native to Java: the Focus DSL for path-based navigation and the Fluent API for validation-aware updates. Backed by annotation-driven code generation (`@GenerateLenses`, `@GenerateFocus`, `@GeneratePrisms`, and friends). For the domain ↔ DTO boundary, see the dedicated [Mapping at the Boundary](../mapping/ch_intro.md) chapter.
-- **Integration and Recipes** – A complete walkthrough composing Lens, Prism, and Traversal into a validation pipeline, integration with the library's core types (Either, Maybe, Validated, Optional), multi-edit and sparse REST PATCH updates, and a cookbook of ready-to-use solutions for the nested-update problems you will actually meet in production.
-- **Advanced Optics** – Optic operations built as a value first and executed second: the Free Monad DSL that describes the program, and the interpreters that run, log or check it.
-- **Reference** – The lookup half of the chapter. What each optic type declares, how to convert between them, what the processor's error messages mean, and the decision trees for picking one.
+~~~admonish info title="Hands-On Learning"
+The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) (202 exercises) practises the chapter as exercises, from Lens & Prism through the Focus DSL to batching and the generated DTO boundary.
 ~~~
-
----
 
 ## Chapter Contents
 
-1. [Quickstart](quickstart.md) - Three runnable examples in 100 lines
-2. [Annotations at a Glance](annotations_at_a_glance.md) - Every annotation, what it generates, and when to use it
-3. [Fundamentals](ch1_intro.md) - Lens, Prism, Affine, Iso, composition rules, coupled fields
-4. [Collections](ch2_intro.md) - Traversal, Fold, Getter, Setter, and collection patterns
-5. [Precision and Filtering](ch3_intro.md) - Filtered, indexed, and predicate-based optics
-6. [Java-Friendly APIs](ch4_intro.md) - Focus DSL, Fluent API, code generation
-7. [Integration and Recipes](ch5_intro.md) - Validation workflows, multi-edit and PATCH, cookbook
-8. [Advanced Optics](ch6_intro.md) - Free Monad DSL, interpreters, programs as data
-9. [Reference](ch7_intro.md) - Capabilities, conversions, compiler errors, decision trees
+**Ship**, read in order:
 
----
+1. [Quickstart](quickstart.md): Three runnable examples in 100 lines
+2. [Focus DSL](focus_dsl.md): Generated paths through your own records
+3. [Navigation and Composition](focus_navigation.md): Collections, optionals, sealed types and `.via()`
+4. [What Are Optics?](optics_intro.md): The optics a path is made of
+5. [Fluent API](fluent_api.md): Updates that can fail, every error reported
+   - [Fluent API Field Guide](fluent_api_field_guide.md): Style, idioms and pitfalls
+6. [Multi-Edit and Sparse Updates](multi_edit.md): Several edits as one, and REST PATCH
 
-~~~admonish tip title="Start Here"
-- **Want to see optics in action?** Read the [Quickstart](quickstart.md), three runnable examples in 100 lines.
-- **Looking for a specific annotation?** [Annotations at a Glance](annotations_at_a_glance.md) is the lookup table.
-- **Just need to update a nested record right now?** Skip straight to the [Focus DSL](focus_dsl.md) and come back to the foundational material when you need it.
-- **Mapping a domain record to/from a wire DTO?** Go straight to [Record Mapping](../mapping/ch_intro.md); it needs none of the optics curriculum first.
-- **New to the concepts?** Start with [Fundamentals](ch1_intro.md).
-~~~
+**On demand**, when a task calls for it:
 
----
+7. [The Optic Types](ch1_intro.md): Lens, Prism, Affine and Iso, a page each
+8. [Collections](ch2_intro.md): Traversal, Fold, Getter and Setter
+9. [Precision and Filtering](ch3_intro.md): Filtered, indexed and per-key access
+10. [The Focus DSL in Depth](ch4_intro.md): Effects, custom containers and `Kind` fields
+11. [Optics for External Types](importing_optics.md): Jackson, JOOQ, Lombok and other types you do not own
+12. [Validation, Batching and Auditing](ch5_intro.md): Validated prisms, `modifyF` pipelines, batching and audit trails
+13. [Programs as Data](ch6_intro.md): The Free Monad DSL and its interpreters
 
-~~~admonish tip title="See Also"
-- [Decision Trees](decision_trees.md): pick the optic, the API and the annotation by answering a question at a time
-- [Optic Capabilities](optic_capabilities.md): what each optic type declares, and what it reaches only by conversion
-- [Mapping at the Boundary](../mapping/ch_intro.md): the domain to wire problem, which needs none of this chapter first
-- [Optics Tutorial Track](../tutorials/optics/ch_intro.md): the same material as exercises, if you learn by doing
-~~~
+**Look it up**, when you hold a question:
+
+14. [Look It Up](ch7_intro.md): Production readiness, decision trees, the cookbook and reference tables
 
 ---
 

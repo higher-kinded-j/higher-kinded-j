@@ -237,5 +237,5 @@ public class ApiIntegration {
 
 ---
 
-**Previous:** [Advanced Prism Patterns: Recipes](advanced_prism_patterns_recipes.md)
+**Previous:** [Isomorphisms](iso.md)
 **Next:** [Profunctor Optics: Recipes](profunctor_optics_recipes.md)

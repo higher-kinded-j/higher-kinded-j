@@ -1,15 +1,6 @@
 # Optic Composition Rules
 
-## _Understanding How Different Optics Compose_
-
-~~~admonish info title="What You'll Learn"
-- The mathematical rules governing optic composition
-- When composition returns the same optic type vs a more general one
-- Practical implications for your code
-- Quick reference table for all composition patterns
-~~~
-
-When composing optics, the resulting optic type follows precise mathematical rules. Understanding these rules helps you predict what type of optic you'll get and why.
+_The optic type `andThen` returns for every pair of optics, and why._
 
 ---
 
@@ -349,14 +340,6 @@ Traversal<List<Order>, Order> activeOrders =
 The result type of a composition is not a convenience, it is a promise. When `Lens >>> Prism` hands you an `Affine`, the type is telling you the focus can be absent, and the compiler will not let you forget it; when a chain stays a `Lens`, totality survived every step and no absence handling is needed. That is the same discipline the mapping chapter later formalises as [truthful tiers](../mapping/tiers.md): the API only ever offers what the composition can lawfully support, so a whole class of "worked in the demo, failed in production" bugs becomes unrepresentable.
 ~~~
 
-~~~admonish info title="Key Takeaways"
-* **The result is the most capable optic both steps support**: it reaches the wider of the two reaches, and builds only if both steps build
-* **A prism anywhere makes absence possible**: mixed with a `Lens` or `Affine` the chain drops to `Affine`, and through a `Traversal` the whole chain is a `Traversal`; `Prism >>> Prism` itself stays a `Prism`, still zero-or-one but keeping `build`
-* **`Iso` is invisible in composition**: `Iso >>> X = X`, which is what makes it the universal adapter
-* **`andThen` keeps precise types; `asTraversal` is the generic fallback**; `plus()` combines parallel paths read-only, as a `Fold`
-* **Store complex compositions as constants**: the rules make their types predictable, so name them once and reuse
-~~~
-
 ~~~admonish tip title="See Also"
 - [Affines](affine.md): the zero-or-one optic most compositions land on
 - [Cheat Sheet](../cheatsheet.md): the whole optics API on one page
@@ -368,5 +351,5 @@ Practise lens composition in [Tutorial 02: Lens Composition](https://github.com/
 
 ---
 
-**Previous:** [Isomorphisms](iso.md)
-**Next:** [Coupled Fields](coupled_fields.md)
+**Previous:** [Conversions](conversions.md)
+**Next:** [Focus DSL Reference](focus_reference.md)

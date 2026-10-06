@@ -700,4 +700,4 @@ Filtered optics bring **declarative filtering** into the heart of your optic com
 ---
 
 **Previous:** [Precision and Filtering](ch3_intro.md)
-**Next:** [Indexed Optics: Position-Aware Operations](indexed_optics.md)
+**Next:** [Indexed Optics](indexed_optics.md)

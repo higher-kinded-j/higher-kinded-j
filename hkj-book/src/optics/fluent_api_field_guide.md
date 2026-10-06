@@ -192,4 +192,4 @@ Practise the fluent API in [Tutorial 09: Fluent Optics API](https://github.com/h
 ---
 
 **Previous:** [Fluent API](fluent_api.md)
-**Next:** [Integration and Recipes](ch5_intro.md)
+**Next:** [Multi-Edit and Sparse Updates](multi_edit.md)

@@ -186,5 +186,5 @@ Practise the boundary in [Tutorial 25: ValidatedPrism](https://github.com/higher
 
 ---
 
-**Previous:** [Prism Toolkit](prism_toolkit.md)
-**Next:** [Affines](affine.md)
+**Previous:** [Validation, Batching and Auditing](ch5_intro.md)
+**Next:** [Composing Optics](composing_optics.md)

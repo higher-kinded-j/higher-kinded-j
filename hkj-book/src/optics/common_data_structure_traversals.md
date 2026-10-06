@@ -589,5 +589,5 @@ public class ConfigOptics {
 
 ---
 
-**Previous:** [Setters: Composable Write-Only Modifications](setters.md)
+**Previous:** [Setters](setters.md)
 **Next:** [Limiting Traversals](limiting_traversals.md)

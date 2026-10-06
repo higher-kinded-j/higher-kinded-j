@@ -430,5 +430,5 @@ Maybe<String> backToMaybe = value
 
 ---
 
-**Previous:** [Composing Optics](composing_optics.md)
-**Next:** [Multi-Edit and Sparse Updates](multi_edit.md)
+**Previous:** [Kind Field Support](kind_field_support.md)
+**Next:** [Optics Extensions](optics_extensions.md)

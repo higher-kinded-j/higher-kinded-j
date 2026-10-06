@@ -1,16 +1,24 @@
-# Reference
+# Look It Up
 
-> _"It is a capital mistake to theorise before one has data."_
->
-> – Sir Arthur Conan Doyle, *A Scandal in Bohemia*
+_Find the question you hold, then go to the page that answers it._
 
----
+The pages a returning reader comes back to, holding a question rather than reading in order.
 
-The reference cluster collects the lookup material that returning readers come back to: which operations does each optic support, how do you convert between optic types, what compile errors mean, what trade-offs come with the various APIs in production, and the decision trees that route you to the right tool for a given problem.
+| You hold | Go to |
+|---|---|
+| A question a senior engineer asks before adopting optics: cost, allocation, caching, build time, team conventions | [Production Readiness](production_readiness.md) |
+| An annotation, and you want what it generates | [Annotations at a Glance](annotations_at_a_glance.md) |
+| A type you do not own, such as a Jackson node or a JOOQ record | [Optics for External Types](importing_optics.md) |
+| A build question: Lombok beside the processor, incremental compilation, `-Werror` | [Production Readiness: build-time impact](production_readiness.md#build-time-impact) |
+| A data shape, a task or a constraint, and you want the optic or API for it | [Decision Trees](decision_trees.md) |
+| A common nested-update problem, and you want a recipe for it | [Cookbook](cookbook.md) |
+| An optic, and you want to know whether it declares `get`, `set`, `getAll`, `matches`... | [Optic Capabilities](optic_capabilities.md) |
+| One optic type, and you need another | [Conversions](conversions.md) |
+| Two optics, and you want the type `andThen` returns | [Composition Rules](composition_rules.md) |
+| A Focus DSL question: a pattern, a pitfall, the FAQ | [Focus DSL Reference](focus_reference.md) |
+| A compiler message from a generated optic | [Common Compiler Errors](compiler_errors.md) |
 
-Each page in this cluster is structured as a quick-scan reference, not a tutorial. If you need the conceptual material, the earlier chapters cover it in depth.
-
-Most lookups here resolve to one distinction, so it is worth stating before the tables do. An optic either declares an operation or it does not, and when it does not, a conversion usually reaches it anyway:
+Most lookups resolve to one distinction: an optic either declares an operation or it does not, and when it does not, a conversion usually reaches it anyway:
 
 <!-- verify -->
 ```java
@@ -27,32 +35,9 @@ List<String> all = asFold.getAll(Fixture.order);
 // ["Alice"]: the same access, one conversion later
 ```
 
-[Optic Capabilities](optic_capabilities.md) is the table of what each optic declares; [Conversions](conversions.md) is the table of how to get from one to another. Between them they answer most of what brings a returning reader back.
-
-~~~admonish info title="In This Chapter"
-- **Optic Capabilities** – A unified table showing which operations (`get`, `set`, `modify`, `modifyF`, `getAll`, `preview`, `foldMap`, `matches`, `build`) each optic type supports, including the asymmetric specialists (`Getter`, `Setter`, `Fold`).
-- **Conversions** – The methods for converting between optic types (`asTraversal`, `asFold`, `asLens`, `andThen`) and the rules governing what type results from composing two optics.
-- **Common Compiler Errors** – The errors you are most likely to encounter from `@Generate*` annotations, `@ImportOptics`, the Focus DSL processor, and Free Monad DSL programs, with minimal triggers and fixes.
-- **Production Readiness** – Honest answers about runtime cost, allocation, when to cache optics in `static final` fields, build-time impact of annotation processing, and team conventions.
-- **Decision Trees** – The three top-level trees consolidated into one page: which optic for your data shape, which API style for your task, and which advanced feature for your specific need.
-~~~
-
-~~~admonish tip title="See Also"
-- [Composition Rules](composition_rules.md): the `andThen` result table these pages refer back to
-- [Annotations at a Glance](annotations_at_a_glance.md): which annotation generates each optic
-- [Quickstart](quickstart.md): the shortest route in, if you arrived here first
-~~~
+[Optic Capabilities](optic_capabilities.md) is the table of what each optic declares, and [Conversions](conversions.md) the table of how to get from one to another.
 
 ---
 
-## Chapter Contents
-
-1. [Optic Capabilities](optic_capabilities.md): what operations each optic supports
-2. [Conversions](conversions.md): converting between optic types
-3. [Common Compiler Errors](compiler_errors.md): diagnosing errors from generated code
-4. [Production Readiness](production_readiness.md): performance and operational concerns
-5. [Decision Trees](decision_trees.md): choosing optic, API, and features
-
----
-
-**Next:** [Optic Capabilities](optic_capabilities.md)
+**Previous:** [Interpreters](interpreters.md)
+**Next:** [Production Readiness](production_readiness.md)
