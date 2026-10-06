@@ -101,7 +101,7 @@ The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) (202 exercises) pra
 
 1. [Quickstart](quickstart.md): Three runnable examples in 100 lines
 2. [Focus DSL](focus_dsl.md): Generated paths through your own records
-3. [Navigation and Composition](focus_navigation.md): Collections, optionals, sealed types and `.via()`
+3. [Collections, Optionals and Sealed Types](focus_navigation.md): Step into lists, maps, optionals and variants
 4. [What Are Optics?](optics_intro.md): The optics a path is made of
 5. [Fluent API](fluent_api.md): Updates that can fail, every error reported
    - [Fluent API Field Guide](fluent_api_field_guide.md): Style, idioms and pitfalls

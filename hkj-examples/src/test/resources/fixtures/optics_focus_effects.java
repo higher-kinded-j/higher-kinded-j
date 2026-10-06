@@ -46,18 +46,6 @@ record Employee(String name, String email, Optional<String> nickname, int salary
 @GenerateFocus
 record Agency(String name, List<Employee> employees) {}
 
-sealed interface Shape permits Circle, Square {}
-
-@GenerateLenses
-@GenerateFocus
-record Circle(double radius) implements Shape {}
-
-record Square(double side) implements Shape {}
-
-@GenerateLenses
-@GenerateFocus
-record Drawing(List<Shape> shapes) {}
-
 record Role(String title) {}
 
 record RoleBox(Kind<ListKind.Witness, Role> roles) {}
@@ -68,8 +56,6 @@ class Fixture {
   static final Employee bob = new Employee("Bob", "bob@acme.test", Optional.of("Bobby"), 55000);
 
   static final Agency agency = new Agency("Acme", List.of(alice, bob));
-
-  static final Drawing drawing = new Drawing(List.of(new Circle(2.0), new Square(3.0)));
 
   static final Lens<RoleBox, Kind<ListKind.Witness, Role>> rolesLens =
       Lens.of(RoleBox::roles, (box, roles) -> new RoleBox(roles));

@@ -262,7 +262,7 @@ Practise container navigation in [Tutorial 20: Custom Container Navigation](http
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Navigation and Composition](focus_navigation.md): widening rules, navigators, and nested containers
+- [Collections, Optionals and Sealed Types](focus_navigation.md): widening rules, navigators, and nested containers
 - [Traversal Generator Plugins](../tooling/generator_plugins.md): the full SPI implementation guide
 - [Portfolio Risk Analysis](../examples/examples_portfolio_risk.md): cross-ecosystem navigation end to end
 ~~~

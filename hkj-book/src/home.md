@@ -449,7 +449,7 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 1. **[Introduction](optics/ch_intro.md):** A Lombok wither cascade beside the generated path that replaces it
 2. **[Quickstart](optics/quickstart.md):** Three runnable examples covering generated lenses, prisms and traversals, plus `@ImportOptics` for Jackson
 3. **[Focus DSL](optics/focus_dsl.md):** Generated, compile-checked paths through your own records
-4. **[Navigation and Composition](optics/focus_navigation.md):** Collections, optionals, sealed types and `.via()`
+4. **[Collections, Optionals and Sealed Types](optics/focus_navigation.md):** Collections, optionals, sealed variants and `.via()`
 5. **[What Are Optics?](optics/optics_intro.md):** The lenses, prisms and traversals a path is made of
 6. **[Fluent API](optics/fluent_api.md):** Updates that can fail, with every bad value reported
 7. **[Multi-Edit and Sparse Updates](optics/multi_edit.md):** Several edits applied as one, including a REST PATCH

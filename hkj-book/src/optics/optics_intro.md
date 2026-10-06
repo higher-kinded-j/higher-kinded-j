@@ -295,5 +295,5 @@ var updatedUser = userToStreetName.modify(String::toUpperCase, user);
 
 ---
 
-**Previous:** [Navigation and Composition](focus_navigation.md)
+**Previous:** [Collections, Optionals and Sealed Types](focus_navigation.md)
 **Next:** [Fluent API](fluent_api.md)

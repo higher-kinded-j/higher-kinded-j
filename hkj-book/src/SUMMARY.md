@@ -59,7 +59,7 @@
 - [Optics](optics/ch_intro.md)
   - [Quickstart](optics/quickstart.md)
   - [Focus DSL](optics/focus_dsl.md)
-  - [Navigation and Composition](optics/focus_navigation.md)
+  - [Collections, Optionals and Sealed Types](optics/focus_navigation.md)
   - [What Are Optics?](optics/optics_intro.md)
   - [Fluent API](optics/fluent_api.md)
     - [Fluent API Field Guide](optics/fluent_api_field_guide.md)
