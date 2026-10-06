@@ -58,9 +58,10 @@ import org.jspecify.annotations.Nullable;
  *       equals {@code s} or reads back {@code Optional.of(a)}
  * </ul>
  *
- * <p>Which of the two {@code set} does on an absent focus depends on the affine. An affine whose
- * last step can build the value writes it, as the example that follows does; one that cannot build,
- * such as an index past the end of a list, leaves the source unchanged.
+ * <p>Which of the two {@code set} does on an absent focus depends on the affine. It writes the
+ * value when its last step can build it and every step before that is present, as the example that
+ * follows does. Otherwise it leaves the source unchanged: an index past the end of a list cannot be
+ * built, and a missing earlier step leaves nothing to write into.
  *
  * <h2>Example</h2>
  *
@@ -104,8 +105,8 @@ public interface Affine<S extends @Nullable Object, A extends @Nullable Object>
    *
    * <p>This is the primary "getter" for an Affine. Unlike a {@link Lens}, it may return empty if
    * the focused element is absent. An {@link Optional} cannot hold {@code null}, so a null focus
-   * reads as absent too: {@link #modify} then leaves the source unchanged, while {@link #set} still
-   * writes the value it is given, {@code null} included.
+   * reads as absent too: {@link #modify} then leaves the source unchanged, while {@link #set}
+   * follows its rule for an absent focus, and can write any value there, {@code null} included.
    *
    * @param source The whole structure.
    * @return An {@link Optional} containing the focused part if present, otherwise empty.
@@ -116,9 +117,10 @@ public interface Affine<S extends @Nullable Object, A extends @Nullable Object>
    * Sets a new value for the focused part {@code A}, returning a new, updated structure {@code S}.
    *
    * <p>Unlike a {@link Prism}, this operation always returns a structure. If the focused element
-   * was absent, an affine whose last step can build the value makes it present; one that cannot,
-   * such as an index past the end of a list, returns the source unchanged. This operation must be
-   * immutable; the original {@code source} object is not changed.
+   * was absent, an affine makes it present when its last step can build the value and every step
+   * before that is present. Otherwise it returns the source unchanged, as for an index past the end
+   * of a list, or a composition whose earlier step is absent. This operation must be immutable; the
+   * original {@code source} object is not changed.
    *
    * @param newValue The new value for the focused part.
    * @param source The original structure.

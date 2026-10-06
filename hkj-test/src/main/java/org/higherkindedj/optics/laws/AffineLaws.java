@@ -13,11 +13,11 @@ import org.higherkindedj.optics.Affine;
  * <p>Flat {@code assert...} helpers in the same style as {@code org.higherkindedj.hkt.laws};
  * comparison is by {@code equals}, which suits records.
  *
- * <p>Affines differ in what {@code set} does when the focus is absent. One whose last step can
- * build the value writes it, as {@code Affines.some()} and a {@code Lens.andThen(Prism)}
- * composition do; one that cannot leaves the target unchanged. {@link #assertAffineLaws} checks the
- * laws every lawful affine keeps, which allow either. For an affine that must also leave an absent
- * target alone, add {@link #assertSetNoOpWhenAbsent}.
+ * <p>Affines differ in what {@code set} does when the focus is absent. One writes the value when
+ * its last step can build it and every step before that is present, as {@code Affines.some()} and a
+ * {@code Lens.andThen(Prism)} composition do; otherwise the target is left unchanged. {@link
+ * #assertAffineLaws} checks the laws every lawful affine keeps, which allow either. For an affine
+ * that must also leave an absent target alone, add {@link #assertSetNoOpWhenAbsent}.
  */
 public final class AffineLaws {
 
@@ -86,10 +86,9 @@ public final class AffineLaws {
   /**
    * Set-absence: on an absent target, {@code set} is a no-op and the target stays absent.
    *
-   * <p>Opt in to this law for an affine that guards absence. An affine whose last step can build
-   * the value writes it on {@code set} by design, as {@code Affines.some()} and a {@code
-   * Lens.andThen(Prism)} composition do, so it fails here and {@link #assertAffineLaws} does not
-   * ask for it.
+   * <p>Opt in to this law for an affine that guards absence. An affine that writes an absent focus
+   * on {@code set} by design, as {@code Affines.some()} and a {@code Lens.andThen(Prism)}
+   * composition do, fails here, so {@link #assertAffineLaws} does not ask for it.
    */
   public static <S, A> void assertSetNoOpWhenAbsent(Affine<S, A> affine, S absentSource, A a) {
     assertThat(affine.getOptional(absentSource))

@@ -140,7 +140,7 @@ Path types widen automatically when navigating through optional/collection field
 | Method | Return | Description |
 |--------|--------|-------------|
 | `getOptional(S)` | `Optional<A>` | Extract if present |
-| `set(A, S)` | `S` | Write the value; creates the focus when the last step can build it, else a no-op (use `modify` for if-present) |
+| `set(A, S)` | `S` | Write the value; creates the focus when the last step can build it and every earlier step is present, else a no-op (use `modify` for if-present) |
 | `modify(fn, S)` | `S` | Transform if present |
 | `matches(S)` | `boolean` | Check if value exists |
 | `toAffine()` | `Affine<S, A>` | Extract underlying optic |

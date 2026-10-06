@@ -38,6 +38,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 ## Testing {#testing}
 
 - **`assertAffineLaws` law-checks an affine that writes to an absent focus** ([#1023](https://github.com/higher-kinded-j/higher-kinded-j/pull/1023)): `Affines.some()` and a `Lens.andThen(Prism)` affine now pass. On the absent target it checks that `modify` changes nothing, that `set` either changes nothing or writes a value that reads back, and set-set. Add `assertSetNoOpWhenAbsent` for an affine that must leave it alone. See [When the focus is absent](../optics/affine.md#when-the-focus-is-absent).
+
 ---
 
 ## Build and tooling {#build-and-tooling}
