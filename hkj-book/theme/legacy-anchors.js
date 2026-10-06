@@ -1,10 +1,10 @@
 // Send an old deep link to where its section lives now.
 //
-// mdbook can redirect a page, but a page redirect drops the fragment, and it
-// refuses to redirect a page that still exists. Neither helps when a section
-// moves off a page that stays: every link to `basics.html#optional-bridge`
-// then lands at the top of basics, with nothing to say the section is
-// elsewhere. This map is the missing half, and the book's anchor check keeps
+// mdbook can redirect a page, and the book's redirect template carries the
+// fragment across, but mdbook refuses to redirect a page that still exists. So
+// a redirect cannot help when a section moves off a page that stays: every
+// link to `basics.html#optional-bridge` then lands at the top of basics, with
+// nothing to say the section is elsewhere. This map is the missing half, and the book's anchor check keeps
 // the live links honest in the other direction. It also carries a heading
 // renamed on its own page when the old id would mislead, such as one that
 // gave a time estimate.
