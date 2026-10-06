@@ -4,7 +4,6 @@ package org.higherkindedj.hkt.vstream;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
@@ -38,7 +37,8 @@ public final class VStreamThrottle {
    * Returns a stream that emits at most {@code maxElements} per {@code window}.
    *
    * <p>When the limit for the current window is reached, pulling the next element blocks until the
-   * window resets. The window is measured from the first emission in each window.
+   * window resets. The window is measured from the first emission in each window. Each consumption
+   * of the returned stream keeps its own window.
    *
    * @param stream the source stream; must not be null
    * @param maxElements the maximum number of elements per window; must be at least 1
@@ -55,18 +55,19 @@ public final class VStreamThrottle {
       throw new IllegalArgumentException("maxElements must be at least 1, got: " + maxElements);
     }
 
-    AtomicReference<WindowState> state =
-        new AtomicReference<>(new WindowState(System.nanoTime(), 0));
-    long windowNanos = window.toNanos();
-
-    return throttleWithState(stream, maxElements, windowNanos, state);
+    // Every consumption starts from this state, in which no window is open yet
+    return throttleWithState(stream, maxElements, window.toNanos(), new WindowState(0, 0));
   }
 
-  /** Immutable snapshot of the throttle window state, updated atomically via CAS. */
+  /**
+   * The throttle window as one consumption has reached it. Each emission passes the next window to
+   * its tail, so the window belongs to the consumption that pulled it. While nothing has been
+   * emitted, no window is open, and the next emission opens one.
+   */
   private record WindowState(long windowStart, long emitted) {}
 
   private static <A> VStream<A> throttleWithState(
-      VStream<A> stream, int maxElements, long windowNanos, AtomicReference<WindowState> state) {
+      VStream<A> stream, int maxElements, long windowNanos, WindowState state) {
     return new VStream<>() {
       @Override
       public VTask<Step<A>> pull() {
@@ -79,34 +80,23 @@ public final class VStreamThrottle {
             return new Step.Skip<>(throttleWithState(skip.tail(), maxElements, windowNanos, state));
           }
 
-          // Rate limit emissions — atomic read-check-update via CAS
           Step.Emit<A> emit = (Step.Emit<A>) step;
-          while (true) {
-            WindowState current = state.get();
-            long now = System.nanoTime();
-
-            if (now - current.windowStart() >= windowNanos) {
-              // New window — reset and count this emission
-              WindowState next = new WindowState(now, 1);
-              if (state.compareAndSet(current, next)) {
-                break;
-              }
-            } else if (current.emitted() >= maxElements) {
-              // Window limit reached — sleep until window expires, then retry CAS
-              long sleepNanos = windowNanos - (now - current.windowStart());
-              Thread.sleep(Duration.ofNanos(sleepNanos));
-              // After sleep, loop back to re-read state and start a new window
-            } else {
-              // Within window and under limit — increment emission count
-              WindowState next = new WindowState(current.windowStart(), current.emitted() + 1);
-              if (state.compareAndSet(current, next)) {
-                break;
-              }
-            }
+          long now = System.nanoTime();
+          WindowState next;
+          if (state.emitted() == 0 || now - state.windowStart() >= windowNanos) {
+            // A new window, opened by this emission
+            next = new WindowState(now, 1);
+          } else if (state.emitted() >= maxElements) {
+            // The window is full: wait for it to end, then start the next with this emission
+            Thread.sleep(Duration.ofNanos(windowNanos - (now - state.windowStart())));
+            next = new WindowState(System.nanoTime(), 1);
+          } else {
+            // Within the window and under the limit
+            next = new WindowState(state.windowStart(), state.emitted() + 1);
           }
 
           return new Step.Emit<>(
-              emit.value(), throttleWithState(emit.tail(), maxElements, windowNanos, state));
+              emit.value(), throttleWithState(emit.tail(), maxElements, windowNanos, next));
         };
       }
     };

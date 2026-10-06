@@ -276,7 +276,7 @@ class ForTraversalTest {
   class ToListOperations {
 
     @Test
-    @DisplayName("should collect all focused elements")
+    @DisplayName("should collect all focused elements into an unmodifiable list")
     void collectAllElements() {
       List<Player> players = List.of(new Player("Alice", 100), new Player("Bob", 200));
 
@@ -284,7 +284,24 @@ class ForTraversalTest {
           ForTraversal.over(playersTraversal, players, idMonad).toList();
 
       List<Player> collected = IdKindHelper.ID.unwrap(result);
-      assertThat(collected).containsExactly(new Player("Alice", 100), new Player("Bob", 200));
+      assertThat(collected)
+          .isUnmodifiable()
+          .containsExactly(new Player("Alice", 100), new Player("Bob", 200));
+    }
+
+    @Test
+    @DisplayName("should collect only the elements that pass the filter")
+    void collectFilteredElements() {
+      List<Player> players =
+          List.of(new Player("Alice", 100), new Player("Bob", 200), new Player("Carol", 300));
+
+      Kind<IdKind.Witness, List<Player>> result =
+          ForTraversal.over(playersTraversal, players, idMonad)
+              .filter(p -> p.score() >= 200)
+              .toList();
+
+      List<Player> collected = IdKindHelper.ID.unwrap(result);
+      assertThat(collected).containsExactly(new Player("Bob", 200), new Player("Carol", 300));
     }
 
     @Test

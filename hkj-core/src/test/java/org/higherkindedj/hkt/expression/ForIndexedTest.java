@@ -526,7 +526,7 @@ class ForIndexedTest {
   class ToIndexedListOperations {
 
     @Test
-    @DisplayName("should collect all elements with their indices")
+    @DisplayName("should collect all elements with their indices into an unmodifiable list")
     void collectAllWithIndices() {
       List<Player> players = List.of(new Player("Alice", 100), new Player("Bob", 200));
 
@@ -534,11 +534,41 @@ class ForIndexedTest {
           ForIndexed.overIndexed(playersTraversal, players, idMonad).toIndexedList();
 
       List<Pair<Integer, Player>> collected = IdKindHelper.ID.unwrap(result);
-      assertThat(collected).hasSize(2);
+      assertThat(collected).isUnmodifiable().hasSize(2);
       assertThat(collected.get(0).first()).isEqualTo(0);
       assertThat(collected.get(0).second()).isEqualTo(new Player("Alice", 100));
       assertThat(collected.get(1).first()).isEqualTo(1);
       assertThat(collected.get(1).second()).isEqualTo(new Player("Bob", 200));
+    }
+
+    @Test
+    @DisplayName("should collect only the positions that pass filterIndex")
+    void collectFilteredIndices() {
+      List<Player> players =
+          List.of(new Player("Alice", 100), new Player("Bob", 200), new Player("Carol", 300));
+
+      Kind<IdKind.Witness, List<Pair<Integer, Player>>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .filterIndex(i -> i % 2 == 1)
+              .toIndexedList();
+
+      List<Pair<Integer, Player>> collected = IdKindHelper.ID.unwrap(result);
+      assertThat(collected).containsExactly(new Pair<>(1, new Player("Bob", 200)));
+    }
+
+    @Test
+    @DisplayName("should collect only the index-value pairs that pass filter")
+    void collectFilteredPairs() {
+      List<Player> players =
+          List.of(new Player("Alice", 100), new Player("Bob", 200), new Player("Carol", 300));
+
+      Kind<IdKind.Witness, List<Pair<Integer, Player>>> result =
+          ForIndexed.overIndexed(playersTraversal, players, idMonad)
+              .filter((i, p) -> i > 0 && p.score() < 300)
+              .toIndexedList();
+
+      List<Pair<Integer, Player>> collected = IdKindHelper.ID.unwrap(result);
+      assertThat(collected).containsExactly(new Pair<>(1, new Player("Bob", 200)));
     }
 
     @Test

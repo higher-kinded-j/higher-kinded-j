@@ -314,16 +314,19 @@ Kind<IdKind.Witness, List<Player>> result =
 // Alice (100) unchanged, Bob (200) doubled to 400
 ```
 
-### Collecting Results
+### Collecting Results {#collecting-results}
 
-Use `toList()` to collect all focused elements:
+Use `toList()` to collect the focused elements. After a `filter`, it collects only those that pass:
 
 <!-- verify -->
 ```java
-Kind<IdKind.Witness, List<Player>> allPlayers =
+Kind<IdKind.Witness, List<Player>> highScorers =
     ForTraversal.over(playersTraversal, players, Instances.monad(id()))
+        .filter(p -> p.score() >= 150)
         .toList();
 ```
+
+It reads the source structure, so a `modify` earlier in the chain does not show in the list.
 
 ---
 
@@ -380,7 +383,7 @@ ForIndexed.overIndexed(indexedPlayers, players, idApplicative)
 
 ### Collecting with Indices
 
-Use `toIndexedList()` to collect elements along with their indices:
+Use `toIndexedList()` to collect elements along with their indices. Like `toList()`, it keeps only the elements that pass `filterIndex` and `filter`:
 
 <!-- verify -->
 ```java

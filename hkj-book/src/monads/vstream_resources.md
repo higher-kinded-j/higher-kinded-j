@@ -107,7 +107,7 @@ VStream<String> pipeline = VStream.bracket(
 // cursor closed first, then connection
 ```
 
-## onFinalize: Lightweight Cleanup
+## onFinalize: Lightweight Cleanup {#onfinalize-lightweight-cleanup}
 
 For cases where you do not need a full acquire-use-release cycle, `onFinalize` attaches a
 cleanup action to any existing stream:
@@ -118,8 +118,9 @@ VStream<String> stream = VStream.of("a", "b", "c")
     .onFinalize(VTask.exec(() -> System.out.println("Stream completed")));
 ```
 
-The finaliser runs when the stream completes or encounters an error. Multiple finalisers
-can be chained; they execute in the order they were attached:
+The finaliser runs once each time the stream is consumed, when that consumption completes or
+encounters an error. Multiple finalisers can be chained; when the stream completes, they
+execute in the order they were attached:
 
 <!-- verify -->
 ```java

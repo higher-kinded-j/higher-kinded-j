@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
@@ -286,31 +287,19 @@ public final class IndexedTraversals {
   /**
    * Sequences a list of effects into a single effect containing a list.
    *
-   * <p>This is a helper method for implementing indexed traversals over collections.
+   * <p>This is a helper method for implementing indexed traversals over collections. It collects
+   * the results as {@link Traversals#traverseList} does: into an unmodifiable list, which each run
+   * of the effect builds afresh.
    *
    * @param effects List of effects to sequence
    * @param app The Applicative instance
    * @param <F> The effect type
    * @param <A> The element type
-   * @return A single effect containing the list of results
+   * @return A single effect containing the unmodifiable list of results
    */
   public static <F extends WitnessArity<TypeArity.Unary>, A extends @Nullable Object>
       Kind<F, List<A>> sequenceList(final List<Kind<F, A>> effects, final Applicative<F> app) {
-    Kind<F, List<A>> result = app.of(new ArrayList<>());
-
-    for (Kind<F, A> effect : effects) {
-      result =
-          app.map2(
-              result,
-              effect,
-              (list, a) -> {
-                List<A> newList = new ArrayList<>(list);
-                newList.add(a);
-                return newList;
-              });
-    }
-
-    return result;
+    return Traversals.traverseList(effects, Function.identity(), app);
   }
 
   /**

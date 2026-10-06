@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.vstream;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
@@ -1304,11 +1305,16 @@ public interface VStream<A> extends VStreamKind<A> {
    * <ul>
    *   <li>The stream completes normally ({@link Step.Done})
    *   <li>An error occurs during pulling
+   *   <li>The stream is closed with {@link #close()}
    * </ul>
    *
-   * <p>The finaliser runs exactly once, regardless of how the stream terminates. If the finaliser
-   * itself throws an exception and the stream also failed, the original error is preserved and the
-   * finaliser error is added as a suppressed exception.
+   * <p>The finaliser runs once for each consumption that completes, fails or is closed, so
+   * consuming the stream again runs it again. {@link #close()} on the returned stream runs it for
+   * the latest consumption unless that consumption has run it already, or at once if the stream has
+   * not been pulled. When the stream is consumed by several threads at once, close the tail a
+   * consumer holds rather than the returned stream, since the latest consumption may be another
+   * thread's. If the finaliser itself throws an exception and the stream also failed, the original
+   * error is preserved and the finaliser error is added as a suppressed exception.
    *
    * <h2>Example</h2>
    *
@@ -1323,61 +1329,7 @@ public interface VStream<A> extends VStreamKind<A> {
    */
   default VStream<A> onFinalize(VTask<Unit> finalizer) {
     Objects.requireNonNull(finalizer, "finalizer must not be null");
-    AtomicBoolean released = new AtomicBoolean(false);
-    return wrapWithFinalizer(this, finalizer, released);
-  }
-
-  /**
-   * Internal helper that wraps a stream with finaliser logic, sharing the AtomicBoolean across the
-   * stream chain to ensure the finaliser runs exactly once.
-   */
-  private static <A> VStream<A> wrapWithFinalizer(
-      VStream<A> source, VTask<Unit> finalizer, AtomicBoolean released) {
-    return new VStream<>() {
-      @Override
-      public VTask<Step<A>> pull() {
-        VTask<Step<A>> pullTask = source.pull();
-        return pullTask
-            .<Step<A>>map(
-                step ->
-                    switch (step) {
-                      case Step.Emit<A> e ->
-                          new Step.Emit<>(
-                              e.value(), wrapWithFinalizer(e.tail(), finalizer, released));
-                      case Step.Skip<A> s ->
-                          new Step.Skip<>(wrapWithFinalizer(s.tail(), finalizer, released));
-                      case Step.Done<A> _ -> {
-                        if (released.compareAndSet(false, true)) {
-                          finalizer.run();
-                        }
-                        yield new Step.Done<A>();
-                      }
-                    })
-            .recoverWith(
-                error -> {
-                  if (released.compareAndSet(false, true)) {
-                    try {
-                      finalizer.run();
-                    } catch (Exception finalizerError) {
-                      error.addSuppressed(finalizerError);
-                    }
-                  }
-                  return VTask.<Step<A>>fail(error);
-                });
-      }
-
-      @Override
-      public VTask<Unit> close() {
-        return VTask.of(
-            () -> {
-              if (released.compareAndSet(false, true)) {
-                finalizer.run();
-              }
-              source.close().run();
-              return Unit.INSTANCE;
-            });
-      }
-    };
+    return new FinalizedStream<>(this, finalizer);
   }
 
   // =====================================================================
@@ -1626,5 +1578,105 @@ final class MappedStream<A, B> implements VStream<B> {
     // This keeps the pull() delegation depth at 1 regardless of chain length.
     Function<? super A, ? extends C> composed = ((Function<A, B>) mapper).andThen(f);
     return new MappedStream<>(source, composed);
+  }
+}
+
+/**
+ * The head of a stream with a finaliser, as {@link VStream#onFinalize} returns it.
+ *
+ * <p>A stream can be consumed more than once, so each pull of the head starts a consumption with
+ * its own flag, and the finaliser runs once for each consumption: when it completes, fails or is
+ * closed. {@link #close()} on the head ends the latest consumption, or one not yet started, so
+ * consuming the stream again afterwards runs the finaliser again. Under concurrent consumptions the
+ * latest one may belong to another consumer, so each consumer closes the tail it holds.
+ *
+ * @param <A> The element type.
+ */
+final class FinalizedStream<A> implements VStream<A> {
+
+  private final VStream<A> source;
+  private final VTask<Unit> finalizer;
+  private final AtomicReference<AtomicBoolean> latest =
+      new AtomicReference<>(new AtomicBoolean(false));
+
+  FinalizedStream(VStream<A> source, VTask<Unit> finalizer) {
+    this.source = source;
+    this.finalizer = finalizer;
+  }
+
+  @Override
+  public VTask<Step<A>> pull() {
+    return VTask.delay(
+            () -> {
+              AtomicBoolean released = new AtomicBoolean(false);
+              latest.set(released);
+              return consumption(source, finalizer, released);
+            })
+        .flatMap(VStream::pull);
+  }
+
+  @Override
+  public VTask<Unit> close() {
+    return VTask.of(
+        () -> {
+          if (latest.get().compareAndSet(false, true)) {
+            finalizer.run();
+          }
+          source.close().run();
+          return Unit.INSTANCE;
+        });
+  }
+
+  /**
+   * Wraps one consumption of the stream, sharing its flag along the chain so that the finaliser
+   * runs once for it.
+   */
+  private static <A> VStream<A> consumption(
+      VStream<A> source, VTask<Unit> finalizer, AtomicBoolean released) {
+    return new VStream<>() {
+      @Override
+      public VTask<Step<A>> pull() {
+        // A source that fails as it is pulled still reaches the recovery that runs the finaliser
+        VTask<Step<A>> pullTask = VTask.delay(source::pull).flatMap(task -> task);
+        return pullTask
+            .<Step<A>>map(
+                step ->
+                    switch (step) {
+                      case Step.Emit<A> e ->
+                          new Step.Emit<>(e.value(), consumption(e.tail(), finalizer, released));
+                      case Step.Skip<A> s ->
+                          new Step.Skip<>(consumption(s.tail(), finalizer, released));
+                      case Step.Done<A> _ -> {
+                        if (released.compareAndSet(false, true)) {
+                          finalizer.run();
+                        }
+                        yield new Step.Done<A>();
+                      }
+                    })
+            .recoverWith(
+                error -> {
+                  if (released.compareAndSet(false, true)) {
+                    try {
+                      finalizer.run();
+                    } catch (Exception finalizerError) {
+                      error.addSuppressed(finalizerError);
+                    }
+                  }
+                  return VTask.<Step<A>>fail(error);
+                });
+      }
+
+      @Override
+      public VTask<Unit> close() {
+        return VTask.of(
+            () -> {
+              if (released.compareAndSet(false, true)) {
+                finalizer.run();
+              }
+              source.close().run();
+              return Unit.INSTANCE;
+            });
+      }
+    };
   }
 }

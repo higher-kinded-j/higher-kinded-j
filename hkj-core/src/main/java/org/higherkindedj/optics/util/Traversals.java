@@ -753,17 +753,17 @@ public final class Traversals {
    *
    * <p>This is a direct application of the {@code traverse} operation for arrays, provided here as
    * a static helper for convenience. It "flips" an {@code A[]} and a function {@code A -> F<B>}
-   * into a single {@code F<B[]>}.
+   * into a single {@code F<List<B>>}.
    *
-   * <p>The resulting array has the same length as the source array, with each element transformed
-   * by the function.
+   * <p>The resulting list has the same length as the source array, with each element transformed by
+   * the function. It is unmodifiable, as the list {@link #traverseList} collects is.
    *
    * @param array The source array to traverse.
    * @param f The effectful function to apply to each element.
    * @param applicative The {@code Applicative} instance for the effect {@code F}.
    * @param <F> The higher-kinded type witness of the applicative effect.
    * @param <A> The element type of the source array.
-   * @param <B> The element type of the resulting array.
+   * @param <B> The element type of the resulting list.
    * @return A {@code Kind<F, List<B>>}, representing the collected results within the applicative
    *     context. Note: Returns a List because creating generic arrays at runtime is not type-safe
    *     in Java.
@@ -777,11 +777,6 @@ public final class Traversals {
           final Function<? super A, ? extends Kind<F, ? extends B>> f,
           final Applicative<F> applicative) {
 
-    if (array.length == 0) {
-      return applicative.of(new ArrayList<>());
-    }
-
-    // Convert to list and traverse efficiently
     return traverseList(Arrays.asList(array), f, applicative);
   }
 

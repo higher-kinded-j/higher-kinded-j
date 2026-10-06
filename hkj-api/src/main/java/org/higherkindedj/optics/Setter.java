@@ -244,23 +244,7 @@ public interface Setter<S extends @Nullable Object, A extends @Nullable Object>
           effects.add(f.apply(a));
         }
 
-        // Sequence effects using right-to-left fold with LinkedList for O(1) prepending
-        Kind<F, LinkedList<A>> acc = app.of(new LinkedList<>());
-        for (int i = effects.size() - 1; i >= 0; i--) {
-          Kind<F, A> fa = effects.get(i);
-          acc =
-              app.map2(
-                  fa,
-                  acc,
-                  (elem, list) -> {
-                    list.addFirst(elem); // O(1) prepend
-                    return list;
-                  });
-        }
-
-        // Convert LinkedList to immutable List at the end (O(n) total); toList, unlike
-        // List.copyOf, keeps a null element
-        return app.map(list -> list.stream().toList(), acc);
+        return ConsList.sequence(effects, app);
       }
     };
   }
@@ -305,21 +289,6 @@ public interface Setter<S extends @Nullable Object, A extends @Nullable Object>
           effects.add(f.apply(entry.getValue()));
         }
 
-        // Sequence effects to get Kind<F, List<V>>
-        Kind<F, LinkedList<V>> acc = app.of(new LinkedList<>());
-        for (int i = effects.size() - 1; i >= 0; i--) {
-          Kind<F, V> fv = effects.get(i);
-          acc =
-              app.map2(
-                  fv,
-                  acc,
-                  (v, list) -> {
-                    list.addFirst(v); // O(1) prepend
-                    return list;
-                  });
-        }
-
-        // Convert to Map at the end (O(n) total)
         return app.map(
             values -> {
               Map<K, V> resultMap = LinkedHashMap.newLinkedHashMap(keys.size());
@@ -329,7 +298,7 @@ public interface Setter<S extends @Nullable Object, A extends @Nullable Object>
               }
               return resultMap;
             },
-            acc);
+            ConsList.sequence(effects, app));
       }
     };
   }

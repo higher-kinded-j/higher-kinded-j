@@ -265,6 +265,19 @@ class VStreamBracketTest {
     }
 
     @Test
+    @DisplayName("finaliser runs once for each consumption of the stream")
+    void finalizerRunsOncePerConsumption() {
+      AtomicInteger count = new AtomicInteger(0);
+
+      VStream<Integer> stream = VStream.of(1, 2, 3).onFinalize(VTask.exec(count::incrementAndGet));
+
+      stream.toList().run();
+      stream.toList().run();
+
+      assertThat(count).hasValue(2);
+    }
+
+    @Test
     @DisplayName("finaliser runs on error")
     void finalizerRunsOnError() {
       AtomicBoolean finalized = new AtomicBoolean(false);
@@ -276,6 +289,21 @@ class VStreamBracketTest {
       assertThatThrownBy(() -> stream.toList().run()).isInstanceOf(RuntimeException.class);
 
       assertThat(finalized).isTrue();
+    }
+
+    @Test
+    @DisplayName("finaliser runs when the source fails as it is pulled")
+    void finalizerRunsWhenSourceFailsAsItIsPulled() {
+      AtomicInteger count = new AtomicInteger(0);
+
+      // chunk pulls its source as soon as it is pulled, so the failure comes from pull() itself
+      VStream<List<Integer>> stream =
+          VStream.<Integer>fail(new RuntimeException("boom"))
+              .chunk(2)
+              .onFinalize(VTask.exec(count::incrementAndGet));
+
+      assertThatThrownBy(() -> stream.toList().run()).hasMessage("boom");
+      assertThat(count).hasValue(1);
     }
 
     @Test
@@ -384,19 +412,55 @@ class VStreamBracketTest {
     }
 
     @Test
-    @DisplayName("close() then pull does not run finaliser twice")
-    void closeThenPullDoesNotRunFinalizerTwice() {
+    @DisplayName("a consumption closed part-way runs the finaliser once when pulled to the end")
+    @SuppressWarnings("DataFlowIssue") // the emitted step is known to be an Emit here
+    void consumptionClosedPartWayRunsFinalizerOnce() {
+      AtomicInteger count = new AtomicInteger(0);
+
+      VStream<Integer> stream = VStream.of(1, 2).onFinalize(VTask.exec(count::incrementAndGet));
+
+      VStream.Step<Integer> first = stream.pull().run();
+      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+      VStream<Integer> tail = ((VStream.Step.Emit<Integer>) first).tail();
+
+      tail.close().run();
+      assertThat(tail.toList().run()).containsExactly(2);
+
+      assertThat(count).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("closing a tail twice runs the finaliser once")
+    @SuppressWarnings("DataFlowIssue") // the emitted step is known to be an Emit here
+    void closingTailTwiceRunsFinalizerOnce() {
       AtomicInteger count = new AtomicInteger(0);
 
       VStream<Integer> stream = VStream.of(1, 2, 3).onFinalize(VTask.exec(count::incrementAndGet));
 
-      // Close first, marking released
+      VStream.Step<Integer> first = stream.pull().run();
+      assertThat(first).isInstanceOf(VStream.Step.Emit.class);
+      VStream<Integer> tail = ((VStream.Step.Emit<Integer>) first).tail();
+
+      tail.close().run();
+      tail.close().run();
+
+      assertThat(count).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("close() ends one consumption, and consuming again runs the finaliser again")
+    void closeEndsOneConsumption() {
+      AtomicInteger count = new AtomicInteger(0);
+
+      VStream<Integer> stream = VStream.of(1, 2, 3).onFinalize(VTask.exec(count::incrementAndGet));
+
+      // Closing before any pull ends the consumption that has not started
       stream.close().run();
       assertThat(count.get()).isEqualTo(1);
 
-      // Consuming the stream to Done should not run finaliser again
+      // Consuming the stream afterwards is a new consumption, with its own finaliser run
       stream.toList().run();
-      assertThat(count.get()).isEqualTo(1);
+      assertThat(count.get()).isEqualTo(2);
     }
 
     @Test

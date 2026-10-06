@@ -3,17 +3,33 @@
 package org.higherkindedj.hkt.trampoline;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.IOAssert.assertThatIO;
+import static org.higherkindedj.hkt.assertions.ListAssert.assertThatList;
+import static org.higherkindedj.hkt.assertions.ValidatedAssert.assertThatValidated;
+import static org.higherkindedj.hkt.either.EitherKindHelper.EITHER;
 import static org.higherkindedj.hkt.id.IdKindHelper.ID;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
+import static org.higherkindedj.hkt.list.ListKindHelper.LIST;
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.either.Either;
+import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
+import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,7 +48,7 @@ class TrampolineUtilsTest {
   class TraverseListStackSafeTests {
 
     @Test
-    @DisplayName("should traverse empty list")
+    @DisplayName("should traverse empty list to an unmodifiable empty list")
     void shouldTraverseEmptyList() {
       final List<Integer> emptyList = List.of();
 
@@ -41,7 +57,7 @@ class TrampolineUtilsTest {
               emptyList, i -> Id.of("item-" + i), Instances.monad(id()));
 
       final List<String> unwrapped = ID.narrow(result).value();
-      assertThat(unwrapped).isEmpty();
+      assertThat(unwrapped).isUnmodifiable().isEmpty();
     }
 
     @Test
@@ -58,7 +74,7 @@ class TrampolineUtilsTest {
     }
 
     @Test
-    @DisplayName("should traverse small list correctly")
+    @DisplayName("should traverse small list in order into an unmodifiable list")
     void shouldTraverseSmallList() {
       final List<Integer> smallList = List.of(1, 2, 3, 4, 5);
 
@@ -67,7 +83,23 @@ class TrampolineUtilsTest {
               smallList, i -> Id.of("item-" + i), Instances.monad(id()));
 
       final List<String> unwrapped = ID.narrow(result).value();
-      assertThat(unwrapped).containsExactly("item-1", "item-2", "item-3", "item-4", "item-5");
+      assertThat(unwrapped)
+          .isUnmodifiable()
+          .containsExactly("item-1", "item-2", "item-3", "item-4", "item-5");
+    }
+
+    @Test
+    @DisplayName("should give every combination under the List applicative")
+    void shouldGiveEveryCombinationUnderList() {
+      final Kind<ListKind.Witness, List<String>> result =
+          TrampolineUtils.traverseListStackSafe(
+              List.of("a", "b"),
+              s -> LIST.widen(List.of(s + "1", s + "2")),
+              Instances.monad(list()));
+
+      assertThatList(result)
+          .containsExactly(
+              List.of("a1", "b1"), List.of("a1", "b2"), List.of("a2", "b1"), List.of("a2", "b2"));
     }
 
     @Test
@@ -115,6 +147,87 @@ class TrampolineUtilsTest {
       assertThat(unwrapped).hasSize(100_000);
       assertThat(unwrapped.getFirst()).isEqualTo(1);
       assertThat(unwrapped.get(99_999)).isEqualTo(100_000);
+    }
+
+    @Test
+    @DisplayName("should be stack-safe under IO with very large lists (100,000 elements)")
+    void shouldBeStackSafeUnderIO() {
+      final List<Integer> veryLargeList = IntStream.range(0, 100_000).boxed().toList();
+
+      final Kind<IOKind.Witness, List<Integer>> result =
+          TrampolineUtils.traverseListStackSafe(
+              veryLargeList, i -> IO_OP.widen(IO.delay(() -> i + 1)), Instances.monad(io()));
+
+      assertThatIO(result)
+          .hasValueSatisfying(
+              values -> {
+                assertThat(values).hasSize(100_000);
+                assertThat(values.getFirst()).isEqualTo(1);
+                assertThat(values.getLast()).isEqualTo(100_000);
+              });
+    }
+
+    @Test
+    @DisplayName("should apply the function to the elements in order")
+    void shouldApplyFunctionInElementOrder() {
+      final List<Integer> applied = new ArrayList<>();
+
+      TrampolineUtils.traverseListStackSafe(
+          List.of(0, 1, 2, 3, 4),
+          i -> {
+            applied.add(i);
+            return Id.of(i);
+          },
+          Instances.monad(id()));
+
+      assertThat(applied).containsExactly(0, 1, 2, 3, 4);
+    }
+
+    @Test
+    @DisplayName("should run the effects in element order")
+    void shouldRunEffectsInElementOrder() {
+      final List<Integer> ran = new ArrayList<>();
+
+      final Kind<IOKind.Witness, List<Integer>> result =
+          TrampolineUtils.traverseListStackSafe(
+              List.of(0, 1, 2, 3, 4),
+              i ->
+                  IO_OP.widen(
+                      IO.delay(
+                          () -> {
+                            ran.add(i);
+                            return i;
+                          })),
+              Instances.monad(io()));
+
+      assertThatIO(result).hasValue(List.of(0, 1, 2, 3, 4));
+      assertThat(ran).containsExactly(0, 1, 2, 3, 4);
+    }
+
+    @Test
+    @DisplayName("should report the earliest failure under Either")
+    void shouldReportEarliestFailureUnderEither() {
+      final Kind<EitherKind.Witness<String>, List<Integer>> result =
+          TrampolineUtils.traverseListStackSafe(
+              List.of(1, -2, 3, -4, 5),
+              i -> EITHER.widen(i > 0 ? Either.right(i) : Either.left("rejected " + i)),
+              Instances.monadError(either()));
+
+      assertThatEither(result).hasLeft("rejected -2");
+    }
+
+    @Test
+    @DisplayName("should accumulate Validated errors in element order")
+    void shouldAccumulateValidatedErrorsInElementOrder() {
+      final Kind<ValidatedKind.Witness<List<String>>, List<Integer>> result =
+          TrampolineUtils.traverseListStackSafe(
+              List.of(1, -2, 3, -4, -5),
+              i ->
+                  VALIDATED.widen(
+                      i > 0 ? Validated.valid(i) : Validated.invalid(List.of("rejected " + i))),
+              Instances.validated(Semigroups.<String>list()));
+
+      assertThatValidated(result).hasError(List.of("rejected -2", "rejected -4", "rejected -5"));
     }
 
     @Test

@@ -5,6 +5,7 @@ package org.higherkindedj.optics.util;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.instances.Witnesses.*;
+import static org.higherkindedj.hkt.io.IOKindHelper.IO_OP;
 import static org.higherkindedj.hkt.optional.OptionalKindHelper.OPTIONAL;
 
 import java.util.*;
@@ -15,6 +16,8 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdKindHelper;
 import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.io.IO;
+import org.higherkindedj.hkt.io.IOKind;
 import org.higherkindedj.hkt.list.ListKind;
 import org.higherkindedj.hkt.list.ListKindHelper;
 import org.higherkindedj.hkt.optional.OptionalKind;
@@ -3606,6 +3609,22 @@ class TraversalsTest {
     }
 
     @Test
+    @DisplayName("should give each run of the effect its own empty map")
+    void traverseMapValues_emptyMapPerRun() {
+      Kind<IOKind.Witness, Map<String, Integer>> result =
+          Traversals.traverseMapValues(
+              Map.<String, Integer>of(),
+              n -> IO_OP.widen(IO.delay(() -> n * 10)),
+              Instances.monad(io()));
+      IO<Map<String, Integer>> io = IO_OP.narrow(result);
+
+      Map<String, Integer> first = io.unsafeRunSync();
+      Map<String, Integer> second = io.unsafeRunSync();
+
+      assertThat(second).isNotSameAs(first).isEmpty();
+    }
+
+    @Test
     @DisplayName("should propagate failure in Optional context")
     void traverseMapValues_failurePropagates() {
       Map<String, Integer> source = Map.of("a", 1, "b", 2);
@@ -3656,14 +3675,14 @@ class TraversalsTest {
     }
 
     @Test
-    @DisplayName("should return empty list for empty array")
+    @DisplayName("should return an unmodifiable empty list for empty array")
     void traverseArray_empty() {
       String[] source = {};
       Kind<IdKind.Witness, List<String>> result =
           Traversals.traverseArray(source, s -> Id.of(s.toUpperCase()), Instances.monad(id()));
 
       List<String> modified = IdKindHelper.ID.narrow(result).value();
-      assertThat(modified).isEmpty();
+      assertThat(modified).isUnmodifiable().isEmpty();
     }
 
     @Test
