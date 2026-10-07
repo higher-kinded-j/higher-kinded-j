@@ -22,7 +22,7 @@ An ordinary `modify` takes `A -> A`. Once the transformation can fail, accumulat
 ## Effectful Modification with `modifyF()`
 
 ~~~admonish tip title="Why this matters"
-The path does not change. The same `AgencyFocus.employees().via(EmployeeFocus.salary())` you use for a pure `modifyAll` serves an accumulating validation, an `Either` that stops at the first problem, and an asynchronous fetch, with only the `Applicative` you hand it differing. Navigation and effect are separate concerns here, so adding validation to an update is not a rewrite of how you reach the data.
+The path does not change. The same `AgencyFocus.employees().via(EmployeeFocus.salary())` you use for a pure `modifyAll` serves an accumulating validation, an `Either` that reports the first problem, and an asynchronous fetch, with only the `Applicative` you hand it differing. Navigation and effect are separate concerns here, so adding validation to an update is not a rewrite of how you reach the data.
 ~~~
 
 Every path type has `modifyF()`. The function returns the new value inside a `Kind`, and the whole modified structure comes back inside the same effect. The effect is chosen by the instance you pass, not by the path:

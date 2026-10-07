@@ -397,8 +397,7 @@ public class FluentOpticOpsExample {
     System.out.println("  • modifyMaybe / throughMaybe: Optional validation, no error details");
     System.out.println(
         "  • modifyAllValidated / allThroughValidated: Multi-field, accumulate all errors");
-    System.out.println(
-        "  • modifyAllEither / allThroughEither: Multi-field, short-circuit on first error");
+    System.out.println("  • modifyAllEither / allThroughEither: Multi-field, first error only");
     System.out.println();
     System.out.println("For comprehensive validation examples, see FluentValidationExample.java");
   }

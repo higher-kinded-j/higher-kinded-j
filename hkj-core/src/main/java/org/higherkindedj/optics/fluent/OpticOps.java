@@ -644,11 +644,13 @@ public final class OpticOps {
   }
 
   /**
-   * Modifies all values focused by a {@link Traversal} with Either-based short-circuiting.
+   * Modifies all values focused by a {@link Traversal} with Either-based validation, keeping only
+   * the first error.
    *
-   * <p>This method validates and modifies all focused values, but stops at the first validation
-   * error (short-circuits). This is ideal when you want to fail fast and don't need to collect all
-   * errors.
+   * <p>This method validates and modifies all focused values, and returns the first error in
+   * traversal order. The validator still runs on every focused value: the {@code Either} shapes the
+   * answer, not the work. Use it when one error is all the caller will act on, and {@link
+   * #modifyAllValidated} to report every error.
    *
    * <p>Example:
    *
@@ -681,7 +683,7 @@ public final class OpticOps {
    */
   public static <E, S, A> Either<E, S> modifyAllEither(
       S source, Traversal<S, A> traversal, Function<A, Either<E, A>> validator) {
-    // Create applicative for Either (short-circuits on first Left)
+    // Either's applicative keeps the first Left; every element's effect is still built
     Applicative<EitherKind.Witness<E>> applicative = EitherMonad.instance();
 
     // Lift the validator to the Kind type
@@ -1384,7 +1386,7 @@ public final class OpticOps {
    *   <li><b>throughEither</b>: Single field validation with error short-circuiting
    *   <li><b>throughMaybe</b>: Single field optional validation (success/nothing)
    *   <li><b>allThroughValidated</b>: Multiple field validation with error accumulation
-   *   <li><b>allThroughEither</b>: Multiple field validation with error short-circuiting
+   *   <li><b>allThroughEither</b>: Multiple field validation keeping only the first error
    * </ul>
    *
    * @param <S> The source type
@@ -1475,9 +1477,10 @@ public final class OpticOps {
     }
 
     /**
-     * Modifies all focused values with Either short-circuiting.
+     * Modifies all focused values with Either-based validation, keeping only the first error.
      *
-     * <p>Stops at the first validation error (short-circuits).
+     * <p>Returns the first error in traversal order. The validator still runs on every focused
+     * value, as in {@link OpticOps#modifyAllEither}.
      *
      * <p>Example:
      *

@@ -23,7 +23,7 @@ import org.jspecify.annotations.NullMarked;
  * validation results provide insight into potential issues. This is useful for:
  *
  * <ul>
- *   <li>Validating operations before execution
+ *   <li>Checking operations as the program runs
  *   <li>Checking constraints and invariants
  *   <li>Testing program structure
  * </ul>

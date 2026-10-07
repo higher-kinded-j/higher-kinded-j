@@ -379,7 +379,7 @@ The one exception is a [checkpoint](#checkpoints) answer, which is safe to colla
 - **A heading reworded because its old id would mislead**, such as one that carried a time estimate or a count that has since changed, takes a legacy-anchor entry instead of a pin, so the stale words leave the address bar too
 - **A redirect target is document-relative** (`beans.html`), never an absolute versioned URL, or a reader of an older version is sent to the current one
 
-A page redirect cannot rescue a *section* that moves: the redirect is a meta refresh, which drops the fragment. Prefer keeping the page and moving content within it; where a section must move, pin the id and add the legacy-anchor entry in the same change.
+A page redirect keeps the fragment: the book's redirect template, `hkj-book/theme/redirect.hbs`, carries the hash across, so a deep link into a page that moves whole lands on the same section while its id is unchanged. (A reader without JavaScript gets the plain meta refresh, which lands at the top.) No redirect runs for a page that still exists, so a redirect cannot rescue a *section* that moves while its page stays. Prefer keeping the page and moving content within it; where a section must move, pin the id and add the legacy-anchor entry in the same change.
 
 ### Link Text
 

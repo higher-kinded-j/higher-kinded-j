@@ -35,13 +35,14 @@
  *       <ul>
  *         <li>{@link DirectOpticInterpreter} - Standard execution
  *         <li>{@link LoggingOpticInterpreter} - Execution with audit trail
- *         <li>{@link ValidationOpticInterpreter} - Dry-run validation
+ *         <li>{@link ValidationOpticInterpreter} - A checked run that collects errors and warnings
  *       </ul>
  *   <li><b>Program Composition</b> - Build complex workflows from simple pieces using {@code
  *       flatMap}
  *   <li><b>Conditional Logic</b> - Programs can branch based on optic reads
  *   <li><b>Testability</b> - Mock interpreters for pure testing
- *   <li><b>Future Extensibility</b> - Add optimisation, transaction support, etc.
+ *   <li><b>Extensibility</b> - A new interpreter gives existing programs new behaviour without
+ *       changing them
  * </ol>
  *
  * <h2>Example: Logging Interpreter</h2>
@@ -60,7 +61,11 @@
  * // SET: ... <- ADULT
  * }</pre>
  *
- * <h2>Example: Validation Before Execution</h2>
+ * <h2>Example: A Checked Run</h2>
+ *
+ * <p>{@code validate} runs the program, applying each operation as it checks it, so the program
+ * below runs twice. To inspect a program without running it, use {@link
+ * org.higherkindedj.hkt.free.ProgramAnalyser}.
  *
  * <pre>{@code
  * Free<OpticOpKind.Witness, Person> program = ...;
@@ -82,7 +87,7 @@
  * <ul>
  *   <li>Complex multi-step optic workflows with conditional logic
  *   <li>Audit trails of what operations were performed
- *   <li>Validation before modification
+ *   <li>A checked run that reports problems instead of a value
  *   <li>Multiple execution strategies for the same program
  *   <li>Testing complex optic logic without real data
  * </ul>
@@ -97,18 +102,7 @@
  *   <li>{@link OpticInterpreters} - Factory for creating interpreters
  *   <li>{@link DirectOpticInterpreter} - Standard execution
  *   <li>{@link LoggingOpticInterpreter} - Execution with logging
- *   <li>{@link ValidationOpticInterpreter} - Validation without execution
- * </ul>
- *
- * <h2>Future Enhancements</h2>
- *
- * <p>Potential future interpreters could include:
- *
- * <ul>
- *   <li><b>OptimizingInterpreter</b> - Fuses consecutive operations for efficiency
- *   <li><b>TransactionalInterpreter</b> - All-or-nothing execution with rollback
- *   <li><b>ParallelInterpreter</b> - Executes independent operations concurrently
- *   <li><b>ReplayInterpreter</b> - Records and replays operations for debugging
+ *   <li>{@link ValidationOpticInterpreter} - Checked run, collecting errors and warnings
  * </ul>
  *
  * @see org.higherkindedj.optics.free.OpticPrograms

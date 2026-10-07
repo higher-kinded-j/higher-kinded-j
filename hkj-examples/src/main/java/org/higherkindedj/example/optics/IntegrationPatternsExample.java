@@ -48,7 +48,7 @@ import org.higherkindedj.optics.util.Traversals;
  *
  * <ul>
  *   <li>Composing prisms with traversals for deep data extraction
- *   <li>Combining fail-fast (Either) and error accumulation (Validated) strategies
+ *   <li>Combining first-error (Either) and error-accumulating (Validated) strategies
  *   <li>Safe null handling throughout the pipeline
  *   <li>Exception-safe database operations with Try
  *   <li>Conditional updates based on business rules
@@ -306,7 +306,7 @@ public class IntegrationPatternsExample {
   }
 
   private static void demonstrateErrorAccumulationVsFailFast() {
-    System.out.println("📊 SCENARIO 2: Error Accumulation vs Fail-Fast\n");
+    System.out.println("📊 SCENARIO 2: Error Accumulation vs First Error\n");
 
     List<IPOrderItem> problematicItems =
         List.of(
@@ -318,9 +318,9 @@ public class IntegrationPatternsExample {
     Traversal<List<IPOrderItem>, BigDecimal> allPrices =
         Traversals.<IPOrderItem>forList().andThen(priceLens.asTraversal());
 
-    // Strategy 1: Fail-Fast (Either)
-    System.out.println("Strategy 1: Fail-Fast with Either");
-    Either<String, List<IPOrderItem>> failFast =
+    // Strategy 1: First Error (Either)
+    System.out.println("Strategy 1: First Error with Either");
+    Either<String, List<IPOrderItem>> firstError =
         modifyAllEither(
             allPrices,
             price ->
@@ -329,9 +329,9 @@ public class IntegrationPatternsExample {
                     : Either.left("Invalid price: " + price),
             problematicItems);
 
-    failFast.fold(
+    firstError.fold(
         error -> {
-          System.out.println("  ❌ IPFailed immediately: " + error);
+          System.out.println("  ❌ Failed: " + error);
           return null;
         },
         success -> {
@@ -362,7 +362,7 @@ public class IntegrationPatternsExample {
         });
 
     System.out.println("\n💡 Key Difference:");
-    System.out.println("  • Fail-Fast: Stops at first error (efficient for quick rejection)");
+    System.out.println("  • First error: Reports one error, though every price is still checked");
     System.out.println("  • Accumulation: Collects all errors (better UX, show everything wrong)");
 
     System.out.println("\n" + "=".repeat(70) + "\n");

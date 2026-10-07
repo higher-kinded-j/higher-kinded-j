@@ -224,11 +224,11 @@ algebras and the generated support around it are gated; that one line is not.
 
 Some shapes recur across the book and are left unmarked deliberately. The list below records
 the ones met so far and the page that prompted each; it is **not** a closed set, and an unmarked
-fence that matches none of it is a page not yet reached rather than a decision. Roughly eighty
-such fences remain, concentrated in deliberate pseudo-code (`hkts/draughts.md`,
-`hkts/hkt_introduction.md`, `glossary/type-system.md`), equivalence pairs that show two spellings
-of one result (the three `transformers/mtl_*.md` pages), and fences using a literal `...` as
-syntax:
+fence that matches none of it is a page not yet reached rather than a decision. About 280 such
+fences remain. The Optics chapter holds about 75 of them, and the rest are spread thinly across the
+book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introduction.md`,
+`glossary/type-system.md`), equivalence pairs that show two spellings of one result (the three
+`transformers/mtl_*.md` pages), and fences using a literal `...` as syntax:
 
 - **The Foundations one-liner.** `repo.find(id).toEitherPath().focus().attributes().at(key)...`
   appears on about fifteen pages as the book's running motif. `.focus()` takes an optic and there

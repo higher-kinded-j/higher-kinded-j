@@ -12,14 +12,15 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
- * An abstract representation of an optic using the Profunctor representation. This is the core,
- * shared interface that all other optics (Lens, Prism, etc.) implement.
+ * The core interface every optic (Lens, Prism, etc.) implements, in the van Laarhoven encoding: an
+ * optic is defined by {@link #modifyF}, which lifts an effectful function on the part, {@code A ->
+ * F<B>}, to one on the whole, {@code S -> F<T>}, for any {@link Applicative} {@code F}.
  *
  * <p>An optic can be thought of as a way to "focus" on a part 'A' within a whole 'S' and
  * potentially change its type to 'B', which in turn changes the whole structure's type to 'T'.
  *
- * <p>With profunctor support, optics can be manipulated using profunctor-style operations like
- * {@code contramap}, {@code map}, and {@code dimap} for powerful type transformations.
+ * <p>An optic is also a profunctor in its whole types: {@link #contramap} adapts the source type
+ * {@code S}, {@link #map} the result type {@code T}, and {@link #dimap} both.
  *
  * <h2>Nullness</h2>
  *
