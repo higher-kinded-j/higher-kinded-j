@@ -104,7 +104,7 @@ Validated<NonEmptyList<FieldError>, Order> patched =
         .apply(order);
 ```
 
-**Related:** [Multi-Edit and Sparse Updates](../optics/multi_edit.md), [Update](type-classes.md#update), [FieldError](#fielderror), [ValidatedPrism](#validatedprism)
+**Related:** [Many Edits at Once](../optics/multi_edit.md), [Update](type-classes.md#update), [FieldError](#fielderror), [ValidatedPrism](#validatedprism)
 
 ---
 

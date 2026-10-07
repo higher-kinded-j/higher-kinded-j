@@ -346,4 +346,4 @@ Beyond three levels, compose the rest with `.via()`.
 ---
 
 **Previous:** [Focus DSL](focus_dsl.md)
-**Next:** [What Are Optics?](optics_intro.md)
+**Next:** [What a Path Is Made Of](optics_intro.md)

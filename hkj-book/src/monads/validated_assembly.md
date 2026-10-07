@@ -164,7 +164,7 @@ A component whose type is itself annotated accepts its sub-companion's result di
 - [ValidationPath](../effect/path_validation.md): the railway validation API
 - [Validated Prisms](../optics/validated_prism.md): a leaf parser with a faithful render-back *is* a `ValidatedPrism`: pass `vp.parse(raw)` to `field(label, ...)`. (`fields()` accumulates *siblings*; a prism's `andThen` short-circuits *nesting*.)
 - [Applicative](../functional/applicative.md): the `mapN` family for `Kind`-generic code
-- [Multi-Edit and Sparse Updates](../optics/multi_edit.md): the same all-errors-at-once model for *updating* existing values
+- [Many Edits at Once](../optics/multi_edit.md): the same all-errors-at-once model for *updating* existing values
 ~~~
 
 ---

@@ -792,7 +792,7 @@ public Order processOrder(Order order) {
 
 ~~~admonish tip title="See Also"
 - [Free Monad DSL](free_monad_dsl.md): building the programs these interpreters consume
-- [Fluent API](fluent_api.md): direct execution, when no description is needed
+- [Updates That Can Fail](fluent_api.md): direct execution through `OpticOps`, when no description is needed
 - [Effect Handlers](../effect/effect_handlers_intro.md): the same idea applied to computations rather than optics
 ~~~
 

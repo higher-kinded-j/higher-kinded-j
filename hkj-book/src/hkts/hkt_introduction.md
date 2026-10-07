@@ -185,7 +185,7 @@ Higher-Kinded-J **simulates HKTs in Java** using a technique inspired by defunct
 * **Leverage Functional Patterns:** Consistently apply powerful patterns like `map`, `flatMap`, `ap`, `sequence`, `traverse`, and monadic error handling (`raiseError`, `handleErrorWith`) across diverse data types.
 * **Build Composable Systems:** Create complex workflows and abstractions by composing smaller, generic pieces, as demonstrated in the included [Order Processing Example](order-walkthrough.md).
 * **Understand HKT Concepts:** Provides a practical, hands-on way to understand HKTs and type classes even within Java's limitations.
-* **Lay the Foundations:** Building on HKTs unlocks the possibilities for advanced abstractions like [Optics](../optics/optics_intro.md), which provide composable ways to access and modify nested data structures.
+* **Lay the Foundations:** Building on HKTs unlocks the possibilities for advanced abstractions like [Optics](../optics/ch_intro.md), which provide composable ways to access and modify nested data structures.
 
 While Higher-Kinded-J introduces some boilerplate compared to languages with native HKT support, it offers a valuable way to explore these powerful functional programming concepts in Java.
 

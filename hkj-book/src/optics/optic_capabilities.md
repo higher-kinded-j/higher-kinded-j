@@ -64,7 +64,7 @@ Bulk operations on `Traversal` values typically live on the `Traversals` utility
 | `Traversals.forOptional()` | Traversal that focuses zero or one elements of an `Optional` |
 | `Traversals.forArray()` | Traversal over the elements of an array |
 
-Stay in the static-method utility for one-off bulk operations; reach for the [Fluent API](fluent_api.md) when you want method-chaining on a builder.
+Stay in the static-method utility for one-off bulk operations; reach for the [Fluent API](fluent_api.md#the-two-styles) when you want method-chaining on a builder.
 
 ---
 

@@ -32,7 +32,7 @@ import static org.higherkindedj.optics.extensions.LensExtensions.*;
 ```
 
 ~~~admonish note title="Alternative: Fluent API"
-These extension methods are also available through the [Fluent API](fluent_api.md), which provides method chaining and a more discoverable interface.
+These extension methods are also available through the [Fluent API](fluent_api.md#the-two-styles), which provides method chaining and a more discoverable interface.
 ~~~
 
 ### Safe Access Methods
@@ -509,7 +509,7 @@ Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
 
 ~~~admonish tip title="See Also"
 - [Core Type Integration](core_type_integration.md): the prisms and traversals for the `Maybe`/`Either`/`Validated`/`Try` these methods return
-- [Fluent API](fluent_api.md): the same validation strategies as `OpticOps` statics and builders
+- [Updates That Can Fail](fluent_api.md): the same validation strategies as `OpticOps` statics and builders
 - [Composing Optics](composing_optics.md): the capstone these operations shorten
 ~~~
 

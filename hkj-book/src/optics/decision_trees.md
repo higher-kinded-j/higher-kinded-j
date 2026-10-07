@@ -71,8 +71,8 @@ flowchart TD
 |---|---|
 | Update a nested record field | [Focus DSL](focus_dsl.md) |
 | Compose optics across types you own | [Focus DSL](focus_dsl.md) |
-| Validate as you modify (`Either`, `Validated`, `Maybe`) | [Fluent API](fluent_api.md) |
-| Fan out an effect across a collection | [Fluent API `modifyAllF`](fluent_api.md) |
+| Validate as you modify (`Either`, `Validated`, `Maybe`) | [Updates That Can Fail](fluent_api.md) |
+| Fan out an effect across a collection | [`modifyF`](fluent_api.md#part-3-arbitrary-effects-with-modifyf) |
 | Build optic operations as data, run later | [Free Monad DSL](free_monad_dsl.md) |
 | Audit trail of every optic operation | [Free Monad DSL with logging interpreter](interpreters.md) |
 | Reuse an optic for a type you cannot annotate | [`@ImportOptics`](importing_optics.md) or an [`OpticsSpec`](optics_spec_interfaces.md) interface |

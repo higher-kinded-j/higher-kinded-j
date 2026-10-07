@@ -54,8 +54,8 @@ Start from what you came for.
 |---|---|
 | A nested record updated, with the least reading | [Quickstart](quickstart.md), then the [Focus DSL](focus_dsl.md) |
 | The everyday API, learned properly | The pages under **Ship** in the [Chapter Contents](#chapter-contents), read in order |
-| An update that can fail, with every bad value reported | [Fluent API](fluent_api.md) |
-| A PATCH endpoint, or several edits applied as one | [Multi-Edit and Sparse Updates](multi_edit.md) |
+| An update that can fail, with every bad value reported | [Updates That Can Fail](fluent_api.md) |
+| A PATCH endpoint, or several edits applied as one | [Many Edits at Once](multi_edit.md) |
 | A lens, prism, affine or iso explained in depth | [The Optic Types](ch1_intro.md) |
 | A traversal, fold, getter or setter explained in depth | [Collections](ch2_intro.md) |
 | To judge whether optics fit your codebase | [Production Readiness](production_readiness.md) |
@@ -102,10 +102,9 @@ The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) (202 exercises) pra
 1. [Quickstart](quickstart.md): Three runnable examples in 100 lines
 2. [Focus DSL](focus_dsl.md): Generated paths through your own records
 3. [Collections, Optionals and Sealed Types](focus_navigation.md): Step into lists, maps, optionals and variants
-4. [What Are Optics?](optics_intro.md): The optics a path is made of
-5. [Fluent API](fluent_api.md): Updates that can fail, every error reported
-   - [Fluent API Field Guide](fluent_api_field_guide.md): Style, idioms and pitfalls
-6. [Multi-Edit and Sparse Updates](multi_edit.md): Several edits as one, and REST PATCH
+4. [What a Path Is Made Of](optics_intro.md): The optics a path wraps, and when you need one
+5. [Updates That Can Fail](fluent_api.md): Validated updates, every error reported
+6. [Many Edits at Once](multi_edit.md): Several edits as one, and REST PATCH
 
 **On demand**, when a task calls for it:
 
