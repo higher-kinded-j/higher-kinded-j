@@ -205,4 +205,4 @@ Practise the five exercises (preflight, truncation, refusal, audit, railway) in 
 ---
 
 **Previous:** [Optic-Driven Batching](optic_batching.md)
-**Next:** [Cookbook](cookbook.md)
+**Next:** [Auditing Complex Data](auditing_complex_data_example.md)

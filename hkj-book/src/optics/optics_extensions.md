@@ -515,5 +515,5 @@ Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
 
 ---
 
-**Previous:** [Multi-Edit and Sparse Updates](multi_edit.md)
-**Next:** [Optic-Driven Batching](optic_batching.md)
+**Previous:** [Core Type Integration](core_type_integration.md)
+**Next:** [Optics for External Types](importing_optics.md)

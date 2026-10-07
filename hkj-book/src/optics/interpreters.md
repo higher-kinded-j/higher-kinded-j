@@ -804,4 +804,4 @@ public Order processOrder(Order order) {
 ---
 
 **Previous:** [Free Monad DSL](free_monad_dsl.md)
-**Next:** [Reference](ch7_intro.md)
+**Next:** [Look It Up](ch7_intro.md)

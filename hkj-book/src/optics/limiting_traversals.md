@@ -832,4 +832,3 @@ Limiting traversals bring **positional focus** into the heart of your optic comp
 
 **Previous:** [Common Data Structures](common_data_structure_traversals.md)
 **Next:** [List Decomposition](list_decomposition.md)
-

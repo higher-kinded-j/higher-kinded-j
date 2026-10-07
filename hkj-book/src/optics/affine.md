@@ -702,5 +702,5 @@ Practise affine basics in [Tutorial 04: Affine Basics](https://github.com/higher
 
 ---
 
-**Previous:** [Validated Prisms](validated_prism.md)
-**Next:** [Isomorphisms: Data Equivalence](iso.md)
+**Previous:** [Advanced Prism Patterns: Recipes](advanced_prism_patterns_recipes.md)
+**Next:** [Isomorphisms](iso.md)

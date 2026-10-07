@@ -709,5 +709,5 @@ Practise optic composition in [Tutorial 06: Optics Composition](https://github.c
 
 ---
 
-**Previous:** [Integration and Recipes](ch5_intro.md)
-**Next:** [Core Type Integration](core_type_integration.md)
+**Previous:** [Validated Prisms](validated_prism.md)
+**Next:** [Optic-Driven Batching](optic_batching.md)

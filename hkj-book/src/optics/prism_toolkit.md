@@ -566,4 +566,4 @@ public class AppPrisms {
 ---
 
 **Previous:** [Prisms](prisms.md)
-**Next:** [Validated Prisms](validated_prism.md)
+**Next:** [Advanced Prism Patterns](advanced_prism_patterns.md)

@@ -950,5 +950,5 @@ All Employees from UK: true
 
 ---
 
-**Previous:** [Folds: Querying Immutable Data](folds.md)
-**Next:** [Setters: Composable Write-Only Modifications](setters.md)
+**Previous:** [Folds](folds.md)
+**Next:** [Setters](setters.md)

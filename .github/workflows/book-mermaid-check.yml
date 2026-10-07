@@ -24,6 +24,8 @@ on:
       - '.github/scripts/book-prose.cjs'
       - '.github/scripts/book-readability-check.cjs'
       - '.github/scripts/book-readability-baseline.json'
+      - '.github/scripts/chapter_footers.py'
+      - '.github/scripts/book_sources.py'
       - '.github/workflows/book-mermaid-check.yml'
   push:
     branches: [ "main" ]
@@ -36,6 +38,8 @@ on:
       - '.github/scripts/book-prose.cjs'
       - '.github/scripts/book-readability-check.cjs'
       - '.github/scripts/book-readability-baseline.json'
+      - '.github/scripts/chapter_footers.py'
+      - '.github/scripts/book_sources.py'
       - '.github/workflows/book-mermaid-check.yml'
 
 permissions:
@@ -73,6 +77,9 @@ jobs:
         run: node .github/scripts/mermaid-check/check.cjs
 
       # Last, and even when a check before it failed, so a pull request sees every rise at once.
+      - name: Check chapter footers against SUMMARY.md
+        run: python3 .github/scripts/chapter_footers.py optics mapping --check
+
       - name: Check readability against the baseline
         if: ${{ !cancelled() }}
         run: node .github/scripts/book-readability-check.cjs --strict

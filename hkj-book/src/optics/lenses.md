@@ -384,5 +384,5 @@ Practise lens basics in [Tutorial 01: Lens Basics](https://github.com/higher-kin
 
 ---
 
-**Previous:** [What Are Optics?](optics_intro.md)
-**Next:** [Prisms: Working with Sum Types](prisms.md)
+**Previous:** [The Optic Types](ch1_intro.md)
+**Next:** [Coupled Fields](coupled_fields.md)

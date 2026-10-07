@@ -239,5 +239,5 @@ A type another annotation processor writes in the same build works like any othe
 
 ---
 
-**Previous:** [Focus DSL Reference](focus_reference.md)
+**Previous:** [Optics Extensions](optics_extensions.md)
 **Next:** [Taming JSON with Jackson](optics_spec_interfaces.md)

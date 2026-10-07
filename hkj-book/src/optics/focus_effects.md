@@ -301,5 +301,5 @@ EitherPath<String, Integer> salary =
 
 ---
 
-**Previous:** [Navigation and Composition](focus_navigation.md)
+**Previous:** [The Focus DSL in Depth](ch4_intro.md)
 **Next:** [Custom Containers and Code Generation](focus_containers.md)

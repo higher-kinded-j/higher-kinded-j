@@ -282,5 +282,5 @@ int headcount = employeesPath.count(department);
 
 ---
 
-**Previous:** [Java-Friendly APIs](ch4_intro.md)
+**Previous:** [Quickstart](quickstart.md)
 **Next:** [Navigation and Composition](focus_navigation.md)

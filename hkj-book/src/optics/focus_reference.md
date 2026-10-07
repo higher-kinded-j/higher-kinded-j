@@ -1,12 +1,6 @@
 # Focus DSL Reference
 
-~~~admonish info title="What You'll Learn"
-- When to reach for the Focus DSL and when to compose optics by hand
-- The patterns that come up most: batch updates, safe deep access, validation
-- Performance considerations, and how to keep hot paths cheap
-- Customising the generated code: target package, navigators, depth limits, field filters
-- Common pitfalls, compiler errors, and the answers to the questions that keep recurring
-~~~
+_Patterns, pitfalls, generated-code settings and the questions about the Focus DSL that keep recurring._
 
 This page is the lookup shelf. The teaching lives in [Focus DSL](focus_dsl.md), [Navigation and Composition](focus_navigation.md) and [Type Class and Effect Integration](focus_effects.md); come here when you already know the shape of what you want.
 
@@ -40,6 +34,8 @@ Traversal<Company, String> allEmails =
 
 List<String> emails = Traversals.getAll(allEmails, company);
 ```
+
+A path is an optic underneath: `toLens()`, `toAffine()` and `toTraversal()` hand it to `OpticOps`, `OpticPrograms` or anything else that takes an optic.
 
 ---
 
@@ -128,8 +124,8 @@ record User(String name) {}
 @GenerateFocus(generateNavigators = true)
 record Company(String name, Address headquarters) {}
 
-// How deep navigator generation goes (default 3)
-@GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
+// Navigators for the first hop only: deeper hops return plain paths
+@GenerateFocus(generateNavigators = true, maxNavigatorDepth = 1)
 record Organisation(Division division) {}
 
 // Which fields get a navigator
@@ -263,14 +259,6 @@ Focus paths are designed for compile-time type safety. When the path is only kno
 
 ---
 
-~~~admonish info title="Key Takeaways"
-* **Build the path once.** Path creation is cheap but not free, and hoisting it out of a loop is the only performance rule that matters.
-* **`filter` narrows, then you keep composing.** It is on `TraversalPath`, so apply it before the next `.via()`.
-* **Let the path type pick the read.** `get`, `getOptional`, `preview` and `getAll` are not interchangeable; the type is telling you what it can promise.
-* **The annotation has more knobs than most people use.** `targetPackage`, `generateNavigators`, `maxNavigatorDepth`, `includeFields`, `excludeFields` and `widenCollections` between them cover nearly every generated-code complaint.
-* **A path is an optic underneath.** `toLens()`, `toAffine()` and `toTraversal()` hand it to `OpticOps`, `OpticPrograms` or anything else that speaks optics.
-~~~
-
 ~~~admonish info title="Hands-On Learning"
 - [Tutorial 12: Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java) (10 exercises)
 - [Tutorial 13: Advanced Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java) (8 exercises)
@@ -291,5 +279,5 @@ Focus paths are designed for compile-time type safety. When the path is only kno
 
 ---
 
-**Previous:** [Custom Containers and Code Generation](focus_containers.md)
-**Next:** [Optics for External Types](importing_optics.md)
+**Previous:** [Composition Rules](composition_rules.md)
+**Next:** [Common Compiler Errors](compiler_errors.md)

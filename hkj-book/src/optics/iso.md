@@ -574,5 +574,5 @@ New circle: Circle[centre=Point[x=20, y=30], radius=5]
 
 ---
 
-**Previous:** [Affines: Working with Optional Fields](affine.md)
-**Next:** [Composition Rules](composition_rules.md)
+**Previous:** [Affines](affine.md)
+**Next:** [Profunctor Optics](profunctor_optics.md)

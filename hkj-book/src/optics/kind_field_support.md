@@ -194,5 +194,5 @@ Team afterTraining =
 
 ---
 
-**Previous:** [Focus DSL with External Libraries](focus_external_bridging.md)
-**Next:** [Fluent API](fluent_api.md)
+**Previous:** [Custom Containers and Code Generation](focus_containers.md)
+**Next:** [Core Type Integration](core_type_integration.md)

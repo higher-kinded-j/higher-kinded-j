@@ -1,14 +1,6 @@
 # Optics Cookbook
 
-## _Practical Recipes for Common Problems_
-
-~~~admonish info title="What You'll Learn"
-- Ready-to-use patterns for common optics scenarios
-- Copy-paste recipes with explanations
-- Best practices for production code
-~~~
-
-This cookbook provides practical recipes for common optics problems. Each recipe includes the problem statement, solution, and explanation.
+_Recipes for the nested-update problems you meet in production, each a problem and its solution._
 
 ---
 
@@ -897,14 +889,6 @@ Inventory cleared = allProducts.modifyWhen(
 );
 ```
 
-~~~admonish info title="Key Takeaways"
-* **Every recipe is the same two steps, then a choice.** Name the path and choose the optic whose cardinality matches the target; the last step is whichever operation the answer needs, from `get` and `modify` through `foldMap`, `sorted` and an effectful `modifyF`.
-* **Reach for a prism the moment a shape is conditional.** Optional fields, sum-type variants and parse-or-fail boundaries are all "this may not be here", and a prism keeps the absent case from becoming a branch.
-* **Put the predicate in the path.** Whether you spell it `Traversals.filtered(...)` mid-composition or `modifyWhen` at the call site, the selection rule travels with the optic instead of living in an `if` around it: the structure is rebuilt once and the code reads as the business rule.
-* **Store the path, not the operation.** A composed optic in a `static final` field is reusable across reads, writes and validations; recomposing it per call site is where drift starts.
-* **Copy freely, then name it.** These recipes are starting points; the value appears when the composition gets a domain name and the rest of the code stops mentioning the shape.
-~~~
-
 ~~~admonish tip title="See Also"
 - [Composing Optics](composing_optics.md): the capstone these recipes are miniatures of
 - [Optics Extensions](optics_extensions.md): the validated variants of the operations used here
@@ -917,5 +901,5 @@ Practise real-world optics patterns in [Tutorial 08: Real World Optics](https://
 
 ---
 
-**Previous:** [Plan Introspection and Guardrails](optic_batching_guardrails.md)
-**Next:** [Auditing Complex Data](auditing_complex_data_example.md)
+**Previous:** [Decision Trees](decision_trees.md)
+**Next:** [Optic Capabilities](optic_capabilities.md)

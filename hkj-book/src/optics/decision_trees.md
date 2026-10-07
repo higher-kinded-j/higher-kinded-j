@@ -1,14 +1,8 @@
 # Decision Trees
 
-## _Three trees, one page_
+_Pick the optic, the API, the advanced feature or the interpreter by answering one question at a time._
 
-~~~admonish info title="What You'll Learn"
-- Which optic type to choose for a given data shape and access pattern.
-- Which API style (Focus DSL, manual composition, Fluent API, Free Monad DSL) to choose for a given task.
-- Which advanced feature (filtered, indexed, profunctor) solves which specific problem.
-~~~
-
-The decision trees that appear in scattered form across the chapter intros are consolidated here. Use this page when you need to route quickly to the right tool.
+Each group introduction links here rather than drawing its own tree. Use this page when you need to route quickly to the right tool.
 
 ---
 
@@ -16,6 +10,8 @@ The decision trees that appear in scattered form across the chapter intros are c
 
 ```mermaid
 flowchart TD
+    accTitle: Which optic do I need?
+    accDescr: Reading only, exactly one target, is a Getter; reading only, zero or more, a Fold. Reading and writing exactly one target is a Lens; zero or one where the field may be absent, an Affine; zero or one where the value may be another variant, a Prism; zero or more, a Traversal. Converting between equivalent types is an Iso.
     Q{"What are you doing<br/>to the focus?"}
     Q -->|"reading only"| R{"How many<br/>targets?"}
     Q -->|"reading and writing"| M{"How many<br/>targets?"}
@@ -48,16 +44,20 @@ Write-only access is the one case the tree does not reach: that is a [Setter](se
 | Read-only access to a single field | Get only | [Getter](getters.md) |
 | Write-only access, one or many targets | Set or modify, never read | [Setter](setters.md) |
 
+The two zero-or-one optics are not interchangeable. An `Affine` reaches a value that may be absent, a `Prism` one that may be another variant, and of the two, only the prism can build the whole structure back up from its value.
+
 ---
 
 ## Tree 2: Which API style?
 
 ```mermaid
 flowchart TD
+    accTitle: Which API style?
+    accDescr: Start on the Focus DSL and stay there for a plain nested update. An update that can fail or accumulate errors moves to the Fluent API's OpticOps. One that must be inspected, audited or run several ways moves to the Free Monad DSL.
     S(["Start: Focus DSL<br/>CompanyFocus.headquarters().city()"]) --> Q{"Does the update<br/>need more?"}
     Q -->|"no: plain nested update"| S2(["stay on the Focus DSL"])
     Q -->|"it can fail, or accumulate errors"| FA(["Fluent API: OpticOps<br/>modifyEither, modifyAllValidated"])
-    Q -->|"it must be inspected,<br/>audited or run several ways"| FM(["Free Monad DSL<br/>see Advanced Optics"])
+    Q -->|"it must be inspected,<br/>audited or run several ways"| FM(["Free Monad DSL<br/>see Programs as Data"])
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
@@ -84,6 +84,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
+    accTitle: Which advanced feature?
+    accDescr: When only some elements should be touched, use filtered optics. When the position matters as well as the value, use indexed optics. When the source or target is the wrong shape, use profunctor optics.
     Q{"What is the<br/>constraint?"}
     Q -->|"only some elements<br/>should be touched"| F(["Filtered optics"])
     Q -->|"the position matters<br/>as well as the value"| I(["Indexed optics"])
@@ -109,13 +111,32 @@ flowchart TD
 
 ---
 
-~~~admonish info title="Key Takeaways"
-* **Direction first, cardinality second.** The tree asks what you are doing to the focus, then how many values it reaches; those two answers pick the optic between them.
-* **The two zero-or-one optics are not interchangeable.** An `Affine` reaches a value that may be absent; a `Prism` reaches a value that may be another variant, and can rebuild the structure from it.
-* **Start on the Focus DSL and leave it only when forced.** Failure, accumulation and effects move you to `OpticOps`; inspection and multi-mode execution move you to the Free Monad DSL.
-* **The advanced features are constraint-shaped.** Subset means filtered, position means indexed, wrong shape means an adapter.
-* **These are entry points, not conclusions.** Every leaf here has a page; the trees route, the pages decide.
-~~~
+## Tree 4: Which interpreter?
+
+```mermaid
+flowchart TD
+    accTitle: Which interpreter to run a program with
+    accDescr: For the result, run it with direct. For the result and a record of the steps, run it with logging. For a report of problems instead of the result, run it with validating. For anything else, such as mocks, metrics or permissions, write your own natural transformation.
+    Q{"What do you want<br/>from the program?"}
+    Q -->|"the result"| D(["direct()<br/>run it"])
+    Q -->|"the result, and<br/>a record of the steps"| L(["logging()<br/>run it and keep a trail"])
+    Q -->|"the result discarded,<br/>and a report instead"| V(["validating()<br/>run it and report problems"])
+    Q -->|"something else:<br/>mocks, metrics, permissions"| O(["your own<br/>natural transformation"])
+
+    classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    class Q decision
+    class D,L,V,O tier
+```
+
+| You want from the program | Interpreter |
+|---|---|
+| The result | `direct()`, in [Interpreters](interpreters.md#part-2-the-direct-interpreter) |
+| The result, and a record of every step | `logging()`, in [Interpreters](interpreters.md#part-3-the-logging-interpreter) |
+| A report of problems instead of the result | `validating()`, which still runs the program: [Interpreters](interpreters.md#part-4-the-validation-interpreter) |
+| Something else: mocks, metrics, permissions | Your own, in [Interpreters](interpreters.md#part-5-creating-custom-interpreters) |
+
+---
 
 ~~~admonish tip title="See Also"
 - [Optic Capabilities](optic_capabilities.md): what each optic can do once you have chosen one
@@ -125,5 +146,5 @@ flowchart TD
 
 ---
 
-**Previous:** [Production Readiness](production_readiness.md)
-**Next:** [Mapping at the Boundary](../mapping/ch_intro.md)
+**Previous:** [Annotations at a Glance](annotations_at_a_glance.md)
+**Next:** [Cookbook](cookbook.md)

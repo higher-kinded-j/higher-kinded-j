@@ -270,4 +270,4 @@ Practise container navigation in [Tutorial 20: Custom Container Navigation](http
 ---
 
 **Previous:** [Type Class and Effect Integration](focus_effects.md)
-**Next:** [Focus DSL Reference](focus_reference.md)
+**Next:** [Kind Field Support](kind_field_support.md)

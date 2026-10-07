@@ -1,12 +1,6 @@
 # Conversions
 
-## _Moving between optic types_
-
-~~~admonish info title="What You'll Learn"
-- The explicit conversion methods on each optic type (`asTraversal`, `asFold`, `asLens`, `reverse`).
-- When the compiler implicitly widens an optic type during composition.
-- The relationship between this page and the [Composition Rules](composition_rules.md): conversion is what happens to a single optic; composition is what happens when two optics combine.
-~~~
+_The methods that turn one optic type into another, and what each conversion gives up._
 
 There are two ways an optic changes type in Higher-Kinded-J:
 
@@ -67,14 +61,6 @@ You only need an explicit `asTraversal()` when the API you are calling requires 
 
 ---
 
-~~~admonish info title="Key Takeaways"
-* **Conversion is one optic changing shape; composition is two optics meeting.** `asTraversal()` is the first, `andThen` is the second, and you rarely need both at once.
-* **Widening loses capability.** `asFold()` drops writing, `asLens()` drops `reverseGet`, and nothing converts back up: a `Traversal` cannot become a `Lens`, because it cannot promise exactly one focus.
-* **`andThen` already widens for you.** Converting before composing is redundant; the [Composition Rules](composition_rules.md) settle the result type.
-* **Convert when a type demands it**, storing an optic in a typed field or handing it to a utility that takes a `Traversal`.
-* **`reverse()` is the one conversion that loses nothing.** An `Iso` is symmetric, so reversing it just swaps `get` and `reverseGet`.
-~~~
-
 ~~~admonish tip title="See Also"
 - [Composition Rules](composition_rules.md): the rules table for what type results from `andThen`
 - [Optic Capabilities](optic_capabilities.md): which methods are available on each optic
@@ -84,4 +70,4 @@ You only need an explicit `asTraversal()` when the API you are calling requires 
 ---
 
 **Previous:** [Optic Capabilities](optic_capabilities.md)
-**Next:** [Common Compiler Errors](compiler_errors.md)
+**Next:** [Composition Rules](composition_rules.md)

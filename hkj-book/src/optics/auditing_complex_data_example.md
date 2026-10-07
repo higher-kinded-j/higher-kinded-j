@@ -475,5 +475,5 @@ public static AuditReport generateAuditReport(List<AppConfig> configs, String au
 
 ---
 
-**Previous:** [Cookbook](cookbook.md)
-**Next:** [Advanced Optics](ch6_intro.md)
+**Previous:** [Plan Introspection and Guardrails](optic_batching_guardrails.md)
+**Next:** [Programs as Data](ch6_intro.md)

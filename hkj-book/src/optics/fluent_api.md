@@ -276,5 +276,5 @@ Practise the fluent API in [Tutorial 09: Fluent Optics API](https://github.com/h
 
 ---
 
-**Previous:** [Kind Field Support](kind_field_support.md)
+**Previous:** [What Are Optics?](optics_intro.md)
 **Next:** [Fluent API Field Guide](fluent_api_field_guide.md)

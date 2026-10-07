@@ -1279,5 +1279,5 @@ Practise fold combination in [Tutorial 18: Fold Combination](https://github.com/
 
 ---
 
-**Previous:** [Traversals: Handling Bulk Updates](traversals.md)
-**Next:** [Getters: Composable Read-Only Access](getters.md)
+**Previous:** [Traversals](traversals.md)
+**Next:** [Getters](getters.md)

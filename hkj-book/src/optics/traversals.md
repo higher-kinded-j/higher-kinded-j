@@ -939,4 +939,4 @@ Practise traversal basics in [Tutorial 05: Traversal Basics](https://github.com/
 ---
 
 **Previous:** [Collections](ch2_intro.md)
-**Next:** [Folds: Querying Immutable Data](folds.md)
+**Next:** [Folds](folds.md)

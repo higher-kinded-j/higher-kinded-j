@@ -920,5 +920,5 @@ Practise advanced prism patterns in [Tutorial 10: Advanced Prism Patterns](https
 
 ---
 
-**Previous:** [Indexed Access](indexed_access.md)
+**Previous:** [Prism Toolkit](prism_toolkit.md)
 **Next:** [Advanced Prism Patterns: Recipes](advanced_prism_patterns_recipes.md)

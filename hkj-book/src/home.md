@@ -444,13 +444,29 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 ~~~
 
 ~~~admonish note title="Optics" collapsible=true
-1. **[Quickstart](optics/quickstart.md):** Three runnable examples covering generated lenses, prisms and traversals, plus `@ImportOptics` for Jackson
-2. **[Annotations at a Glance](optics/annotations_at_a_glance.md):** Every annotation, what it generates, and when to reach for each one
-3. **[Fundamentals](optics/ch1_intro.md):** Lens, Prism, Affine, Iso, composition rules, and coupled fields
-4. **[Java-Friendly APIs](optics/ch4_intro.md):** Focus DSL, optics for external types, Kind field support, and the Fluent API
-5. **[Integration and Recipes](optics/ch5_intro.md):** Validation pipelines, core-type integration, and the cookbook
-6. **[Advanced Optics](optics/ch6_intro.md):** Free Monad DSL and interpreters for programs-as-data
-7. **[Reference](optics/ch7_intro.md):** Capabilities, conversions, compiler errors, production readiness, and consolidated decision trees
+**Ship**, read in order:
+
+1. **[Introduction](optics/ch_intro.md):** A Lombok wither cascade beside the generated path that replaces it
+2. **[Quickstart](optics/quickstart.md):** Three runnable examples covering generated lenses, prisms and traversals, plus `@ImportOptics` for Jackson
+3. **[Focus DSL](optics/focus_dsl.md):** Generated, compile-checked paths through your own records
+4. **[Navigation and Composition](optics/focus_navigation.md):** Collections, optionals, sealed types and `.via()`
+5. **[What Are Optics?](optics/optics_intro.md):** The lenses, prisms and traversals a path is made of
+6. **[Fluent API](optics/fluent_api.md):** Updates that can fail, with every bad value reported
+7. **[Multi-Edit and Sparse Updates](optics/multi_edit.md):** Several edits applied as one, including a REST PATCH
+
+**On demand**, when a task calls for it:
+
+8. **[The Optic Types](optics/ch1_intro.md):** Lens, Prism, Affine and Iso, a page each
+9. **[Collections](optics/ch2_intro.md):** Traversal, Fold, Getter and Setter
+10. **[Precision and Filtering](optics/ch3_intro.md):** Filtered, indexed and per-key access
+11. **[The Focus DSL in Depth](optics/ch4_intro.md):** Effects, custom containers and `Kind` fields
+12. **[Optics for External Types](optics/importing_optics.md):** Jackson, JOOQ, Lombok and other types you do not own
+13. **[Validation, Batching and Auditing](optics/ch5_intro.md):** Validated prisms, `modifyF` pipelines, batching and audit trails
+14. **[Programs as Data](optics/ch6_intro.md):** The Free Monad DSL and its interpreters
+
+**Look it up**, when you hold a question:
+
+15. **[Look It Up](optics/ch7_intro.md):** Production readiness, annotations, decision trees, the cookbook and reference tables
 ~~~
 
 ~~~admonish note title="Mapping at the Boundary" collapsible=true

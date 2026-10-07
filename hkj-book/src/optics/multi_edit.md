@@ -228,5 +228,5 @@ Practise the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https:/
 
 ---
 
-**Previous:** [Core Type Integration](core_type_integration.md)
-**Next:** [Optics Extensions](optics_extensions.md)
+**Previous:** [Fluent API Field Guide](fluent_api_field_guide.md)
+**Next:** [The Optic Types](ch1_intro.md)

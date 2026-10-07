@@ -434,4 +434,4 @@ result.remove("c");
 ---
 
 **Previous:** [String Traversals](string_traversals.md)
-**Next:** [Advanced Prism Patterns](advanced_prism_patterns.md)
+**Next:** [The Focus DSL in Depth](ch4_intro.md)
