@@ -3,8 +3,9 @@
 package org.higherkindedj.example.book.optics.filtered;
 
 // ANCHOR: imports
+import java.math.BigDecimal;
 import java.util.List;
-import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
@@ -22,9 +23,9 @@ import org.higherkindedj.optics.util.Traversals;
 // ANCHOR: customer_analytics
 public class CustomerAnalytics {
 
-  public record Item(String name, int price, String category, boolean premium) {}
+  public record Item(String name, BigDecimal price, String category, boolean premium) {}
 
-  public record Order(String id, List<Item> items, double total) {}
+  public record Order(String id, List<Item> items, BigDecimal total) {}
 
   public record Customer(String name, List<Order> orders, boolean vip) {}
 
@@ -33,6 +34,20 @@ public class CustomerAnalytics {
   private static final Fold<Order, Item> ORDER_ITEMS = Fold.of(Order::items);
   private static final Fold<Customer, Item> ALL_CUSTOMER_ITEMS =
       CUSTOMER_ORDERS.andThen(ORDER_ITEMS);
+
+  // Monoids has no BigDecimal sum, so the dashboard writes its own
+  private static final Monoid<BigDecimal> MONEY =
+      new Monoid<>() {
+        @Override
+        public BigDecimal empty() {
+          return BigDecimal.ZERO;
+        }
+
+        @Override
+        public BigDecimal combine(BigDecimal a, BigDecimal b) {
+          return a.add(b);
+        }
+      };
 
   public static void main(String[] args) {
     List<Customer> customers = createSampleData();
@@ -43,11 +58,12 @@ public class CustomerAnalytics {
     System.out.println("--- Analysis 1: High-Value Customers ---");
 
     Traversal<List<Customer>, Customer> allCustomers = Traversals.forList();
-    Fold<Customer, Double> orderTotals = CUSTOMER_ORDERS.andThen(Getter.of(Order::total).asFold());
+    Fold<Customer, BigDecimal> orderTotals =
+        CUSTOMER_ORDERS.andThen(Getter.of(Order::total).asFold());
 
     // Customers with any order over £500
     Traversal<List<Customer>, Customer> bigSpenders =
-        allCustomers.filterBy(orderTotals, total -> total > 500);
+        allCustomers.filterBy(orderTotals, total -> total.compareTo(new BigDecimal("500")) > 0);
 
     List<Customer> highValue = Traversals.getAll(bigSpenders, customers);
     System.out.println(
@@ -61,8 +77,7 @@ public class CustomerAnalytics {
     for (Customer customer : customers) {
       int premiumCount = premiumItems.length(customer);
       if (premiumCount > 0) {
-        double premiumSpend =
-            premiumItems.foldMap(Monoids.doubleAddition(), item -> (double) item.price(), customer);
+        BigDecimal premiumSpend = premiumItems.foldMap(MONEY, Item::price, customer);
         System.out.printf(
             "%s: %d premium items, £%.2f total%n", customer.name(), premiumCount, premiumSpend);
       }
@@ -75,10 +90,8 @@ public class CustomerAnalytics {
         ALL_CUSTOMER_ITEMS.filtered(item -> "Electronics".equals(item.category()));
 
     for (Customer customer : customers) {
-      double electronicsSpend =
-          electronicsItems.foldMap(
-              Monoids.doubleAddition(), item -> (double) item.price(), customer);
-      if (electronicsSpend > 0) {
+      BigDecimal electronicsSpend = electronicsItems.foldMap(MONEY, Item::price, customer);
+      if (electronicsSpend.signum() > 0) {
         System.out.printf("%s spent £%.2f on Electronics%n", customer.name(), electronicsSpend);
       }
     }
@@ -90,7 +103,7 @@ public class CustomerAnalytics {
     Traversal<List<Customer>, Customer> potentialVIPs =
         allCustomers
             .filterBy(ALL_CUSTOMER_ITEMS, Item::premium) // Has premium items
-            .filterBy(orderTotals, total -> total > 300); // Has high-value orders
+            .filterBy(orderTotals, total -> total.compareTo(new BigDecimal("300")) > 0);
 
     Lens<Customer, Boolean> vipLens =
         Lens.of(Customer::vip, (c, v) -> new Customer(c.name(), c.orders(), v));
@@ -110,13 +123,15 @@ public class CustomerAnalytics {
     Fold<List<Customer>, Customer> customerFold = Fold.of(list -> list);
     Fold<List<Customer>, Item> allItems = customerFold.andThen(ALL_CUSTOMER_ITEMS);
 
-    Fold<List<Customer>, Item> expensiveItems = allItems.filtered(i -> i.price() > 100);
-    Fold<List<Customer>, Item> cheapItems = allItems.filtered(i -> i.price() <= 100);
+    BigDecimal threshold = new BigDecimal("100");
+    Fold<List<Customer>, Item> expensiveItems =
+        allItems.filtered(i -> i.price().compareTo(threshold) > 0);
+    Fold<List<Customer>, Item> cheapItems =
+        allItems.filtered(i -> i.price().compareTo(threshold) <= 0);
 
     int totalExpensive = expensiveItems.length(customers);
     int totalCheap = cheapItems.length(customers);
-    double expensiveRevenue =
-        expensiveItems.foldMap(Monoids.doubleAddition(), i -> (double) i.price(), customers);
+    BigDecimal expensiveRevenue = expensiveItems.foldMap(MONEY, Item::price, customers);
 
     System.out.printf(
         "Expensive items (>£100): %d items, £%.2f revenue%n", totalExpensive, expensiveRevenue);
@@ -133,10 +148,13 @@ public class CustomerAnalytics {
                 new Order(
                     "A1",
                     List.of(
-                        new Item("Laptop", 999, "Electronics", true),
-                        new Item("Mouse", 25, "Electronics", false)),
-                    1024.0),
-                new Order("A2", List.of(new Item("Desk", 350, "Furniture", false)), 350.0)),
+                        new Item("Laptop", new BigDecimal("999.00"), "Electronics", true),
+                        new Item("Mouse", new BigDecimal("25.00"), "Electronics", false)),
+                    new BigDecimal("1024.00")),
+                new Order(
+                    "A2",
+                    List.of(new Item("Desk", new BigDecimal("350.00"), "Furniture", false)),
+                    new BigDecimal("350.00"))),
             false),
         new Customer(
             "Bob",
@@ -144,9 +162,9 @@ public class CustomerAnalytics {
                 new Order(
                     "B1",
                     List.of(
-                        new Item("Book", 20, "Books", false),
-                        new Item("Pen", 5, "Stationery", false)),
-                    25.0)),
+                        new Item("Book", new BigDecimal("20.00"), "Books", false),
+                        new Item("Pen", new BigDecimal("5.00"), "Stationery", false)),
+                    new BigDecimal("25.00"))),
             false),
         new Customer(
             "Charlie",
@@ -154,10 +172,13 @@ public class CustomerAnalytics {
                 new Order(
                     "C1",
                     List.of(
-                        new Item("Phone", 800, "Electronics", true),
-                        new Item("Case", 50, "Accessories", false)),
-                    850.0),
-                new Order("C2", List.of(new Item("Headphones", 250, "Electronics", true)), 250.0)),
+                        new Item("Phone", new BigDecimal("800.00"), "Electronics", true),
+                        new Item("Case", new BigDecimal("50.00"), "Accessories", false)),
+                    new BigDecimal("850.00")),
+                new Order(
+                    "C2",
+                    List.of(new Item("Headphones", new BigDecimal("250.00"), "Electronics", true)),
+                    new BigDecimal("250.00"))),
             false));
   }
 }

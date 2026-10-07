@@ -3,6 +3,8 @@
 package org.higherkindedj.example.book.optics.indexed;
 
 // ANCHOR: imports
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +25,7 @@ import org.higherkindedj.optics.util.IndexedTraversals;
 // ANCHOR: dashboard
 public class OrderFulfilmentDashboard {
 
-  public record LineItem(String productName, int quantity, double price) {}
+  public record LineItem(String productName, int quantity, BigDecimal price) {}
 
   public record Order(String orderId, List<LineItem> items, Map<String, String> metadata) {}
 
@@ -40,10 +42,10 @@ public class OrderFulfilmentDashboard {
         new Order(
             "ORD-12345",
             List.of(
-                new LineItem("Laptop", 1, 999.99),
-                new LineItem("Mouse", 2, 24.99),
-                new LineItem("Keyboard", 1, 79.99),
-                new LineItem("Monitor", 1, 299.99)),
+                new LineItem("Laptop", 1, new BigDecimal("999.99")),
+                new LineItem("Mouse", 2, new BigDecimal("24.99")),
+                new LineItem("Keyboard", 1, new BigDecimal("79.99")),
+                new LineItem("Monitor", 1, new BigDecimal("299.99"))),
             // Insertion order matters for the output, so put() in order:
             // wrapping Map.of would inherit its randomised iteration order.
             metadataInOrder());
@@ -83,7 +85,7 @@ public class OrderFulfilmentDashboard {
       LineItem item = pair.second();
       System.out.printf(
           "  Item %d: %s (Qty: %d) - £%.2f%n",
-          position, item.productName(), item.quantity(), item.price() * item.quantity());
+          position, item.productName(), item.quantity(), lineTotal(item));
     }
   }
 
@@ -96,7 +98,10 @@ public class OrderFulfilmentDashboard {
             itemsIndexed,
             (index, item) -> {
               if ((index + 1) % 3 == 0) {
-                double newPrice = item.price() * 0.85;
+                BigDecimal newPrice =
+                    item.price()
+                        .multiply(new BigDecimal("0.85"))
+                        .setScale(2, RoundingMode.HALF_EVEN);
                 System.out.printf(
                     "  Position %d (%s): £%.2f → £%.2f (15%% off)%n",
                     index + 1, item.productName(), item.price(), newPrice);
@@ -138,7 +143,8 @@ public class OrderFulfilmentDashboard {
 
     // Filter to items over £100
     IndexedTraversal<Integer, List<LineItem>, LineItem> highValue =
-        itemsIndexed.filteredWithIndex((index, item) -> item.price() > 100);
+        itemsIndexed.filteredWithIndex(
+            (index, item) -> item.price().compareTo(new BigDecimal("100")) > 0);
 
     List<Pair<Integer, LineItem>> expensive =
         IndexedTraversals.toIndexedList(highValue, order.items());
@@ -151,8 +157,14 @@ public class OrderFulfilmentDashboard {
     }
   }
 
-  private static double calculateTotal(Order order) {
-    return order.items().stream().mapToDouble(item -> item.price() * item.quantity()).sum();
+  private static BigDecimal lineTotal(LineItem item) {
+    return item.price().multiply(BigDecimal.valueOf(item.quantity()));
+  }
+
+  private static BigDecimal calculateTotal(Order order) {
+    return order.items().stream()
+        .map(OrderFulfilmentDashboard::lineTotal)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 }
 // ANCHOR_END: dashboard

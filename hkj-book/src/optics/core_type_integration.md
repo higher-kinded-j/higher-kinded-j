@@ -151,129 +151,44 @@ Prisms focus on **one case** of a sum type. They're perfect for safely extractin
 
 ### Maybe Prisms
 
-<!-- verify -->
-```java
-// Extract value from Just, returns empty Optional for Nothing
-Prism<Maybe<String>, String> justPrism = Prisms.just();
-
-Maybe<String> present = Maybe.just("Hello");
-Maybe<String> absent = Maybe.nothing();
-
-Optional<String> value = justPrism.getOptional(present);  // Optional["Hello"]
-Optional<String> empty = justPrism.getOptional(absent);   // Optional.empty()
-
-// Construct Maybe.just() from a value
-Maybe<String> built = justPrism.build("World");  // Maybe.just("World")
-
-// Check if it's a Just
-boolean isJust = justPrism.matches(present);  // true
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/coretypes/CoreTypesBook.java:maybe_prisms}}
 ```
 
 ### Either Prisms
 
-<!-- verify -->
-```java
-// Extract from Left and Right cases
-Prism<Either<String, Integer>, String> leftPrism = Prisms.left();
-Prism<Either<String, Integer>, Integer> rightPrism = Prisms.right();
-
-Either<String, Integer> success = Either.right(42);
-Either<String, Integer> failure = Either.left("AppError");
-
-// Extract success value
-Optional<Integer> value = rightPrism.getOptional(success);   // Optional[42]
-Optional<Integer> noValue = rightPrism.getOptional(failure); // Optional.empty()
-
-// Extract error value
-Optional<String> error = leftPrism.getOptional(failure);     // Optional["AppError"]
-
-// Construct Either values
-Either<String, Integer> newSuccess = rightPrism.build(100);  // Either.right(100)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/coretypes/CoreTypesBook.java:either_prisms}}
 ```
 
 ### Validated Prisms
 
-<!-- verify -->
-```java
-// Extract from Valid and Invalid cases
-Prism<Validated<String, Integer>, Integer> validPrism = Prisms.valid();
-Prism<Validated<String, Integer>, String> invalidPrism = Prisms.invalid();
-
-Validated<String, Integer> valid = Validated.valid(30);
-Validated<String, Integer> invalid = Validated.invalid("Age must be positive");
-
-// Extract valid value
-Optional<Integer> age = validPrism.getOptional(valid);       // Optional[30]
-
-// Extract validation error
-Optional<String> error = invalidPrism.getOptional(invalid);  // Optional["Age must be positive"]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/coretypes/CoreTypesBook.java:validated_prisms}}
 ```
 
 ### Try Prisms
 
-<!-- verify -->
-```java
-// Extract from Success and Failure cases
-Prism<Try<Integer>, Integer> successPrism = Prisms.success();
-Prism<Try<Integer>, Throwable> failurePrism = Prisms.failure();
-
-Try<Integer> success = Try.success(42);
-Try<Integer> failure = Try.failure(new RuntimeException("Database error"));
-
-// Extract success value
-Optional<Integer> value = successPrism.getOptional(success);    // Optional[42]
-
-// Extract exception
-Optional<Throwable> ex = failurePrism.getOptional(failure);     // Optional[RuntimeException]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/coretypes/CoreTypesBook.java:try_prisms}}
 ```
 
 ---
 
 ## Core Type Traversals
 
-Whilst prisms *extract* values, traversals *modify* values inside core types:
+Whilst prisms *extract* values, traversals *modify* values inside core types. `MaybeTraversals` and `EitherTraversals` live in `org.higherkindedj.optics.util`, beside `Prisms`:
 
 ### Maybe Traversals
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.util.MaybeTraversals;
-
-Traversal<Maybe<String>, String> justTraversal = MaybeTraversals.just();
-
-// Modify value inside Just
-Maybe<String> original = Maybe.just("hello");
-Maybe<String> modified = Traversals.modify(justTraversal, String::toUpperCase, original);
-// Result: Maybe.just("HELLO")
-
-// No effect on Nothing
-Maybe<String> nothing = Maybe.nothing();
-Maybe<String> unchanged = Traversals.modify(justTraversal, String::toUpperCase, nothing);
-// Result: Maybe.nothing()
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/coretypes/CoreTypesBook.java:maybe_traversals}}
 ```
 
 ### Either Traversals
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.util.EitherTraversals;
-
-Traversal<Either<String, Integer>, Integer> rightTraversal = EitherTraversals.right();
-Traversal<Either<String, Integer>, String> leftTraversal = EitherTraversals.left();
-
-// Modify Right value
-Either<String, Integer> success = Either.right(100);
-Either<String, Integer> doubled = Traversals.modify(rightTraversal, n -> n * 2, success);
-// Result: Either.right(200)
-
-// AppError enrichment with Left traversal
-Either<String, Integer> error = Either.left("Connection failed");
-Either<String, Integer> enriched = Traversals.modify(
-    leftTraversal,
-    msg -> "[ERROR] " + msg,
-    error
-);
-// Result: Either.left("[ERROR] Connection failed")
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/coretypes/CoreTypesBook.java:either_traversals}}
 ```
 
 ~~~admonish tip title="Error Enrichment"
@@ -284,32 +199,16 @@ The `EitherTraversals.left()` traversal is excellent for adding context to error
 
 ## Composition: The Real Power
 
-Prisms compose seamlessly with lenses and other optics to navigate deeply nested structures:
+Prisms compose seamlessly with lenses and other optics to navigate deeply nested structures. Here an API response may carry an `Order`, the chapter's running example:
 
-<!-- verify -->
-```java
-@GenerateLenses
-record ApiResponse(int statusCode, Maybe<Order> data, List<String> warnings) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/coretypes/CoreTypesBook.java:composition_records}}
+```
 
-@GenerateLenses
-record Order(String orderId, Customer customer, List<OrderItem> items) {}
+A `Maybe` traversal between the response's lens and the order's lenses reaches the customer's email:
 
-@GenerateLenses
-record Customer(String customerId, String name, String email) {}
-
-// Full composition: ApiResponse -> Maybe<Order> -> Order -> Customer -> email
-Lens<ApiResponse, Maybe<Order>> dataLens = ApiResponseLenses.data();
-Traversal<Maybe<Order>, Order> orderTraversal = MaybeTraversals.just();
-Lens<Order, Customer> customerLens = OrderLenses.customer();
-Lens<Customer, String> emailLens = CustomerLenses.email();
-
-Traversal<ApiResponse, String> emailPath = dataLens
-    .andThen(orderTraversal)
-    .andThen(customerLens)
-    .andThen(emailLens);
-
-List<String> emails = Traversals.getAll(emailPath, response);
-// Result: ["customer@example.com"] or [] if no order data
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/coretypes/CoreTypesBook.java:composition}}
 ```
 
 ---
@@ -373,13 +272,14 @@ dbResults.stream()
 ~~~admonish warning title="Don't Mix Effect Types Carelessly"
 Whilst all core type families work with optics, mixing them inappropriately can lead to confusing code:
 
+<!-- verify -->
 ```java
 // Confusing: Mixing Maybe and Either unnecessarily
-Maybe<Either<String, User>> confusing = ...;
+Maybe<Either<String, User>> findUser(String id);
 
 // Better: Choose one based on your needs
-Either<String, User> clear = ...; // If you have an error message
-Maybe<User> simple = ...;          // If it's just presence/absence
+Either<String, User> loadUser(String id); // If you have an error message
+Maybe<User> lookUpUser(String id);        // If it's just presence/absence
 ```
 ~~~
 

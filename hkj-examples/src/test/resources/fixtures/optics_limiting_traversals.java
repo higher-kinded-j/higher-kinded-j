@@ -10,6 +10,8 @@
 
 import static java.util.stream.Collectors.toList;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -25,10 +27,11 @@ import org.higherkindedj.optics.util.ListTraversals;
 import org.higherkindedj.optics.util.Traversals;
 
 @GenerateLenses
-record Product(String sku, String name, double price, int stock) {
+record Product(String sku, String name, BigDecimal price, int stock) {
 
-  Product applyDiscount(double percentage) {
-    return new Product(sku, name, price * (1 - percentage), stock);
+  Product applyDiscount(int percent) {
+    BigDecimal factor = BigDecimal.valueOf(100 - percent, 2);
+    return new Product(sku, name, price.multiply(factor).setScale(2, RoundingMode.HALF_EVEN), stock);
   }
 }
 
@@ -43,7 +46,7 @@ record LineItem(Product product, int quantity) {}
 record Order(String id, List<LineItem> items, LocalDateTime created) {}
 
 @GenerateLenses
-record SalesMetric(LocalDate date, double revenue, int transactions) {}
+record SalesMetric(LocalDate date, BigDecimal revenue, int transactions) {}
 
 record Transaction(LocalDateTime timestamp, String status) {
 
@@ -56,11 +59,11 @@ class Fixture {
 
   static final List<Product> products =
       List.of(
-          new Product("SKU001", "Widget", 10.0, 100),
-          new Product("SKU002", "Gadget", 25.0, 50),
-          new Product("SKU003", "Gizmo", 15.0, 75),
-          new Product("SKU004", "Doohickey", 30.0, 25),
-          new Product("SKU005", "Thingamajig", 20.0, 60));
+          new Product("SKU001", "Widget", new BigDecimal("10.00"), 100),
+          new Product("SKU002", "Gadget", new BigDecimal("25.00"), 50),
+          new Product("SKU003", "Gizmo", new BigDecimal("15.00"), 75),
+          new Product("SKU004", "Doohickey", new BigDecimal("30.00"), 25),
+          new Product("SKU005", "Thingamajig", new BigDecimal("20.00"), 60));
 
   static final Catalogue catalogue = new Catalogue("Autumn", products);
 

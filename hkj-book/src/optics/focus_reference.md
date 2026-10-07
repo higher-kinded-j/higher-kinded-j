@@ -85,7 +85,7 @@ Validated<List<String>, Company> checked =
             .via(EmployeeFocus.age())
             .toTraversal(),
         Fixture::validateAge);
-// Invalid(["Invalid age: 17"]) for the fixture above
+// every age is checked: Invalid lists each failing age's message, Valid holds the company
 ```
 
 `Fixture` is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.
@@ -94,16 +94,13 @@ Validated<List<String>, Company> checked =
 
 ## Customising Generated Code
 
+<!-- verify -->
 ```java
-// Where the generated class lands
-@GenerateFocus(targetPackage = "com.myapp.optics.focus")
-record User(String name) {}
-
 // Fluent cross-type navigation
 @GenerateFocus(generateNavigators = true)
-record Company(String name, Address headquarters) {}
+record Branch(String name, Address headquarters) {}
 
-// Navigators for the first hop only: deeper hops return plain paths
+// maxNavigatorDepth = 1: division() is a navigator, and its own hops return plain paths
 @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 1)
 record Organisation(Division division) {}
 
@@ -117,6 +114,22 @@ record Config(Settings main, Settings backup) {}
 // Widen Map, array and third-party collection fields at the static method
 @GenerateFocus(widenCollections = true)
 record Warehouse(Map<String, Integer> inventory) {}
+```
+
+Only `maxNavigatorDepth = 1` changes the generated code; [Controlling navigator generation](focus_navigation.md#controlling-navigator-generation) says what each of these attributes does. A `targetPackage` moves the generated class into another package:
+
+```java
+// Where the generated class lands
+@GenerateFocus(targetPackage = "com.myapp.optics.focus")
+public record Badge(String name) {}
+```
+
+The record must then be `public`, since the generated class in the other package reads it. The processor refuses a package-private one, saying that `record 'Badge' cannot be reached from 'com.myapp.optics.focus'`:
+
+<!-- verify:rejects "record 'Badge' cannot be reached from 'com.myapp.optics.focus'" -->
+```java
+@GenerateFocus(targetPackage = "com.myapp.optics.focus")
+record Badge(String name) {}
 ```
 
 ---
@@ -150,7 +163,7 @@ Swap `direct()` for `logging()` or `validating()` to run the same program anothe
 
 ## Common Pitfalls
 
-**Do not rebuild paths in a loop.** Hoist the path (or the extracted optic) above the loop, as [Caching optics](production_readiness.md#caching-optics) explains.
+**Do not rebuild paths in a loop.** Hoist the path (or the extracted optic) out of the loop, as [Caching optics](production_readiness.md#caching-optics) explains.
 
 **Do not reach for `get` on a path that may miss.** Use the operation the path type guarantees:
 
@@ -167,16 +180,32 @@ List<Employee> all = DepartmentFocus.employees().getAll(department); // Traversa
 
 ## Troubleshooting
 
-### "Cannot infer type arguments for traverseOver"
+### `Object` turns up after `traverseOver` {#object-turns-up-after-traverseover}
 
-Java cannot recover the witness from the `Traverse` argument. Supply it:
+Java takes the witness from the `Traverse` argument, but the element type only from where the result goes. In a chain such as `.traverseOver(...).getAll(user)`, nothing pins the element type, so it falls back to `Object`, and javac reports `incompatible types: List<Object> cannot be converted to List<Role>`:
 
+<!-- verify:rejects "cannot be converted to" -->
 ```java
-TraversalPath<User, Role> allRoles =
-    rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
+List<Role> roles = rolesPath.traverseOver(ListTraverse.INSTANCE).getAll(user);
 ```
 
-The same applies to receiver-position generics generally: `Instances.validated(Semigroups.<String>list())` needs its witness for the same reason.
+Assigned to a declared `TraversalPath`, both type arguments are inferred:
+
+<!-- verify -->
+```java
+TraversalPath<User, Role> allRoles = rolesPath.traverseOver(ListTraverse.INSTANCE);
+List<Role> roles = allRoles.getAll(user);
+```
+
+In a chain, supply both type arguments:
+
+<!-- verify -->
+```java
+List<Role> roles =
+    rolesPath.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE).getAll(user);
+```
+
+The same holds for any generic call whose result nothing pins, such as `Instances.validated(Semigroups.<String>list())` at the head of a chain. [Common Compiler Errors](compiler_errors.md#traverseover-and-the-higher-kinded-witness-type) has the entry for the message.
 
 ### "Incompatible types" on a long chain
 

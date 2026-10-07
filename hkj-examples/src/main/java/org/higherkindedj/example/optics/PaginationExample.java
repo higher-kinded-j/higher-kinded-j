@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -35,13 +37,20 @@ public class PaginationExample {
 
   // ANCHOR: model
   public record Product(
-      String sku, String name, double price, int stock, boolean featured, String badge) {
+      String sku, String name, BigDecimal price, int stock, boolean featured, String badge) {
     Product withBadge(String newBadge) {
       return new Product(sku, name, price, stock, featured, newBadge);
     }
 
-    Product applyDiscount(double percentage) {
-      return new Product(sku, name, price * (1 - percentage), stock, featured, badge);
+    Product applyDiscount(int percent) {
+      BigDecimal factor = BigDecimal.valueOf(100 - percent, 2); // 30 percent off is 0.70
+      return new Product(
+          sku,
+          name,
+          price.multiply(factor).setScale(2, RoundingMode.HALF_EVEN),
+          stock,
+          featured,
+          badge);
     }
 
     Product markFeatured() {
@@ -109,7 +118,7 @@ public class PaginationExample {
                     "  ⭐ %s [%s] - Featured: %s%n", p.name(), p.badge(), p.featured()));
 
     // Apply special 15% discount to hero products
-    Lens<Product, Double> priceLens =
+    Lens<Product, BigDecimal> priceLens =
         Lens.of(
             Product::price,
             (prod, newPrice) ->
@@ -121,9 +130,13 @@ public class PaginationExample {
                     prod.featured(),
                     prod.badge()));
 
-    Traversal<List<Product>, Double> heroPrices = heroProducts.andThen(priceLens);
+    Traversal<List<Product>, BigDecimal> heroPrices = heroProducts.andThen(priceLens);
 
-    List<Product> discountedHero = Traversals.modify(heroPrices, price -> price * 0.85, catalogue);
+    List<Product> discountedHero =
+        Traversals.modify(
+            heroPrices,
+            price -> price.multiply(new BigDecimal("0.85")).setScale(2, RoundingMode.HALF_EVEN),
+            catalogue);
 
     System.out.println("\nAfter 15% hero discount:");
     for (int i = 0; i < 5; i++) {
@@ -153,7 +166,7 @@ public class PaginationExample {
     // Apply 30% clearance discount
     List<Product> withClearance =
         Traversals.modify(
-            clearanceItems, p -> p.applyDiscount(0.3).withBadge("CLEARANCE"), catalogue);
+            clearanceItems, p -> p.applyDiscount(30).withBadge("CLEARANCE"), catalogue);
 
     System.out.println("\nAfter 30% clearance discount:");
     Traversals.getAll(clearanceItems, withClearance)
@@ -222,14 +235,23 @@ public class PaginationExample {
     System.out.println("Products from pages 2-3 (for bulk shipment):");
     System.out.println("  Count: " + middlePages.size() + " products");
 
-    double totalValue = middlePages.stream().mapToDouble(p -> p.price() * p.stock()).sum();
+    BigDecimal totalValue =
+        middlePages.stream()
+            .map(p -> p.price().multiply(BigDecimal.valueOf(p.stock())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     System.out.printf("  Total inventory value: £%.2f%n", totalValue);
 
     int totalStock = middlePages.stream().mapToInt(Product::stock).sum();
     System.out.println("  Total units: " + totalStock);
 
     // Calculate average price for middle pages
-    double avgPrice = middlePages.stream().mapToDouble(Product::price).average().orElse(0.0);
+    BigDecimal avgPrice =
+        middlePages.isEmpty()
+            ? BigDecimal.ZERO
+            : middlePages.stream()
+                .map(Product::price)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(middlePages.size()), 2, RoundingMode.HALF_EVEN);
     System.out.printf("  Average price: £%.2f%n", avgPrice);
 
     System.out.println();
@@ -265,7 +287,8 @@ public class PaginationExample {
               String adjective = adjectives[(i - 1) % adjectives.length];
               String name = adjective + " " + category + " Item " + i;
               String sku = String.format("SKU%03d", i);
-              double price = 10.0 + (i * 5.0) + ((i % 3) * 2.5);
+              // In pence: £10, plus £5 per item, plus £2.50 for each step of i % 3
+              BigDecimal price = BigDecimal.valueOf(1000 + (i * 500) + ((i % 3) * 250), 2);
               int stock = 50 + (i * 10) - ((i % 4) * 15);
 
               products.add(new Product(sku, name, price, Math.max(5, stock), false, ""));

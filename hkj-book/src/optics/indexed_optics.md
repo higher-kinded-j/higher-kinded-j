@@ -73,7 +73,7 @@ Imagine building an order fulfilment system where position information drives bu
 <!-- verify -->
 ```java
 @GenerateLenses
-public record LineItem(String productName, int quantity, double price) {}
+public record LineItem(String productName, int quantity, BigDecimal price) {}
 
 @GenerateLenses
 @GenerateTraversals
@@ -155,7 +155,7 @@ IndexedTraversal<Integer, List<LineItem>, LineItem> itemsWithIndex =
     IndexedTraversals.forList();
 ```
 
-The `forList()` factory creates a reusable traversal where each element is paired with its zero-based index. You supply the actual data when you *use* the traversal (see Step 2 below).
+The `forList()` factory creates a reusable traversal where each element is paired with its zero-based index. You supply the actual data when you *use* the traversal, as [Step 2](#step-2-accessing-index-value-pairs) does.
 
 #### For Maps: Key-Based Indices
 
@@ -187,59 +187,18 @@ This is useful when working with custom containers that implement `EachIndexed` 
 
 ### Step 2: Accessing Index-Value Pairs
 
-Indexed optics provide specialised methods that give you access to both the index and the value.
+Indexed optics provide specialised methods that give you access to both the index and the value. Each index and its value arrive together as a `Pair`, which lives in `org.higherkindedj.optics.indexed` beside `IndexedFold` and `IndexedLens`.
 
 #### Extracting All Index-Value Pairs
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.indexed.Pair;
-
-List<LineItem> items = List.of(
-    new LineItem("Laptop", 1, 999.99),
-    new LineItem("Mouse", 2, 24.99),
-    new LineItem("Keyboard", 1, 79.99)
-);
-
-// Get list of (index, item) pairs - optic meets data
-List<Pair<Integer, LineItem>> indexedItems =
-    IndexedTraversals.toIndexedList(itemsWithIndex, items);
-
-for (Pair<Integer, LineItem> pair : indexedItems) {
-    int position = pair.first();
-    LineItem item = pair.second();
-    System.out.println("Position " + position + ": " + item.productName());
-}
-// Output:
-// Position 0: Laptop
-// Position 1: Mouse
-// Position 2: Keyboard
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:pairs}}
 ```
 
 #### Using IndexedFold for Queries
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.indexed.IndexedFold;
-
-// Convert to read-only indexed fold
-IndexedFold<Integer, List<LineItem>, LineItem> itemsFold =
-    itemsWithIndex.asIndexedFold();
-
-// Find item at a specific position
-Pair<Integer, LineItem> found = itemsFold.findWithIndex(
-    (index, item) -> index == 1,
-    items
-).orElse(null);
-
-System.out.println("Item at index 1: " + found.second().productName());
-// Output: Item at index 1: Mouse
-
-// Check if any even-positioned item is expensive
-boolean hasExpensiveEven = itemsFold.existsWithIndex(
-    (index, item) -> index % 2 == 0 && item.price() > 500,
-    items
-);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:fold}}
 ```
 
 ---
@@ -250,26 +209,8 @@ The real power emerges when you modify elements based on their position.
 
 #### Numbering Items in a Packing Slip
 
-<!-- verify -->
-```java
-// Modify product names to include position numbers
-List<LineItem> numbered = IndexedTraversals.imodify(
-    itemsWithIndex,
-    (index, item) -> new LineItem(
-        "Item " + (index + 1) + ": " + item.productName(),
-        item.quantity(),
-        item.price()
-    ),
-    items
-);
-
-for (LineItem item : numbered) {
-    System.out.println(item.productName());
-}
-// Output:
-// Item 1: Laptop
-// Item 2: Mouse
-// Item 3: Keyboard
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:numbering}}
 ```
 
 #### Position-Based Discount Logic
@@ -281,7 +222,8 @@ List<LineItem> discounted = IndexedTraversals.imodify(
     itemsWithIndex,
     (index, item) -> {
         if (index % 2 == 0) {
-            double discountedPrice = item.price() * 0.9;
+            BigDecimal discountedPrice =
+                item.price().multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN);
             return new LineItem(item.productName(), item.quantity(), discountedPrice);
         }
         return item;
@@ -295,30 +237,8 @@ List<LineItem> discounted = IndexedTraversals.imodify(
 
 #### Map Processing with Key Awareness
 
-<!-- verify -->
-```java
-IndexedTraversal<String, Map<String, String>, String> metadataTraversal =
-    IndexedTraversals.forMap();
-
-Map<String, String> metadata = Map.of(
-    "priority", "express",
-    "gift-wrap", "true",
-    "delivery-note", "Leave at door"
-);
-
-Map<String, String> processed = IndexedTraversals.imodify(
-    metadataTraversal,
-    (key, value) -> {
-        // Add key prefix to all values for debugging
-        return "[" + key + "] " + value;
-    },
-    metadata
-);
-
-// Results:
-// "priority" → "[priority] express"
-// "gift-wrap" → "[gift-wrap] true"
-// "delivery-note" → "[delivery-note] Leave at door"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:map_keys}}
 ```
 
 ---
@@ -329,54 +249,20 @@ Indexed traversals support filtering, allowing you to focus on specific position
 
 #### Filter by Index
 
-<!-- verify -->
-```java
-// Focus only on even-positioned items
-IndexedTraversal<Integer, List<LineItem>, LineItem> evenPositions =
-    itemsWithIndex.filterIndex(index -> index % 2 == 0);
-
-List<Pair<Integer, LineItem>> evenItems =
-    IndexedTraversals.toIndexedList(evenPositions, items);
-// Returns: [(0, Laptop), (2, Keyboard)]
-
-// Modify only even-positioned items
-List<LineItem> result = IndexedTraversals.imodify(
-    evenPositions,
-    (index, item) -> new LineItem(
-        item.productName() + " [SALE]",
-        item.quantity(),
-        item.price()
-    ),
-    items
-);
-// Laptop and Keyboard get "[SALE]" suffix, Mouse unchanged
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:filter_index}}
 ```
 
 #### Filter by Value with Index Available
 
-<!-- verify -->
-```java
-// Focus on expensive items, but still track their original positions
-IndexedTraversal<Integer, List<LineItem>, LineItem> expensiveItems =
-    itemsWithIndex.filteredWithIndex((index, item) -> item.price() > 50);
-
-List<Pair<Integer, LineItem>> expensive =
-    IndexedTraversals.toIndexedList(expensiveItems, items);
-// Returns: [(0, Laptop), (2, Keyboard)]
-// Notice: indices are preserved (0 and 2), not renumbered
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:filtered_with_index}}
 ```
 
 #### Filter Map by Key Pattern
 
-<!-- verify -->
-```java
-// Focus on metadata keys starting with "delivery"
-IndexedTraversal<String, Map<String, String>, String> deliveryMetadata =
-    metadataTraversal.filterIndex(key -> key.startsWith("delivery"));
-
-List<Pair<String, String>> deliveryEntries =
-    IndexedTraversals.toIndexedList(deliveryMetadata, metadata);
-// Returns: [("delivery-note", "Leave at door")]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:filter_map}}
 ```
 
 ---
@@ -385,33 +271,8 @@ List<Pair<String, String>> deliveryEntries =
 
 An `IndexedLens` focuses on exactly one field whilst providing its name or identifier.
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.indexed.IndexedLens;
-
-// Create an indexed lens for the customer email field
-IndexedLens<String, Customer, String> emailLens = IndexedLens.of(
-    "email",                 // The index: field name
-    Customer::email,         // Getter
-    (customer, newEmail) -> new Customer(customer.name(), newEmail)  // Setter
-);
-
-Customer customer = new Customer("Alice", "alice@example.com");
-
-// Get both field name and value
-Pair<String, String> fieldInfo = emailLens.iget(customer);
-System.out.println("Field: " + fieldInfo.first());      // email
-System.out.println("Value: " + fieldInfo.second());     // alice@example.com
-
-// Modify with field name awareness
-Customer updated = emailLens.imodify(
-    (fieldName, oldValue) -> {
-        System.out.println("Updating field '" + fieldName + "' from " + oldValue);
-        return "alice.smith@example.com";
-    },
-    customer
-);
-// Output: Updating field 'email' from alice@example.com
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:indexed_lens}}
 ```
 
 **Use case**: Audit logging that records *which* field changed, not just the new value.
@@ -487,11 +348,14 @@ List<Product> prioritised = IndexedTraversals.imodify(
 <!-- verify -->
 ```java
 // Better with standard optics: Index not needed
-Traversal<List<Product>, Double> prices =
+Traversal<List<Product>, BigDecimal> prices =
     Traversals.<Product>forList()
         .andThen(ProductLenses.price().asTraversal());
 
-List<Product> inflated = Traversals.modify(prices, price -> price * 1.1, products);
+List<Product> inflated = Traversals.modify(
+    prices,
+    price -> price.multiply(new BigDecimal("1.1")).setScale(2, RoundingMode.HALF_EVEN),
+    products);
 // All prices increased by 10%, position doesn't matter
 ```
 
@@ -501,19 +365,8 @@ List<Product> inflated = Traversals.modify(prices, price -> price * 1.1, product
 
 #### Pattern 1: Adding Sequence Numbers
 
-<!-- verify -->
-```java
-// Generate a numbered list for display
-IndexedTraversal<Integer, List<String>, String> indexed = IndexedTraversals.forList();
-
-List<String> tasks = List.of("Review PR", "Update docs", "Run tests");
-
-List<String> numbered = IndexedTraversals.imodify(
-    indexed,
-    (i, task) -> (i + 1) + ". " + task,
-    tasks
-);
-// ["1. Review PR", "2. Update docs", "3. Run tests"]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:sequence_numbers}}
 ```
 
 #### Pattern 2: First/Last Element Special Handling
@@ -544,38 +397,14 @@ List<LineItem> marked = IndexedTraversals.imodify(
 
 #### Pattern 3: Map Key-Value Transformations
 
-<!-- verify -->
-```java
-IndexedTraversal<String, Map<String, Integer>, Integer> mapIndexed =
-    IndexedTraversals.forMap();
-
-Map<String, Integer> scores = Map.of(
-    "alice", 100,
-    "bob", 85,
-    "charlie", 92
-);
-
-// Create display strings incorporating both key and value
-List<String> results = IndexedTraversals.toIndexedList(mapIndexed, scores).stream()
-    .map(pair -> pair.first() + " scored " + pair.second())
-    .toList();
-// ["alice scored 100", "bob scored 85", "charlie scored 92"]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:map_display}}
 ```
 
 #### Pattern 4: Position-Based Filtering
 
-<!-- verify -->
-```java
-IndexedTraversal<Integer, List<String>, String> indexed = IndexedTraversals.forList();
-
-List<String> values = List.of("a", "b", "c", "d", "e", "f");
-
-// Take only odd positions (1, 3, 5)
-IndexedTraversal<Integer, List<String>, String> oddPositions =
-    indexed.filterIndex(i -> i % 2 == 1);
-
-List<String> odd = IndexedTraversals.getAll(oddPositions, values);
-// ["b", "d", "f"]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedOpticsBook.java:odd_positions}}
 ```
 
 ---
@@ -608,7 +437,7 @@ IndexedTraversals.imodify(itemsWithIndex, (i, item) -> {
 IndexedTraversal<Integer, List<String>, String> evenOnly =
     indexed.filterIndex(i -> i % 2 == 0);
 List<Pair<Integer, String>> pairs = IndexedTraversals.toIndexedList(evenOnly, list);
-// Indices are [0, 2, 4], NOT [0, 1, 2] - original positions preserved!
+// The pairs keep their positions, 0, 2, 4, ..., rather than being renumbered 0, 1, 2, ...
 ```
 
 #### Do This Instead

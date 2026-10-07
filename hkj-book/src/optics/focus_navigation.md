@@ -294,7 +294,7 @@ Three things can keep such a navigator from being generated in full, and the pro
 
 ### Controlling navigator generation {#controlling-navigator-generation}
 
-**Depth limiting**: `maxNavigatorDepth = 1` makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain: each hop into another navigable record returns that record's own navigator.
+**Depth limiting**: only `maxNavigatorDepth = 1` changes the generated code. It makes a navigator's own navigation methods return plain paths, so only the first hop chains fluently. A larger value, the default 3 included, does not stop a chain. Each hop into another navigable record returns the navigator that the `Focus` class of the record it leaves declares for that field. Under the default, `OrderFocus.customer().email()` returns `CustomerFocus.EmailNavigator`.
 
 <!-- verify -->
 ```java

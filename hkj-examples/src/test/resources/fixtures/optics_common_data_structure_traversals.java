@@ -10,9 +10,12 @@
 
 import static java.util.stream.Collectors.toList;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.higherkindedj.hkt.tuple.Tuple2;
 import org.higherkindedj.hkt.tuple.Tuple2Lenses;
@@ -72,7 +75,12 @@ class Fixture {
 
   static final BoundingBox box = sample();
 
-  static final Map<String, Double> prices = Map.of("widget", 10.0, "gadget", 25.0, "gizmo", 15.0);
+  static final Map<String, BigDecimal> prices =
+      new TreeMap<>(
+          Map.of(
+              "widget", new BigDecimal("10.00"),
+              "gadget", new BigDecimal("25.00"),
+              "gizmo", new BigDecimal("15.00")));
 
   static final Map<String, Integer> map = Map.of("widget", 10, "gadget", 25);
 

@@ -605,8 +605,16 @@ class BookExampleOutputTest {
               "optics-indexed-dashboard-output.txt.golden",
               false),
           new Transcript(
+              "org.higherkindedj.example.optics.FoldUsageExample",
+              "optics-folds-example-output.txt.golden",
+              false),
+          new Transcript(
               "org.higherkindedj.example.optics.IsoUsageExample",
               "optics-iso-example-output.txt.golden",
+              false),
+          new Transcript(
+              "org.higherkindedj.example.optics.TraversalUsageExample",
+              "optics-traversals-example-output.txt.golden",
               false),
           new Transcript(
               "org.higherkindedj.example.optics.PaginationExample",

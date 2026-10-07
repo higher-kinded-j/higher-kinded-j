@@ -41,7 +41,7 @@ public record User(String name, boolean active, int score, SubscriptionTier tier
 
 @GenerateLenses
 @GenerateFolds
-public record Invoice(String id, double amount, boolean overdue) {}
+public record Invoice(String id, BigDecimal amount, boolean overdue) {}
 
 @GenerateLenses
 @GenerateFolds
@@ -133,40 +133,26 @@ Fold<Customer, Invoice> invoicesFold = CustomerFolds.invoices();
 // Filter to overdue invoices only
 Fold<Customer, Invoice> overdueInvoices = invoicesFold.filtered(Invoice::overdue);
 
+// Monoids has no BigDecimal sum, so write one: zero, and add
+Monoid<BigDecimal> sum = new Monoid<>() {
+    public BigDecimal empty() { return BigDecimal.ZERO; }
+    public BigDecimal combine(BigDecimal a, BigDecimal b) { return a.add(b); }
+};
+
 // Query operations work on the filtered subset
 int count = overdueInvoices.length(customer);             // Count overdue invoices
 List<Invoice> overdue = overdueInvoices.getAll(customer); // Get overdue invoices
-double owed = overdueInvoices.foldMap(
-    Monoids.doubleAddition(), Invoice::amount, customer); // Sum overdue amounts
-boolean allLarge = overdueInvoices.all(inv -> inv.amount() > 100, customer);
+BigDecimal owed = overdueInvoices.foldMap(sum, Invoice::amount, customer); // Sum overdue amounts
+boolean allLarge = overdueInvoices.all(
+    inv -> inv.amount().compareTo(new BigDecimal("100")) > 0, customer);
 ```
 
 ### Step 2: Composing Filtered Traversals
 
 The real power emerges when you compose filtered optics with other optics:
 
-<!-- verify -->
-```java
-// Compose: list → filtered users → user name
-Traversal<List<User>, String> activeUserNames =
-    Traversals.<User>forList()
-        .filtered(User::active)
-        .andThen(UserLenses.name());
-
-List<User> users = List.of(
-    new User("alice", true, 100, SubscriptionTier.PREMIUM),
-    new User("bob", false, 200, SubscriptionTier.FREE),
-    new User("charlie", true, 150, SubscriptionTier.BASIC)
-);
-
-// Get only active user names
-List<String> names = Traversals.getAll(activeUserNames, users);
-// Result: ["alice", "charlie"]
-
-// Uppercase only active user names
-List<User> result = Traversals.modify(activeUserNames, String::toUpperCase, users);
-// Result: [User("ALICE", true, 100), User("bob", false, 200), User("CHARLIE", true, 150)]
-// Notice: bob remains unchanged because he's inactive
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/filtered/FilteredOpticsBook.java:compose}}
 ```
 
 ### Step 3: Chaining Multiple Filters
@@ -254,12 +240,12 @@ List<Customer> updated = Traversals.modify(
 Traversal<List<Customer>, Customer> allCustomers = Traversals.forList();
 
 // Fold from Customer to every invoice amount
-Fold<Customer, Double> invoiceAmounts =
+Fold<Customer, BigDecimal> invoiceAmounts =
     CustomerFolds.invoices().andThen(InvoiceLenses.amount().asFold());
 
 // Customers with any invoice over £1,000
 Traversal<List<Customer>, Customer> keyAccounts =
-    allCustomers.filterBy(invoiceAmounts, amount -> amount > 1_000);
+    allCustomers.filterBy(invoiceAmounts, amount -> amount.compareTo(new BigDecimal("1000")) > 0);
 
 // Tag them in the name
 Traversal<List<Customer>, String> keyAccountNames =
@@ -287,26 +273,8 @@ A crucial aspect of filtered optics is understanding what happens to non-matchin
 
 **Visual Example:**
 
-<!-- verify -->
-```java
-List<User> users = List.of(
-    new User("Alice", true, 100, SubscriptionTier.PREMIUM),  // active
-    new User("Bob", false, 200, SubscriptionTier.FREE),      // inactive
-    new User("Charlie", true, 150, SubscriptionTier.BASIC)   // active
-);
-
-Traversal<List<User>, User> activeUsers =
-    Traversals.<User>forList().filtered(User::active);
-
-// MODIFY: Structure preserved, only matching modified
-List<User> modified = Traversals.modify(activeUsers, User::grantBonus, users);
-// [User(Alice, true, 200, PREMIUM), User(Bob, false, 200, FREE), User(Charlie, true, 250, BASIC)]
-//  ^ modified                        ^ UNCHANGED                  ^ modified
-
-// QUERY: Only matching elements returned
-List<User> gotten = Traversals.getAll(activeUsers, users);
-// [User(Alice, true, 100, PREMIUM), User(Charlie, true, 150, BASIC)]
-// Bob is EXCLUDED entirely
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/filtered/FilteredOpticsBook.java:semantics}}
 ```
 
 This behaviour is intentional: it allows you to **transform selectively** whilst maintaining referential integrity, and **query selectively** without polluting results.

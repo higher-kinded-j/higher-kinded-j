@@ -11,6 +11,8 @@
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +33,7 @@ import org.higherkindedj.optics.util.IndexedTraversals;
 import org.higherkindedj.optics.util.Traversals;
 
 @GenerateLenses
-record LineItem(String productName, int quantity, double price) {}
+record LineItem(String productName, int quantity, BigDecimal price) {}
 
 @GenerateLenses
 @GenerateTraversals
@@ -41,7 +43,7 @@ record Order(String orderId, List<LineItem> items, Map<String, String> metadata)
 record Customer(String name, String email) {}
 
 @GenerateLenses
-record Product(String name, double price, String shipping) {
+record Product(String name, BigDecimal price, String shipping) {
 
   Product withShipping(String newShipping) {
     return new Product(name, price, newShipping);
@@ -52,9 +54,9 @@ class Fixture {
 
   static final List<LineItem> items =
       List.of(
-          new LineItem("Laptop", 1, 999.99),
-          new LineItem("Mouse", 2, 24.99),
-          new LineItem("Keyboard", 1, 79.99));
+          new LineItem("Laptop", 1, new BigDecimal("999.99")),
+          new LineItem("Mouse", 2, new BigDecimal("24.99")),
+          new LineItem("Keyboard", 1, new BigDecimal("79.99")));
 
   static final Map<String, String> metadata =
       Map.of("priority", "express", "gift-wrap", "true", "delivery-note", "Leave at door");
@@ -63,7 +65,7 @@ class Fixture {
 
   static final List<Order> orders = List.of(order);
 
-  static final List<Product> products = List.of(new Product("Laptop", 999.99, "standard"));
+  static final List<Product> products = List.of(new Product("Laptop", new BigDecimal("999.99"), "standard"));
 
   static final List<String> list = List.of("a", "b", "c");
 

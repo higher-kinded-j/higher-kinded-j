@@ -5,6 +5,8 @@ package org.higherkindedj.example.book.optics.setters;
 // ANCHOR: imports
 import static org.higherkindedj.hkt.instances.Witnesses.optional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -30,7 +32,7 @@ public class SetterExample {
   // A trimmed UserSettings, so the runnable example stays small
   public record UserSettings(String theme, boolean notifications, int fontSize) {}
 
-  public record Product(String name, double price, int stock) {}
+  public record Product(String name, BigDecimal price, int stock) {}
 
   public static void main(String[] args) {
     // === Basic Setters ===
@@ -76,25 +78,27 @@ public class SetterExample {
     System.out.println("Doubled: " + doubled);
 
     // === Product Batch Update ===
-    Setter<Product, Double> priceSetter =
+    Setter<Product, BigDecimal> priceSetter =
         Setter.fromGetSet(Product::price, (p, price) -> new Product(p.name(), price, p.stock()));
 
     Setter<List<Product>, Product> productsSetter = Setter.forList();
 
     List<Product> products =
         List.of(
-            new Product("Laptop", 999.99, 50),
-            new Product("Keyboard", 79.99, 100),
-            new Product("Monitor", 299.99, 30));
+            new Product("Laptop", new BigDecimal("999.99"), 50),
+            new Product("Keyboard", new BigDecimal("79.99"), 100),
+            new Product("Monitor", new BigDecimal("299.99"), 30));
 
-    // Apply 10% discount
+    // Apply 10% discount, rounded to the penny
+    Function<BigDecimal, BigDecimal> tenPercentOff =
+        price -> price.multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN);
+
     List<Product> discounted =
-        productsSetter.modify(
-            product -> priceSetter.modify(price -> price * 0.9, product), products);
+        productsSetter.modify(product -> priceSetter.modify(tenPercentOff, product), products);
 
     System.out.println("Discounted prices:");
     for (Product p : discounted) {
-      System.out.printf("  %s: £%.2f%n", p.name(), p.price());
+      System.out.println("  " + p.name() + ": £" + p.price());
     }
 
     // === Effectful Modification ===
@@ -134,9 +138,9 @@ public class SetterExample {
 
     List<Product> rawProducts =
         List.of(
-            new Product("  LAPTOP  ", 999.99, 50),
-            new Product("keyboard", 79.99, 100),
-            new Product("MONITOR", 299.99, 30));
+            new Product("  LAPTOP  ", new BigDecimal("999.99"), 50),
+            new Product("keyboard", new BigDecimal("79.99"), 100),
+            new Product("MONITOR", new BigDecimal("299.99"), 30));
 
     List<Product> normalisedProducts =
         productsSetter.modify(product -> nameSetter.modify(titleCase, product), rawProducts);

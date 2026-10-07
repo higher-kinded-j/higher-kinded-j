@@ -8,25 +8,13 @@
 
 ---
 
-This group covers the edges of a service, and you can skip it until one of them comes up. A value is parsed at a boundary, an update is checked by a validating effect, a batch of reads goes out as one call, and a record keeps what changed. The everyday versions are among the chapter's first pages: [Updates That Can Fail](fluent_api.md) for one checked update, and [Many Edits at Once](multi_edit.md) for a PATCH. Here is the mechanism under the first of those, before any theory. One path runs from a form, through a sealed principal, across a list of permissions, down to each permission's name; one call validates every one of them and collects the failures. Every line compiles against the real library on every build:
+This group covers the edges of a service, and you can skip it until one of them comes up. A value is parsed at a boundary, an update is checked by a validating effect, a batch of reads goes out as one call, and a record keeps what changed. The everyday versions are among the chapter's first pages: [Updates That Can Fail](fluent_api.md) for one checked update, and [Many Edits at Once](multi_edit.md) for a PATCH. Here is the mechanism under the first of those, before any theory. One path runs from a form, through a sealed principal, across a list of permissions, down to each permission's name; one call validates every one of them and collects the failures. Every line compiles and runs on every build, and a test holds its result:
 
-<!-- verify -->
-```java
-Traversal<Form, String> everyPermissionName =
-    FormLenses.principal()
-        .andThen(PrincipalPrisms.user())
-        .andThen(UserTraversals.permissions())
-        .andThen(PermissionLenses.name());
-
-Validated<String, Form> checked =
-    VALIDATED.narrow(
-        everyPermissionName.modifyF(
-            Fixture::validatePermission, Fixture.form, Instances.validated(Semigroups.string("; "))));
-// Invalid("Invalid permission: PERM_FLY")
-// A Guest principal would simply have no permissions in focus, and validate clean.
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/validation/ValidationBook.java:payoff}}
 ```
 
-The sample `Form` holds a `User` with two permissions, `PERM_READ` and `PERM_FLY`, and only the first is on the allowed list. `Fixture` is the compiled example's own setup, not library API.
+The sample `Form` holds a `User` with two permissions, `PERM_READ` and `PERM_FLY`, and only the first is on the allowed list. `ValidationBook` is the compiled example's own class, not library API.
 
 ~~~admonish tip title="Why this matters"
 Four optics of three different kinds compose into one value, and that value is reusable in both directions: run it with a plain function to update every permission, or with an [`Applicative`](../glossary/type-classes.md#applicative) to validate them and accumulate the failures. The prism in the middle is what makes it safe. A `Form` holding a `Guest` has nothing in focus, so the same expression returns a clean result rather than a `ClassCastException`, and no branch had to be written for that case.

@@ -1,13 +1,13 @@
 // Fixture for hkj-book/src/optics/optic_batching.md
 //
-// The page runs an optic under the batching applicative and then routes, guards and partitions the
-// result. The identifiers it fetches and the resolvers it hands the runner are declared here.
+// The page runs an optic under the batching applicative; its runnable steps are included from
+// BatchingBook. The type-changing fetch and the safe run are compiled here, against the identifiers
+// and resolvers declared below.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
 // (see build.gradle.kts).
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.higherkindedj.optics.fetch.FetchKindHelper.FETCH;
 
 import java.util.List;
@@ -36,13 +36,6 @@ record Team(String name, List<UserId> memberIds) {}
 
 record EnrichedTeam(String name, List<User> members) {}
 
-class Backend {
-
-  Map<Integer, Integer> loadAll(Set<Integer> keys) {
-    throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
-  }
-}
-
 class Fixture {
 
   /**
@@ -53,8 +46,6 @@ class Fixture {
   static <A> A sample() {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
-
-  static final Backend backend = new Backend();
 
   static final Team team = sample();
 

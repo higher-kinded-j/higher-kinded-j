@@ -177,6 +177,11 @@ class Fixture {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
+  /** One operation carried out: what the page's interpreter sketch calls its own code. */
+  static Object answer(Kind<OpticOpKind.Witness, ?> kind) {
+    return sample();
+  }
+
   static final Log log = new Log();
 
   static final AuditService auditService = new AuditService();

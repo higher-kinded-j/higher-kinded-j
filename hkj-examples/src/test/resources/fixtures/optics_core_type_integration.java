@@ -1,8 +1,9 @@
 // Fixture for hkj-book/src/optics/core_type_integration.md
 //
 // The page pairs the optics with the core effect types, working a user, an order and an API
-// response through them. Those records are declared here; a snippet that shows one shadows this
-// copy. The user carries the bean-style accessors the page's "before" snippet reads.
+// response through them. The order is the chapter's cast Order; the others are declared here, and
+// a snippet that shows one shadows this copy. The user carries the bean-style accessors the page's
+// "before" snippet reads.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -12,8 +13,10 @@ import static org.higherkindedj.optics.extensions.LensExtensions.getMaybe;
 import static org.higherkindedj.optics.extensions.LensExtensions.modifyEither;
 import static org.higherkindedj.optics.extensions.TraversalExtensions.modifyAllValidated;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -46,14 +49,6 @@ record User(String email, Profile profile) {
     return new User(email, newProfile);
   }
 }
-
-@GenerateLenses
-record Customer(String customerId, String name, String email) {}
-
-record OrderItem(String sku, double price) {}
-
-@GenerateLenses
-record Order(String orderId, Customer customer, List<OrderItem> items) {}
 
 @GenerateLenses
 record ApiResponse(int statusCode, Maybe<Order> data, List<String> warnings) {}
@@ -101,13 +96,13 @@ class Fixture {
 
   static final List<String> userIds = List.of("u1");
 
-  static final Traversal<List<Order>, Double> allPrices = sample();
+  static final Traversal<List<Order>, BigDecimal> allPrices = sample();
 
   static String validateEmailFormat(String email) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static Validated<String, Double> validatePrice(Double price) {
+  static Validated<String, BigDecimal> validatePrice(BigDecimal price) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 

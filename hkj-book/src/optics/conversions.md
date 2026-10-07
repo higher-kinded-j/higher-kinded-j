@@ -37,6 +37,7 @@ You cannot widen the other direction: a `Traversal` does not become a `Lens`, be
 
 `andThen` infers the result type automatically. Any two of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal` compose directly, with no `asTraversal()` first; the [composition rules table](composition_rules.md#composition-rules-table) gives the result for each pair.
 
+<!-- verify -->
 ```java
 Lens<User, List<Order>> ordersLens = UserLenses.orders();
 Traversal<List<Order>, Order> listTraversal = Traversals.forList();

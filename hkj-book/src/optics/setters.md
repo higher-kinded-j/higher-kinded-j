@@ -37,7 +37,7 @@ public record UserSettings(
     String theme, boolean notifications, int fontSize, Map<String, String> preferences) {}
 
 @GenerateSetters
-public record Product(String name, double price, int stock, List<String> tags) {}
+public record Product(String name, BigDecimal price, int stock, List<String> tags) {}
 
 @GenerateSetters
 public record Inventory(List<Product> products, String warehouseId) {}
@@ -125,71 +125,30 @@ Setter<Map<String, Double>, Double> mapValuesSetter = Setter.forMapValues();
 
 Applies a function to modify the focused element:
 
-<!-- verify -->
-```java
-Setter<User, String> usernameSetter = Setter.fromGetSet(
-    User::username,
-    (u, name) -> new User(name, u.email(), u.loginCount(), u.settings()));
-
-User user = new User("JOHN_DOE", "john@example.com", 10, settings);
-
-// Transform username to lowercase
-User normalised = usernameSetter.modify(String::toLowerCase, user);
-// Result: User("john_doe", "john@example.com", 10, settings)
-
-// Append suffix
-User suffixed = usernameSetter.modify(name -> name + "_admin", user);
-// Result: User("JOHN_DOE_admin", "john@example.com", 10, settings)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:modify}}
 ```
 
 #### **`set(value, source)`**: Replace the Focused Value
 
 Sets all focused elements to a specific value:
 
-<!-- verify -->
-```java
-Setter<User, Integer> loginCountSetter = Setter.fromGetSet(
-    User::loginCount,
-    (u, count) -> new User(u.username(), u.email(), count, u.settings()));
-
-User user = new User("john", "john@example.com", 10, settings);
-User reset = loginCountSetter.set(0, user);
-// Result: User("john", "john@example.com", 0, settings)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:set}}
 ```
 
 ### Step 3: Composing Setters
 
 Chain Setters together for deep modifications:
 
-<!-- verify -->
-```java
-Setter<User, UserSettings> settingsSetter = Setter.fromGetSet(
-    User::settings,
-    (u, s) -> new User(u.username(), u.email(), u.loginCount(), s));
-
-Setter<UserSettings, String> themeSetter = Setter.fromGetSet(
-    UserSettings::theme,
-    (s, theme) -> new UserSettings(theme, s.notifications(), s.fontSize(), s.preferences()));
-
-// Compose: User → UserSettings → String
-Setter<User, String> userThemeSetter = settingsSetter.andThen(themeSetter);
-
-User user = new User("john", "john@example.com", 10,
-    new UserSettings("light", true, 14, Map.of()));
-
-User darkModeUser = userThemeSetter.set("dark", user);
-// Result: User with settings.theme = "dark"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:compose}}
 ```
 
 #### Deep Composition Chain
 
-<!-- verify -->
-```java
-// settingsSetter and fontSizeSetter, built with fromGetSet as above
-Setter<User, Integer> userFontSizeSetter = settingsSetter.andThen(fontSizeSetter);
-
-User largerFont = userFontSizeSetter.modify(size -> size + 2, user);
-// Result: User with settings.fontSize increased by 2
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:deep_chain}}
 ```
 
 ### Step 4: Collection Setters
@@ -198,144 +157,36 @@ Higher-Kinded-J provides built-in Setters for collections:
 
 #### **`forList()`**: Modify All List Elements
 
-<!-- verify -->
-```java
-Setter<List<Integer>, Integer> listSetter = Setter.forList();
-
-List<Integer> numbers = List.of(1, 2, 3, 4, 5);
-
-// Double all values
-List<Integer> doubled = listSetter.modify(x -> x * 2, numbers);
-// Result: [2, 4, 6, 8, 10]
-
-// Set all to same value
-List<Integer> allZeros = listSetter.set(0, numbers);
-// Result: [0, 0, 0, 0, 0]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:for_list}}
 ```
 
 #### **`forMapValues()`**: Modify All Map Values
 
-<!-- verify -->
-```java
-Setter<Map<String, Integer>, Integer> mapSetter = Setter.forMapValues();
-
-Map<String, Integer> scores = Map.of("Alice", 85, "Bob", 90, "Charlie", 78);
-
-// Add 5 points to all scores
-Map<String, Integer> curved = mapSetter.modify(score -> Math.min(100, score + 5), scores);
-// Result: {Alice=90, Bob=95, Charlie=83}
-
-// Reset all scores
-Map<String, Integer> reset = mapSetter.set(0, scores);
-// Result: {Alice=0, Bob=0, Charlie=0}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:for_map_values}}
 ```
 
 ### Step 5: Nested Collection Setters
 
 Compose Setters for complex nested modifications:
 
-<!-- verify -->
-```java
-Setter<Inventory, List<Product>> productsSetter = Setter.fromGetSet(
-    Inventory::products,
-    (inv, prods) -> new Inventory(prods, inv.warehouseId()));
-
-Setter<List<Product>, Product> productListSetter = Setter.forList();
-
-Setter<Product, Double> priceSetter = Setter.fromGetSet(
-    Product::price,
-    (p, price) -> new Product(p.name(), price, p.stock(), p.tags()));
-
-// Compose: Inventory → List<Product> → Product
-Setter<Inventory, Product> allProductsSetter = productsSetter.andThen(productListSetter);
-
-Inventory inventory = new Inventory(
-    List.of(
-        new Product("Laptop", 999.99, 50, List.of("electronics")),
-        new Product("Keyboard", 79.99, 100, List.of("accessories")),
-        new Product("Monitor", 299.99, 30, List.of("displays"))),
-    "WH-001");
-
-// Apply 10% discount to all products
-Inventory discounted = allProductsSetter.modify(
-    product -> priceSetter.modify(price -> price * 0.9, product),
-    inventory);
-// Result: All product prices reduced by 10%
-
-// Restock all products
-Setter<Product, Integer> stockSetter = Setter.fromGetSet(
-    Product::stock,
-    (p, stock) -> new Product(p.name(), p.price(), stock, p.tags()));
-
-Inventory restocked = allProductsSetter.modify(
-    product -> stockSetter.modify(stock -> stock + 10, product),
-    inventory);
-// Result: All product stock increased by 10
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:nested}}
 ```
 
 ### Step 6: Effectful Modifications
 
 Setters support effectful modifications via `modifyF`, allowing you to compose modifications that might fail or have side effects:
 
-<!-- verify -->
-```java
-Setter<User, String> usernameSetter = Setter.fromGetSet(
-    User::username,
-    (u, name) -> new User(name, u.email(), u.loginCount(), u.settings()));
-
-// Validation: username must be at least 3 characters and lowercase
-Function<String, Kind<OptionalKind.Witness, String>> validateUsername = username -> {
-    if (username.length() >= 3 && username.matches("[a-z_]+")) {
-        return OptionalKindHelper.OPTIONAL.widen(Optional.of(username));
-    } else {
-        return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
-    }
-};
-
-User validUser = new User("john_doe", "john@example.com", 10, settings);
-Kind<OptionalKind.Witness, User> result =
-    usernameSetter.modifyF(validateUsername, validUser, Instances.monadError(optional()));
-
-Optional<User> validated = OptionalKindHelper.OPTIONAL.narrow(result);
-// Result: Optional[User with validated username]
-
-User invalidUser = new User("ab", "a@test.com", 0, settings); // Too short
-Kind<OptionalKind.Witness, User> invalidResult =
-    usernameSetter.modifyF(validateUsername, invalidUser, Instances.monadError(optional()));
-
-Optional<User> invalidValidated = OptionalKindHelper.OPTIONAL.narrow(invalidResult);
-// Result: Optional.empty (validation failed)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:modify_f}}
 ```
 
 #### Sequencing Effects in Collections {#sequencing-effects-in-collections}
 
-<!-- verify -->
-```java
-Setter<List<Integer>, Integer> listSetter = Setter.forList();
-
-List<Integer> numbers = List.of(1, 2, 3);
-
-Function<Integer, Kind<OptionalKind.Witness, Integer>> doubleIfPositive = n -> {
-    if (n > 0) {
-        return OptionalKindHelper.OPTIONAL.widen(Optional.of(n * 2));
-    } else {
-        return OptionalKindHelper.OPTIONAL.widen(Optional.empty());
-    }
-};
-
-Kind<OptionalKind.Witness, List<Integer>> result =
-    listSetter.modifyF(doubleIfPositive, numbers, Instances.monadError(optional()));
-
-Optional<List<Integer>> doubled = OptionalKindHelper.OPTIONAL.narrow(result);
-// Result: Optional[[2, 4, 6]]
-
-// With negative number (will fail)
-List<Integer> withNegative = List.of(1, -2, 3);
-Kind<OptionalKind.Witness, List<Integer>> failedResult =
-    listSetter.modifyF(doubleIfPositive, withNegative, Instances.monadError(optional()));
-
-Optional<List<Integer>> failed = OptionalKindHelper.OPTIONAL.narrow(failedResult);
-// Result: Optional.empty (validation failed on -2)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:sequencing}}
 ```
 
 Each time the effect from `modifyF` runs, it builds a fresh list. So an `IO` gives an equal list on every run, and the `List` applicative gives one list per combination of choices. `forMapValues()` does the same with a map.
@@ -366,15 +217,8 @@ Kind<OptionalKind.Witness, User> result =
 
 ### **`identity()`**: Modifies the Source Itself
 
-<!-- verify -->
-```java
-Setter<String, String> identitySetter = Setter.identity();
-
-String result = identitySetter.modify(String::toUpperCase, "hello");
-// Result: "HELLO"
-
-String replaced = identitySetter.set("world", "hello");
-// Result: "world"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:identity}}
 ```
 
 Useful as a base case in composition or for direct value transformation.
@@ -446,39 +290,20 @@ user.setUsername("new_name"); // Avoid in functional programming
 
 ### Data Normalisation Pipeline
 
-<!-- verify -->
-```java
-Setter<List<Product>, Product> productSetter = Setter.forList();
-Setter<Product, String> nameSetter = Setter.fromGetSet(
-    Product::name,
-    (p, name) -> new Product(name, p.price(), p.stock(), p.tags()));
-
-Function<String, String> normalise = name -> {
-    String trimmed = name.trim();
-    return trimmed.substring(0, 1).toUpperCase() +
-           trimmed.substring(1).toLowerCase();
-};
-
-List<Product> rawProducts = List.of(
-    new Product("  LAPTOP  ", 999.99, 50, List.of()),
-    new Product("keyboard", 79.99, 100, List.of()),
-    new Product("MONITOR", 299.99, 30, List.of()));
-
-List<Product> normalised = productSetter.modify(
-    product -> nameSetter.modify(normalise, product),
-    rawProducts);
-// Result: [Product("Laptop", ...), Product("Keyboard", ...), Product("Monitor", ...)]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/setters/SettersBook.java:normalise}}
 ```
 
 ### Currency Conversion
 
 <!-- verify -->
 ```java
-// priceSetter, built with fromGetSet as above
-double exchangeRate = 0.92; // USD to EUR
+// priceSetter, built with fromGetSet as in Step 5
+BigDecimal exchangeRate = new BigDecimal("0.92"); // USD to EUR
 
 List<Product> euroProducts = productSetter.modify(
-    product -> priceSetter.modify(price -> price * exchangeRate, product),
+    product -> priceSetter.modify(
+        price -> price.multiply(exchangeRate).setScale(2, RoundingMode.HALF_EVEN), product),
     usdProducts);
 ```
 
@@ -487,7 +312,7 @@ List<Product> euroProducts = productSetter.modify(
 <!-- verify -->
 ```java
 Setter<List<User>, User> usersSetter = Setter.forList();
-// loginCountSetter, built with fromGetSet as above
+// loginCountSetter, built with fromGetSet as in Step 2
 
 // Reset all login counts
 List<User> resetUsers = usersSetter.modify(
@@ -553,7 +378,7 @@ setter.modify(obj -> { obj.setValue(newValue); return obj; }, source);
 <!-- verify -->
 ```java
 // Correct: Return new immutable instance
-Setter<Product, Double> priceSetter = Setter.fromGetSet(
+Setter<Product, BigDecimal> priceSetter = Setter.fromGetSet(
     Product::price,
     (p, price) -> new Product(p.name(), price, p.stock(), p.tags()));
 ```

@@ -1,0 +1,35 @@
+=== FOLD USAGE EXAMPLE ===
+
+--- Scenario 1: Basic Query Operations ---
+All items: 3 products
+First item: Laptop
+Item count: 3
+Is empty: false
+
+--- Scenario 2: Conditional Queries ---
+Has out of stock items: true
+All items in stock: false
+First expensive item: Laptop
+
+--- Scenario 3: Composed Folds ---
+Total products across all purchases: 6
+Unique categories: [Electronics, Furniture]
+
+--- Scenario 4: Monoid-Based Aggregation ---
+Purchase 1 total: £1374.99
+All purchases total: £2099.99
+All items under £1000: true
+Has electronics: true
+
+--- Scenario 5: Real-World Analytics ---
+Most expensive product: Laptop (£999.99)
+Average product price: £350.00
+Electronics count: 4
+
+--- Scenario 6: Traversal-Derived Folds via asFold() ---
+Products via traversal-derived fold: 6
+Total via traversal-derived fold: £2099.99
+Electronics count: 4
+Electronics total: £1549.99
+
+=== END OF EXAMPLE ===

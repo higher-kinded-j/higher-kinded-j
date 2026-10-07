@@ -24,6 +24,7 @@ import static org.higherkindedj.optics.extensions.TraversalExtensions.modifyAllV
 import static org.higherkindedj.optics.extensions.TraversalExtensions.modifyWherePossible;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.either.Either;
@@ -36,7 +37,7 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.util.Traversals;
 
 @GenerateLenses
-record UserProfile(String id, String name, String email, int age, String bio) {}
+record UserProfile(String id, String name, String email, Integer age, String bio) {}
 
 @GenerateLenses
 record OrderItem(String sku, BigDecimal price, int quantity, String status) {}

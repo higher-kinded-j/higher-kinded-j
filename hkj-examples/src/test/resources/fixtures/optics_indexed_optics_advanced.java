@@ -7,6 +7,7 @@
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
 // (see build.gradle.kts).
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -21,7 +22,7 @@ import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.IndexedTraversals;
 
-record LineItem(String productName, int quantity, double price) {}
+record LineItem(String productName, int quantity, BigDecimal price) {}
 
 record Customer(String name, String email) {}
 
@@ -29,7 +30,7 @@ class Fixture {
 
   static final List<LineItem> items =
       List.of(
-          new LineItem("Laptop", 1, 999.99),
-          new LineItem("Mouse", 1, 24.99),
-          new LineItem("Keyboard", 1, 79.99));
+          new LineItem("Laptop", 1, new BigDecimal("999.99")),
+          new LineItem("Mouse", 1, new BigDecimal("24.99")),
+          new LineItem("Keyboard", 1, new BigDecimal("79.99")));
 }

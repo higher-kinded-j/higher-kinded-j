@@ -10,9 +10,11 @@
 
 import static java.util.stream.Collectors.toList;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.higherkindedj.hkt.Monoid;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Fold;
 import org.higherkindedj.optics.Getter;
@@ -40,7 +42,7 @@ record User(String name, boolean active, int score, SubscriptionTier tier) {
 
 @GenerateLenses
 @GenerateFolds
-record Invoice(String id, double amount, boolean overdue) {}
+record Invoice(String id, BigDecimal amount, boolean overdue) {}
 
 @GenerateLenses
 @GenerateFolds

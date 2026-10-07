@@ -96,7 +96,7 @@ Rows below and headings on the page say which, wherever it is not an error.
 
 | The message says | What it means |
 |------------------|---------------|
-| [ambiguity, or `Object` turning up in a long chain](#traverseover-and-the-higher-kinded-witness-type) | `traverseOver`'s witness type is not pinned |
+| [`List<Object> cannot be converted to`, after `traverseOver`](#traverseover-and-the-higher-kinded-witness-type) | `traverseOver`'s element type is not pinned |
 | [`Incompatible types`, after `.each().via()`](#incompatible-types-when-chaining-eachvia) | Usually one `.each()` too many |
 | [`Cannot infer type argument(s)`](#cannot-infer-type-arguments-on-an-intermediate-each) | Only the final `each()` in a chain can infer its element type |
 | [`::new` rejected as a `BiFunction`](#method-reference-new-doesnt-work-with-single-field-records-as-bifunction) | A single-component record has no two-argument constructor |
@@ -1737,9 +1737,9 @@ interface Orders {
 
 ### `traverseOver` and the higher-kinded witness type
 
-`traverseOver` is generic in the higher-kinded witness type.
+`traverseOver` takes its witness type from the `Traverse` argument, but its element type only from where the result goes. In a chain such as `.traverseOver(...).getAll(user)`, the element type falls back to `Object`, and javac reports `incompatible types: List<Object> cannot be converted to List<Role>`.
 
-**Fix.** State the type parameters explicitly when the witness is not obvious from context:
+**Fix.** Assign the result to a declared `TraversalPath`, or state both type parameters where the call sits in a chain:
 
 <!-- verify -->
 ```java
@@ -1748,7 +1748,7 @@ TraversalPath<User, Role> allRoles =
 ```
 
 ~~~admonish note title="Why" collapsible=true
-This is the same phantom-type-parameter family as [Effect §1](../effect/compiler_errors.md#1-the-phantom-error-type-e-on-pathright): on the supported compiler `javac` usually resolves the witness from context rather than emitting a hard `cannot infer type arguments` error. The reliable failure mode is not a guaranteed compile error but *ambiguity* in long Focus chains, where the witness should be stated explicitly for clarity and to avoid `Object` leaking in.
+The element type appears only in the return type, so Java can infer it only from a target type, such as the variable the result is assigned to. The phantom error type in [Effect §1](../effect/compiler_errors.md#1-the-phantom-error-type-e-on-pathright) is inferred the same way. The receiver of a further method call is not a target, so the element type takes its bound, `Object`. The witness is never the problem, since the `Traverse<F>` argument fixes it. [Focus DSL Reference](focus_reference.md#object-turns-up-after-traverseover) shows the failing chain beside both fixes.
 ~~~
 
 ### "Incompatible types when chaining .each().via()"

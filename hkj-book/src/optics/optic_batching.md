@@ -89,23 +89,8 @@ flowchart TD
 
 Everything else on this page is a variation on those three pieces.
 
-<!-- verify -->
-```java
-// 1. The optic describes the shape (a list-traversal here).
-Traversal<List<Integer>, Integer> ids = FocusPaths.listElements();
-
-// 2. The applicative is the strategy: FetchApplicative batches.
-var program = ids.modifyF(
-    id -> FETCH.widen(Fetch.<Integer, Integer>fetch(id)),
-    List.of(1, 2, 3, 4, 5),
-    FetchApplicative.<Integer, Integer>instance());
-
-// 3. The runner hands a whole round's keyset to the resolver in one call.
-Fetch.RunResult<Integer, List<Integer>> result =
-    Fetch.runCached(FETCH.narrow(program), backend::loadAll);
-
-assertThat(result.rounds()).isEqualTo(1);          // one round
-assertThat(result.backendCalls()).isEqualTo(1);    // one batched call
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/batching/BatchingBook.java:pipeline}}
 ```
 
 The trick is in step 2. `FetchApplicative.ap` merges the pending request sets of its two independent arguments. The optic walks the foci, applicative composition stacks them up, and the runner sees a single keyset by the time the dust settles.
@@ -149,19 +134,10 @@ The reader is the list-shaped field. The rebuilder reassembles the parent around
 
 Real rounds are not tidy. You ask for a list of identifiers, and half of them are user ids and half are product skus, served by two different services. The naive shape is a switch statement inside the loader; the result is per-key calls again.
 
-`SourceRouter.routed` composes per-source `BatchLoader`s with a classifier into one loader the runner can call. Each backend sees its own keys; the round is still one round; the per-source dispatches run concurrently:
+`SourceRouter.routed` composes per-source `BatchLoader`s with a classifier into one loader the runner can call. Each backend sees its own keys, and the round is still one round. Each source's dispatch starts before any is awaited, so asynchronous loaders overlap:
 
-```java
-BatchLoader<String, String> users    = /* user-directory loader   */;
-BatchLoader<String, String> products = /* product-catalog loader  */;
-
-BatchLoader<String, String> routed =
-    SourceRouter.routed(
-        key -> key.startsWith("u:") ? "users" : "products",
-        Map.of("users", users, "products", products));
-
-Fetch.RunResult<String, List<String>> result =
-    Fetch.runAsync(FETCH.narrow(program), routed, new ConcurrentHashMap<>()).get();
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/batching/BatchingBook.java:routed}}
 ```
 
 `BatchLoaders.chunked(loader, maxSize)` caps a single dispatch's size if a downstream backend enforces a per-request limit (an `$in` clause cap, an HTTP query-string ceiling, a GraphQL batch limit). The substrate still sees one round; the loader splits the keyset into chunks behind the curtain.
@@ -180,15 +156,8 @@ Either<Throwable, Fetch.RunResult<UserId, User>> outcome =
 
 When a backend can report per-key failure without poisoning the whole round, the value type is `Either<E, V>` and `SafeFetch.partition` splits the result into successes and failures:
 
-```java
-Function<Set<UserId>, Map<UserId, Either<String, User>>> partial = /* per-key Either */;
-
-Fetch.RunResult<UserId, List<Either<String, User>>> result =
-    Fetch.runCached(FETCH.narrow(program), partial);
-
-SafeFetch.Partitioned<String, User> split = SafeFetch.partition(result.value());
-split.successes(); // List<User>
-split.failures();  // List<String>
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/batching/BatchingBook.java:partition}}
 ```
 
 A backend that returns no entry for a requested key is surfaced as `MissingKeyException`. This is on purpose: a silent `null` in the result list would be a worse signal than a typed failure.
