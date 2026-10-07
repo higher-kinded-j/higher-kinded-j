@@ -330,7 +330,11 @@ public final class VStreamReactive {
             } catch (Throwable t) {
               if (cancelled.compareAndSet(false, true)) {
                 Closing.runAfterFailure(closeRemaining(), t);
+                Closing.closeMarkedRest(t);
                 subscriber.onError(t);
+              } else {
+                // A cancel closes the stream, but not the rest a failed mapTask task carries
+                Closing.closeMarkedRest(t);
               }
             } finally {
               reading.unlock();

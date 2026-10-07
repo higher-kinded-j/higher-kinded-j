@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vstream;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -314,7 +315,8 @@ public final class VStreamPar {
    *
    * <p>If the background thread is interrupted during {@code scope.join()}, the interrupt flag is
    * restored and the scope is closed via try-with-resources, which stops every subtask. Only then
-   * are the sources that did not finish closed, so no subtask is still reading one.
+   * are the sources that did not finish closed, with the rest of a source that a failed {@link
+   * VStream#mapTask} task carries, so no subtask is still reading one.
    */
   @SuppressWarnings("preview")
   // Package-private for testing (allows direct invocation from same-package tests)
@@ -324,17 +326,18 @@ public final class VStreamPar {
       AtomicBoolean cancelled) {
     AtomicReferenceArray<@Nullable VStream<A>> positions =
         new AtomicReferenceArray<>(streams.size());
+    Queue<VStream<?>> carried = new ConcurrentLinkedQueue<>();
     try (var scope = StructuredTaskScope.open()) {
       for (int i = 0; i < streams.size(); i++) {
         int index = i;
         positions.set(index, streams.get(index));
-        scope.fork(() -> consumeSource(index, positions, queue, cancelled));
+        scope.fork(() -> consumeSource(index, positions, carried, queue, cancelled));
       }
       scope.join();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } finally {
-      closeUnfinished(positions);
+      closeUnfinished(positions, carried);
     }
   }
 
@@ -344,12 +347,15 @@ public final class VStreamPar {
    *
    * <p>On error, the first failure sets the {@code cancelled} flag and pushes a {@link
    * MergeSignal.SourceError} so that the consumer fails fast. Subsequent source errors are
-   * discarded (only the first is reported).
+   * discarded (only the first is reported). The rest of the source that a failed {@link
+   * VStream#mapTask} task carries goes to {@code carried}, to be closed with the source, since a
+   * discarded failure reaches no one else.
    */
   @SuppressWarnings("preview")
   private static <A> Void consumeSource(
       int index,
       AtomicReferenceArray<@Nullable VStream<A>> positions,
+      Queue<VStream<?>> carried,
       LinkedBlockingQueue<MergeSignal<A>> queue,
       AtomicBoolean cancelled) {
     try {
@@ -374,6 +380,10 @@ public final class VStreamPar {
       Thread.currentThread().interrupt();
       return null;
     } catch (Throwable t) {
+      VStream<?> rest = Closing.markedRest(t);
+      if (rest != null) {
+        carried.add(rest);
+      }
       if (!cancelled.getAndSet(true)) {
         // offer() is non-blocking on an unbounded LinkedBlockingQueue, so it always succeeds
         // and cannot throw InterruptedException (unlike put()).
@@ -384,19 +394,22 @@ public final class VStreamPar {
   }
 
   /**
-   * Closes the sources this merge stopped reading before they finished, so their finalisers run.
-   * They close on a thread of their own, which nothing interrupts, so a finaliser that waits is not
-   * cut short when the merge is closed. A failure to close is dropped: the merge has already
-   * stopped, or reported the failure that stopped it.
+   * Closes the sources this merge stopped reading before they finished, then the rests that failed
+   * {@link VStream#mapTask} tasks carry, so their finalisers run. They close on a thread of their
+   * own, which nothing interrupts, so a finaliser that waits is not cut short when the merge is
+   * closed. A failure to close is dropped: the merge has already stopped, or reported the failure
+   * that stopped it.
    */
-  private static <A> void closeUnfinished(AtomicReferenceArray<@Nullable VStream<A>> positions) {
-    List<VStream<?>> unfinished = new ArrayList<>(positions.length());
+  private static <A> void closeUnfinished(
+      AtomicReferenceArray<@Nullable VStream<A>> positions, Queue<VStream<?>> carried) {
+    List<VStream<?>> unfinished = new ArrayList<>(positions.length() + carried.size());
     for (int i = 0; i < positions.length(); i++) {
       VStream<A> position = positions.get(i);
       if (position != null) {
         unfinished.add(position);
       }
     }
+    unfinished.addAll(carried);
     if (unfinished.isEmpty()) {
       return;
     }

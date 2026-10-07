@@ -108,6 +108,32 @@ public interface VStream<A> extends VStreamKind<A> {
     return VTask.succeed(Unit.INSTANCE);
   }
 
+  /**
+   * Closes a stream whose pull failed, together with the rest of the stream the failure carries, so
+   * their finalisers run. A {@link #mapTask} task that fails keeps the rest of the stream after its
+   * element on the failure, for {@link #recover} to resume from, and closing the stream that was
+   * pulled may not reach it: a {@link #defer} stream keeps nothing it builds. Terminal operations
+   * close both themselves; use this where code that pulls a stream step by step stops at a failed
+   * pull.
+   *
+   * <p>If closing fails, the returned task fails with the first failure to close, with later ones
+   * suppressed onto it. The pull's failure is left as it is.
+   *
+   * @param stream The stream whose pull failed. Must not be null.
+   * @param failure What the pull failed with, as {@link VTask#run()} or {@link VTask#execute()}
+   *     threw it. Must not be null.
+   * @return A {@link VTask} that closes the stream, then the rest the failure carries. Never null.
+   * @throws NullPointerException if {@code stream} or {@code failure} is null.
+   */
+  static VTask<Unit> closeAfterFailure(VStream<?> stream, Throwable failure) {
+    Objects.requireNonNull(stream, "stream must not be null");
+    Objects.requireNonNull(failure, "failure must not be null");
+    return () -> {
+      VStream<?> rest = Closing.markedRest(failure);
+      return (rest == null ? stream.close() : Closing.closeAll(stream, rest)).execute();
+    };
+  }
+
   // =====================================================================
   // Step sealed type
   // =====================================================================

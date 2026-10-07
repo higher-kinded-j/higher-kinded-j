@@ -181,7 +181,9 @@ VStreamPath<String> withCleanup = lines.onFinalize(
 ~~~admonish warning title="Abandoned Streams"
 A finaliser runs when its stream completes, fails or is closed. If you pull steps by hand and
 drop the tail without draining it or calling `close()`, the finaliser never runs. Every terminal
-operation, `take` and `takeWhile` handle this for you. Closing a `bracket` head closes only its
+operation, `take` and `takeWhile` handle this for you. When a pull you make by hand fails, close
+the stream with `VStream.closeAfterFailure(stream, failure)`, which also closes the rest of the
+stream that a failed `mapTask` task carries. Closing a `bracket` head closes only its
 latest run, so if you run its pulled `VTask` more than once, close the tail of each run.
 ~~~
 

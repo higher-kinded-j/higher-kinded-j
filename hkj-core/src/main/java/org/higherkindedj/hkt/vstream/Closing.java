@@ -8,6 +8,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.vtask.VTask;
+import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -60,10 +61,15 @@ final class Closing {
 
   /**
    * The rest of the stream a {@link VStream#mapTask} failure carries, from which {@link
-   * VStream#recover} resumes, or null if the failure carries none.
+   * VStream#recover} resumes, or null if the failure carries none. A checked failure carries it
+   * inside the {@link VTaskExecutionException} that {@link VTask#run()} wraps it in.
    */
   static @Nullable VStream<?> markedRest(Throwable failure) {
-    for (Throwable suppressed : failure.getSuppressed()) {
+    Throwable marked =
+        failure instanceof VTaskExecutionException
+            ? Objects.requireNonNullElse(failure.getCause(), failure)
+            : failure;
+    for (Throwable suppressed : marked.getSuppressed()) {
       if (suppressed instanceof StreamTailMarker marker) {
         return marker.remainingTail();
       }

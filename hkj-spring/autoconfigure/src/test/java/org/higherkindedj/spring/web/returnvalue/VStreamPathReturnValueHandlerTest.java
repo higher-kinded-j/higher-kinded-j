@@ -125,6 +125,22 @@ class VStreamPathReturnValueHandlerTest {
                 assertThat(mockResponse.getContentAsString()).doesNotContain("event:");
               });
     }
+
+    @Test
+    @DisplayName("A first pull failing in a mapTask task closes the rest that failure carries")
+    void failedFirstTaskClosesTheRestItCarries() throws Exception {
+      AtomicBoolean finalised = new AtomicBoolean(false);
+      // A deferred stream keeps nothing it builds, so only the failure reaches the source
+      VStreamPath<Integer> path =
+          Path.vstream(
+              VStream.defer(
+                      () -> VStream.of(1, 2).onFinalize(VTask.exec(() -> finalised.set(true))))
+                  .mapTask(n -> VTask.<Integer>fail(new IllegalStateException("task failed"))));
+
+      handler.handleReturnValue(path, returnType, mavContainer, webRequest);
+
+      await().atMost(Duration.ofSeconds(2)).untilTrue(finalised);
+    }
   }
 
   @Nested

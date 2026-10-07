@@ -763,6 +763,72 @@ class VStreamCloseAndReplayTest {
   }
 
   @Nested
+  @DisplayName("closeAfterFailure closes a stream whose pull failed")
+  class CloseAfterFailure {
+
+    @Test
+    @DisplayName(
+        "it closes the rest a failed mapTask task carries, which closing the stream misses")
+    void closesTheCarriedRest() {
+      AtomicInteger runs = new AtomicInteger();
+      VStream<Integer> stream = pullFailingAt(1, deferredFinalised(runs));
+      Throwable failure = catchThrowable(() -> stream.pull().run());
+
+      stream.close().run();
+      assertThat(runs).as("runs once the pulled stream is closed").hasValue(0);
+      VStream.closeAfterFailure(stream, failure).run();
+
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("it closes the stream alone when the failure carries nothing")
+    void closesTheStreamAlone() {
+      List<String> closed = new ArrayList<>();
+
+      VStream.closeAfterFailure(closedAs("stream", closed), new IllegalStateException("failed"))
+          .run();
+
+      assertThat(closed).containsExactly("stream");
+    }
+
+    @Test
+    @DisplayName("a failure to close fails the task, and leaves the pull's failure as it is")
+    void closeFailureFailsTheTask() {
+      IllegalStateException failure = new IllegalStateException("pull failed");
+      VStream<Integer> stream =
+          new VStream<>() {
+            @Override
+            public VTask<VStream.Step<Integer>> pull() {
+              return VTask.succeed(new VStream.Step.Done<>());
+            }
+
+            @Override
+            public VTask<Unit> close() {
+              return failing("close failed");
+            }
+          };
+
+      assertThatThrownBy(() -> VStream.closeAfterFailure(stream, failure).run())
+          .hasMessage("close failed");
+      assertThat(failure.getSuppressed()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("it rejects a null stream or failure")
+    void rejectsNulls() {
+      IllegalStateException failure = new IllegalStateException("failed");
+
+      assertThatThrownBy(() -> VStream.closeAfterFailure(null, failure))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("stream must not be null");
+      assertThatThrownBy(() -> VStream.closeAfterFailure(VStream.empty(), null))
+          .isInstanceOf(NullPointerException.class)
+          .hasMessage("failure must not be null");
+    }
+  }
+
+  @Nested
   @DisplayName("An operator whose function throws closes the rest of the stream")
   class UserFunctionFailureCloses {
 
@@ -853,6 +919,21 @@ class VStreamCloseAndReplayTest {
       VStream<Integer> stream = pullFailingAt(1, deferredFinalised(runs));
 
       assertThatThrownBy(() -> stream.toList().run()).hasMessage("pull failed");
+      assertThat(runs).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a mapTask task failing with a checked exception closes the rest it carries")
+    void checkedFailureClosesCarriedRest() {
+      AtomicInteger runs = new AtomicInteger();
+
+      // run() wraps the checked failure, which is the one carrying the rest
+      VStream<Integer> stream =
+          deferredFinalised(runs).mapTask(x -> VTask.fail(new IOException("pull failed")));
+
+      assertThatThrownBy(() -> stream.toList().run())
+          .isInstanceOf(VTaskExecutionException.class)
+          .hasCauseInstanceOf(IOException.class);
       assertThat(runs).hasValue(1);
     }
 
@@ -1350,6 +1431,32 @@ class VStreamCloseAndReplayTest {
       assertThatThrownBy(() -> merged.toList().run()).hasMessage("source failed");
       assertThat(quietClosed.await(5, TimeUnit.SECONDS)).isTrue();
     }
+
+    @Test
+    @DisplayName("each source's failed mapTask task has its rest closed, the discarded one too")
+    void failedSourceTasksCloseCarriedRests() {
+      AtomicInteger first = new AtomicInteger();
+      AtomicInteger second = new AtomicInteger();
+      // Both tasks fail together, so merge reports one failure and discards the other
+      CountDownLatch bothRunning = new CountDownLatch(2);
+      Function<Integer, VTask<Integer>> failTogether =
+          x ->
+              VTask.of(
+                  () -> {
+                    bothRunning.countDown();
+                    bothRunning.await(5, TimeUnit.SECONDS);
+                    throw new IllegalStateException("pull failed");
+                  });
+
+      VStream<Integer> merged =
+          VStreamPar.merge(
+              deferredFinalised(first).mapTask(failTogether),
+              deferredFinalised(second).mapTask(failTogether));
+
+      assertThatThrownBy(() -> merged.toList().run()).hasMessage("pull failed");
+      assertThat(first).hasValue(1);
+      assertThat(second).hasValue(1);
+    }
   }
 
   @Nested
@@ -1396,6 +1503,69 @@ class VStreamCloseAndReplayTest {
       CountDownLatch errored = new CountDownLatch(1);
 
       VStreamReactive.toPublisher(failingAtFirst(finalised(runs)))
+          .subscribe(
+              subscriber(
+                  4,
+                  _ -> {},
+                  _ -> {
+                    runsAtError.set(runs.get());
+                    errored.countDown();
+                  }));
+
+      assertThat(errored.await(5, TimeUnit.SECONDS)).isTrue();
+      assertThat(runsAtError).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("a mapTask task failing as the subscription is cancelled has its rest closed")
+    void taskFailingWhileCancellingClosesCarriedRest() {
+      AtomicInteger runs = new AtomicInteger();
+      AtomicReference<Flow.Subscription> held = new AtomicReference<>();
+      List<Throwable> errors = new CopyOnWriteArrayList<>();
+      // The cancel closes the stream, which reaches nothing past the deferred head
+      VStream<Integer> stream =
+          deferredFinalised(runs)
+              .mapTask(
+                  x ->
+                      VTask.of(
+                          () -> {
+                            held.get().cancel();
+                            throw new IllegalStateException("pull failed");
+                          }));
+
+      VStreamReactive.toPublisher(stream)
+          .subscribe(
+              new Flow.Subscriber<Integer>() {
+                @Override
+                public void onSubscribe(Flow.Subscription subscription) {
+                  held.set(subscription);
+                  subscription.request(1);
+                }
+
+                @Override
+                public void onNext(Integer item) {}
+
+                @Override
+                public void onError(Throwable throwable) {
+                  errors.add(throwable);
+                }
+
+                @Override
+                public void onComplete() {}
+              });
+
+      await().atMost(Duration.ofSeconds(5)).until(() -> runs.get() == 1);
+      assertThat(errors).as("a cancelled subscriber hears of no failure").isEmpty();
+    }
+
+    @Test
+    @DisplayName("a failed mapTask task has the rest it carries closed before onError")
+    void failedTaskClosesCarriedRestBeforeOnError() throws InterruptedException {
+      AtomicInteger runs = new AtomicInteger();
+      AtomicInteger runsAtError = new AtomicInteger(-1);
+      CountDownLatch errored = new CountDownLatch(1);
+
+      VStreamReactive.toPublisher(pullFailingAt(1, deferredFinalised(runs)))
           .subscribe(
               subscriber(
                   4,

@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.VStreamPath;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -187,6 +188,9 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
               // The rest of the stream not yet read, closed on the way out so a timeout, an abort,
               // a disconnect or a failure still runs its finalisers. Empty once the stream ends.
               AtomicReference<VStream<?>> unread = new AtomicReference<>(VStream.empty());
+              // What stopped the stream, which may carry the rest of it that a failed mapTask task
+              // keeps, for closing with unread
+              Exception failure = null;
               boolean owned = false;
               boolean committed = false;
               try {
@@ -275,6 +279,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                 }
                 deferredResult.setResult(null);
               } catch (Exception e) {
+                failure = e;
                 log.error("VStreamPath streaming failed", e);
                 if (metricsService != null) {
                   metricsService.recordVStreamError(e.getClass().getSimpleName());
@@ -299,7 +304,11 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                   deferredResult.setErrorResult(e);
                 }
               } finally {
-                if (unread.get().close().runSafe() instanceof Try.Failure<Unit>(Throwable cause)) {
+                VTask<Unit> closing =
+                    failure == null
+                        ? unread.get().close()
+                        : VStream.closeAfterFailure(unread.get(), failure);
+                if (closing.runSafe() instanceof Try.Failure<Unit>(Throwable cause)) {
                   // The response is already settled, so there is no one else to tell
                   log.warn("Failed to close the streamed VStream", cause);
                 }
