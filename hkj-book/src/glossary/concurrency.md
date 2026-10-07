@@ -112,6 +112,7 @@ VTask<Result> result = connResource.use(conn ->
 | `and(other)` | Combine two resources (releases in LIFO order) |
 | `and(r2, r3)` | Combine three resources |
 | `withFinalizer(action)` | Add cleanup that runs after release |
+| `onFailure(action)` | Add cleanup that runs before release when the use fails |
 
 **Example:**
 <!-- verify -->

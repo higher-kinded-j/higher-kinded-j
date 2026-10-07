@@ -282,7 +282,7 @@ public class VTaskResourceExample {
 
     VTask<String> task = conn.use(c -> VTask.succeed("Used " + c.id));
     task.runSafe();
-    System.out.println("(Finalisers run in reverse order of addition)\n");
+    System.out.println("(Finalisers run in the order they were added)\n");
   }
 
   // ============================================================
