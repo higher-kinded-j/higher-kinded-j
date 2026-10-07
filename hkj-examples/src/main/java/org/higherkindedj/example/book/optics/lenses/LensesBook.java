@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.optics.lenses;
 
+import java.util.Locale;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 
@@ -27,7 +28,32 @@ public final class LensesBook {
     // ANCHOR_END: cascade
     return moved;
   }
+
+  // ANCHOR: boundary_fix
+  // The boundary normalises what comes in, and the record keeps what it is given
+  static ContactEmail fromRequest(String raw) {
+    return new ContactEmail(raw.strip().toLowerCase(Locale.ROOT));
+  }
+
+  // ANCHOR_END: boundary_fix
 }
+
+// ANCHOR: normalised_email
+// The record behind the page's ticket: its constructor lowercases every address
+@GenerateLenses
+record NormalisedEmail(String value) {
+  NormalisedEmail {
+    value = value.toLowerCase(Locale.ROOT);
+  }
+}
+
+// ANCHOR_END: normalised_email
+
+// ANCHOR: contact_email
+@GenerateLenses
+record ContactEmail(String value) {}
+
+// ANCHOR_END: contact_email
 
 // Each record carries the instance withers Lombok's @With generates for it, written out by hand.
 // Lombok's also return `this` when the new value is the one already held, which no claim here

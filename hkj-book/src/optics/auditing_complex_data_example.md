@@ -468,7 +468,7 @@ public static AuditReport generateAuditReport(List<AppConfig> configs, String au
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Composing Optics](composing_optics.md): the same four-optic composition, used for validation instead of reporting
+- [Deep Validation with `modifyF`](composing_optics.md): the same four-optic composition, used for validation instead of reporting
 - [Filtered Optics](filtered_optics.md): the predicate narrowing this example depends on
 - [Folds](folds.md): the read-only optic to reach for when nothing will be written
 ~~~

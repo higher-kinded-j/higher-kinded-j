@@ -327,7 +327,7 @@ public class Tutorial10_AdvancedPrismPatterns_Solution {
         Lens.of(ResponseData::content, (rd, content) -> new ResponseData(content, rd.size()));
 
     // SOLUTION: Chain compositions
-    // Prism + Lens = Traversal, then use lens.asTraversal() for the next lens
+    // Prism + Lens = Affine; lifting the next lens with asTraversal() makes the result a Traversal
     Traversal<ApiResponse, String> contentTraversal =
         successPrism.andThen(dataLens).andThen(contentLens.asTraversal());
 

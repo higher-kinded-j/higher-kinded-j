@@ -890,7 +890,7 @@ Inventory cleared = allProducts.modifyWhen(
 ```
 
 ~~~admonish tip title="See Also"
-- [Composing Optics](composing_optics.md): the capstone these recipes are miniatures of
+- [Deep Validation with `modifyF`](composing_optics.md): the longer example these recipes are miniatures of
 - [Optics Extensions](optics_extensions.md): the validated variants of the operations used here
 - [Focus DSL](focus_dsl.md): the fluent path syntax several recipes use
 ~~~

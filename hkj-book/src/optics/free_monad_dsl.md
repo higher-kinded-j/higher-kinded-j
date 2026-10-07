@@ -693,7 +693,7 @@ Practise the Free Monad DSL in [Tutorial 11: Advanced Optics DSL](https://github
 ~~~admonish tip title="See Also"
 - [Interpreters](interpreters.md): the execution strategies these programs are handed to
 - [Updates That Can Fail](fluent_api.md): the direct-execution counterpart through `OpticOps`, when a description buys you nothing
-- [Composing Optics](composing_optics.md): the optics these programs navigate with
+- [Optic Composition Rules](composition_rules.md): what each composed optic these programs navigate with can do
 ~~~
 
 ~~~admonish tip title="Further Reading"

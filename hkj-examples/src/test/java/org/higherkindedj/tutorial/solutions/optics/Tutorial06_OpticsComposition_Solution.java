@@ -484,7 +484,7 @@ public class Tutorial06_OpticsComposition_Solution {
     // 1. User -> city (Lens + Lens = Lens)
     Lens<User, String> userToCity = userToAddress.andThen(addressToCity);
 
-    // 2. User -> email address (Lens + Prism + Lens = Traversal)
+    // 2. User -> email address (Lens + Prism + Lens = Affine; lift the last step for a Traversal)
     // Note: After Lens.andThen(Prism) we have an Affine; lifting the lens makes the result a
     // Traversal
     Traversal<User, String> userToEmailAddress =
@@ -508,8 +508,8 @@ public class Tutorial06_OpticsComposition_Solution {
    *
    * <ul>
    *   <li>How Lens + Lens = Lens (guaranteed paths compose to guaranteed path)
-   *   <li>How Lens + Prism = Traversal (adding optionality gives zero-or-one focus)
-   *   <li>How Prism + Lens = Traversal (same reasoning - Prism adds optionality)
+   *   <li>How Lens + Prism = Affine (adding optionality gives zero-or-one focus)
+   *   <li>How Prism + Lens = Affine (same reasoning - Prism adds optionality)
    *   <li>How to compose Lens + Traversal for bulk operations
    *   <li>How to chain complex compositions
    *   <li>How to build reusable optic pipelines

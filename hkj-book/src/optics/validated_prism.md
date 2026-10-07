@@ -187,4 +187,4 @@ Practise the boundary in [Tutorial 25: ValidatedPrism](https://github.com/higher
 ---
 
 **Previous:** [Validation, Batching and Auditing](ch5_intro.md)
-**Next:** [Composing Optics](composing_optics.md)
+**Next:** [Deep Validation with modifyF](composing_optics.md)

@@ -100,7 +100,7 @@ var withLens = userToStreetName.set("New St", user);
 
 **Real-world application**: Updating deeply nested JSON, modifying complex domain models, configuration tree manipulation.
 
-**Links to documentation**: [Composing Optics](../../optics/composing_optics.md)
+**Links to documentation**: [Optic Composition Rules](../../optics/composition_rules.md)
 
 [Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial02_LensComposition.java)
 

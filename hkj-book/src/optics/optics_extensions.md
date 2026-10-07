@@ -510,7 +510,7 @@ Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
 ~~~admonish tip title="See Also"
 - [Core Type Integration](core_type_integration.md): the prisms and traversals for the `Maybe`/`Either`/`Validated`/`Try` these methods return
 - [Updates That Can Fail](fluent_api.md): the same validation strategies as `OpticOps` statics and builders
-- [Composing Optics](composing_optics.md): the capstone these operations shorten
+- [Deep Validation with `modifyF`](composing_optics.md): the longer example these operations shorten
 ~~~
 
 ---

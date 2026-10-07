@@ -18,7 +18,7 @@
 The Focus DSL is the ergonomic layer that lets us write `.focus().attributes().at(key)` from [One Line, Six Layers](../../hkts/one_line_six_layers.md) as a single fluent path. Tutorials 12-13 cover the basics; Tutorial 14 is the bridge to Effect Paths; Tutorials 15-20 cover specialised cases (list prisms, external types, VStream integration, fold combination, navigator generation, container-type navigation). Each tutorial opens with a Pain → Promise header showing the imperative-Java pattern it replaces.
 ~~~
 
-**Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md)
+**Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md), and Tutorials 05-06 of the [Traversals Journey](traversals_journey.md)
 
 ## Journey Overview
 

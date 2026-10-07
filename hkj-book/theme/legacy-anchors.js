@@ -179,6 +179,7 @@
     "optics/optics_intro.html#decision-guide": "optics/optics_intro.html#choosing-an-optic",
     "optics/optics_intro.html#common-pitfalls": "optics/fluent_api.html#pitfalls",
     "optics/fluent_api.html#the-same-four-as-builders": "optics/fluent_api.html#the-two-styles",
+    "optics/composing_optics.html#capstone-composing-optics-for-deep-validation": "optics/composing_optics.html#deep-validation-with-modifyf",
     "optics/optics_intro.html#what-are-optics": "optics/optics_intro.html#what-a-path-is-made-of",
     "optics/fluent_api.html#fluent-api-for-optics-java-friendly-optic-operations": "optics/fluent_api.html#updates-that-can-fail",
     "optics/fluent_api.html#admonition-when-modifyf-is-still-the-right-tool": "optics/fluent_api.html#part-3-arbitrary-effects-with-modifyf",

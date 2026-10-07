@@ -63,7 +63,33 @@ public record Company(String name, Address address) {}
 public record Employee(String name, Company company) {}
 ```
 
-#### Every Write Runs the Canonical Constructor
+#### Every Write Runs the Canonical Constructor {#every-write-runs-the-canonical-constructor}
+
+A ticket like this one: support changes a customer's email to `Ada@Example.com` in the admin console. The console writes the value through a lens and reads it back to confirm the save. It gets `ada@example.com` and reports the save as unconfirmed, so support retries, and each retry lands in the audit log as another change. The record's compact constructor lowercases every address it is given, `value = value.toLowerCase(Locale.ROOT)`, so the lens hands back something other than what was set. The tests never catch it: every sample address is already lowercase, so setting one and reading it back always agrees.
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/LensesBook.java:normalised_email}}
+```
+
+The fix is to normalise where a value comes in, and let the record keep what it is given:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/LensesBook.java:contact_email}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/LensesBook.java:boundary_fix}}
+```
+
+Then test the lens with a sample the old constructor would have changed. `LensLaws` passes for `ContactEmail`, and fails for `NormalisedEmail`:
+
+``` java
+{{#include ../../../hkj-examples/src/test/java/org/higherkindedj/example/book/optics/lenses/LensesBookTest.java:law_check}}
+```
+
+~~~admonish warning title="A constructor that changes a component's value breaks the lens"
+A lens must give back what you set. A compact constructor that changes a component's value, by lowercasing, trimming or rounding it, runs on every write, so the value read back is not the value set. Normalise where values come in, keep the constructor to checks that reject and copies that keep the value equal, and test the lens with `LensLaws` on a sample the change would alter.
+~~~
 
 A generated lens's `set`, and the `with*` helper built on it, copies the record through its canonical constructor: every other component as it was, and the focused one replaced. A compact constructor that normalises or checks a component, a defensive copy or a range check, therefore runs on every write.
 
@@ -222,7 +248,7 @@ Lens<Duration, Long> seconds = Lens.of(
 ```
 
 ~~~admonish warning title="A lens over derived data is usually unlawful"
-A lens must give back what you set: `get(set(a, s))` is `a`. A lens over a *computed* value rarely can. A "full address" lens that joins `street + ", " + city` and splits on `", "` to write reads back something else for a street that itself contains a comma. Nothing checks this for you, so test a hand-written lens with `LensLaws.assertLensLaws` from `hkj-test`.
+A lens must give back what you set: `get(set(a, s))` is `a`. A lens over a *computed* value rarely can. A "full address" lens that joins `street + ", " + city` and splits on `", "` to write reads back something else for a street that itself contains a comma. Nothing checks this for you, as the ticket under [Every Write Runs the Canonical Constructor](#every-write-runs-the-canonical-constructor) shows, so test a hand-written lens with `LensLaws.assertLensLaws` from `hkj-test`.
 ~~~
 
 ---

@@ -286,7 +286,7 @@ Practise the fluent API in [Tutorial 09: Fluent Optics API](https://github.com/h
 ~~~admonish tip title="See Also"
 - [Many Edits at Once](multi_edit.md): several edits, validated together, as one REST `PATCH`
 - [Validated](../monads/validated_monad.md): the accumulating type behind `modifyAllValidated`
-- [Composing Optics for Deep Validation](composing_optics.md): validating a nested structure in one pass
+- [Deep Validation with `modifyF`](composing_optics.md): validating a nested structure in one pass
 - [Free Monad DSL](free_monad_dsl.md): when the plan itself is the artefact
 ~~~
 

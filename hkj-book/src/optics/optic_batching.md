@@ -273,5 +273,5 @@ Practise the four pieces (batching, heterogeneous fetch, multi-source routing, r
 
 ---
 
-**Previous:** [Composing Optics](composing_optics.md)
+**Previous:** [Deep Validation with modifyF](composing_optics.md)
 **Next:** [Plan Introspection and Guardrails](optic_batching_guardrails.md)
