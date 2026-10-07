@@ -54,6 +54,8 @@ Order rounded =
         .allThrough(Fixture.itemPrices, price -> price.setScale(2, java.math.RoundingMode.HALF_UP));
 ```
 
+`Fixture` is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.
+
 ### Conditional Updates
 
 Read once, decide, then write. `modify` is not the tool when the *decision* depends on the value and the update targets a different field:

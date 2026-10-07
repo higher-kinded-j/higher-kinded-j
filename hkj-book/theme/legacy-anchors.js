@@ -160,7 +160,12 @@
     "optics/ch5_intro.html#chapter-contents": "optics/ch5_intro.html#pages-in-this-group",
     "optics/ch6_intro.html#chapter-contents": "optics/ch6_intro.html#pages-in-this-group",
     "optics/ch6_intro.html#which-interpreter-do-you-need": "optics/decision_trees.html#tree-4-which-interpreter",
-    "optics/ch7_intro.html#chapter-contents": "optics/ch7_intro.html#look-it-up"
+    "optics/ch7_intro.html#chapter-contents": "optics/ch7_intro.html#look-it-up",
+    "optics/focus_dsl.html#the-problem-verbose-manual-composition": "optics/focus_dsl.html#chain-with-via",
+    "optics/quickstart.html#1-from-cascade-to-one-liner": "optics/quickstart.html#1-annotate-then-update",
+    "optics/focus_dsl.html#think-of-focus-paths-like": "optics/focus_dsl.html#the-whole-feature-on-one-screen",
+    "optics/focus_dsl.html#type-safe-navigation-through-nested-data": "optics/focus_dsl.html#the-whole-feature-on-one-screen",
+    "optics/focus_effects.html#working-with-sum-types-using-instanceof": "optics/focus_navigation.html#working-with-sum-types-using-instanceof"
   };
 
   function target() {

@@ -35,6 +35,8 @@ List<String> all = asFold.getAll(Fixture.order);
 // ["Alice"]: the same access, one conversion later
 ```
 
+`Fixture` is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.
+
 [Optic Capabilities](optic_capabilities.md) is the table of what each optic declares, and [Conversions](conversions.md) the table of how to get from one to another.
 
 ---

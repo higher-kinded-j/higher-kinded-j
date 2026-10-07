@@ -2,7 +2,7 @@
 
 _Patterns, pitfalls, generated-code settings and the questions about the Focus DSL that keep recurring._
 
-This page is the lookup shelf. The teaching lives in [Focus DSL](focus_dsl.md), [Navigation and Composition](focus_navigation.md) and [Type Class and Effect Integration](focus_effects.md); come here when you already know the shape of what you want.
+This page is the lookup shelf. The teaching lives in [Focus DSL](focus_dsl.md), [Collections, Optionals and Sealed Types](focus_navigation.md) and [Type Class and Effect Integration](focus_effects.md); come here when you already know the shape of what you want.
 
 ---
 
@@ -87,6 +87,8 @@ Validated<List<String>, Company> checked =
         Fixture::validateAge);
 // Invalid(["Invalid age: 17"]) for the fixture above
 ```
+
+`Fixture` is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.
 
 ---
 

@@ -27,6 +27,8 @@ Team levelled =
         .modifyAll(Fixture::improve, team);
 ```
 
+`Fixture` is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.
+
 ---
 
 ## The Problem It Removes

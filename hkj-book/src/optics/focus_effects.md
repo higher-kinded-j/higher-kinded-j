@@ -4,7 +4,7 @@
 - Effectful modification with `modifyF()` using an `Applicative` or `Monad` instance
 - Monoid-based aggregation with `foldMap()` on traversal paths
 - Generic collection traversal with `traverseOver()` for `Kind<F, A>` fields
-- Conditional modification with `modifyWhen()` and sum type access with `instanceOf()`
+- Conditional modification with `modifyWhen()`
 - Path debugging with `traced()`
 - Bridging between Focus paths and Effect paths in both directions
 ~~~
@@ -13,7 +13,7 @@
 [TraverseIntegrationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/TraverseIntegrationExample.java) | [ValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ValidationPipelineExample.java)
 ~~~
 
-The examples here use a flatter model than the previous pages: an `Agency` holding its `Employee`s directly. Two sections need shapes an `Agency` does not have and name their own: a `RoleBox` holding a `Kind<ListKind.Witness, Role>`, and a `Drawing` holding a sealed `Shape` that permits `Circle` and `Square`.
+The examples here use a flatter model than the previous pages: an `Agency` holding its `Employee`s directly. One section needs a shape an `Agency` does not have and names its own: a `RoleBox` holding a `Kind<ListKind.Witness, Role>`. One variant of a sealed type is on [Collections, Optionals and Sealed Types](focus_navigation.md#working-with-sum-types-using-instanceof).
 
 An ordinary `modify` takes `A -> A`. Once the transformation can fail, accumulate errors, or reach out to the network, it returns `A` wrapped in an effect, and the update has to thread that effect back out through the structure. That is what this page is about: the same paths, with effects along for the ride.
 
@@ -56,6 +56,8 @@ Kind<ValidatedKind.Witness<List<String>>, Agency> result =
 Validated<List<String>, Agency> validated = VALIDATED.narrow(result);
 // Valid(agency) when every address holds; Invalid([...]) listing every one that does not
 ```
+
+`Fixture` is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.
 
 ---
 
@@ -123,24 +125,6 @@ Agency afterRise =
 ```
 
 It is `filter(...).modifyAll(...)` with one fewer intermediate, and it reads as the business rule it encodes.
-
----
-
-## Working with Sum Types using `instanceOf()`
-
-`AffinePath.instanceOf(Class)` focuses one variant of a sealed hierarchy, matching when the runtime type fits and doing nothing when it does not:
-
-<!-- verify -->
-```java
-// Only the circles, and only their radii
-TraversalPath<Drawing, Double> circleRadii =
-    DrawingFocus.shapes().via(AffinePath.instanceOf(Circle.class)).via(CircleFocus.radius());
-
-List<Double> radii = circleRadii.getAll(drawing);          // the squares are skipped
-Drawing doubled = circleRadii.modifyAll(r -> r * 2, drawing);
-```
-
-For a sealed interface you own, `@GeneratePrisms` gives the same access with a name per variant; `instanceOf` is the answer when the hierarchy is someone else's.
 
 ---
 
@@ -284,7 +268,6 @@ EitherPath<String, Integer> salary =
 * **`modifyF` is the effectful `modify`.** The instance you pass picks the effect; the path is unchanged. Widen going in, narrow coming out.
 * **`foldMap` turns a traversal into a query.** Any `Monoid` will do, so sums, joins and set unions are the same call.
 * **`traverseOver` is `each` for `Kind<F, A>`.** Explicit type witnesses are required, because inference cannot recover `F` from the `Traverse` argument.
-* **`instanceOf` reaches into sealed hierarchies you do not own.** For your own sealed types, `@GeneratePrisms` names the variants.
 * **The bridge runs both ways, and the effect sets the toll.** `toMaybePath`/`toEitherPath`/`toTryPath` move optics results into an effect; `focus()` moves optic navigation inside one. In either direction an `AffinePath` meeting a failure-carrying effect must name the absent case, while `Maybe` and `Optional` take absence as it comes.
 ~~~
 

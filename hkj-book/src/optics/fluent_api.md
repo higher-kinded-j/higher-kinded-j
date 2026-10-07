@@ -24,6 +24,8 @@ Validated<List<String>, Order> checked =
 // Invalid(["Price cannot be negative: -10.00", "Price exceeds maximum: 15000.00"])
 ```
 
+`Fixture` is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.
+
 One call, both bad prices named. No `Applicative` wiring, no `Kind` in sight.
 
 ---

@@ -1,164 +1,113 @@
 # Focus DSL: Path-Based Optic Syntax
 
-## _Type-Safe Navigation Through Nested Data_
+_Navigate and update nested records through generated, compile-checked paths that mirror the shape of your data._
 
 ~~~admonish info title="What You'll Learn"
-- How to navigate deeply nested data structures with type-safe paths
-- Using `@GenerateFocus` to generate path builders automatically
-- The difference between `FocusPath`, `AffinePath`, and `TraversalPath`, and which one a field gives you
-- Fluent cross-type navigation with generated navigators, and where `.via()` takes over
-- Where to go next for collections, effects, container types, and the reference material
+- Read, set and modify a field anywhere in your records through a generated path
+- Predict the path type a field gives you, and spell the next hop
+- Compose paths with `.via()` where a navigator does not reach
+- Hand a path's optic to an API that takes a raw optic
 ~~~
 
 ~~~admonish example title="See Example Code"
-[NavigatorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/NavigatorExample.java) | [ContainerNavigationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ContainerNavigationExample.java) | [TraverseIntegrationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/TraverseIntegrationExample.java) | [ValidationPipelineExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ValidationPipelineExample.java)
+**The code on this page is [FocusDslBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java) and its [FocusDslBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/optics/focus/FocusDslBookTest.java)**: the page includes them, so the build compiles and runs them.
+
+For longer programs in the same style, see [NavigatorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/NavigatorExample.java) and [ContainerNavigationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ContainerNavigationExample.java).
 ~~~
 
-The Focus DSL provides a fluent, path-based syntax for working with optics. Instead of composing lenses, prisms, and traversals by hand, you navigate your data structures with method chains that mirror the shape of the data.
+A Focus path does for your records what the JPA metamodel or QueryDSL's Q-types do for a query, and it writes as well as reads. `UserFocus.address().city()` names a field the way `QUser.user.address.city` does, and the compiler checks every step. Instead of composing lenses, prisms and traversals by hand, you navigate your data with method chains that mirror its shape.
 
 ---
 
-## The Whole Feature on One Screen
-
-If you only have a few minutes, this is the entire feature.
+## The whole feature on one screen {#the-whole-feature-on-one-screen}
 
 **Step 1.** Annotate two records:
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.annotations.GenerateFocus;
-
-@GenerateFocus(generateNavigators = true)
-record Address(String street, String city) {}
-
-@GenerateFocus(generateNavigators = true)
-record User(String name, Address address) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:first_records}}
 ```
 
 **Step 2.** Use the generated `UserFocus` companion class:
 
-<!-- verify -->
-```java
-// Get
-String city = UserFocus.address().city().get(alice);              // "London"
-
-// Set
-User moved = UserFocus.address().city().set("Paris", alice);
-
-// Modify
-User shouty = UserFocus.address().city().modify(String::toUpperCase, alice);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:first_use}}
 ```
 
 **Step 3.** That is it. The path you typed (`UserFocus.address().city()`) is a typed value: store it, pass it around, reuse it. The processor generated `UserFocus` and `AddressFocus` at compile time; nothing reflective happens at runtime.
 
-Collections, optionals and sealed types extend the same pattern through `.each()`, `.some()`, `.at(i)` and `instanceOf()`. A `Kind<F, A>` field needs none of them: the processor recognises the witness and generates the traversal, which [Kind Field Support](kind_field_support.md) covers. The rest of this page walks through the path types; you almost never have to compose lenses by hand to get useful work done.
+`.city()` chains straight off `.address()` because of `generateNavigators = true`. A *navigator* is the small class the processor generates for a field whose type is another annotated record, with one method per field of that record. Without it, `UserFocus.address()` is still a perfectly good `FocusPath<User, Address>`, and you spell the next hop `.via(AddressFocus.city())`. Navigators are sugar over composition, so nothing is lost by leaving them off and nothing is locked in by turning them on.
+
+Collections, optionals and sealed types extend the same pattern, and [Find your field](#find-your-field) gives the spelling for each. You almost never have to compose lenses by hand to get useful work done.
 
 ~~~admonish tip title="Why this matters"
-`generateNavigators = true` is what makes `.city()` chain directly off `.address()`. Without it, `UserFocus.address()` is still a perfectly good `FocusPath<User, Address>`; you just spell the next hop `.via(AddressFocus.city())`. Navigators are sugar over composition, not a separate mechanism, so nothing is lost by leaving them off and nothing is locked in by turning them on.
+The field's declared type decides the path type at compile time, so the path says how many values it can reach. An `Optional`, a `Maybe` or a field with a recognised `@Nullable` gives an `AffinePath`, never a `FocusPath` whose `get` quietly returns null. A `List`, `Set` or `Collection` gives a `TraversalPath`, which has no singular `get`. Mistakes of that shape are compilation errors, not production ones. The guarantee covers the shapes the processor recognises. A field that holds null without saying so gets a plain `FocusPath`, and so does a `Map` or an array unless the annotation sets `widenCollections = true`; [Find your field](#find-your-field) marks each.
 ~~~
 
 ---
 
-## The Problem: Verbose Manual Composition
+## Find your field {#find-your-field}
 
-Deep updates without optics mean rebuilding every record on the way down. With raw optics they mean composing at each use site:
+You arrive holding a field, not an optic type. Find its declaration in the table: the row gives what the generated method returns and what you write next. Every row but the last is a component of the same `Order`, and the collapsed proof compiles each one. Each field links to the section that explains it.
 
-```java
-// Manual composition: verbose and repetitive
-Traversal<Company, String> employeeNames =
-    CompanyTraversals.departments()
-        .andThen(DepartmentTraversals.employees())
-        .andThen(EmployeeLenses.name());
+| Your field | The generated method returns | What you write next |
+|---|---|---|
+| [`Customer customer`](focus_navigation.md#fluent-navigation-with-generated-navigators), a record with `@GenerateFocus` | a navigator, since `Order` has `generateNavigators = true` | `.email()` |
+| `String reference` | `FocusPath<Order, String>` | `.get(order)`, `.set(value, order)`, `.modify(f, order)` |
+| [`List<LineItem> lines`](focus_navigation.md#collection-navigation), or a `Set` or `Collection` | `TraversalPath<Order, LineItem>`, already on the elements | `.via(LineItemFocus.quantity())` |
+| [`Optional<String> giftMessage`](focus_navigation.md#some-unwrap-optional) | `AffinePath<Order, String>` | `.getOptional(order)` |
+| [`@Nullable String couponCode`](focus_navigation.md#nullable-handle-null-values), with a recognised `@Nullable` | `AffinePath<Order, String>` | `.getOptional(order)` |
+| [`String legacyNote`](focus_navigation.md#nullable-handle-null-values), which may hold null but is not annotated | `FocusPath<Order, String>` | `.nullable()` |
+| [`Map<String, String> attributes`](focus_navigation.md#access-by-index) | `FocusPath<Order, Map<String, String>>`, by default | `.atKey("channel")` |
+| [`String[] tags`](focus_navigation.md#eacheach-traverse-with-a-custom-each-instance) | `FocusPath<Order, String[]>`, by default | `.each(EachInstances.arrayEach())` |
+| [`Either<String, String> approvedBy`](focus_navigation.md#someaffine-navigate-spi-container-types), or a `Maybe`, `Try` or `Validated` | `AffinePath<Order, String>`, on the success side | `.getOptional(order)` |
+| [`Payment payment`](focus_navigation.md#working-with-sum-types-using-instanceof), a sealed interface | `FocusPath<Order, Payment>` | `.via(PaymentPrisms.card())`, or `.via(AffinePath.instanceOf(Payment.Card.class))` |
+| [`JsonNode payload`](importing_optics.md), a type you cannot annotate | `FocusPath<Order, JsonNode>` | `.via(JsonNodeOptics.object())`, from `@ImportOptics` |
+| [`Kind<F, A> items`](kind_field_support.md) | a path chosen by the witness | depends on the witness |
 
-List<String> names = Traversals.getAll(employeeNames, company);
+The two rows marked "by default" step into the elements instead when the annotation sets `widenCollections = true`, which [the fine print](focus_navigation.md#path-widening) covers.
+
+~~~admonish example title="Proof: every row, compiled" collapsible=true
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:field_records}}
 ```
 
-With the Focus DSL the same navigation reads as a path, and the path type tracks how many elements are in focus:
-
-<!-- verify -->
-```java
-List<String> names =
-    CompanyFocus.departments()          // TraversalPath<Company, Department>
-        .via(DepartmentFocus.employees()) // TraversalPath<Company, Employee>
-        .via(EmployeeFocus.name())        // TraversalPath<Company, String>
-        .getAll(company);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:find_your_field}}
 ```
+~~~
+
+[Collections, Optionals and Sealed Types](focus_navigation.md) explains each row in depth: which fields get a navigator, and how a path widens as it goes.
 
 ---
 
-## Think of Focus Paths Like...
+## What the processor gives you {#what-the-processor-gives-you}
 
-- **File system paths**: `/company/departments/employees/name`
-- **JSONPath**: `$.departments[*].employees[*].name`
-- **XPath expressions**: `//department/employee/name`
-- **IDE navigation**: click through nested fields with autocomplete
+### Annotate the records {#annotate-the-records}
 
-The key difference: Focus paths are fully type-safe, with compile-time checking at every step.
+Add `@GenerateFocus` to generate path builders. The Focus class builds its own lenses, so `@GenerateFocus` alone compiles. Add `@GenerateLenses` as well in practice: several idioms in this chapter start from `FocusPath.of(TheseLenses.field())`, which needs the generated lens class. Indexing a list is one, and decomposing it into its head and tail with `ListPrisms` another.
 
----
-
-## What the Processor Gives You
-
-### Annotate the records
-
-Add `@GenerateFocus` to generate path builders. The Focus class builds its own lenses, so `@GenerateFocus` alone compiles. Add `@GenerateLenses` as well in practice: several idioms in this chapter (indexing a list, composing `ListPrisms`, acting on a collection as a whole) start from `FocusPath.of(TheseLenses.field())`, which needs the generated lens class.
-
-```java
-import org.higherkindedj.optics.annotations.GenerateFocus;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-
-@GenerateLenses
-@GenerateFocus
-public record Company(String name, List<Department> departments) {}
-
-@GenerateLenses
-@GenerateFocus
-public record Department(String name, List<Employee> employees) {}
-
-@GenerateLenses
-@GenerateFocus
-public record Employee(String name, int age, Optional<String> email) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:company_records}}
 ```
 
-### One method per component, and the field type picks the path
+### One method per component, and the field type picks the path {#one-method-per-component-and-the-field-type-picks-the-path}
 
 The generated companion has one method per record component, and the field's *type* decides the path type you get back:
 
-<!-- verify -->
-```java
-// A plain field: exactly one focus
-FocusPath<Company, String> namePath = CompanyFocus.name();
-String companyName = namePath.get(company);
-
-// A List field: the processor has already stepped into the elements
-TraversalPath<Company, Department> deptPath = CompanyFocus.departments();
-List<Department> allDepts = deptPath.getAll(company);
-
-// An Optional field: zero or one focus
-AffinePath<Employee, String> emailPath = EmployeeFocus.email();
-Optional<String> email = emailPath.getOptional(employee);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:per_component}}
 ```
 
 ~~~admonish warning title="A collection field is already element-level"
-`CompanyFocus.departments()` focuses each `Department`, not the `List<Department>`. That is what you want for bulk reads and updates, but it means list-level operations (`ListPrisms.head()`, indexing into the list) do not compose onto it. When you need the list itself, start from the lens instead: `FocusPath.of(CompanyLenses.departments())`. See [Navigation and Composition](focus_navigation.md#access-by-index) for the indexing forms.
+`CompanyFocus.departments()` focuses each `Department`, not the `List<Department>`. That is what you want for bulk reads and updates, but it means an operation on the list as a whole, such as indexing into it or taking its head, does not compose onto it. When you need the list itself, start from the lens instead: `FocusPath.of(CompanyLenses.departments())`. See [Collections, Optionals and Sealed Types](focus_navigation.md#access-by-index) for the indexing forms.
 ~~~
 
-### Chain with `.via()`
+### Chain with `.via()` {#chain-with-via}
 
 Paths compose with `.via()`. Composing a path with a wider one widens the result, so one focus joined to many focuses is many focuses, and anything joined to a traversal is a traversal:
 
-<!-- verify -->
-```java
-TraversalPath<Company, String> allEmployeeNames =
-    CompanyFocus.departments()
-        .via(DepartmentFocus.employees())
-        .via(EmployeeFocus.name());
-
-// Read every one of them
-List<String> names = allEmployeeNames.getAll(company);
-
-// Or update every one of them
-Company updated = allEmployeeNames.modifyAll(String::toUpperCase, company);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:chained}}
 ```
 
 ---
@@ -177,13 +126,8 @@ Focus DSL provides three path types, one for each answer to "how many values doe
 
 `FocusPath<S, A>` wraps a `Lens<S, A>` and guarantees exactly one focused element:
 
-<!-- verify -->
-```java
-FocusPath<Employee, String> namePath = EmployeeFocus.name();
-
-String name = namePath.get(employee);                            // always a value
-Employee updated = namePath.set("Bob", employee);                // always succeeds
-Employee modified = namePath.modify(String::toUpperCase, employee);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:focus_ops}}
 ```
 
 **Key Operations:**
@@ -199,14 +143,8 @@ Employee modified = namePath.modify(String::toUpperCase, employee);
 
 `AffinePath<S, A>` wraps an `Affine<S, A>` for optional access:
 
-<!-- verify -->
-```java
-AffinePath<Employee, String> emailPath = EmployeeFocus.email();
-
-Optional<String> email = emailPath.getOptional(employee);        // may be empty
-Employee updated = emailPath.set("new@email.com", employee);     // writes anyway: creates the email if absent
-Employee modified = emailPath.modify(String::toLowerCase, employee);
-boolean hasEmail = emailPath.matches(employee);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:affine_ops}}
 ```
 
 **Key Operations:**
@@ -230,17 +168,9 @@ The rule is positional. A miss at the *last* step writes through and creates the
 
 `TraversalPath<S, A>` wraps a `Traversal<S, A>` for collection access:
 
-<!-- verify -->
-```java
-TraversalPath<Department, Employee> employeesPath = DepartmentFocus.employees();
-
-List<Employee> all = employeesPath.getAll(department);
-Department updated = employeesPath.setAll(employee, department);
-Department modified = employeesPath.modifyAll(Fixture::promote, department);
-int headcount = employeesPath.count(department);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:traversal_ops}}
 ```
-
-`Fixture`, here and throughout this chapter, is the compiled example's own setup: sample records, hand-written optics and validators. Nothing in it is library API.
 
 **Key Operations:**
 
@@ -262,8 +192,8 @@ int headcount = employeesPath.count(department);
 
 ~~~admonish info title="Key Takeaways"
 * **The field type picks the path type.** A plain field gives `FocusPath`, an `Optional` field gives `AffinePath`, a `List` or `Set` field gives `TraversalPath` already stepped into the elements.
-* **`.via()` is the universal join.** Navigators are generated sugar for a subset of fields; everything else composes with `.via()`, and the two mix freely. [Navigation and Composition](focus_navigation.md) sets out which fields qualify.
-* **Widening is one-directional.** Composing a path with a wider one widens the result: one focus plus zero-or-one is zero-or-one, and anything joined to a traversal is a traversal.
+* **`.via()` is the universal join.** Navigators are generated sugar for a subset of fields; everything else composes with `.via()`, and the two mix freely. [Collections, Optionals and Sealed Types](focus_navigation.md) sets out which fields qualify.
+* **Composing widens.** Composing a path with a wider one widens the result: one focus plus zero-or-one is zero-or-one, and anything joined to a traversal is a traversal. `headOption()` is the one step back.
 * **A path is a value, not a call.** Build it once, store it in a static field, pass it around. `toLens()`, `toAffine()` and `toTraversal()` hand the underlying optic to any API that wants a raw optic.
 ~~~
 
@@ -274,8 +204,8 @@ int headcount = employeesPath.count(department);
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Navigation and Composition](focus_navigation.md): collection navigation, `.via()` composition, and generated navigators
-- [Type Class and Effect Integration](focus_effects.md): `modifyF()`, `foldMap()`, `traverseOver()`, sum types, and Effect path bridging
+- [Collections, Optionals and Sealed Types](focus_navigation.md): collection navigation, `.via()` composition, and generated navigators
+- [Type Class and Effect Integration](focus_effects.md): `modifyF()`, `foldMap()`, `traverseOver()`, and Effect path bridging
 - [Custom Containers and Code Generation](focus_containers.md): generated class structure, SPI container types, and registration
 - [Focus DSL Reference](focus_reference.md): decision guide, common patterns, performance, pitfalls, and FAQ
 ~~~
@@ -283,4 +213,4 @@ int headcount = employeesPath.count(department);
 ---
 
 **Previous:** [Quickstart](quickstart.md)
-**Next:** [Navigation and Composition](focus_navigation.md)
+**Next:** [Collections, Optionals and Sealed Types](focus_navigation.md)
