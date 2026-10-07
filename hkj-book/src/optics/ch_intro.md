@@ -10,7 +10,7 @@
 
 ---
 
-Immutable records in Java are safer, easier to reason about, and, when you need to change something three layers down, a bit of an ordeal. Here is that ordeal as many Spring teams write it, with Lombok's `@With` on each record:
+Immutable records in Java are safer, easier to reason about, and, when you need to change something three layers down, a bit of an ordeal. Here is that ordeal as many Spring teams write it, with a wither on each record, the method Lombok's `@With` generates:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/intro/IntroBook.java:cascade}}
@@ -22,7 +22,7 @@ A wither knows only its own record, so every enclosing layer is threaded through
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/intro/IntroBook.java:focus}}
 ```
 
-The annotation processor writes `EmployeeFocus` from one annotation on each record, which can sit beside Lombok's `@With`:
+The annotation processor writes `EmployeeFocus` from one annotation on each record, which can sit beside Lombok's `@With` when Lombok comes first on the processor path:
 
 <!-- verify -->
 ```java

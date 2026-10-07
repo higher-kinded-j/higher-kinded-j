@@ -31,6 +31,8 @@ import org.junit.jupiter.api.Test;
  * materialised). Both orders are pinned: the working one end to end, the broken one by its
  * diagnostic. The builders Lombok generates are pinned against its real output too:
  * {@code @Singular} collections, with their adders, and {@code @SuperBuilder}'s self-typed builder.
+ * Lombok's {@code @With} beside {@code @GenerateFocus} on the same records is pinned too, as the
+ * Optics chapter's introduction says it can be.
  */
 @DisplayName("Lombok interop - bean wires")
 class LombokInteropTest {
@@ -69,6 +71,66 @@ class LombokInteropTest {
         .contains("wire.setAge(domain.age());")
         .contains(".field(\"name\", hkj$ifPresent(wire.getName(), Validated::validNel))")
         .contains(".field(\"age\", Validated.validNel(wire.getAge()))");
+  }
+
+  @Test
+  @DisplayName("Lombok's @With and @GenerateFocus on one record both generate, and make one change")
+  void withAndGenerateFocusOnOneRecord() throws ReflectiveOperationException {
+    JavaFileObject records =
+        JavaFileObjects.forSourceString(
+            "com.example.Employee",
+            """
+            package com.example;
+
+            import org.higherkindedj.optics.annotations.GenerateFocus;
+
+            @lombok.With
+            @GenerateFocus(generateNavigators = true)
+            record Address(String street, String city) {}
+
+            @lombok.With
+            @GenerateFocus(generateNavigators = true)
+            record Company(String name, Address address) {}
+
+            @lombok.With
+            @GenerateFocus(generateNavigators = true)
+            public record Employee(String name, Company company) {}
+            """);
+    // Compiles only if both the withers and the generated path exist on the same records
+    JavaFileObject moves =
+        JavaFileObjects.forSourceString(
+            "com.example.Moves",
+            """
+            package com.example;
+
+            public final class Moves {
+              private Moves() {}
+
+              public static Employee sample() {
+                return new Employee("Alice", new Company("Initech", new Address("123 Fake St", "Anytown")));
+              }
+
+              public static Employee byWithers(Employee employee) {
+                return employee.withCompany(
+                    employee.company().withAddress(employee.company().address().withStreet("456 Main St")));
+              }
+
+              public static Employee byFocus(Employee employee) {
+                return EmployeeFocus.company().address().street().set("456 Main St", employee);
+              }
+            }
+            """);
+
+    Compilation compilation =
+        javac().withProcessors(lombok(), new FocusProcessor()).compile(records, moves);
+    assertThat(compilation).succeeded();
+
+    var result = new RuntimeCompilationHelper.CompiledResult(compilation);
+    Object employee = result.invokeStatic("com.example.Moves", "sample");
+    Object byWithers = result.invokeStatic("com.example.Moves", "byWithers", employee);
+    Object byFocus = result.invokeStatic("com.example.Moves", "byFocus", employee);
+    Assertions.assertThat(byFocus).isEqualTo(byWithers);
+    Assertions.assertThat(byFocus.toString()).contains("street=456 Main St");
   }
 
   @Test

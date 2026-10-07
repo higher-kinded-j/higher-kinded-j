@@ -16,7 +16,8 @@ public final class IntroBook {
 
   static Employee moveByWithers(Employee employee) {
     // ANCHOR: cascade
-    // Lombok's @With: a wither rebuilds only its own record, so each layer is threaded by hand
+    // The withers Lombok's @With generates: each rebuilds only its own record, so each layer is
+    // threaded by hand
     Employee moved =
         employee.withCompany(
             employee.company().withAddress(employee.company().address().withStreet("456 Main St")));
@@ -33,7 +34,9 @@ public final class IntroBook {
   }
 }
 
-// Each record carries the withers this example calls, as Lombok's @With would generate them.
+// Each record carries the withers this example calls, written by hand in the shape Lombok's @With
+// generates, since this module does not run Lombok. hkj-processor's LombokInteropTest compiles the
+// real @With beside @GenerateFocus on records of this shape.
 
 @GenerateFocus(generateNavigators = true)
 record Address(String street, String city) {
