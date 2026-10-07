@@ -38,9 +38,15 @@ class ResourceTest {
     return Stream.of(
         new Derivation("map", r -> r.map(String::toUpperCase)),
         new Derivation("flatMap", r -> r.flatMap(Resource::pure)),
+        new Derivation("flatMap onto itself", r -> r.flatMap(_ -> r)),
         new Derivation("and", r -> r.and(Resource.pure("other"))),
+        new Derivation("and with itself", r -> r.and(r)),
+        new Derivation("and of three", r -> r.and(r, Resource.pure("other"))),
         new Derivation("withFinalizer", r -> r.withFinalizer(() -> {})),
-        new Derivation("onFailure", r -> r.onFailure(_ -> {})));
+        new Derivation("onFailure", r -> r.onFailure(_ -> {})),
+        new Derivation(
+            "map, flatMap and onFailure",
+            r -> r.map(String::toUpperCase).flatMap(_ -> r).onFailure(_ -> {})));
   }
 
   /** A use of a held value that fails with the message "failed", named for the display name. */
@@ -134,6 +140,39 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName("make() rejects an acquire that returns null, and releases nothing")
+    @SuppressWarnings("DataFlowIssue") // the acquire deliberately returns null
+    void makeRejectsNullAcquisition() {
+      AtomicBoolean released = new AtomicBoolean(false);
+      Resource<String> resource = Resource.make(() -> null, _ -> released.set(true));
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> resource.useSync(s -> s).run())
+          .withMessage("acquire returned null in Resource.make, which is not allowed");
+      assertThat(released).isFalse();
+    }
+
+    @Test
+    @DisplayName("fromAutoCloseable() rejects an acquire that returns null")
+    @SuppressWarnings("DataFlowIssue") // the acquire deliberately returns null
+    void fromAutoCloseableRejectsNullAcquisition() {
+      Resource<AutoCloseable> resource = Resource.fromAutoCloseable(() -> null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> resource.useSync(c -> c).run())
+          .withMessage("acquire returned null in Resource.fromAutoCloseable, which is not allowed");
+    }
+
+    @Test
+    @DisplayName("pure() validates non-null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void pureValidatesNonNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Resource.pure(null))
+          .withMessageContaining("value for");
+    }
+
+    @Test
     @DisplayName("fromAutoCloseable() validates non-null acquire")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromAutoCloseableValidatesNonNullAcquire() {
@@ -223,6 +262,70 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName("use() reports the use's failure, with the release's exception suppressed onto it")
+    void useKeepsItsFailureWhenReleaseThrows() {
+      Resource<String> resource =
+          Resource.make(
+              () -> "test",
+              _ -> {
+                throw new IllegalStateException("release failed");
+              });
+
+      VTask<String> task = resource.use(_ -> VTask.fail(new IllegalStateException("use failed")));
+
+      assertThatThrownBy(task::run)
+          .hasMessage("use failed")
+          .satisfies(
+              e ->
+                  assertThat(e.getSuppressed())
+                      .singleElement()
+                      .satisfies(s -> assertThat(s).hasMessage("release failed")));
+    }
+
+    @Test
+    @DisplayName(
+        "use() reports a failure its release throws again once, not suppressed onto itself")
+    void useDoesNotSuppressAFailureOntoItself() {
+      IllegalStateException shared = new IllegalStateException("shared");
+      Resource<String> resource =
+          Resource.make(
+              () -> "test",
+              _ -> {
+                throw shared;
+              });
+
+      VTask<String> task = resource.use(_ -> VTask.fail(shared));
+
+      assertThatThrownBy(task::run)
+          .isSameAs(shared)
+          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+        "use() releases with the interrupt status cleared after an interrupted use, then restores it")
+    void useReleasesUninterruptedAfterInterruptedUse() {
+      AtomicBoolean interruptedDuringRelease = new AtomicBoolean(true);
+      Resource<String> resource =
+          Resource.make(
+              () -> "test",
+              _ -> interruptedDuringRelease.set(Thread.currentThread().isInterrupted()));
+
+      VTask<String> task =
+          resource.use(
+              _ ->
+                  VTask.of(
+                      () -> {
+                        Thread.currentThread().interrupt();
+                        throw new IllegalStateException("cancelled");
+                      }));
+
+      assertThatThrownBy(task::run).hasMessage("cancelled");
+      assertThat(Thread.interrupted()).as("interrupt status restored, and now cleared").isTrue();
+      assertThat(interruptedDuringRelease).isFalse();
+    }
+
+    @Test
     @DisplayName("use() validates non-null function")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void useValidatesNonNullFunction() {
@@ -292,18 +395,41 @@ class ResourceTest {
     }
 
     @Test
-    @DisplayName("map() releases what acquire returned, as use() on the unmapped resource does")
-    @SuppressWarnings("DataFlowIssue") // the acquire deliberately returns null
-    void mapReleasesWhatAcquireReturned() {
-      AtomicInteger releases = new AtomicInteger();
-      Resource<String> nullResource = Resource.make(() -> null, _ -> releases.incrementAndGet());
+    @DisplayName(
+        "map() rejects a function that returns null, and releases the resource it was given")
+    @SuppressWarnings("DataFlowIssue") // the function deliberately returns null
+    void mapRejectsNullResultAndReleases() {
+      AtomicBoolean released = new AtomicBoolean(false);
+      Resource<String> mapped =
+          Resource.make(() -> "hello", _ -> released.set(true)).map(_ -> null);
 
-      Resource<Integer> mapped = nullResource.map(_ -> 42);
+      assertThatNullPointerException()
+          .isThrownBy(() -> mapped.useSync(s -> s).run())
+          .withMessage("f returned null in Resource.map, which is not allowed");
+      assertThat(released).isTrue();
+    }
 
-      Integer result = mapped.useSync(i -> i).run();
+    @Test
+    @DisplayName("map() keeps its function's failure when the release throws an Error")
+    void mapKeepsFailureWhenReleaseThrowsError() {
+      Resource<String> resource =
+          Resource.make(
+              () -> "hello",
+              _ -> {
+                throw new AssertionError("release error");
+              });
 
-      assertThat(result).isEqualTo(42);
-      assertThat(releases).hasValue(1);
+      Resource<Integer> mapped =
+          resource.map(
+              _ -> {
+                throw new IllegalStateException("map function failed");
+              });
+
+      assertThatThrownBy(() -> mapped.useSync(i -> i).run())
+          .hasMessage("map function failed")
+          .satisfies(
+              e ->
+                  assertThat(e.getSuppressed()).singleElement().isInstanceOf(AssertionError.class));
     }
 
     @Test
@@ -411,23 +537,18 @@ class ResourceTest {
     }
 
     @Test
-    @DisplayName("flatMap() releases what the outer acquire returned, as use() on it does")
-    @SuppressWarnings("DataFlowIssue") // the acquire deliberately returns null
-    void flatMapReleasesWhatOuterAcquireReturned() {
-      AtomicInteger outerReleases = new AtomicInteger();
-      AtomicBoolean innerReleased = new AtomicBoolean(false);
+    @DisplayName("flatMap() releases the outer resource when the inner acquire returns null")
+    @SuppressWarnings("DataFlowIssue") // the inner acquire deliberately returns null
+    void flatMapReleasesOuterWhenInnerAcquireReturnsNull() {
+      AtomicBoolean outerReleased = new AtomicBoolean(false);
+      Resource<String> chained =
+          Resource.make(() -> "outer", _ -> outerReleased.set(true))
+              .flatMap(_ -> Resource.<String>make(() -> null, _ -> {}));
 
-      Resource<String> nullResource =
-          Resource.make(() -> null, _ -> outerReleases.incrementAndGet());
-
-      Resource<Integer> chained =
-          nullResource.flatMap(_ -> Resource.make(() -> 42, _ -> innerReleased.set(true)));
-
-      Integer result = chained.useSync(i -> i).run();
-
-      assertThat(result).isEqualTo(42);
-      assertThat(innerReleased).as("Inner resource should be released").isTrue();
-      assertThat(outerReleases).hasValue(1);
+      assertThatNullPointerException()
+          .isThrownBy(() -> chained.useSync(s -> s).run())
+          .withMessage("acquire returned null in Resource.make, which is not allowed");
+      assertThat(outerReleased).isTrue();
     }
 
     @Test
@@ -1033,6 +1154,27 @@ class ResourceTest {
     }
 
     @Test
+    @DisplayName("and(second, third) releases the first when the others throw one shared exception")
+    void andThreeReleasesFirstWhenOthersThrowSharedException() {
+      IllegalStateException shared = new IllegalStateException("shared");
+      AtomicBoolean firstReleased = new AtomicBoolean(false);
+      Resource<String> first = Resource.make(() -> "first", _ -> firstReleased.set(true));
+      Resource<String> throwing =
+          Resource.make(
+              () -> "throwing",
+              _ -> {
+                throw shared;
+              });
+
+      Resource<Par.Tuple3<String, String, String>> combined = first.and(throwing, throwing);
+
+      assertThatThrownBy(() -> combined.useSync(Par.Tuple3::first).run())
+          .hasMessage("Failed to release resource")
+          .hasCause(shared);
+      assertThat(firstReleased).isTrue();
+    }
+
+    @Test
     @DisplayName("and(second, third) handles all three releases throwing exceptions")
     void andThreeHandlesAllThreeReleasesThrowingExceptions() {
       Resource<String> first =
@@ -1118,8 +1260,8 @@ class ResourceTest {
     }
 
     @Test
-    @DisplayName("withFinalizer() fails with the finaliser's exception when the release throws too")
-    void withFinalizerFailsWithLastExceptionThrown() {
+    @DisplayName("withFinalizer() reports the release's exception, with the finaliser's suppressed")
+    void withFinalizerKeepsReleaseFailure() {
       Resource<String> resource =
           Resource.make(
                   () -> "test",
@@ -1131,7 +1273,13 @@ class ResourceTest {
                     throw new IllegalStateException("finaliser failed");
                   });
 
-      assertThatThrownBy(() -> resource.useSync(s -> s).run()).hasMessage("finaliser failed");
+      assertThatThrownBy(() -> resource.useSync(s -> s).run())
+          .hasMessage("release failed")
+          .satisfies(
+              e ->
+                  assertThat(e.getSuppressed())
+                      .singleElement()
+                      .satisfies(s -> assertThat(s).hasMessage("finaliser failed")));
     }
 
     @Test
@@ -1207,7 +1355,7 @@ class ResourceTest {
     }
 
     @Test
-    @DisplayName("onFailure() still releases when its action throws")
+    @DisplayName("onFailure() still releases when its action throws, and keeps the use's failure")
     void onFailureStillReleasesWhenActionThrows() {
       AtomicBoolean released = new AtomicBoolean(false);
       Resource<String> resource =
@@ -1219,8 +1367,30 @@ class ResourceTest {
 
       VTask<String> task = resource.use(_ -> VTask.fail(new IllegalStateException("failed")));
 
-      assertThatThrownBy(task::run).isInstanceOf(IllegalStateException.class);
+      assertThatThrownBy(task::run)
+          .hasMessage("failed")
+          .satisfies(
+              e ->
+                  assertThat(e.getSuppressed())
+                      .singleElement()
+                      .satisfies(s -> assertThat(s).hasMessage("rollback failed")));
       assertThat(released).isTrue();
+    }
+
+    @Test
+    @DisplayName("onFailure() actions added one after another run most recently added first")
+    void onFailureActionsRunMostRecentFirst() {
+      List<String> events = new ArrayList<>();
+      Resource<String> resource =
+          Resource.make(() -> "conn", _ -> events.add("release"))
+              .withFinalizer(() -> events.add("finalise"))
+              .onFailure(_ -> events.add("first added"))
+              .onFailure(_ -> events.add("second added"));
+
+      VTask<String> task = resource.use(_ -> VTask.fail(new IllegalStateException("failed")));
+
+      assertThatThrownBy(task::run).hasMessage("failed");
+      assertThat(events).containsExactly("second added", "first added", "release", "finalise");
     }
   }
 
@@ -1232,28 +1402,23 @@ class ResourceTest {
     @MethodSource("org.higherkindedj.hkt.vtask.ResourceTest#derivations")
     @DisplayName("a nested use releases each acquired value once")
     void nestedUseReleasesEachAcquisitionOnce(Derivation derivation) {
+      List<String> acquired = new ArrayList<>();
       List<String> released = new ArrayList<>();
-      AtomicInteger counter = new AtomicInteger();
-      Resource<?> conn =
-          derivation
-              .derive()
-              .apply(Resource.make(() -> "conn" + counter.incrementAndGet(), released::add));
+      Resource<?> conn = derivation.derive().apply(counting(acquired, released));
 
       conn.use(outer -> conn.use(inner -> VTask.succeed(outer + "+" + inner))).run();
 
-      assertThat(released).containsExactly("conn2", "conn1");
+      assertThat(acquired).hasSizeGreaterThanOrEqualTo(2);
+      assertThat(released).containsExactlyElementsOf(acquired.reversed());
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("org.higherkindedj.hkt.vtask.ResourceTest#derivations")
     @DisplayName("two concurrent uses that both acquire before either releases release each once")
     void concurrentUsesReleaseEachAcquisitionOnce(Derivation derivation) throws Exception {
+      List<String> acquired = new CopyOnWriteArrayList<>();
       List<String> released = new CopyOnWriteArrayList<>();
-      AtomicInteger counter = new AtomicInteger();
-      Resource<?> conn =
-          derivation
-              .derive()
-              .apply(Resource.make(() -> "conn" + counter.incrementAndGet(), released::add));
+      Resource<?> conn = derivation.derive().apply(counting(acquired, released));
       CyclicBarrier bothAcquired = new CyclicBarrier(2);
       Callable<String> use =
           () ->
@@ -1273,7 +1438,20 @@ class ResourceTest {
         second.get(10, TimeUnit.SECONDS);
       }
 
-      assertThat(released).containsExactlyInAnyOrder("conn1", "conn2");
+      assertThat(acquired).hasSizeGreaterThanOrEqualTo(2);
+      assertThat(released).containsExactlyInAnyOrderElementsOf(acquired);
+    }
+
+    /** A Resource that records each value it acquires and releases, each one distinct. */
+    private static Resource<String> counting(List<String> acquired, List<String> released) {
+      AtomicInteger counter = new AtomicInteger();
+      return Resource.make(
+          () -> {
+            String conn = "conn" + counter.incrementAndGet();
+            acquired.add(conn);
+            return conn;
+          },
+          released::add);
     }
   }
 

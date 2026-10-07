@@ -29,10 +29,11 @@ public final class ResourceBook {
         Resource.make(() -> "conn-" + opened.incrementAndGet(), closed::add)
             .map(String::toUpperCase);
 
-    String both =
+    List<String> both =
         connection
-            .use(outer -> connection.use(inner -> VTask.succeed(outer + " and " + inner)))
+            .use(outer -> connection.use(inner -> VTask.succeed(List.of(outer, inner))))
             .run();
+    // [CONN-1, CONN-2]
     List<String> closedInOrder = List.copyOf(closed);
     // [conn-2, conn-1]
     // ANCHOR_END: many_uses
@@ -47,7 +48,7 @@ public final class ResourceBook {
             .onFailure(tx -> log.add("rollback " + tx));
 
     transaction.useSync(String::length).run();
-    transaction.use(tx -> VTask.fail(new IllegalStateException("insert failed"))).runSafe();
+    transaction.use(_ -> VTask.fail(new IllegalStateException("insert failed"))).runSafe();
     List<String> whatRan = List.copyOf(log);
     // [close tx-1, rollback tx-2, close tx-2]
     // ANCHOR_END: on_failure
@@ -56,7 +57,7 @@ public final class ResourceBook {
     // ANCHOR: finalisers
     List<String> steps = new ArrayList<>();
     Resource<String> handle =
-        Resource.make(() -> "handle", h -> steps.add("release"))
+        Resource.make(() -> "handle", _ -> steps.add("release"))
             .withFinalizer(() -> steps.add("log the release"))
             .withFinalizer(() -> steps.add("record metrics"));
 

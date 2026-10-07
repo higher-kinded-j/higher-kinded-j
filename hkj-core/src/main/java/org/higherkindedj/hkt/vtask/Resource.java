@@ -73,10 +73,18 @@ import org.jspecify.annotations.Nullable;
  * can be used any number of times: one use nested inside another, or several at once on different
  * threads.
  *
- * <h2>Preview API Notice</h2>
+ * <h2>Failures</h2>
  *
- * <p><b>Note:</b> When used with structured concurrency, Resource respects task cancellation. If a
- * task is cancelled, acquired resources are still released.
+ * <p>A Resource never holds null: an acquire, or a function given to {@link #map}, that returns
+ * null fails with a {@link NullPointerException}. When a use fails and cleaning up after it fails
+ * too, the first failure is the one reported, and each later one is added to it as a suppressed
+ * exception.
+ *
+ * <h2>Cancellation</h2>
+ *
+ * <p>When used with structured concurrency, Resource respects task cancellation. If a task is
+ * cancelled, acquired resources are still released, with the thread's interrupt status cleared
+ * while they are and restored afterwards.
  *
  * @param <A> the type of the managed resource
  * @see VTask
@@ -101,8 +109,8 @@ public final class Resource<A> {
   }
 
   /**
-   * One acquisition: the acquired value and the release for exactly that value. Each use makes its
-   * own, so uses that overlap never share one.
+   * One acquisition: the acquired value and the release for exactly that value. Each use of a
+   * Resource that acquires something makes its own, so uses that overlap never share a release.
    */
   private record Allocated<T>(T value, Consumer<Exit> release) {}
 
@@ -115,7 +123,7 @@ public final class Resource<A> {
    * resource is needed, and the release function is guaranteed to be called after use.
    *
    * @param <A> the type of the managed resource
-   * @param acquire function to acquire the resource; must not be null
+   * @param acquire function to acquire the resource; must not be null, and must not return null
    * @param release function to release the resource; must not be null
    * @return a new Resource
    * @throws NullPointerException if acquire or release is null
@@ -123,7 +131,7 @@ public final class Resource<A> {
   public static <A> Resource<A> make(Callable<A> acquire, Consumer<A> release) {
     Validation.function().require(acquire, "acquire", CONSTRUCTION);
     Validation.function().require(release, "release", CONSTRUCTION);
-    return acquiring(acquire, release);
+    return acquiring(acquire, release, "make");
   }
 
   /**
@@ -132,7 +140,8 @@ public final class Resource<A> {
    * <p>The resource's close() method is called automatically after use.
    *
    * @param <A> the type of the AutoCloseable resource
-   * @param acquire function to acquire the AutoCloseable; must not be null
+   * @param acquire function to acquire the AutoCloseable; must not be null, and must not return
+   *     null
    * @return a new Resource that calls close() on release
    * @throws NullPointerException if acquire is null
    */
@@ -147,7 +156,8 @@ public final class Resource<A> {
             // Silently ignore close exceptions, as is standard with try-with-resources
             // Consider logging in production code
           }
-        });
+        },
+        "fromAutoCloseable");
   }
 
   /**
@@ -156,10 +166,12 @@ public final class Resource<A> {
    * <p>Useful as an identity element for resource composition.
    *
    * @param <A> the type parameter (arbitrary since no resource is managed)
-   * @param value the value to return
+   * @param value the value to return; must not be null
    * @return a Resource that returns the value without any acquire/release behaviour
+   * @throws NullPointerException if value is null
    */
   public static <A> Resource<A> pure(A value) {
+    Validation.function().require(value, "value", CONSTRUCTION);
     Allocated<A> allocated = new Allocated<>(value, _ -> {});
     return new Resource<>(() -> allocated);
   }
@@ -167,10 +179,13 @@ public final class Resource<A> {
   /**
    * A Resource that pairs each value {@code acquire} returns with {@code release} applied to it.
    */
-  private static <A> Resource<A> acquiring(Callable<A> acquire, Consumer<? super A> release) {
+  private static <A> Resource<A> acquiring(
+      Callable<A> acquire, Consumer<? super A> release, String factory) {
     return new Resource<>(
         () -> {
           A value = acquire.call();
+          Objects.requireNonNull(
+              value, "acquire returned null in Resource." + factory + ", which is not allowed");
           return new Allocated<>(value, _ -> release.accept(value));
         });
   }
@@ -186,12 +201,14 @@ public final class Resource<A> {
    *   <li>Acquire the resource
    *   <li>Apply the function to get a VTask
    *   <li>Execute the VTask
-   *   <li>Release the resource, even if the VTask fails, after any {@link #onFailure} action when
-   *       it does
+   *   <li>Release the resource, whether the VTask succeeds or fails; on a failure, any {@link
+   *       #onFailure} actions run first
    *   <li>Return the result (or rethrow the exception)
    * </ol>
    *
-   * <p>Each run of the returned VTask acquires its own resource and releases exactly that one.
+   * <p>Each run of the returned VTask acquires its own resource and releases exactly that one. If
+   * the VTask fails and the release throws too, the VTask's failure is the one reported, with the
+   * release's exception suppressed onto it.
    *
    * @param <B> the type of the result
    * @param f function that uses the resource; must not be null
@@ -209,7 +226,7 @@ public final class Resource<A> {
         Objects.requireNonNull(task, "f returned null in Resource.use, which is not allowed");
         result = task.execute();
       } catch (Throwable failure) {
-        allocated.release().accept(Exit.FAILED);
+        releaseAfter(failure, allocated);
         throw failure;
       }
       allocated.release().accept(Exit.SUCCEEDED);
@@ -239,10 +256,11 @@ public final class Resource<A> {
    *
    * <p>The transformation is applied after acquire, and the original resource is released after
    * use. Note that the release operates on the original resource type, not the transformed type. If
-   * the function throws, the original resource is released before the exception propagates.
+   * the function throws, or returns null, the original resource is released before the exception
+   * propagates.
    *
    * @param <B> the type of the transformed resource
-   * @param f the transformation function; must not be null
+   * @param f the transformation function; must not be null, and must not return null
    * @return a new Resource with transformed value
    * @throws NullPointerException if f is null
    */
@@ -252,7 +270,14 @@ public final class Resource<A> {
     return new Resource<>(
         () -> {
           Allocated<A> allocated = allocate.call();
-          B value = whileHolding(allocated, () -> f.apply(allocated.value()));
+          B value;
+          try {
+            value = f.apply(allocated.value());
+            Objects.requireNonNull(value, "f returned null in Resource.map, which is not allowed");
+          } catch (Throwable failure) {
+            releaseAfter(failure, allocated);
+            throw failure;
+          }
           return new Allocated<>(value, allocated.release());
         });
   }
@@ -276,26 +301,27 @@ public final class Resource<A> {
     return new Resource<>(
         () -> {
           Allocated<A> outer = allocate.call();
-          Allocated<B> inner =
-              whileHolding(
-                  outer,
-                  () -> {
-                    Resource<B> next = f.apply(outer.value());
-                    Objects.requireNonNull(
-                        next, "f returned null in Resource.flatMap, which is not allowed");
-                    return next.allocate.call();
-                  });
+          Allocated<B> inner;
+          try {
+            Resource<B> next = f.apply(outer.value());
+            Objects.requireNonNull(
+                next, "f returned null in Resource.flatMap, which is not allowed");
+            inner = next.allocate.call();
+          } catch (Throwable failure) {
+            releaseAfter(failure, outer);
+            throw failure;
+          }
           return new Allocated<>(
               inner.value(),
-              exit ->
-                  releaseInTurn(exit, INNER_RELEASE_FAILED, OUTER_RELEASE_FAILED, inner, outer));
+              releaseInTurn(INNER_RELEASE_FAILED, OUTER_RELEASE_FAILED, inner, outer));
         });
   }
 
   /**
    * Combines this resource with another, acquiring both and releasing in reverse order.
    *
-   * <p>Both resources are acquired, used together, then released in LIFO order.
+   * <p>Both resources are acquired, used together, then released in LIFO order. If acquiring the
+   * other resource fails, this one is released before the exception propagates.
    *
    * @param <B> the type of the other resource
    * @param other the other resource to combine with; must not be null
@@ -308,15 +334,24 @@ public final class Resource<A> {
     return new Resource<>(
         () -> {
           Allocated<A> a = allocate.call();
-          Allocated<B> b = whileHolding(a, other.allocate);
+          Allocated<B> b;
+          try {
+            b = other.allocate.call();
+          } catch (Throwable failure) {
+            releaseAfter(failure, a);
+            throw failure;
+          }
           return new Allocated<>(
               new Par.Tuple2<>(a.value(), b.value()),
-              exit -> releaseInTurn(exit, RELEASE_FAILED, RELEASE_FAILED, b, a));
+              releaseInTurn(RELEASE_FAILED, RELEASE_FAILED, b, a));
         });
   }
 
   /**
    * Combines three resources, acquiring all and releasing in reverse order.
+   *
+   * <p>If acquiring one fails, those already acquired are released, in reverse order, before the
+   * exception propagates.
    *
    * @param <B> the type of the second resource
    * @param <C> the type of the third resource
@@ -332,11 +367,24 @@ public final class Resource<A> {
     return new Resource<>(
         () -> {
           Allocated<A> a = allocate.call();
-          Allocated<B> b = whileHolding(a, second.allocate);
-          Allocated<C> c = whileHolding(a, () -> whileHolding(b, third.allocate));
+          Allocated<B> b;
+          try {
+            b = second.allocate.call();
+          } catch (Throwable failure) {
+            releaseAfter(failure, a);
+            throw failure;
+          }
+          Allocated<C> c;
+          try {
+            c = third.allocate.call();
+          } catch (Throwable failure) {
+            releaseAfter(failure, b);
+            releaseAfter(failure, a);
+            throw failure;
+          }
           return new Allocated<>(
               new Par.Tuple3<>(a.value(), b.value(), c.value()),
-              exit -> releaseInTurn(exit, RELEASE_FAILED, RELEASE_FAILED, c, b, a));
+              releaseInTurn(RELEASE_FAILED, RELEASE_FAILED, c, b, a));
         });
   }
 
@@ -345,8 +393,9 @@ public final class Resource<A> {
   /**
    * Adds a finaliser that runs after the primary release.
    *
-   * <p>The finaliser is guaranteed to run even if the primary release throws an exception.
-   * Finalisers added one after another run in the order they were added.
+   * <p>The finaliser is guaranteed to run even if the primary release throws an exception; the
+   * release's exception is then the one reported, with any exception from the finaliser suppressed
+   * onto it. Finalisers added one after another run in the order they were added.
    *
    * @param finalizer the finaliser to run; must not be null
    * @return a new Resource with the finaliser added
@@ -360,20 +409,27 @@ public final class Resource<A> {
             exit -> {
               try {
                 allocated.release().accept(exit);
-              } finally {
-                finalizer.run();
+              } catch (Throwable failure) {
+                cleanUpAfter(failure, finalizer);
+                throw failure;
               }
+              finalizer.run();
             });
   }
 
   /**
    * Adds an action that runs, before the release, when the use of the acquired resource fails.
    *
-   * <p>The use fails when the function given to {@link #use}, or the task it returns, throws. In a
-   * composed Resource, a failure while the resource is held counts too: the function given to
-   * {@link #map} throwing, or a resource that {@link #flatMap} or {@link #and} acquires after this
-   * one failing to acquire. The action receives the acquired resource, and the release runs even if
-   * the action throws. When the use succeeds, only the release runs.
+   * <p>The use fails when the function given to {@link #use}, or the task it returns, throws, as a
+   * cancelled task does. A step composed after this one counts too, when it fails while the
+   * resource is held: the function given to {@link #map} or {@link #flatMap} throwing, or the next
+   * acquire in {@link #flatMap} or {@link #and} failing. When the use succeeds, only the release
+   * runs.
+   *
+   * <p>The action receives the acquired resource. It runs before the release and before every
+   * finaliser, and actions added one after another run most recently added first. If the action
+   * throws, the release still runs, and the use's failure is still the one reported, with the
+   * action's exception suppressed onto it.
    *
    * @param onFailure the action to run with the acquired resource when its use fails; must not be
    *     null
@@ -386,13 +442,15 @@ public final class Resource<A> {
     return wrapRelease(
         allocated ->
             exit -> {
-              try {
-                if (exit == Exit.FAILED) {
+              if (exit == Exit.FAILED) {
+                try {
                   onFailure.accept(allocated.value());
+                } catch (Throwable failure) {
+                  cleanUpAfter(failure, () -> allocated.release().accept(exit));
+                  throw failure;
                 }
-              } finally {
-                allocated.release().accept(exit);
               }
+              allocated.release().accept(exit);
             });
   }
 
@@ -407,48 +465,63 @@ public final class Resource<A> {
         });
   }
 
+  /** Releases a held resource as failed, after {@code failure}, as {@link #cleanUpAfter} does. */
+  private static void releaseAfter(Throwable failure, Allocated<?> held) {
+    cleanUpAfter(failure, () -> held.release().accept(Exit.FAILED));
+  }
+
   /**
-   * Runs a step that follows an acquisition. If the step throws, the held resource is released as
-   * failed before the step's exception propagates, with any exception from that release suppressed
-   * onto it.
+   * Runs cleanup after a failure, which stays the one reported: anything the cleanup throws is
+   * suppressed onto it. The interrupt status is cleared while the cleanup runs, so a cancelled use
+   * still releases, and restored afterwards.
    */
-  private static <R> R whileHolding(Allocated<?> held, Callable<R> step) throws Exception {
+  private static void cleanUpAfter(Throwable failure, Runnable cleanup) {
+    boolean interrupted = Thread.interrupted();
     try {
-      return step.call();
-    } catch (Throwable failure) {
-      try {
-        held.release().accept(Exit.FAILED);
-      } catch (Exception e) {
-        failure.addSuppressed(e);
+      cleanup.run();
+    } catch (Throwable later) {
+      suppress(failure, later);
+    } finally {
+      if (interrupted) {
+        Thread.currentThread().interrupt();
       }
-      throw failure;
+    }
+  }
+
+  /** Suppresses a later failure onto the first, unless it is the same exception. */
+  private static void suppress(Throwable first, Throwable later) {
+    if (later != first) {
+      first.addSuppressed(later);
     }
   }
 
   /**
-   * Releases each held resource in turn, innermost first, telling each how the use ended. Every
+   * A release of each held resource in turn, innermost first, telling each how the use ended. Every
    * release runs even when an earlier one throws. A failure of the last release is reported with
    * {@code lastFailed}, carrying the earlier failure suppressed; otherwise an earlier failure is
-   * reported with {@code earlierFailed}.
+   * reported with {@code earlierFailed}. The loop is the release itself, so a deep composition
+   * releases with one stack frame per level.
    */
-  private static void releaseInTurn(
-      Exit exit, String earlierFailed, String lastFailed, Allocated<?>... held) {
-    @Nullable Throwable failure = null;
-    for (int i = 0; i < held.length; i++) {
-      try {
-        held[i].release().accept(exit);
-      } catch (Throwable t) {
-        if (failure != null) {
-          t.addSuppressed(failure);
+  private static Consumer<Exit> releaseInTurn(
+      String earlierFailed, String lastFailed, Allocated<?>... held) {
+    return exit -> {
+      @Nullable Throwable failure = null;
+      for (int i = 0; i < held.length; i++) {
+        try {
+          held[i].release().accept(exit);
+        } catch (Throwable t) {
+          if (failure != null) {
+            suppress(t, failure);
+          }
+          if (i == held.length - 1) {
+            throw new RuntimeException(lastFailed, t);
+          }
+          failure = t;
         }
-        if (i == held.length - 1) {
-          throw new RuntimeException(lastFailed, t);
-        }
-        failure = t;
       }
-    }
-    if (failure != null) {
-      throw new RuntimeException(earlierFailed, failure);
-    }
+      if (failure != null) {
+        throw new RuntimeException(earlierFailed, failure);
+      }
+    };
   }
 }

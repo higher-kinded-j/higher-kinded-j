@@ -109,7 +109,7 @@ VTask<Integer> count = connResource.use(conn ->
 int userCount = count.run();
 ```
 
-### Exception Safety
+### Exception Safety {#exception-safety}
 
 If the use function throws, the resource is still released:
 
@@ -130,21 +130,23 @@ Try<String> result = riskyOperation.runSafe();
 // connection is closed
 ```
 
+If the release throws as well, the use's exception is still the one reported. The release's exception is added to it as a suppressed exception, as try-with-resources does.
+
 ### Using One Resource Many Times {#using-one-resource-many-times}
 
-A `Resource` holds nothing until it is used. Each `use` acquires its own resource and releases exactly that one. So build a `Resource` once and use it wherever it is needed: once per request, on several threads at once, or one use nested inside another. This holds however the `Resource` was composed.
+A `Resource` holds nothing itself. Each `use` acquires its own resource and releases exactly that one. So build a `Resource` once and use it wherever it is needed: once per request, on several threads at once, or one use nested inside another. This holds however the `Resource` was composed.
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:many_uses}}
 ```
 
-The nested use opens a second connection, and each use closes the one it opened, innermost first.
+The nested use opens a second connection, and each use closes the one it opened, innermost first. The `map` makes this a composed `Resource`, and its release still receives the value `acquire` returned.
 
 ---
 
 ## Composing Resources
 
-Resources compose naturally, acquiring in order and releasing in reverse (LIFO):
+Resources compose naturally, acquiring in order and releasing in reverse (LIFO). A composed `Resource` can be used many times too, as [Using One Resource Many Times](#using-one-resource-many-times) shows.
 
 <!-- verify -->
 ```java
@@ -229,7 +231,7 @@ Resource<Lock> lockResource = Resource.make(
 - **Finalisers run in the order they were added.**
 - **A finaliser runs even when the release throws.**
 - **A finaliser runs even when an earlier finaliser throws.**
-- **The last exception thrown is the one the use fails with.** An earlier one from the release or a finaliser is not kept.
+- **When the release and a finaliser both throw, the release's exception is reported.** The finaliser's exception is suppressed onto it.
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:finalisers}}
@@ -269,10 +271,11 @@ Resource<Connection> connResource = Resource.make(
         return conn;
     },
     conn -> {
-        try { conn.rollback(); } catch (Exception e) { /* ignore */ }
         try { conn.close(); } catch (Exception e) { /* ignore */ }
     }
-);
+).onFailure(conn -> {
+    try { conn.rollback(); } catch (Exception e) { /* ignore */ }
+});
 
 VTask<OrderResult> processOrder = connResource.use(conn ->
     Scope.<Void>allSucceed()
@@ -288,7 +291,7 @@ VTask<OrderResult> processOrder = connResource.use(conn ->
 
 // If any step fails:
 // 1. Scope cancels remaining tasks
-// 2. Connection release triggers rollback
+// 2. onFailure rolls the transaction back
 // 3. Connection is closed
 Try<OrderResult> result = processOrder.runSafe();
 ```
@@ -305,13 +308,12 @@ Try<OrderResult> result = processOrder.runSafe();
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:on_failure}}
 ```
 
-The first use succeeds, so it only closes `tx-1`. The second fails, so `tx-2` is rolled back and then closed. The use fails when the function given to `use`, or the task it returns, throws. In a composed `Resource`, three more failures count, since each happens while the resource is held:
+The first use succeeds, so it only closes `tx-1`. The second fails, so `tx-2` is rolled back and then closed. The use fails when the function given to `use`, or the task it returns, throws, as a cancelled task does. A step composed after `onFailure` counts too, when it fails while the resource is held:
 
-- **`map`'s function throws.**
-- **A resource that `flatMap` acquires next fails to acquire.**
-- **A resource that `and` acquires next fails to acquire.**
+- **`map`'s or `flatMap`'s function throws.**
+- **The next acquire in `flatMap` or `and` fails.**
 
-The release runs even when the action throws.
+The action runs before the release and before every finaliser. Actions added one after another run most recently added first. If an action throws, the release still runs, and the use's failure is still the one reported.
 
 ### Combining with VTask Error Handling
 
