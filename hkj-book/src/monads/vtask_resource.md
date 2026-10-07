@@ -72,13 +72,17 @@ Resource<Config> configResource = Resource.pure(loadedConfig);
 ```
 ~~~
 
-### Factory Methods
+### Factory Methods {#factory-methods}
 
 | Method | Description | Use Case |
 |--------|-------------|----------|
-| `fromAutoCloseable(supplier)` | Wraps an `AutoCloseable` | Database connections, streams, channels |
+| `fromAutoCloseable(supplier)` | Wraps an `AutoCloseable`, ignoring an exception from `close()` | Database connections, streams, channels |
 | `make(acquire, release)` | Explicit acquire and release functions | Custom resources, locks, external handles |
 | `pure(value)` | Wraps a value with no cleanup | Configuration, constants, pre-initialised values |
+
+A `Resource` never holds null. An `acquire` that returns null, `pure(null)`, or a `map` function that returns null fails the use with `NullPointerException`. Hold a value that may be absent as a `Maybe`, and acquire it with `make`.
+
+To see a failed `close()`, use `make` with a release that calls `close()` and handles its exception.
 
 ---
 
@@ -130,7 +134,7 @@ Try<String> result = riskyOperation.runSafe();
 // connection is closed
 ```
 
-If the release throws as well, the use's exception is still the one reported. The release's exception is added to it as a suppressed exception, as try-with-resources does.
+If the release throws as well, the use's exception is still the one reported. The release's exception is added to it as a suppressed exception, as try-with-resources does. A `Resource` from `fromAutoCloseable` ignores an exception from `close()`, so this applies to a release written with `make`.
 
 ### Using One Resource Many Times {#using-one-resource-many-times}
 
@@ -308,12 +312,12 @@ Try<OrderResult> result = processOrder.runSafe();
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:on_failure}}
 ```
 
-The first use succeeds, so it only closes `tx-1`. The second fails, so `tx-2` is rolled back and then closed. The use fails when the function given to `use`, or the task it returns, throws, as a cancelled task does. A step composed after `onFailure` counts too, when it fails while the resource is held:
+The first use succeeds, so it only closes `tx-1`. The second fails, so `tx-2` is rolled back and then closed. The use fails when the function given to `use` throws, or the task it returns fails. A cancelled task fails too. A step composed after `onFailure` counts as well, when it fails while the resource is held:
 
 - **`map`'s or `flatMap`'s function throws.**
 - **The next acquire in `flatMap` or `and` fails.**
 
-The action runs before the release and before every finaliser. Actions added one after another run most recently added first. If an action throws, the release still runs, and the use's failure is still the one reported.
+The action runs before its `Resource`'s release and before the finalisers added to it. Actions added one after another run most recently added first. If an action throws, the release still runs, and the use's failure is still the one reported.
 
 ### Combining with VTask Error Handling
 

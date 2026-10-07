@@ -77,14 +77,19 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A Resource never holds null: an acquire, or a function given to {@link #map}, that returns
  * null fails with a {@link NullPointerException}. When a use fails and cleaning up after it fails
- * too, the first failure is the one reported, and each later one is added to it as a suppressed
- * exception.
+ * too, the first failure is the one reported, and every later one is kept among its suppressed
+ * exceptions, directly or nested. The same holds between a release and the finalisers added to it.
+ *
+ * <p>A Resource composed with {@link #and} or {@link #flatMap} runs every one of its releases even
+ * when one throws, and reports a failed release as a {@link RuntimeException} whose cause is the
+ * outermost release that threw, with any earlier one suppressed onto it.
  *
  * <h2>Cancellation</h2>
  *
- * <p>When used with structured concurrency, Resource respects task cancellation. If a task is
- * cancelled, acquired resources are still released, with the thread's interrupt status cleared
- * while they are and restored afterwards.
+ * <p>When used with structured concurrency, Resource respects task cancellation. A cancelled task
+ * fails, so its acquired resources are still released. Cleanup after a failed use runs with the
+ * thread's interrupt status cleared, so a blocking release is not cut short, and the status is
+ * restored afterwards.
  *
  * @param <A> the type of the managed resource
  * @see VTask
@@ -137,7 +142,8 @@ public final class Resource<A> {
   /**
    * Creates a Resource from an AutoCloseable.
    *
-   * <p>The resource's close() method is called automatically after use.
+   * <p>The resource's close() method is called automatically after use. An exception thrown by
+   * close() is ignored; use {@link #make} with a release that handles it to see it.
    *
    * @param <A> the type of the AutoCloseable resource
    * @param acquire function to acquire the AutoCloseable; must not be null, and must not return
@@ -153,8 +159,7 @@ public final class Resource<A> {
           try {
             resource.close();
           } catch (Exception e) {
-            // Silently ignore close exceptions, as is standard with try-with-resources
-            // Consider logging in production code
+            // An exception from close() is ignored, as the javadoc says
           }
         },
         "fromAutoCloseable");
@@ -181,11 +186,11 @@ public final class Resource<A> {
    */
   private static <A> Resource<A> acquiring(
       Callable<A> acquire, Consumer<? super A> release, String factory) {
+    String returnedNull = "acquire returned null in Resource." + factory + ", which is not allowed";
     return new Resource<>(
         () -> {
           A value = acquire.call();
-          Objects.requireNonNull(
-              value, "acquire returned null in Resource." + factory + ", which is not allowed");
+          Objects.requireNonNull(value, returnedNull);
           return new Allocated<>(value, _ -> release.accept(value));
         });
   }
@@ -288,7 +293,8 @@ public final class Resource<A> {
    * <p>The function is called with the first resource to acquire a second resource. Both resources
    * are released in reverse order (second first, then first), each by the release of the Resource
    * that acquired it. If the function or the second acquire throws, the first resource is released
-   * before the exception propagates.
+   * before the exception propagates. A failed release is reported as the class documentation
+   * describes.
    *
    * @param <B> the type of the second resource
    * @param f function that creates a second resource from the first; must not be null
@@ -321,7 +327,8 @@ public final class Resource<A> {
    * Combines this resource with another, acquiring both and releasing in reverse order.
    *
    * <p>Both resources are acquired, used together, then released in LIFO order. If acquiring the
-   * other resource fails, this one is released before the exception propagates.
+   * other resource fails, this one is released before the exception propagates. A failed release is
+   * reported as the class documentation describes.
    *
    * @param <B> the type of the other resource
    * @param other the other resource to combine with; must not be null
@@ -399,7 +406,7 @@ public final class Resource<A> {
    *
    * @param finalizer the finaliser to run; must not be null
    * @return a new Resource with the finaliser added
-   * @throws NullPointerException if finaliser is null
+   * @throws NullPointerException if {@code finalizer} is null
    */
   public Resource<A> withFinalizer(Runnable finalizer) {
     Validation.function().require(finalizer, "finalizer", CONSTRUCTION);
@@ -420,16 +427,16 @@ public final class Resource<A> {
   /**
    * Adds an action that runs, before the release, when the use of the acquired resource fails.
    *
-   * <p>The use fails when the function given to {@link #use}, or the task it returns, throws, as a
-   * cancelled task does. A step composed after this one counts too, when it fails while the
-   * resource is held: the function given to {@link #map} or {@link #flatMap} throwing, or the next
-   * acquire in {@link #flatMap} or {@link #and} failing. When the use succeeds, only the release
-   * runs.
+   * <p>The use fails when the function given to {@link #use} throws, or the task it returns fails.
+   * A cancelled task fails too. A step composed after this one counts as well, when it fails while
+   * the resource is held: the function given to {@link #map} or {@link #flatMap} throwing, or the
+   * next acquire in {@link #flatMap} or {@link #and} failing. When the use succeeds, only the
+   * release runs.
    *
-   * <p>The action receives the acquired resource. It runs before the release and before every
-   * finaliser, and actions added one after another run most recently added first. If the action
-   * throws, the release still runs, and the use's failure is still the one reported, with the
-   * action's exception suppressed onto it.
+   * <p>The action receives the acquired resource. It runs before this Resource's release and before
+   * the finalisers added to it, and actions added one after another run most recently added first.
+   * If the action throws, the release still runs, and the use's failure is still the one reported,
+   * with the action's exception kept among its suppressed exceptions.
    *
    * @param onFailure the action to run with the acquired resource when its use fails; must not be
    *     null
@@ -454,7 +461,7 @@ public final class Resource<A> {
             });
   }
 
-  // ==================== Acquisition Plumbing ====================
+  // ==================== Release Plumbing ====================
 
   /** This Resource with each acquisition's release replaced by what {@code wrap} makes of it. */
   private Resource<A> wrapRelease(Function<Allocated<A>, Consumer<Exit>> wrap) {
@@ -472,8 +479,8 @@ public final class Resource<A> {
 
   /**
    * Runs cleanup after a failure, which stays the one reported: anything the cleanup throws is
-   * suppressed onto it. The interrupt status is cleared while the cleanup runs, so a cancelled use
-   * still releases, and restored afterwards.
+   * suppressed onto it. The interrupt status is cleared while the cleanup runs, so cleanup after a
+   * cancelled use is not cut short, and restored afterwards.
    */
   private static void cleanUpAfter(Throwable failure, Runnable cleanup) {
     boolean interrupted = Thread.interrupted();

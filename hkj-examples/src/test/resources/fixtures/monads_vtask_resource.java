@@ -37,8 +37,6 @@ record Config(String name) {}
 
 record Data(String value) {}
 
-record Handle(String name) {}
-
 record Order(String id) {}
 
 record OrderResult(String orderId, String status) {}
@@ -112,8 +110,6 @@ class Fixture<A, B, C> {
   Consumer<B> releaseB;
   Callable<C> acquireC;
   Consumer<C> releaseC;
-  Callable<Handle> acquire;
-  Consumer<Handle> release;
 
   static Data fetchData(Connection conn) {
     return new Data("payload");
@@ -132,12 +128,6 @@ class Fixture<A, B, C> {
   static void chargePayment(Connection conn, Order order) {}
 
   static void sendNotification(Connection conn, Order order) {}
-
-  static void cleanupStep1() {}
-
-  static void cleanupStep2() {}
-
-  static void cleanupStep3() {}
 }
 
 final class ConnectionPool {

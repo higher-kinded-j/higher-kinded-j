@@ -77,6 +77,14 @@ class ResourceTest {
                         })
                     .useSync(v -> v)),
         new FailureWhileHeld(
+            "flatMap's function throws",
+            r ->
+                r.flatMap(
+                        _ -> {
+                          throw new IllegalStateException("failed");
+                        })
+                    .useSync(v -> v)),
+        new FailureWhileHeld(
             "flatMap's inner acquire fails",
             r ->
                 r.flatMap(
@@ -164,15 +172,6 @@ class ResourceTest {
     }
 
     @Test
-    @DisplayName("pure() validates non-null value")
-    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
-    void pureValidatesNonNullValue() {
-      assertThatNullPointerException()
-          .isThrownBy(() -> Resource.pure(null))
-          .withMessageContaining("value for");
-    }
-
-    @Test
     @DisplayName("fromAutoCloseable() validates non-null acquire")
     @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
     void fromAutoCloseableValidatesNonNullAcquire() {
@@ -209,6 +208,15 @@ class ResourceTest {
       String result = resource.useSync(s -> s).run();
 
       assertThat(result).isEqualTo("test");
+    }
+
+    @Test
+    @DisplayName("pure() validates non-null value")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void pureValidatesNonNullValue() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Resource.pure(null))
+          .withMessageContaining("value for");
     }
   }
 
@@ -280,6 +288,9 @@ class ResourceTest {
                   assertThat(e.getSuppressed())
                       .singleElement()
                       .satisfies(s -> assertThat(s).hasMessage("release failed")));
+      assertThat(Thread.currentThread().isInterrupted())
+          .as("a use that was not interrupted leaves the interrupt status clear")
+          .isFalse();
     }
 
     @Test
@@ -320,8 +331,15 @@ class ResourceTest {
                         throw new IllegalStateException("cancelled");
                       }));
 
-      assertThatThrownBy(task::run).hasMessage("cancelled");
-      assertThat(Thread.interrupted()).as("interrupt status restored, and now cleared").isTrue();
+      Throwable failure;
+      boolean interruptedAfterUse;
+      try {
+        failure = catchThrowable(task::run);
+      } finally {
+        interruptedAfterUse = Thread.interrupted();
+      }
+      assertThat(failure).hasMessage("cancelled");
+      assertThat(interruptedAfterUse).as("interrupt status restored after the release").isTrue();
       assertThat(interruptedDuringRelease).isFalse();
     }
 
@@ -410,7 +428,7 @@ class ResourceTest {
     }
 
     @Test
-    @DisplayName("map() keeps its function's failure when the release throws an Error")
+    @DisplayName("map() keeps its function's failure when the release throws, even an Error")
     void mapKeepsFailureWhenReleaseThrowsError() {
       Resource<String> resource =
           Resource.make(
@@ -481,31 +499,6 @@ class ResourceTest {
     }
 
     @Test
-    @DisplayName("map() suppresses release exception when the map function throws")
-    void mapSuppressesReleaseExceptionWhenMapFunctionThrows() {
-      Resource<String> resource =
-          Resource.make(
-              () -> "hello",
-              _ -> {
-                throw new RuntimeException("release failed");
-              });
-
-      Resource<Integer> mapped =
-          resource.map(
-              _ -> {
-                throw new RuntimeException("map function failed");
-              });
-
-      assertThatThrownBy(() -> mapped.useSync(i -> i).run())
-          .hasMessage("map function failed")
-          .satisfies(
-              e ->
-                  assertThat(e.getSuppressed())
-                      .singleElement()
-                      .satisfies(s -> assertThat(s).hasMessage("release failed")));
-    }
-
-    @Test
     @DisplayName("flatMap() chains resource acquisition and releases in LIFO order")
     void flatMapChainsResources() {
       List<String> events = new ArrayList<>();
@@ -543,7 +536,7 @@ class ResourceTest {
       AtomicBoolean outerReleased = new AtomicBoolean(false);
       Resource<String> chained =
           Resource.make(() -> "outer", _ -> outerReleased.set(true))
-              .flatMap(_ -> Resource.<String>make(() -> null, _ -> {}));
+              .flatMap(_ -> Resource.make(() -> null, _ -> {}));
 
       assertThatNullPointerException()
           .isThrownBy(() -> chained.useSync(s -> s).run())
@@ -985,11 +978,10 @@ class ResourceTest {
     @Test
     @DisplayName("and(second, third) releases first and second if third acquire fails")
     void andThreeReleasesFirstAndSecondIfThirdFails() {
-      AtomicBoolean firstReleased = new AtomicBoolean(false);
-      AtomicBoolean secondReleased = new AtomicBoolean(false);
+      List<String> released = new ArrayList<>();
 
-      Resource<String> first = Resource.make(() -> "first", _ -> firstReleased.set(true));
-      Resource<String> second = Resource.make(() -> "second", _ -> secondReleased.set(true));
+      Resource<String> first = Resource.make(() -> "first", released::add);
+      Resource<String> second = Resource.make(() -> "second", released::add);
       Resource<String> third =
           Resource.make(
               () -> {
@@ -1001,8 +993,7 @@ class ResourceTest {
 
       assertThatThrownBy(() -> combined.useSync(_ -> "result").run())
           .hasMessageContaining("third acquire failed");
-      assertThat(firstReleased).isTrue();
-      assertThat(secondReleased).isTrue();
+      assertThat(released).containsExactly("second", "first");
     }
 
     @Test
@@ -1375,6 +1366,40 @@ class ResourceTest {
                       .singleElement()
                       .satisfies(s -> assertThat(s).hasMessage("rollback failed")));
       assertThat(released).isTrue();
+    }
+
+    @Test
+    @DisplayName("onFailure() still runs an earlier action when a later one throws")
+    void onFailureRunsEarlierActionWhenLaterOneThrows() {
+      List<String> events = new ArrayList<>();
+      Resource<String> resource =
+          Resource.make(() -> "conn", _ -> events.add("release"))
+              .onFailure(_ -> events.add("first added"))
+              .onFailure(
+                  _ -> {
+                    events.add("second added");
+                    throw new IllegalStateException("second action failed");
+                  });
+
+      VTask<String> task = resource.use(_ -> VTask.fail(new IllegalStateException("failed")));
+
+      assertThatThrownBy(task::run).hasMessage("failed");
+      assertThat(events).containsExactly("second added", "first added", "release");
+    }
+
+    @Test
+    @DisplayName("withFinalizer() passes a failed use on to the onFailure action it wraps")
+    void withFinalizerPassesFailureToWrappedOnFailure() {
+      List<String> events = new ArrayList<>();
+      Resource<String> resource =
+          Resource.make(() -> "conn", _ -> events.add("release"))
+              .onFailure(_ -> events.add("rollback"))
+              .withFinalizer(() -> events.add("finalise"));
+
+      VTask<String> task = resource.use(_ -> VTask.fail(new IllegalStateException("failed")));
+
+      assertThatThrownBy(task::run).hasMessage("failed");
+      assertThat(events).containsExactly("rollback", "release", "finalise");
     }
 
     @Test
