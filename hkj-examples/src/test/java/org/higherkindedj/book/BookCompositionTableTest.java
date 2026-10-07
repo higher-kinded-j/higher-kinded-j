@@ -37,8 +37,10 @@ import org.junit.jupiter.api.Test;
  *
  * <p>Three things are held to that reading: the golden table the Composition Rules page includes,
  * the copy of it in the {@code hkj-optics} skill, which is installed into users' projects, and
- * every {@code X >>> Y = Z} statement on either page, whether in a summary row, a heading or a code
- * comment. So a new or removed overload fails here until the book and the skill say the same.
+ * every {@code X.andThen(Y) = Z} statement on either page, whether in a summary row, a heading or a
+ * code comment. So a new or removed overload fails here until the book and the skill say the same.
+ * The chapter and the skill spell a composition as Java does, so the Haskell {@code >>>} notation
+ * is refused on every Optics page and every {@code hkj-optics} skill page.
  */
 @DisplayName("the book's composition table is read from the andThen overloads")
 class BookCompositionTableTest {
@@ -57,14 +59,19 @@ class BookCompositionTableTest {
       Path.of(required("hkj.skills.dir")).resolve("hkj-optics/reference/composition-rules.md");
 
   /**
-   * One composition claim written in prose: {@code Lens >>> Prism = Affine} in a heading or
-   * comment, or {@code | Lens >>> Prism | Affine |} in a table row. {@code Any} stands for every
-   * optic type, and "Same as second" for the second operand.
+   * One composition claim written in prose: {@code Lens.andThen(Prism) = Affine} in a heading or
+   * comment, or {@code | Lens.andThen(Prism) | Affine |} in a table row. {@code Any} stands for
+   * every optic type, and "Same as second" for the second operand.
    */
   private static final Pattern CLAIM =
       Pattern.compile(
-          "\\b(Iso|Lens|Prism|Affine|Traversal|Any|any)\\s*>>>\\s*(Iso|Lens|Prism|Affine|Traversal|Any|any)"
+          "\\b(Iso|Lens|Prism|Affine|Traversal|Any|any)\\.andThen\\((Iso|Lens|Prism|Affine|Traversal|Any|any)\\)"
               + "\\s*(?:=|\\|)\\s*\\**(Iso|Lens|Prism|Affine|Traversal|Same as second|Same as 2nd)\\b");
+
+  /** A composition written in the Haskell notation, {@code Lens >>> Prism}. */
+  private static final Pattern ARROWS =
+      Pattern.compile(
+          "\\b(Iso|Lens|Prism|Affine|Traversal|Any|any)\\s*>>>\\s*(Iso|Lens|Prism|Affine|Traversal|Any|any)\\b");
 
   @Test
   @DisplayName("the golden table matches what each andThen overload returns")
@@ -97,7 +104,8 @@ class BookCompositionTableTest {
   }
 
   @Test
-  @DisplayName("every X >>> Y claim on the book page and in the skill agrees with the overloads")
+  @DisplayName(
+      "every X.andThen(Y) claim on the book page and in the skill agrees with the overloads")
   void everyWrittenClaimAgrees() {
     List<String> wrong = new ArrayList<>();
     int checked = 0;
@@ -114,7 +122,7 @@ class BookCompositionTableTest {
               checked++;
               if (!claimed.equals(actual)) {
                 wrong.add(
-                    "%s:%d claims %s >>> %s = %s, but andThen returns %s"
+                    "%s:%d claims %s.andThen(%s) = %s, but andThen returns %s"
                         .formatted(
                             page.getFileName(),
                             i + 1,
@@ -130,6 +138,33 @@ class BookCompositionTableTest {
     }
     assertThat(checked).as("composition claims read from the two pages").isGreaterThan(20);
     assertThat(wrong).as("composition claims the overloads contradict").isEmpty();
+  }
+
+  @Test
+  @DisplayName("no Optics page and no hkj-optics skill page writes a composition as X >>> Y")
+  void noHaskellArrows() {
+    List<Path> pages = new ArrayList<>(markdownUnder(BOOK_PAGE.getParent()));
+    pages.addAll(markdownUnder(SKILL_PAGE.getParent().getParent()));
+    List<String> arrows = new ArrayList<>();
+    for (Path page : pages) {
+      List<String> lines = normalised(read(page)).lines().toList();
+      for (int i = 0; i < lines.size(); i++) {
+        if (ARROWS.matcher(lines.get(i)).find()) {
+          arrows.add("%s:%d: %s".formatted(page.getFileName(), i + 1, lines.get(i).strip()));
+        }
+      }
+    }
+    assertThat(pages).as("pages scanned for X >>> Y").hasSizeGreaterThan(60);
+    assertThat(arrows).as("compositions to spell as X.andThen(Y)").isEmpty();
+  }
+
+  /** Every markdown file at or below {@code dir}. */
+  private static List<Path> markdownUnder(Path dir) {
+    try (var files = Files.walk(dir)) {
+      return files.filter(file -> file.toString().endsWith(".md")).sorted().toList();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   /** The table as markdown: one row per first optic, one column per second. */

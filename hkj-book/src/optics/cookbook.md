@@ -64,7 +64,7 @@ Prism<ApiResponse, Success> successPrism = Prism.of(
     s -> s
 );
 
-// Compose with lens to access data. Prism >>> Lens settles at Affine:
+// Compose with a lens to reach the data: prism.andThen(lens) returns an Affine,
 // the focus may be absent, but there is at most one of it.
 Affine<ApiResponse, Data> successData =
     successPrism.andThen(SuccessLenses.data());
@@ -455,7 +455,7 @@ public final class OrderOptics {
 
 <!-- verify -->
 ```java
-// Direct composition: mixed kinds settle at the weakest, so Lens >>> Prism is an Affine
+// Direct composition: lens.andThen(prism) returns an Affine, since the prism may not match
 Affine<Config, Settings> direct = configLens.andThen(settingsPrism);
 
 // Widen only where the call site actually needs a Traversal

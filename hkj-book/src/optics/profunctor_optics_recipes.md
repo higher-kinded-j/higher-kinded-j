@@ -28,7 +28,7 @@ public record Email(String value) {}
 public record User(UserId id, UserName name, Email email, LocalDate createdAt) {}
 ```
 
-**The Solution**: A single-field wrapper and its raw value are the textbook lossless pair, so give each wrapper an `Iso` and compose. `Lens >>> Iso = Lens`, so the full API survives:
+**The Solution**: A single-field wrapper and its raw value are the textbook lossless pair, so give each wrapper an `Iso` and compose. `Lens.andThen(Iso) = Lens`, so the full API survives:
 
 <!-- verify -->
 ```java
@@ -145,7 +145,7 @@ public class SchemaAdapters {
 ```
 
 ~~~admonish note title="When schemas really are equivalent"
-If the two versions hold exactly the same information in different shapes, write the conversion pair as an `Iso` and compose old optics through it: `Iso >>> Lens = Lens`. Reach for the raw `Optic.dimap` bridge only when the pipeline is effectful and lives in `modifyF` anyway; see [Profunctor Optics](profunctor_optics.md#the-three-profunctor-operations).
+If the two versions hold exactly the same information in different shapes, write the conversion pair as an `Iso` and compose old optics through it: `Iso.andThen(Lens) = Lens`. Reach for the raw `Optic.dimap` bridge only when the pipeline is effectful and lives in `modifyF` anyway; see [Profunctor Optics](profunctor_optics.md#the-three-profunctor-operations).
 ~~~
 
 ---

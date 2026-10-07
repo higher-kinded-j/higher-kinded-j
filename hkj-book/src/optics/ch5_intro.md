@@ -29,7 +29,7 @@ Validated<String, Form> checked =
 The sample `Form` holds a `User` with two permissions, `PERM_READ` and `PERM_FLY`, and only the first is on the allowed list. `Fixture` is the compiled example's own setup, not library API.
 
 ~~~admonish tip title="Why this matters"
-Four optics of three different kinds compose into one value, and that value is reusable in both directions: run it with a plain function to update every permission, or with an `Applicative` to validate them and accumulate the failures. The prism in the middle is what makes it safe. A `Form` holding a `Guest` has nothing in focus, so the same expression returns a clean result rather than a `ClassCastException`, and no branch had to be written for that case.
+Four optics of three different kinds compose into one value, and that value is reusable in both directions: run it with a plain function to update every permission, or with an [`Applicative`](../glossary/type-classes.md#applicative) to validate them and accumulate the failures. The prism in the middle is what makes it safe. A `Form` holding a `Guest` has nothing in focus, so the same expression returns a clean result rather than a `ClassCastException`, and no branch had to be written for that case.
 ~~~
 
 ---
@@ -42,7 +42,7 @@ Four optics of three different kinds compose into one value, and that value is r
 4. [Plan Introspection and Guardrails](optic_batching_guardrails.md): See and bound a batch before it runs
 5. [Auditing Complex Data](auditing_complex_data_example.md): An audit trail of every change
 
-[Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) combines optics with Effect Paths in a single pipeline.
+[Capstone: Effects Meet Optics](../effect/capstone_focus_effect.md) combines optics with [Effect Paths](../glossary/effect-paths.md#effect-path) in a single pipeline.
 
 ---
 

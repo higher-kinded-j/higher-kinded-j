@@ -567,7 +567,7 @@ New circle: Circle[centre=Point[x=20, y=30], radius=5]
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Composition Rules](composition_rules.md): why `Iso >>> X = X` for every optic `X`
+- [Composition Rules](composition_rules.md): why `Iso.andThen(X)` is an `X` for each of the five optics in its table
 - [Validated Prisms](validated_prism.md): the fallible sibling for conversions that can reject
 - [What Your Spec Generates](../mapping/tiers.md): where a lossless generated record mapping earns its `asIso()`
 ~~~

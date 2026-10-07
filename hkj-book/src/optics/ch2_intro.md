@@ -25,7 +25,7 @@ League bonus = Traversals.modify(everyScore, score -> score + 5, league);
 ```
 
 ~~~admonish tip title="Why this matters"
-A stream pipeline that rebuilds nested records is code you write again for every operation. A composed traversal is a value: define the path once and reuse it for pure updates, for queries, and (through `modifyF`) for validating or asynchronous passes over every element. And when a path should never write, `asFold()` or a Getter says so in the type, so read-only intent is checked by the compiler rather than promised in a comment.
+A stream pipeline that rebuilds nested records is code you write again for every operation. A composed traversal is a value: define the path once and reuse it for pure updates, for queries, and (through [`modifyF`](../glossary/optics.md#modifyf)) for validating or asynchronous passes over every element. And when a path should never write, `asFold()` or a Getter says so in the type, so read-only intent is checked by the compiler rather than promised in a comment.
 ~~~
 
 A **Traversal** focuses zero or more values, and reads and writes them all. A **Fold** is its read-only cousin, for queries, searches and aggregates, so code that must not modify data says so in its type. A **Getter** reads exactly one value and never writes, and a **Setter** writes without reading. [Optic Capabilities](optic_capabilities.md) lists which operations each type declares, and where a `Traversal`'s reads and writes live instead.

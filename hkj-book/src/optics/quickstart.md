@@ -101,7 +101,9 @@ The processor reads the spec and generates a `JsonNodeOptics` class (the `Spec` 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:json}}
 ```
 
+~~~admonish tip title="Plain Java wins here"
 For one read like this, Jackson's own `response.at("/items/0/name")` is shorter. The prisms earn their place when they compose with the rest of your optics, so that a JSON tree joins the same paths as your records. [Taming JSON with Jackson](optics_spec_interfaces.md) shows that, and how `@MatchWhen` handles Jackson's predicate-based type checks.
+~~~
 
 ---
 

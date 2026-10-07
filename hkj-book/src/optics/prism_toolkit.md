@@ -369,7 +369,7 @@ Either<String, Integer> error = Either.left("Failed");
 Optional<String> errorMsg = leftPrism.getOptional(error); // Optional.of("Failed")
 Optional<Integer> noValue = rightPrism.getOptional(error); // Optional.empty()
 
-// Compose with lenses for deep access (Prism >>> Lens = Affine)
+// Compose with lenses for deep access (Prism.andThen(Lens) = Affine)
 Lens<ValidationError, String> messageLens = ValidationErrorLenses.message();
 
 Affine<Either<ValidationError, Data>, String> errorMessage =

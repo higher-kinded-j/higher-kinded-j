@@ -690,7 +690,7 @@ See [FluentValidationExample.java](https://github.com/higher-kinded-j/higher-kin
 ~~~
 
 ~~~admonish info title="Key Takeaways"
-* **Four optics, three kinds, one value.** `Lens >>> Prism >>> Traversal >>> Lens` collapses into a single `Traversal<Form, String>` that you name once and reuse for reads, writes and validations.
+* **Four optics, three kinds, one value.** `Lens.andThen(Prism).andThen(Traversal).andThen(Lens)` collapses into a single `Traversal<Form, String>` that you name once and reuse for reads, writes and validations.
 * **`andThen` works out the result type.** Composing mixed optic kinds gives the most precise kind that covers every step, which is why the composed path is a `Traversal` rather than a `Lens`, with no conversion needed.
 * **The prism is the safety.** A `Form` holding a `Guest` puts nothing in focus, so the whole pipeline returns cleanly with no branch written for the absent case.
 * **`Validated` accumulates, `Either` keeps the first.** The optic never changes; only the `Applicative` handed to `modifyF` does, and that single choice is the whole difference between a full report and one message. Neither skips elements.

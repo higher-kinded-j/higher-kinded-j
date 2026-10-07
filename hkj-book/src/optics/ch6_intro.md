@@ -8,7 +8,7 @@
 
 ---
 
-Most optic work is "update this nested field". Sometimes the problem is different: describe a sequence of optic operations as data, then decide later how to run it. The Free Monad DSL turns optic operations into a value you can pass around, inspect, and run under different strategies: production, audit, a checked run, or a test interpreter of your own. Interpreters are the strategies that turn the description into a result.
+Most optic work is "update this nested field". Sometimes the problem is different: describe a sequence of optic operations as data, then decide later how to run it. The [Free Monad](../glossary/effect-paths.md#free-monad) DSL turns optic operations into a value you can pass around, inspect, and run under different strategies: production, audit, a checked run, or a test interpreter of your own. Interpreters are the strategies that turn the description into a result.
 
 Here is the whole idea before any of the theory. One program, described once, run three different ways. Every line compiles against the real library on every build:
 
@@ -35,7 +35,7 @@ boolean safeToRun = check.isValid();
 // true: no nulls written, no modifier threw
 ```
 
-The account starts on 100 and the withdrawal is 30. `Fixture` is the compiled example's own setup, not library API.
+The account starts on 100 and the withdrawal is 30. Read `Free<OpticOpKind.Witness, Account>` as a program of optic operations that returns an `Account` when run; `OpticOpKind.Witness` is the [witness](../glossary/type-system.md#witness-type) that tags those operations. `Fixture` is the compiled example's own setup, not library API.
 
 ~~~admonish warning title="`validating()` is a checked run, not a dry run"
 Despite the name, `validate` **executes** the program. Its own javadoc is explicit: operations are run so that `flatMap` chaining produces the right values, and the validation is collected alongside. A `modify` modifier is applied twice, once to check it and once to perform it. So it is safe for pure modifiers over immutable data, and unsafe for anything with a side effect.

@@ -195,7 +195,7 @@ Lenses can also compose with other optic types. When you compose a `Lens` with a
 
 <!-- verify -->
 ```java
-// Lens >>> Prism = Affine
+// Lens.andThen(Prism) = Affine
 @GenerateLenses
 record User(Optional<Settings> settings) {}
 Lens<User, Optional<Settings>> settingsLens = UserLenses.settings();

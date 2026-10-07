@@ -242,6 +242,9 @@ Most readers come from a "regular Java" background. When introducing an abstract
 | `EitherPath` | typed errors instead of unchecked exceptions |
 | `Lens.modify` | a "with" copy method on a record |
 | `EitherT` | the shape `CompletableFuture<Either<L, R>>` collapsed into one composable layer |
+| a Focus path | a JPA metamodel or QueryDSL path, such as `QUser.user.address.city`, that writes as well as reads |
+| a `Prism` | an `instanceof` pattern and the variant's constructor |
+| a `Traversal` | `stream().map(f).toList()` over a list field, put back with a wither |
 
 Anchors should appear in the class-level Javadoc, ideally between the Pain → Promise block and the Key Concepts list.
 

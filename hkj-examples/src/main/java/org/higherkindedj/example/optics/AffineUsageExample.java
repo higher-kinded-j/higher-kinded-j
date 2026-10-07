@@ -66,7 +66,7 @@ public class AffineUsageExample {
     // SCENARIO 2: Composing Lens with Prism to create Affine
     // =======================================================================
 
-    System.out.println("--- Scenario 2: Lens >>> Prism = Affine ---");
+    System.out.println("--- Scenario 2: Lens.andThen(Prism) = Affine ---");
     System.out.println();
 
     // Create lenses for our domain model.
@@ -83,7 +83,7 @@ public class AffineUsageExample {
     Prism<Optional<ContactInfo>, ContactInfo> contactPrism = Prisms.some();
     Prism<Optional<String>, String> phonePrism = Prisms.some();
 
-    // Composition: Lens >>> Prism = Affine.
+    // Composition: Lens.andThen(Prism) = Affine.
     Affine<UserProfile, ContactInfo> userContactAffine = contactLens.andThen(contactPrism);
 
     System.out.println("User with contact: " + userWithContact);
@@ -105,9 +105,9 @@ public class AffineUsageExample {
     // UserProfile -> Optional<ContactInfo> -> ContactInfo -> Optional<String> -> String
     Affine<UserProfile, String> userPhoneAffine =
         contactLens
-            .andThen(contactPrism) // Lens >>> Prism = Affine
-            .andThen(phoneLens) // Affine >>> Lens = Affine
-            .andThen(phonePrism); // Affine >>> Prism = Affine
+            .andThen(contactPrism) // Lens.andThen(Prism) = Affine
+            .andThen(phoneLens) // Affine.andThen(Lens) = Affine
+            .andThen(phonePrism); // Affine.andThen(Prism) = Affine
 
     System.out.println("User with contact+phone: " + userWithContact);
     System.out.println("getOptional phone: " + userPhoneAffine.getOptional(userWithContact));

@@ -57,6 +57,17 @@ covering every page in the group.
   rule says. A shape that cannot run is a `verify` fence, and a refused one a `verify:rejects` fence.
 - **An `// ANCHOR:` comment goes after the `package` line.** Spotless's licence-header step deletes
   anything above it.
+- **A Ship page shows the Focus path first.** Its first library example of an operation uses the
+  generated Focus path, with `generateNavigators = true`, as the Style Guide's
+  [Effect Path First](STYLE-GUIDE.md#effect-path-first-in-examples) rule does for transformers. The
+  raw optic (`XLenses.a().andThen(...)`) is collapsed, or comes after the path in a section that
+  says why a reader would want it, as What a Path Is Made Of does.
+- **`Kind`, witnesses and `widen`/`narrow` come after a call that needs none of them**, inside a
+  collapsed block that names the mechanism. The Ship lane has one: `modifyF` on Updates That Can
+  Fail.
+- **The chapter's optic anchors live in one table.** "Choosing an optic" on What a Path Is Made Of
+  gives one row per optic type, and the Focus DSL page anchors the Focus path itself. A page that
+  introduces an optic links to that table rather than coining a metaphor of its own.
 - **A chained Focus hop needs navigators.** `UserFocus.address().street()` compiles only when every
   record a hop leaves carries `@GenerateFocus(generateNavigators = true)`; without it, the hop is
   `.via(...)`.

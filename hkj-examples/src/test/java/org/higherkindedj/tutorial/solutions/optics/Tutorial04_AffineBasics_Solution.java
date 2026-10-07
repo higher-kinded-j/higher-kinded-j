@@ -251,9 +251,9 @@ public class Tutorial04_AffineBasics_Solution {
     Prism<Optional<String>, String> phonePrism = Prisms.some();
 
     // SOLUTION: Chain the lenses and prisms together
-    // contactLens >>> contactPrism = Affine<UserProfile, ContactInfo>
-    // ... >>> phoneLens = Affine<UserProfile, Optional<String>>
-    // ... >>> phonePrism = Affine<UserProfile, String>
+    // contactLens.andThen(contactPrism) = Affine<UserProfile, ContactInfo>
+    // ... .andThen(phoneLens) = Affine<UserProfile, Optional<String>>
+    // ... .andThen(phonePrism) = Affine<UserProfile, String>
     Affine<UserProfile, String> userToPhone =
         contactLens.andThen(contactPrism).andThen(phoneLens).andThen(phonePrism);
 
