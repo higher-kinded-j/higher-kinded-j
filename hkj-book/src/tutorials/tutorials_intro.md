@@ -76,12 +76,12 @@ After completing **Core: Foundations** the **Effect API journey** is the recomme
 
 | Journey | Exercises | Focus |
 |---------|-----------|-------|
-| [Lens & Prism](optics/lens_prism_journey.md) | 30 | Lens, Prism, Affine fundamentals |
+| [Lens & Prism](optics/lens_prism_journey.md) | 33 | Lens, Prism, Affine fundamentals |
 | [Traversals & Practice](optics/traversals_journey.md) | 28 | Traversals, composition, real-world use |
 | [Fluent & Free DSL](optics/fluent_free_journey.md) | 22 | Fluent API, Free Monad DSL |
 | [Focus DSL](optics/focus_dsl_journey.md) | 90 | Type-safe path navigation, container widening |
 | [Batching & Coupled Updates](optics/batching_journey.md) | 13 | Request batching, plan guardrails, coupled lenses |
-| [Boundary Mapping](optics/boundary_mapping_journey.md) | 19 | Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases |
+| [Boundary Mapping](optics/boundary_mapping_journey.md) | 24 | Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases |
 
 ### Capstone Journey
 

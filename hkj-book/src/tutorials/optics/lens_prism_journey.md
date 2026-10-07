@@ -7,8 +7,8 @@
 - Handling optional fields precisely with Affines
 ~~~
 
-**Tutorials**: 4 | **Exercises**: 30
-<!-- exercises: optics/Tutorial01_LensBasics optics/Tutorial02_LensComposition optics/Tutorial03_PrismBasics optics/Tutorial04_AffineBasics -->
+**Tutorials**: 5 | **Exercises**: 33
+<!-- exercises: optics/Tutorial00_FirstPath optics/Tutorial01_LensBasics optics/Tutorial02_LensComposition optics/Tutorial03_PrismBasics optics/Tutorial04_AffineBasics -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
 The `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/one_line_six_layers.md) is composed from the lenses, prisms, and affines this journey teaches. Each tutorial here opens with a Pain → Promise header showing the imperative-Java horror story (copy-constructor cascades, `instanceof` plus mutate-and-rebuild) the optic replaces.
@@ -16,7 +16,7 @@ The `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/o
 
 ## Journey Overview
 
-This journey teaches the fundamental optics: Lens, Prism, and Affine. By the end, you'll never write verbose immutable update code again.
+This journey teaches the fundamental optics: Lens, Prism, and Affine. Tutorial 00 starts from a generated path, the form most code uses; Tutorials 01-04 open up the lenses and prisms it is made of.
 
 ```
 Lens (product types) → Lens Composition → Prism (sum types) → Affine (optional)
@@ -34,6 +34,24 @@ Lens (product types) → Lens Composition → Prism (sum types) → Affine (opti
 | Traversal | zero or more values | every item in an order |
 
 When you compose a Lens with a Prism, you get an Affine: the lens always finds its field, but the prism may not match. This journey builds that intuition.
+
+---
+
+## Tutorial 00: Your First Path
+**File**: `Tutorial00_FirstPath.java` | **Exercises**: 3
+
+Name, read and write a field through a generated Focus path, on the Optics chapter's cast: an order placed by a customer, with lines. It needs nothing but the [Optics Quickstart](../../optics/quickstart.md), and it doubles as the track's setup check.
+
+**What you'll learn**:
+- Naming the path to a field three records down through `OrderFocus`
+- Writing through a path, and getting a new order back with everything off the path reused
+- Stepping into a list's elements with `.via(...)` and updating every one
+
+**Key insight**: A generated path is a typed route through your records: the compiler checks every hop, and a write rebuilds only what the route passes through.
+
+**Links to documentation**: [Optics Quickstart](../../optics/quickstart.md)
+
+[Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial00_FirstPath.java)
 
 ---
 
@@ -173,10 +191,11 @@ Learn to work with optional fields and nullable properties using Affines.
 ## Running the Tutorials
 
 ```bash
-./gradlew :hkj-examples:test --tests "*Tutorial01_LensBasics*"
-./gradlew :hkj-examples:test --tests "*Tutorial02_LensComposition*"
-./gradlew :hkj-examples:test --tests "*Tutorial03_PrismBasics*"
-./gradlew :hkj-examples:test --tests "*Tutorial04_AffineBasics*"
+./gradlew :hkj-examples:tutorialTest --tests "*Tutorial00_FirstPath*"
+./gradlew :hkj-examples:tutorialTest --tests "*Tutorial01_LensBasics*"
+./gradlew :hkj-examples:tutorialTest --tests "*Tutorial02_LensComposition*"
+./gradlew :hkj-examples:tutorialTest --tests "*Tutorial03_PrismBasics*"
+./gradlew :hkj-examples:tutorialTest --tests "*Tutorial04_AffineBasics*"
 ```
 
 ---

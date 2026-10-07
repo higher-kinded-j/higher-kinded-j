@@ -17,12 +17,12 @@ Each journey covers one topic. The [recommended paths](#recommended-paths) put t
 | [Concurrency: Scope & Resource](concurrency/scope_resource_journey.md) | 20 | Intermediate |
 | [Context](context/ch_intro.md) | 59 | Advanced |
 | [Effect Handlers](effecthandlers/ch_intro.md) | 19 | Advanced |
-| [Optics: Lens & Prism](optics/lens_prism_journey.md) | 30 | Beginner |
+| [Optics: Lens & Prism](optics/lens_prism_journey.md) | 33 | Beginner |
 | [Optics: Traversals & Practice](optics/traversals_journey.md) | 28 | Intermediate |
 | [Optics: Fluent & Free DSL](optics/fluent_free_journey.md) | 22 | Advanced |
 | [Optics: Focus DSL](optics/focus_dsl_journey.md) | 90 | Intermediate |
 | [Optics: Batching & Coupled Updates](optics/batching_journey.md) | 13 | Advanced |
-| [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | 19 | Intermediate |
+| [Optics: Boundary Mapping](optics/boundary_mapping_journey.md) | 24 | Intermediate |
 | [Expression: ForState](expression/forstate_journey.md) | 13 | Intermediate |
 | [Expression: ForPath Parallel](expression/forpath_parallel_journey.md) | 9 | Intermediate |
 | [Resilience Patterns](resilience/resilience_journey.md) | 24 | Intermediate |

@@ -119,6 +119,10 @@ You have built an order desk from the chapter's first pages, and each operation 
 * **A move between variants is a check and a write.** `matches` asks, and the state's own path writes the new variant.
 ~~~
 
+~~~admonish info title="Hands-On Learning"
+Build the desk's pieces yourself, on requests this page did not show, in [Capstone: The Order Desk](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/TutorialCapstone_OrderDesk.java) (5 exercises).
+~~~
+
 ~~~admonish tip title="See Also"
 - [Many Edits at Once](multi_edit.md): the PATCH model the amendment rests on
 - [Mapping at the Boundary](../mapping/ch_intro.md): the same order service, parsed from a request and built into a response

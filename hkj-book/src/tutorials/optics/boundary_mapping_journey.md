@@ -6,16 +6,17 @@
 - `@GenerateMapping`: the whole domain ↔ DTO boundary derived from a spec interface
 - Located errors end to end: leaves, nesting, renames, and the sparse PATCH sibling
 - The edge cases: a `null`, a list index, a left-out field, a record's invariant, and a PATCH bean's default
+- An order desk, the Optics chapter's capstone: named paths, every bad price, a sparse amendment and a change of state
 ~~~
 
-**Tutorials**: 4 (T24-T27) | **Exercises**: 19
-<!-- exercises: optics/Tutorial24_MultiEdit optics/Tutorial25_ValidatedPrism optics/Tutorial26_RecordMapping optics/Tutorial27_BoundaryEdgeCases -->
+**Tutorials**: 5 (T24-T27 and the Capstone) | **Exercises**: 24
+<!-- exercises: optics/Tutorial24_MultiEdit optics/Tutorial25_ValidatedPrism optics/Tutorial26_RecordMapping optics/Tutorial27_BoundaryEdgeCases optics/TutorialCapstone_OrderDesk -->
 
 ~~~admonish tip title="Where This Fits in the Bigger Picture"
-This journey is the hands-on lane for the [Mapping at the Boundary](../../mapping/ch_intro.md) chapter. Tutorial 24 builds the update-side machinery by hand (`Edits.combine` / `Edits.accumulate`), Tutorial 25 builds the leaf every fallible correspondence rests on (`ValidatedPrism`), and Tutorial 26 lets the processor derive the whole boundary and proves it lawful. Tutorial 27 takes it to the edge cases a real request brings. The [capstone](../../mapping/capstone.md) then shows the same machinery at full scale.
+This journey is the hands-on lane for the [Mapping at the Boundary](../../mapping/ch_intro.md) chapter. Tutorial 24 builds the update-side machinery by hand (`Edits.combine` / `Edits.accumulate`), Tutorial 25 builds the leaf every fallible correspondence rests on (`ValidatedPrism`), and Tutorial 26 lets the processor derive the whole boundary and proves it lawful. Tutorial 27 takes it to the edge cases a real request brings. The Mapping chapter's capstone, [One 422, Every Bad Field](../../mapping/capstone.md), then shows the same machinery at full scale. The optics track's Capstone closes the journey with the Optics chapter's [Capstone: An Order Desk](../../optics/capstone.md), built from named paths and Tutorial 24's edits.
 ~~~
 
-**Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md); the accumulating-assembly exercises in the [Error Handling Journey](../coretypes/error_handling_journey.md) help with Tutorials 25-27.
+**Prerequisites**: [Optics: Lens & Prism Journey](lens_prism_journey.md); the accumulating-assembly exercises in the [Error Handling Journey](../coretypes/error_handling_journey.md) help with Tutorials 25-27. The Capstone also assumes Tutorial 09 of the [Fluent & Free DSL Journey](fluent_free_journey.md) and Tutorial 12 of the [Focus DSL Journey](focus_dsl_journey.md).
 
 ## Journey Overview
 
@@ -32,6 +33,9 @@ T26  @GenerateMapping    the derived boundary
  │
  ▼
 T27  edge cases          nulls, list indexes, invariants, PATCH defaults
+ │
+ ▼
+Capstone  order desk     the Optics chapter's capstone, as exercises
 ```
 
 ---
@@ -106,6 +110,22 @@ A real request is rarely just a bad value. It leaves a field out, sends a list w
 
 ---
 
+## Capstone: The Order Desk {#capstone-the-order-desk}
+**File**: `TutorialCapstone_OrderDesk.java` | **Exercises**: 5
+
+The Optics chapter's capstone as exercises, on its running example: an order, and the consignment that ships it. Each exercise asks for a piece of the Capstone page's order desk, on a request the page did not show.
+
+**What you'll learn**:
+- Reusing a named path in every operation that needs it
+- Checking every price with `modifyAllValidated`, and changing only a valid result with `map`
+- Narrowing a traversal path with `filter`, so a write leaves the other lines alone
+- Amending an order from a sparse request with `Edits.accumulate`, every bad field located
+- Moving a sealed state to another variant only from the one you expect
+
+**Key insight**: The paths do the navigating, so each operation is a few lines, and each failure is a value that names where it happened.
+
+---
+
 ~~~admonish tip title="See Also"
 - [Mapping at the Boundary](../../mapping/ch_intro.md): The reference chapter this journey practises
 - [Capstone: One 422, Every Bad Field](../../mapping/capstone.md): The same machinery at full scale
@@ -115,6 +135,7 @@ A real request is rarely just a bad value. It leaves a field out, sends a list w
 - [A PATCH getter must answer `null` until set](../../mapping/beans_patch.md#patch-getters-answer-null): Why a PATCH bean must leave its fields uninitialised
 - [Many Edits at Once](../../optics/multi_edit.md): Tutorial 24's reference page
 - [Validated Prisms](../../optics/validated_prism.md): Tutorial 25's reference page
+- [Capstone: An Order Desk](../../optics/capstone.md): the Capstone's reference page
 ~~~
 
 ---

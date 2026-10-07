@@ -418,12 +418,12 @@ The fastest way to master Higher-Kinded-J is through our **interactive tutorial 
 | **[Context](tutorials/context/ch_intro.md)** | `ScopedValue` contexts for requests, security and tracing | 59 |
 | **[Effect Handlers](tutorials/effecthandlers/ch_intro.md)** | Effect algebras, programs as values, several interpreters | 19 |
 | **[Resilience Patterns](tutorials/resilience/resilience_journey.md)** | Circuit breaker, saga, retry, bulkhead | 24 |
-| **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** | Lens basics, Prism, Affine | 30 |
+| **[Optics: Lens & Prism](tutorials/optics/lens_prism_journey.md)** | Lens basics, Prism, Affine | 33 |
 | **[Optics: Traversals](tutorials/optics/traversals_journey.md)** | Traversals, composition, practical applications | 28 |
 | **[Optics: Fluent & Free](tutorials/optics/fluent_free_journey.md)** | Fluent API, Free Monad DSL | 22 |
 | **[Optics: Focus DSL](tutorials/optics/focus_dsl_journey.md)** | Type-safe path navigation, container widening | 90 |
 | **[Optics: Batching & Coupled Updates](tutorials/optics/batching_journey.md)** | Request batching, plan guardrails, coupled lenses | 13 |
-| **[Optics: Boundary Mapping](tutorials/optics/boundary_mapping_journey.md)** | Multi-edit and sparse updates, `@GenerateMapping`, the 422 leg, edge cases | 19 |
+| **[Optics: Boundary Mapping](tutorials/optics/boundary_mapping_journey.md)** | Multi-edit and sparse updates, `@GenerateMapping`, the 422 leg, edge cases | 24 |
 | **[Capstone: One Line, Six Layers Grows Up](tutorials/capstone/capstone_journey.md)** | One pipeline across effects, optics, resilience and concurrency | 7 |
 ~~~
 
