@@ -52,5 +52,5 @@ Practise this group in the [Lens & Prism Journey](../tutorials/optics/lens_prism
 
 ---
 
-**Previous:** [Many Edits at Once](multi_edit.md)
+**Previous:** [Check Your Understanding](self_check.md)
 **Next:** [Lenses](lenses.md)

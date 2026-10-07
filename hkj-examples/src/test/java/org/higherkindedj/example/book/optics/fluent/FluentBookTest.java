@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerFocus;
 import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.example.book.optics.cast.LineItemFocus;
@@ -207,5 +208,40 @@ class FluentBookTest {
 
     assertThat(FluentBook.composeOnce(List.of(ORDER, other)))
         .containsExactly(List.of(1, 4), List.of(4));
+  }
+
+  @Test
+  @DisplayName("checkpoint: every bad price, or only the first, for the same order")
+  void checkpointEveryOrFirst() {
+    Order twoBad =
+        order(List.of(line("LAMP", "-1.00"), line("BULB", "5.00"), line("SOFA", "-2.00")));
+
+    assertThat(FluentBook.everyError(twoBad).checked())
+        .isEqualTo(
+            Validated.invalid(
+                List.of("Price cannot be negative: -1.00", "Price cannot be negative: -2.00")));
+    assertThat(FluentBook.firstError(twoBad))
+        .isEqualTo(Either.left("Price cannot be negative: -1.00"));
+  }
+
+  @Test
+  @DisplayName("checkpoint: a chain checking the name first stops at the name")
+  void checkpointChainStops() {
+    Customer b = new Customer("B", new EmailAddress("b.example.com"));
+
+    Either<String, Customer> nameFirst =
+        OpticOps.modifyEither(
+                b,
+                CustomerFocus.name().toLens(),
+                name ->
+                    name.length() >= 2
+                        ? Either.<String, String>right(name)
+                        : Either.left("Name must be at least 2 characters"))
+            .flatMap(
+                checked ->
+                    OpticOps.modifyEither(
+                        checked, CustomerFocus.email().value().toLens(), FluentBook::checkEmail));
+
+    assertThat(nameFirst).isEqualTo(Either.left("Name must be at least 2 characters"));
   }
 }

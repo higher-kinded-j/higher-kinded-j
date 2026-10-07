@@ -121,6 +121,34 @@ The processor reads the spec and generates a `JsonNodeOptics` class (the `Spec` 
 For one read like this, Jackson's own `response.at("/items/0/name")` is shorter. The prisms earn their place when they compose with the rest of your optics, so that a JSON tree joins the same paths as your records. [Taming JSON with Jackson](optics_spec_interfaces.md) shows that, and how `@MatchWhen` handles Jackson's predicate-based type checks.
 ~~~
 
+~~~admonish tip title="You can ship now"
+You can now change a field three records deep, every element of a list, and one variant of a sealed type, through paths the processor generates. The rest of the chapter is for when a task needs more, starting with the Focus DSL in full.
+~~~
+
+~~~admonish question title="Checkpoint: what `set` leaves behind" id="check-quickstart-set"
+After this line, what does `order.customer().email().value()` hold, and is `updated.lines()` the same list as `order.lines()`?
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:one_liner}}
+```
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-quickstart-set-answer"
+**The old address, `ada@example.com`, and yes.** `set` changes nothing in place: it returns a new `Order`, rebuilding each record on the path and reusing everything off it, the lines included.
+
+Where this lives: [Annotate, then update](#1-annotate-then-update).
+~~~
+
+~~~admonish question title="Checkpoint: `modify` on another variant" id="check-quickstart-prism"
+A consignment is `Pending`. What does `ConsignmentStatePrisms.returned().modify(_ -> new ConsignmentState.Returned("lost"), consignment.state())` return?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-quickstart-prism-answer"
+**The `Pending` state, unchanged.** The prism focuses only a `Returned`, so on any other variant `modify` has nothing to change, and hands the value back as it was. Moving a consignment to another variant is a read through the prism followed by a build.
+
+Where this lives: [Sum types and collections, the same way](#2-sum-types-and-collections-the-same-way).
+~~~
+
 ---
 
 ~~~admonish info title="Key Takeaways"

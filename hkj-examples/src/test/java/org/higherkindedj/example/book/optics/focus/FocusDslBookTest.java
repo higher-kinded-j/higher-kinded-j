@@ -7,14 +7,22 @@ import static org.higherkindedj.example.book.optics.cast.CastFixtures.ADA;
 import static org.higherkindedj.example.book.optics.cast.CastFixtures.BULB;
 import static org.higherkindedj.example.book.optics.cast.CastFixtures.LAMP;
 import static org.higherkindedj.example.book.optics.cast.CastFixtures.ORDER;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.consignment;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.example.book.optics.cast.Bank;
 import org.higherkindedj.example.book.optics.cast.Card;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.ConsignmentFocus;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState;
 import org.higherkindedj.example.book.optics.cast.Customer;
 import org.higherkindedj.example.book.optics.cast.CustomerProfile;
+import org.higherkindedj.example.book.optics.cast.CustomerProfileFocus;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.EmailAddressFocus;
 import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderStatus;
@@ -118,6 +126,32 @@ class FocusDslBookTest {
     assertThat(result.updated().lines()).containsExactly(BULB, BULB);
     assertThat(result.modified().lines()).extracting(LineItem::quantity).containsExactly(2, 5);
     assertThat(result.lineCount()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("checkpoint: a miss at an earlier step skips the whole set")
+  void checkpointEarlierMissSkipsTheSet() {
+    AffinePath<CustomerProfile, String> altEmailValue =
+        CustomerProfileFocus.altEmail().via(EmailAddressFocus.value());
+
+    assertThat(altEmailValue.set("ada@work.example", WITHOUT_NICKNAME)).isEqualTo(WITHOUT_NICKNAME);
+  }
+
+  @Test
+  @DisplayName(
+      "checkpoint: a record field is a navigator, a sealed field a FocusPath, an Optional an AffinePath")
+  void checkpointPathTypes() {
+    Consignment pending = consignment(new ConsignmentState.Pending());
+
+    FocusPath<Consignment, Address> to = ConsignmentFocus.to().toPath();
+    FocusPath<Consignment, String> city = ConsignmentFocus.to().city();
+    FocusPath<Consignment, ConsignmentState> state = ConsignmentFocus.state();
+    AffinePath<CustomerProfile, EmailAddress> altEmail = CustomerProfileFocus.altEmail();
+
+    assertThat(to.get(pending)).isEqualTo(pending.to());
+    assertThat(city.get(pending)).isEqualTo("London");
+    assertThat(state.get(pending)).isEqualTo(new ConsignmentState.Pending());
+    assertThat(altEmail.getOptional(WITH_NICKNAME)).isEmpty();
   }
 
   @Nested

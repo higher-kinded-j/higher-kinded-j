@@ -212,7 +212,27 @@ flowchart LR
 `@GenerateMapping` on an [`UpdateSpec`](../mapping/beans_patch.md#fields-a-constructor-checks-together) generates exactly this: its `updateFrom` writes onto the components a PATCH can set and constructs the domain record once.
 
 ~~~admonish tip title="You can ship now"
-You can now update nested records, check what you write, and apply a PATCH that reports every bad field. The On demand groups that follow are for when a task needs them, and [When the constructor refuses](#when-the-constructor-refuses) is the fine print of this page.
+You can now update nested records, check what you write, and apply a PATCH that reports every bad field. The [Capstone](capstone.md) that follows puts these pieces together, and [When the constructor refuses](#when-the-constructor-refuses) is the fine print of this page.
+~~~
+
+~~~admonish question title="Checkpoint: two edits on one path" id="check-edits-overlap"
+What quantity does `Edits.combine(modify(QUANTITY, q -> q + 1), modify(QUANTITY, q -> q * 2))` leave on a line of quantity 3?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-edits-overlap-answer"
+**8.** The writes run left to right, and an edit at an overlapping path sees the previous edit's result: 3 becomes 4, then 8.
+
+Where this lives: [Semantics: validate everything, then write once](#semantics-validate-everything-then-write-once).
+~~~
+
+~~~admonish question title="Checkpoint: one bad field" id="check-edits-write-once"
+A PATCH sends a blank SKU, a `qtyDelta` of 2 and the price `forty`. With this page's parsers and `Edits.accumulate`, is the line's quantity changed?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-edits-write-once-answer"
+**No.** The result is `Invalid(NonEmptyList[sku: not a SKU, price: not a price])`, and an `Invalid` carries no line. The writes run only when every edit validated, so the good `qtyDelta` is not applied either.
+
+Where this lives: [Semantics: validate everything, then write once](#semantics-validate-everything-then-write-once).
 ~~~
 
 ---
@@ -259,4 +279,4 @@ Practise the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https:/
 ---
 
 **Previous:** [Updates That Can Fail](fluent_api.md)
-**Next:** [The Optic Types](ch1_intro.md)
+**Next:** [Capstone: An Order Desk](capstone.md)

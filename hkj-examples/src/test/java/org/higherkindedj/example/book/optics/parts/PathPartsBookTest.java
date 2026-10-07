@@ -3,6 +3,7 @@
 package org.higherkindedj.example.book.optics.parts;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.example.book.optics.cast.CastFixtures.ADA;
 import static org.higherkindedj.example.book.optics.cast.CastFixtures.BULB;
 import static org.higherkindedj.example.book.optics.cast.CastFixtures.LAMP;
@@ -12,8 +13,10 @@ import static org.higherkindedj.example.book.optics.cast.CastFixtures.order;
 
 import java.time.Instant;
 import java.util.List;
+import org.higherkindedj.example.book.optics.cast.AddressLenses;
 import org.higherkindedj.example.book.optics.cast.Consignment;
 import org.higherkindedj.example.book.optics.cast.ConsignmentFocus;
+import org.higherkindedj.example.book.optics.cast.ConsignmentLenses;
 import org.higherkindedj.example.book.optics.cast.ConsignmentState;
 import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
 import org.higherkindedj.example.book.optics.cast.Customer;
@@ -23,7 +26,10 @@ import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.optics.Iso;
+import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.higherkindedj.optics.laws.IsoLaws;
 import org.higherkindedj.optics.util.Traversals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -99,5 +105,29 @@ class PathPartsBookTest {
     assertThat(raw.totalQuantity()).isEqualTo(5);
     assertThat(raw.dispatch()).contains(new ConsignmentState.Dispatched(AT));
     assertThat(PathPartsBook.useRawOptics(order(List.of()), PENDING).dispatch()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("checkpoint: andThen on the lenses and toLens on the path are the same lens")
+  void checkpointViaIsAndThen() {
+    Lens<Consignment, String> byAndThen = ConsignmentLenses.to().andThen(AddressLenses.postcode());
+    Lens<Consignment, String> fromPath = ConsignmentFocus.to().postcode().toLens();
+
+    assertThat(byAndThen.get(PENDING)).isEqualTo(fromPath.get(PENDING)).isEqualTo("n1 1aa");
+    assertThat(byAndThen.set("N1 1AA", PENDING)).isEqualTo(fromPath.set("N1 1AA", PENDING));
+  }
+
+  @Test
+  @DisplayName(
+      "checkpoint: a wrapper's constructor and accessor are an iso; seconds since 1970 are not")
+  void checkpointLossyIsNotAnIso() {
+    Iso<EmailAddress, String> email = Iso.of(EmailAddress::value, EmailAddress::new);
+    Iso<Instant, Long> seconds = Iso.of(Instant::getEpochSecond, Instant::ofEpochSecond);
+    Instant withNanos = Instant.parse("2026-10-01T09:00:00.250Z");
+
+    IsoLaws.assertIsoLaws(email, ADA.email(), "lovelace@example.com");
+    assertThat(seconds.reverseGet(seconds.get(withNanos))).isNotEqualTo(withNanos);
+    assertThatThrownBy(() -> IsoLaws.assertGetReverseGet(seconds, withNanos))
+        .isInstanceOf(AssertionError.class);
   }
 }

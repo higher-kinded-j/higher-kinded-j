@@ -196,6 +196,30 @@ The rule is positional. A miss at the *last* step writes through and creates the
 | `headOption()` | `AffinePath<S, A>` | Narrow to the first focused element (reads the first, writes to all) |
 | `toTraversal()` | `Traversal<S, A>` | Extract the underlying optic |
 
+~~~admonish tip title="You can ship now"
+You can now find the path for any field you hold, read and write through it, and chain it into the records it reaches. The next page covers the hops you spell yourself, into collections, optional values and sealed types.
+~~~
+
+~~~admonish question title="Checkpoint: `set` two steps down" id="check-focus-absent"
+A `CustomerProfile` has no second email. What does `CustomerProfileFocus.altEmail().via(EmailAddressFocus.value()).set("ada@work.example", profile)` return?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-focus-absent-answer"
+**The profile unchanged.** The rule is positional: the miss is at the `Optional`, an earlier step, and the last step, the address's `value`, cannot build an `EmailAddress` from nothing, so the whole set is skipped. `CustomerProfileFocus.altEmail().set(...)` alone would write, because its last step can build the value.
+
+Where this lives: [AffinePath: Zero or One Element](#affinepath-zero-or-one-element).
+~~~
+
+~~~admonish question title="Checkpoint: predict the path type" id="check-focus-types"
+`Consignment` carries `@GenerateFocus(generateNavigators = true)` and has two components: `Address to`, where `Address` carries `@GenerateFocus`, and a sealed `ConsignmentState state`. What do `ConsignmentFocus.to()` and `ConsignmentFocus.state()` return? And what does `CustomerProfileFocus.altEmail()` return for an `Optional<EmailAddress>`?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-focus-types-answer"
+**A navigator for `Address`, so `.city()` chains straight on; a `FocusPath<Consignment, ConsignmentState>`, because a sealed field is not narrowed until a prism picks a variant; and an `AffinePath<CustomerProfile, EmailAddress>`.**
+
+Where this lives: [Find your field](#find-your-field).
+~~~
+
 ---
 
 ~~~admonish info title="Key Takeaways"
