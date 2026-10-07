@@ -3,10 +3,22 @@
 package org.higherkindedj.example.book.optics.focus;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.ADA;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.BULB;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.LAMP;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.ORDER;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Bank;
+import org.higherkindedj.example.book.optics.cast.Card;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerProfile;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.example.book.optics.cast.Payment;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -22,81 +34,90 @@ import tools.jackson.databind.node.JsonNodeFactory;
 @DisplayName("the Focus DSL page")
 class FocusDslBookTest {
 
-  private static final User ALICE = new User("Alice", new Address("Old Street", "London"));
-  private static final Employee BOB = new Employee("Bob", 41, Optional.of("Bob@Example.com"));
-  private static final Employee CAROL = new Employee("Carol", 35, Optional.empty());
-  private static final Department ENGINEERING = new Department("Engineering", List.of(BOB, CAROL));
-  private static final Company ACME = new Company("Acme", List.of(ENGINEERING));
+  private static final CustomerProfile WITH_NICKNAME =
+      new CustomerProfile("Ada", Optional.of("Countess"), Optional.empty());
+  private static final CustomerProfile WITHOUT_NICKNAME =
+      new CustomerProfile("Grace", Optional.empty(), Optional.empty());
 
   @Test
   @DisplayName("a path reads, sets and modifies a field two records down")
   void firstUse() {
-    FocusDslBook.FirstUse result = FocusDslBook.firstUse(ALICE);
+    Order padded =
+        new Order(
+            ORDER.id(),
+            new Customer("  Ada ", ADA.email()),
+            ORDER.lines(),
+            ORDER.placedAt(),
+            ORDER.currency(),
+            ORDER.status());
 
-    assertThat(result.city()).isEqualTo("London");
-    assertThat(result.moved().address().city()).isEqualTo("Paris");
-    assertThat(result.shouty().address().city()).isEqualTo("LONDON");
+    FocusDslBook.FirstUse result = FocusDslBook.firstUse(padded);
+
+    assertThat(result.name()).isEqualTo("  Ada ");
+    assertThat(result.renamed().customer().name()).isEqualTo("Ada Lovelace");
+    assertThat(result.tidied().customer()).isEqualTo(ADA);
+    assertThat(result.renamed().lines()).isSameAs(ORDER.lines());
   }
 
   @Test
   @DisplayName("the field type picks the path type, and each reads what the page says")
   void perComponent() {
-    FocusDslBook.PerComponent result = FocusDslBook.perComponent(ACME, BOB);
+    FocusDslBook.PerComponent result = FocusDslBook.perComponent(ORDER, WITH_NICKNAME);
 
-    assertThat(result.companyName()).isEqualTo("Acme");
-    assertThat(result.departments()).containsExactly(ENGINEERING);
-    assertThat(result.email()).contains("Bob@Example.com");
+    assertThat(result.status()).isEqualTo(OrderStatus.NEW);
+    assertThat(result.lines()).containsExactly(LAMP, BULB);
+    assertThat(result.nickname()).contains("Countess");
   }
 
   @Test
-  @DisplayName("a chained path reads and updates every employee's name")
+  @DisplayName("a chained path reads and updates every line's SKU")
   void chained() {
-    FocusDslBook.Chained result = FocusDslBook.chained(ACME);
+    FocusDslBook.Chained result = FocusDslBook.chained(ORDER);
 
-    assertThat(result.names()).containsExactly("Bob", "Carol");
-    assertThat(FocusDslBook.chained(result.updated()).names()).containsExactly("BOB", "CAROL");
+    assertThat(result.skus()).containsExactly("LAMP", "BULB");
+    assertThat(result.lowered().lines()).extracting(LineItem::sku).containsExactly("lamp", "bulb");
   }
 
   @Test
   @DisplayName("a FocusPath always reads, sets and modifies")
   void focusOps() {
-    FocusDslBook.FocusOps result = FocusDslBook.focusOps(CAROL);
+    FocusDslBook.FocusOps result = FocusDslBook.focusOps(ADA);
 
-    assertThat(result.name()).isEqualTo("Carol");
-    assertThat(result.updated().name()).isEqualTo("Bob");
-    assertThat(result.modified().name()).isEqualTo("CAROL");
+    assertThat(result.name()).isEqualTo("Ada");
+    assertThat(result.updated().name()).isEqualTo("Grace");
+    assertThat(result.modified().name()).isEqualTo("ADA");
   }
 
   @Test
   @DisplayName("an AffinePath set writes even when the focus is absent; modify does not")
   void affineOpsOnAbsent() {
-    FocusDslBook.AffineOps result = FocusDslBook.affineOps(CAROL);
+    FocusDslBook.AffineOps result = FocusDslBook.affineOps(WITHOUT_NICKNAME);
 
-    assertThat(result.email()).isEmpty();
-    assertThat(result.updated().email()).contains("new@example.com");
-    assertThat(result.modified()).isEqualTo(CAROL);
-    assertThat(result.hasEmail()).isFalse();
+    assertThat(result.nickname()).isEmpty();
+    assertThat(result.updated().nickname()).contains("Countess");
+    assertThat(result.modified()).isEqualTo(WITHOUT_NICKNAME);
+    assertThat(result.hasNickname()).isFalse();
   }
 
   @Test
   @DisplayName("an AffinePath on a present focus reads, sets and modifies it")
   void affineOpsOnPresent() {
-    FocusDslBook.AffineOps result = FocusDslBook.affineOps(BOB);
+    FocusDslBook.AffineOps result = FocusDslBook.affineOps(WITH_NICKNAME);
 
-    assertThat(result.email()).contains("Bob@Example.com");
-    assertThat(result.modified().email()).contains("bob@example.com");
-    assertThat(result.hasEmail()).isTrue();
+    assertThat(result.nickname()).contains("Countess");
+    assertThat(result.modified().nickname()).contains("COUNTESS");
+    assertThat(result.hasNickname()).isTrue();
   }
 
   @Test
   @DisplayName("a TraversalPath reads, sets, modifies and counts every element")
   void traversalOps() {
-    FocusDslBook.TraversalOps result = FocusDslBook.traversalOps(ENGINEERING, BOB);
+    FocusDslBook.TraversalOps result = FocusDslBook.traversalOps(ORDER, BULB);
 
-    assertThat(result.all()).containsExactly(BOB, CAROL);
-    assertThat(result.updated().employees()).containsExactly(BOB, BOB);
-    assertThat(result.modified().employees()).extracting(Employee::age).containsExactly(42, 36);
-    assertThat(result.headcount()).isEqualTo(2);
+    assertThat(result.all()).containsExactly(LAMP, BULB);
+    assertThat(result.updated().lines()).containsExactly(BULB, BULB);
+    assertThat(result.modified().lines()).extracting(LineItem::quantity).containsExactly(2, 5);
+    assertThat(result.lineCount()).isEqualTo(2);
   }
 
   @Nested
@@ -105,14 +126,14 @@ class FocusDslBookTest {
 
     private final FocusDslBook.Fields fields = FocusDslBook.findYourField();
 
-    private final Order order = order("SAVE10", Either.right("Dana"), new Payment.Card("4242"));
+    private final Basket basket = basket("SAVE10", Either.right("Dana"), new Card("4242"));
 
-    private static Order order(
+    private static Basket basket(
         @Nullable String couponCode, Either<String, String> approvedBy, Payment payment) {
-      return new Order(
-          new Customer("Alice", "alice@example.com"),
-          "ORD-1",
-          List.of(new LineItem("a", 2), new LineItem("b", 3)),
+      return new Basket(
+          ADA,
+          "CHK-1",
+          List.of(LAMP, BULB),
           Optional.of("Happy birthday"),
           couponCode,
           null,
@@ -126,49 +147,47 @@ class FocusDslBookTest {
     @Test
     @DisplayName("each generated method returns the path type its row names")
     void generatedTypes() {
-      TraversalPath<Order, LineItem> lines = OrderFocus.lines();
-      AffinePath<Order, String> couponCode = OrderFocus.couponCode();
-      FocusPath<Order, String> legacyNote = OrderFocus.legacyNote();
-      FocusPath<Order, Map<String, String>> attributes = OrderFocus.attributes();
-      FocusPath<Order, String[]> tags = OrderFocus.tags();
-      FocusPath<Order, Payment> payment = OrderFocus.payment();
-      FocusPath<Order, JsonNode> payload = OrderFocus.payload();
+      TraversalPath<Basket, LineItem> lines = BasketFocus.lines();
+      AffinePath<Basket, String> couponCode = BasketFocus.couponCode();
+      FocusPath<Basket, String> legacyNote = BasketFocus.legacyNote();
+      FocusPath<Basket, Map<String, String>> attributes = BasketFocus.attributes();
+      FocusPath<Basket, String[]> tags = BasketFocus.tags();
+      FocusPath<Basket, Payment> payment = BasketFocus.payment();
+      FocusPath<Basket, JsonNode> payload = BasketFocus.payload();
+      FocusPath<Basket, Customer> customer = BasketFocus.customer().toPath();
 
-      assertThat(lines.count(order)).isEqualTo(2);
-      assertThat(couponCode.matches(order)).isTrue();
-      assertThat(legacyNote.get(order)).isNull();
-      assertThat(attributes.get(order)).containsEntry("channel", "web");
-      assertThat(tags.get(order)).containsExactly("gift", "priority");
-      assertThat(payment.get(order)).isEqualTo(new Payment.Card("4242"));
-      assertThat(payload.get(order).isObject()).isTrue();
+      assertThat(lines.count(basket)).isEqualTo(2);
+      assertThat(couponCode.matches(basket)).isTrue();
+      assertThat(legacyNote.get(basket)).isNull();
+      assertThat(attributes.get(basket)).containsEntry("channel", "web");
+      assertThat(tags.get(basket)).containsExactly("gift", "priority");
+      assertThat(payment.get(basket)).isEqualTo(new Card("4242"));
+      assertThat(payload.get(basket).isObject()).isTrue();
+      assertThat(customer.get(basket)).isEqualTo(ADA);
     }
 
     @Test
     @DisplayName("each row's path reads the field it names")
     void eachRowReads() {
-      assertThat(fields.customerEmail().get(order)).isEqualTo("alice@example.com");
-      assertThat(fields.reference().get(order)).isEqualTo("ORD-1");
-      assertThat(fields.quantities().getAll(order)).containsExactly(2, 3);
-      assertThat(fields.giftMessage().getOptional(order)).contains("Happy birthday");
-      assertThat(fields.couponCode().getOptional(order)).contains("SAVE10");
-      assertThat(fields.legacyNote().getOptional(order)).isEmpty();
-      assertThat(fields.channel().getOptional(order)).contains("web");
-      assertThat(fields.tags().getAll(order)).containsExactly("gift", "priority");
-      assertThat(fields.approvedBy().getOptional(order)).contains("Dana");
-      assertThat(fields.card().getOptional(order)).contains(new Payment.Card("4242"));
-      assertThat(fields.sameCard().getOptional(order)).contains(new Payment.Card("4242"));
-      assertThat(
-              fields
-                  .payloadObject()
-                  .getOptional(order)
-                  .map(node -> node.get("source").stringValue()))
+      assertThat(fields.customerEmail().get(basket)).isEqualTo("ada@example.com");
+      assertThat(fields.reference().get(basket)).isEqualTo("CHK-1");
+      assertThat(fields.quantities().getAll(basket)).containsExactly(1, 4);
+      assertThat(fields.giftMessage().getOptional(basket)).contains("Happy birthday");
+      assertThat(fields.couponCode().getOptional(basket)).contains("SAVE10");
+      assertThat(fields.legacyNote().getOptional(basket)).isEmpty();
+      assertThat(fields.channel().getOptional(basket)).contains("web");
+      assertThat(fields.tags().getAll(basket)).containsExactly("gift", "priority");
+      assertThat(fields.approvedBy().getOptional(basket)).contains("Dana");
+      assertThat(fields.card().getOptional(basket)).contains(new Card("4242"));
+      assertThat(fields.sameCard().getOptional(basket)).contains(new Card("4242"));
+      assertThat(fields.payloadObject().getOptional(basket).map(n -> n.get("source").stringValue()))
           .contains("web");
     }
 
     @Test
-    @DisplayName("a null coupon, a Left approval and an invoice each read as absent")
+    @DisplayName("a null coupon, a Left approval and a bank payment each read as absent")
     void absentRows() {
-      Order sparse = order(null, Either.left("awaiting review"), new Payment.Invoice("30 days"));
+      Basket sparse = basket(null, Either.left("awaiting review"), new Bank("GB00TEST"));
 
       assertThat(fields.couponCode().getOptional(sparse)).isEmpty();
       assertThat(fields.approvedBy().getOptional(sparse)).isEmpty();

@@ -16,21 +16,39 @@ _Every path wraps an optic: take it out, compose it with `andThen`, and know whe
 **The code on this page is [PathPartsBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/parts/PathPartsBook.java) and its [PathPartsBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/optics/parts/PathPartsBookTest.java)**: the page includes them, so the build compiles and runs them.
 ~~~
 
-Nearly every update so far has been a path, such as `UserFocus.address().street().name()`. A path is a thin wrapper around an *optic*: an object that reads one or more parts of a structure, and rebuilds the structure with them replaced. Most code never opens the wrapper. This page opens it for the few jobs that need it. [When you need the optic](#when-you-need-the-optic) lists them: an API that takes an optic, a type the processor cannot reach, an optic with no path type, and a compiler message that names an optic type.
+Nearly every update so far has been a path, such as `OrderFocus.customer().email().value()`. A path is a thin wrapper around an *optic*: an object that reads one or more parts of a structure, and rebuilds the structure with them replaced. Most code never opens the wrapper. This page opens it for the few jobs that need it. [When you need the optic](#when-you-need-the-optic) lists them: an API that takes an optic, a type the processor cannot reach, an optic with no path type, and a compiler message that names an optic type.
 
 ---
 
 ## Each path type wraps an optic {#each-path-type-wraps-an-optic}
 
-Each of the [three path types](focus_dsl.md#the-three-path-types) wraps the optic of the same reach: a `FocusPath` a `Lens`, an `AffinePath` an `Affine`, and a `TraversalPath` a `Traversal`. Each hands its optic over with one call. The records are the Quickstart's, and an order with a sealed payment:
+Each of the [three path types](focus_dsl.md#the-three-path-types) wraps the optic of the same reach: a `FocusPath` a `Lens`, an `AffinePath` an `Affine`, and a `TraversalPath` a `Traversal`. Each hands its optic over with one call. The records are the chapter's cast, which the Quickstart introduced:
 
+~~~admonish example title="The cast these examples use" collapsible=true
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/parts/PathPartsBook.java:records}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Order.java:order}}
 ```
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/parts/PathPartsBook.java:order_records}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/LineItem.java:line_item}}
 ```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Customer.java:customer}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/EmailAddress.java:email_address}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Consignment.java:consignment}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/ConsignmentState.java:consignment_state}}
+```
+~~~
 
 Each path gives up its optic:
 
@@ -38,7 +56,7 @@ Each path gives up its optic:
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/parts/PathPartsBook.java:to_optic}}
 ```
 
-The optic reads and writes exactly what its path does: setting the street name through `streetName` gives the same `User` as setting it through `streetPath`. `FocusPath.of(lens)` goes the other way, and wraps an optic you already hold in a path.
+The optic reads and writes exactly what its path does: setting the email through `emailValue` gives the same `Order` as setting it through `emailPath`. `FocusPath.of(lens)` goes the other way, and wraps an optic you already hold in a path.
 
 ---
 
@@ -50,7 +68,7 @@ A `Lens<S, A>` is the pair you would write by hand for one record component: the
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/parts/PathPartsBook.java:by_hand}}
 ```
 
-`UserLenses.address()` is this lens, generated, and a generated lens class holds one per component, as the Quickstart's [What the processor wrote](quickstart.md#1-annotate-then-update) shows. A lens is a wither you can pass around, and it does what a wither cannot: compose. [Why a lens, when you have `@With`?](lenses.md#lens-or-wither) makes that case in full.
+`CustomerLenses.email()` is this lens, generated, and a generated lens class holds one per component; the Quickstart's [What the processor wrote](quickstart.md#1-annotate-then-update) shows a whole class. A lens is a wither you can pass around, and it does what a wither cannot: compose. [Why a lens, when you have `@With`?](lenses.md#lens-or-wither) makes that case in full.
 
 ---
 
@@ -62,7 +80,7 @@ A `Lens<S, A>` is the pair you would write by hand for one record component: the
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/parts/PathPartsBook.java:and_then}}
 ```
 
-`.via(...)` on a path is `andThen` on the optic inside, so `OrderFocus.payment().via(PaymentPrisms.card())` and `OrderLenses.payment().andThen(PaymentPrisms.card())` find the same card. The composed `streetName` is the copy-and-rebuild cascade written once: a set through it rebuilds the `Street`, the `Address` and the `User`, and reuses every value off the path. [Composition Rules](composition_rules.md#composition-rules-table) gives the result type for every pair.
+`.via(...)` on a path is `andThen` on the optic inside, so `ConsignmentFocus.state().via(ConsignmentStatePrisms.dispatched())` and `ConsignmentLenses.state().andThen(ConsignmentStatePrisms.dispatched())` find the same dispatch. The composed `emailValue` is the copy-and-rebuild cascade written once: a set through it rebuilds the `EmailAddress`, the `Customer` and the `Order`, and reuses every value off the path. [Composition Rules](composition_rules.md#composition-rules-table) gives the result type for every pair.
 
 ---
 
@@ -83,7 +101,7 @@ Each plays the part of a Java idiom you already write:
 | Lens | an accessor and a `withX` copy, as one value | composes through nested records |
 | Affine | an accessor that returns `Optional`, with a copy that writes the value | composes, and `modify` leaves an absent value alone |
 | Prism | an `instanceof` pattern, and the variant's constructor | composes, and builds the variant back |
-| Iso | a wrapper record's constructor and accessor, such as `new Sku(text)` and `sku.text()`, which lose nothing | composes, and turns around with `reverse()` |
+| Iso | a wrapper record's constructor and accessor, such as `new EmailAddress(value)` and `email.value()`, which lose nothing | composes, and turns around with `reverse()` |
 | Traversal | `stream().map(f).toList()` over a list field, put back with a wither | does the rebuild for you, at any depth |
 | Fold | a `Stream` over the same values, which only reads | composes, and says in its type that it never writes |
 | Getter | a derived accessor, such as a `fullName()` computed from two fields | composes with other getters, and with any optic through `asFold()` |
@@ -101,7 +119,7 @@ A raw optic carries the operations its type allows. A `Traversal` is the excepti
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/parts/PathPartsBook.java:raw_use}}
 ```
 
-For an order of quantities 1 and 2 paid by card, `doubled` holds 2 and 4, `totalQuantity` is 3, and `paidByCard` holds the card. A `TraversalPath` has `modifyAll` and `getAll` of its own, which is one reason to stay on the path. Mind the argument order, which differs by home: a path's methods take the source last, `path.modify(f, source)`; `Traversals.modify(traversal, f, source)` puts the optic first; and `OpticOps`, on the next page, puts the source first.
+For Ada's order of one lamp and four bulbs, `doubled` holds quantities of 2 and 8 and `totalQuantity` is 5, and for a dispatched consignment `dispatch` holds its dispatch. A `TraversalPath` has `modifyAll` and `getAll` of its own, which is one reason to stay on the path. Mind the argument order, which differs by home: a path's methods take the source last, `path.modify(f, source)`; `Traversals.modify(traversal, f, source)` puts the optic first; and `OpticOps`, on the next page, puts the source first.
 
 ---
 
@@ -114,7 +132,7 @@ Stay on the path by default. It has every read and write, its field names locate
 | An API takes an optic: `OpticOps`, which [Updates That Can Fail](fluent_api.md) uses, or hkj-test's `LensLaws`, which checks that a hand-written lens behaves | Hand it `path.toLens()`, `toAffine()` or `toTraversal()` |
 | The processor cannot reach the type, because you cannot annotate the class | Write the lens with `Lens.of`, as in [What a lens is](#what-a-lens-is), and check it with `LensLaws`; or generate the optics with `@ImportOptics`, which [Optics for External Types](importing_optics.md) covers, and [when to write a lens by hand](lenses.md#use-manual-lens-creation-when) compares |
 | The optic has no path type: an `Iso`, a `Getter`, a `Fold` or a `Setter` | Use it directly. An iso still joins a path through `.via(iso)`, and every path gives you its fold with `asFold()` |
-| A compiler message names an optic type, such as `Affine<Order, Card>` | Read it as the optic inside the matching path type; the grid says what that optic can do, and [Compiler Errors](compiler_errors.md) lists the common messages |
+| A compiler message names an optic type, such as `Affine<Consignment, Dispatched>` | Read it as the optic inside the matching path type; the grid says what that optic can do, and [Compiler Errors](compiler_errors.md) lists the common messages |
 
 ---
 

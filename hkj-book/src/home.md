@@ -220,21 +220,23 @@ Only a `SystemError` is retried; a business `Left` such as an out-of-stock decis
 The most comprehensive optics implementation available for Java: lenses, prisms, isos, affines, traversals, folds and setters, all composable, generated from annotations on records, sealed interfaces, collections and [types you don't own](optics/importing_optics.md) (Jackson, JOOQ, Immutables, Lombok, AutoValue, Protocol Buffers). Filtered and indexed traversals, and [31 container types](optics/focus_containers.md) across the JDK and five third-party collection libraries widening to the right path type automatically.
 
 ~~~admonish example title="Quick example" collapsible=true
-<!-- verify -->
-```java
-@GenerateLenses @GenerateFocus(generateNavigators = true)
-public record Street(String name, int number) {}
-
-@GenerateLenses @GenerateFocus(generateNavigators = true)
-public record Address(Street street, String postcode) {}
-
-@GenerateLenses @GenerateFocus(generateNavigators = true)
-public record User(String name, Address address) {}
-
-User updated = UserFocus.address().street().name().set("New Street", user);
+``` java
+{{#include ../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Order.java:order}}
 ```
 
-Write the records, add the annotations, and the processor writes `StreetLenses`, `AddressFocus`, `UserFocus` and the rest: a typed path builder for every field, three layers down in one line, with no reflection and no copy-and-rebuild code. Start at the [Quickstart](optics/quickstart.md) or the [Annotations at a Glance](optics/annotations_at_a_glance.md) table.
+``` java
+{{#include ../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Customer.java:customer}}
+```
+
+``` java
+{{#include ../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/EmailAddress.java:email_address}}
+```
+
+``` java
+{{#include ../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:one_liner}}
+```
+
+Write the records, add the annotations, and the processor writes `OrderLenses`, `CustomerFocus`, `OrderFocus` and the rest: a typed path builder for every field, three layers down in one line, with no reflection and no copy-and-rebuild code. Start at the [Quickstart](optics/quickstart.md) or the [Annotations at a Glance](optics/annotations_at_a_glance.md) table.
 ~~~
 
 **[Explore Optics →](optics/ch_intro.md)**

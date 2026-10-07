@@ -6,10 +6,22 @@ import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.instances.Witnesses.completableFuture;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerFocus;
+import org.higherkindedj.example.book.optics.cast.CustomerLenses;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemFocus;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.example.book.optics.cast.OrderTraversals;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoids;
@@ -20,9 +32,6 @@ import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateFocus;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.fluent.OpticOps;
 import org.higherkindedj.optics.focus.TraversalPath;
 
@@ -30,7 +39,7 @@ import org.higherkindedj.optics.focus.TraversalPath;
  * The code shown on the book's <a
  * href="https://higher-kinded-j.github.io/latest/optics/fluent_api.html">Updates That Can Fail</a>
  * page. The page {@code {{#include}}}s the anchored regions, and {@code FluentBookTest} holds the
- * claims the page makes about this code.
+ * claims the page makes about this code. The records are the chapter's cast.
  */
 public final class FluentBook {
 
@@ -59,9 +68,9 @@ public final class FluentBook {
     return email.contains("@") ? Either.right(email) : Either.left("Invalid email: " + email);
   }
 
-  static Maybe<String> normaliseUsername(String username) {
-    String trimmed = username.strip();
-    return trimmed.length() >= 3 && trimmed.length() <= 20 ? Maybe.just(trimmed) : Maybe.nothing();
+  static Maybe<String> normaliseName(String name) {
+    String trimmed = name.strip();
+    return trimmed.length() >= 2 && trimmed.length() <= 40 ? Maybe.just(trimmed) : Maybe.nothing();
   }
 
   // ANCHOR_END: other_checks
@@ -69,11 +78,11 @@ public final class FluentBook {
   static List<String> priceErrorsByHand(Order order) {
     // ANCHOR: by_hand
     List<String> errors = new ArrayList<>();
-    for (LineItem item : order.items()) {
-      if (item.price().signum() < 0) {
-        errors.add("Price cannot be negative: " + item.price());
-      } else if (item.price().compareTo(MAXIMUM) > 0) {
-        errors.add("Price exceeds maximum: " + item.price());
+    for (LineItem line : order.lines()) {
+      if (line.price().signum() < 0) {
+        errors.add("Price cannot be negative: " + line.price());
+      } else if (line.price().compareTo(MAXIMUM) > 0) {
+        errors.add("Price exceeds maximum: " + line.price());
       }
     }
     // ANCHOR_END: by_hand
@@ -86,7 +95,7 @@ public final class FluentBook {
   static EveryError everyError(Order order) {
     // ANCHOR: every_error
     Traversal<Order, BigDecimal> prices =
-        OrderFocus.items().via(LineItemFocus.price()).toTraversal();
+        OrderFocus.lines().via(LineItemFocus.price()).toTraversal();
 
     Validated<List<String>, Order> checked =
         OpticOps.modifyAllValidated(order, prices, FluentBook::checkPrice);
@@ -100,35 +109,37 @@ public final class FluentBook {
   }
 
   /** What the page's fail-fast block computes. */
-  record FailFast(Either<String, User> result, String message) {}
+  record FailFast(Either<String, Customer> result, String message) {}
 
-  static FailFast failFast(User user) {
+  static FailFast failFast(Customer customer) {
     // ANCHOR: fail_fast
-    Lens<User, String> email = UserFocus.email().toLens();
+    Lens<Customer, String> email = CustomerFocus.email().value().toLens();
 
-    Either<String, User> result = OpticOps.modifyEither(user, email, FluentBook::checkEmail);
+    Either<String, Customer> result =
+        OpticOps.modifyEither(customer, email, FluentBook::checkEmail);
 
-    String message = result.fold(error -> "rejected: " + error, u -> "accepted: " + u.email());
+    String message =
+        result.fold(error -> "rejected: " + error, c -> "accepted: " + c.email().value());
     // ANCHOR_END: fail_fast
     return new FailFast(result, message);
   }
 
   /** What the page's no-detail block computes. */
-  record NoDetail(Maybe<User> normalised, User safe) {}
+  record NoDetail(Maybe<Customer> normalised, Customer safe) {}
 
-  static NoDetail noDetail(User user) {
+  static NoDetail noDetail(Customer customer) {
     // ANCHOR: no_detail
-    Maybe<User> normalised =
-        OpticOps.modifyMaybe(user, UserFocus.username().toLens(), FluentBook::normaliseUsername);
+    Maybe<Customer> normalised =
+        OpticOps.modifyMaybe(customer, CustomerFocus.name().toLens(), FluentBook::normaliseName);
 
-    User safe = normalised.orElse(user);
+    Customer safe = normalised.orElse(customer);
     // ANCHOR_END: no_detail
     return new NoDetail(normalised, safe);
   }
 
   static Either<String, Order> firstError(Order order) {
     Traversal<Order, BigDecimal> prices =
-        OrderFocus.items().via(LineItemFocus.price()).toTraversal();
+        OrderFocus.lines().via(LineItemFocus.price()).toTraversal();
     // ANCHOR: first_error
     Either<String, Order> firstFailure =
         OpticOps.modifyAllEither(order, prices, FluentBook::checkPriceEither);
@@ -136,33 +147,34 @@ public final class FluentBook {
     return firstFailure;
   }
 
-  static Either<String, User> register(User user) {
+  static Either<String, Customer> register(Customer customer) {
     // ANCHOR: sequential
-    Either<String, User> registered =
-        OpticOps.modifyEither(user, UserFocus.email().toLens(), FluentBook::checkEmail)
+    Either<String, Customer> registered =
+        OpticOps.modifyEither(
+                customer, CustomerFocus.email().value().toLens(), FluentBook::checkEmail)
             .flatMap(
                 checked ->
                     OpticOps.modifyEither(
                         checked,
-                        UserFocus.username().toLens(),
+                        CustomerFocus.name().toLens(),
                         name ->
-                            name.length() >= 3
+                            name.length() >= 2
                                 ? Either.right(name)
-                                : Either.left("Username must be at least 3 characters")));
+                                : Either.left("Name must be at least 2 characters")));
     // ANCHOR_END: sequential
     return registered;
   }
 
   /** What the page's builder block computes. */
-  record Builders(Either<String, User> email, Validated<List<String>, Order> prices) {}
+  record Builders(Either<String, Customer> email, Validated<List<String>, Order> prices) {}
 
-  static Builders builders(User user, Order order) {
-    Lens<User, String> email = UserFocus.email().toLens();
+  static Builders builders(Customer customer, Order order) {
+    Lens<Customer, String> email = CustomerFocus.email().value().toLens();
     Traversal<Order, BigDecimal> prices =
-        OrderFocus.items().via(LineItemFocus.price()).toTraversal();
+        OrderFocus.lines().via(LineItemFocus.price()).toTraversal();
     // ANCHOR: builders
-    Either<String, User> checkedEmail =
-        OpticOps.modifyingWithValidation(user).throughEither(email, FluentBook::checkEmail);
+    Either<String, Customer> checkedEmail =
+        OpticOps.modifyingWithValidation(customer).throughEither(email, FluentBook::checkEmail);
 
     Validated<List<String>, Order> checkedPrices =
         OpticOps.modifyingWithValidation(order).allThroughValidated(prices, FluentBook::checkPrice);
@@ -170,186 +182,169 @@ public final class FluentBook {
     return new Builders(checkedEmail, checkedPrices);
   }
 
-  // ANCHOR: fetch_bonus
-  static CompletableFuture<Integer> fetchBonus(int score) {
-    return CompletableFuture.completedFuture(score + 10);
+  // ANCHOR: current_price
+  static CompletableFuture<BigDecimal> currentPrice(BigDecimal listed) {
+    return CompletableFuture.completedFuture(listed.add(BigDecimal.ONE));
   }
 
-  // ANCHOR_END: fetch_bonus
+  // ANCHOR_END: current_price
 
-  static CompletableFuture<Team> withBonuses(Team team) {
+  static CompletableFuture<Order> repriced(Order order) {
     // ANCHOR: modify_f
     Applicative<CompletableFutureKind.Witness> futures = Instances.applicative(completableFuture());
 
-    TraversalPath<Team, Integer> scores = TeamFocus.players().via(PlayerFocus.score());
+    TraversalPath<Order, BigDecimal> prices = OrderFocus.lines().via(LineItemFocus.price());
 
-    Kind<CompletableFutureKind.Witness, Team> pending =
-        scores.modifyF(score -> FUTURE.widen(fetchBonus(score)), team, futures);
+    Kind<CompletableFutureKind.Witness, Order> pending =
+        prices.modifyF(price -> FUTURE.widen(currentPrice(price)), order, futures);
 
-    CompletableFuture<Team> withBonuses = FUTURE.narrow(pending);
+    CompletableFuture<Order> repriced = FUTURE.narrow(pending);
     // ANCHOR_END: modify_f
-    return withBonuses;
+    return repriced;
   }
 
   /** What the page's OpticOps reads, writes and queries compute. */
   record ReadsAndWrites(
       String name,
-      List<Integer> scores,
-      Optional<Integer> firstScore,
-      Person updated,
-      Team doubled,
-      boolean hasHighScorer,
-      boolean allPassed,
-      int playerCount,
-      boolean noPlayers,
-      Optional<Player> top) {}
+      List<Integer> quantities,
+      Optional<Integer> firstQuantity,
+      Order paid,
+      Order doubled,
+      boolean anyBulk,
+      boolean allOrdered,
+      int lineCount,
+      boolean noLines,
+      Optional<LineItem> overTen) {}
 
-  static ReadsAndWrites readsAndWrites(Person alice, Team team) {
+  static ReadsAndWrites readsAndWrites(Customer customer, Order order) {
     // ANCHOR: reads_and_writes
-    Traversal<Team, Integer> playerScores = TeamTraversals.players().andThen(PlayerLenses.score());
+    Traversal<Order, Integer> quantities =
+        OrderTraversals.lines().andThen(LineItemLenses.quantity());
 
     // Read
-    String name = OpticOps.get(alice, PersonLenses.name());
-    List<Integer> scores = OpticOps.getAll(team, playerScores);
-    Optional<Integer> firstScore = OpticOps.preview(team, playerScores);
+    String name = OpticOps.get(customer, CustomerLenses.name());
+    List<Integer> allQuantities = OpticOps.getAll(order, quantities);
+    Optional<Integer> firstQuantity = OpticOps.preview(order, quantities);
 
     // Write
-    Person updated = OpticOps.set(alice, PersonLenses.age(), 30);
-    Team doubled = OpticOps.modifyAll(team, playerScores, score -> score * 2);
+    Order paid = OpticOps.set(order, OrderLenses.status(), OrderStatus.PAID);
+    Order doubled = OpticOps.modifyAll(order, quantities, quantity -> quantity * 2);
 
     // Query, without modifying anything
-    boolean hasHighScorer = OpticOps.exists(team, playerScores, score -> score > 90);
-    boolean allPassed = OpticOps.all(team, playerScores, score -> score >= 50);
-    int playerCount = OpticOps.count(team, TeamTraversals.players());
-    boolean noPlayers = OpticOps.isEmpty(team, TeamTraversals.players());
-    Optional<Player> top =
-        OpticOps.find(team, TeamTraversals.players(), player -> player.score() > 90);
+    boolean anyBulk = OpticOps.exists(order, quantities, quantity -> quantity >= 4);
+    boolean allOrdered = OpticOps.all(order, quantities, quantity -> quantity >= 1);
+    int lineCount = OpticOps.count(order, OrderTraversals.lines());
+    boolean noLines = OpticOps.isEmpty(order, OrderTraversals.lines());
+    Optional<LineItem> overTen =
+        OpticOps.find(
+            order, OrderTraversals.lines(), line -> line.price().compareTo(BigDecimal.TEN) > 0);
     // ANCHOR_END: reads_and_writes
     return new ReadsAndWrites(
         name,
-        scores,
-        firstScore,
-        updated,
+        allQuantities,
+        firstQuantity,
+        paid,
         doubled,
-        hasHighScorer,
-        allPassed,
-        playerCount,
-        noPlayers,
-        top);
+        anyBulk,
+        allOrdered,
+        lineCount,
+        noLines,
+        overTen);
   }
 
   /** What the page's two-styles block computes. */
-  record Styles(int age, Person older, int sameAge, Person alsoOlder) {}
+  record Styles(int quantity, LineItem more, int sameQuantity, LineItem alsoMore) {}
 
-  static Styles styles(Person alice) {
+  static Styles styles(LineItem lamp) {
     // ANCHOR: styles
     // Static style
-    int age = OpticOps.get(alice, PersonLenses.age());
-    Person older = OpticOps.modify(alice, PersonLenses.age(), a -> a + 1);
+    int quantity = OpticOps.get(lamp, LineItemLenses.quantity());
+    LineItem more = OpticOps.modify(lamp, LineItemLenses.quantity(), q -> q + 1);
 
     // Builder style
-    int sameAge = OpticOps.getting(alice).through(PersonLenses.age());
-    Person alsoOlder = OpticOps.modifying(alice).through(PersonLenses.age(), a -> a + 1);
+    int sameQuantity = OpticOps.getting(lamp).through(LineItemLenses.quantity());
+    LineItem alsoMore = OpticOps.modifying(lamp).through(LineItemLenses.quantity(), q -> q + 1);
     // ANCHOR_END: styles
-    return new Styles(age, older, sameAge, alsoOlder);
+    return new Styles(quantity, more, sameQuantity, alsoMore);
   }
 
   /** What the page's builder-verbs block computes. */
-  record Verbs(List<Integer> allScores, Team reset, Team bumped, boolean any) {}
+  record Verbs(List<Integer> all, Order reset, Order bumped, boolean any) {}
 
-  static Verbs builderVerbs(Team team) {
-    Traversal<Team, Integer> playerScores = TeamTraversals.players().andThen(PlayerLenses.score());
+  static Verbs builderVerbs(Order order) {
+    Traversal<Order, Integer> quantities =
+        OrderTraversals.lines().andThen(LineItemLenses.quantity());
     // ANCHOR: builder_verbs
-    List<Integer> allScores = OpticOps.getting(team).allThrough(playerScores);
-    Team reset = OpticOps.setting(team).allThrough(playerScores, 0);
-    Team bumped = OpticOps.modifying(team).allThrough(playerScores, score -> score + 5);
-    boolean any = OpticOps.querying(team).anyMatch(playerScores, score -> score > 90);
+    List<Integer> all = OpticOps.getting(order).allThrough(quantities);
+    Order reset = OpticOps.setting(order).allThrough(quantities, 1);
+    Order bumped = OpticOps.modifying(order).allThrough(quantities, quantity -> quantity + 1);
+    boolean any = OpticOps.querying(order).anyMatch(quantities, quantity -> quantity >= 4);
     // ANCHOR_END: builder_verbs
-    return new Verbs(allScores, reset, bumped, any);
+    return new Verbs(all, reset, bumped, any);
   }
 
-  static Person classify(Person alice) {
+  static Order stampIfNew(Order order, Instant now) {
     // ANCHOR: conditional
-    Person classified =
-        OpticOps.get(alice, PersonLenses.age()) >= 18
-            ? OpticOps.set(alice, PersonLenses.status(), "ADULT")
-            : alice;
+    Order stamped =
+        OpticOps.get(order, OrderLenses.status()) == OrderStatus.NEW
+            ? OpticOps.set(order, OrderLenses.placedAt(), now)
+            : order;
     // ANCHOR_END: conditional
-    return classified;
+    return stamped;
   }
 
   /** What the page's filtered block computes. */
-  record Starred(Team starred, List<Player> stars) {}
+  record BulkDiscount(Order discounted, List<LineItem> bulkLines) {}
 
-  static Starred starTopPerformers(Team team) {
+  static BulkDiscount discountBulkLines(Order order) {
     // ANCHOR: filtered
-    Traversal<Team, Player> topPerformers =
-        TeamTraversals.players().filtered(player -> player.score() >= 90);
+    Traversal<Order, LineItem> bulk =
+        OrderTraversals.lines().filtered(line -> line.quantity() >= 4);
 
-    Team starred = OpticOps.setAll(team, topPerformers.andThen(PlayerLenses.status()), "STAR");
+    Order discounted =
+        OpticOps.modifyAll(
+            order,
+            bulk.andThen(LineItemLenses.price()),
+            price -> price.multiply(new BigDecimal("0.9")));
 
-    List<Player> stars = OpticOps.getAll(starred, topPerformers);
+    List<LineItem> bulkLines = OpticOps.getAll(discounted, bulk);
     // ANCHOR_END: filtered
-    return new Starred(starred, stars);
+    return new BulkDiscount(discounted, bulkLines);
   }
 
-  static int totalScore(Team team) {
+  static int totalQuantity(Order order) {
     // ANCHOR: aggregate
     int total =
-        TeamTraversals.players()
-            .andThen(PlayerLenses.score())
+        OrderTraversals.lines()
+            .andThen(LineItemLenses.quantity())
             .asFold()
-            .foldMap(Monoids.integerAddition(), score -> score, team);
+            .foldMap(Monoids.integerAddition(), quantity -> quantity, order);
     // ANCHOR_END: aggregate
     return total;
   }
 
-  static List<String> highScorerNames(Team team) {
+  static List<String> dearSkus(Order order) {
     // ANCHOR: streams
-    List<String> highScorerNames =
-        OpticOps.getting(team).allThrough(TeamTraversals.players()).stream()
-            .filter(player -> player.score() > 90)
-            .map(Player::name)
+    List<String> dearSkus =
+        OpticOps.getting(order).allThrough(OrderTraversals.lines()).stream()
+            .filter(line -> line.price().compareTo(BigDecimal.TEN) > 0)
+            .map(LineItem::sku)
             .toList();
     // ANCHOR_END: streams
-    return highScorerNames;
+    return dearSkus;
   }
 
-  static List<List<Integer>> composeOnce(List<Team> teams) {
+  static List<List<Integer>> composeOnce(List<Order> orders) {
     // ANCHOR: compose_once
     // Compose once, before the loop
-    Traversal<Team, Integer> scores = TeamTraversals.players().andThen(PlayerLenses.score());
+    Traversal<Order, Integer> quantities =
+        OrderTraversals.lines().andThen(LineItemLenses.quantity());
 
-    List<List<Integer>> allScores = new ArrayList<>();
-    for (Team team : teams) {
-      allScores.add(OpticOps.getAll(team, scores));
+    List<List<Integer>> allQuantities = new ArrayList<>();
+    for (Order order : orders) {
+      allQuantities.add(OpticOps.getAll(order, quantities));
     }
     // ANCHOR_END: compose_once
-    return allScores;
+    return allQuantities;
   }
 }
-
-// ANCHOR: records
-@GenerateFocus
-record LineItem(String sku, BigDecimal price) {}
-
-@GenerateFocus
-record Order(String id, List<LineItem> items) {}
-
-@GenerateFocus
-record User(String username, String email) {}
-
-// ANCHOR_END: records
-
-// ANCHOR: team_records
-@GenerateLenses
-record Person(String name, int age, String status) {}
-
-@GenerateLenses
-@GenerateFocus
-record Player(String name, int score, String status) {}
-
-@GenerateFocus
-@GenerateTraversals
-record Team(String name, List<Player> players) {}
-// ANCHOR_END: team_records

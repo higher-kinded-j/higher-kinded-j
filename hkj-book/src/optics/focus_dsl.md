@@ -15,27 +15,33 @@ _Navigate and update nested records through generated, compile-checked paths tha
 For longer programs in the same style, see [NavigatorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/NavigatorExample.java) and [ContainerNavigationExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/focus/ContainerNavigationExample.java).
 ~~~
 
-A Focus path does for your records what the JPA metamodel or QueryDSL's Q-types do for a query, and it writes as well as reads. `UserFocus.address().city()` names a field the way `QUser.user.address.city` does, and the compiler checks every step. Instead of composing lenses, prisms and traversals by hand, you navigate your data with method chains that mirror its shape.
+A Focus path does for your records what the JPA metamodel or QueryDSL's Q-types do for a query, and it writes as well as reads. `OrderFocus.customer().name()` names a field the way `QOrder.order.customer.name` does, and the compiler checks every step. Instead of composing lenses, prisms and traversals by hand, you navigate your data with method chains that mirror its shape.
 
 ---
 
 ## The whole feature on one screen {#the-whole-feature-on-one-screen}
 
-**Step 1.** Annotate two records:
+**Step 1.** Annotate the records. These are the chapter's cast, which the Quickstart introduced: an `Order` placed by a `Customer`.
 
+~~~admonish example title="The cast these examples use" collapsible=true
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:first_records}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Order.java:order}}
 ```
 
-**Step 2.** Use the generated `UserFocus` companion class:
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Customer.java:customer}}
+```
+~~~
+
+**Step 2.** Use the generated `OrderFocus` companion class:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:first_use}}
 ```
 
-**Step 3.** That is it. The path you typed (`UserFocus.address().city()`) is a typed value: store it, pass it around, reuse it. The processor generated `UserFocus` and `AddressFocus` at compile time; nothing reflective happens at runtime.
+**Step 3.** That is it. The path you typed (`OrderFocus.customer().name()`) is a typed value: store it, pass it around, reuse it. The processor generated `OrderFocus` and `CustomerFocus` at compile time; nothing reflective happens at runtime.
 
-`.city()` chains straight off `.address()` because of `generateNavigators = true`. A *navigator* is the small class the processor generates for a field whose type is another annotated record, with one method per field of that record. Without it, `UserFocus.address()` is still a perfectly good `FocusPath<User, Address>`, and you spell the next hop `.via(AddressFocus.city())`. Navigators are sugar over composition, so nothing is lost by leaving them off and nothing is locked in by turning them on.
+`.name()` chains straight off `.customer()` because of `generateNavigators = true`. A *navigator* is the small class the processor generates for a field whose type is another annotated record, with one method per field of that record. Without it, `OrderFocus.customer()` is still a perfectly good `FocusPath<Order, Customer>`, and you spell the next hop `.via(CustomerFocus.name())`. Navigators are sugar over composition, so nothing is lost by leaving them off and nothing is locked in by turning them on.
 
 Collections, optionals and sealed types extend the same pattern, and [Find your field](#find-your-field) gives the spelling for each. You almost never have to compose lenses by hand to get useful work done.
 
@@ -47,28 +53,28 @@ The field's declared type decides the path type at compile time, so the path say
 
 ## Find your field {#find-your-field}
 
-You arrive holding a field, not an optic type. Find its declaration in the table: the row gives what the generated method returns and what you write next. Every row but the last is a component of the same `Order`, and the collapsed proof compiles each one. Each field links to the section that explains it.
+You arrive holding a field, not an optic type. Find its declaration in the table: the row gives what the generated method returns and what you write next. Every row but the last is a component of one `Basket`: the basket a customer pays for before it becomes an `Order`, given a field of every kind around the cast's own records. The collapsed proof compiles each one. Each field links to the section that explains it.
 
 | Your field | The generated method returns | What you write next |
 |---|---|---|
-| [`Customer customer`](focus_navigation.md#fluent-navigation-with-generated-navigators), a record with `@GenerateFocus` | a navigator, since `Order` has `generateNavigators = true` | `.email()` |
-| `String reference` | `FocusPath<Order, String>` | `.get(order)`, `.set(value, order)`, `.modify(f, order)` |
-| [`List<LineItem> lines`](focus_navigation.md#collection-navigation), or a `Set` or `Collection` | `TraversalPath<Order, LineItem>`, already on the elements | `.via(LineItemFocus.quantity())` |
-| [`Optional<String> giftMessage`](focus_navigation.md#some-unwrap-optional) | `AffinePath<Order, String>` | `.getOptional(order)` |
-| [`@Nullable String couponCode`](focus_navigation.md#nullable-handle-null-values), with a recognised `@Nullable` | `AffinePath<Order, String>` | `.getOptional(order)` |
-| [`String legacyNote`](focus_navigation.md#nullable-handle-null-values), which may hold null but is not annotated | `FocusPath<Order, String>` | `.nullable()` |
-| [`Map<String, String> attributes`](focus_navigation.md#access-by-index) | `FocusPath<Order, Map<String, String>>`, by default | `.atKey("channel")` |
-| [`String[] tags`](focus_navigation.md#eacheach-traverse-with-a-custom-each-instance) | `FocusPath<Order, String[]>`, by default | `.each(EachInstances.arrayEach())` |
-| [`Either<String, String> approvedBy`](focus_navigation.md#someaffine-navigate-spi-container-types), or a `Maybe`, `Try` or `Validated` | `AffinePath<Order, String>`, on the success side | `.getOptional(order)` |
-| [`Payment payment`](focus_navigation.md#working-with-sum-types-using-instanceof), a sealed interface | `FocusPath<Order, Payment>` | `.via(PaymentPrisms.card())`, or `.via(AffinePath.instanceOf(Payment.Card.class))` |
-| [`JsonNode payload`](importing_optics.md), a type you cannot annotate | `FocusPath<Order, JsonNode>` | `.via(JsonNodeOptics.object())`, from `@ImportOptics` |
+| [`Customer customer`](focus_navigation.md#fluent-navigation-with-generated-navigators), a record with `@GenerateFocus` | a navigator, since `Basket` has `generateNavigators = true` | `.email()` |
+| `String reference` | `FocusPath<Basket, String>` | `.get(basket)`, `.set(value, basket)`, `.modify(f, basket)` |
+| [`List<LineItem> lines`](focus_navigation.md#collection-navigation), or a `Set` or `Collection` | `TraversalPath<Basket, LineItem>`, already on the elements | `.via(LineItemFocus.quantity())` |
+| [`Optional<String> giftMessage`](focus_navigation.md#some-unwrap-optional) | `AffinePath<Basket, String>` | `.getOptional(basket)` |
+| [`@Nullable String couponCode`](focus_navigation.md#nullable-handle-null-values), with a recognised `@Nullable` | `AffinePath<Basket, String>` | `.getOptional(basket)` |
+| [`String legacyNote`](focus_navigation.md#nullable-handle-null-values), which may hold null but is not annotated | `FocusPath<Basket, String>` | `.nullable()` |
+| [`Map<String, String> attributes`](focus_navigation.md#access-by-index) | `FocusPath<Basket, Map<String, String>>`, by default | `.atKey("channel")` |
+| [`String[] tags`](focus_navigation.md#eacheach-traverse-with-a-custom-each-instance) | `FocusPath<Basket, String[]>`, by default | `.each(EachInstances.arrayEach())` |
+| [`Either<String, String> approvedBy`](focus_navigation.md#someaffine-navigate-spi-container-types), or a `Maybe`, `Try` or `Validated` | `AffinePath<Basket, String>`, on the success side | `.getOptional(basket)` |
+| [`Payment payment`](focus_navigation.md#working-with-sum-types-using-instanceof), a sealed interface | `FocusPath<Basket, Payment>` | `.via(PaymentPrisms.card())`, or `.via(AffinePath.instanceOf(Card.class))` |
+| [`JsonNode payload`](importing_optics.md), a type you cannot annotate | `FocusPath<Basket, JsonNode>` | `.via(JsonNodeOptics.object())`, from `@ImportOptics` |
 | [`Kind<F, A> items`](kind_field_support.md) | a path chosen by the witness | depends on the witness |
 
 The two rows marked "by default" step into the elements instead when the annotation sets `widenCollections = true`, which [the fine print](focus_navigation.md#path-widening) covers.
 
 ~~~admonish example title="Proof: every row, compiled" collapsible=true
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:field_records}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:basket}}
 ```
 
 ``` java
@@ -86,8 +92,10 @@ The two rows marked "by default" step into the elements instead when the annotat
 
 Add `@GenerateFocus` to generate path builders. The Focus class builds its own lenses, so `@GenerateFocus` alone compiles. Add `@GenerateLenses` as well in practice: several idioms in this chapter start from `FocusPath.of(TheseLenses.field())`, which needs the generated lens class. Indexing a list is one, and decomposing it into its head and tail with `ListPrisms` another.
 
+The examples that follow use the cast's `Order` and `LineItem`, and a `CustomerProfile`: a customer's account profile, whose nickname and second email are optional.
+
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/focus/FocusDslBook.java:company_records}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/CustomerProfile.java:customer_profile}}
 ```
 
 ### One method per component, and the field type picks the path {#one-method-per-component-and-the-field-type-picks-the-path}
@@ -99,7 +107,7 @@ The generated companion has one method per record component, and the field's *ty
 ```
 
 ~~~admonish warning title="A collection field is already element-level"
-`CompanyFocus.departments()` focuses each `Department`, not the `List<Department>`. That is what you want for bulk reads and updates, but it means an operation on the list as a whole, such as indexing into it or taking its head, does not compose onto it. When you need the list itself, start from the lens instead: `FocusPath.of(CompanyLenses.departments())`. See [Collections, Optionals and Sealed Types](focus_navigation.md#access-by-index) for the indexing forms.
+`OrderFocus.lines()` focuses each `LineItem`, not the `List<LineItem>`. That is what you want for bulk reads and updates, but it means an operation on the list as a whole, such as indexing into it or taking its head, does not compose onto it. When you need the list itself, start from the lens instead: `FocusPath.of(OrderLenses.lines())`. See [Collections, Optionals and Sealed Types](focus_navigation.md#access-by-index) for the indexing forms.
 ~~~
 
 ### Chain with `.via()` {#chain-with-via}
@@ -159,7 +167,7 @@ Focus DSL provides three path types, one for each answer to "how many values doe
 | `toAffine()` | `Affine<S, A>` | Extract the underlying optic |
 
 ~~~admonish warning title="Set on an absent focus writes anyway"
-`set` through an `AffinePath` is not conditional. `EmployeeFocus.email().set(x, employee)` on an employee with no email returns an employee *with* that email, because the last step's setter rebuilds the present case unconditionally. As `Affine.set`'s javadoc puts it, an affine makes an absent focus present when its last step can build the value and every step before that is present. `modify` is the operation that no-ops on an absent focus.
+`set` through an `AffinePath` is not conditional. `CustomerProfileFocus.nickname().set(x, profile)` on a profile with no nickname returns a profile *with* that nickname, because the last step's setter rebuilds the present case unconditionally. As `Affine.set`'s javadoc puts it, an affine makes an absent focus present when its last step can build the value and every step before that is present. `modify` is the operation that no-ops on an absent focus.
 
 The rule is positional. A miss at the *last* step writes through and creates the focus when that step can build the value (a prism, `.some()`, `.nullable()`). A miss at an *earlier* step of a multi-step path skips the whole set, because `Affine.andThen(Affine)` does guard. When absence must be preserved, reach for `modify`, or test with `matches` first.
 ~~~

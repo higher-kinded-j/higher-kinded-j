@@ -2,16 +2,31 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.optics.navigation;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.AddressFocus;
+import org.higherkindedj.example.book.optics.cast.AddressLenses;
+import org.higherkindedj.example.book.optics.cast.Card;
+import org.higherkindedj.example.book.optics.cast.CardFocus;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.ConsignmentFocus;
+import org.higherkindedj.example.book.optics.cast.ConsignmentLenses;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemFocus;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.Payment;
+import org.higherkindedj.example.book.optics.cast.PaymentPrisms;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.extensions.EachExtensions;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -19,211 +34,216 @@ import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.ListPrisms;
+import org.higherkindedj.optics.util.Traversals;
 
 /**
  * The code shown on the book's <a
  * href="https://higher-kinded-j.github.io/latest/optics/focus_navigation.html">Collections,
  * Optionals and Sealed Types</a> page. The page {@code {{#include}}}s the anchored regions, and
- * {@code NavigationBookTest} holds the claims the page makes about this code.
+ * {@code NavigationBookTest} holds the claims the page makes about this code. The records are the
+ * chapter's cast, with supporting types below named for their roles in the order service.
  */
 public final class NavigationBook {
 
   private NavigationBook() {}
 
-  static List<List<Item>> eachGenerated(Container container) {
+  static List<List<LineItem>> eachGenerated(Order order) {
     // ANCHOR: each_generated
     // Generated: FocusPath.of(lens).each()
-    TraversalPath<Container, Item> allItems = ContainerFocus.items();
-    List<Item> items = allItems.getAll(container);
+    TraversalPath<Order, LineItem> allLines = OrderFocus.lines();
+    List<LineItem> lines = allLines.getAll(order);
 
     // Applying .each() yourself, starting from the lens to the whole list
-    TraversalPath<Container, Item> sameThing = FocusPath.of(ContainerLenses.items()).each();
+    TraversalPath<Order, LineItem> sameThing = FocusPath.of(OrderLenses.lines()).each();
     // ANCHOR_END: each_generated
-    return List.of(items, sameThing.getAll(container));
+    return List.of(lines, sameThing.getAll(order));
   }
 
-  static List<Setting> eachCustom(Config config, Wrapper wrapper) {
+  static List<Object> eachCustom(Catalogue catalogue, SavedForLater saved) {
     // ANCHOR: each_custom
     // A Map field: traverse the values
-    TraversalPath<Config, Setting> allSettings =
-        ConfigFocus.settings().each(EachInstances.mapValuesEach());
+    TraversalPath<Catalogue, BigDecimal> allPrices =
+        CatalogueFocus.prices().each(EachInstances.mapValuesEach());
 
     // An HKJ container held behind a hand-written lens
-    Lens<Wrapper, Maybe<Setting>> settingLens =
-        Lens.of(Wrapper::setting, (_, setting) -> new Wrapper(setting));
-    TraversalPath<Wrapper, Setting> maybeSetting =
-        FocusPath.of(settingLens).each(EachExtensions.maybeEach());
+    Lens<SavedForLater, Maybe<LineItem>> itemLens =
+        Lens.of(SavedForLater::item, (_, item) -> new SavedForLater(item));
+    TraversalPath<SavedForLater, LineItem> savedItem =
+        FocusPath.of(itemLens).each(EachExtensions.maybeEach());
     // ANCHOR_END: each_custom
-    List<Setting> found = new ArrayList<>(allSettings.getAll(config));
-    found.addAll(maybeSetting.getAll(wrapper));
+    List<Object> found = new ArrayList<>(allPrices.getAll(catalogue));
+    found.addAll(savedItem.getAll(saved));
     return found;
   }
 
   /** What the page's indexing block reads. */
   record Indexed(
-      Optional<Item> first, AffinePath<Container, Item> alsoFirst, Optional<Setting> setting) {}
+      Optional<LineItem> first,
+      AffinePath<Order, LineItem> alsoFirst,
+      Optional<BigDecimal> lampPrice) {}
 
-  static Indexed byIndex(Container container, Config config) {
+  static Indexed byIndex(Order order, Catalogue catalogue) {
     // ANCHOR: by_index
     // A List field: start from the lens, because the generated path is element-level
-    AffinePath<Container, Item> firstItem = FocusPath.of(ContainerLenses.items()).at(0);
-    Optional<Item> first = firstItem.getOptional(container); // empty if out of bounds
+    AffinePath<Order, LineItem> firstLine = FocusPath.of(OrderLenses.lines()).at(0);
+    Optional<LineItem> first = firstLine.getOptional(order); // empty if out of bounds
 
     // Or narrow the generated traversal to its first element. Mind the asymmetry:
     // headOption reads the first element but writes to all of them
-    AffinePath<Container, Item> alsoFirst = ContainerFocus.items().headOption();
+    AffinePath<Order, LineItem> alsoFirst = OrderFocus.lines().headOption();
 
     // A Map field: the generated path still focuses the whole map, so .atKey() applies
-    AffinePath<Config, Setting> database = ConfigFocus.settings().atKey("database");
-    Optional<Setting> setting = database.getOptional(config);
+    AffinePath<Catalogue, BigDecimal> lamp = CatalogueFocus.prices().atKey("LAMP");
+    Optional<BigDecimal> lampPrice = lamp.getOptional(catalogue);
     // ANCHOR_END: by_index
-    return new Indexed(first, alsoFirst, setting);
+    return new Indexed(first, alsoFirst, lampPrice);
   }
 
   static List<Optional<String>> nullable() {
     // ANCHOR: nullable
-    FocusPath<LegacyUser, String> rawPath = LegacyUserFocus.nickname();
-    AffinePath<LegacyUser, String> safePath = rawPath.nullable();
+    FocusPath<LegacyContact, String> rawPath = LegacyContactFocus.nickname();
+    AffinePath<LegacyContact, String> safePath = rawPath.nullable();
 
-    Optional<String> missing = safePath.getOptional(new LegacyUser("Alice", null));
-    Optional<String> present = safePath.getOptional(new LegacyUser("Bob", "Bobby"));
+    Optional<String> missing = safePath.getOptional(new LegacyContact("Charles", null));
+    Optional<String> present = safePath.getOptional(new LegacyContact("Grace", "Amazing Grace"));
     // ANCHOR_END: nullable
     return List.of(missing, present);
   }
 
   /** What the page's sealed-type block reads and writes. */
-  record Variants(List<Double> radii, Drawing doubled, List<Double> sameRadii) {}
+  record Variants(
+      List<String> pans, PaymentHistory masked, TraversalPath<PaymentHistory, String> samePans) {}
 
-  static Variants sealedVariants(Drawing drawing) {
+  static Variants sealedVariants(PaymentHistory history) {
     // ANCHOR: sealed
     // A sealed type you own: @GeneratePrisms names each variant
-    TraversalPath<Drawing, Double> circleRadii =
-        DrawingFocus.shapes().via(ShapePrisms.circle()).via(CircleFocus.radius());
+    TraversalPath<PaymentHistory, String> cardPans =
+        PaymentHistoryFocus.payments().via(PaymentPrisms.card()).via(CardFocus.pan());
 
-    List<Double> radii = circleRadii.getAll(drawing); // the squares are skipped
-    Drawing doubled = circleRadii.modifyAll(radius -> radius * 2, drawing);
+    List<String> pans = cardPans.getAll(history); // the bank payments are skipped
+    PaymentHistory masked =
+        cardPans.modifyAll(pan -> "**** " + pan.substring(pan.length() - 4), history);
 
     // A sealed type you do not own: AffinePath.instanceOf matches by runtime type
-    TraversalPath<Drawing, Double> sameRadii =
-        DrawingFocus.shapes().via(AffinePath.instanceOf(Circle.class)).via(CircleFocus.radius());
+    TraversalPath<PaymentHistory, String> samePans =
+        PaymentHistoryFocus.payments().via(AffinePath.instanceOf(Card.class)).via(CardFocus.pan());
     // ANCHOR_END: sealed
-    return new Variants(radii, doubled, sameRadii.getAll(drawing));
+    return new Variants(pans, masked, samePans);
   }
 
   /** The three paths the page's composition block builds. */
   record Composed(
-      FocusPath<Company, String> hqStreet,
-      AffinePath<Container, Item> firstItem,
-      TraversalPath<Company, Employee> allEmployees) {}
+      FocusPath<Consignment, String> street,
+      AffinePath<Order, LineItem> firstLine,
+      TraversalPath<Order, LineItem> allLines) {}
 
   static Composed composeExisting() {
     // ANCHOR: compose_existing
     // Path + Lens = Path
-    FocusPath<Company, String> hqStreet =
-        FocusPath.of(CompanyLenses.headquarters()).via(AddressLenses.street());
+    FocusPath<Consignment, String> street =
+        FocusPath.of(ConsignmentLenses.to()).via(AddressLenses.street());
 
     // Path + Prism or Affine = AffinePath
-    AffinePath<Container, Item> firstItem =
-        FocusPath.of(ContainerLenses.items()).via(ListPrisms.head());
+    AffinePath<Order, LineItem> firstLine =
+        FocusPath.of(OrderLenses.lines()).via(ListPrisms.head());
 
     // Path + Traversal = TraversalPath
-    TraversalPath<Company, Employee> allEmployees =
-        CompanyFocus.departments().via(DepartmentFocus.employees());
+    TraversalPath<Order, LineItem> allLines =
+        FocusPath.of(OrderLenses.lines()).via(Traversals.forList());
     // ANCHOR_END: compose_existing
-    return new Composed(hqStreet, firstItem, allEmployees);
+    return new Composed(street, firstLine, allLines);
   }
 
-  static List<String> withAndWithoutNavigators(Company company) {
+  static List<String> withAndWithoutNavigators(Consignment consignment) {
     // ANCHOR: navigator_use
     // With navigators
-    String city = CompanyFocus.headquarters().city().get(company);
+    String city = ConsignmentFocus.to().city().get(consignment);
 
     // Without them, the same path, spelled out
-    String same = FocusPath.of(CompanyLenses.headquarters()).via(AddressFocus.city()).get(company);
+    String same = FocusPath.of(ConsignmentLenses.to()).via(AddressFocus.city()).get(consignment);
     // ANCHOR_END: navigator_use
     return List.of(city, same);
   }
 
   /** What the page's navigator-or-via block reads. */
-  record NavigatorOrVia(String city, List<String> employeeNames) {}
+  record NavigatorOrVia(String email, List<String> skus) {}
 
-  static NavigatorOrVia navigatorOrVia(Company company) {
+  static NavigatorOrVia navigatorOrVia(Order order) {
     // ANCHOR: navigator_or_via
-    // headquarters is a plain navigable field: navigator, so .city() chains
-    String city = CompanyFocus.headquarters().city().get(company);
+    // customer is a plain navigable field: navigator, so .email() chains
+    String email = OrderFocus.customer().email().value().get(order);
 
-    // departments is a List: a TraversalPath, so the next hop is .via()
-    List<String> employeeNames =
-        CompanyFocus.departments()
-            .via(DepartmentFocus.employees())
-            .via(EmployeeFocus.name())
-            .getAll(company);
+    // lines is a List: a TraversalPath, so the next hop is .via()
+    List<String> skus = OrderFocus.lines().via(LineItemFocus.sku()).getAll(order);
     // ANCHOR_END: navigator_or_via
-    return new NavigatorOrVia(city, employeeNames);
+    return new NavigatorOrVia(email, skus);
   }
 
-  /** What the page's toPath block computes, and the cities its trace saw. */
-  record Relocated(Company company, List<String> seen) {}
+  /** What the page's toPath block computes, and the postcodes its trace saw. */
+  record Normalised(Consignment consignment, List<String> seen) {}
 
-  static Relocated relocate(Company company) {
+  static Normalised normalisePostcode(Consignment consignment) {
     // ANCHOR: to_path
     List<String> seen = new ArrayList<>();
-    Company relocated =
-        CompanyFocus.headquarters()
+    Consignment normalised =
+        ConsignmentFocus.to()
             .toPath()
-            .traced((_, address) -> seen.add(address.city()))
-            .modify(address -> AddressLenses.city().set("Manchester", address), company);
+            .traced((_, address) -> seen.add(address.postcode()))
+            .modify(
+                address -> AddressLenses.postcode().modify(String::toUpperCase, address),
+                consignment);
     // ANCHOR_END: to_path
-    return new Relocated(relocated, seen);
+    return new Normalised(normalised, seen);
   }
 
   /** What the page's SPI block reads and writes. */
-  record Verified(Optional<String> name, Warehouse renamed, Warehouse untouched) {}
+  record Verified(Optional<String> name, Stockroom renamed, Stockroom untouched) {}
 
-  static Verified verified(Warehouse warehouse) {
+  static Verified verified(Stockroom stockroom) {
     // ANCHOR: spi_either
     // Either<String, String> field: the generated method already applies
     // .some(Affines.eitherRight()), focusing the Right value
-    AffinePath<Warehouse, String> verified = WarehouseFocus.verifiedName();
+    AffinePath<Stockroom, String> verified = StockroomFocus.verifiedName();
 
-    Optional<String> name = verified.getOptional(warehouse); // empty for a Left
-    Warehouse renamed =
-        verified.set("Northern", warehouse); // replaces a Left with Right("Northern")
-    Warehouse untouched = verified.modify(String::toUpperCase, warehouse); // a no-op on a Left
+    Optional<String> name = verified.getOptional(stockroom); // empty for a Left
+    Stockroom renamed =
+        verified.set("Northern", stockroom); // replaces a Left with Right("Northern")
+    Stockroom untouched = verified.modify(String::toUpperCase, stockroom); // a no-op on a Left
     // ANCHOR_END: spi_either
     return new Verified(name, renamed, untouched);
   }
 
   /** What the page's list-decomposition block reads. */
-  record Decomposed(Optional<Item> first, Optional<Item> last, Optional<List<Item>> tail) {}
+  record Decomposed(
+      Optional<LineItem> first, Optional<LineItem> last, Optional<List<LineItem>> tail) {}
 
-  static Decomposed decompose(Container container) {
+  static Decomposed decompose(Order order) {
     // ANCHOR: list_prisms
-    FocusPath<Container, List<Item>> items = FocusPath.of(ContainerLenses.items());
+    FocusPath<Order, List<LineItem>> lines = FocusPath.of(OrderLenses.lines());
 
-    AffinePath<Container, Item> firstItem = items.via(ListPrisms.head());
-    Optional<Item> first = firstItem.getOptional(container);
+    AffinePath<Order, LineItem> firstLine = lines.via(ListPrisms.head());
+    Optional<LineItem> first = firstLine.getOptional(order);
 
-    AffinePath<Container, Item> lastItem = items.via(ListPrisms.last());
+    AffinePath<Order, LineItem> lastLine = lines.via(ListPrisms.last());
 
     // Pattern match with cons (head, tail)
-    AffinePath<Container, Pair<Item, List<Item>>> consPath = items.via(ListPrisms.cons());
-    Optional<List<Item>> tail = consPath.getOptional(container).map(Pair::second);
+    AffinePath<Order, Pair<LineItem, List<LineItem>>> consPath = lines.via(ListPrisms.cons());
+    Optional<List<LineItem>> tail = consPath.getOptional(order).map(Pair::second);
     // ANCHOR_END: list_prisms
-    return new Decomposed(first, lastItem.getOptional(container), tail);
+    return new Decomposed(first, lastLine.getOptional(order), tail);
   }
 
-  static List<Integer> spiWidening(Warehouse warehouse) {
+  static List<Integer> spiWidening(Stockroom stockroom) {
     // ANCHOR: spi_widening
     // Either is ZERO_OR_ONE via the SPI: AffinePath
-    AffinePath<Warehouse, String> verified = WarehouseFocus.verifiedName();
+    AffinePath<Stockroom, String> verified = StockroomFocus.verifiedName();
 
     // Map is ZERO_OR_MORE via the SPI, but a static Focus method widens it only
     // under widenCollections; otherwise the path still focuses the whole map
-    FocusPath<Warehouse, Map<String, Integer>> inventory = WarehouseFocus.inventory();
-    TraversalPath<Warehouse, Integer> quantities = inventory.each(EachInstances.mapValuesEach());
+    FocusPath<Stockroom, Map<String, Integer>> stock = StockroomFocus.stock();
+    TraversalPath<Stockroom, Integer> quantities = stock.each(EachInstances.mapValuesEach());
     // ANCHOR_END: spi_widening
-    return quantities.getAll(warehouse);
+    return quantities.getAll(stockroom);
   }
 
   /** What the page's nested-container block reads. */
@@ -260,65 +280,44 @@ public final class NavigationBook {
   }
 }
 
+// Supporting types, each named for its role beside the cast.
+
+// ANCHOR: catalogue
 @GenerateLenses
 @GenerateFocus
-record Item(String sku, double price) {}
+record Catalogue(String name, Map<String, BigDecimal> prices) {}
 
+// ANCHOR_END: catalogue
+
+/**
+ * A line a customer saved for later, as an HKJ Maybe. Unannotated, so a hand-written lens reaches
+ * it.
+ */
+record SavedForLater(Maybe<LineItem> item) {}
+
+// ANCHOR: legacy_contact
+// From an older system: its nickname may be null, and nothing says so
 @GenerateLenses
 @GenerateFocus
-record Container(List<Item> items) {}
+record LegacyContact(String name, String nickname) {}
 
-@GenerateLenses
+// ANCHOR_END: legacy_contact
+
+// ANCHOR: payment_history
 @GenerateFocus
-record Setting(String value) {}
+record PaymentHistory(UUID customerId, List<Payment> payments) {}
 
-@GenerateLenses
-@GenerateFocus
-record Config(Map<String, Setting> settings) {}
+// ANCHOR_END: payment_history
 
-record Wrapper(Maybe<Setting> setting) {}
-
-@GenerateLenses
-@GenerateFocus
-record LegacyUser(String name, String nickname) {}
-
-// ANCHOR: shape_records
-@GeneratePrisms
-sealed interface Shape permits Circle, Square {}
-
-@GenerateFocus
-record Circle(double radius) implements Shape {}
-
-record Square(double side) implements Shape {}
-
-@GenerateFocus
-record Drawing(List<Shape> shapes) {}
-
-// ANCHOR_END: shape_records
-
-// ANCHOR: navigator_records
+// ANCHOR: stockroom
+// The stockroom an order is picked from: stock by SKU, and a name verified by a check
 @GenerateLenses
 @GenerateFocus(generateNavigators = true)
-record Address(String street, String city) {}
+record Stockroom(String name, Map<String, Integer> stock, Either<String, String> verifiedName) {}
 
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record Company(String name, Address headquarters, List<Department> departments) {}
+// ANCHOR_END: stockroom
 
-// ANCHOR_END: navigator_records
-
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record Department(String name, List<Employee> employees) {}
-
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record Employee(String name, Address workplace) {}
-
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record Warehouse(
-    String name, Map<String, Integer> inventory, Either<String, String> verifiedName) {}
+// Width proofs for the nested-container table: the components are placeholders, with no role.
 
 @GenerateLenses
 @GenerateFocus

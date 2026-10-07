@@ -138,7 +138,7 @@ class BookExampleOutputTest {
           Map.entry("GenericsBook", 4),
           Map.entry("JsonApiBook", 4),
           Map.entry("MergeBook", 2),
-          Map.entry("MultiEditBook", 2),
+          Map.entry("MultiEditBook", 5),
           Map.entry("NonEmptyListBook", 3),
           Map.entry("OrderErrorBook", 1),
           Map.entry("PathSourceBook", 6),

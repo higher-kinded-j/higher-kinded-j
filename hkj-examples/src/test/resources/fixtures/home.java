@@ -4,9 +4,8 @@
 // the payment railway, the focus/effect bridge, the optics record graph, the mapping codec, the
 // effect algebra and the hkj-test assertions.
 //
-// The `User`/`Address`/`Street` records are declared here EXACTLY as the optics quick example
-// declares them. That snippet shadows the fixture's copies with its own, so the two must agree or
-// the fixture's helpers stop compiling underneath it.
+// The `User`/`Address`/`Street` records serve the page's effect-and-optics bridge examples. The
+// optics quick example now includes the Optics chapter's cast instead, so nothing shadows them.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
