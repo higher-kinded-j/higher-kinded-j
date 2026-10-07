@@ -1,13 +1,13 @@
 # Deep Validation with `modifyF`
 
+_Validate every element a composed path reaches with `modifyF`, and report every failure at once._
+
 ~~~admonish info title="What You'll Learn"
-- How to compose multiple optic types into powerful processing pipelines
-- Building type-safe validation workflows with error accumulation
-- Composing a lens, a prism and a traversal directly with `andThen`, and reading the type it returns
-- Creating reusable validation paths with effectful operations
-- Simplified validation with `modifyAllValidated`, `modifyAllEither`, and `modifyMaybe`
-- Understanding when composition is superior to manual validation logic
-- Advanced patterns for multi-level and conditional validation scenarios
+- Compose a `Lens`, a `Prism` and a `Traversal` with `andThen`, and predict the optic type the chain returns
+- Validate every focus of the composed path with `modifyF` and a `Validated` applicative, accumulating every error
+- Decide when optic composition beats direct validation or a stream pipeline
+- Combine two path validations with `map2`, and narrow with `filtered` where the model has no prism
+- Skip the `Applicative` setup with `modifyAllValidated` or `modifyAllEither`, choosing by whether the caller needs every error
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -38,14 +38,9 @@ This single task requires us to:
 
 ---
 
-## Think of This Composition Like...
+## Building the path, step by step {#building-the-path-step-by-step}
 
-- **A telescope with multiple lenses**: Each optic focuses deeper into the data structure
-- **A manufacturing pipeline**: Each stage processes and refines the data further
-- **A filter chain**: Data flows through multiple filters, each handling a specific concern
-- **A surgical procedure**: Precise, layered operations that work together for a complex outcome
-
----
+Composing optics plays the part of `Function.andThen`: each optic feeds the next. Unlike chained functions, the composed optic also writes, and its type says how many values the whole path reaches.
 
 ### 1. The Data Model
 
@@ -157,7 +152,7 @@ This single `formToPermissionNameTraversal` object now encapsulates the entire c
 
 ## When to Use Optic Composition vs Other Approaches
 
-### Use Optic Composition When:
+### Use Optic Composition When
 
 * **Complex nested validation** - Multiple levels of data structure with conditional logic
 * **Reusable validation paths** - The same validation logic applies to multiple scenarios
@@ -174,7 +169,7 @@ Validated<String, Form> checked = validatePermissions(form);
 Validated<String, Form> rechecked = validatePermissions(updatedForm);
 ```
 
-### Use Direct Validation When:
+### Use Direct Validation When
 
 * **Simple, flat structures** - No deep nesting or conditional access needed
 * **One-off validation** - Logic won't be reused elsewhere
@@ -192,7 +187,7 @@ public Validated<String, User> validateUser(User user) {
 }
 ```
 
-### Use Stream Processing When:
+### Use Stream Processing When
 
 * **Complex transformations** - Multiple operations that don't map to optic patterns
 * **Aggregation logic** - Computing statistics or summaries
@@ -214,7 +209,7 @@ Map<String, Long> permissionCounts = forms.stream()
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 
 ```java
@@ -238,7 +233,7 @@ var inlineResult = FormLenses.principal()
 Traversal<Form, String> badTraversal = /* any string traversal */;
 ```
 
-### Do This Instead:
+### Do This Instead
 
 
 <!-- verify -->

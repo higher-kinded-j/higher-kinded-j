@@ -1,14 +1,13 @@
 # Optics Extensions: Validated Operations
 
-## _Error Handling for Lens and Traversal_
+_Get a `null` field, or an update that can fail, back as a `Maybe`, `Either`, `Validated` or `Try` value._
 
 ~~~admonish info title="What You'll Learn"
-- Safe field access with `getMaybe`, `getEither`, and `getValidated`
-- Validated modifications with `modifyEither`, `modifyMaybe`, and `modifyValidated`
-- Exception-safe operations with `modifyTry`
-- Bulk operations keeping only the first error (`modifyAllEither`) or accumulating every one (`modifyAllValidated`)
-- Selective updates with `modifyWherePossible`
-- Analysis methods: `countValid` and `collectErrors`
+- Read a field that may be `null` as a `Maybe`, `Either` or `Validated` with `getMaybe`, `getEither` and `getValidated`
+- Modify one field with a step that can fail, using `modifyEither`, `modifyMaybe`, `modifyTry` or `setIfValid`
+- Choose an all-or-nothing, first-error or accumulating bulk update: `modifyAllMaybe`, `modifyAllEither` or `modifyAllValidated`
+- Update only the elements that qualify with `modifyWherePossible`, leaving the rest unchanged
+- Check a traversal without writing to it, using `countValid` and `collectErrors`
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -18,7 +17,7 @@
 
 Traditional optics work brilliantly with clean, valid data. Real-world applications, however, deal with nullable fields, validation requirements, and operations that might throw exceptions. **Optics Extensions** bridge this gap by integrating lenses and traversals with Higher-Kinded-J's core types.
 
-Think of optics extensions as **safety rails**: they catch null values, validate modifications, and handle exceptions whilst maintaining the elegance of functional composition.
+Each extension plays the part of a null check, or an `if` on a validation result, written once around a lens or traversal call. A `null` or a failed step comes back as a `Maybe`, `Either`, `Validated` or `Try` value. The extensions catch nothing themselves: for `modifyTry`, wrap the throwing call in `Try.of`, and its exception arrives as a `Try` failure.
 
 ---
 

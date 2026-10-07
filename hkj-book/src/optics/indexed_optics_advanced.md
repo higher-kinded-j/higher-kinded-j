@@ -1,11 +1,12 @@
 # Indexed Optics: Advanced Patterns
 
-## _Advanced composition patterns and the Haskell heritage_
+_Compose indexed optics through nested lists so every value arrives with the full path that reached it._
 
 ~~~admonish info title="What You'll Learn"
-- How indexed optics compose: paired indices through nested structures, index-aware filtering, and bulk transformations.
-- The relationship between Higher-Kinded-J's indexed optics and the canonical Haskell lens encoding, for readers coming from a functional background.
-- A concise summary of the trade-offs that make indexed optics worth reaching for.
+- Compose indexed traversals with `iandThen`, and log the full index path to each value a nested update changes
+- Turn zero-based positions into display numbers inside `imodify`, with no re-indexing combinator
+- Narrow by position, value or both by layering `filterIndex`, `filtered` and `filteredWithIndex`
+- Write an audit trail that records each changed field's name and old value with an `IndexedLens`
 ~~~
 
 This page collects the advanced composition patterns and reference material that follow on from [Indexed Optics](indexed_optics.md). The narrative introduction, mental model, and step-by-step walkthrough live there; this page is for the deeper compositions and the cross-language background.
@@ -589,4 +590,4 @@ These tools transform how you work with collections and records:
 ---
 
 **Previous:** [Indexed Optics](indexed_optics.md)
-**Next:** [Each Typeclass](each_typeclass.md)
+**Next:** [Each Type Class](each_typeclass.md)

@@ -1,23 +1,22 @@
 # Nested Updates with Lenses: A Practical Guide
 
-## _Working with Product Types_
+_Update a field three records down in one call, with a lens you build once and reuse._
 
 <img src="../images/lens2.jpg" alt="Visual representation of a lens focusing on a single field within nested immutable data structures" style="width: 100%;" />
 
 ~~~admonish info title="What You'll Learn"
-- How to safely access and update fields in immutable data structures
-- Using `@GenerateLenses` to automatically create type-safe field accessors
-- Composing lenses to navigate deeply nested records
-- The difference between `get`, `set`, and `modify` operations
-- Building reusable, composable data access patterns
-- Decide between direct field access, a wither such as Lombok's `@With`, and a composed lens
+- Generate a lens for each record component with `@GenerateLenses`, and compose them with `andThen` into one path
+- Update a nested field with `set` and `modify`, without writing the copy for each record on the way
+- Decide between a wither, such as Lombok's `@With` or a generated `with*` helper, and a composed lens
+- Check a lens with `LensLaws`, and fix a compact constructor that changes the value you set
+- Write a lens with `Lens.of` for a type you cannot annotate
 ~~~
 
 ~~~admonish example title="See Example Code"
 [LensUsageExample.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/LensUsageExample.java)
 ~~~
 
-A Lens focuses on a single, required field within a record: the `address` in a `User`, the `street` in an `Address`. It exposes `get`, `set`, and `modify`, and composes with other lenses to reach any depth without hand-written copy cascades. Where a record's `withX` method copies one record, a lens reaches through nested ones ([Why a lens, when you have `@With`?](#lens-or-wither)).
+A Lens focuses on a single, required field within a record: the `address` in a `User`, the `street` in an `Address`. It exposes `get`, `set`, and `modify`, and composes with other lenses to reach any depth without hand-written copy cascades. Where a record's `withX` method copies one record, a lens reaches through nested ones ([Why a lens, when you have `@With`?](#lens-or-wither)). [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
 ---
 
@@ -183,7 +182,7 @@ Employee updatedEmployee = employeeToStreet.set("456 Main St", initialEmployee);
 
 Understanding when to use each approach will help you write cleaner, more maintainable code:
 
-### Use `with*` Helpers When:
+### Use `with*` Helpers When
 
 * **Simple, top-level field updates** - Direct field replacement on the immediate object
 * **One-off updates** - You don't need to reuse the update logic
@@ -196,7 +195,7 @@ Understanding when to use each approach will help you write cleaner, more mainta
 var promotedEmployee = EmployeeLenses.withName(employee, "Senior " + employee.name());
 ```
 
-### Use Composed Lenses When:
+### Use Composed Lenses When
 
 * **Deep updates** - Navigating multiple levels of nesting
 * **Reusable paths** - The same update pattern will be used multiple times
@@ -233,7 +232,7 @@ Affine<User, Settings> userSettings = settingsLens.andThen(somePrism);
 See [Composition Rules](composition_rules.md) for the complete reference on how different optics compose.
 ~~~
 
-### Use Manual Lens Creation When: {#use-manual-lens-creation-when}
+### Use Manual Lens Creation When {#use-manual-lens-creation-when}
 
 * **A type you cannot annotate**: a JDK or library class. For a whole library of them, [Optics for External Types](importing_optics.md) generates the lenses instead
 
@@ -276,7 +275,7 @@ Java 25, which the library is built on today, has no wither in the language. [JE
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 
 <!-- verify -->
@@ -295,7 +294,7 @@ var updatedCompany = CompanyLenses.withName(tempCompany, "New Company");
 var finalEmployee = EmployeeLenses.withCompany(employee, updatedCompany);
 ```
 
-### Do This Instead:
+### Do This Instead
 
 
 <!-- verify -->

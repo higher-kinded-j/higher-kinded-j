@@ -1,19 +1,20 @@
 # Prism Toolkit
 
-## _Convenience methods and common patterns with the `Prisms` utility_
+_Find the `Prism` method or `Prisms` factory that does an everyday match, update or fallback in one call._
 
 ~~~admonish info title="What You'll Learn"
-- The full set of prism convenience methods on `Prism<S, A>`: direct composition, conditional updates, predicate-based queries, and bulk extraction.
-- The factory methods on the `Prisms` utility class for the standard JDK and Higher-Kinded-J types: `Optional`, `Either`, `Maybe`, `Try`, list head/tail decomposition, and more.
+- Replace `getOptional` plumbing with `matches`, `getOrElse`, `mapOptional` and `modify`
+- Update a matching case only when a predicate holds, with `modifyWhen` and `setWhen`
+- Chain two prisms on the same target type with `orElse`, and fall through on `Optional` when the targets differ
+- Reach into `Optional`, `Either`, nullable values and subtypes with `Prisms.some()`, `left()`, `right()`, `notNull()` and `instanceOf()`
+- Choose a `Traversal` or a `Lens` over the list prisms to change a list, since `listAt` cannot `build`
 ~~~
 
-This page is the lookup catalogue for the prism API. The conceptual introduction, mental models, and worked examples live in [Prisms](prisms.md); use this page when you already know what a prism is and need to find the right method.
+This page is the lookup catalogue for the prism API. The conceptual introduction and worked examples live in [Prisms](prisms.md); use this page when you already know what a prism is and need to find the right method.
 
 ---
 
 ## Prism Convenience Methods
-
-### _Streamlined Operations for Common Patterns_
 
 Whilst `getOptional()` and `build()` are the core operations, the `Prism` interface provides several convenience methods that make everyday tasks more ergonomic and expressive.
 
@@ -319,8 +320,6 @@ Optional<String> message =
 ---
 
 ## Common Prism Patterns with the Prisms Utility
-
-### _Ready-Made Prisms for Standard Types_
 
 The `Prisms` utility class (in `org.higherkindedj.optics.util`) provides factory methods for common prism patterns, saving you from writing boilerplate for standard Java types.
 

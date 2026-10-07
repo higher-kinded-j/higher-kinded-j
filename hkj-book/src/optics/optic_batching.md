@@ -1,14 +1,13 @@
 # Optic-Driven Request Batching
 
-## _Eliminating N+1 at the Optic Seam_
+_Load every id a traversal reaches in one batched backend call, not one call per element._
 
 ~~~admonish info title="What You'll Learn"
-- Why the N+1 query is the most reliable bug in service code, and how a single line change to a traversal collapses it to one call
-- How a batching `Applicative` plugged into `Optic.modifyF` keeps the optic graph untouched while changing how the work runs
-- `FetchOptics.fetchEach` for the `Id -> Entity` case the codegen can't produce
-- `SourceRouter` and `BatchLoaders.chunked` for real backends (multiple sources, per-request size caps)
-- `SafeFetch` for failures that belong on the value channel rather than in a stack trace
-- Where batching stops working: the applicative-monad boundary
+- Batch a traversal's per-element loads into one backend call by passing `FetchApplicative` to `modifyF`, and check it with `RunResult.backendCalls()`
+- Load each id in a list field into its entity with `FetchOptics.fetchEach`, where the focus type changes
+- Route keys to several backends with `SourceRouter.routed`, and cap each request's size with `BatchLoaders.chunked`
+- Get failures back as `Either` values rather than exceptions with `SafeFetch`, and split per-key results with `SafeFetch.partition`
+- Predict how many rounds a program costs: `map2`, `ap` and traversals collapse into one, and each `flatMap` adds another
 ~~~
 
 ~~~admonish example title="See Example Code"

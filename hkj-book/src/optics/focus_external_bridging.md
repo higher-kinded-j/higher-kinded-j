@@ -1,10 +1,23 @@
 # Focus DSL with External Libraries
 
-## _Bridging Fluent Navigation into Immutables, Lombok, and Beyond_
+_Navigate from your records into Immutables, Lombok, AutoValue or Protobuf types with one Focus path._
 
 > *"The best interface is no interface at all. The second best is the one that feels invisible."*
 >
 > – Don Norman
+
+~~~admonish info title="What You'll Learn"
+- Join a Focus path to an optic generated for a type you do not own with `.via()`
+- Write a spec interface with `@Wither` for an Immutables value, or `@ViaBuilder` for Lombok, AutoValue and Protocol Buffers
+- Decide when to convert with `toLens()`: only when you want a reusable `Lens` constant rather than a path
+- Organise the bridges in one layer named for the domain, and law-check each with `LensLaws`
+~~~
+
+~~~admonish example title="See Example Code"
+[CompanyBridge.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/bridge/CompanyBridge.java) | [AddressOpticsSpec.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/bridge/external/AddressOpticsSpec.java)
+
+The page includes these directly, so the build compiles every bridge shown here.
+~~~
 
 ---
 
@@ -17,19 +30,6 @@ Here is the whole pattern, compiled by the build. A Focus path over your own rec
 ```
 
 `CompanyFocus.departments()` and `DepartmentFocus.staff()` are generated from your records; `ContactInfoOptics.email()` is generated from a spec interface for an Immutables value. `.via()` does not care which is which.
-
-~~~admonish info title="What You'll Learn"
-- How to extend Focus navigation into external library types
-- Building spec interfaces for Immutables-generated classes
-- Where `toLens()` is needed and where `.via()` already suffices
-- Organising a bridge layer so the boundary stays discoverable
-~~~
-
-~~~admonish example title="See Example Code"
-[CompanyBridge.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/bridge/CompanyBridge.java) | [AddressOpticsSpec.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/bridge/external/AddressOpticsSpec.java)
-
-The page includes these directly, so the build compiles every bridge shown here.
-~~~
 
 ---
 

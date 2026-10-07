@@ -1,18 +1,13 @@
 # Folds: A Practical Guide
 
-## _Querying Immutable Data_
+_Query, search and total nested data through a reusable optic whose type says it never writes._
 
 ~~~admonish info title="What You'll Learn"
-- How to query and extract data from complex structures without modification
-- Using `@GenerateFolds` to create type-safe query optics automatically
-- Understanding the relationship between Fold and the Foldable type class
-- Aggregating data with monoids for sums, products, and custom combiners
-- Composing folds with other optics for deep, conditional queries
-- The difference between `getAll`, `preview`, `find`, `exists`, `all`, and `length`
-- Maybe-based extensions for functional optional handling (`previewMaybe`, `findMaybe`, `getAllMaybe`)
-- Combining multiple folds with `plus`, `empty`, and `sum` for multi-path extraction
-- When to use Fold vs Traversal vs direct field access vs Stream API
-- Building read-only data processing pipelines with clear intent
+- Generate folds with `@GenerateFolds`, and compose them with other optics into a read-only query path
+- Query with `getAll`, `preview`, `find`, `exists`, `all` and `length`, or get a `Maybe` back with `previewMaybe`
+- Aggregate the focused values with `foldMap` and a monoid, such as a sum, a maximum or a string join
+- Combine folds over several paths with `plus` and `Fold.sum`, and predict the order of the results
+- Decide between a fold, a traversal, the Stream API and direct field access
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -27,7 +22,7 @@ But what if you need to perform read-only operations? What if you want to query,
 
 ## The Scenario: Analysing E-Commerce Orders
 
-A **`Fold`** is a read-only optic designed specifically for querying and data extraction. Think of it as a **database query tool** or a **telescope** that lets you peer into your data structures, extract information, and aggregate results: all without the ability to modify anything.
+A **`Fold`** is a read-only optic designed specifically for querying and data extraction. It plays the part of a `Stream` over the values it reaches, ending in `reduce`, `anyMatch` or `count`. Unlike a stream, it is a reusable value that composes with other optics, and its type says it never writes. [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
 Consider an e-commerce system where you need to analyse orders:
 
@@ -57,16 +52,6 @@ public record OrderHistory(List<Order> orders) {}
 * "Check if all items are under £100"
 
 A `Fold` makes these queries type-safe, composable, and expressive.
-
----
-
-## Think of Folds Like...
-
-* **A database query**: Extracting specific data from complex structures
-* **A read-only telescope**: Magnifying and examining data without touching it
-* **A search engine**: Finding and collecting information efficiently
-* **An aggregation pipeline**: Combining values according to rules (via monoids)
-* **A reporter**: Summarising data into useful metrics
 
 ---
 
@@ -242,10 +227,10 @@ The most powerful feature of `Fold` is its ability to aggregate data using **mon
 
 #### Understanding Monoids: The Simple Explanation
 
-Think of a monoid as a recipe for combining things. It needs two ingredients:
+A monoid is the pair you pass to `Stream.reduce(identity, accumulator)`, held as one value. It has two parts:
 
-1. **A starting value** (called `empty`) - like starting with 0 when adding numbers, or "" when joining strings
-2. **A combining rule** (called `combine`) - like "add these two numbers" or "concatenate these two strings"
+1. **A starting value** (called `empty`): the `identity`, such as 0 when adding numbers, or "" when joining strings
+2. **A combining rule** (called `combine`): the `accumulator`, such as "add these two numbers" or "concatenate these two strings"
 
 **Simple Examples:**
 * **Adding numbers**: Start with 0, combine by adding → `0 + 5 + 10 + 3 = 18`
@@ -416,14 +401,6 @@ Standard Fold operations use `Optional<A>` for operations that might not find a 
 * Provides better composition with validation and error handling types
 * Offers a more principled functional API
 
-Think of `Maybe` as `Optional`'s more functional cousin; they both represent "a value or nothing", but `Maybe` plays more nicely with the rest of the functional toolkit.
-
-#### Think of Maybe-Based Extensions Like...
-
-* **A search that returns "found" or "not found"** - `Maybe` explicitly models presence or absence
-* **A safe lookup in a dictionary** - Either you get the value wrapped in `Just`, or you get `Nothing`
-* **A nullable pointer that can't cause NPE** - You must explicitly check before unwrapping
-* **Optional's functional sibling** - Same concept, better integration with functional patterns
 
 #### The Three Extension Methods
 
@@ -872,7 +849,7 @@ Each constituent fold in a `plus` combination performs its own pass over the sou
 
 ## When to Use Folds vs Other Approaches
 
-### Use Fold When:
+### Use Fold When
 
 * **Read-only queries** - You only need to extract or check data
 * **Intent matters** - You want to express "this is a query, not a modification"
@@ -893,7 +870,7 @@ boolean hasElectronics = allProducts.exists(
 );
 ```
 
-### Use Traversal When:
+### Use Traversal When
 
 * **Modifications needed** - You need to update the data
 * **Effectful updates** - Using `modifyF` for validation or async operations
@@ -910,7 +887,7 @@ Order discountedOrder = Traversals.modify(
 );
 ```
 
-### Use Stream API When:
+### Use Stream API When
 
 * **Complex filtering** - Multiple filter/map/reduce operations
 * **Parallel processing** - Taking advantage of parallel streams
@@ -928,7 +905,7 @@ List<String> topExpensiveItems = order.items().stream()
     .toList();
 ```
 
-### Use Direct Field Access When:
+### Use Direct Field Access When
 
 * **Simple cases** - Single, straightforward field read
 * **Performance critical** - Minimal abstraction overhead
@@ -944,7 +921,7 @@ String customerName = order.customerName();
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 <!-- verify -->
 ```java
@@ -970,7 +947,7 @@ Fold<Order, Product> fold = traversal.asFold();
 List<Product> products = fold.getAll(order); // Just use Traversals.getAll() directly!
 ```
 
-### Do This Instead:
+### Do This Instead
 
 <!-- verify -->
 ```java

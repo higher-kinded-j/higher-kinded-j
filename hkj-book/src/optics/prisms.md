@@ -1,16 +1,14 @@
 # Prisms: A Practical Guide
 
-## _Working with Sum Types_
+_Read and update one case of a sealed type without an `instanceof` check and a cast._
 
 <img src="../images/prism.jpeg" alt="Visual representation of a prism safely extracting one variant from a sum type" style="width: 100%;" />
 
 ~~~admonish info title="What You'll Learn"
-- How to safely work with sum types and sealed interfaces
-- Using `@GeneratePrisms` to create type-safe variant accessors
-- The difference between `getOptional` and `build` operations
-- Composing prisms with other optics for deep conditional access
-- Handling optional data extraction without `instanceof` chains
-- When to use prisms vs pattern matching vs traditional type checking
+- Generate a prism for each case of a sealed interface with `@GeneratePrisms`
+- Match a case with `getOptional`, and build the sum type from a case with `build`
+- Compose a prism with lenses and traversals, and predict whether the result is a `Prism`, an `Affine` or a `Traversal`
+- Decide between a prism, an `instanceof` check and a pattern-matching `switch`
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -29,7 +27,7 @@ For this, we need a different kind of optic: the **Prism**.
 
 ## The Scenario: Working with JSON-like Data
 
-A `Lens` is like a sniper rifle, targeting a single, known field. A **`Prism`** is like a safe-cracker's tool; it attempts to open a specific "lock" (a particular type) and only succeeds if it has the right key.
+A **`Prism`** plays the part of an `instanceof` pattern together with the variant's constructor: `getOptional` matches one case of a sealed type, and `build` returns a value of that case as the sealed type. Unlike a pattern, it is a value that composes with other optics, and `modify` through it changes the value only when the case matches. [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
 Consider a common scenario: modelling a JSON structure. A value can be a string, a number, a boolean, or a nested object.
 
@@ -53,15 +51,6 @@ public record JsonObject(Map<String, JsonValue> fields) implements JsonValue {}
 ```
 
 **Our Goal:** We need to safely access and update the `value` of a `JsonString` that is deeply nested within another `JsonObject`. An `instanceof` and casting approach would be unsafe and verbose. A `Lens` won't work because a `JsonValue` might be a `JsonNumber`, not the `JsonObject` we expect.
-
----
-
-## Think of Prisms Like...
-
-- **A type-safe filter**: Only "lets through" values that match a specific shape
-- **A safe cast**: Like `instanceof` + cast, but functional and composable
-- **A conditional lens**: Works like a lens, but might return empty if the type doesn't match
-- **A pattern matcher**: Focuses on one specific case of a sum type
 
 ---
 
@@ -157,7 +146,7 @@ This composed `Traversal` now represents a safe, deep path that will only succee
 
 ## When to Use Prisms vs Other Approaches
 
-### Use Prisms When:
+### Use Prisms When
 
 * **Type-safe variant handling** - Working with `sealed interface` or `enum` cases
 * **Optional data extraction** - You need to safely "try" to get a specific type
@@ -172,7 +161,7 @@ Optional<String> errorMessage = DomainErrorPrisms.validationError()
     .getOptional(someError);
 ```
 
-### Use Traditional instanceof When:
+### Use Traditional instanceof When
 
 * **One-off type checks** - Not building reusable logic
 * **Imperative control flow** - You need if/else branching
@@ -189,7 +178,7 @@ String shout(JsonValue jsonValue) {
 }
 ```
 
-### Use Pattern Matching When:
+### Use Pattern Matching When
 
 * **Exhaustive case handling** - You need to handle all variants
 * **Complex extraction logic** - Multiple levels of pattern matching
@@ -212,7 +201,7 @@ String describe(JsonValue jsonValue) {
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 
 <!-- verify -->
@@ -240,7 +229,7 @@ var name2 = JsonValuePrisms.jsonString().getOptional(value2);
 var name3 = JsonValuePrisms.jsonString().getOptional(value3);
 ```
 
-### Do This Instead:
+### Do This Instead
 
 
 <!-- verify -->

@@ -1,16 +1,13 @@
 # Traversals: Practical Guide
 
-## _Handling Bulk Updates_
+_Update every element in a nested collection with one call, and get the rebuilt structure back._
 
 ~~~admonish info title="What You'll Learn"
-- How to perform bulk operations on collections within immutable structures
-- Using `@GenerateTraversals` for automatic collection optics
-- Composing traversals with lenses and prisms for deep bulk updates
-- The `Traversals.modify()` and `Traversals.getAll()` utility methods
-- Treating all focused elements as one list with `partsOf` (sorting, reversing, deduplicating)
-- Converting a Traversal to a read-only Fold with `asFold()` for queries and aggregation
-- Understanding zero-or-more target semantics
-- When to use traversals vs streams vs manual loops for collection processing
+- Generate traversals with `@GenerateTraversals`, and compose them with lenses into one path to every nested element
+- Update every element the path reaches with `Traversals.modify`, and read them with `Traversals.getAll` or `asFold()`
+- Run a validating or asynchronous update over every element with `modifyF`
+- Sort, reverse or deduplicate the focused values with `partsOf`, and predict what a list of the wrong size does
+- Decide between a traversal, a stream and a loop for a collection update
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -28,7 +25,7 @@ But what about operating on *many* items at once? How do we apply a single chang
 
 ## The Scenario: Updating an Entire League
 
-A `Traversal` is a functional "search-and-replace." It gives you a single tool to focus on zero or more items within a larger structure, allowing you to `get`, `set`, or `modify` all of them in one go.
+A `Traversal` plays the part of `stream().map(f).toList()` over a list field, put back with a wither. Unlike the stream, it does the putting back for you, at any depth, so one call reaches zero or more items, changes them, and returns the rebuilt structure. [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
 This makes it the perfect optic for working with collections. Consider this data model of a sports league:
 
@@ -58,13 +55,6 @@ League updatedLeague = new League(league.name(), newTeams);
 ```
 
 This code is deeply nested and mixes the *what* (add 5 to a score) with the *how* (looping, collecting, and reconstructing). A `Traversal` lets us abstract away the "how" completely.
-
-## Think of Traversals Like...
-
-* **A spotlight**: Illuminates many targets at once within a structure
-* **A search-and-replace tool**: Finds all matching items and transforms them
-* **A bulk editor**: Applies the same operation to multiple items efficiently
-* **A magnifying glass array**: Like a lens, but for zero-to-many targets instead of exactly one
 
 ## A Step-by-Step Walkthrough
 
@@ -224,7 +214,7 @@ flowchart TD
     class T,S,L tier
 ```
 
-### Use Traversals When:
+### Use Traversals When
 
 * **Bulk operations on nested collections** - Applying the same operation to many items
 * **Type-safe collection manipulation** - Working with collections inside immutable structures
@@ -241,7 +231,7 @@ Traversal<Company, String> allEmails = CompanyTraversals.employees()
 Company withNormalisedEmails = Traversals.modify(allEmails, String::toLowerCase, company);
 ```
 
-### Use Streams When:
+### Use Streams When
 
 * **Complex transformations** - Multiple operations that don't map cleanly to traversals
 * **Filtering and collecting** - You need to change the collection structure
@@ -258,7 +248,7 @@ List<String> activePlayerNames = league.teams().stream()
     .collect(toList());
 ```
 
-### Use Manual Loops When:
+### Use Manual Loops When
 
 * **Early termination needed** - You might want to stop processing early
 * **Complex control flow** - Multiple conditions and branches
@@ -281,7 +271,7 @@ for (Team team : league.teams()) {
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 
 <!-- verify -->
@@ -301,7 +291,7 @@ League emptyLeague = new League("Empty", List.of());
 List<Integer> scores = Traversals.getAll(leagueToAllPlayerScores, emptyLeague); // Returns empty list
 ```
 
-### Do This Instead:
+### Do This Instead
 
 
 <!-- verify -->
@@ -476,22 +466,13 @@ public class ConfigValidation {
 
 ## List Manipulation with `partsOf`
 
-### _Treating Traversal Focuses as Collections_
-
 ~~~admonish example title="See Example Code"
 [PartsOfTraversalExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PartsOfTraversalExample.java)
 ~~~
 
 So far, we've seen how traversals excel at applying the *same* operation to every focused element individually. But what if you need to perform operations that consider *all* focuses as a group? Sorting, reversing, or removing duplicates are inherently list-level operations: they require knowledge of the entire collection, not just individual elements.
 
-This is where `partsOf` becomes invaluable. It bridges the gap between element-wise traversal operations and collection-level algorithms.
-
-### Think of partsOf Like...
-
-* **A "collect and redistribute" operation**: Gather all targets, transform them as a group, then put them back
-* **A camera taking a snapshot**: Capture all focused elements, edit the photo, then overlay the changes
-* **A postal sorting centre**: Collect all parcels, sort them efficiently, then redistribute to addresses
-* **The bridge between trees and lists**: Temporarily flatten a structure for list operations, then restore the shape
+This is where `partsOf` becomes invaluable. It plays the part of reading the values into a `List`, sorting or reversing that list, and writing it back one value per position, in the order the traversal visits them. Unlike that hand-written round trip, it is one `Lens<S, List<A>>`, and a shorter list leaves the remaining positions as they were.
 
 ### The Problem: Element-Wise Limitations
 
@@ -705,7 +686,7 @@ public class CatalogueOptics {
 
 ### Common Pitfalls with partsOf
 
-#### Don't Do This:
+#### Don't Do This
 
 <!-- verify -->
 ```java
@@ -726,7 +707,7 @@ List<Double> prices = lens.get(products);
 prices.forEach(p -> System.out.println(p)); // Just use Traversals.getAll()!
 ```
 
-#### Do This Instead:
+#### Do This Instead
 
 <!-- verify -->
 ```java
@@ -850,8 +831,6 @@ Scenarios 7 to 9 convert the traversal to a `Fold` for aggregation (see [Convert
 ---
 
 ## Converting to Read-Only Folds with `asFold()`
-
-### _Switching from Modification to Aggregation_
 
 Sometimes you build a `Traversal` for modification but later need the same path for read-only queries, aggregation, or combining with other folds. The `asFold()` method converts any `Traversal<S, A>` into a `Fold<S, A>`, giving you access to the full Fold API: `foldMap`, `exists`, `all`, `length`, `preview`, and more.
 

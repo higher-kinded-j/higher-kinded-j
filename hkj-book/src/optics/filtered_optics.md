@@ -1,16 +1,13 @@
 # Filtered Optics: Predicate-Based Composition
 
-## _Declarative Filtering for Targeted Operations_
+_Change only the elements that match a condition, and keep the others in place, unchanged._
 
 ~~~admonish info title="What You'll Learn"
-- How to filter elements within traversals and folds using predicates
-- Using `filtered()` for declarative, composable filtering as part of optic composition
-- The difference between filtering during modification vs filtering during queries
-- Advanced filtering with `filterBy()` for query-based predicates
-- The static `Traversals.filtered()` combinator for affine traversals
-- The preserved-versus-excluded semantics: modification keeps the structure, queries drop non-matches
-- When to use filtered optics vs Stream API vs conditional logic
-- Real-world patterns for customer segmentation and analytics
+- Filter a traversal or a fold with `filtered`, and chain filters for AND logic
+- Predict which elements `modify` keeps unchanged and which `getAll` leaves out
+- Insert a reusable filter anywhere in a chain with `Traversals.filtered`
+- Select elements by a nested query, such as customers with an overdue invoice, with `filterBy`
+- Fix a filtered update whose second run targets fewer elements, by filtering on fields it does not change
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -77,17 +74,7 @@ List<Customer> customersWithOverdue = platform.customers().stream()
 
 This approach forces you to abandon the declarative power of optics, manually managing iteration and reconstruction. **Filtered optics** let you express this intent directly within your optic composition.
 
----
-
-## Think of Filtered Optics Like...
-
-* **A SQL `UPDATE ... WHERE`**: `UPDATE users SET tier = 'gold' WHERE active = true` changes only the matching rows and keeps the rest, just as a filtered write does
-* **A spotlight with a mask**: Illuminates only the items that match your criteria
-* **A sieve**: Allows matching elements to pass through whilst blocking others
-* **A conditional lens**: Focuses only on elements satisfying a predicate
-* **A smart selector**: Like CSS selectors that target specific elements based on attributes
-
-The key insight: filtering becomes part of your optic's *identity*, not an external operation applied afterwards.
+A filtered traversal plays the part of the conditional `map` in the traditional approach, `user.active() ? user.grantBonus() : user`: matching elements change and the rest pass through untouched. Unlike that stream, it composes into a longer path and puts the list back for you, and unlike a stream's `filter`, it never drops an element.
 
 ---
 
@@ -328,7 +315,7 @@ This behaviour is intentional: it allows you to **transform selectively** whilst
 
 ## When to Use Filtered Optics vs Other Approaches
 
-### Use Filtered Optics When:
+### Use Filtered Optics When
 
 * **Declarative composition** - You want filtering to be part of the optic's definition
 * **Selective modifications** - Modify only elements matching criteria
@@ -347,7 +334,7 @@ Traversal<Platform, User> activeEnterpriseUsers =
 Platform updated = Traversals.modify(activeEnterpriseUsers, User::grantBonus, platform);
 ```
 
-### Use Stream API When:
+### Use Stream API When
 
 * **Complex transformations** - Multiple map/filter/reduce operations
 * **Collecting to different structures** - Need to change the collection type
@@ -365,7 +352,7 @@ List<String> topActiveUserNames = users.stream()
     .collect(toList());
 ```
 
-### Use Conditional Logic When:
+### Use Conditional Logic When
 
 * **Control flow** - Early returns, exceptions, complex branching
 * **Side effects** - Logging, metrics, external calls based on conditions
@@ -385,7 +372,7 @@ for (User user : users) {
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 <!-- verify -->
 ```java
@@ -410,7 +397,7 @@ Fold<User, Boolean> isActiveFold = UserLenses.active().asFold();
 boolean isActive = isActiveFold.getAll(user).get(0); // Just use user.active()!
 ```
 
-### Do This Instead:
+### Do This Instead
 
 <!-- verify -->
 ```java

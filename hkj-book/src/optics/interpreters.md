@@ -1,16 +1,15 @@
 # Optic Interpreters: Multiple Execution Strategies
 
-## _One Program, Several Answers_
+_Choose how an optic program runs: directly, with an audit log, as a checked run, or your own way._
 
 <img src="../images/the-interpreter.jpg" alt="Illustration of an interpreter translating a Free Monad program into a concrete execution strategy" style="width: 100%;" />
 
 ~~~admonish info title="What You'll Learn"
-- How the Interpreter pattern separates description from execution
-- The three built-in interpreters: Direct, Logging, and Validation
-- When to use each interpreter effectively
-- How to create custom interpreters for specific needs
-- Combining interpreters for powerful workflows
-- Real-world applications: audit trails, testing, and optimisation
+- Choose the `direct()`, `logging()` or `validating()` interpreter for a job, knowing that all three execute the program
+- Read a `LoggingOpticInterpreter` log, and clear it with `clearLog()` between runs, since it accumulates
+- Predict what `validate` reports: `null` writes and throwing modifiers, but not a throw inside `flatMap`
+- Write a profiling or mock interpreter of your own by folding a function over the program with `foldMap`
+- Combine interpreters in one workflow, such as validating a program and then running it with logging
 ~~~
 
 ~~~admonish example title="See Example Code"

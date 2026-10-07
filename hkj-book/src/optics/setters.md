@@ -1,16 +1,12 @@
 # Setters: A Practical Guide
 
-## _Composable Write-Only Modifications_
+_Change values across a structure, one field or a whole collection, without reading them out._
 
 ~~~admonish info title="What You'll Learn"
-- How to modify data structures using composable, write-only optics
-- Using `@GenerateSetters` to create type-safe modifiers automatically
-- Understanding the relationship between Setter and Traversal
-- Creating modification pipelines without read access
-- Effectful modifications using Applicative contexts
-- Factory methods: `of`, `fromGetSet`, `forList`, `forMapValues`, `identity`
-- When to use Setter vs Lens vs Traversal
-- Building batch update and normalisation pipelines
+- Generate setters with `@GenerateSetters`, or build one with `Setter.fromGetSet`
+- Compose setters with `andThen`, and with `Setter.forList()` or `forMapValues()`, to change every value in a nested collection
+- Run a validating update through `modifyF`, and fix the `UnsupportedOperationException` a `Setter.of` setter throws there
+- Decide between a setter, a lens and a traversal for an update
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -20,6 +16,8 @@
 In the previous guide, we explored **`Getter`** for composable read-only access. Now we turn to its dual: **`Setter`**, a write-only optic that modifies data without necessarily reading it first.
 
 A **`Setter`** is an optic that focuses on transforming elements within a structure. Unlike a `Lens`, which provides both getting and setting, a `Setter` concentrates solely on modification, making it ideal for batch updates, data normalisation, and transformation pipelines where read access isn't required.
+
+It plays the part of `stream().map(f).toList()` put back with a wither, with nothing read out first. Unlike the stream, it composes with other setters, `Setter.forList()` among them, and does the putting back at any depth. [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
 ---
 
@@ -54,16 +52,6 @@ public record Inventory(List<Product> products, String warehouseId) {}
 * "Set all user themes to dark mode"
 
 A `Setter` makes these modifications type-safe, composable, and expressive.
-
----
-
-## Think of Setters Like...
-
-* **A functional modifier**: Transforming values without reading
-* **A write-only lens**: Focusing on modification only
-* **A batch transformer**: Applying changes to multiple elements
-* **A data normalisation tool**: Standardising formats across structures
-* **A pipeline stage**: Composable modification steps
 
 ---
 
@@ -395,7 +383,7 @@ Useful as a base case in composition or for direct value transformation.
 
 ## When to Use Setter vs Other Approaches
 
-### Use Setter When:
+### Use Setter When
 
 * You need **write-only access** without reading
 * You're building **batch transformation** pipelines
@@ -415,7 +403,7 @@ Setter<Company, String> employeeNamesSetter = companySetter
     .andThen(personNameSetter);
 ```
 
-### Use Lens When:
+### Use Lens When
 
 * You need **both reading and writing**
 * You want to **get and set** the same field
@@ -431,7 +419,7 @@ String current = usernameLens.get(user); // Read
 User updated = usernameLens.set("new_name", user); // Write
 ```
 
-### Use Traversal When:
+### Use Traversal When
 
 * You need **read operations** (`getAll`) on collections
 * You're working with **optional** or multiple focuses
@@ -442,7 +430,7 @@ User updated = usernameLens.set("new_name", user); // Write
 List<Product> all = Traversals.getAll(productTraversal, order); // Read
 ```
 
-### Use Direct Mutation When:
+### Use Direct Mutation When
 
 * You're working with **mutable objects** (not recommended in FP)
 * **Performance** is absolutely critical

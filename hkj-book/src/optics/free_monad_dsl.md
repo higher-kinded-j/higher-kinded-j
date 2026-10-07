@@ -1,16 +1,15 @@
 # Free Monad DSL: Composable Optic Programs
 
-## _Optic Operations as Data You Can Inspect, Replay and Refuse_
+_Build optic operations as a program value, then choose to run, log, check or test it._
 
 ![free_monad.jpg](../images/lens2.jpg)
 
 ~~~admonish info title="What You'll Learn"
-- What Free monads are and why they're powerful for optics
-- How to build composable optic programs step by step
-- Separating program description from execution
-- Using conditional logic and branching in programs
-- Real-world scenarios: audit trails, validation, and testing
-- Creating reusable program fragments
+- Build a program with `OpticPrograms.get`, `set`, `modify` and `modifyAll`, and run it with `OpticInterpreters.direct()`
+- Sequence steps with `flatMap`, branching on an earlier result and returning `pure` where a branch has nothing to do
+- Run one program under the logging, validating or mock interpreter to audit, check or test it
+- Write reusable program fragments and combine them, keeping side effects out of program construction
+- Decide when a program is worth its extra layer over direct execution with `OpticOps`
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -31,7 +30,7 @@ Consider these real-world requirements:
 This is where the Free Monad DSL comes in. It lets you **describe** a sequence of optic operations as data, then **interpret** that description in different ways.
 
 ~~~admonish tip title="Why this matters"
-A Free monad program is like a recipe. Writing the recipe doesn't cook the meal; it just describes what to do. You can review the recipe, validate it, translate it, or follow it to cook. The Free monad DSL gives you that same power with optic operations.
+A Free monad program plays the part of a `Stream` pipeline before its terminal operation: building it runs nothing, it only describes what to do. Unlike a stream, the description is a value you can hand to different interpreters, to log, check or test it, and you can run it more than once. The Free monad DSL gives you that same power with optic operations.
 ~~~
 
 ---

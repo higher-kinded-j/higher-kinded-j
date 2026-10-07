@@ -1,15 +1,13 @@
 # Indexed Access: At and Ixed Type Classes
 
-## _CRUD and Safe Partial Access for Collections_
+_Insert, update or delete a map entry, update or delete a list element, or update either only when it exists._
 
 ~~~admonish info title="What You'll Learn"
-- How to insert, update, and delete entries in indexed structures using `At`
-- How to safely access and update existing elements using `Ixed`
-- The key difference: At provides full CRUD, Ixed provides read/update only
-- Factory methods: `mapAt()`, `listAt()`, `mapIx()`, `listIx()`
-- Composing with Lenses for deep access into nested collections
-- Using `Prisms.some()` to unwrap Optional for chained modifications
-- When to use At vs Ixed vs direct collection operations
+- Insert, update and delete a map entry with `At`'s `insertOrUpdate`, `modify` and `remove`, and update or delete a list element by index
+- Update an entry only when it exists with `Ixed`, so a missing key or index is a no-op rather than an insert or an exception
+- Compose `at(key)` with a lens to insert or delete a nested setting, and unwrap the value with `Prisms.some()`
+- Predict how `At.remove` shifts later list indices, and when `listAt` throws instead of padding
+- Decide between `At`, `Ixed` and plain collection calls for a batch of changes
 ~~~
 
 ~~~admonish example title="See Example Code"

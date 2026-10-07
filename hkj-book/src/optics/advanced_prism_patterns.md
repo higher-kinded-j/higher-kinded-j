@@ -1,16 +1,15 @@
 # Advanced Prism Patterns
 
-## _Real-World Applications of Prisms in Production Systems_
+_Route configuration values, API responses, events, states and plugins by case, with prisms you compose once._
 
 ![prism.jpeg](../images/prism.jpeg)
 
 ~~~admonish info title="What You'll Learn"
-- Configuration management with layered prism composition
-- API response handling with type-safe error recovery
-- Data validation pipelines using prisms for conditional processing
-- Event processing systems with prism-based routing
-- State machine implementations using prisms for transitions
-- Plugin architectures with type-safe variant handling
+- Resolve a configuration value through a chain of prism fallbacks with `mapOptional` and `Optional.or`
+- Route API responses, domain events and plugins to their handlers by case, with no `instanceof` cascade
+- Sanitise and validate mixed values with `modifyWhen`, collecting every error into an `Either`
+- Guard a state transition by matching both the current state and the event with `matches`
+- Match a category of values with `Prisms.nearly`, and name the negative case with `doesNotMatch`
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -35,8 +34,6 @@ This guide assumes familiarity with prism fundamentals including `getOptional()`
 ---
 
 ## Pattern 1: Configuration Management
-
-### _Type-Safe, Layered Configuration Resolution_
 
 Configuration systems often deal with multiple sources (environment variables, files, defaults) and various data types. Prisms provide a type-safe way to navigate this complexity.
 
@@ -131,8 +128,6 @@ Optional<ConfigValue> connConfig = Traversals.getAll(databaseConfig, rootConfig)
 ---
 
 ## Pattern 2: API Response Handling
-
-### _Type-Safe HTTP Response Processing_
 
 Modern APIs return varying response types based on status codes. Prisms provide elegant error handling and recovery strategies.
 
@@ -245,8 +240,6 @@ When using prisms for API handling:
 ---
 
 ## Pattern 3: Data Validation Pipelines
-
-### _Composable, Type-Safe Validation Logic_
 
 Validation often requires checking different data types and applying conditional rules. Prisms make validation logic declarative and reusable.
 
@@ -388,8 +381,6 @@ public class AccumulatingValidator {
 ---
 
 ## Pattern 4: Event Processing
-
-### _Type-Safe Event Routing and Handling_
 
 Event-driven systems receive heterogeneous event types that require different processing logic. Prisms provide type-safe routing without `instanceof` cascades.
 
@@ -533,8 +524,6 @@ public class EventProcessor {
 ---
 
 ## Pattern 5: State Machines
-
-### _Type-Safe State Transitions_
 
 State machines with complex transition rules benefit from prisms' ability to safely match states and transform between them.
 
@@ -681,8 +670,6 @@ public class AdvancedStateMachine {
 ---
 
 ## Pattern 6: Plugin Systems
-
-### _Type-Safe Plugin Discovery and Execution_
 
 Plugin architectures require dynamic dispatch to various plugin types whilst maintaining type safety.
 

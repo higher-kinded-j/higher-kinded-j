@@ -1,15 +1,17 @@
 # List Decomposition: Cons and Snoc Patterns
 
+_Split a list at either end with prisms, and read or change its first or last element._
+
 > _"Begin at the beginning," the King said gravely, "and go on till you come to the end: then stop."_
 >
 > – Lewis Carroll, *Alice's Adventures in Wonderland*
 
 ~~~admonish info title="What You'll Learn"
-- How to decompose lists using the classic functional programming patterns cons and snoc
-- When to use head/tail decomposition versus init/last decomposition
-- Convenience affines for accessing first and last elements directly
-- Stack-safe operations for processing arbitrarily large lists
-- Integration with the Focus DSL for fluent list manipulation
+- Split a list into head and tail with `ListPrisms.cons()`, or into init and last with `snoc()`, and build one back
+- Read and change a list's first or last element with the `head()` and `last()` affines
+- Predict what `set` through `head()` does on an empty list, and match an empty list with `empty()`
+- Fold, map and filter a list of a million elements without a stack overflow, using the trampoline operations
+- Reach a list's last element from a Focus path with `.via()`, starting from the path to the list itself
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -305,21 +307,21 @@ These are list-level optics: reach them from a path to the list (`FocusPath.of(C
 
 ## When to Use Each Pattern
 
-### Use Cons (head/tail) When:
+### Use Cons (head/tail) When
 
 - Processing lists from front to back
 - Implementing recursive algorithms that peel off the first element
 - Building lists by prepending elements
 - Pattern matching on "first and rest" structure
 
-### Use Snoc (init/last) When:
+### Use Snoc (init/last) When
 
 - Processing lists from back to front
 - Algorithms that need the final element
 - Building lists by appending elements
 - Pattern matching on "everything before and last" structure
 
-### Use Head/Last Affines When:
+### Use Head/Last Affines When
 
 - You only need direct access to the first or last element
 - Modifying endpoints without caring about the rest

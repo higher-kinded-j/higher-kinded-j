@@ -1,17 +1,13 @@
 # Getters: A Practical Guide
 
-## _Composable Read-Only Access_
+_Read one value, stored or computed, through an optic that composes and can never write._
 
 ~~~admonish info title="What You'll Learn"
-- How to extract values from structures using composable, read-only optics
-- Using `@GenerateGetters` to create type-safe value extractors automatically
-- Understanding the relationship between Getter and Fold
-- Creating computed and derived values without storing them
-- Composing Getters with other optics for deep data extraction
-- Factory methods: `of`, `to`, `constant`, `identity`, `first`, `second`
-- Null-safe navigation with `getMaybe` for functional optional handling
-- When to use Getter vs Lens vs direct field access
-- Building data transformation pipelines with clear read-only intent
+- Generate getters with `@GenerateGetters`, or derive a computed value such as a full name with `Getter.of`
+- Compose getters with `andThen`, and reach into a collection by composing with a `Fold` through `asFold()`
+- Query a getter's one value with the `Fold` operations it inherits, such as `exists` and `find`
+- Navigate nullable fields with `getMaybe` and `flatMap`, getting a `Maybe` instead of a `NullPointerException`
+- Decide between a getter, a lens, a fold and direct field access
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -20,7 +16,7 @@
 
 In previous guides, we explored **`Fold`** for querying zero or more elements from a structure. But what if you need to extract exactly one value? What if you want a composable accessor for a single, guaranteed-to-exist value? This is where **`Getter`** excels.
 
-A **`Getter`** is the simplest read-only optic: it extracts precisely one value from a source. Think of it as a **function wrapped in optic form**, enabling composition with other optics whilst maintaining read-only semantics.
+A **`Getter`** is the simplest read-only optic: it extracts precisely one value from a source. It plays the part of a derived accessor, such as a `fullName()` computed from two fields. Unlike an accessor, it is a value: it composes with other getters, answers `exists` and `find` itself, and after `asFold()` composes with any other optic's `asFold()`. [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
 ---
 
@@ -50,16 +46,6 @@ public record Company(String name, Person ceo, List<Person> employees, Address h
 * "Compute the length of a person's full name"
 
 A `Getter` makes these extractions type-safe, composable, and expressive.
-
----
-
-## Think of Getters Like...
-
-* **A functional accessor**: Extracting a specific value from a container
-* **A read-only lens**: Focusing on one element without modification capability
-* **A computed property**: Deriving values on-the-fly without storage
-* **A data pipeline stage**: Composable extraction steps
-* **A pure function in optic form**: Wrapping functions for composition
 
 ---
 
@@ -269,14 +255,7 @@ if (ceo != null) {
 }
 ```
 
-The `getMaybe` extension method provides a more functional approach by wrapping extracted values in `Maybe`, which explicitly models presence or absence without the risk of NPE.
-
-#### Think of getMaybe Like...
-
-* **A safe elevator** - Transports you to the desired floor, or tells you it's unavailable
-* **A null-safe wrapper** - Extracts values whilst protecting against null
-* **Optional's functional cousin** - Same safety guarantees, better functional composition
-* **A maybe-monad extractor** - Lifts extraction into the Maybe context
+The `getMaybe` extension method provides a more functional approach by wrapping extracted values in `Maybe`, which explicitly models presence or absence without the risk of NPE. It plays the part of `Optional.ofNullable(getter.get(source))`, with `Maybe` in place of `Optional`.
 
 #### How getMaybe Works
 
@@ -633,7 +612,7 @@ Address address = secondGetter.get(pair);
 
 ## When to Use Getter vs Other Approaches
 
-### Use Getter When:
+### Use Getter When
 
 * You need **computed or derived values** without storing them
 * You want **composable extraction** pipelines
@@ -654,7 +633,7 @@ Getter<Company, String> ceoCityUppercase = ceoGetter
     .andThen(Getter.of(String::toUpperCase));
 ```
 
-### Use Lens When:
+### Use Lens When
 
 * You need **both reading and writing**
 * You're working with **mutable state** (functionally)
@@ -669,7 +648,7 @@ Lens<Person, String> firstName = Lens.of(
 Person updated = firstName.set("Janet", person);
 ```
 
-### Use Fold When:
+### Use Fold When
 
 * You're querying **zero or more elements**
 * You need to **aggregate or search** collections
@@ -681,7 +660,7 @@ Fold<Order, Product> itemsFold = Fold.of(Order::items);
 List<Product> all = itemsFold.getAll(order);
 ```
 
-### Use Direct Field Access When:
+### Use Direct Field Access When
 
 * You need **maximum performance** with no abstraction overhead
 * You're not composing with other optics

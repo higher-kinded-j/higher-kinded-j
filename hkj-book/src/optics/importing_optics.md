@@ -1,6 +1,6 @@
 # Optics for External Types
 
-## _Extending Your Reach Beyond Your Own Code_
+_Generate optics for a JDK or library type you cannot annotate, and compose them with your own._
 
 > *"The real voyage of discovery consists not in seeking new landscapes, but in having new eyes."*
 >
@@ -11,10 +11,11 @@
 The landscape (JDK classes, database libraries, JSON parsers) already exists. What changes is how we *see* it. With `@ImportOptics` we gain new eyes: `LocalDate`, `JsonNode` or any external type becomes a participant in compositional, type-safe transformations. We are not adding code to those libraries; we are generating a view onto them.
 
 ~~~admonish info title="What You'll Learn"
-- How to generate optics for types you cannot modify (JDK classes, third-party libraries)
-- What auto-detection recognises, and the exact rule it uses for wither classes
-- A practical workflow for composing external optics with your own
-- When auto-detection is not enough, and what to reach for instead
+- Generate optics for a JDK or library type with `@ImportOptics` on a `package-info.java`
+- Predict what auto-detection generates for a record, a sealed type, an enum, a wither class and a container field
+- Check the pairing rule that decides whether a `withX` method gets a lens
+- Compose an imported optic with your own, such as the year of an order's date
+- Decide when to write a spec interface instead, for builders, predicates or non-standard naming
 ~~~
 
 ---

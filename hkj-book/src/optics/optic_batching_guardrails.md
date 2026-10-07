@@ -1,13 +1,13 @@
 # Plan Introspection and Guardrails
 
-## _Knowing What an Optic Run Would Do, Before It Does It_
+_See what a batched optic run would send before it runs, and refuse a batch with too many keys._
 
 ~~~admonish info title="What You'll Learn"
-- How to fold a `Fetch` program into a structural `Plan` with zero I/O, for audit logs and dry-run output
-- Why round 1's keyset is always reliable and what makes later rounds value-dependent
-- How a `Guard` interposes at the round boundary to refuse runaway batches before they leave the JVM
-- The standard guards: `maxKeysPerRound`, `maxRounds`, `maxBackendCalls`, `audit`, and how to compose them
-- How `SafeFetch.runCachedWithGuard` turns a refusal into a value on the `Either` channel
+- Read a `Fetch` program's first-round keyset with `Plans.preflight`, with no I/O, for an audit log or a test
+- Predict when a plan is `truncated()`, and why its first round stays accurate when it is
+- Refuse a run before a round reaches the backend: too many keys in one round with `Guards.maxKeysPerRound`, too many rounds with `maxRounds`, too many calls with `maxBackendCalls`
+- Compose guards with `and`, such as an `audit` log with a key ceiling, and run them with `Guards.runCached`
+- Get a refusal back as `Either.left` with `SafeFetch.runCachedWithGuard`, so the run never throws
 ~~~
 
 ~~~admonish example title="See Example Code"

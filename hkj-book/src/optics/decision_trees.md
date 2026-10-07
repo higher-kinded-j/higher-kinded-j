@@ -102,7 +102,7 @@ flowchart TD
 | "Apply only to elements matching a predicate" | [Filtered Optics](filtered_optics.md) |
 | "I need the index alongside each element" | [Indexed Optics](indexed_optics.md) |
 | "Access by key in a `Map`" | [Indexed Access](indexed_access.md): the `At` (full CRUD) and `Ixed` (read/update) type classes |
-| "Apply over every element of a custom container" | [Each Typeclass](each_typeclass.md) |
+| "Apply over every element of a custom container" | [Each Type Class](each_typeclass.md) |
 | "Operate on individual characters of a `String`" | [String Traversals](string_traversals.md) |
 | "Adapt a lens for a different source record type" | Compose: `outerLens.andThen(innerLens)` ([Profunctor Optics](profunctor_optics.md)) |
 | "The two shapes hold the same information" | An [`Iso`](iso.md), then compose: `Iso.andThen(Lens) = Lens` |

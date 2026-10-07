@@ -1,6 +1,6 @@
 # Indexed Optics: Position-Aware Operations
 
-## _Tracking Indices During Transformations_
+_Update each element knowing its position, map key or field name, without counting by hand._
 
 > *"Give me a place to stand, and I shall move the earth."*
 >
@@ -9,13 +9,11 @@
 ![indexed-optics.jpg](../images/indexed-optics.jpg)
 
 ~~~admonish info title="What You'll Learn"
-- How to access both index and value during optic operations
-- Using IndexedTraversal for position-aware bulk updates
-- Using IndexedFold for queries that need position information
-- Using IndexedLens for field name tracking and debugging
-- Creating indexed traversals for Lists and Maps with IndexedTraversals utility
-- Converting between indexed and non-indexed optics
-- When to use indexed optics vs standard optics
+- Pair each list element with its position, or each map value with its key, with `IndexedTraversals.forList()` and `forMap()`
+- Update elements by position or key with `IndexedTraversals.imodify`, such as numbering a packing slip
+- Narrow by position or value with `filterIndex` and `filteredWithIndex`, and predict that indices are never renumbered
+- Record which field a write touched with an `IndexedLens` and its `imodify`
+- Drop the index with `asTraversal()` when the update stops using it
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -112,18 +110,7 @@ order.metadata().entrySet().stream()
 
 This approach forces manual index management, mixing the *what* (transformation logic) with the *how* (index tracking). **Indexed optics** provide a declarative, type-safe solution.
 
----
-
-## Think of Indexed Optics Like...
-
-* **GPS coordinates**: Not just the destination, but the latitude and longitude
-* **Line numbers in an editor**: Every line knows its position in the file
-* **Map.Entry**: Provides both key and value instead of just the value
-* **Breadcrumbs in a file system**: Showing the complete path to each file
-* **A numbered list**: Each element has both content and a position
-* **Spreadsheet cells**: Both the cell reference (A1, B2) and the value
-
-The key insight: indexed optics make *position* a first-class citizen, accessible during every operation.
+An indexed optic plays the part of a loop over `map.entrySet()`, or over a list with a counter: each value arrives with its key or position. Unlike the loop, it hands back the rebuilt list or map, and composes into a longer path like any other optic.
 
 ---
 
@@ -177,7 +164,7 @@ IndexedTraversal<String, Map<String, String>, String> metadataWithKeys =
 The `forMap()` factory creates a traversal where each value is paired with its key.
 
 ~~~admonish tip title="Alternative: EachIndexed.indexedTraversal()"
-You can also obtain indexed traversals through the [Each typeclass](each_typeclass.md). If a container's `Each` instance supports indexed access it is an `EachIndexed`, whose `indexedTraversal()` returns the `IndexedTraversal` directly; the index type is fixed at compile time, with no `Optional` to unwrap:
+You can also obtain indexed traversals through the [Each type class](each_typeclass.md). If a container's `Each` instance supports indexed access it is an `EachIndexed`, whose `indexedTraversal()` returns the `IndexedTraversal` directly; the index type is fixed at compile time, with no `Optional` to unwrap:
 
 <!-- verify -->
 ```java
@@ -460,7 +447,7 @@ List<LineItem> uppercased = Traversals.modify(
 
 Understanding when indexed optics add value is crucial for writing clear, maintainable code.
 
-#### Use Indexed Optics When:
+#### Use Indexed Optics When
 
 * **Position-based logic** - Different behaviour for even/odd indices, first/last elements
 * **Numbering or labelling** - Adding sequence numbers, prefixes, or position markers
@@ -486,7 +473,7 @@ List<Product> prioritised = IndexedTraversals.imodify(
 );
 ```
 
-#### Use Standard Optics When:
+#### Use Standard Optics When
 
 * **Position irrelevant** - Pure value transformations
 * **Simpler code** - Index tracking adds unnecessary complexity
@@ -591,7 +578,7 @@ List<String> odd = IndexedTraversals.getAll(oddPositions, values);
 
 ## Common Pitfalls
 
-#### Don't Do This:
+#### Don't Do This
 
 <!-- verify -->
 ```java
@@ -620,7 +607,7 @@ List<Pair<Integer, String>> pairs = IndexedTraversals.toIndexedList(evenOnly, li
 // Indices are [0, 2, 4], NOT [0, 1, 2] - original positions preserved!
 ```
 
-#### Do This Instead:
+#### Do This Instead
 
 <!-- verify -->
 ```java
@@ -692,7 +679,7 @@ public class OrderOptics {
 ~~~admonish tip title="See Also"
 - [Indexed Optics: Advanced Patterns](indexed_optics_advanced.md): composition with paired indices, the Haskell heritage, and the trade-off summary
 - [Indexed Access](indexed_access.md): the At and Ixed type classes for single-key operations
-- [Each Typeclass](each_typeclass.md): `EachIndexed.indexedTraversal()` as an alternative source of indexed traversals
+- [Each Type Class](each_typeclass.md): `EachIndexed.indexedTraversal()` as an alternative source of indexed traversals
 ~~~
 
 ---
