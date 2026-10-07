@@ -15,6 +15,8 @@ The pages a returning reader comes back to, holding a question rather than readi
 | An optic, and you want to know whether it declares `get`, `set`, `getAll`, `matches`... | [Optic Capabilities](optic_capabilities.md) |
 | One optic type, and you need another | [Conversions](conversions.md) |
 | Two optics, and you want the type `andThen` returns | [Composition Rules](composition_rules.md) |
+| A wither, a stream or a `switch`, and you want the optic that replaces it | [Coming from Lombok, Streams and Switch](from_java.md) |
+| A name from Monocle or Haskell's `lens`, or a behaviour you expect from them | [Coming from Monocle or Haskell lens](from_monocle.md) |
 | A Focus DSL question: a pattern, a pitfall, the FAQ | [Focus DSL Reference](focus_reference.md) |
 | A compiler message from a generated optic | [Common Compiler Errors](compiler_errors.md) |
 

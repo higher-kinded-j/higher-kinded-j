@@ -118,6 +118,8 @@
     - [Optic Capabilities](optics/optic_capabilities.md)
     - [Conversions](optics/conversions.md)
     - [Composition Rules](optics/composition_rules.md)
+    - [Coming from Lombok, Streams and Switch](optics/from_java.md)
+    - [Coming from Monocle or Haskell lens](optics/from_monocle.md)
     - [Focus DSL Reference](optics/focus_reference.md)
     - [Common Compiler Errors](optics/compiler_errors.md)
 

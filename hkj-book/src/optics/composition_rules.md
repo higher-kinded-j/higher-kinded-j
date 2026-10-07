@@ -383,4 +383,4 @@ Practise lens composition in [Tutorial 02: Lens Composition](https://github.com/
 ---
 
 **Previous:** [Conversions](conversions.md)
-**Next:** [Focus DSL Reference](focus_reference.md)
+**Next:** [Coming from Lombok, Streams and Switch](from_java.md)

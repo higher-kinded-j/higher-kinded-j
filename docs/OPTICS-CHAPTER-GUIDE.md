@@ -14,7 +14,7 @@ whose reader needs it.
 |---|---|---|
 | Ship | `ch_intro`, `quickstart`, `focus_dsl`, `focus_navigation`, `optics_intro`, `fluent_api`, `multi_edit`, `capstone`, `self_check` | Reads in order, then stops and updates nested records at work. |
 | On demand | Seven groups, each led by a group introduction: The Optic Types (`ch1_intro`), Collections (`ch2_intro`), Precision and Filtering (`ch3_intro`), The Focus DSL in Depth (`ch4_intro`), Optics for External Types (`importing_optics`), Validation, Batching and Auditing (`ch5_intro`), Programs as Data (`ch6_intro`) | Reads one page when a task needs it. |
-| Look it up | Look It Up (`ch7_intro`) and its pages: `production_readiness`, `annotations_at_a_glance`, `decision_trees`, `cookbook`, `optic_capabilities`, `conversions`, `composition_rules`, `focus_reference`, `compiler_errors` | Arrives holding a question or a compiler message. |
+| Look it up | Look It Up (`ch7_intro`) and its pages: `production_readiness`, `annotations_at_a_glance`, `decision_trees`, `cookbook`, `optic_capabilities`, `conversions`, `composition_rules`, `from_java`, `from_monocle`, `focus_reference`, `compiler_errors` | Arrives holding a question or a compiler message. |
 
 `SUMMARY.md` holds the order, and the chapter intro's Chapter Contents lists the lanes. A group's
 pages are nested under its introduction in `SUMMARY.md`, so the sidebar shows the lane first.
