@@ -176,6 +176,22 @@ Both methods handle the "copy-and-update" cascade for you, returning a completel
 Employee updatedEmployee = employeeToStreet.set("456 Main St", initialEmployee);
 ```
 
+The `set` rebuilds only the records on the path, and reuses everything off it:
+
+<pre class="hkj-ascii-diagram" role="img" aria-label="Setting the street to 456 Main St rebuilds the employee, its company and its address, the three records on the path. The employee's name, the company's name and the city are reused as they were.">
+Employee ●
+├─ name ........ "Alice"
+└─ company ●           company()
+   ├─ name ..... "Initech Inc."
+   └─ address ●        address()
+      ├─ city .. "Anytown"
+      └─ street        street()
+      "123 Fake St" → "456 Main St"
+
+● on the path: rebuilt by set
+. off the path: reused as it was
+</pre>
+
 ---
 
 ## When to Use `with*` Helpers vs Manual Lenses

@@ -58,16 +58,22 @@ Every container holds its values in one of two ways. It either wraps *at most on
 
 ```mermaid
 flowchart TD
+    accTitle: The path type a container's cardinality implies
+    accDescr: A plain field holds exactly one value and implies a FocusPath. Optional, Maybe, Either, Try and Validated hold zero or one and imply an AffinePath. List, Set, Collection, Map, arrays and third-party collections hold zero or more and imply a TraversalPath.
     C{"How many values<br/>can the container hold?"}
     C -->|"exactly one<br/>(a plain field)"| F(["FocusPath"])
-    C -->|"zero or one<br/>Optional, Maybe, Either, Try, Validated"| A(["AffinePath"])
-    C -->|"zero or more<br/>List, Set, Collection, Map, arrays, third-party collections"| T(["TraversalPath"])
+    C -->|"zero or one:<br/>Optional, Maybe,<br/>Either, Try, Validated"| A(["AffinePath"])
+    C -->|"zero or more:<br/>List, Set, Collection,<br/>Map, arrays, third-party<br/>collections"| T@{ shape: st-rect, label: "TraversalPath" }
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
-    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef maybe fill:#a6d189,stroke:#40a02b,color:#232634,stroke-dasharray:6 4
     class C decision
-    class F,A,T tier
+    class F,T rw
+    class A maybe
 ```
+
+In words: a plain field implies a `FocusPath`, a container of zero or one an `AffinePath`, and a container of zero or more a `TraversalPath`.
 
 The diagram gives the tier a container's cardinality *implies*. Which of them a static Focus method actually widens to is the next section's subject: `List`, `Set` and `Collection` always do, and the rest wait for `widenCollections`.
 

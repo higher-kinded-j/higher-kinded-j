@@ -28,25 +28,34 @@ The [Composition Rules Table](#composition-rules-table) works that rule out for 
 
 ## Ranking by Capability {#the-optic-hierarchy}
 
-Optics order themselves by capability, from most specific (most operations available) to most general (fewest). An arrow points from an optic to one that can do less:
+Optics order themselves by capability, from most specific (most operations available) to most general (fewest). An arrow points from an optic to one that can do less, and each is drawn in the [chapter's optic shapes](ch_intro.md#how-the-optic-types-relate):
 
 ```mermaid
 flowchart TD
-    I(["Iso"]) --> L(["Lens"])
-    I --> P(["Prism"])
-    L --> G(["Getter"])
-    L --> F(["Fold"])
+    accTitle: Optics ranked by capability
+    accDescr: Iso points to Lens and Prism. Lens points to Getter, Fold and Affine, Getter to Fold, and Prism to Affine and Traversal. Affine points to Fold and Traversal, and Traversal to Fold and Setter. Each arrow runs from an optic to one that can do less, so Iso can do the most and Fold and Setter the least.
+    I@{ shape: bow-rect, label: "Iso" } --> L(["Lens"])
+    I --> P@{ shape: hex, label: "Prism" }
+    L --> G@{ shape: doc, label: "Getter" }
+    G --> F
+    L --> F@{ shape: docs, label: "Fold" }
     L --> A(["Affine"])
     P --> A
     A --> F
-    A --> T(["Traversal"])
+    A --> T@{ shape: st-rect, label: "Traversal" }
     P --> T
     T --> F
-    T --> St(["Setter"])
+    T --> St@{ shape: lean-r, label: "Setter" }
 
-    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    class I,L,P,G,F,A,T,St tier
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef maybe fill:#a6d189,stroke:#40a02b,color:#232634,stroke-dasharray:6 4
+    classDef ro fill:#8caaee,stroke:#1e66f5,color:#232634
+    class I,L,P,T,St rw
+    class A maybe
+    class G,F ro
 ```
+
+In words: an `Iso` can do the most, and `Fold` and `Setter` the least: one can only read, the other only write.
 
 ~~~admonish note title="Capability, not Java subtyping"
 These arrows rank what each optic can do; they are not `extends` edges. `Getter extends Fold` is the only inheritance between two optic types. Some steps are explicit conversions such as `asFold()` or `asTraversal()`; others, such as Lens to Affine, are reached only by composing. [Conversions](conversions.md) lists the ones that exist, and [Optic Capabilities](optic_capabilities.md) has the per-method table.

@@ -2,7 +2,7 @@
 
 _Pick the optic, the API, the advanced feature or the interpreter by answering one question at a time._
 
-Each group introduction links here rather than drawing its own tree. Use this page when you need to route quickly to the right tool.
+Each group introduction links here rather than drawing its own tree. Use this page when you need to route quickly to the right tool. Each optic is drawn in the [chapter's optic shapes](ch_intro.md#how-the-optic-types-relate).
 
 ---
 
@@ -13,23 +13,27 @@ flowchart TD
     accTitle: Which optic do I need?
     accDescr: Reading only, exactly one target, is a Getter; reading only, zero or more, a Fold. Reading and writing exactly one target is a Lens; zero or one where the field may be absent, an Affine; zero or one where the value may be another variant, a Prism; zero or more, a Traversal. Converting between equivalent types is an Iso.
     Q{"What are you doing<br/>to the focus?"}
-    Q -->|"reading only"| R{"How many<br/>targets?"}
-    Q -->|"reading and writing"| M{"How many<br/>targets?"}
-    Q -->|"converting between<br/>equivalent types"| I(["Iso"])
+    Q -->|"reading only,<br/>exactly one"| G@{ shape: doc, label: "Getter" }
+    Q -->|"reading only,<br/>zero or more"| F@{ shape: docs, label: "Fold" }
+    Q -->|"reading and<br/>writing"| M{"How many<br/>targets?"}
+    Q -->|"converting<br/>between<br/>equivalent types"| I@{ shape: bow-rect, label: "Iso" }
 
-    R -->|"exactly one"| G(["Getter"])
-    R -->|"zero or more"| F(["Fold"])
-
-    M -->|"exactly one"| L(["Lens"])
-    M -->|"zero or one:<br/>the field may be absent"| A(["Affine"])
-    M -->|"zero or one:<br/>the value may be another variant"| P(["Prism"])
-    M -->|"zero or more"| T(["Traversal"])
+    M -->|"exactly<br/>one"| L(["Lens"])
+    M -->|"zero or one:<br/>the field may<br/>be absent"| A(["Affine"])
+    M -->|"zero or one:<br/>the value may be<br/>another variant"| P@{ shape: hex, label: "Prism" }
+    M -->|"zero or<br/>more"| T@{ shape: st-rect, label: "Traversal" }
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
-    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    class Q,R,M decision
-    class I,G,F,L,A,P,T tier
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef maybe fill:#a6d189,stroke:#40a02b,color:#232634,stroke-dasharray:6 4
+    classDef ro fill:#8caaee,stroke:#1e66f5,color:#232634
+    class Q,M decision
+    class I,L,P,T rw
+    class A maybe
+    class G,F ro
 ```
+
+In words: a Getter or a Fold only reads, a Lens, Affine, Prism or Traversal also writes, and an Iso converts; how many targets there are picks among them.
 
 Write-only access is the one case the tree does not reach: that is a [Setter](setters.md), and you arrive at it by knowing you never read.
 
@@ -54,10 +58,10 @@ The two zero-or-one optics are not interchangeable. An `Affine` reaches a value 
 flowchart TD
     accTitle: Which API style?
     accDescr: Start on the Focus DSL and stay there for a plain nested update. An update that can fail or accumulate errors moves to the Fluent API's OpticOps. One that must be inspected, audited or run several ways moves to the Free Monad DSL.
-    S(["Start: Focus DSL<br/>CompanyFocus.headquarters().city()"]) --> Q{"Does the update<br/>need more?"}
-    Q -->|"no: plain nested update"| S2(["stay on the Focus DSL"])
-    Q -->|"it can fail, or accumulate errors"| FA(["Fluent API: OpticOps<br/>modifyEither, modifyAllValidated"])
-    Q -->|"it must be inspected,<br/>audited or run several ways"| FM(["Free Monad DSL<br/>see Programs as Data"])
+    S["Start: Focus DSL<br/>CompanyFocus.headquarters().city()"] --> Q{"Does the update<br/>need more?"}
+    Q -->|"no: a plain<br/>nested update"| S2["stay on the<br/>Focus DSL"]
+    Q -->|"it can fail, or<br/>accumulate errors"| FA["Fluent API:<br/>OpticOps.modifyEither,<br/>modifyAllValidated"]
+    Q -->|"it must be inspected,<br/>audited or run several ways"| FM["Free Monad DSL,<br/>see Programs as Data"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
@@ -66,6 +70,8 @@ flowchart TD
     class S2,FA,FM tier
     class S wire
 ```
+
+In words: start on the Focus DSL, and leave it only when the update can fail or must be inspected.
 
 | Your task | Use |
 |---|---|
@@ -87,15 +93,17 @@ flowchart TD
     accTitle: Which advanced feature?
     accDescr: When only some elements should be touched, use filtered optics. When the position matters as well as the value, use indexed optics. When the source or target is the wrong shape, use profunctor optics.
     Q{"What is the<br/>constraint?"}
-    Q -->|"only some elements<br/>should be touched"| F(["Filtered optics"])
-    Q -->|"the position matters<br/>as well as the value"| I(["Indexed optics"])
-    Q -->|"the source or target<br/>is the wrong shape"| P(["Profunctor optics"])
+    Q -->|"only some elements<br/>should be touched"| F["Filtered optics"]
+    Q -->|"the position matters<br/>as well as the value"| I["Indexed optics"]
+    Q -->|"the source or target<br/>is the wrong shape"| P["Profunctor optics"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     class Q decision
     class F,I,P tier
 ```
+
+In words: filter when only some elements change, index when their position matters, and adapt with a profunctor when a type is the wrong shape.
 
 | Your problem | Reach for |
 |---|---|
@@ -114,20 +122,22 @@ flowchart TD
 ## Tree 4: Which interpreter?
 
 ```mermaid
-flowchart TD
+flowchart LR
     accTitle: Which interpreter to run a program with
     accDescr: For the result, run it with direct. For the result and a record of the steps, run it with logging. For a report of problems instead of the result, run it with validating. For anything else, such as mocks, metrics or permissions, write your own natural transformation.
     Q{"What do you want<br/>from the program?"}
-    Q -->|"the result"| D(["direct()<br/>run it"])
-    Q -->|"the result, and<br/>a record of the steps"| L(["logging()<br/>run it and keep a trail"])
-    Q -->|"the result discarded,<br/>and a report instead"| V(["validating()<br/>run it and report problems"])
-    Q -->|"something else:<br/>mocks, metrics, permissions"| O(["your own<br/>natural transformation"])
+    Q -->|"the result"| D["direct()<br/>run it"]
+    Q -->|"the result, and<br/>a record of<br/>the steps"| L["logging()<br/>run it and<br/>keep a trail"]
+    Q -->|"the result<br/>discarded, and<br/>a report instead"| V["validating()<br/>run it and<br/>report problems"]
+    Q -->|"something else:<br/>mocks, metrics,<br/>permissions"| O["your own<br/>natural<br/>transformation"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     class Q decision
     class D,L,V,O tier
 ```
+
+In words: `direct()` returns the result, `logging()` the result and a trail of its steps, `validating()` a report in place of the result, and anything else is your own natural transformation.
 
 | You want from the program | Interpreter |
 |---|---|

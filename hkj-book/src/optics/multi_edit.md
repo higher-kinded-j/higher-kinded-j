@@ -68,14 +68,14 @@ Each request field maps to exactly one slot; an absent field simply contributes 
 flowchart TD
     accTitle: A sparse request, field by field
     accDescr: A request with no SKU and a quantity delta of 3. The absent SKU changes nothing and the quantity grows by 3, so the line comes back with its quantity changed and its SKU untouched.
-    Req(["LineItemPatch<br/>sku: null, qtyDelta: 3"])
-    Req --> S(["sku absent<br/>no change"])
-    Req --> Q(["qtyDelta present<br/>quantity += 3"])
-    S --> Out(["line': quantity changed,<br/>SKU untouched"])
+    Req["LineItemPatch<br/>sku: null, qtyDelta: 3"]
+    Req --> S["sku absent<br/>no change"]
+    Req --> Q["qtyDelta present<br/>quantity += 3"]
+    S --> Out["line': quantity changed,<br/>SKU untouched"]
     Q --> Out
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef out fill:#a6d189,stroke:#40a02b,color:#232634
     class Req,S,Q tier
     class Out out
 ```
@@ -122,10 +122,10 @@ When the request DTO's fields line up one-to-one with a domain record, the commo
 flowchart TD
     accTitle: How combine and accumulate tell the edits apart
     accDescr: parseIfPresent makes a FallibleEdit, which may fail. set, modify and the IfPresent forms make an Edit, which cannot fail, and every Edit is also a FallibleEdit. Edits.combine takes only Edits, so a FallibleEdit there is a compile error; Edits.accumulate takes both.
-    FE(["FallibleEdit&lt;S&gt;<br/>may fail: carries Validated&lt;NEL&lt;FieldError&gt;, Update&lt;S&gt;&gt;"])
-    ED(["Edit&lt;S&gt;<br/>cannot fail: carries the Update&lt;S&gt; directly"])
-    P(["FallibleEdit.Parsed<br/>from parseIfPresent"]) --> FE
-    I(["Edit.Infallible<br/>from set, modify, …IfPresent"]) --> ED
+    FE["FallibleEdit&lt;S&gt;<br/>may fail: carries Validated&lt;NEL&lt;FieldError&gt;, Update&lt;S&gt;&gt;"]
+    ED["Edit&lt;S&gt;<br/>cannot fail: carries the Update&lt;S&gt; directly"]
+    P["FallibleEdit.Parsed<br/>from parseIfPresent"] --> FE
+    I["Edit.Infallible<br/>from set, modify, …IfPresent"] --> ED
     ED --> FE
 
     C["Edits.combine(Edit…)<br/>only pure edits fit:<br/>a FallibleEdit is a compile error"]
@@ -134,7 +134,7 @@ flowchart TD
     FE --> A
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef out fill:#a6d189,stroke:#40a02b,color:#232634
     class FE,ED,P,I tier
     class C,A out
 ```
@@ -153,16 +153,14 @@ flowchart TD
     accTitle: Validate everything, then write once
     accDescr: In phase 1 each edit is checked on its own, with no source: an absent SKU is a valid no-op, the price is parsed, and a present quantity delta is a valid write. If every edit is valid, phase 2 runs the writes as one left-to-right fold; otherwise the result is Invalid with every bad field located.
     subgraph one["Phase 1: validate each edit independently, no source involved"]
-        direction TB
-        S1(["setIfPresent(SKU, null)<br/>absent, so no change"]) --> V1(["Valid, a no-op"])
-        S2(["parseIfPresent(PRICE, raw)<br/>the parser runs"]) --> V2(["Valid(write)<br/>or Invalid(errors)"])
-        S3(["modifyIfPresent(QTY, 3)<br/>present → write"]) --> V3(["Valid(write)"])
+        direction LR
+        S1["setIfPresent(SKU, null)<br/>absent, so no change"] --> V1["Valid, a no-op"]
+        S2["parseIfPresent(PRICE, raw)<br/>the parser runs"] --> V2["Valid(write)<br/>or Invalid(errors)"]
+        S3["modifyIfPresent(QTY, 3)<br/>present → write"] --> V3["Valid(write)"]
     end
-    V1 --> Q{"every edit Valid?"}
-    V2 --> Q
-    V3 --> Q
-    Q -->|"yes"| Ok(["Phase 2: one left-to-right fold<br/>Valid(line'), only the present fields written"])
-    Q -->|"no"| Bad(["Invalid(NEL[price: …])<br/>every bad field, located"])
+    one --> Q{"every edit Valid?"}
+    Q -->|"yes"| Ok["Phase 2: one left-to-right<br/>fold: Valid(line'), only<br/>the present fields written"]
+    Q -->|"no"| Bad["Invalid(NEL[price: …])<br/>every bad field, located"]
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
@@ -191,16 +189,17 @@ Each write through a record's path builds a new record, so the constructor sees 
 ```
 
 ```mermaid
-flowchart LR
+flowchart TD
     accTitle: One record per edit, or one record in all
     accDescr: With plain accumulate, setting the floor to 500 on PriceBand(100, 300) builds PriceBand(500, 300), which the constructor refuses. With accumulate onto the Bounds focus, the floor and ceiling are written onto Bounds(100, 300) in turn, giving Bounds(500, 1000), and the lens sets it back once as PriceBand(500, 1000).
-    subgraph each["accumulate(edits…): one record per edit"]
-        direction LR
-        A1(["PriceBand(100, 300)"]) -->|"floor = 500"| A2(["PriceBand(500, 300)<br/>the constructor throws"])
-    end
+    %% declared in reverse: the layout places the last subgraph on the left
     subgraph once["accumulate(bounds, edits…): one PriceBand in all"]
-        direction LR
-        B1(["Bounds(100, 300)"]) -->|"floor = 500"| B2(["Bounds(500, 300)"]) -->|"ceiling = 1000"| B3(["Bounds(500, 1000)"]) -->|"set once"| B4(["PriceBand(500, 1000)"])
+        direction TB
+        B1["Bounds(100, 300)"] -->|"floor = 500"| B2["Bounds(500, 300)"] -->|"ceiling = 1000"| B3["Bounds(500, 1000)"] -->|"set once"| B4["PriceBand(500, 1000)"]
+    end
+    subgraph each["accumulate(edits…): one record per edit"]
+        direction TB
+        A1["PriceBand(100, 300)"] -->|"floor = 500"| A2["PriceBand(500, 300)<br/>the constructor throws"]
     end
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634

@@ -25,9 +25,11 @@ The `org.higherkindedj.optics.fetch` package changes the strategy and leaves the
 
 ```mermaid
 sequenceDiagram
+    accTitle: N+1 calls, then one batched round
+    accDescr: Without batching, modifyF over N ids makes the traversal call the backend once per id, N times. With FetchApplicative, ap() merges the pending request sets, so the traversal sends every id to the batch resolver in one call and gets back a map of id to entity.
     autonumber
     participant C as Caller
-    participant T as Traversal over N ids
+    participant T as Traversal<br/>over N ids
     participant B as Backend
 
     Note over C,B: Without batching: N+1
@@ -39,9 +41,9 @@ sequenceDiagram
     T-->>C: List of entities
 
     Note over C,B: With FetchApplicative: one round
-    C->>T: modifyF(Fetch.fetch, ids, FetchApplicative)
-    Note right of T: ap() merges pending request sets,<br/>so foci share a single round
-    T->>B: batchResolver({id_1 ... id_N})
+    C->>T: modifyF(Fetch.fetch, ids,<br/>FetchApplicative)
+    Note over T: ap() merges pending<br/>request sets, so foci<br/>share a single round
+    T->>B: batchResolver(<br/>{id_1 ... id_N})
     B-->>T: Map of id to entity
     T-->>C: List of entities
 ```
@@ -59,23 +61,28 @@ The usual fix for an N+1 is a hand-written pre-fetch: collect the ids, load them
 The pipeline has three pieces. The optic owns the shape. The applicative is the strategy. The runner is the boundary that actually talks to the backend:
 
 ```mermaid
-flowchart LR
-    OP(["Traversal<br/>(or any Optic)"]) -->|"modifyF(f, s, applicative)"| FA(["FetchApplicative"])
-    FA -->|"produces"| F(["Fetch&lt;K, V, A&gt;<br/>a value, not an action"])
+%%{init: {"flowchart": {"nodeSpacing": 30}}}%%
+flowchart TD
+    accTitle: The optic, the strategy and the runner
+    accDescr: A Traversal, or any optic, runs modifyF with FetchApplicative, which produces a Fetch value rather than an action. Fetch.runCached runs it synchronously against a function from a key set to a map, Fetch.runAsync against a BatchLoader, a SourceRouter.routed fan-out or a BatchLoaders.chunked cap, and SafeFetch.runCached on the Either railway.
+    OP@{ shape: st-rect, label: "Traversal<br/>(or any Optic)" } -->|"modifyF(f, s,<br/>applicative)"| FA["FetchApplicative"]
+    FA -->|"produces"| F["Fetch&lt;K, V, A&gt;<br/>a value, not an action"]
 
-    F -->|"sync"| RC(["Fetch.runCached"])
-    F -->|"async"| RA(["Fetch.runAsync"])
-    F -->|"railway (Either)"| SC(["SafeFetch.runCached"])
+    F -->|"sync"| RC["Fetch<br/>.runCached"]
+    F -->|"async"| RA["Fetch<br/>.runAsync"]
+    F -->|"railway<br/>(Either)"| SC["SafeFetch<br/>.runCached"]
 
-    RC -->|"one keyset per round"| FN(["Function&lt;Set&lt;K&gt;, Map&lt;K, V&gt;&gt;"])
-    RA -->|"one keyset per round"| BL(["BatchLoader"])
-    RA -->|"fan out per source"| SR(["SourceRouter.routed"])
-    RA -->|"cap dispatch size"| BC(["BatchLoaders.chunked"])
+    RC -->|"one keyset<br/>per round"| FN["Function&lt;<br/>Set&lt;K&gt;,<br/>Map&lt;K, V&gt;&gt;"]
+    RA -->|"one keyset<br/>per round"| BL["BatchLoader"]
+    RA -->|"fan out<br/>per source"| SR["SourceRouter<br/>.routed"]
+    RA -->|"cap dispatch<br/>size"| BC["BatchLoaders<br/>.chunked"]
 
-    classDef shape fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef shape fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    class OP,FA shape
+    class OP rw
+    class FA shape
     class F,RC,RA,SC wire
     class FN,BL,SR,BC tier
 ```
@@ -194,18 +201,20 @@ Applicative composition collapses because the arguments are independent. `flatMa
 
 ```mermaid
 sequenceDiagram
+    accTitle: One round for ap, a round per flatMap
+    accDescr: A pure applicative built with ap over fetches of a, b and c reaches the backend once, with all three keys. A flatMap chain fetches a, learns only then to ask for a.next and then a.next.next, and so takes three rounds.
     participant P as Program
     participant R as Runner
     participant B as Backend
 
     Note over P,B: Pure applicative: N foci, 1 round
-    P->>R: ap(ap(ap(f, fetch a), fetch b), fetch c)
+    P->>R: ap(ap(ap(f, fetch a),<br/>fetch b), fetch c)
     R->>B: { a, b, c }
     B-->>R: { a:..., b:..., c:... }
     R-->>P: value
 
     Note over P,B: flatMap dependency chain: 3 rounds
-    P->>R: fetch(a).flatMap(x -> fetch(x.next))
+    P->>R: fetch(a).flatMap(<br/>x -> fetch(x.next))
     R->>B: { a }
     B-->>R: { a:... }
     Note right of R: only now do we know<br/>what to ask for next
