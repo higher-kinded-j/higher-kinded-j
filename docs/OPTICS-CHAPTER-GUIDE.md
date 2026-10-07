@@ -44,7 +44,10 @@ The Look it up pages follow the Style Guide's [Reference Pages](STYLE-GUIDE.md#r
 shape: no epigraph, no "What You'll Learn" and no "Key Takeaways". Each opens with an italic
 subtitle and then the thing its reader came for. A fact a reference page states only in a summary
 moves into its body before the summary goes. Look It Up itself opens on a "You hold, go to" table
-covering every page in the group.
+covering every page in the group. A page a reader opens holding one question opens on an index of
+those questions, each linking its answer: Production Readiness lists the questions a senior engineer
+asks before adopting optics, and the Cookbook its "Find your recipe" table. A new answer on such a
+page takes a row.
 
 ## Examples
 
