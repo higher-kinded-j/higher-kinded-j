@@ -36,28 +36,31 @@ Two small primitives, one familiar railway pattern, no surprises.
 A `Fetch` program is a value. It hasn't run yet. `program` throughout this page is the one built on [Optic-Driven Batching](optic_batching.md): an optic over a team's member ids with `FetchApplicative` as the strategy, not yet handed to a runner. You can pull its first round's pending-key set out without touching a backend, which is what `Plans.preflight` does:
 
 ```mermaid
+%%{init: {"sequence": {"actorMargin": 20, "diagramMarginX": 10}}}%%
 sequenceDiagram
+    accTitle: A real run beside a preflight
+    accDescr: Online, Fetch.runCached takes the program's pending keys to the backend's resolver and returns a RunResult with the value, the rounds and the fetched batches. Offline, Plans.preflight takes the same pending keys but resumes the program with stub nulls instead of calling the backend, and returns a Plan of the fetched batches and whether it was truncated.
     participant C as Caller
-    participant P as Fetch program
+    participant P as Fetch<br/>program
     participant R as Runner
     participant B as Backend
 
     Note over C,B: Online: Fetch.runCached, real I/O
-    C->>R: runCached(program, resolver)
+    C->>R: runCached(program,<br/>resolver)
     R->>P: pending()
     P-->>R: { id_1 ... id_N }
-    R->>B: resolver({ id_1 ... id_N })
-    B-->>R: { id_1: v_1 ... id_N: v_N }
-    R-->>C: RunResult(value, rounds=1, fetchedBatches=[...])
+    R->>B: resolver(<br/>{ id_1 ... id_N })
+    B-->>R: { id_1: v_1 ...<br/>id_N: v_N }
+    R-->>C: RunResult(value, rounds=1,<br/>fetchedBatches=[...])
 
     Note over C,B: Offline: Plans.preflight, no I/O
     C->>R: preflight(program)
     R->>P: pending()
     P-->>R: { id_1 ... id_N }
-    Note right of R: resume with stub nulls:<br/>no backend, no values, no side effects
+    Note over P,R: resume with stub nulls:<br/>no backend, no values,<br/>no side effects
     R->>P: resume(stub map)
-    P-->>R: Done, or another Blocked
-    R-->>C: Plan(fetchedBatches=[...], truncated=?)
+    P-->>R: Done, or another<br/>Blocked
+    R-->>C: Plan(fetchedBatches=[...],<br/>truncated=?)
 ```
 
 Top half: the real run, the one that bills your cloud account. Bottom half: the inspection, the one you can put inside an `assertThat`. Same keysets. Different boundary.
@@ -87,28 +90,33 @@ A traversal that collapses N foci to a single batched call is *one round*. Its k
 The other half of the chapter doesn't ask offline; it asks at the round boundary, during the real run, just before each dispatch. That's a `Guard`:
 
 ```mermaid
+%%{init: {"sequence": {"actorMargin": 20, "diagramMarginX": 10}}}%%
 sequenceDiagram
+    accTitle: A guard checks every round
+    accDescr: In each round the runner computes the uncached key set and asks the guard to check it, with the round index and the backend calls so far. Within budget the guard passes and the resolver is called; over budget it throws GuardViolationException, the resolver is never called, and the caller gets the exception, or an Either.left through SafeFetch.
     participant C as Caller
     participant R as Runner
     participant G as Guard
     participant B as Resolver
 
-    C->>R: runCached(program, resolver, guard)
+    C->>R: runCached(<br/>program,<br/>resolver, guard)
     loop per round
-        R->>R: compute uncached keyset
-        R->>G: check(keys, roundIndex, backendCallsSoFar)
+        R->>R: compute uncached<br/>keyset
+        R->>G: check(keys,<br/>roundIndex,<br/>backendCallsSoFar)
         alt keys within budget
             G-->>R: pass
             R->>B: resolver(keys)
             B-->>R: values
         else budget exceeded
-            G-->>R: throw GuardViolationException
+            G-->>R: throw<br/>GuardViolationException
             Note over R,B: resolver is never called
-            R-->>C: exception, or Either.left via SafeFetch
+            R-->>C: exception, or<br/>Either.left<br/>via SafeFetch
         end
     end
     R-->>C: RunResult
 ```
+
+In words: the guard sees each round's keys before dispatch, and a refusal stops the run before the resolver is called.
 
 <!-- verify -->
 ```java

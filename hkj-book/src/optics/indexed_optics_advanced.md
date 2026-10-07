@@ -21,14 +21,16 @@ When you compose two indexed optics, the indices form a **pair** representing th
 
 ```mermaid
 flowchart TD
-    A(["IndexedTraversal&lt;Integer, List&lt;Order&gt;, Order&gt;"])
-    B(["IndexedTraversal&lt;Integer, List&lt;Item&gt;, Item&gt;"])
-    R["Pair&lt;Pair&lt;Integer, Integer&gt;, Item&gt;<br/>the outer index and the inner one, kept together"]
-    A -->|"iandThen"| B --> R
+    accTitle: Two indexed traversals composed
+    accDescr: An indexed traversal over a list of orders, composed through each order's items lens and then with iandThen onto an indexed traversal over a list of line items, focuses each LineItem paired with a Pair of the outer index and the inner one.
+    A@{ shape: st-rect, label: "IndexedTraversal&lt;Integer, List&lt;Order&gt;, Order&gt;" }
+    B@{ shape: st-rect, label: "IndexedTraversal&lt;Integer,<br/>List&lt;LineItem&gt;, LineItem&gt;" }
+    R["Pair&lt;Pair&lt;Integer, Integer&gt;, LineItem&gt;<br/>the outer index and the inner one,<br/>kept together"]
+    A -->|"itemsLens,<br/>then iandThen"| B --> R
 
-    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
-    class A,B tier
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#a6d189,stroke:#40a02b,color:#232634
+    class A,B rw
     class R out
 ```
 

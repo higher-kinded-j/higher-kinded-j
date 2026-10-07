@@ -144,6 +144,21 @@ Config updated = databaseAffine.set(new DatabaseSettings("newhost", 3306), confi
 // updated = Config[database=Optional[DatabaseSettings[host=newhost, port=3306]]]
 ```
 
+The affine's path ends inside an `Optional` that may hold nothing:
+
+<pre class="hkj-ascii-diagram" role="img" aria-label="The affine runs from Config through its database field into the Optional. When the Optional holds settings, set replaces them and rebuilds the Config. When it is empty, getOptional is empty, and set builds the Optional, because some() can build one.">
+Config ●
+└─ database ●          databaseLens
+   └─ Optional ◇       some()
+      DatabaseSettings[...]
+
+● on the path: rebuilt by set
+◇ may hold nothing: getOptional
+  is then empty, and set builds
+  the Optional: some() is a
+  prism, so it can
+</pre>
+
 ~~~admonish tip title="Why Affine, not Traversal?"
 You might wonder why `Lens.andThen(Prism)` returns an Affine rather than a Traversal. The answer is precision:
 

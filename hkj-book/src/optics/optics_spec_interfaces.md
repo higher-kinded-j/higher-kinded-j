@@ -181,14 +181,17 @@ There is nothing the processor could rebuild a `Value` from a bare `String` with
 
 ```mermaid
 flowchart TD
-    T["@InstanceOf(Circle.class)<br/>Prism&lt;S, Circle&lt;T&gt;&gt;"] --> Q{"Does S carry the<br/>argument Circle is<br/>reached under?"}
-    Q -->|"Shape&lt;T&gt;, and<br/>Circle&lt;X&gt; implements Shape&lt;X&gt;"| P(["source instanceof Circle&lt;T&gt;<br/>javac checks it"])
-    Q -->|"Shape, which<br/>declares nothing"| E(["Rejected: declare<br/>Circle&lt;?&gt;, or use @MatchWhen"])
+    accTitle: When a parameterised prism target is allowed
+    accDescr: An InstanceOf prism onto Circle of T is accepted when the source S carries the argument Circle is reached under, as Shape of T does when Circle of X implements Shape of X, and javac then checks the test. When S is a Shape that declares nothing, it is rejected: declare Circle of a wildcard, or use MatchWhen.
+    T@{ shape: hex, label: "@InstanceOf(Circle.class)<br/>Prism&lt;S, Circle&lt;T&gt;&gt;" } --> Q{"Does S carry the<br/>argument Circle is<br/>reached under?"}
+    Q -->|"Shape&lt;T&gt;, and<br/>Circle&lt;X&gt; implements Shape&lt;X&gt;"| P["source instanceof Circle&lt;T&gt;<br/>javac checks it"]
+    Q -->|"Shape, which<br/>declares nothing"| E["Rejected: declare<br/>Circle&lt;?&gt;, or use @MatchWhen"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     classDef error fill:#e78284,stroke:#d20f39,color:#232634
-    class T tier
+    class T rw
     class Q decision
     class P tier
     class E error

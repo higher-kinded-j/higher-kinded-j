@@ -154,10 +154,12 @@ What the crossing costs is set by the effect, not by the direction of travel. A 
 
 ```mermaid
 flowchart TD
+    accTitle: Crossing from a Focus path into an effect
+    accDescr: A FocusPath, always a value, crosses with toMaybePath, toEitherPath, toTryPath or toIdPath. A TraversalPath, zero or more, crosses with toListPath, toStreamPath or toMaybePath. An AffinePath, which may be absent, crosses into Maybe or Optional as it is, while Either and Try need the absent case named. All three arrive in the effects domain, where via and recoverWith apply.
     P{"Which path is<br/>crossing over?"}
-    P -->|"FocusPath:<br/>always a value"| S(["toMaybePath, toEitherPath,<br/>toTryPath, toIdPath"])
-    P -->|"TraversalPath:<br/>zero or more"| L(["toListPath, toStreamPath,<br/>toMaybePath"])
-    P -->|"AffinePath:<br/>may be absent"| N(["Maybe/Optional take absence as is;<br/>Either/Try need it named"])
+    P -->|"FocusPath:<br/>always a value"| S["toMaybePath,<br/>toEitherPath,<br/>toTryPath, toIdPath"]
+    P -->|"TraversalPath:<br/>zero or more"| L["toListPath,<br/>toStreamPath,<br/>toMaybePath"]
+    P -->|"AffinePath:<br/>may be absent"| N["Maybe, Optional:<br/>take absence as is;<br/>Either, Try:<br/>need it named"]
     S --> E["in the effects domain:<br/>via, recoverWith, ..."]
     L --> E
     N --> E

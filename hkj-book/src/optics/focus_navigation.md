@@ -150,19 +150,26 @@ Set `generateNavigators = true` and the processor emits a small wrapper class pe
 Not every field does, and knowing which is the difference between a chain that compiles and one that does not. Some container types, such as `Map`, `Either` and third-party collections, reach the processor through a service-provider interface (SPI) for container generators; the chart calls them SPI containers.
 
 ```mermaid
-flowchart TD
+flowchart LR
     accTitle: Which fields get a navigator
     accDescr: A non-generic record annotated with GenerateFocus, whose Focus class was generated, gets a navigator, and so does an SPI container whose element is such a record. Optional, List, Set and Collection fields are widened to a path chained with via. A generic record, or anything else, keeps a plain path chained with via.
-    F{"The field's type is..."}
-    F -->|"a non-generic record<br/>annotated @GenerateFocus,<br/>its Focus class generated"| N(["Navigator<br/>chain with a method call"])
-    F -->|"Optional, List, Set,<br/>Collection"| W(["Widened path<br/>chain with .via()"])
-    F -->|"an SPI container whose<br/>element is such a record"| N
-    F -->|"a generic record annotated<br/>@GenerateFocus"| P
-    F -->|"anything else"| P(["Plain path<br/>chain with .via()"])
+    F{"The field's<br/>type is..."}
+    F --- R1["a non-generic record<br/>with @GenerateFocus and<br/>its Focus class generated"]
+    F --- R2["an SPI container<br/>whose element is<br/>such a record"]
+    F --- R3["Optional, List,<br/>Set, Collection"]
+    F --- R4["a generic record<br/>with @GenerateFocus"]
+    F --- R5["anything else"]
+    R1 --> N["Navigator<br/>chain with<br/>a method call"]
+    R2 --> N
+    R3 --> W["Widened path<br/>chain with .via()"]
+    R4 --> P["Plain path<br/>chain with .via()"]
+    R5 --> P
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef step fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     class F decision
+    class R1,R2,R3,R4,R5 step
     class N,W,P tier
 ```
 

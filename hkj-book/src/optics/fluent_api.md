@@ -75,14 +75,14 @@ Four methods differ only in what they tell the caller when a check fails:
 | `modifyAllEither` | `Either<E, S>` | First error wins (every element is still evaluated) | A batch job that reports one error |
 
 ```mermaid
-flowchart TD
+flowchart LR
     accTitle: Which validation method to use
     accDescr: If the caller needs to know why an update failed as soon as it failed, use modifyEither. If only whether it worked, modifyMaybe. If everything that is wrong in one pass, modifyAllValidated. If a batch job needs one error to report, modifyAllEither.
     Q{"What does the caller<br/>need to know?"}
-    Q -->|"why it failed,<br/>as soon as it failed"| E(["modifyEither<br/>Either, first error"])
-    Q -->|"only whether<br/>it worked"| M(["modifyMaybe<br/>Maybe, no detail"])
-    Q -->|"everything that is wrong,<br/>in one pass"| V(["modifyAllValidated<br/>Validated, all errors"])
-    Q -->|"one error for<br/>a batch job to report"| A(["modifyAllEither<br/>Either, first error only"])
+    Q -->|"why it failed,<br/>as soon as<br/>it failed"| E["modifyEither<br/>first error"]
+    Q -->|"only whether<br/>it worked"| M["modifyMaybe<br/>no detail"]
+    Q -->|"everything<br/>that is wrong,<br/>in one pass"| V["modifyAllValidated<br/>all errors"]
+    Q -->|"one error for<br/>a batch job<br/>to report"| A["modifyAllEither<br/>first error only"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634

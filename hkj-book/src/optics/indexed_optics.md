@@ -31,19 +31,24 @@ Consider these scenarios:
 Standard optics give you the *value*. **Indexed optics** give you both the *index* and the *value*.
 
 ```mermaid
-flowchart LR
+flowchart TD
+    accTitle: A standard traversal beside an indexed one
+    accDescr: A standard Traversal over a List of Item hands back the values Laptop, Mouse and Keyboard. An IndexedTraversal over the same list hands back each value with the index it sat at, as (0, Laptop), (1, Mouse) and (2, Keyboard).
     subgraph std["Standard traversal: the value only"]
         direction LR
-        S1(["List&lt;Item&gt;"]) --> S2(["Traversal"]) --> S3["Laptop<br/>Mouse<br/>Keyboard"]
+        S1["List&lt;Item&gt;"] --> S2@{ shape: st-rect, label: "Traversal" } --> S3["Laptop<br/>Mouse<br/>Keyboard"]
     end
     subgraph idx["Indexed traversal: the value and where it sat"]
         direction LR
-        I1(["List&lt;Item&gt;"]) --> I2(["IndexedTraversal"]) --> I3["(0, Laptop)<br/>(1, Mouse)<br/>(2, Keyboard)"]
+        I1["List&lt;Item&gt;"] --> I2@{ shape: st-rect, label: "IndexedTraversal" } --> I3["(0, Laptop)<br/>(1, Mouse)<br/>(2, Keyboard)"]
     end
+    std ~~~ idx
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
-    class S1,S2,I1,I2 tier
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef out fill:#a6d189,stroke:#40a02b,color:#232634
+    class S1,I1 tier
+    class S2,I2 rw
     class S3,I3 out
 ```
 

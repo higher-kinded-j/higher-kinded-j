@@ -190,6 +190,26 @@ The `Traversals` utility class provides convenient helper methods to perform the
   League updatedLeague = Traversals.modify(leagueToAllPlayerScores, score -> score + 5, league);
 ```
 
+The traversal reaches every score in every team, and the update rebuilds each record it passes through:
+
+<pre class="hkj-ascii-diagram" role="img" aria-label="The traversal reaches every player's score in every team. Adding five rebuilds the league, both teams, their player lists and every player; the league's name, and every team's and player's name, are reused as they were.">
+League ●
+├─ name ...... "Pro League"
+└─ teams ●●            teams()
+   ├─ Team Alpha ●
+   │  └─ players ●●    players()
+   │     Alice   100 → 105
+   │     Bob      90 →  95
+   └─ Team Bravo ●
+      └─ players ●●
+         Charlie 110 → 115
+         Diana   120 → 125
+
+● on the path: rebuilt by modify
+●● every element: each rebuilt
+. off the path: reused as it was
+</pre>
+
 * **`Traversals.getAll(traversal, source)`**: Extracts all targets of a traversal into a `List`.
 
 <!-- verify -->
@@ -203,16 +223,22 @@ The `Traversals` utility class provides convenient helper methods to perform the
 
 ```mermaid
 flowchart TD
+    accTitle: Traversal, stream or loop
+    accDescr: For bulk work on values inside a structure, use a Traversal when the same shape comes back with the values updated in place, the Stream API when elements are dropped or the collection reshaped, and a manual loop for an early exit or imperative control flow.
     Q{"Bulk work on values<br/>inside a structure?"}
-    Q -->|"same shape back,<br/>values updated in place"| T(["Traversal"])
-    Q -->|"drop elements or<br/>reshape the collection"| S(["Stream API"])
-    Q -->|"early exit or<br/>imperative control flow"| L(["Manual loop"])
+    Q -->|"same shape back,<br/>values updated in place"| T@{ shape: st-rect, label: "Traversal" }
+    Q -->|"drop elements or<br/>reshape the collection"| S["Stream API"]
+    Q -->|"early exit or<br/>imperative control flow"| L["Manual loop"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     class Q decision
-    class T,S,L tier
+    class T rw
+    class S,L tier
 ```
+
+In words: reach for a traversal when the structure keeps its shape and only its values change. Dropping elements or reshaping the collection is a stream's job, and an early exit is a loop's.
 
 ### Use Traversals When
 

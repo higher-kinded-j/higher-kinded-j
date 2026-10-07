@@ -112,15 +112,17 @@ Three different things can reject your code, and knowing which one spoke narrows
 
 ```mermaid
 flowchart TD
-    D["Your declaration<br/>@Generate*, or a spec interface"]
+    accTitle: Where a compiler message came from
+    accDescr: Your declaration goes to the processor first, and a refusal there is reported at your declaration, which is most of this page. An accepted declaration becomes a generated file; javac refusing that file reports cannot find symbol inside a class you did not write. If javac refuses your call site instead, the message is a Focus DSL chain or Free Monad error; otherwise the build succeeds.
+    D["Your declaration:<br/>@Generate*, or<br/>a spec interface"]
     P{"Does the processor<br/>accept it?"}
-    R["Refused at your declaration.<br/>Most of this page"]
+    R["Refused at your<br/>declaration.<br/>Most of this page"]
     G["Generated file written"]
     J{"Does javac accept<br/>the generated file?"}
-    JG["cannot find symbol,<br/>inside a class you did not write"]
+    JG["cannot find symbol,<br/>inside a class<br/>you did not write"]
     C{"Does javac accept<br/>your call site?"}
     CC["Focus DSL chain and<br/>Free Monad errors"]
-    OK(["Builds"])
+    OK["Builds"]
 
     D --> P
     P -->|no| R
