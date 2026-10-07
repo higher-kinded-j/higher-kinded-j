@@ -11,8 +11,11 @@ import org.higherkindedj.optics.laws.LensLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** Holds the claims the Lenses page's "Why a lens, when you have {@code @With}?" section makes. */
-@DisplayName("the Lenses page: a wither beside a lens")
+/**
+ * Holds the claims the Lenses page makes about its compiled examples: the canonical constructor
+ * every write runs, and the "Why a lens, when you have {@code @With}?" section.
+ */
+@DisplayName("the Lenses page")
 class LensesBookTest {
 
   private static final Employee EMPLOYEE =
@@ -77,6 +80,15 @@ class LensesBookTest {
                     NormalisedEmailLenses.value(), stored, "Ada@Example.com", "GRACE@example.com"))
         .isInstanceOf(AssertionError.class)
         .hasMessageContaining("Lens set-get");
+  }
+
+  @Test
+  @DisplayName("a lens writes through the canonical constructor, never another of the same arity")
+  void lensWritesThroughTheCanonicalConstructor() {
+    Money updated = LensesBook.setCents(new Money(500L, "GBP"));
+
+    // Money(Number, String) would have taken 1234 as major units and stored 123400 cents
+    assertThat(updated).isEqualTo(new Money(1234L, "GBP"));
   }
 
   @Test

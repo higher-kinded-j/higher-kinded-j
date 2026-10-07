@@ -14,6 +14,7 @@ import java.util.function.BiFunction;
 import org.higherkindedj.hkt.function.Function3;
 import org.higherkindedj.hkt.tuple.Tuple3;
 import org.higherkindedj.optics.Lens;
+import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.CoupledLenses;
 
@@ -50,8 +51,13 @@ record ServerConfig(String host, int minPort, int maxPort) {}
 
 record Config(ServerConfig server) {}
 
+// Both carry generated lenses for the closing pair of coupled3 forms, which names them through
+// TradeLenses and TripleLenses. The page declares its own Triple, which shadows this copy, and
+// describes Trade in a sentence.
+@GenerateLenses
 record Triple(int lo, int mid, int hi) {}
 
+@GenerateLenses
 record Trade(String currency, BigDecimal amount, int precision) {
 
   Trade withMoney(String newCurrency, BigDecimal newAmount, int newPrecision) {

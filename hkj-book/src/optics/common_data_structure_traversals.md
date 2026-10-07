@@ -427,11 +427,11 @@ BoundingBox scaled = Traversals.modify(topLeftCoords, coord -> coord * 2, box);
 
 ### Use Structure Traversals When
 
-* **Reusable transformations** - Define once, compose with other optics
-* **Nested optionals** - Avoiding `.map().map().map()` chains
-* **Bulk map updates** - Transforming all values whilst preserving keys
-* **Parallel tuple operations** - Same transformation to both elements
-* **Immutable updates** - Structure preserved, only focused elements transformed
+* **Reusable transformations**: Define once, compose with other optics
+* **Nested optionals**: Avoiding `.map().map().map()` chains
+* **Bulk map updates**: Transforming all values whilst preserving keys
+* **Parallel tuple operations**: Same transformation to both elements
+* **Immutable updates**: Structure preserved, only focused elements transformed
 
 <!-- verify -->
 ```java
@@ -447,9 +447,9 @@ ServiceConfig increased = Traversals.modify(allTimeouts, t -> t + 1000, serviceC
 
 ### Use Direct Access When
 
-* **Single Optional** - Simple `map()` or `orElse()` is clearer
-* **Specific Map key** - `map.get(key)` is more direct
-* **Type-specific logic** - Different transformations per tuple element
+* **Single Optional**: Simple `map()` or `orElse()` is clearer
+* **Specific Map key**: `map.get(key)` is more direct
+* **Type-specific logic**: Different transformations per tuple element
 
 <!-- verify -->
 ```java
@@ -468,9 +468,9 @@ Tuple2<Integer, String> result = new Tuple2<>(
 
 ### Use Stream API When
 
-* **Complex filtering** - Multiple conditions
-* **Aggregations** - Collecting to new structures
-* **No structural preservation** - Extracting or transforming to different shape
+* **Complex filtering**: Multiple conditions
+* **Aggregations**: Collecting to new structures
+* **No structural preservation**: Extracting or transforming to different shape
 
 <!-- verify -->
 ```java

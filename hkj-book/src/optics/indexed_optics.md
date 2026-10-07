@@ -454,12 +454,12 @@ Understanding when indexed optics add value is crucial for writing clear, mainta
 
 #### Use Indexed Optics When
 
-* **Position-based logic** - Different behaviour for even/odd indices, first/last elements
-* **Numbering or labelling** - Adding sequence numbers, prefixes, or position markers
-* **Map operations** - Both key and value are needed during transformation
-* **Audit trails** - Recording which field or position was modified
-* **Debugging complex updates** - Tracking the path to each change
-* **Index-based filtering** - Operating on specific positions or key patterns
+* **Position-based logic**: Different behaviour for even/odd indices, first/last elements
+* **Numbering or labelling**: Adding sequence numbers, prefixes, or position markers
+* **Map operations**: Both key and value are needed during transformation
+* **Audit trails**: Recording which field or position was modified
+* **Debugging complex updates**: Tracking the path to each change
+* **Index-based filtering**: Operating on specific positions or key patterns
 
 <!-- verify -->
 ```java
@@ -480,9 +480,9 @@ List<Product> prioritised = IndexedTraversals.imodify(
 
 #### Use Standard Optics When
 
-* **Position irrelevant** - Pure value transformations
-* **Simpler code** - Index tracking adds unnecessary complexity
-* **No positional logic** - All elements treated identically
+* **Position irrelevant**: Pure value transformations
+* **Simpler code**: Index tracking adds unnecessary complexity
+* **No positional logic**: All elements treated identically
 
 <!-- verify -->
 ```java

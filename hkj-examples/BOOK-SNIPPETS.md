@@ -287,14 +287,10 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introdu
   point is the shape the operation has for *any* effect. A fixture can lend its type parameters to
   a snippet, but only one set, and the same fixture serves the concrete `IO` and `Maybe` examples
   on the same page. `optics/folds.md`'s table of standard monoids is the same case: `Monoids.list()`
-  and its neighbours are listed as `Monoid<List<A>>` for the `A` the caller brings, and
-  `optics/composition_rules.md`'s two summary tables state every composition as
-  `Lens<A, C> result = lensAB.andThen(lensBC);` - one `result` per line, over free `A`, `B` and
-  `C`. Every rule in them is worked concretely elsewhere on that page, and gated there.
-- **A name the page binds to two different lenses.** `optics/coupled_fields.md` closes by
-  putting the two `coupled3` constructor forms side by side, and its simple half names
-  `loLens`/`hiLens`, which the page has already bound to the `Range` example. Both forms are gated
-  where the page introduces them - the preserving one on `Transaction`, the simple one on `Triple`.
+  and its neighbours are listed as `Monoid<List<A>>` for the `A` the caller brings. A generic
+  fixture does serve a page whose free variables are only ever free: `optics/composition_rules.md`'s
+  two summary tables and `optics/affine.md`'s composition table and factory methods are gated that
+  way, over optics the fixture types as instance fields.
 - **A name the page binds to two different records.**
   `forstate_comprehension.md` names the same `userLens`, `addressLens` and `initialWorkflow` for
   its order workflow and its offer workflow. Snippets compile independently against one shared
@@ -312,9 +308,11 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introdu
 - **A reference table written as bare calls.** `glossary/effect-paths.md` lists the `Path`
   factories one per line - `Path.maybe(nullableValue)`, `Path.right(value)` - as a table, not as
   code. A bare expression is not a statement, and binding fifteen of them to names would bury the
-  table it is. `optics/importing_optics.md`'s four "you get" tables (`CoordinateLenses.lat()   //
-  Lens<Coordinate, Double>`) and `optics/copy_strategies.md`'s summary of every strategy's
-  attributes are the same shape; both pages gate the worked import beside them.
+  table it is. `optics/copy_strategies.md`'s summary of every strategy's attributes is the same
+  shape, annotations listed with no declaration under them; the page gates each strategy where it
+  introduces it. `optics/importing_optics.md`'s "you get" tables avoid the shape by binding each
+  optic to its type (`Lens<Coordinate, Double> lat = CoordinateLenses.lat();`), so the compiler
+  checks the type each line states.
 - **A validator shown twice, pure and impure.** `optics/optics_extensions.md` puts a clean
   `validateEmail` beside one that logs from inside, under the same name and with the impure half
   left unfinished. Two methods of one signature cannot share a class, and the point is the pair.
@@ -340,42 +338,33 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introdu
   `obj -> { obj.setValue(newValue); return obj; }` beside the functional versions. Both need a
   mutable type the page models as a record, and declaring one to compile the counter-example would
   document a shape the library does not have. The correct half of each pair is gated.
-- **A shape stated in place of an optic.** `optics/affine.md` writes `Prism<Shape, Circle>
-  circlePrism = ...;` where the point is what the optic can *do* next, not where it came from, and
-  gives its composition table and its two `Affine.of` overloads over free `S`, `A` and `B`.
-  `optics/composing_optics.md`'s anti-pattern block is the same case from the other side: it passes
-  `/* wrong applicative */` and `/* any string traversal */` to say what NOT to hand a `modifyF`,
-  and the right version beside it is gated. Both
-  are the same case as the free-type-variable shapes above: the page is showing a signature, and
-  every worked use of `Affine.of` and of each composition below is gated.
-  `optics/each_typeclass.md`'s two `Each.fromTraversal` entries are the same shape again: an
-  optic over a container the reader brings, written `= ...` over a free `A`.
+- **A shape stated in place of an optic.** `optics/composing_optics.md`'s anti-pattern block
+  passes `/* wrong applicative */` and `/* any string traversal */` to say what NOT to hand a
+  `modifyF`, and the right version beside it is gated. An optic written `= ...` over a free type
+  variable can usually be rescued instead: `optics/each_typeclass.md` wraps the reader's own
+  traversal in a generic method, `<A> Each<MyContainer<A>, A> eachOf(...)`, which compiles.
   `core_type_integration.md` writes `Maybe<Either<String, User>> confusing = ...;` to say which
   pairing NOT to reach for, and `optics_intro.md`'s traversal teaser elides its record's other
   components as `(..., List<String> promoCodes)`; every optic each page introduces is gated where
   it is introduced.
-- **Legacy null-checking beside the Optional model.** `optics/affine.md`'s anti-pattern block ends
-  with `user.address() != null && user.address().postcode() != null`, which reads through a
-  nullable model the page never declares - its `Address` is reached through an `Optional`. The
-  clean version beside it is gated.
-- **A class that continues the one above it.** `optics/advanced_prism_patterns.md` builds each
-  pattern across two or three blocks: a class declares its prisms `private static final`, and the
-  next block is a *different* class reading them by their bare names. A snippet's top-level class
-  is a sibling of the fixture, not a subclass, and a private member is not visible across classes
-  either, so those continuations only compile as part of a file the page never shows in one piece.
-  The block that introduces each pattern - the model, its prisms and the first class over them - is
-  gated, and so is the imperative version beside it wherever that version is a method rather than a
-  bare `return`.
 - **A package declaration carrying an annotation.** `optics/importing_optics.md` shows
   `@ImportOptics(java.time.LocalDate.class)` above `package com.myapp.optics;`, which is a
   `package-info.java`, not a snippet: a compilation unit assembled from several pages cannot carry
   one. The record the page imports optics *for* is gated, and the same annotation is exercised on a
   holder class throughout `copy_strategies.md`.
-- **An external library the gate does not carry.** `optics/focus_external_bridging.md` shows the
-  Immutables, Lombok, AutoValue and protobuf spellings of the same bridge; only the Immutables one
-  is real code in this repo, and the page includes it from the module rather than quoting it. Its
-  `CompanyBridge` sections, which are the point, are gated. `copy_strategies.md`'s jOOQ `Result`
-  read is the same case.
+- **An external library the gate does not carry.** `optics/focus_external_bridging.md` quotes
+  the `@Value.Immutable` interface Immutables generates from; Immutables is not on the gate's
+  path, and the page includes the simulated value from the module. Its Lombok and AutoValue specs
+  are gated against fixture types written with the methods each processor generates, and its
+  protobuf spec against the real protoc-generated `CustomerMessage`. jOOQ, by contrast, is on the
+  path: `copy_strategies.md`'s `Result` read is gated against a table built from jOOQ's own
+  `CustomTable`. `optics/focus_containers.md`'s `TraversableGenerator` registers itself with
+  Avaje's `@ServiceProvider`, which `hkj-processor-plugins` takes compile-only, so the gate does
+  not carry it; the sketch also leaves the `generateModifyF` body to the reader.
+- **A class in the reader's own package.** `optics/kind_field_support.md`'s `@TraverseField`
+  examples name `com.example.TreeTraverse`, a witness's `Traverse` the reader writes. The
+  processor emits the string verbatim, and a snippet compiles in one package of its own, so it
+  cannot supply a class in `com.example`.
 - **A skeleton whose members are `{ ... }`.** `optics/copy_strategies.md` sketches the builder and
   the ambiguous-constructor types it is describing, and `optics/profunctor_optics.md` sketches the
   two conversion methods its integration class delegates to. Each is there to show a *shape* the
@@ -402,8 +391,9 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introdu
   `map(f, ...)` or `yield((a, b, c) -> ...)` to elide a part the sentence beside them is not about.
   It is not an expression, and expanding it would bury the line the page is making.
 - **Laws written as equations.** `coyoneda.md` states the functor laws as
-  `coyo.map(x -> x) == coyo`. The `==` is the law's notation, not a reference comparison, and
-  rewriting it as an assertion would obscure what it says.
+  `coyo.map(x -> x) == coyo`, and `optics/affine.md` its three laws the same way. The `==` is the
+  law's notation, not a reference comparison, and rewriting it as an assertion would obscure what
+  it says.
 - **Aliases a page invents for a type Java cannot abbreviate.** `eitherf.md` writes
   `Free<Composed, RiskScore>`, where `Composed` stands for a four-deep `EitherF` nesting, and
   `Free.translate(program, inject::inject, functorG)` over free `G` and `A`. Both are there to

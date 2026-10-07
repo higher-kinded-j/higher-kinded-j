@@ -154,10 +154,10 @@ This single `formToPermissionNameTraversal` object now encapsulates the entire c
 
 ### Use Optic Composition When
 
-* **Complex nested validation** - Multiple levels of data structure with conditional logic
-* **Reusable validation paths** - The same validation logic applies to multiple scenarios
-* **Type-safe bulk operations** - You need to ensure compile-time safety for collection operations
-* **Error accumulation** - You want to collect all errors, not stop at the first failure
+* **Complex nested validation**: Multiple levels of data structure with conditional logic
+* **Reusable validation paths**: The same validation logic applies to multiple scenarios
+* **Type-safe bulk operations**: You need to ensure compile-time safety for collection operations
+* **Error accumulation**: You want to collect all errors, not stop at the first failure
 
 <!-- verify -->
 ```java
@@ -171,9 +171,9 @@ Validated<String, Form> rechecked = validatePermissions(updatedForm);
 
 ### Use Direct Validation When
 
-* **Simple, flat structures** - No deep nesting or conditional access needed
-* **One-off validation** - Logic won't be reused elsewhere
-* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
+* **Simple, flat structures**: No deep nesting or conditional access needed
+* **One-off validation**: Logic won't be reused elsewhere
+* **A hot loop you have measured**: [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 
 <!-- verify -->
@@ -189,9 +189,9 @@ public Validated<String, User> validateUser(User user) {
 
 ### Use Stream Processing When
 
-* **Complex transformations** - Multiple operations that don't map to optic patterns
-* **Aggregation logic** - Computing statistics or summaries
-* **Filtering and collecting** - Changing the structure of collections
+* **Complex transformations**: Multiple operations that don't map to optic patterns
+* **Aggregation logic**: Computing statistics or summaries
+* **Filtering and collecting**: Changing the structure of collections
 
 
 <!-- verify -->
@@ -569,13 +569,13 @@ It is all-or-nothing on that one focus, not a per-element filter. For "modify wh
 * Building **generic abstractions**
 * Using effects **beyond validation** (IO, Future, etc.)
 
+<!-- verify -->
 ```java
-// Still valuable for generic effectful operations
-Kind<F, Form> result = FORM_TO_PERMISSION_NAMES.modifyF(
-    effectfulValidation,
-    form,
-    customApplicative
-);
+// Still valuable for generic effectful operations: one method for any applicative F
+<F extends WitnessArity<TypeArity.Unary>> Kind<F, Form> checkNames(
+    Function<String, Kind<F, String>> effectfulValidation, Applicative<F> customApplicative) {
+    return FORM_TO_PERMISSION_NAMES.modifyF(effectfulValidation, form, customApplicative);
+}
 ```
 
 ### Real-World Example: Simplified Validation

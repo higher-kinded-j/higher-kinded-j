@@ -60,26 +60,8 @@ An Affine is defined by two operations:
 * **`getOptional(source)`**: Returns `Optional<A>` containing the focus if present
 * **`set(value, source)`**: Returns a new source with the focus updated
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.Affine;
-import java.util.Optional;
-
-// Affine for accessing the value inside an Optional field
-Affine<Optional<String>, String> someAffine = Affine.of(
-    Function.identity(),                    // getOptional: Optional<String> -> Optional<String>
-    (opt, value) -> Optional.of(value)      // set: always wrap in Optional.of
-);
-
-// Usage
-Optional<String> present = Optional.of("hello");
-Optional<String> result = someAffine.getOptional(present);  // Optional.of("hello")
-
-Optional<String> empty = Optional.empty();
-Optional<String> noMatch = someAffine.getOptional(empty);   // Optional.empty()
-
-// Setting always wraps the value
-Optional<String> updated = someAffine.set("world", empty);  // Optional.of("world")
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/affine/AffineBook.java:manual}}
 ```
 
 ### Step 2: Using the Affines Utility Class
@@ -109,39 +91,8 @@ Affine<List<String>, String> thirdAffine = Affines.listAt(2);
 
 The most common way to obtain an Affine is through composition:
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.Lens;
-import org.higherkindedj.optics.Prism;
-import org.higherkindedj.optics.util.Prisms;
-
-// Domain model
-record Config(Optional<DatabaseSettings> database) {}
-record DatabaseSettings(String host, int port) {}
-
-// Lens to the Optional field
-Lens<Config, Optional<DatabaseSettings>> databaseLens =
-    Lens.of(Config::database, (c, db) -> new Config(db));
-
-// Prism to extract from Optional
-Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
-
-// Composition: Lens.andThen(Prism) = Affine
-Affine<Config, DatabaseSettings> databaseAffine =
-    databaseLens.andThen(somePrism);
-
-// Usage
-Config config1 = new Config(Optional.of(new DatabaseSettings("localhost", 5432)));
-Optional<DatabaseSettings> result1 = databaseAffine.getOptional(config1);
-// result1 = Optional[DatabaseSettings[host=localhost, port=5432]]
-
-Config config2 = new Config(Optional.empty());
-Optional<DatabaseSettings> result2 = databaseAffine.getOptional(config2);
-// result2 = Optional.empty()
-
-// Setting through the affine
-Config updated = databaseAffine.set(new DatabaseSettings("newhost", 3306), config2);
-// updated = Config[database=Optional[DatabaseSettings[host=newhost, port=3306]]]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/affine/AffineBook.java:lens_prism}}
 ```
 
 The affine's path ends inside an `Optional` that may hold nothing:
@@ -182,13 +133,14 @@ Both Affine and Prism focus on zero-or-one elements, but they differ in what the
 
 A **Prism** can *construct* a complete structure from just the focused part (via `build`). An **Affine** cannot; it writes into a structure you already have.
 
+<!-- verify -->
 ```java
 // Prism: can build from scratch
-Prism<Shape, Circle> circlePrism = ...;
-Shape newCircle = circlePrism.build(new Circle(5.0, "red"));  // Works!
+Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
+Shape newCircle = circlePrism.build(new Circle(5.0, "red"));
 
 // Affine: cannot build, only update
-Affine<Config, DatabaseSettings> dbAffine = ...;
+Affine<Config, DatabaseSettings> dbAffine = databaseLens.andThen(somePrism);
 // No build() method available; must have an existing Config to work with
 Config updated = dbAffine.set(newSettings, existingConfig);
 ```
@@ -218,33 +170,8 @@ The `Affine` interface provides several convenience methods for common operation
 
 ### Checking for Presence
 
-<!-- verify -->
-```java
-Affine<Optional<String>, String> someAffine = Affines.some();
-
-Optional<String> present = Optional.of("hello");
-Optional<String> empty = Optional.empty();
-
-// Using matches()
-if (someAffine.matches(present)) {
-    System.out.println("Value present");
-}
-
-// Using doesNotMatch()
-if (someAffine.doesNotMatch(empty)) {
-    System.out.println("No value");
-}
-
-// Useful in streams
-List<Optional<String>> values = List.of(
-    Optional.of("a"),
-    Optional.empty(),
-    Optional.of("b")
-);
-
-long presentCount = values.stream()
-    .filter(someAffine::matches)
-    .count();  // 2
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/affine/AffineBook.java:presence}}
 ```
 
 ### Default Values
@@ -261,41 +188,16 @@ Config config = configAffine.getOrElse(Config.DEFAULT, maybeConfig);
 
 ### Conditional Modification
 
-<!-- verify -->
-```java
-Affine<Optional<String>, String> someAffine = Affines.some();
-
-Optional<String> value = Optional.of("hello world");
-
-// Only modify if predicate is satisfied
-Optional<String> result = someAffine.modifyWhen(
-    s -> s.length() > 5,
-    String::toUpperCase,
-    value
-);
-// result = Optional.of("HELLO WORLD")
-
-// Set only when condition is met
-Optional<String> guarded = someAffine.setWhen(
-    s -> s.startsWith("hello"),
-    "goodbye",
-    value
-);
-// guarded = Optional.of("goodbye")
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/affine/AffineBook.java:conditional}}
 ```
 
 ### Removal Support
 
 Some affines support the `remove` operation to clear the focused element:
 
-<!-- verify -->
-```java
-// Create an affine that supports removal
-Affine<Optional<String>, String> removableAffine = Affines.someWithRemove();
-
-Optional<String> present = Optional.of("hello");
-Optional<String> cleared = removableAffine.remove(present);
-// cleared = Optional.empty()
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/affine/AffineBook.java:removal}}
 ```
 
 ~~~admonish warning title="Remove Support"
@@ -308,62 +210,28 @@ Not all affines support the `remove` operation. Calling `remove` on an affine th
 
 Affines compose with other optics following precise rules:
 
+<!-- verify -->
 ```java
 // Affine.andThen(Affine) = Affine
-Affine<A, C> result = affineAB.andThen(affineBC);
+Affine<A, C> withAffine = affineAB.andThen(affineBC);
 
 // Affine.andThen(Lens) = Affine
-Affine<A, C> result = affineAB.andThen(lensBC);
+Affine<A, C> withLens = affineAB.andThen(lensBC);
 
 // Affine.andThen(Prism) = Affine
-Affine<A, C> result = affineAB.andThen(prismBC);
+Affine<A, C> withPrism = affineAB.andThen(prismBC);
 
 // Affine.andThen(Iso) = Affine
-Affine<A, C> result = affineAB.andThen(isoBC);
+Affine<A, C> withIso = affineAB.andThen(isoBC);
 
 // Affine.andThen(Traversal) = Traversal
-Traversal<A, C> result = affineAB.andThen(traversalBC);
+Traversal<A, C> withTraversal = affineAB.andThen(traversalBC);
 ```
 
 ### Deep Optional Access Example
 
-<!-- verify -->
-```java
-record User(String name, Optional<Address> address) {}
-record Address(String street, Optional<String> postcode) {}
-
-// Build affines for each optional field
-Lens<User, Optional<Address>> addressLens =
-    Lens.of(User::address, (u, a) -> new User(u.name(), a));
-
-Lens<Address, Optional<String>> postcodeLens =
-    Lens.of(Address::postcode, (a, p) -> new Address(a.street(), p));
-
-Prism<Optional<Address>, Address> addressPrism = Prisms.some();
-Prism<Optional<String>, String> postcodePrism = Prisms.some();
-
-// Compose to access nested optional
-Affine<User, String> userPostcode =
-    addressLens
-        .andThen(addressPrism)           // Lens.andThen(Prism) = Affine
-        .andThen(postcodeLens)           // Affine.andThen(Lens) = Affine
-        .andThen(postcodePrism);         // Affine.andThen(Prism) = Affine
-
-// Usage
-User user1 = new User("Alice", Optional.of(
-    new Address("123 Main St", Optional.of("SW1A 1AA"))
-));
-User user2 = new User("Bob", Optional.empty());
-
-Optional<String> postcode1 = userPostcode.getOptional(user1);
-// Optional.of("SW1A 1AA")
-
-Optional<String> postcode2 = userPostcode.getOptional(user2);
-// Optional.empty()
-
-// Update deeply nested optional
-User updated = userPostcode.set("EC1A 1BB", user1);
-// User[name=Alice, address=Optional[Address[street=123 Main St, postcode=Optional[EC1A 1BB]]]]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/affine/AffineBook.java:deep_optional}}
 ```
 
 ---
@@ -374,6 +242,7 @@ The `Affine` interface provides factory methods for common construction patterns
 
 ### From Getter and Setter
 
+<!-- verify -->
 ```java
 // Basic construction
 Affine<S, A> affine = Affine.of(
@@ -391,17 +260,18 @@ Affine<S, A> removable = Affine.of(
 
 ### From Lens and Prism
 
+<!-- verify -->
 ```java
 // Compose a Lens and Prism into an Affine
-Affine<S, B> affine = Affine.fromLensAndPrism(
-    lensAB,   // Lens<S, A>
-    prismBC   // Prism<A, B>
+Affine<A, C> fromLens = Affine.fromLensAndPrism(
+    lensAB,   // Lens<A, B>
+    prismBC   // Prism<B, C>
 );
 
 // Compose a Prism and Lens into an Affine
-Affine<S, B> affine = Affine.fromPrismAndLens(
-    prismAB,  // Prism<S, A>
-    lensBC    // Lens<A, B>
+Affine<A, C> fromPrism = Affine.fromPrismAndLens(
+    prismAB,  // Prism<A, B>
+    lensBC    // Lens<B, C>
 );
 ```
 
@@ -446,11 +316,14 @@ Lens<Point, Integer> xLens = Lens.of(Point::x, (p, x) -> new Point(x, p.y()));
 * You need to **construct** the whole from a part
 * Type-safe **variant matching**
 
+<!-- verify -->
 ```java
 // Sum type handling
+@GeneratePrisms
 sealed interface Shape permits Circle, Rectangle {}
-Prism<Shape, Circle> circlePrism = ...;
-Shape circle = circlePrism.build(new Circle(5.0));  // Can construct!
+
+Prism<Shape, Circle> circlePrism = ShapePrisms.circle();
+Shape circle = circlePrism.build(new Circle(5.0, "red"));  // Can construct!
 ```
 
 ### Use Traversal When
@@ -471,6 +344,7 @@ List<String> upper = Traversals.modify(listTraversal, String::toUpperCase, names
 
 ### Don't Do This
 
+<!-- verify -->
 ```java
 // Overly complex: manual Optional handling
 Optional<String> getNestedValue(Config config) {
@@ -481,11 +355,16 @@ Optional<String> getNestedValue(Config config) {
 }
 
 // Unsafe: assuming presence without checking
-String value = config.database().get().host();  // NoSuchElementException!
+String hostOf(Config config) {
+    return config.database().get().host();  // NoSuchElementException!
+}
 
-// Verbose: repeated null checks
-if (user.address() != null && user.address().postcode() != null) {
-    return user.address().postcode();
+// Verbose: repeated null checks, on a legacy model whose fields may be null
+String postcodeOf(LegacyUser user) {
+    if (user.address() != null && user.address().postcode() != null) {
+        return user.address().postcode();
+    }
+    return "";
 }
 ```
 

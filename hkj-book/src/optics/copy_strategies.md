@@ -57,9 +57,9 @@ interface CustomerOpticsSpec extends OpticsSpec<Customer> {
 ```java
 Customer promoted =
     CustomerOptics.creditLimit().modify(limit -> limit.multiply(new BigDecimal("1.1")), alice);
-// creditLimit 1000 becomes 1100.0; alice itself is unchanged
+// a copy of alice with her credit limit raised by a tenth; alice itself is unchanged
 
-String name = CustomerOptics.name().get(alice);   // "Alice"
+String name = CustomerOptics.name().get(alice);
 ```
 
 ~~~admonish tip title="Why this matters"
@@ -112,7 +112,7 @@ interface OrderOpticsSpec extends OpticsSpec<Order> {
 List<BigDecimal> limits =
     Traversals.getAll(
         OrderOptics.eachCustomer().andThen(CustomerOptics.creditLimit()), order);
-// [1000, 500]
+// one limit per customer, in the order's list order
 
 // Raise all of them by 5%
 Order raised =
@@ -250,18 +250,20 @@ The name is a plain string, so it is not resolved against the interface's import
 
 ## When You Need No Strategy at All
 
-JOOQ's `Result<R>` implements `List<R>`, and standard collections are already covered by the standard traversals:
+JOOQ's `into(Customer.class)` maps a `Result`'s rows into a plain `List` of the POJOs, and a plain `List` needs no strategy: the standard traversals already cover it.
 
+<!-- verify -->
 ```java
-Result<CustomerRecord> customers = ctx.selectFrom(CUSTOMER).where(CUSTOMER.ACTIVE.isTrue()).fetch();
+Result<CustomerRecord> rows = ctx.selectFrom(CUSTOMER).where(CUSTOMER.ACTIVE.isTrue()).fetch();
+List<Customer> customers = rows.into(Customer.class);
 
 // Read straight through the list traversal
 List<BigDecimal> limits =
     Traversals.getAll(
-        Traversals.<CustomerRecord>forList().andThen(CustomerOptics.creditLimit()), customers);
+        Traversals.<Customer>forList().andThen(CustomerOptics.creditLimit()), customers);
 ```
 
-Reading is free. Writing is where the shortcut ends: `Traversals.forList()` is a `Traversal<List<A>, A>`, so a modification rebuilds a plain `List`, not a `Result`. When you need the container type preserved, use `Traversals.forIterableCollecting(collector)` and supply the rebuild.
+Writing through the same traversal gives back a new `List<Customer>`. To write into the `Result` itself, traverse its `CustomerRecord`s with `Traversals.forIterableCollecting(rebuild)`, which takes the rebuild as a function from the new list to the container.
 
 ---
 

@@ -10,18 +10,10 @@
 
 Read this group when you want to know what the Focus DSL's `.each()` does underneath, or need a traversal the generated paths do not give you. Until then, you can skip it.
 
-Single values are straightforward enough. The challenge arrives when you need to handle *many* of them: a discount on every price in an order means a stream, a map, a collector, and the suspicion that there must be a better way. There is. Here is the destination, before any theory: one reusable path from a league to every player's score, and a bulk update through it. Every line compiles against the real library on every build:
+Single values are straightforward enough. The challenge arrives when you need to handle *many* of them: a discount on every price in an order means a stream, a map, a collector, and the suspicion that there must be a better way. There is. Here is the destination, before any theory: one reusable path from a league to every player's score, and a bulk update through it. The build compiles and runs it, and a test holds each value the comments show:
 
-<!-- verify -->
-```java
-var everyScore = LeagueTraversals.teams()
-    .andThen(TeamTraversals.players())
-    .andThen(PlayerLenses.score());
-
-League bonus = Traversals.modify(everyScore, score -> score + 5, league);
-// Traversals.getAll(everyScore, league) -> [100, 90, 110, 120]
-// Traversals.getAll(everyScore, bonus)  -> [105, 95, 115, 125]
-// every team and player is rebuilt for you; league itself is untouched
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/groups/GroupIntrosBook.java:collections}}
 ```
 
 ~~~admonish tip title="Why this matters"

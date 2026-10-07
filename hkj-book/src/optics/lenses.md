@@ -94,15 +94,14 @@ A generated lens's `set`, and the `with*` helper built on it, copies the record 
 
 Another constructor the record declares is never the one called, even one taking as many parameters:
 
-```java
-public record Money(long cents, String currency) {
-  public Money(Number major, String currency) {
-    this(Math.round(major.doubleValue() * 100), currency);
-  }
-}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/LensesBook.java:money}}
+```
 
-// 1234 cents, through Money(long, String); never the Number constructor
-Money updated = MoneyLenses.cents().set(1234L, money);
+A write through its generated lens:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/LensesBook.java:money_set}}
 ```
 
 The setters and Focus paths that `@GenerateSetters` and `@GenerateFocus` generate write the same way, as do the lenses `@ImportOptics` generates for a record.
@@ -200,9 +199,9 @@ Understanding when to use each approach will help you write cleaner, more mainta
 
 ### Use `with*` Helpers When
 
-* **Simple, top-level field updates** - Direct field replacement on the immediate object
-* **One-off updates** - You don't need to reuse the update logic
-* **API clarity** - You want the most discoverable, IDE-friendly approach
+* **Simple, top-level field updates**: Direct field replacement on the immediate object
+* **One-off updates**: You don't need to reuse the update logic
+* **API clarity**: You want the most discoverable, IDE-friendly approach
 
 
 <!-- verify -->
@@ -213,10 +212,10 @@ var promotedEmployee = EmployeeLenses.withName(employee, "Senior " + employee.na
 
 ### Use Composed Lenses When
 
-* **Deep updates** - Navigating multiple levels of nesting
-* **Reusable paths** - The same update pattern will be used multiple times
-* **Complex transformations** - Using `modify()` with functions
-* **Conditional updates** - Part of larger optic compositions
+* **Deep updates**: Navigating multiple levels of nesting
+* **Reusable paths**: The same update pattern will be used multiple times
+* **Complex transformations**: Using `modify()` with functions
+* **Conditional updates**: Part of larger optic compositions
 
 
 <!-- verify -->
@@ -368,10 +367,11 @@ This means you can use the same `employeeToStreet` lens to perform a street name
 This is the point where these lenses part company with hand-rolled `withX` helpers and reflective mappers: the *path* and the *effect* are independent. You define `employeeToStreet` once; whether an update through it is pure, validated with every error accumulated, or awaited from an async call is decided at the call site by the `Applicative` you hand to `modifyF`. No second path to maintain, and no way for the effectful variant to drift from the pure one.
 ~~~
 
+<!-- verify -->
 ```java
 // Example: Street validation that might fail
-Function<String, Kind<ValidatedKind.Witness<String>, String>> validateStreet = 
-    street -> street.length() > 0 && street.length() < 100 
+Function<String, Kind<ValidatedKind.Witness<String>, String>> validateStreet =
+    street -> street.length() > 0 && street.length() < 100
         ? VALIDATED.widen(Validated.valid(street))
         : VALIDATED.widen(Validated.invalid("Street name must be between 1 and 100 characters"));
 

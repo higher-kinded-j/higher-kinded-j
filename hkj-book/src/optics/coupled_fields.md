@@ -87,35 +87,22 @@ Lens<Range, Integer> hiLens =
 
 Now let us try to shift the range up by 10:
 
-<!-- verify -->
-```java
-Range range = new Range(1, 2);
-
-// Goal: Range(1, 2) → Range(11, 12)
-
-// Attempt 1: Update lo first
-Range step1 = loLens.set(11, range);  // Range(11, 2)
-// THROWS: "lo (11) must be <= hi (2)"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/CoupledFieldsBook.java:lo_first}}
 ```
 
 The update failed because the intermediate state `Range(11, 2)` violates the invariant.
 
 What if we update `hi` first?
 
-<!-- verify -->
-```java
-Range step1 = hiLens.set(12, range);  // Range(1, 12) - OK!
-Range step2 = loLens.set(11, step1);  // Range(11, 12) - OK!
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/CoupledFieldsBook.java:hi_first}}
 ```
 
 That works! But now try shifting *down* by 10 from `Range(10, 11)`:
 
-<!-- verify -->
-```java
-Range narrow = new Range(10, 11);
-
-// If we update hi first: Range(10, 1) - THROWS!
-// If we update lo first: Range(0, 11) → Range(0, 1) - OK
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/CoupledFieldsBook.java:narrow}}
 ```
 
 The "correct" order depends on the direction of change!
@@ -170,16 +157,8 @@ Lens<Range, Pair<Integer, Integer>> boundsLens =
 
 Now we can shift safely:
 
-<!-- verify -->
-```java
-Range range = new Range(1, 2);
-
-// Shift up by 10 - both values updated atomically
-Range shifted = boundsLens.modify(
-    p -> Pair.of(p.first() + 10, p.second() + 10),
-    range
-);
-// Result: Range(11, 12)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/lenses/CoupledFieldsBook.java:paired_shift}}
 ```
 
 The transformation happens in a single step:
@@ -401,8 +380,10 @@ If you need single-field access, use the original individual lens directly.
 
 <!-- verify -->
 ```java
+import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.util.CoupledLenses;
 
+@GenerateLenses
 record Triple(int lo, int mid, int hi) {
     Triple {
         if (!(lo <= mid && mid <= hi)) {
@@ -422,7 +403,7 @@ Lens<Triple, Tuple3<Integer, Integer, Integer>> bounds =
 Triple shifted = bounds.modify(
     t -> new Tuple3<>(t._1() + 10, t._2() + 10, t._3() + 10),
     new Triple(1, 5, 10));
-// Triple(11, 15, 20) - constructor only ever sees the new, valid value.
+// The constructor only ever sees the new triple, never a half-shifted one.
 ```
 
 The ladder runs `coupled3` through `coupled9` and each method has two overloads, mirroring `Lens.paired` exactly:
@@ -432,16 +413,19 @@ The ladder runs `coupled3` through `coupled9` and each method has two overloads,
 | Preserving | `(S, A, B, C, ...) -> S` | the source has other fields the rebuild needs to keep |
 | Simple | `(A, B, C, ...) -> S` (constructor reference) | the focused fields fully determine the source |
 
+Both records here carry `@GenerateLenses`: the `Triple` already shown, and a `Trade(String currency, BigDecimal amount, int precision)` whose `withMoney` method sets all three.
+
+<!-- verify -->
 ```java
 // Preserving form: receives the original source so other fields can be carried over.
 Lens<Trade, Tuple3<String, BigDecimal, Integer>> money =
     CoupledLenses.coupled3(
-        currencyLens, amountLens, precisionLens,
+        TradeLenses.currency(), TradeLenses.amount(), TradeLenses.precision(),
         (trade, ccy, amt, prec) -> trade.withMoney(ccy, amt, prec));
 
 // Simple form: constructor reference when nothing else needs preserving.
 Lens<Triple, Tuple3<Integer, Integer, Integer>> bounds =
-    CoupledLenses.coupled3(loLens, midLens, hiLens, Triple::new);
+    CoupledLenses.coupled3(TripleLenses.lo(), TripleLenses.mid(), TripleLenses.hi(), Triple::new);
 ```
 
 ~~~admonish note title="Why CoupledLenses, not Lens.coupled3?"

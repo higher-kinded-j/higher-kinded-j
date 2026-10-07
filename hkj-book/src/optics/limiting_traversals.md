@@ -486,11 +486,11 @@ List<Order> processed = Traversals.modify(
 
 ### Use Limiting Traversals When
 
-* **Positional focus** - You need to operate on elements by index position
-* **Structural preservation** - Non-focused elements must remain in the list
-* **Composable pipelines** - Building complex optic chains with lenses and prisms
-* **Immutable updates** - Transforming portions whilst keeping data immutable
-* **Reusable logic** - Define once, compose everywhere
+* **Positional focus**: You need to operate on elements by index position
+* **Structural preservation**: Non-focused elements must remain in the list
+* **Composable pipelines**: Building complex optic chains with lenses and prisms
+* **Immutable updates**: Transforming portions whilst keeping data immutable
+* **Reusable logic**: Define once, compose everywhere
 
 <!-- verify -->
 ```java
@@ -505,10 +505,10 @@ Catalogue updated = Traversals.modify(first10Prices, p -> p * 0.9, catalogue);
 
 ### Use Stream API When
 
-* **Terminal operations** - Counting, finding, collecting to new structures
-* **Complex transformations** - Multiple chained operations with sorting/grouping
-* **No structural preservation needed** - You're extracting data, not updating in place
-* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
+* **Terminal operations**: Counting, finding, collecting to new structures
+* **Complex transformations**: Multiple chained operations with sorting/grouping
+* **No structural preservation needed**: You're extracting data, not updating in place
+* **A hot loop you have measured**: [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 <!-- verify -->
 ```java
@@ -521,9 +521,9 @@ int totalStock = products.stream()
 
 ### Use Manual Loops When
 
-* **Early termination with side effects** - Need to break out of loop
-* **Index-dependent logic** - Processing depends on knowing the exact index
-* **Imperative control flow** - Complex branching based on position
+* **Early termination with side effects**: Need to break out of loop
+* **Index-dependent logic**: Processing depends on knowing the exact index
+* **Imperative control flow**: Complex branching based on position
 
 <!-- verify -->
 ```java

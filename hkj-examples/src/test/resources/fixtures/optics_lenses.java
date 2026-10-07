@@ -8,9 +8,18 @@
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
 // (see build.gradle.kts).
 
+import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import org.higherkindedj.hkt.Applicative;
+import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.instances.Instances;
+import org.higherkindedj.hkt.validated.Validated;
+import org.higherkindedj.hkt.validated.ValidatedKind;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
@@ -59,4 +68,8 @@ class Fixture {
 
   static final Lens<Employee, String> employeeToStreet =
       employeeToCompany.andThen(companyToAddress).andThen(addressToStreet);
+
+  // The applicative the effectful-update section hands to modifyF: it joins error strings.
+  static final Applicative<ValidatedKind.Witness<String>> validatedApplicative =
+      Instances.validated(Semigroups.string("; "));
 }

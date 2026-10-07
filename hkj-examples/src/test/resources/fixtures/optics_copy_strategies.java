@@ -25,6 +25,14 @@ import org.higherkindedj.optics.annotations.ViaConstructor;
 import org.higherkindedj.optics.annotations.ViaCopyAndSet;
 import org.higherkindedj.optics.annotations.Wither;
 import org.higherkindedj.optics.util.Traversals;
+import org.jooq.DSLContext;
+import org.jooq.Result;
+import org.jooq.SQLDialect;
+import org.jooq.TableField;
+import org.jooq.impl.CustomRecord;
+import org.jooq.impl.CustomTable;
+import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 
 /** Stands in for a builder-based generated type (JOOQ POJO, Lombok @Builder, Immutables). */
 final class Customer {
@@ -249,7 +257,40 @@ interface OrderOpticsSpec extends OpticsSpec<Order> {
   Traversal<Order, Customer> eachCustomer();
 }
 
+/**
+ * Stands in for the CUSTOMER table jOOQ generates from a schema, built from jOOQ's own CustomTable
+ * so the page's query is checked against the real jOOQ API.
+ */
+final class CustomerTable extends CustomTable<CustomerRecord> {
+
+  static final CustomerTable CUSTOMER_TABLE = new CustomerTable();
+
+  final TableField<CustomerRecord, Boolean> ACTIVE =
+      createField(DSL.name("active"), SQLDataType.BOOLEAN);
+
+  private CustomerTable() {
+    super(DSL.name("customer"));
+  }
+
+  @Override
+  public Class<CustomerRecord> getRecordType() {
+    return CustomerRecord.class;
+  }
+}
+
+/** Stands in for the record jOOQ generates for that table. */
+final class CustomerRecord extends CustomRecord<CustomerRecord> {
+
+  CustomerRecord() {
+    super(CustomerTable.CUSTOMER_TABLE);
+  }
+}
+
 class Fixture {
+  static final CustomerTable CUSTOMER = CustomerTable.CUSTOMER_TABLE;
+
+  static final DSLContext ctx = DSL.using(SQLDialect.DEFAULT);
+
   static final Customer alice = new Customer("Alice", new BigDecimal("1000"));
 
   static final Order order = new Order(List.of(alice, new Customer("Bob", new BigDecimal("500"))));
