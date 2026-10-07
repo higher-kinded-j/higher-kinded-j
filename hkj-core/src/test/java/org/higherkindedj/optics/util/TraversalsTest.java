@@ -882,10 +882,8 @@ class TraversalsTest {
     @Test
     @DisplayName("should execute both branches for all elements (speculative execution)")
     void shouldExecuteBothBranchesSpeculatively() {
-      // Note: Selective.ifS evaluates BOTH branches eagerly for each element,
-      // then selects which result to use based on the predicate.
-      // This is the defining characteristic of Selective functors - static analysis
-      // can see all possible effects upfront.
+      // speculativeTraverseList applies both functions to every element and lets ifS pick
+      // the result; Traversal.branch is the variant that tests first.
       final AtomicInteger thenCount = new AtomicInteger(0);
       final AtomicInteger elseCount = new AtomicInteger(0);
       final List<Integer> source = List.of(5, 15, 8, 20, 3);

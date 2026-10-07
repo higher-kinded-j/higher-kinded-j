@@ -168,13 +168,11 @@ public class ValidatedTraversalExample {
   }
 
   /**
-   * Demonstrates using Selective to keep the expensive validation's result only where a cheap check
-   * passes. {@code modifyWhen} still calls the function for every element; the cheap check decides
-   * which result is kept.
+   * Demonstrates using Selective for smarter validation: {@code modifyWhen} runs the cheap check
+   * first and calls the expensive validation only for the elements that pass it.
    */
   private static void selectiveValidationExample() {
-    System.out.println(
-        "--- Scenario 7: Selective Validation (Keeping the Result Conditionally) ---");
+    System.out.println("--- Scenario 7: Selective Validation (Skipping the Expensive Check) ---");
 
     var userWithInvalidPerms =
         new VTUser(
@@ -188,7 +186,7 @@ public class ValidatedTraversalExample {
 
     System.out.println("Input: " + form);
 
-    // Two-stage validation: the cheap check decides whose expensive result is kept
+    // Two-stage validation: cheap check first, expensive check only if needed
     Predicate<String> notEmpty = name -> !name.isEmpty();
 
     Function<String, Kind<ValidatedKind.Witness<String>, String>> expensiveValidation =
@@ -203,14 +201,12 @@ public class ValidatedTraversalExample {
     Kind<ValidatedKind.Witness<String>, Form> selectiveResult =
         FORM_TO_PERMISSION_NAMES.modifyWhen(
             notEmpty, // Cheap check
-            expensiveValidation, // Runs for every element; kept only where the cheap check passes
+            expensiveValidation, // Expensive check (only if the cheap one passes)
             form,
             selective);
 
     System.out.println("Result: " + VALIDATED.narrow(selectiveResult));
-    System.out.println(
-        "Note: the expensive result was kept only for non-empty permissions,"
-            + " though the function ran for every element\n");
+    System.out.println("Note: the expensive validation ran only for non-empty permissions\n");
   }
 }
 // ANCHOR_END: complete_example

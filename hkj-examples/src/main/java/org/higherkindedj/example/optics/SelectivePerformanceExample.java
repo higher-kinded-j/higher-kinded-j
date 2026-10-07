@@ -193,7 +193,8 @@ public class SelectivePerformanceExample {
         },
         IdSelective.instance());
 
-    System.out.println("\nNote: With selective, branches are visible upfront,");
-    System.out.println("enabling potential parallel execution in concurrent implementations.\n");
+    System.out.println(
+        "\nNote: speculativeTraverseList runs both functions for every item and keeps the result");
+    System.out.println("the predicate picks; Traversal.branch runs only the chosen one.\n");
   }
 }
