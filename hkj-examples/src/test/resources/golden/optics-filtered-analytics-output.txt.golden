@@ -1,0 +1,22 @@
+=== CUSTOMER ANALYTICS WITH FILTERED OPTICS ===
+
+--- Analysis 1: High-Value Customers ---
+Customers with orders over £500: [Alice, Charlie]
+
+--- Analysis 2: Premium Product Buyers ---
+Alice: 1 premium items, £999.00 total
+Charlie: 2 premium items, £1050.00 total
+
+--- Analysis 3: Electronics Spending ---
+Alice spent £1024.00 on Electronics
+Charlie spent £1050.00 on Electronics
+
+--- Analysis 4: Auto-Mark VIP Customers ---
+Alice is now VIP
+Charlie is now VIP
+
+--- Analysis 5: Platform Statistics ---
+Expensive items (>£100): 4 items, £2399.00 revenue
+Budget items (≤£100): 4 items
+
+=== END OF ANALYTICS ===

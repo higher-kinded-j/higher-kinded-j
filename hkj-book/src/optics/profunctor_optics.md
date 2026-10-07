@@ -180,14 +180,6 @@ public static final Iso<UserId, String> USER_ID_VALUE = Iso.of(UserId::value, Us
 
 ---
 
-## Performance Notes
-
-* **Adapters are thin**: each operation wraps the underlying optic with the conversion functions; there is no reflection and no copying beyond what the conversions themselves do
-* **Reuse beats rebuilding**: store composed or adapted optics as constants, the same discipline as every other page
-* **Conversion cost is your cost**: a `dimap` bridge runs your two functions on every pass, so keep them cheap and total
-
----
-
 ## Real-World Example: API Integration
 
 The runnable [OpticProfunctorExample](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/profunctor/OpticProfunctorExample.java) walks a complete integration: an internal `Employee`/`Person` model, an external `EmployeeDto`/`PersonDto` wire format, and adapters hand-built with `Lens.of` (Route 3), including a formatted-date bridge that reads through a formatter and writes back through a parser, plus a conversion pair driven through `modifyF`. It compiles and runs on every build, so it is the reference when you wire your own.
@@ -227,6 +219,7 @@ public class ApiIntegration {
 - [Profunctor Optics: Recipes](profunctor_optics_recipes.md): wrapper-type recipes, V1/V2 migration adapters, and a complete runnable example
 - [Isomorphisms](iso.md): the lossless conversions that keep the full optic API
 - [Composition Rules](composition_rules.md): what `andThen` yields for every optic pairing
+- [Production Readiness](production_readiness.md#adapters-and-paths): what an adapter adds to the optic it wraps, and when to cache a composed optic
 ~~~
 
 ---

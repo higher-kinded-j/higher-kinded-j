@@ -452,36 +452,6 @@ List<Character> extracted = Traversals.getAll(vowels, "banana");
 
 ---
 
-## Performance Notes
-
-String traversals are optimised for immutability:
-
-* **Single pass**: text is decomposed and reconstructed in one traversal
-* **List-based internals**: transformation happens on the decomposed units, with the string rebuilt once at the end
-
-**Best Practice**: For frequently used string transformations, create traversals as constants:
-
-<!-- verify -->
-```java
-public class TextProcessing {
-    // Reusable string traversals
-    public static final Traversal<String, String> WORDS =
-        StringTraversals.worded();
-
-    public static final Traversal<String, String> LINES =
-        StringTraversals.lined();
-
-    public static final Traversal<String, Character> VOWELS =
-        StringTraversals.chars().filtered(c -> "aeiouAEIOU".indexOf(c) >= 0);
-
-    // Domain-specific compositions
-    public static final Traversal<String, String> ERROR_LOG_LINES =
-        LINES.filtered(line -> line.contains("ERROR"));
-}
-```
-
----
-
 ## Effectful Text Processing with Validated
 
 Like every traversal, string traversals accept effects through `modifyF`. Validating each word and accumulating every failure:
@@ -516,6 +486,7 @@ Validated<List<String>, String> result = VALIDATED.narrow(
 - [Filtered Optics](filtered_optics.md): the predicate composition used throughout this page
 - [Traversals](traversals.md): the underlying bulk-update optic
 - [List Decomposition](list_decomposition.md): head/tail patterns for the lists these traversals produce
+- [Production Readiness](production_readiness.md#collection-optics): what a string traversal builds, and when to cache a composed optic
 ~~~
 
 ~~~admonish tip title="Further Reading"

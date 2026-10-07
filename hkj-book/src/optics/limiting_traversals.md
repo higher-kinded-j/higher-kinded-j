@@ -508,7 +508,7 @@ Catalogue updated = Traversals.modify(first10Prices, p -> p * 0.9, catalogue);
 * **Terminal operations** - Counting, finding, collecting to new structures
 * **Complex transformations** - Multiple chained operations with sorting/grouping
 * **No structural preservation needed** - You're extracting data, not updating in place
-* **Performance-critical paths** - Minimal abstraction overhead
+* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 <!-- verify -->
 ```java
@@ -591,154 +591,36 @@ Optional<Product> fifth = IxedInstances.get(IxedInstances.listIx(), 4, products)
 
 ---
 
-## Performance Notes
-
-What a limiting traversal costs:
-
-* **Element references are shared**: the elements outside the slice are reused as they are, while the list holding them is rebuilt on every modify
-* **Reusable**: store a limiting traversal as a constant and compose it like any other optic
-
-**Best Practice**: Store frequently-used limiting traversals as constants:
-
-<!-- verify -->
-```java
-public class CatalogueOptics {
-    // Pagination constants
-    public static final int PAGE_SIZE = 20;
-
-    public static Traversal<List<Product>, Product> page(int pageNum) {
-        return ListTraversals.slicing(pageNum * PAGE_SIZE, (pageNum + 1) * PAGE_SIZE);
-    }
-
-    // Featured products (first 5)
-    public static final Traversal<Catalogue, Product> FEATURED =
-        CatalogueLenses.products()
-            .andThen(ListTraversals.taking(5));
-
-    // Latest additions (last 10)
-    public static final Traversal<Catalogue, Product> LATEST =
-        CatalogueLenses.products()
-            .andThen(ListTraversals.takingLast(10));
-
-    // Exclude promotional items at end
-    public static final Traversal<Catalogue, Product> NON_PROMOTIONAL =
-        CatalogueLenses.products()
-            .andThen(ListTraversals.droppingLast(3));
-}
-```
-
----
-
 ## Real-World Example: E-Commerce Pagination
 
-Here's a comprehensive example demonstrating limiting traversals in a business context:
+[`PaginationExample`](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java) serves a catalogue of twenty products the way a REST endpoint would: a page at a time, with a hero section at the front and a clearance section at the back. Each product carries a stock count and a badge:
 
-<!-- verify -->
-```java
-package org.higherkindedj.example.optics;
-
-import org.higherkindedj.optics.*;
-import org.higherkindedj.optics.util.*;
-import java.util.*;
-
-public class PaginationExample {
-
-    public record Product(String sku, String name, double price, boolean featured) {
-        Product applyDiscount(double pct) {
-            return new Product(sku, name, price * (1 - pct), featured);
-        }
-    }
-
-    public static void main(String[] args) {
-        List<Product> catalogue = createCatalogue();
-
-        System.out.println("=== E-COMMERCE PAGINATION WITH LIMITING TRAVERSALS ===\n");
-
-        // --- Scenario 1: Basic Pagination ---
-        System.out.println("--- Scenario 1: Paginated Product Display ---");
-
-        int pageSize = 3;
-        int totalPages = (int) Math.ceil(catalogue.size() / (double) pageSize);
-
-        for (int page = 0; page < totalPages; page++) {
-            Traversal<List<Product>, Product> pageTraversal =
-                ListTraversals.slicing(page * pageSize, (page + 1) * pageSize);
-
-            List<Product> pageProducts = Traversals.getAll(pageTraversal, catalogue);
-            System.out.printf("Page %d: %s%n", page + 1,
-                pageProducts.stream().map(Product::name).toList());
-        }
-
-        // --- Scenario 2: Featured Products ---
-        System.out.println("\n--- Scenario 2: Featured Products (First 3) ---");
-
-        Traversal<List<Product>, Product> featured = ListTraversals.taking(3);
-        List<Product> featuredProducts = Traversals.getAll(featured, catalogue);
-        featuredProducts.forEach(p ->
-            System.out.printf("  %s - £%.2f%n", p.name(), p.price()));
-
-        // --- Scenario 3: Apply Discount to Featured ---
-        System.out.println("\n--- Scenario 3: 10% Discount on Featured ---");
-
-        List<Product> withDiscount = Traversals.modify(featured, p -> p.applyDiscount(0.1), catalogue);
-        System.out.println("After discount on first 3:");
-        withDiscount.forEach(p -> System.out.printf("  %s: £%.2f%n", p.name(), p.price()));
-
-        // --- Scenario 4: Exclude Last Items ---
-        System.out.println("\n--- Scenario 4: All Except Last 2 (Clearance) ---");
-
-        Traversal<List<Product>, Product> nonClearance = ListTraversals.droppingLast(2);
-        List<Product> regularStock = Traversals.getAll(nonClearance, catalogue);
-        System.out.println("Regular stock: " + regularStock.stream().map(Product::name).toList());
-
-        System.out.println("\n=== PAGINATION COMPLETE ===");
-    }
-
-    private static List<Product> createCatalogue() {
-        return List.of(
-            new Product("SKU001", "Laptop", 999.99, true),
-            new Product("SKU002", "Mouse", 29.99, false),
-            new Product("SKU003", "Keyboard", 79.99, true),
-            new Product("SKU004", "Monitor", 349.99, true),
-            new Product("SKU005", "Webcam", 89.99, false),
-            new Product("SKU006", "Headset", 149.99, false),
-            new Product("SKU007", "USB Hub", 39.99, false),
-            new Product("SKU008", "Desk Lamp", 44.99, false)
-        );
-    }
-}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java:model}}
 ```
 
-**Expected Output:**
+Each page is one `slicing` traversal, built from the page number:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java:get_page}}
+```
+
+The hero section is the first three products. `taking(3)` marks them as featured, and composed with a price lens it discounts the same three, leaving every other price as it was:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java:hero}}
+```
+
+The clearance section is the last four. `takingLast(4)` discounts them, and `droppingLast(4)` counts the regular products that are left:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/optics/PaginationExample.java:clearance}}
+```
+
+The hero and clearance sections print:
 
 ```
-=== E-COMMERCE PAGINATION WITH LIMITING TRAVERSALS ===
-
---- Scenario 1: Paginated Product Display ---
-Page 1: [Laptop, Mouse, Keyboard]
-Page 2: [Monitor, Webcam, Headset]
-Page 3: [USB Hub, Desk Lamp]
-
---- Scenario 2: Featured Products (First 3) ---
-  Laptop - £999.99
-  Mouse - £29.99
-  Keyboard - £79.99
-
---- Scenario 3: 10% Discount on Featured ---
-After discount on first 3:
-  Laptop: £899.99
-  Mouse: £26.99
-  Keyboard: £71.99
-  Monitor: £349.99
-  Webcam: £89.99
-  Headset: £149.99
-  USB Hub: £39.99
-  Desk Lamp: £44.99
-
---- Scenario 4: All Except Last 2 (Clearance) ---
-Regular stock: [Laptop, Mouse, Keyboard, Monitor, Webcam, Headset]
-
-=== PAGINATION COMPLETE ===
+{{#include ../../../hkj-examples/src/test/resources/golden/optics-limiting-pagination-output.txt.golden}}
 ```
 
 ---
@@ -781,9 +663,7 @@ val firstN: Traversal[List[A], A] = ...
 
 ---
 
-## Summary: The Power of Limiting Traversals
-
-Limiting traversals bring **positional focus** into the heart of your optic compositions:
+## The limiting methods at a glance {#summary-the-power-of-limiting-traversals}
 
 | Method | Focus |
 |--------|-------|
@@ -807,6 +687,7 @@ Limiting traversals bring **positional focus** into the heart of your optic comp
 - [List Decomposition](list_decomposition.md): head/tail and init/last access as prisms and affines
 - [Filtered Optics](filtered_optics.md): focusing by predicate across the whole list
 - [Traversals](traversals.md): the unrestricted bulk-update optic these methods refine
+- [Production Readiness](production_readiness.md#collection-optics): what a limiting traversal copies, and when to cache a composed optic
 ~~~
 
 ~~~admonish tip title="Further Reading"

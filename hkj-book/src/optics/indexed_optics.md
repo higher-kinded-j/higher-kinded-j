@@ -477,7 +477,6 @@ List<Product> prioritised = IndexedTraversals.imodify(
 
 * **Position irrelevant** - Pure value transformations
 * **Simpler code** - Index tracking adds unnecessary complexity
-* **Performance critical** - Minimal overhead needed (though indexed optics are optimised)
 * **No positional logic** - All elements treated identically
 
 <!-- verify -->
@@ -641,33 +640,6 @@ List<Pair<Integer, String>> renumbered = IntStream.range(0, pairs.size())
 
 ---
 
-## Performance Notes
-
-Indexed optics are designed to be efficient:
-
-* **No additional traversals**: the index is computed during the normal iteration
-* **Minimal overhead**: `forList()` and `forMap()` hand the index and value straight to your function, so nothing is allocated per focus. A `Pair` appears only where one is the result: `toIndexedList`, indexed folds, and `iandThen` composition
-* **Reusable compositions**: indexed optics can be composed once and cached
-
-**Best Practice**: Create indexed optics once and store as constants:
-
-<!-- verify -->
-```java
-public class OrderOptics {
-    public static final IndexedTraversal<Integer, List<LineItem>, LineItem>
-        ITEMS_WITH_INDEX = IndexedTraversals.forList();
-
-    public static final IndexedTraversal<String, Map<String, String>, String>
-        METADATA_WITH_KEYS = IndexedTraversals.forMap();
-
-    // Compose with filtering
-    public static final IndexedTraversal<Integer, List<LineItem>, LineItem>
-        EVEN_POSITIONED_ITEMS = ITEMS_WITH_INDEX.filterIndex(i -> i % 2 == 0);
-}
-```
-
----
-
 ~~~admonish info title="Key Takeaways"
 * **Indexed optics pair every value with where it lives**: list positions, map keys, or field names become part of the focus
 * **`imodify` is the workhorse**: one call replaces manual counter threading, `AtomicInteger` hacks, and entry-set rebuilding
@@ -677,9 +649,10 @@ public class OrderOptics {
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Indexed Optics: Advanced Patterns](indexed_optics_advanced.md): composition with paired indices, the Haskell heritage, and the trade-off summary
+- [Indexed Optics: Advanced Patterns](indexed_optics_advanced.md): composition with paired indices, the Haskell heritage, and a before-and-after table of manual index tracking
 - [Indexed Access](indexed_access.md): the At and Ixed type classes for single-key operations
 - [Each Type Class](each_typeclass.md): `EachIndexed.indexedTraversal()` as an alternative source of indexed traversals
+- [Production Readiness](production_readiness.md#collection-optics): what an indexed traversal builds, and when to cache a composed optic
 ~~~
 
 ---

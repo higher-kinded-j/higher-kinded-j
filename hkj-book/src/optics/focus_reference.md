@@ -92,29 +92,6 @@ Validated<List<String>, Company> checked =
 
 ---
 
-## Performance Considerations
-
-A Focus path is a thin wrapper over the underlying optic:
-
-- **Path creation**: a few small objects, one per segment
-- **Traversal**: identical to the optic it wraps
-- **Memory**: one extra object per path segment
-
-The rule that matters is *build the path once*. Rebuilding it inside a loop re-runs the composition on every iteration:
-
-<!-- verify -->
-```java
-// Compose once, outside the loop
-Traversal<Company, String> deptNames =
-    CompanyFocus.departments().via(DepartmentFocus.name()).toTraversal();
-
-for (Company c : companies) {
-  List<String> names = Traversals.getAll(deptNames, c);
-}
-```
-
----
-
 ## Customising Generated Code
 
 ```java
@@ -173,7 +150,7 @@ Swap `direct()` for `logging()` or `validating()` to run the same program anothe
 
 ## Common Pitfalls
 
-**Do not rebuild paths in a loop.** Hoist the path (or the extracted optic) above the loop, as in the performance section above.
+**Do not rebuild paths in a loop.** Hoist the path (or the extracted optic) above the loop, as [Caching optics](production_readiness.md#caching-optics) explains.
 
 **Do not reach for `get` on a path that may miss.** Use the operation the path type guarantees:
 
@@ -273,6 +250,7 @@ Focus paths are designed for compile-time type safety. When the path is only kno
 - [Lenses](lenses.md): the optic underneath a `FocusPath`
 - [Updates That Can Fail](fluent_api.md): validation-aware modification through `OpticOps`
 - [Free Monad DSL](free_monad_dsl.md): optic programs and interpreters
+- [Production Readiness](production_readiness.md#adapters-and-paths): what a Focus path adds to its optic, and when to cache one
 ~~~
 
 ~~~admonish tip title="Further Reading"

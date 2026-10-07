@@ -98,7 +98,7 @@ System.out.println(result);  // Person[name=Alice, age=26]
 
 **Production execution**: When you just want to run the operations
 **Simple workflows**: When audit trails or validation aren't needed
-**Performance-critical paths**: Minimal overhead
+**Paths you run often**: When the log and the checks are not worth their cost
 
 ### Characteristics
 

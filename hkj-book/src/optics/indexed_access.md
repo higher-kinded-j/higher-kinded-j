@@ -377,34 +377,7 @@ Config result = value.modify(String::trim, config);
 
 ---
 
-## Performance Considerations
-
-Both At and Ixed create new collection instances on every modification:
-
-<!-- verify -->
-```java
-// Each operation copies the entire map - O(n)
-Map<String, Integer> step1 = at.insertOrUpdate("a", 1, map);   // Copy
-Map<String, Integer> step2 = at.insertOrUpdate("b", 2, step1); // Copy
-Map<String, Integer> step3 = at.remove("c", step2);            // Copy
-```
-
-~~~admonish tip title="Batch Modifications"
-For multiple updates, consider direct bulk construction then switch to optics for subsequent immutable operations:
-
-<!-- verify -->
-```java
-Map<String, Integer> result = new HashMap<>(original);
-result.put("a", 1);
-result.put("b", 2);
-result.remove("c");
-// Now use At/Ixed for subsequent immutable operations
-```
-~~~
-
----
-
-## Summary
+## Which tool for which job {#summary}
 
 | Use Case | Tool | Why |
 |----------|------|-----|
@@ -427,6 +400,7 @@ result.remove("c");
 - [Indexed Optics](indexed_optics.md): traversing every element with its position
 - [Prisms](prisms.md): `Prisms.some()` for unwrapping the `Optional` that At exposes
 - [Common Data Structures](common_data_structure_traversals.md): whole-map value traversals
+- [Production Readiness](production_readiness.md#collection-optics): what At and Ixed copy on each edit, and when to cache a composed optic
 ~~~
 
 ---

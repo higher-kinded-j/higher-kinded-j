@@ -55,6 +55,13 @@ Two things matter:
   a typo silently deletes the code from the page. `BookIncludeTest` closes that hole: every include
   must resolve to a real file, a real anchor, and a non-empty one.
 
+An output a page shows as a block after the program, rather than as comments in it, is included
+too, from a golden file under `src/test/resources/golden`. `BookExampleOutputTest` runs the
+example and holds the file to what it prints, byte for byte, once the file is registered in its
+`TRANSCRIPTS` list. A page that shows part of a long program may show the part of the output that
+code prints: registered as an excerpt, the file must appear in the output as an unbroken run of
+lines.
+
 
 Compiles the code in the repo's documentation against the real library, so a page cannot drift away
 from the API without failing the build. Two roots are covered:

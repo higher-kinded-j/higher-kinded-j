@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.optics;
 
+// ANCHOR: complete_example
 import org.higherkindedj.example.optics.iso.CircleLenses;
 import org.higherkindedj.hkt.tuple.Tuple;
 import org.higherkindedj.hkt.tuple.Tuple2;
@@ -117,6 +118,7 @@ public class IsoUsageExample {
     Point recoveredFromString = Converters.POINT_STRING.reverse().get(pointAsString);
     System.out.println("Recovered from string: " + recoveredFromString);
     System.out.println("Perfect round-trip: " + myPoint.equals(recoveredFromString));
+    System.out.println();
 
     // --- SCENARIO 6: Working with Circle centre through Iso ---
     System.out.println("--- Scenario 6: Circle Centre Manipulation ---");
@@ -135,3 +137,4 @@ public class IsoUsageExample {
     System.out.println("New circle: " + newCircle);
   }
 }
+// ANCHOR_END: complete_example

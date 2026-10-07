@@ -239,7 +239,7 @@ Where this lives: [Find your field](#find-your-field).
 - [Collections, Optionals and Sealed Types](focus_navigation.md): collection navigation, `.via()` composition, and generated navigators
 - [Type Class and Effect Integration](focus_effects.md): `modifyF()`, `foldMap()`, `traverseOver()`, and Effect path bridging
 - [Custom Containers and Code Generation](focus_containers.md): generated class structure, SPI container types, and registration
-- [Focus DSL Reference](focus_reference.md): decision guide, common patterns, performance, pitfalls, and FAQ
+- [Focus DSL Reference](focus_reference.md): decision guide, common patterns, pitfalls, and FAQ
 ~~~
 
 ---

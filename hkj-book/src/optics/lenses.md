@@ -315,32 +315,6 @@ var finalEmployee = EmployeeLenses.company()
 
 ---
 
-## Performance Notes
-
-Lenses are optimised for immutable updates:
-
-* **Memory efficient**: Only creates new objects along the path that changes
-* **Reusable**: Composed lenses can be stored and reused across your application
-* **Type-safe**: All operations are checked at compile time
-
-**Best Practice**: For frequently used paths, create the composed lens once and store it as a static field:
-
-<!-- verify -->
-```java
-public class EmployeeOptics {
-    public static final Lens<Employee, String> STREET = 
-        EmployeeLenses.company()
-            .andThen(CompanyLenses.address())
-            .andThen(AddressLenses.street());
-        
-    public static final Lens<Employee, String> COMPANY_NAME = 
-        EmployeeLenses.company()
-            .andThen(CompanyLenses.name());
-}
-```
-
----
-
 ## Complete, Runnable Example
 
 The following standalone example puts all these steps together. You can run it to see the output and the immutability in action.
@@ -401,6 +375,10 @@ Lenses integrate with For comprehensions in two ways:
 * **Compose with `andThen` to any depth**: build the path once, store it as a constant, reuse it everywhere
 * **Withers for shallow, composed lenses for deep**: the generated `with*` helpers, Lombok's `@With` and hand-written withers each change one record; composition covers the rest, and `Lens.paired` changes coupled components at once
 * **Prefer `modify` over get-then-set**, and `modifyF` when the update carries an effect (validation, async) through the same path
+~~~
+
+~~~admonish tip title="See Also"
+- [Production Readiness](production_readiness.md#what-set-and-modify-allocate): what a lens update allocates, and when to cache a composed optic
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

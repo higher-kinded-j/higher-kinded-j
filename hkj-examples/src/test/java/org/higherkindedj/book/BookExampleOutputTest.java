@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.InvocationTargetException;
@@ -18,6 +19,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -57,6 +59,10 @@ import org.junit.jupiter.params.provider.MethodSource;
  * <p>Trailing commentary is not part of the claim: an inline <code>&lt;- note</code> and anything
  * after the value's closing bracket are dropped, and whitespace is ignored, so re-wrapping a long
  * line cannot fail the build. What must hold is the value itself.
+ *
+ * <p>A page that shows a program's whole output after it, rather than as comments in it, includes
+ * that output from a golden file, and a {@link Transcript} holds the file to what the program
+ * prints.
  */
 @DisplayName("a book example prints what its comments claim")
 class BookExampleOutputTest {
@@ -133,6 +139,7 @@ class BookExampleOutputTest {
           Map.entry("BasicsBook", 5),
           Map.entry("BeansBook", 12),
           Map.entry("BoundaryCapstoneBook", 4),
+          Map.entry("ConfigOptics", 6),
           Map.entry("EitherOrBothBook", 1),
           Map.entry("EitherOrBothPathBook", 6),
           Map.entry("GenericsBook", 4),
@@ -142,6 +149,7 @@ class BookExampleOutputTest {
           Map.entry("NonEmptyListBook", 3),
           Map.entry("OrderErrorBook", 1),
           Map.entry("PathSourceBook", 6),
+          Map.entry("SafeGetters", 1),
           Map.entry("SparsePatchBook", 5),
           Map.entry("StandardCodecsBook", 2),
           Map.entry("StructureBook", 11),
@@ -250,7 +258,7 @@ class BookExampleOutputTest {
    * The number of runnable examples must never fall below this. Deleting a {@code main}, or moving
    * an example out of the book package, would otherwise quietly shrink what this gate covers.
    */
-  private static final int MINIMUM_RUNNABLE_EXAMPLES = 19;
+  private static final int MINIMUM_RUNNABLE_EXAMPLES = 25;
 
   private static Example exampleOf(Path source) {
     String text = read(source);
@@ -568,11 +576,124 @@ class BookExampleOutputTest {
     return segments.stream().anyMatch(segment -> abbreviated.matcher(segment).matches());
   }
 
-  /** Runs the example's {@code main}, capturing what it prints. */
+  /**
+   * An example's output shown whole on its page, after the program rather than as comments in it: a
+   * golden file under {@code src/test/resources/golden} that the page includes. It is held to what
+   * the example prints byte for byte, or, as an excerpt, to an unbroken run of the lines it prints,
+   * so a page that shows part of a long program can show the part of its output that code prints.
+   */
+  record Transcript(String className, String golden, boolean excerpt) {
+    @Override
+    public String toString() {
+      return simpleName(className) + " -> " + golden + (excerpt ? " (excerpt)" : "");
+    }
+  }
+
+  /** Every transcript a page shows. Each must also be included by a page. */
+  private static final List<Transcript> TRANSCRIPTS =
+      List.of(
+          new Transcript(
+              "org.higherkindedj.example.book.optics.filtered.CustomerAnalytics",
+              "optics-filtered-analytics-output.txt.golden",
+              false),
+          new Transcript(
+              "org.higherkindedj.example.book.optics.getters.GetterExample",
+              "optics-getters-example-output.txt.golden",
+              false),
+          new Transcript(
+              "org.higherkindedj.example.book.optics.indexed.OrderFulfilmentDashboard",
+              "optics-indexed-dashboard-output.txt.golden",
+              false),
+          new Transcript(
+              "org.higherkindedj.example.optics.IsoUsageExample",
+              "optics-iso-example-output.txt.golden",
+              false),
+          new Transcript(
+              "org.higherkindedj.example.optics.PaginationExample",
+              "optics-limiting-pagination-output.txt.golden",
+              true),
+          new Transcript(
+              "org.higherkindedj.example.book.optics.setters.SetterExample",
+              "optics-setters-example-output.txt.golden",
+              false));
+
+  static Stream<Transcript> transcripts() {
+    return TRANSCRIPTS.stream();
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("transcripts")
+  @DisplayName("prints the transcript its page shows")
+  void printsTheTranscriptItsPageShows(Transcript transcript) {
+    String printed = capture(transcript.className());
+    String shown = golden(transcript.golden());
+    boolean holds =
+        transcript.excerpt() ? ("\n" + printed).contains("\n" + shown) : printed.equals(shown);
+    if (!holds) {
+      fail(
+          """
+          %s no longer prints what its page shows from %s%s.
+
+            the page shows:
+          %s
+            the example printed:
+          %s
+          Update the golden file to what the program prints, or fix the example."""
+              .formatted(
+                  transcript.className(),
+                  transcript.golden(),
+                  transcript.excerpt() ? ", as an unbroken run of its lines" : "",
+                  shown.indent(4),
+                  printed.indent(4)));
+    }
+  }
+
+  @Test
+  @DisplayName("every transcript is shown by a page")
+  void everyTranscriptIsShownByAPage() throws IOException {
+    List<String> pages;
+    try (Stream<Path> files = Files.walk(Path.of(required("hkj.book.dir")))) {
+      pages =
+          files
+              .filter(path -> path.toString().endsWith(".md"))
+              .map(BookExampleOutputTest::read)
+              .toList();
+    }
+    String book = String.join("\n", pages);
+    assertThat(TRANSCRIPTS)
+        .allSatisfy(
+            transcript ->
+                assertThat(book)
+                    .as("no page includes %s, so it holds nothing", transcript.golden())
+                    .contains("golden/" + transcript.golden() + "}}"));
+  }
+
+  /** A golden transcript, read from the test classpath, with Unix line endings. */
+  private static String golden(String name) {
+    try (InputStream in = BookExampleOutputTest.class.getResourceAsStream("/golden/" + name)) {
+      assertThat(in).as("the golden file %s is on the test classpath", name).isNotNull();
+      return new String(in.readAllBytes(), StandardCharsets.UTF_8).replace("\r\n", "\n");
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /** Runs the example's {@code main}, capturing what it prints, one non-blank line per entry. */
   private static List<String> run(String className) {
+    return capture(className).lines().map(String::strip).filter(line -> !line.isEmpty()).toList();
+  }
+
+  /**
+   * Runs the example's {@code main}, capturing what it prints exactly, with Unix line endings. The
+   * default locale is {@code Locale.ROOT} while it runs, so a {@code printf} of a decimal or a case
+   * conversion prints the same on every machine.
+   */
+  private static String capture(String className) {
     PrintStream original = System.out;
+    Locale originalLocale = Locale.getDefault();
     ByteArrayOutputStream captured = new ByteArrayOutputStream();
     try (PrintStream sink = new PrintStream(captured, true, StandardCharsets.UTF_8)) {
+      Locale.setDefault(Locale.ROOT);
       System.setOut(sink);
       Method main = Class.forName(className).getMethod("main", String[].class);
       main.invoke(null, (Object) new String[0]);
@@ -582,13 +703,9 @@ class BookExampleOutputTest {
       throw new AssertionError("could not run " + className, e);
     } finally {
       System.setOut(original);
+      Locale.setDefault(originalLocale);
     }
-    return captured
-        .toString(StandardCharsets.UTF_8)
-        .lines()
-        .map(String::strip)
-        .filter(line -> !line.isEmpty())
-        .toList();
+    return captured.toString(StandardCharsets.UTF_8).replace("\r\n", "\n");
   }
 
   private static String read(Path file) {

@@ -235,7 +235,7 @@ Company withNormalisedEmails = Traversals.modify(allEmails, String::toLowerCase,
 
 * **Complex transformations** - Multiple operations that don't map cleanly to traversals
 * **Filtering and collecting** - You need to change the collection structure
-* **Performance critical paths** - Minimal abstraction overhead needed
+* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 <!-- verify -->
 ```java
@@ -310,33 +310,6 @@ String playerName = player.name(); // Simple and clear
 // Defensive: Handle empty collections gracefully  
 List<Integer> allScores = Traversals.getAll(scoreTraversal, league);
 OptionalDouble average = allScores.stream().mapToInt(Integer::intValue).average();
-```
-
----
-
-## Performance Notes
-
-Traversals are optimised for immutable updates:
-
-* **Structural sharing**: only the spine along the focused path is rebuilt; branches the path does not touch are reused as-is
-* **Batch operations**: `modifyF` processes all targets in a single pass
-* **No hidden laziness**: every focused element is visited and the path spine is rebuilt on each `modify`, so cost is proportional to the number of targets
-
-**Best Practice**: For frequently used traversal combinations, create them once and store as constants:
-
-<!-- verify -->
-```java
-public class LeagueOptics {
-    public static final Traversal<League, Integer> ALL_PLAYER_SCORES = 
-        LeagueTraversals.teams()
-            .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.score());
-      
-    public static final Traversal<League, String> ALL_PLAYER_NAMES = 
-        LeagueTraversals.teams()
-            .andThen(TeamTraversals.players())
-            .andThen(PlayerLenses.name());
-}
 ```
 
 ---
@@ -656,34 +629,6 @@ prices.sort(Comparator.reverseOrder());   // Descending sort
 prices.removeIf(p -> p < 10.0);          // Filter (with caveats)
 ```
 
-### Performance Considerations
-
-`partsOf` operations traverse the structure twice:
-
-1. **Once for `get`**: Collect all focused elements
-2. **Once for `set`**: Distribute modified elements back
-
-For very large structures with thousands of focuses, consider:
-
-* Caching the lens if used repeatedly
-* Using direct stream operations if structure preservation isn't required
-* Profiling to ensure the abstraction overhead is acceptable
-
-**Best Practice**: Create the `partsOf` lens once and reuse it:
-
-<!-- verify -->
-```java
-public class CatalogueOptics {
-    private static final Traversal<Catalogue, Double> ALL_PRICES =
-        CatalogueTraversals.categories()
-            .andThen(CategoryTraversals.products())
-            .andThen(ProductLenses.price());
-
-    public static final Lens<Catalogue, List<Double>> PRICES_AS_LIST =
-        Traversals.partsOf(ALL_PRICES);
-}
-```
-
 ### Common Pitfalls with partsOf
 
 #### Don't Do This
@@ -909,6 +854,7 @@ This is the reason they can all be composed together so seamlessly.
 - [Limiting Traversals](limiting_traversals.md): focusing on slices of a list instead of every element
 - [Composition Rules](composition_rules.md): what type `andThen` returns for each pair of optics
 - [Bulk Operations with ForTraversal](../functional/for_optics.md#bulk-operations-with-fortraversal): comprehension-style filtering, modifying, and collecting through a traversal
+- [Production Readiness](production_readiness.md#runtime-cost): what a traversal and `partsOf` allocate, and when to cache a composed optic
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

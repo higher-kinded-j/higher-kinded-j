@@ -1,0 +1,25 @@
+=== ORDER FULFILMENT DASHBOARD ===
+
+--- Packing Slip ---
+Order: ORD-12345
+  Item 1: Laptop (Qty: 1) - £999.99
+  Item 2: Mouse (Qty: 2) - £49.98
+  Item 3: Keyboard (Qty: 1) - £79.99
+  Item 4: Monitor (Qty: 1) - £299.99
+
+--- Position-Based Discounts ---
+  Position 3 (Keyboard): £79.99 → £67.99 (15% off)
+Original total: £1429.95
+Discounted total: £1417.95
+
+--- Metadata Processing ---
+  Shipping priority: EXPRESS
+  Gift wrapping: Required
+  Special instructions: Leave at door
+
+--- High-Value Items ---
+  Items over £100 (require special handling):
+    Position 1: Laptop (£999.99)
+    Position 4: Monitor (£299.99)
+
+=== END OF DASHBOARD ===
