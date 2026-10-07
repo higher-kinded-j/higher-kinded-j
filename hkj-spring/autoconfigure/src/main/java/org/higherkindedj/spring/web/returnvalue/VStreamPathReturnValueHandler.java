@@ -7,8 +7,12 @@ import java.io.PrintWriter;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.effect.VStreamPath;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vstream.VStream;
+import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.spring.actuator.HkjMetricsService;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -53,7 +57,7 @@ import tools.jackson.databind.json.JsonMapper;
  *       may idle before their first step should emit an early heartbeat element
  *   <li>Error mid-stream → SSE {@code event: error} with error details
  *   <li>Timeout → HTTP 504 Gateway Timeout (before streaming) or stream abort (mid-stream)
- *   <li>Client disconnect → pull loop stops; upstream production ceases
+ *   <li>Client disconnect → pull loop stops and the stream is closed, so its finalisers run
  * </ul>
  *
  * <p>Example usage:
@@ -181,6 +185,12 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
         .start(
             () -> {
               AtomicLong elementCount = new AtomicLong(0);
+              // The rest of the stream not yet read, closed on the way out so a timeout, an abort,
+              // a disconnect or a failure still runs its finalisers. Empty once the stream ends.
+              AtomicReference<VStream<?>> unread = new AtomicReference<>(VStream.empty());
+              // What stopped the stream, which may carry the rest of it that a failed mapTask task
+              // keeps, for closing with unread
+              Exception failure = null;
               boolean owned = false;
               boolean committed = false;
               try {
@@ -211,6 +221,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                 }
 
                 VStream<?> stream = streamPath.run();
+                unread.set(stream);
 
                 // The first step is pulled BEFORE claiming the response or setting any status: a
                 // timeout during this (possibly long) first pull is then owned by onTimeout, which
@@ -220,6 +231,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                 // see the response; streams that may idle before their first step should emit an
                 // early heartbeat element.
                 VStream.Step<?> firstStep = stream.pull().run();
+                unread.set(rest(firstStep));
 
                 // Claim the response; if a timeout already owns it, it has settled the request.
                 if (!responseOwned.compareAndSet(false, true)) {
@@ -244,7 +256,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                 response.flushBuffer();
                 committed = true;
 
-                boolean completed = pullAndWrite(firstStep, writer, elementCount, aborted);
+                boolean completed = pullAndWrite(firstStep, unread, writer, elementCount, aborted);
 
                 if (completed) {
                   writer.write("event: complete\ndata: {\"done\":true}\n\n");
@@ -267,6 +279,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                 }
                 deferredResult.setResult(null);
               } catch (Exception e) {
+                failure = e;
                 log.error("VStreamPath streaming failed", e);
                 if (metricsService != null) {
                   metricsService.recordVStreamError(e.getClass().getSimpleName());
@@ -290,12 +303,22 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
                   log.error("Failed to write error response", writeError);
                   deferredResult.setErrorResult(e);
                 }
+              } finally {
+                VTask<Unit> closing =
+                    failure == null
+                        ? unread.get().close()
+                        : VStream.closeAfterFailure(unread.get(), failure);
+                if (closing.runSafe() instanceof Try.Failure<Unit>(Throwable cause)) {
+                  // The response is already settled, so there is no one else to tell
+                  log.warn("Failed to close the streamed VStream", cause);
+                }
               }
             });
   }
 
   /**
-   * Processes the given step and keeps pulling, writing each element as an SSE event.
+   * Processes the given step and keeps pulling, writing each element as an SSE event. After each
+   * pull, {@code unread} holds the rest of the stream, which the caller closes.
    *
    * @return {@code true} when the stream ran to completion, {@code false} when it was aborted by
    *     timeout or request completion
@@ -304,6 +327,7 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
    */
   private boolean pullAndWrite(
       VStream.Step<?> firstStep,
+      AtomicReference<VStream<?>> unread,
       PrintWriter writer,
       AtomicLong elementCount,
       AtomicBoolean aborted) {
@@ -315,7 +339,6 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
       if (aborted.get()) {
         return false;
       }
-      VStream<?> next;
       switch (step) {
         case VStream.Step.Emit<?> emit -> {
           String json;
@@ -332,18 +355,27 @@ public class VStreamPathReturnValueHandler implements AsyncHandlerMethodReturnVa
             throw new ClientDisconnectedException();
           }
           elementCount.incrementAndGet();
-          next = emit.tail();
         }
-        case VStream.Step.Skip<?> skip -> next = skip.tail();
-        case VStream.Step.Done<?> done -> {
+        case VStream.Step.Skip<?> _ -> {}
+        case VStream.Step.Done<?> _ -> {
           return true;
         }
       }
       if (aborted.get()) {
         return false;
       }
-      step = next.pull().run();
+      step = unread.get().pull().run();
+      unread.set(rest(step));
     }
+  }
+
+  /** The rest of the stream after a step: its tail, or nothing once the stream is done. */
+  private static VStream<?> rest(VStream.Step<?> step) {
+    return switch (step) {
+      case VStream.Step.Emit<?> emit -> emit.tail();
+      case VStream.Step.Skip<?> skip -> skip.tail();
+      case VStream.Step.Done<?> _ -> VStream.empty();
+    };
   }
 
   /**

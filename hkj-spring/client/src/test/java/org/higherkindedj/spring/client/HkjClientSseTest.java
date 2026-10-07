@@ -157,4 +157,26 @@ class HkjClientSseTest {
     assertThat(opened).isTrue();
     assertThat(closed).as("stream closed after consumption").isTrue();
   }
+
+  @Test
+  @DisplayName("closes the stream when headOption stops after the first frame, through a map")
+  void headOptionClosesTheStream() {
+    AtomicBoolean closed = new AtomicBoolean(false);
+    Supplier<InputStream> source =
+        () ->
+            new ByteArrayInputStream(
+                "data: {\"n\":1}\n\ndata: {\"n\":2}\n\nevent: complete\n\n"
+                    .getBytes(StandardCharsets.UTF_8)) {
+              @Override
+              public void close() {
+                closed.set(true);
+              }
+            };
+
+    var first =
+        HkjClientExchange.vstream(source, Tick.class, mapper).map(Tick::n).headOption().unsafeRun();
+
+    assertThat(first).contains(1);
+    assertThat(closed).as("stream closed when headOption stopped early").isTrue();
+  }
 }

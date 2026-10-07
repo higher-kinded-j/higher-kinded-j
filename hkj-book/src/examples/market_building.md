@@ -164,10 +164,11 @@ List<PriceTick> merged = FeedMerger.merge(nyse, lse).take(10).toList().run();
 
 ~~~admonish warning title="Cancellation and Resource Safety"
 When the consumer terminates early (e.g. `take(20)`), the merge stream's `close()` method
-sets a cancellation flag that stops the producer threads. Without this, producers would
-continue pushing into the queue indefinitely, a classic resource leak with concurrent
-streams. The *structured concurrency* design principle ensures this cleanup happens
-automatically.
+sets a cancellation flag and interrupts the producer, which stops the threads reading each
+feed. The producer then closes every feed that had not finished, so a feed's own finalisers
+run. Without this, producers would continue pushing into the queue indefinitely, a classic
+resource leak with concurrent streams. The *structured concurrency* design principle ensures
+this cleanup happens automatically.
 ~~~
 
 ~~~admonish note title="Design Decision: Why merge over concat or interleave?"

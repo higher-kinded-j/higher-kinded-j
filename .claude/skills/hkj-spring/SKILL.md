@@ -410,7 +410,7 @@ Either<ApiError, UserDto> result =
         .unsafeRun();
 ```
 
-`Retry-After` is a **hook**, not automatic: a custom decoder reads `ClientErrorResponse.retryAfter()` and feeds it into the retry policy. Consume an SSE endpoint with `HkjClientExchange.vstream(source, ElementType.class, jsonMapper)` -> `VStreamPath<T>` (drain it with `toList()` or bound it with `take(n)`; `headOption()`/`find(...)` short-circuit and may leave the response open).
+`Retry-After` is a **hook**, not automatic: a custom decoder reads `ClientErrorResponse.retryAfter()` and feeds it into the retry policy. Consume an SSE endpoint with `HkjClientExchange.vstream(source, ElementType.class, jsonMapper)` -> `VStreamPath<T>` (draining it, a failure, or stopping early with `take(n)`, `headOption()` or `find(...)` closes the response).
 
 ### Gotchas
 

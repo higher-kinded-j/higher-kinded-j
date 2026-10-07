@@ -3,9 +3,11 @@
 package org.higherkindedj.hkt.vstream;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 import static org.higherkindedj.hkt.assertions.VStreamAssert.assertThatVStream;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -1060,6 +1062,69 @@ class VStreamParTest {
 
       assertThat(scopeThread.isAlive()).isFalse();
       assertThat(interruptFlagAfter.get()).isTrue();
+    }
+
+    @Test
+    @DisplayName("runMergeScope closes the sources a cancelled run leaves unread, uninterrupted")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void runMergeScopeClosesUnreadSources() {
+      AtomicInteger closed = new AtomicInteger();
+      VStream<Integer> first = VStream.of(1).onFinalize(VTask.exec(closed::incrementAndGet));
+      VStream<Integer> second = VStream.of(2).onFinalize(VTask.exec(closed::incrementAndGet));
+
+      // Cancelled before it starts, so the run reads neither source and closes both
+      VStreamPar.runMergeScope(
+          List.of(first, second), new LinkedBlockingQueue(), new AtomicBoolean(true));
+
+      assertThat(closed).hasValue(2);
+      assertThat(Thread.currentThread().isInterrupted()).isFalse();
+    }
+
+    @Test
+    @DisplayName(
+        "runMergeScope interrupted while a source closes waits for it, then restores the interrupt")
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void runMergeScopeWaitsOutAnInterruptWhileClosing() throws InterruptedException {
+      AtomicReference<Thread> scopeThread = new AtomicReference<>();
+      AtomicBoolean finaliserDone = new AtomicBoolean();
+      // Runs on the thread that closes the source: interrupts the scope thread while it waits for
+      // the close, and finishes only once that thread waits again
+      VStream<Integer> slowToClose =
+          VStream.of(1)
+              .onFinalize(
+                  VTask.exec(
+                      () -> {
+                        awaitWaiting(scopeThread.get());
+                        scopeThread.get().interrupt();
+                        awaitWaiting(scopeThread.get());
+                        finaliserDone.set(true);
+                      }));
+      AtomicBoolean doneOnReturn = new AtomicBoolean();
+      AtomicBoolean interruptFlagAfter = new AtomicBoolean();
+
+      Thread thread =
+          Thread.ofVirtual()
+              .unstarted(
+                  () -> {
+                    VStreamPar.runMergeScope(
+                        List.of(slowToClose), new LinkedBlockingQueue(), new AtomicBoolean(true));
+                    doneOnReturn.set(finaliserDone.get());
+                    interruptFlagAfter.set(Thread.currentThread().isInterrupted());
+                  });
+      scopeThread.set(thread);
+      thread.start();
+      thread.join(Duration.ofSeconds(10));
+
+      assertThat(thread.isAlive()).isFalse();
+      assertThat(doneOnReturn).as("the source closed before runMergeScope returned").isTrue();
+      assertThat(interruptFlagAfter).isTrue();
+    }
+
+    private void awaitWaiting(Thread thread) {
+      await()
+          .atMost(Duration.ofSeconds(5))
+          .pollInterval(Duration.ofMillis(1))
+          .until(() -> thread.getState() == Thread.State.WAITING);
     }
   }
 

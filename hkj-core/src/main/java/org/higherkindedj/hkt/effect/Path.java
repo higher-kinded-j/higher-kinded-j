@@ -1406,9 +1406,9 @@ public final class Path {
   /**
    * Creates a resource-safe VStreamPath using bracket semantics.
    *
-   * <p>The resource is acquired lazily on first pull. The release function is guaranteed to run
-   * exactly once on completion, error, or partial consumption. Delegates to {@link
-   * VStream#bracket(VTask, Function, Function)}.
+   * <p>The resource is acquired lazily, when the pulled {@code VTask} runs. The release function is
+   * guaranteed to run exactly once on completion, error, or partial consumption. Delegates to
+   * {@link VStream#bracket(VTask, Function, Function)}.
    *
    * @param acquire a VTask that acquires the resource; must not be null
    * @param use a function that takes the resource and produces a stream; must not be null

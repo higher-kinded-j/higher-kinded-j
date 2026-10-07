@@ -128,11 +128,9 @@ public final class HkjClientExchange {
    * the server's {@code VStreamPathReturnValueHandler} SSE format.
    *
    * <p>Consumption is lazy: the supplier is invoked, and frames are read and decoded one at a time
-   * as the path is pulled. The stream is closed once the path is drained to completion or fails
-   * (bracket semantics over {@link VStream#unfold}). Prefer a draining or {@code take}-bounded
-   * terminal (e.g. {@code toList()}, {@code take(n).toList()}); a short-circuiting terminal such as
-   * {@code headOption()}/{@code find(...)} returns before the stream completes and may leave the
-   * underlying HTTP response open, so avoid those on an SSE source.
+   * as the path is pulled. The stream is closed once the path is drained to completion, fails, or
+   * is stopped early by {@code take(n)} or by a terminal such as {@code headOption()} or {@code
+   * find(...)} (bracket semantics over {@link VStream#unfold}).
    *
    * @param source supplies the SSE response body stream
    * @param elementType the element type each {@code data:} frame decodes into

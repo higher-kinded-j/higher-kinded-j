@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vstream;
 
 import java.time.Duration;
 import java.util.Objects;
+import org.higherkindedj.hkt.vstream.VStream.Step;
 import org.higherkindedj.hkt.vtask.VTask;
 
 /**
@@ -68,11 +69,11 @@ public final class VStreamThrottle {
 
   private static <A> VStream<A> throttleWithState(
       VStream<A> stream, int maxElements, long windowNanos, WindowState state) {
-    return new VStream<>() {
+    return new DerivedStream<A, A>(stream) {
       @Override
       public VTask<Step<A>> pull() {
         return () -> {
-          Step<A> step = stream.pull().run();
+          Step<A> step = upstream.pull().run();
           if (step instanceof Step.Done) {
             return step;
           }
@@ -88,7 +89,7 @@ public final class VStreamThrottle {
             next = new WindowState(now, 1);
           } else if (state.emitted() >= maxElements) {
             // The window is full: wait for it to end, then start the next with this emission
-            Thread.sleep(Duration.ofNanos(windowNanos - (now - state.windowStart())));
+            waitHolding(Duration.ofNanos(windowNanos - (now - state.windowStart())), emit.tail());
             next = new WindowState(System.nanoTime(), 1);
           } else {
             // Within the window and under the limit
@@ -118,11 +119,11 @@ public final class VStreamThrottle {
     Objects.requireNonNull(stream, "stream must not be null");
     Objects.requireNonNull(interval, "interval must not be null");
 
-    return new VStream<>() {
+    return new DerivedStream<A, A>(stream) {
       @Override
       public VTask<Step<A>> pull() {
         return () -> {
-          Step<A> step = stream.pull().run();
+          Step<A> step = upstream.pull().run();
           if (step instanceof Step.Done) {
             return step;
           }
@@ -131,10 +132,23 @@ public final class VStreamThrottle {
           }
 
           Step.Emit<A> emit = (Step.Emit<A>) step;
-          Thread.sleep(interval);
+          waitHolding(interval, emit.tail());
           return new Step.Emit<>(emit.value(), metered(emit.tail(), interval));
         };
       }
     };
+  }
+
+  /**
+   * Waits before passing on an element. If the wait is interrupted, the rest of the stream, which
+   * only this step holds, is closed, so its finalisers run.
+   */
+  private static void waitHolding(Duration wait, VStream<?> rest) throws InterruptedException {
+    try {
+      Thread.sleep(wait);
+    } catch (InterruptedException interrupted) {
+      Closing.closeAfterFailure(rest, interrupted);
+      throw interrupted;
+    }
   }
 }
