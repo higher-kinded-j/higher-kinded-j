@@ -192,7 +192,7 @@ See [Database Records with JOOQ](copy_strategies.md) for the strategies in full.
 
 ## Organising the Bridge Layer
 
-```text
+<pre class="hkj-ascii-diagram" role="img" aria-label="The bridge layer as one package, com.myapp.optics. Its external package holds one spec per type you do not own, each generating that type's optics class; its bridges package holds one class of composed constants per domain, such as CompanyBridge and OrderBridge; and its package-info carries @ImportOptics for the simple types.">
 com.myapp.optics/
 ├── external/
 │   ├── AddressOpticsSpec.java       # spec, generates AddressOptics
@@ -201,7 +201,7 @@ com.myapp.optics/
 │   ├── CompanyBridge.java           # composed constants for the Company domain
 │   └── OrderBridge.java
 └── package-info.java                # @ImportOptics for the simple types
-```
+</pre>
 
 Three habits keep the layer honest:
 
