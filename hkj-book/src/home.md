@@ -455,20 +455,22 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 5. **[What a Path Is Made Of](optics/optics_intro.md):** The lenses, prisms and traversals a path wraps, and when you need one
 6. **[Updates That Can Fail](optics/fluent_api.md):** Validated updates, with every bad value reported
 7. **[Many Edits at Once](optics/multi_edit.md):** Several edits applied as one, including a REST PATCH
+8. **[Capstone: An Order Desk](optics/capstone.md):** Everything so far, on one order service
+9. **[Check Your Understanding](optics/self_check.md):** Twelve questions, and where to go next
 
 **On demand**, when a task calls for it:
 
-8. **[The Optic Types](optics/ch1_intro.md):** Lens, Prism, Affine and Iso, a page each
-9. **[Collections](optics/ch2_intro.md):** Traversal, Fold, Getter and Setter
-10. **[Precision and Filtering](optics/ch3_intro.md):** Filtered, indexed and per-key access
-11. **[The Focus DSL in Depth](optics/ch4_intro.md):** Effects, custom containers and `Kind` fields
-12. **[Optics for External Types](optics/importing_optics.md):** Jackson, JOOQ, Lombok and other types you do not own
-13. **[Validation, Batching and Auditing](optics/ch5_intro.md):** Validated prisms, `modifyF` pipelines, batching and audit trails
-14. **[Programs as Data](optics/ch6_intro.md):** The Free Monad DSL and its interpreters
+10. **[The Optic Types](optics/ch1_intro.md):** Lens, Prism, Affine and Iso, a page each
+11. **[Collections](optics/ch2_intro.md):** Traversal, Fold, Getter and Setter
+12. **[Precision and Filtering](optics/ch3_intro.md):** Filtered, indexed and per-key access
+13. **[The Focus DSL in Depth](optics/ch4_intro.md):** Effects, custom containers and `Kind` fields
+14. **[Optics for External Types](optics/importing_optics.md):** Jackson, JOOQ, Lombok and other types you do not own
+15. **[Validation, Batching and Auditing](optics/ch5_intro.md):** Validated prisms, `modifyF` pipelines, batching and audit trails
+16. **[Programs as Data](optics/ch6_intro.md):** The Free Monad DSL and its interpreters
 
 **Look it up**, when you hold a question:
 
-15. **[Look It Up](optics/ch7_intro.md):** Production readiness, annotations, decision trees, the cookbook and reference tables
+17. **[Look It Up](optics/ch7_intro.md):** Production readiness, annotations, decision trees, the cookbook and reference tables
 ~~~
 
 ~~~admonish note title="Mapping at the Boundary" collapsible=true

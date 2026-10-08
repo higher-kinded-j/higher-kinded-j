@@ -198,6 +198,31 @@ Everything else (`filter`, `modifyF`, `traced`, `via`, `foldMap`) lives on the p
 You can now step into a collection, read an optional or nullable value, pick one variant of a sealed type, and chain into another record with a navigator or `.via()`. The rest of this page is for a field that surprises you.
 ~~~
 
+~~~admonish question title="Checkpoint: replace the first line only" id="check-navigation-headoption"
+You want to replace only the first line of an order with a sofa. Which of `OrderFocus.lines().headOption().set(sofa, order)` and `FocusPath.of(OrderLenses.lines()).<LineItem>at(0).set(sofa, order)` does that, and what does the other do?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-navigation-headoption-answer"
+**The second.** `at(0)` indexes the list itself, so it writes only the first line. `headOption()` narrows the reads to the first element, but its writes go to every element the traversal reaches, so it replaces every line with the sofa.
+
+Where this lives: [Access by index](#access-by-index).
+~~~
+
+~~~admonish question title="Checkpoint: a hop from a list" id="check-navigation-list-hop"
+`Order` has `generateNavigators = true`, and `LineItem` carries `@GenerateFocus`. Does this compile?
+
+<!-- verify:rejects "cannot find symbol" -->
+```java
+var skus = OrderFocus.lines().sku();
+```
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-navigation-list-hop-answer"
+**No: the compiler reports `cannot find symbol`.** A `List` field is widened to a `TraversalPath` before navigators are considered, so it never gets one. Spell the hop `.via(LineItemFocus.sku())`.
+
+Where this lives: [Which fields get a navigator](#which-fields-get-a-navigator).
+~~~
+
 ---
 
 ## The fine print {#the-fine-print}

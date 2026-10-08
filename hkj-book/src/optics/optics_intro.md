@@ -68,7 +68,7 @@ A `Lens<S, A>` is the pair you would write by hand for one record component: the
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/parts/PathPartsBook.java:by_hand}}
 ```
 
-`CustomerLenses.email()` is this lens, generated, and a generated lens class holds one per component; the Quickstart's [What the processor wrote](quickstart.md#1-annotate-then-update) shows a whole class. A lens is a wither you can pass around, and it does what a wither cannot: compose. [Why a lens, when you have `@With`?](lenses.md#lens-or-wither) makes that case in full.
+`CustomerLenses.email()` is this lens, generated, and a generated lens class holds one per component; the Quickstart's [What the processor wrote](quickstart.md#1-annotate-then-update) shows a whole class. A lens keeps three promises: you read back what you set; setting what you just read changes nothing; and a second set replaces the first. hkj-test's `LensLaws` checks all three, which matters most for a lens you write by hand. A lens is a wither you can pass around, and it does what a wither cannot: compose. [Why a lens, when you have `@With`?](lenses.md#lens-or-wither) makes that case in full.
 
 ---
 
@@ -107,6 +107,8 @@ Each plays the part of a Java idiom you already write:
 | Getter | a derived accessor, such as a `fullName()` computed from two fields | composes with other getters, and with any optic through `asFold()` |
 | Setter | `stream().map(f).toList()` put back with a wither, with nothing read out first | composes, for a value you change without reading |
 
+An iso keeps a stronger promise than a lens: converting there and back, either way round, returns what you started with, and hkj-test's `IsoLaws` checks it.
+
 The [chapter introduction](ch_intro.md#how-the-optic-types-relate) draws how the eight types relate, and [Decision Trees](decision_trees.md#tree-1-which-optic-do-i-need) asks the same two questions as a tree.
 
 ---
@@ -133,6 +135,30 @@ Stay on the path by default. It has every read and write, its field names locate
 | The processor cannot reach the type, because you cannot annotate the class | Write the lens with `Lens.of`, as in [What a lens is](#what-a-lens-is), and check it with `LensLaws`; or generate the optics with `@ImportOptics`, which [Optics for External Types](importing_optics.md) covers, and [when to write a lens by hand](lenses.md#use-manual-lens-creation-when) compares |
 | The optic has no path type: an `Iso`, a `Getter`, a `Fold` or a `Setter` | Use it directly. An iso still joins a path through `.via(iso)`, and every path gives you its fold with `asFold()` |
 | A compiler message names an optic type, such as `Affine<Consignment, Dispatched>` | Read it as the optic inside the matching path type; the grid says what that optic can do, and [Compiler Errors](compiler_errors.md) lists the common messages |
+
+~~~admonish tip title="You can ship now"
+You can now take the optic out of a path, compose optics with `andThen`, and choose an optic by how many values it reaches and whether it writes. The next page hands those optics to updates that can fail.
+~~~
+
+~~~admonish question title="Checkpoint: the same lens two ways" id="check-parts-andthen"
+Are `ConsignmentLenses.to().andThen(AddressLenses.postcode())` and `ConsignmentFocus.to().postcode().toLens()` the same optic? What type is each?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-parts-andthen-answer"
+**Yes: each is a `Lens<Consignment, String>`, and they read and write the same postcode.** `.via(...)` on a path is `andThen` on the optic inside, and a navigator's hop is sugar for that `.via(...)`.
+
+Where this lives: [Composing optics with `andThen`](#composing-optics-with-andthen).
+~~~
+
+~~~admonish question title="Checkpoint: a lawful iso?" id="check-parts-iso"
+`Iso.of(EmailAddress::value, EmailAddress::new)` is a lawful iso. Is `Iso.of(Instant::getEpochSecond, Instant::ofEpochSecond)` one?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-parts-iso-answer"
+**No.** It compiles as an `Iso`, but it breaks the iso's promise. An `Instant` with a fraction of a second loses it on the way to whole seconds, so converting there and back does not return the instant you started with, and `IsoLaws` reports it.
+
+Where this lives: [Choosing an optic](#choosing-an-optic).
+~~~
 
 ---
 

@@ -20,11 +20,14 @@ import org.higherkindedj.example.book.optics.cast.Bank;
 import org.higherkindedj.example.book.optics.cast.Card;
 import org.higherkindedj.example.book.optics.cast.Consignment;
 import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.example.book.optics.cast.LineItemFocus;
 import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -208,5 +211,16 @@ class NavigationBookTest {
     assertThat(items.getAll(nestedConfig)).containsExactly("beta");
     assertThat(grid.getAll(nestedConfig)).containsExactly("x", "y", "z");
     assertThat(approval.getOptional(nestedConfig)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("checkpoint: at(0) replaces only the first line, and headOption replaces every line")
+  void checkpointAtZeroOrHeadOption() {
+    LineItem sofa = new LineItem("SOFA", 1, new BigDecimal("400.00"));
+
+    assertThat(FocusPath.of(OrderLenses.lines()).<LineItem>at(0).set(sofa, ORDER).lines())
+        .containsExactly(sofa, BULB);
+    assertThat(OrderFocus.lines().headOption().set(sofa, ORDER).lines())
+        .containsExactly(sofa, sofa);
   }
 }

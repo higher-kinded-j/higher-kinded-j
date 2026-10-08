@@ -15,10 +15,12 @@ import java.time.Instant;
 import java.util.List;
 import org.higherkindedj.example.book.optics.cast.Consignment;
 import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
 import org.higherkindedj.example.book.optics.cast.Customer;
 import org.higherkindedj.example.book.optics.cast.EmailAddress;
 import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -99,5 +101,26 @@ class QuickstartBookTest {
 
     assertThat(new ObjectMapper().readTree(json).at("/items/0/name").stringValue())
         .isEqualTo("Alice");
+  }
+
+  @Test
+  @DisplayName("checkpoint: set returns a new order, and the original and its lines are untouched")
+  void checkpointSetReturnsANewOrder() {
+    Order updated = OrderFocus.customer().email().value().set("ada@example.org", ORDER);
+
+    assertThat(ORDER.customer().email().value()).isEqualTo("ada@example.com");
+    assertThat(updated.lines()).isSameAs(ORDER.lines());
+  }
+
+  @Test
+  @DisplayName("checkpoint: a prism's modify on another variant returns it unchanged")
+  void checkpointModifyOnAnotherVariant() {
+    Consignment pending = consignment(new ConsignmentState.Pending());
+
+    ConsignmentState after =
+        ConsignmentStatePrisms.returned()
+            .modify(_ -> new ConsignmentState.Returned("lost"), pending.state());
+
+    assertThat(after).isSameAs(pending.state());
   }
 }

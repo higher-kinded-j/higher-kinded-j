@@ -50,6 +50,7 @@ Start from what you came for.
 | The everyday API, learned properly | The pages under **Ship** in the [Chapter Contents](#chapter-contents), read in order |
 | An update that can fail, with every bad value reported | [Updates That Can Fail](fluent_api.md) |
 | A PATCH endpoint, or several edits applied as one | [Many Edits at Once](multi_edit.md) |
+| To check what you have learned, and where to go next | [Check Your Understanding](self_check.md) |
 | A lens, prism, affine or iso explained in depth | [The Optic Types](ch1_intro.md) |
 | A traversal, fold, getter or setter explained in depth | [Collections](ch2_intro.md) |
 | To judge whether optics fit your codebase | [Production Readiness](production_readiness.md) |
@@ -99,20 +100,22 @@ The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) (202 exercises) pra
 4. [What a Path Is Made Of](optics_intro.md): The optics a path wraps, and when you need one
 5. [Updates That Can Fail](fluent_api.md): Validated updates, every error reported
 6. [Many Edits at Once](multi_edit.md): Several edits as one, and REST PATCH
+7. [Capstone: An Order Desk](capstone.md): Everything so far, on one order service
+8. [Check Your Understanding](self_check.md): Twelve questions, and where to go next
 
 **On demand**, when a task calls for it:
 
-7. [The Optic Types](ch1_intro.md): Lens, Prism, Affine and Iso, a page each
-8. [Collections](ch2_intro.md): Traversal, Fold, Getter and Setter
-9. [Precision and Filtering](ch3_intro.md): Filtered, indexed and per-key access
-10. [The Focus DSL in Depth](ch4_intro.md): Effects, custom containers and `Kind` fields
-11. [Optics for External Types](importing_optics.md): Jackson, JOOQ, Lombok and other types you do not own
-12. [Validation, Batching and Auditing](ch5_intro.md): Validated prisms, `modifyF` pipelines, batching and audit trails
-13. [Programs as Data](ch6_intro.md): The Free Monad DSL and its interpreters
+9. [The Optic Types](ch1_intro.md): Lens, Prism, Affine and Iso, a page each
+10. [Collections](ch2_intro.md): Traversal, Fold, Getter and Setter
+11. [Precision and Filtering](ch3_intro.md): Filtered, indexed and per-key access
+12. [The Focus DSL in Depth](ch4_intro.md): Effects, custom containers and `Kind` fields
+13. [Optics for External Types](importing_optics.md): Jackson, JOOQ, Lombok and other types you do not own
+14. [Validation, Batching and Auditing](ch5_intro.md): Validated prisms, `modifyF` pipelines, batching and audit trails
+15. [Programs as Data](ch6_intro.md): The Free Monad DSL and its interpreters
 
 **Look it up**, when you hold a question:
 
-14. [Look It Up](ch7_intro.md): Production readiness, decision trees, the cookbook and reference tables
+16. [Look It Up](ch7_intro.md): Production readiness, decision trees, the cookbook and reference tables
 
 ---
 

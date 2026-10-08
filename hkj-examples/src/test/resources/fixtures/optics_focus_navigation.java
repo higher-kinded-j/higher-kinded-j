@@ -4,7 +4,8 @@
 // annotation declarations for controlling navigator generation. They name the
 // chapter cast's records, declared here with the cast's components, and the
 // annotation processor generates their *Focus companions during snippet
-// compilation. The depth fence declares Order itself, so it is not declared here.
+// compilation. The depth fence declares Order itself, so it is not declared here, and the
+// refused-hop fence uses the cast's own OrderFocus through the on-demand import.
 //
 // NOTE: imports in a fixture serve the snippet this file is spliced into (this
 // one also happens to use its imports itself). Spotless excludes
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
+import org.higherkindedj.example.book.optics.cast.*;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 
 @GenerateFocus

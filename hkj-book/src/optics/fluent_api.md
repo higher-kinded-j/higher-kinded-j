@@ -140,6 +140,26 @@ A bad email stops the chain with `Left("Invalid email: ...")` before the name is
 You can now check a field or every element of a list as you update it, and choose whether the caller hears the first error or every one. The rest of this page is for an effect other than these three, and for code that holds an optic rather than a path.
 ~~~
 
+~~~admonish question title="Checkpoint: every error or the first" id="check-fluent-every-first"
+An order's lines are priced -1.00, 5.00 and -2.00. What do `modifyAllValidated` and `modifyAllEither` return, with the price check from this page?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-fluent-every-first-answer"
+**`modifyAllValidated` returns `Invalid(["Price cannot be negative: -1.00", "Price cannot be negative: -2.00"])`; `modifyAllEither` returns `Left("Price cannot be negative: -1.00")`.** Both check every price; one keeps every failure, the other only the first.
+
+Where this lives: [Four ways to fail](#part-2-validation-aware-modification).
+~~~
+
+~~~admonish question title="Checkpoint: a chain of `modifyEither`" id="check-fluent-chain"
+Suppose the registration chain checked the name first, then the email. What would a customer named `B` with the email `b.example.com` get?
+~~~
+
+~~~admonish success title="Answer and why" collapsible=true id="check-fluent-chain-answer"
+**`Left("Name must be at least 2 characters")`.** A `Left` stops a `flatMap` chain at the first failure, so the email is never checked: the first check in the chain decides which error you hear.
+
+Where this lives: [Sequential validation](#sequential-validation).
+~~~
+
 ---
 
 ## Any other effect: `modifyF` {#part-3-arbitrary-effects-with-modifyf}

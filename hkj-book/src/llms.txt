@@ -161,6 +161,7 @@ Pages:
 - [Optics for External Types](https://higher-kinded-j.github.io/latest/optics/importing_optics.md): `@ImportOptics` for JDK and third-party types
 - [Updates That Can Fail](https://higher-kinded-j.github.io/latest/optics/fluent_api.md): `OpticOps` validated updates, reporting the first error or every one
 - [Many Edits at Once](https://higher-kinded-j.github.io/latest/optics/multi_edit.md): `Edits.combine` and `Edits.accumulate`, by hand
+- [Capstone: An Order Desk](https://higher-kinded-j.github.io/latest/optics/capstone.md): the first pages' techniques together on one order service
 - [Cookbook](https://higher-kinded-j.github.io/latest/optics/cookbook.md): recipes for common optics tasks
 - [Common Compiler Errors](https://higher-kinded-j.github.io/latest/optics/compiler_errors.md): optics processor messages and their fixes
 

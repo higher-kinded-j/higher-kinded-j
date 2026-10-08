@@ -63,6 +63,8 @@
   - [What a Path Is Made Of](optics/optics_intro.md)
   - [Updates That Can Fail](optics/fluent_api.md)
   - [Many Edits at Once](optics/multi_edit.md)
+  - [Capstone: An Order Desk](optics/capstone.md)
+  - [Check Your Understanding](optics/self_check.md)
   - [The Optic Types](optics/ch1_intro.md)
     - [Lenses](optics/lenses.md)
       - [Coupled Fields](optics/coupled_fields.md)
