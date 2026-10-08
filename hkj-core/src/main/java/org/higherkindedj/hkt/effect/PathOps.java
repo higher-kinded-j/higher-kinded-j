@@ -425,23 +425,24 @@ public final class PathOps {
    *
    * <p>For parallel execution, use {@link #sequenceVTaskPar(List)}.
    *
-   * @param paths the list of paths to sequence; must not be null
+   * @param paths the list of paths to sequence; must not be null or contain nulls, and is copied
+   *     when this method is called
    * @param <A> the element type
    * @return a VTaskPath containing a list, or the first failure
-   * @throws NullPointerException if paths is null
+   * @throws NullPointerException if paths is null or contains null
    */
   public static <A> VTaskPath<List<A>> sequenceVTask(List<VTaskPath<A>> paths) {
-    Objects.requireNonNull(paths, "paths must not be null");
+    List<VTaskPath<A>> sequenced = copyOfPaths(paths);
 
-    if (paths.isEmpty()) {
+    if (sequenced.isEmpty()) {
       return Path.vtaskPure(List.of());
     }
 
     return Path.vtaskPath(
         VTask.delay(
             () -> {
-              List<A> results = new ArrayList<>(paths.size());
-              for (VTaskPath<A> path : paths) {
+              List<A> results = new ArrayList<>(sequenced.size());
+              for (VTaskPath<A> path : sequenced) {
                 results.add(path.unsafeRun());
               }
               return results;
@@ -456,7 +457,7 @@ public final class PathOps {
    *
    * <p>For parallel execution, use {@link #traverseVTaskPar(List, Function)}.
    *
-   * @param items the items to traverse; must not be null
+   * @param items the items to traverse; must not be null, and is copied when this method is called
    * @param f the function to apply; must not be null
    * @param <A> the input element type
    * @param <B> the output element type
@@ -467,16 +468,17 @@ public final class PathOps {
       List<A> items, Function<A, VTaskPath<B>> f) {
     Objects.requireNonNull(items, "items must not be null");
     Objects.requireNonNull(f, "f must not be null");
+    List<A> traversed = new ArrayList<>(items);
 
-    if (items.isEmpty()) {
+    if (traversed.isEmpty()) {
       return Path.vtaskPure(List.of());
     }
 
     return Path.vtaskPath(
         VTask.delay(
             () -> {
-              List<B> results = new ArrayList<>(items.size());
-              for (A item : items) {
+              List<B> results = new ArrayList<>(traversed.size());
+              for (A item : traversed) {
                 VTaskPath<B> path = f.apply(item);
                 results.add(path.unsafeRun());
               }
@@ -599,19 +601,20 @@ public final class PathOps {
    * #firstVTaskSuccess(NonEmptyList)} overload, which is total and never throws {@link
    * IllegalArgumentException}.
    *
-   * @param paths the paths to try; must not be null or empty
+   * @param paths the paths to try; must not be null, empty or contain nulls, and is copied when
+   *     this method is called
    * @param <A> the element type
    * @return the first successful path, or the last failure
-   * @throws NullPointerException if paths is null
+   * @throws NullPointerException if paths is null or contains null
    * @throws IllegalArgumentException if paths is empty
    * @see NonEmptyList#fromList(List)
    */
   public static <A> VTaskPath<A> firstVTaskSuccess(List<VTaskPath<A>> paths) {
-    Objects.requireNonNull(paths, "paths must not be null");
-    if (paths.isEmpty()) {
+    List<VTaskPath<A>> candidates = copyOfPaths(paths);
+    if (candidates.isEmpty()) {
       throw new IllegalArgumentException("paths must not be empty");
     }
-    return firstVTaskSuccessUnchecked(paths);
+    return firstVTaskSuccessUnchecked(candidates);
   }
 
   /**
@@ -1079,15 +1082,16 @@ public final class PathOps {
    * <p>All IOPaths are executed concurrently using CompletableFuture. If any IOPath fails, the
    * result fails with that exception.
    *
-   * @param paths the IOPaths to execute in parallel; must not be null
+   * @param paths the IOPaths to execute in parallel; must not be null or contain nulls, and is
+   *     copied when this method is called
    * @param <A> the element type
    * @return an IOPath containing a list of all results
-   * @throws NullPointerException if paths is null
+   * @throws NullPointerException if paths is null or contains null
    */
   public static <A> IOPath<List<A>> parSequenceIO(List<IOPath<A>> paths) {
-    Objects.requireNonNull(paths, "paths must not be null");
+    List<IOPath<A>> sequenced = copyOfPaths(paths);
 
-    if (paths.isEmpty()) {
+    if (sequenced.isEmpty()) {
       return Path.ioPure(List.of());
     }
 
@@ -1095,7 +1099,7 @@ public final class PathOps {
         IO.delay(
             () -> {
               List<CompletableFuture<A>> futures =
-                  paths.stream()
+                  sequenced.stream()
                       .map(path -> CompletableFuture.supplyAsync(path::unsafeRun))
                       .toList();
 
@@ -1240,19 +1244,20 @@ public final class PathOps {
    * <p>When at least one path is statically known, prefer the {@link #raceIO(NonEmptyList)}
    * overload, which is total and never throws {@link IllegalArgumentException}.
    *
-   * @param paths the IOPaths to race; must not be null or empty
+   * @param paths the IOPaths to race; must not be null, empty or contain nulls, and is copied when
+   *     this method is called
    * @param <A> the element type
    * @return an IOPath that completes with the first successful result
-   * @throws NullPointerException if paths is null
+   * @throws NullPointerException if paths is null or contains null
    * @throws IllegalArgumentException if paths is empty
    * @see NonEmptyList#fromList(List)
    */
   public static <A> IOPath<A> raceIO(List<IOPath<A>> paths) {
-    Objects.requireNonNull(paths, "paths must not be null");
-    if (paths.isEmpty()) {
+    List<IOPath<A>> racing = copyOfPaths(paths);
+    if (racing.isEmpty()) {
       throw new IllegalArgumentException("paths must not be empty");
     }
-    return raceIOUnchecked(paths);
+    return raceIOUnchecked(racing);
   }
 
   /**
@@ -1603,5 +1608,13 @@ public final class PathOps {
   public static <A> VTaskPath<List<A>> parCollectVStream(VStreamPath<A> stream, int batchSize) {
     Objects.requireNonNull(stream, "stream must not be null");
     return stream.parCollect(batchSize);
+  }
+
+  private static <P> List<P> copyOfPaths(List<P> paths) {
+    Objects.requireNonNull(paths, "paths must not be null");
+    for (P path : paths) {
+      Objects.requireNonNull(path, "paths must not contain null");
+    }
+    return List.copyOf(paths);
   }
 }

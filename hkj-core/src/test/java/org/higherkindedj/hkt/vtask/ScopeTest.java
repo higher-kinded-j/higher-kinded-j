@@ -224,7 +224,8 @@ class ScopeTest {
           VTask.of(
               () -> {
                 diagnostics.dumpThreads(
-                    dump.toString(), HotSpotDiagnosticMXBean.ThreadDumpFormat.JSON);
+                    dump.toAbsolutePath().toString(),
+                    HotSpotDiagnosticMXBean.ThreadDumpFormat.JSON);
                 return "dumped";
               });
 
@@ -461,7 +462,7 @@ class ScopeTest {
       AtomicBoolean cancelled = new AtomicBoolean();
       VTask<List<String>> join =
           Scope.<String>allSucceed()
-              .timeout(Duration.ofMillis(50))
+              .timeout(Duration.ofMillis(200))
               .fork(
                   VTask.of(
                       () -> {
@@ -480,7 +481,7 @@ class ScopeTest {
             .isInstanceOf(VTaskExecutionException.class)
             .cause()
             .isInstanceOf(TimeoutException.class)
-            .hasMessage("Scope timed out after PT0.05S");
+            .hasMessage("Scope timed out after PT0.2S");
         assertThat(cancelled).isTrue();
       } finally {
         neverReleased.countDown();

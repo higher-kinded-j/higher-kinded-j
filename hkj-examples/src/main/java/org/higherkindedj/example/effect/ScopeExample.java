@@ -251,7 +251,7 @@ public class ScopeExample {
               return "Slow result 2";
             });
 
-    // This will timeout before tasks complete
+    // This will time out before tasks complete
     VTask<List<String>> withTimeout =
         Scope.<String>allSucceed()
             .timeout(Duration.ofMillis(200))

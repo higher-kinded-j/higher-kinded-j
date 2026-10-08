@@ -166,7 +166,7 @@ The typed carriers (`EitherPath`, `VResultPath`) are **railway-aware** throughou
 - A business `Left` is a value, not a fault: it is **never retried** by default, and it **never trips a circuit breaker** (only thrown exceptions count as failures).
 - The typed `withRetry(retryOn, policy)` overload opts selected transient errors in; on exhaustion the **last `Left`** is returned, staying on the typed channel.
 - The `onTimeout` / `onOpen` / `onFull` overloads land timeouts, open-circuit rejections, and bulkhead rejections as typed `Left`s instead of thrown exceptions.
-- Timeouts do **not** interrupt the losing computation; it keeps running unobserved after the typed timeout is returned, so bound its side effects accordingly.
+- Timeouts do **not** interrupt the losing computation; it keeps running unobserved after the typed timeout is returned, so bound its side effects accordingly. A [`Scope` with a `timeout`](../monads/vtask_scope.md#scope-usage-patterns) interrupts its subtasks instead.
 
 On `IOPath` and `VTaskPath` there is no typed channel, so `withTimeout(duration)` surfaces the timeout on the failure channel (`IOPath` fails with a `CompletionException` wrapping the `TimeoutException`; `VTaskPath` fails with the `TimeoutException` itself), and breaker/bulkhead rejections propagate as exceptions.
 

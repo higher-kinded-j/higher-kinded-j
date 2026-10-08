@@ -169,9 +169,10 @@ public final class Scope<T, R> {
   /**
    * Sets a timeout for the scope.
    *
-   * <p>If the subtasks have not all completed within the timeout, the scope is cancelled: those
-   * still running are interrupted, and the run fails with a {@link TimeoutException} once they have
-   * stopped.
+   * <p>The timeout starts when a run opens its scope. If that run has not finished joining when it
+   * expires, the scope is cancelled: the subtasks still running are interrupted, and the run fails
+   * with a {@link TimeoutException} once they have stopped. A subtask that ignores interruption
+   * delays that failure until it finishes.
    *
    * @param timeout the maximum time to wait; must not be null
    * @return a new Scope with the timeout configured
@@ -183,7 +184,8 @@ public final class Scope<T, R> {
   }
 
   /**
-   * Sets a name for the scope, which a thread dump shows for it (useful for debugging).
+   * Sets a name for the scope, for monitoring and debugging. A thread dump in JSON format, such as
+   * {@code jcmd <pid> Thread.dump_to_file -format=json <file>} writes, shows it.
    *
    * @param name the name for this scope; must not be null
    * @return a new Scope with the name configured

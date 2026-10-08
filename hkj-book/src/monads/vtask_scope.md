@@ -86,7 +86,7 @@ VTask<List<Integer>> all = Scope.<Integer>allSucceed()
 ```
 ~~~
 
-A timeout cancels the scope when it expires: subtasks still running are interrupted, and the run fails with a `TimeoutException` once they have stopped. The scope is opened on the thread that runs the `VTask`, so its subtasks see that thread's `ScopedValue` bindings, such as a request context.
+A timeout cancels the scope when it expires: subtasks still running are interrupted, and the run fails with a `TimeoutException` once they have stopped. A subtask that ignores interruption, such as one spinning in a loop, holds that failure back until it finishes. The scope is opened on the thread that runs the `VTask`, so its subtasks see that thread's `ScopedValue` bindings, such as the [request context](../effect/context_request.md). `named(...)` gives the scope a name, which a thread dump in JSON format shows.
 
 ---
 

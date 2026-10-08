@@ -256,7 +256,7 @@ VTask<List<UserData>> results = Scope.<UserData>allSucceed()
 // If any task fails or times out:
 // - Other tasks are cancelled
 // - Resources are cleaned up
-// - AppError propagates to caller
+// - the failure, or a TimeoutException, reaches the caller
 ```
 
 **Contrast with Unstructured Concurrency:**

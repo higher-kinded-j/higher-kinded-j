@@ -23,7 +23,7 @@ import org.higherkindedj.hkt.function.Function3;
  *   <li>{@link #zip(VTask, VTask)} - Execute two tasks in parallel, combine results
  *   <li>{@link #zip3(VTask, VTask, VTask)} - Execute three tasks in parallel, combine results
  *   <li>{@link #map2(VTask, VTask, BiFunction)} - Execute two tasks in parallel, apply function
- *   <li>{@link #race(List)} - Return the first task to complete
+ *   <li>{@link #race(List)} - Return the first task to succeed
  *   <li>{@link #all(List)} - Wait for all tasks to complete
  *   <li>{@link #traverse(List, Function)} - Apply function to list, execute results in parallel
  * </ul>
@@ -205,7 +205,7 @@ public final class Par {
    * change what a run races.
    *
    * @param <A> The type of the tasks' results.
-   * @param tasks The list of tasks to race. Must not be null, empty or contain nulls.
+   * @param tasks The list of tasks to race. Must not be null or empty, and must not contain nulls.
    * @return A {@code VTask} that produces the first successful result. Never null.
    * @throws NullPointerException if {@code tasks} is null or contains null.
    * @throws IllegalArgumentException if {@code tasks} is empty.
@@ -319,9 +319,9 @@ public final class Par {
     };
   }
 
-  private static <T> List<T> copyOfTasks(List<T> tasks) {
+  private static <A> List<VTask<A>> copyOfTasks(List<VTask<A>> tasks) {
     Objects.requireNonNull(tasks, "tasks cannot be null");
-    for (T task : tasks) {
+    for (VTask<A> task : tasks) {
       Objects.requireNonNull(task, "tasks cannot contain null");
     }
     return List.copyOf(tasks);

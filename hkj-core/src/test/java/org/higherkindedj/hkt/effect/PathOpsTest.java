@@ -2634,4 +2634,76 @@ class PathOpsTest {
           .withMessageContaining("paths must not be null");
     }
   }
+
+  @Nested
+  @DisplayName("Lists are read when called")
+  class ListsAreReadWhenCalledTests {
+
+    @Test
+    @DisplayName("sequenceVTask() and traverseVTask() run the list as it was when called")
+    void sequencingReadsTheListWhenCalled() {
+      List<VTaskPath<Integer>> paths = new ArrayList<>(List.of(Path.vtaskPure(1)));
+      List<Integer> items = new ArrayList<>(List.of(1));
+      VTaskPath<List<Integer>> sequenced = PathOps.sequenceVTask(paths);
+      VTaskPath<List<Integer>> traversed =
+          PathOps.traverseVTask(items, i -> Path.vtaskPure(i * 10));
+
+      paths.add(Path.vtaskPure(2));
+      items.add(2);
+
+      assertThat(sequenced.unsafeRun()).containsExactly(1);
+      assertThat(traversed.unsafeRun()).containsExactly(10);
+    }
+
+    @Test
+    @DisplayName("parSequenceIO() runs the list as it was when called")
+    void parSequenceIOReadsTheListWhenCalled() {
+      List<IOPath<String>> paths = new ArrayList<>(List.of(Path.ioPure("first")));
+      IOPath<List<String>> sequenced = PathOps.parSequenceIO(paths);
+
+      paths.replaceAll(_ -> Path.ioPure("changed"));
+
+      assertThat(sequenced.unsafeRun()).containsExactly("first");
+    }
+
+    @Test
+    @DisplayName("firstVTaskSuccess() and raceIO() race the list as it was when called")
+    void racesReadTheListWhenCalled() {
+      List<VTaskPath<String>> candidates = new ArrayList<>(List.of(Path.vtaskPure("first")));
+      List<IOPath<String>> racers =
+          new ArrayList<>(List.of(Path.ioPure("first"), Path.ioPure("first")));
+      VTaskPath<String> first = PathOps.firstVTaskSuccess(candidates);
+      IOPath<String> race = PathOps.raceIO(racers);
+
+      candidates.replaceAll(_ -> Path.vtaskPure("changed"));
+      racers.replaceAll(_ -> Path.ioPure("changed"));
+
+      assertThat(first.unsafeRun()).isEqualTo("first");
+      assertThat(race.unsafeRun()).isEqualTo("first");
+    }
+
+    @Test
+    @DisplayName("a list of paths rejects a null element when called")
+    void aListOfPathsRejectsANullElementWhenCalled() {
+      List<VTaskPath<String>> vtasks = new ArrayList<>();
+      vtasks.add(Path.vtaskPure("fine"));
+      vtasks.add(null);
+      List<IOPath<String>> ios = new ArrayList<>();
+      ios.add(Path.ioPure("fine"));
+      ios.add(null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.sequenceVTask(vtasks))
+          .withMessage("paths must not contain null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.firstVTaskSuccess(vtasks))
+          .withMessage("paths must not contain null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.parSequenceIO(ios))
+          .withMessage("paths must not contain null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> PathOps.raceIO(ios))
+          .withMessage("paths must not contain null");
+    }
+  }
 }
