@@ -42,11 +42,16 @@ Those are the whole API, with one more form of `accumulate` for [fields a constr
 
 ## Edits that cannot fail: `Edits.combine` {#pure-multi-edit-editscombine}
 
-Each `Edit` factory pairs an optic (a `FocusPath` or a `Setter`) with a value or function. `combine` joins them, in order, into one `Update<LineItem>`: a function from line to line that you can name and reuse.
+Each `Edit` factory pairs an optic (a `FocusPath` or a `Setter`) with a value or function. `combine` joins them, in order, into one `Update<LineItem>`: a function from line to line that you can name and reuse. The factories are static imports from `org.higherkindedj.optics.edit.Edit`:
+
+<!-- verify -->
+```java
+import static org.higherkindedj.optics.edit.Edit.*;
+```
+
+With them in scope, each `modify` names one edit, and `combine` joins the edits into one update:
 
 ``` java
-import static org.higherkindedj.optics.edit.Edit.*;
-
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:combine}}
 ```
 

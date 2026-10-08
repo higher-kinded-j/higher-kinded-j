@@ -10,6 +10,7 @@
 
 import static org.higherkindedj.optics.extensions.GetterExtensions.getMaybe;
 
+import java.math.BigDecimal;
 import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,7 @@ record Person(String firstName, String lastName, int age, Address address) {}
 
 record Company(String name, Person ceo, List<Person> employees, Address headquarters) {}
 
-record Product(String name, double price) {}
+record Product(String name, BigDecimal price) {}
 
 record Order(String id, List<Product> items) {}
 
@@ -77,7 +78,7 @@ class Fixture {
 
   static final Person person2 = person;
 
-  static final Order order = new Order("ORD-1", List.of(new Product("Widget", 9.99)));
+  static final Order order = new Order("ORD-1", List.of(new Product("Widget", new BigDecimal("9.99"))));
 
   static final ApiResponse response = new ApiResponse(new User(new Profile("Jane")));
 

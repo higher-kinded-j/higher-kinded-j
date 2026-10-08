@@ -1,6 +1,6 @@
 // Fixture for hkj-book/src/optics/folds.md
 //
-// The page queries one e-commerce model - product, order, order history - and then reaches for a
+// The page queries one e-commerce model - product, purchase, purchase history - and then reaches for a
 // team of employees and a configuration record to show fold combination. All three domains are
 // declared here with their generators, so the page's snippets name genuinely generated folds; a
 // snippet that shows a model shadows this copy.
@@ -14,6 +14,8 @@ import static org.higherkindedj.optics.extensions.FoldExtensions.findMaybe;
 import static org.higherkindedj.optics.extensions.FoldExtensions.getAllMaybe;
 import static org.higherkindedj.optics.extensions.FoldExtensions.previewMaybe;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -42,16 +44,16 @@ import org.higherkindedj.optics.util.Traversals;
 
 @GenerateLenses
 @GenerateFolds
-record Product(String name, double price, String category, boolean inStock) {}
+record Product(String name, BigDecimal price, String category, boolean inStock) {}
 
 @GenerateLenses
 @GenerateFolds
 @GenerateTraversals
-record Order(String orderId, List<Product> items, String customerName) {}
+record Purchase(String purchaseId, List<Product> items, String customerName) {}
 
 @GenerateLenses
 @GenerateFolds
-record OrderHistory(List<Order> orders) {}
+record PurchaseHistory(List<Purchase> purchases) {}
 
 @GenerateFolds
 record ProductCatalog(List<Product> products) {}
@@ -64,25 +66,39 @@ record Config(String host, Optional<String> port, Optional<String> database) {}
 
 class Fixture {
 
-  static final Product laptop = new Product("Laptop", 999.99, "Electronics", true);
+  static final Product laptop = new Product("Laptop", new BigDecimal("999.99"), "Electronics", true);
 
-  static final Product mouse = new Product("Mouse", 25.00, "Electronics", true);
+  static final Product mouse = new Product("Mouse", new BigDecimal("25.00"), "Electronics", true);
 
-  static final Product desk = new Product("Desk", 350.00, "Furniture", false);
+  static final Product desk = new Product("Desk", new BigDecimal("350.00"), "Furniture", false);
 
-  static final Order order = new Order("ORD-123", List.of(laptop, mouse, desk), "Alice");
+  static final Purchase purchase = new Purchase("ORD-123", List.of(laptop, mouse, desk), "Alice");
 
-  static final Order order1 = order;
+  static final Purchase purchase1 = purchase;
 
-  static final Order order2 = new Order("ORD-124", List.of(mouse), "Bob");
+  static final Purchase purchase2 = new Purchase("ORD-124", List.of(mouse), "Bob");
 
-  static final Order order3 = new Order("ORD-125", List.of(desk), "Carol");
+  static final Purchase purchase3 = new Purchase("ORD-125", List.of(desk), "Carol");
 
-  static final List<Order> orders = List.of(order1, order2, order3);
+  static final List<Purchase> purchases = List.of(purchase1, purchase2, purchase3);
 
-  static final OrderHistory history = new OrderHistory(orders);
+  static final PurchaseHistory history = new PurchaseHistory(purchases);
 
-  static final Fold<Order, Product> itemsFold = OrderFolds.items();
+  static final Fold<Purchase, Product> itemsFold = PurchaseFolds.items();
+
+  // The BigDecimal sum the page writes in Step 4, which later snippets reuse by name.
+  static final Monoid<BigDecimal> sumMonoid =
+      new Monoid<>() {
+        @Override
+        public BigDecimal empty() {
+          return BigDecimal.ZERO;
+        }
+
+        @Override
+        public BigDecimal combine(BigDecimal a, BigDecimal b) {
+          return a.add(b);
+        }
+      };
 
   static final List<Double> discounts = List.of(0.9, 0.95, 0.85);
 

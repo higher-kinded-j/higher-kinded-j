@@ -229,7 +229,6 @@ public class TraversalUsageExample {
     printLeagueScores(league);
     System.out.println("\nAfter branching bonuses (experts +100, others +20):");
     printLeagueScores(ID.narrow(updated).value());
-    System.out.println();
   }
 
   private static void printLeagueScores(League league) {

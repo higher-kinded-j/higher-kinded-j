@@ -34,6 +34,7 @@ import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateIsos;
 import org.higherkindedj.optics.annotations.GenerateLenses;
+import org.higherkindedj.optics.laws.IsoLaws;
 
 record Point(int x, int y) {}
 

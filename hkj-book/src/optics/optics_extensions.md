@@ -36,51 +36,30 @@ These extension methods are also available through the [Fluent API](fluent_api.m
 
 ### Safe Access Methods
 
+Where an example in this part reads `profile`, it is Alice's `UserProfile`, holding the id `u1`, the name `Alice`, the email `alice@example.com`, the age `30` and the bio `Software Engineer`.
+
 #### `getMaybe`: Null-Safe Field Access
 
 Returns `Maybe.just(value)` if the field is non-null, `Maybe.nothing()` otherwise.
 
-<!-- verify -->
-```java
-Lens<UserProfile, String> bioLens = UserProfileLenses.bio();
-
-UserProfile withBio = new UserProfile("u1", "Alice", "alice@example.com", 30, "Software Engineer");
-Maybe<String> bio = getMaybe(bioLens, withBio);  // Maybe.just("Software Engineer")
-
-UserProfile withoutBio = new UserProfile("u2", "Bob", "bob@example.com", 25, null);
-Maybe<String> noBio = getMaybe(bioLens, withoutBio);  // Maybe.nothing()
-
-// Use with default
-String displayBio = bio.orElse("No bio provided");
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/extensions/ExtensionsBook.java:get_maybe}}
 ```
 
 #### `getEither`: Access with Default Error
 
 Returns `Either.right(value)` if non-null, `Either.left(error)` if null.
 
-<!-- verify -->
-```java
-Lens<UserProfile, Integer> ageLens = UserProfileLenses.age();
-
-Either<String, Integer> age = getEither(ageLens, "Age not provided", profile);
-// Either.right(30) or Either.left("Age not provided")
-
-String message = age.fold(
-    error -> "AppError: " + error,
-    a -> "Age: " + a
-);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/extensions/ExtensionsBook.java:get_either}}
 ```
 
 #### `getValidated`: Access with Validation Error
 
 Like `getEither`, but returns `Validated` for consistency with validation workflows.
 
-<!-- verify -->
-```java
-Lens<UserProfile, String> emailLens = UserProfileLenses.email();
-
-Validated<String, String> email = getValidated(emailLens, "Email is required", profile);
-// Validated.valid("alice@example.com") or Validated.invalid("Email is required")
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/extensions/ExtensionsBook.java:get_validated}}
 ```
 
 ### Modification Methods
@@ -89,16 +68,8 @@ Validated<String, String> email = getValidated(emailLens, "Email is required", p
 
 Apply a modification that might not succeed. Returns `Maybe.just(updated)` if successful, `Maybe.nothing()` if it fails.
 
-<!-- verify -->
-```java
-Lens<UserProfile, String> nameLens = UserProfileLenses.name();
-
-Maybe<UserProfile> updated = modifyMaybe(
-    nameLens,
-    name -> name.length() >= 2 ? Maybe.just(name.toUpperCase()) : Maybe.nothing(),
-    profile
-);
-// Maybe.just(UserProfile with name "ALICE") or Maybe.nothing()
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/extensions/ExtensionsBook.java:modify_maybe}}
 ```
 
 #### `modifyEither`: Fail-Fast Validation
@@ -195,18 +166,14 @@ import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 ### Extraction Methods
 
+Where an example in this part reads `items`, it is a list of two `OrderItem` lines: `SKU-1`, one at 999.99, pending, and `SKU-2`, two at 29.99, shipped.
+
 #### `getAllMaybe`: Extract All Values
 
 Returns `Maybe.just(values)` if any elements exist, `Maybe.nothing()` for empty collections.
 
-<!-- verify -->
-```java
-Lens<OrderItem, BigDecimal> priceLens = OrderItemLenses.price();
-Traversal<List<OrderItem>, BigDecimal> allPrices =
-    Traversals.<OrderItem>forList().andThen(priceLens);
-
-Maybe<List<BigDecimal>> prices = getAllMaybe(allPrices, items);
-// Maybe.just([999.99, 29.99]) or Maybe.nothing()
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/extensions/ExtensionsBook.java:get_all_maybe}}
 ```
 
 ### Bulk Modification Methods
@@ -215,16 +182,8 @@ Maybe<List<BigDecimal>> prices = getAllMaybe(allPrices, items);
 
 Returns `Maybe.just(updated)` if **all** modifications succeed, `Maybe.nothing()` if **any** fail. Atomic operation.
 
-<!-- verify -->
-```java
-Maybe<List<OrderItem>> updated = modifyAllMaybe(
-    allPrices,
-    price -> price.compareTo(new BigDecimal("10")) >= 0
-        ? Maybe.just(price.multiply(new BigDecimal("1.1")))  // 10% increase
-        : Maybe.nothing(),
-    items
-);
-// Maybe.just([updated items]) or Maybe.nothing() if any price < 10
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/extensions/ExtensionsBook.java:modify_all_maybe}}
 ```
 
 ~~~admonish tip title="When to Use modifyAllMaybe"
@@ -235,19 +194,8 @@ Use for **atomic updates** where all modifications must succeed or none should a
 
 Returns `Either.right(updated)` if **all** validations pass, `Either.left(firstError)` if **any** fail. The result keeps only the first error; the traversal still visits every element.
 
-<!-- verify -->
-```java
-Either<String, List<OrderItem>> result = modifyAllEither(
-    allPrices,
-    price -> {
-        if (price.compareTo(BigDecimal.ZERO) < 0) {
-            return Either.left("Price cannot be negative");
-        }
-        return Either.right(price);
-    },
-    items
-);
-// Left("Price cannot be negative"): the first failure wins, though every price is checked
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/extensions/ExtensionsBook.java:modify_all_either}}
 ```
 
 ~~~admonish tip title="When to Use modifyAllEither"
@@ -397,7 +345,7 @@ public ValidationResult validateOrder(Order order) {
     List<OrderItem> discounted = modifyWherePossible(
         allPrices,
         price -> price.compareTo(new BigDecimal("100")) > 0
-            ? Maybe.just(price.multiply(new BigDecimal("0.9")))
+            ? Maybe.just(price.multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN))
             : Maybe.nothing(),
         order.items()
     );
@@ -443,6 +391,7 @@ private Either<String, Integer> validateQuantity(Integer qty) {
 ~~~
 
 ~~~admonish tip title="Keep Validation Functions Pure"
+<!-- verify -->
 ```java
 // Good: Pure validator
 private Either<String, String> validateEmail(String email) {
@@ -453,9 +402,12 @@ private Either<String, String> validateEmail(String email) {
 }
 
 // Avoid: Impure validator with side effects
-private Either<String, String> validateEmail(String email) {
+private Either<String, String> validateEmailAndLog(String email) {
     logger.info("Validating email: {}", email);  // Side effect
-    // ...
+    if (!email.contains("@")) {
+        return Either.left("Invalid email");
+    }
+    return Either.right(email.toLowerCase());
 }
 ```
 

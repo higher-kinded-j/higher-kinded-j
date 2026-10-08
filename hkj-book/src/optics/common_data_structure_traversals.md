@@ -79,28 +79,10 @@ This pattern doesn't compose with other optics and mixes traversal logic with tr
 
 ### The Solution: `forOptional()` Traversal
 
-The `forOptional()` method creates an **affine traversal**, focusing on 0 or 1 element.
+The `forOptional()` method, on `org.higherkindedj.optics.util.Traversals`, creates an **affine traversal**, focusing on 0 or 1 element.
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.util.Traversals;
-
-// Create an Optional traversal
-Traversal<Optional<Integer>, Integer> optTraversal = Traversals.forOptional();
-
-// Modify the value if present
-Optional<Integer> maybePort = Optional.of(8080);
-Optional<Integer> offsetPort = Traversals.modify(optTraversal, p -> p + 1000, maybePort);
-// Result: Optional.of(9080)
-
-// Empty Optional remains empty
-Optional<Integer> empty = Optional.empty();
-Optional<Integer> stillEmpty = Traversals.modify(optTraversal, p -> p + 1000, empty);
-// Result: Optional.empty()
-
-// Extract value as a list
-List<Integer> values = Traversals.getAll(optTraversal, maybePort);
-// Result: [8080]  (or [] for empty)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/structures/StructuresBook.java:optional}}
 ```
 
 ### Composing with Lenses for Nested Optionals
@@ -155,20 +137,8 @@ public class FeatureFlagService {
 
 Transforming Map values whilst preserving keys requires ceremony:
 
-<!-- verify -->
-```java
-Map<String, Double> prices = Map.of(
-    "widget", 10.0,
-    "gadget", 25.0,
-    "gizmo", 15.0
-);
-
-// Traditional: Stream + collect
-Map<String, Double> inflated = prices.entrySet().stream()
-    .collect(Collectors.toMap(
-        Map.Entry::getKey,
-        e -> e.getValue() * 1.1  // 10% price increase
-    ));
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/structures/StructuresBook.java:map_stream}}
 ```
 
 This pattern doesn't compose and requires reconstructing the entire map.
@@ -177,30 +147,8 @@ This pattern doesn't compose and requires reconstructing the entire map.
 
 The `forMapValues()` method creates a traversal focusing on **all values** whilst preserving key structure. The map it hands back keeps the source's iteration order; a `Map.of` has no fixed order of its own, so start from a `LinkedHashMap` or `TreeMap` when order matters.
 
-<!-- verify -->
-```java
-// Create a Map values traversal
-Traversal<Map<String, Double>, Double> priceTraversal = Traversals.forMapValues();
-
-// Add a flat 1.50 handling charge to every value
-Map<String, Double> inflated = Traversals.modify(priceTraversal, price -> price + 1.5, prices);
-// Result: {widget=11.5, gadget=26.5, gizmo=16.5}
-
-// Extract all values
-List<Double> allPrices = Traversals.getAll(priceTraversal, prices);
-// Result: [10.0, 25.0, 15.0]
-
-// Compose with filtered for conditional updates
-// (filtered optics are covered properly in the next chapter)
-Traversal<Map<String, Double>, Double> expensiveItems =
-    priceTraversal.filtered(price -> price > 20.0);
-
-Map<String, Double> discounted = Traversals.modify(
-    expensiveItems,
-    price -> price * 0.9,  // 10% discount on expensive items only
-    prices
-);
-// Result: {widget=10.0, gadget=22.5, gizmo=15.0}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/structures/StructuresBook.java:map_values}}
 ```
 
 ### Real-World Example: Configuration Value Normalisation
@@ -230,7 +178,7 @@ public class ConfigNormaliser {
 
     // Redact sensitive values (password, token)
     public static DatabaseConfig redactSensitive(DatabaseConfig config) {
-        // An indexed traversal sees both key and value (covered in Indexed Optics, next chapter)
+        // An indexed traversal sees both key and value (see Indexed Optics, in Precision and Filtering)
         IndexedTraversal<String, Map<String, String>, String> allProperties =
             IndexedTraversals.forMap();
 
@@ -329,34 +277,10 @@ When tuples represent related data (coordinates, ranges, min/max pairs), we want
 
 ### The Solution: `TupleTraversals.both()`
 
-The `both()` method creates a traversal that focuses on **both elements** when they share a type.
+The `both()` method, on `org.higherkindedj.optics.util.TupleTraversals`, creates a traversal that focuses on **both elements** of an `org.higherkindedj.hkt.tuple.Tuple2` when they share a type.
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.util.TupleTraversals;
-import org.higherkindedj.hkt.tuple.Tuple2;
-
-// Create a tuple traversal (when both elements are same type)
-Traversal<Tuple2<Integer, Integer>, Integer> bothInts = TupleTraversals.both();
-
-// Double both elements
-Tuple2<Integer, Integer> range = new Tuple2<>(10, 20);
-Tuple2<Integer, Integer> doubled = Traversals.modify(bothInts, x -> x * 2, range);
-// Result: Tuple2(20, 40)
-
-// Extract both elements
-List<Integer> values = Traversals.getAll(bothInts, range);
-// Result: [10, 20]
-
-// Works with any shared type
-Traversal<Tuple2<String, String>, String> bothStrings = TupleTraversals.both();
-Tuple2<String, String> names = new Tuple2<>("alice", "bob");
-Tuple2<String, String> capitalised = Traversals.modify(
-    bothStrings,
-    s -> s.substring(0, 1).toUpperCase() + s.substring(1),
-    names
-);
-// Result: Tuple2("Alice", "Bob")
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/structures/StructuresBook.java:tuple}}
 ```
 
 ### Real-World Example: Geographic Coordinate Transformations
@@ -457,7 +381,10 @@ ServiceConfig increased = Traversals.modify(allTimeouts, t -> t + 1000, serviceC
 Optional<Integer> port = serverConfig.port().map(p -> p + 1000);
 
 // Better with get: Specific key
-Double price = prices.getOrDefault("widget", 0.0) * 1.1;
+BigDecimal price =
+    prices.getOrDefault("widget", BigDecimal.ZERO)
+        .multiply(new BigDecimal("1.1"))
+        .setScale(2, RoundingMode.HALF_EVEN);
 
 // Better with manual: Different operations per element
 Tuple2<Integer, String> result = new Tuple2<>(
@@ -490,8 +417,8 @@ List<Integer> values = map.values().stream()
 <!-- verify -->
 ```java
 // Inefficient: Creating traversals in loops
-for (Map.Entry<String, Double> entry : prices.entrySet()) {
-    Traversal<Map<String, Double>, Double> values = Traversals.forMapValues();
+for (Map.Entry<String, BigDecimal> entry : prices.entrySet()) {
+    Traversal<Map<String, BigDecimal>, BigDecimal> values = Traversals.forMapValues();
     // Process each value... inefficient!
 }
 
@@ -510,8 +437,12 @@ Tuple2<Integer, String> mixed = new Tuple2<>(42, "hello");
 <!-- verify -->
 ```java
 // Efficient: Create traversal once, apply to entire structure
-Traversal<Map<String, Double>, Double> priceTraversal = Traversals.forMapValues();
-Map<String, Double> updated = Traversals.modify(priceTraversal, p -> p * 1.1, prices);
+Traversal<Map<String, BigDecimal>, BigDecimal> priceTraversal = Traversals.forMapValues();
+Map<String, BigDecimal> updated =
+    Traversals.modify(
+        priceTraversal,
+        p -> p.multiply(new BigDecimal("1.1")).setScale(2, RoundingMode.HALF_EVEN),
+        prices);
 
 // Right tool: Use direct methods for simple cases
 String result = optional.map(String::toUpperCase).orElse("default");

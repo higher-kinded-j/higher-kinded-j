@@ -80,38 +80,22 @@ For optics specifically, this means you can build complex data transformation wo
 
 ### Simple Programs: Get, Set, Modify
 
-Let's start with the basics:
+Let's start with the basics, a person with a name, an age and a status:
 
-<!-- verify -->
-```java
-@GenerateLenses
-public record Person(String name, int age, String status) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:person}}
+```
 
-Person person = new Person("Alice", 25, "ACTIVE");
+Each builder describes one operation on that person, and returns it as a program:
 
-// Build a program that gets the age
-Free<OpticOpKind.Witness, Integer> getProgram =
-    OpticPrograms.get(person, PersonLenses.age());
-
-// Build a program that sets the age
-Free<OpticOpKind.Witness, Person> setProgram =
-    OpticPrograms.set(person, PersonLenses.age(), 30);
-
-// Build a program that modifies the age
-Free<OpticOpKind.Witness, Person> modifyProgram =
-    OpticPrograms.modify(person, PersonLenses.age(), age -> age + 1);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:build}}
 ```
 
 At this point, **nothing has executed**. We've just built descriptions of operations. To actually run them:
 
-<!-- verify -->
-```java
-// Execute with direct interpreter
-DirectOpticInterpreter interpreter = OpticInterpreters.direct();
-
-Integer age = interpreter.run(getProgram);           // 25
-Person updated = interpreter.run(setProgram);         // age is now 30
-Person modified = interpreter.run(modifyProgram);     // age is now 26
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:run}}
 ```
 
 ---
@@ -154,88 +138,38 @@ Let's break down what's happening:
 
 ### Multi-Step programs: Complex Workflows
 
-You can chain multiple `flatMap` calls to build sophisticated workflows:
+You can chain multiple `flatMap` calls to build sophisticated workflows. An employee has a salary and a status:
 
-<!-- verify -->
-```java
-@GenerateLenses
-public record Employee(String name, int salary, EmployeeStatus status) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:employee}}
+```
 
-enum EmployeeStatus { JUNIOR, SENIOR, PROBATION, RETIRED }
+The review program raises the salary by 10%, then reads it back to decide on a promotion:
 
-// Program: Annual review and potential promotion
-Free<OpticOpKind.Witness, Employee> annualReviewProgram(Employee employee) {
-    return OpticPrograms.get(employee, EmployeeLenses.salary())
-        .flatMap(currentSalary -> {
-            // Step 1: Give a 10% raise
-            int newSalary = currentSalary + (currentSalary / 10);
-            return OpticPrograms.set(employee, EmployeeLenses.salary(), newSalary);
-        })
-        .flatMap(raisedEmployee ->
-            // Step 2: Check if salary justifies promotion
-            OpticPrograms.get(raisedEmployee, EmployeeLenses.salary())
-                .flatMap(salary -> {
-                    if (salary > 100_000) {
-                        return OpticPrograms.set(
-                            raisedEmployee,
-                            EmployeeLenses.status(),
-                            EmployeeStatus.SENIOR
-                        );
-                    } else {
-                        return OpticPrograms.pure(raisedEmployee);
-                    }
-                })
-        );
-}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:annual_review_program}}
+```
 
-// Execute for an employee
-Employee alice = new Employee("Alice", 95_000, EmployeeStatus.JUNIOR);
-Free<OpticOpKind.Witness, Employee> program = annualReviewProgram(alice);
+Running it for an employee on 95,000 gives the raise and the promotion:
 
-Employee promoted = OpticInterpreters.direct().run(program);
-// Result: Employee("Alice", 104_500, SENIOR)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:annual_review_run}}
 ```
 
 ---
 
 ## Part 3: Working with Collections (Traversals and Folds)
 
-The DSL supports batch operations through traversals:
+The DSL supports batch operations through traversals. A team holds a list of players, each with a score:
 
-<!-- verify -->
-```java
-@GenerateLenses
-@GenerateTraversals
-public record Team(String name, List<Player> players) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:team_records}}
+```
 
-@GenerateLenses
-public record Player(String name, int score) {}
+One program doubles every score, then asks whether every player now passes:
 
-Team team = new Team("Wildcats",
-    List.of(
-        new Player("Alice", 80),
-        new Player("Bob", 90)
-    ));
-
-// Program: Double all scores and check if everyone passes
-Free<OpticOpKind.Witness, Boolean> scoreUpdateProgram =
-    OpticPrograms.modifyAll(
-        team,
-        TeamTraversals.players().andThen(PlayerLenses.score()),
-        score -> score * 2
-    )
-    .flatMap(updatedTeam ->
-        // Now check if all players have passing scores
-        OpticPrograms.all(
-            updatedTeam,
-            TeamTraversals.players().andThen(PlayerLenses.score()),
-            score -> score >= 100
-        )
-    );
-
-// Execute
-Boolean allPass = OpticInterpreters.direct().run(scoreUpdateProgram);
-// Result: true (Alice: 160, Bob: 180)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:team}}
 ```
 
 ### Querying with programs
@@ -313,55 +247,22 @@ By building the migration as a program, you can:
 
 ### Scenario 2: Audit Trail for Financial Transactions
 
-<!-- verify -->
-```java
-@GenerateLenses
-public record Account(String accountId, BigDecimal balance) {}
+A transaction moves an amount from one account to another:
 
-@GenerateLenses
-public record Transaction(Account from, Account to, BigDecimal amount) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:transfer_records}}
+```
 
-// Program: Transfer money between accounts
-Free<OpticOpKind.Witness, Transaction> transferProgram(
-    Transaction transaction
-) {
-    return OpticPrograms.get(transaction, TransactionLenses.amount())
-        .flatMap(amount ->
-            // Deduct from source account
-            OpticPrograms.modify(
-                transaction,
-                TransactionLenses.from().andThen(AccountLenses.balance()),
-                balance -> balance.subtract(amount)
-            )
-        )
-        .flatMap(txn ->
-            // Add to destination account
-            OpticPrograms.modify(
-                txn,
-                TransactionLenses.to().andThen(AccountLenses.balance()),
-                balance -> balance.add(txn.amount())
-            )
-        );
-}
+The transfer program reads the amount, then debits the source and credits the destination:
 
-// Execute with logging for audit trail
-Account acc1 = new Account("ACC001", new BigDecimal("1000.00"));
-Account acc2 = new Account("ACC002", new BigDecimal("500.00"));
-Transaction txn = new Transaction(acc1, acc2, new BigDecimal("100.00"));
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:transfer_program}}
+```
 
-Free<OpticOpKind.Witness, Transaction> program = transferProgram(txn);
+The logging interpreter runs it and keeps one line per operation:
 
-// Use logging interpreter to record every operation
-LoggingOpticInterpreter logger = OpticInterpreters.logging();
-Transaction result = logger.run(program);
-
-// Review audit trail
-logger.getLog().forEach(System.out::println);
-/* Output:
-GET: OpticPrograms$$Lambda/0x... -> 100.00
-MODIFY: Lens$3 from 1000.00 to 900.00
-MODIFY: TransactionLenses.to().andThen(AccountLenses.balance()) from 500.00 to 600.00
-*/
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/free/FreeMonadBook.java:transfer_run}}
 ```
 
 ---
@@ -627,12 +528,13 @@ Person mockResult = mock.run(program);
 
 ### Don't: Forget that programs are immutable
 
+<!-- verify -->
 ```java
-// Wrong - trying to "modify" a program
-Free<OpticOpKind.Witness, Person> program = OpticPrograms.get(person, PersonLenses.age());
-program.flatMap(age -> ...);  // This returns a NEW program!
+// Wrong: flatMap returns a NEW program, and this line throws it away
+Free<OpticOpKind.Witness, Integer> program = OpticPrograms.get(person, PersonLenses.age());
+program.flatMap(age -> OpticPrograms.set(person, PersonLenses.age(), age + 1));
 
-// The original program is unchanged
+// The original program is unchanged: it still only reads the age
 ```
 
 ### Do: Assign the result of `flatMap`

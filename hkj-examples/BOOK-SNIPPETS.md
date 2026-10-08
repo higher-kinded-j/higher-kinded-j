@@ -252,7 +252,7 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introdu
   quotes `Foldable` for the same reason, to say what the optic mirrors, and
   `optics/each_typeclass.md` quotes `Each` and `EachIndexed` with one member elided.
 - **A `static` extension method quoted as a signature.** `getters.md` quotes
-  `public static <S, A> Maybe<A> getMaybe(Getter<S, A> getter, S source)`, and
+  the `public static` signature of `getMaybe`, nullness bounds and all, and
   `coupled_fields.md` quotes both overloads of `Lens.paired` the same way. A signature-only
   snippet is wrapped in an interface, where `static` demands a body, so the one shape that would
   make a body-less method legal is the one this signature cannot take. Every worked example of
@@ -286,9 +286,7 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introdu
   write `Kind<F, Choice<Error, Data>>` and `Natural<F, G>` with nothing binding `F` or `G`: the
   point is the shape the operation has for *any* effect. A fixture can lend its type parameters to
   a snippet, but only one set, and the same fixture serves the concrete `IO` and `Maybe` examples
-  on the same page. `optics/folds.md`'s table of standard monoids is the same case: `Monoids.list()`
-  and its neighbours are listed as `Monoid<List<A>>` for the `A` the caller brings. A generic
-  fixture does serve a page whose free variables are only ever free: `optics/composition_rules.md`'s
+  on the same page. A generic fixture does serve a page whose free variables are only ever free: `optics/composition_rules.md`'s
   two summary tables and `optics/affine.md`'s composition table and factory methods are gated that
   way, over optics the fixture types as instance fields.
 - **A name the page binds to two different records.**
@@ -313,9 +311,6 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introdu
   introduces it. `optics/importing_optics.md`'s "you get" tables avoid the shape by binding each
   optic to its type (`Lens<Coordinate, Double> lat = CoordinateLenses.lat();`), so the compiler
   checks the type each line states.
-- **A validator shown twice, pure and impure.** `optics/optics_extensions.md` puts a clean
-  `validateEmail` beside one that logs from inside, under the same name and with the impure half
-  left unfinished. Two methods of one signature cannot share a class, and the point is the pair.
 - **A wrong-then-right pair a troubleshooting page shows together.**
   `tutorials/troubleshooting.md` is built out of them: a X half that does not compile *because that
   is the point* ("won't work - local class", "NPE here"), and a tick half beside it, usually binding
@@ -326,26 +321,26 @@ book. The deliberate ones are pseudo-code (`hkts/draughts.md`, `hkts/hkt_introdu
   putting the whole worked example back together, model included. Every part of it is gated above;
   compiling the repeat would need a second copy of the same records in one unit, and two
   `@GenerateLenses` records of the same simple name cannot both emit their companion.
-  `optics/folds.md` closes the same way, and the collision there is worth spelling out: its final
-  file nests its records inside `FoldUsageExample`, but a companion is generated *top-level* by
-  simple name, so a nested `Order` and the page's own `Order` both ask for `OrderFolds`. `optics/traversals.md` closes the same way, and its
-  `TraversalUsageExample` nests its records for the same collision.
-- **A `targetPackage` attribute.** `optics/traversals.md`, `optics/lenses.md`, `optics/prisms.md`
-  and `optics/iso.md` each show one, and none is marked: a companion generated into another package
-  needs its source type to be `public`, and a snippet's types share one file, where only one may
-  be.
+- **A `targetPackage` attribute.** `optics/traversals.md`, `optics/lenses.md`, `optics/prisms.md`,
+  `optics/iso.md` and `optics/focus_reference.md` each show one, and none is marked: a companion
+  generated into another package needs its source type to be `public`, and a snippet's types share
+  one file, where only one may be. `focus_reference.md` holds the rule with a `verify:rejects`
+  fence of the package-private record the processor refuses.
+- **An annotation shown without the declaration it sits on.** `optics/annotations_at_a_glance.md`
+  gives `@TraverseField`'s two elements on their own, naming a `Traverse` the reader writes for a
+  witness of their own. The expression is emitted verbatim into generated code, so compiling it
+  would need a witness and a `Traverse` that no module provides.
 - **Mutation shown as the thing not to do.** `optics/setters.md` puts `user.setUsername(...)` and
   `obj -> { obj.setValue(newValue); return obj; }` beside the functional versions. Both need a
   mutable type the page models as a record, and declaring one to compile the counter-example would
-  document a shape the library does not have. The correct half of each pair is gated.
+  document a shape the library does not have. The correct half of each pair is gated or included.
 - **A shape stated in place of an optic.** `optics/composing_optics.md`'s anti-pattern block
   passes `/* wrong applicative */` and `/* any string traversal */` to say what NOT to hand a
   `modifyF`, and the right version beside it is gated. An optic written `= ...` over a free type
   variable can usually be rescued instead: `optics/each_typeclass.md` wraps the reader's own
   traversal in a generic method, `<A> Each<MyContainer<A>, A> eachOf(...)`, which compiles.
-  `core_type_integration.md` writes `Maybe<Either<String, User>> confusing = ...;` to say which
-  pairing NOT to reach for, and `optics_intro.md`'s traversal teaser elides its record's other
-  components as `(..., List<String> promoCodes)`; every optic each page introduces is gated where
+  `optics_intro.md`'s traversal teaser elides its record's other components as
+  `(..., List<String> promoCodes)`; every optic each page introduces is gated where
   it is introduced.
 - **A package declaration carrying an annotation.** `optics/importing_optics.md` shows
   `@ImportOptics(java.time.LocalDate.class)` above `package com.myapp.optics;`, which is a

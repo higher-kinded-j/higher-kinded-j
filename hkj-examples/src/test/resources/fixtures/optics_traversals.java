@@ -18,6 +18,7 @@ import static org.higherkindedj.hkt.future.CompletableFutureKindHelper.FUTURE;
 import static org.higherkindedj.hkt.instances.Witnesses.completableFuture;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,7 +55,7 @@ record Team(String name, List<Player> players) {}
 record League(String name, List<Team> teams) {}
 
 @GenerateLenses
-record Product(String name, double price, String tag, int stockLevel) {}
+record Product(String name, BigDecimal price, String tag, int stockLevel) {}
 
 @GenerateLenses
 @GenerateTraversals
@@ -134,31 +135,31 @@ class Fixture {
 
   static final List<Product> products =
       List.of(
-          new Product("Widget", 100.0, "tools", 5),
-          new Product("Gadget", 200.0, "tools", 0),
-          new Product("Gizmo", 300.0, "toys", 2),
-          new Product("Doohickey", 400.0, "toys", 7),
-          new Product("Thingummy", 500.0, "spares", 0));
+          new Product("Widget", new BigDecimal("100.00"), "tools", 5),
+          new Product("Gadget", new BigDecimal("200.00"), "tools", 0),
+          new Product("Gizmo", new BigDecimal("300.00"), "toys", 2),
+          new Product("Doohickey", new BigDecimal("400.00"), "toys", 7),
+          new Product("Thingummy", new BigDecimal("500.00"), "spares", 0));
 
   static final Catalogue catalogue =
       new Catalogue("Autumn", List.of(new Category("Everything", products)));
 
-  static final Lens<Product, Double> productToPrice =
+  static final Lens<Product, BigDecimal> productToPrice =
       Lens.of(Product::price, (p, v) -> new Product(p.name(), v, p.tag(), p.stockLevel()));
 
   static final Lens<Product, String> productToName =
       Lens.of(Product::name, (p, v) -> new Product(v, p.price(), p.tag(), p.stockLevel()));
 
-  static final Traversal<List<Product>, Double> priceTraversal =
+  static final Traversal<List<Product>, BigDecimal> priceTraversal =
       Traversals.<Product>forList().andThen(productToPrice.asTraversal());
 
   static final Traversal<List<Product>, String> nameTraversal =
       Traversals.<Product>forList().andThen(productToName.asTraversal());
 
-  static final Lens<List<Product>, List<Double>> productPrices =
+  static final Lens<List<Product>, List<BigDecimal>> productPrices =
       Traversals.partsOf(priceTraversal);
 
-  static final Traversal<Catalogue, Double> allPrices =
+  static final Traversal<Catalogue, BigDecimal> allPrices =
       Lens.<Catalogue, List<Category>>of(Catalogue::categories, (c, v) -> new Catalogue(c.name(), v))
           .asTraversal()
           .andThen(Traversals.forList())
@@ -169,7 +170,7 @@ class Fixture {
           .andThen(Traversals.forList())
           .andThen(productToPrice.asTraversal());
 
-  static final Lens<Catalogue, List<Double>> pricesLens = Traversals.partsOf(allPrices);
+  static final Lens<Catalogue, List<BigDecimal>> pricesLens = Traversals.partsOf(allPrices);
 
   static final Project project =
       new Project("Apollo", List.of(new Task("Design", 1), new Task("Build", 2)));

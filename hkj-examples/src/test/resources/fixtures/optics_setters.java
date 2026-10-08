@@ -10,6 +10,8 @@
 
 import static org.higherkindedj.hkt.instances.Witnesses.optional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,7 +35,7 @@ record UserSettings(
 record User(String username, String email, int loginCount, UserSettings settings) {}
 
 @GenerateSetters
-record Product(String name, double price, int stock, List<String> tags) {}
+record Product(String name, BigDecimal price, int stock, List<String> tags) {}
 
 @GenerateSetters
 record Inventory(List<Product> products, String warehouseId) {}
@@ -54,7 +56,7 @@ class Fixture {
 
   static final Person person = new Person("Ada", 36);
 
-  static final Product laptop = new Product("Laptop", 999.99, 50, List.of("electronics"));
+  static final Product laptop = new Product("Laptop", new BigDecimal("999.99"), 50, List.of("electronics"));
 
   static final List<Product> usdProducts = List.of(laptop);
 
@@ -86,7 +88,7 @@ class Fixture {
 
   static final Setter<List<User>, User> usersSetter = Setter.forList();
 
-  static final Setter<Product, Double> priceSetter =
+  static final Setter<Product, BigDecimal> priceSetter =
       Setter.fromGetSet(
           Product::price, (p, price) -> new Product(p.name(), price, p.stock(), p.tags()));
 

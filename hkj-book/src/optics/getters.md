@@ -118,116 +118,40 @@ Getter<String, Integer> stringLength = Getter.to(String::length);
 
 The fundamental operation: returns exactly one value:
 
-<!-- verify -->
-```java
-Person person = new Person("Jane", "Smith", 45, address);
-
-Getter<Person, String> fullName = Getter.of(p -> p.firstName() + " " + p.lastName());
-String name = fullName.get(person);
-// Result: "Jane Smith"
-
-Getter<Person, Integer> age = Getter.of(Person::age);
-int years = age.get(person);
-// Result: 45
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:get}}
 ```
 
 ### Step 3: Composing Getters
 
 Chain Getters together to extract deeply nested values:
 
-<!-- verify -->
-```java
-Getter<Person, Address> addressGetter = Getter.of(Person::address);
-Getter<Address, String> cityGetter = Getter.of(Address::city);
-
-// Compose: Person → Address → String
-Getter<Person, String> personCity = addressGetter.andThen(cityGetter);
-
-Person person = new Person("Jane", "Smith", 45,
-    new Address("123 Main St", "London", "EC1A", "UK"));
-
-String city = personCity.get(person);
-// Result: "London"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:compose}}
 ```
 
 #### Deep Composition Chain
 
-<!-- verify -->
-```java
-Getter<Company, Person> ceoGetter = Getter.of(Company::ceo);
-Getter<Person, String> fullNameGetter = Getter.of(p -> p.firstName() + " " + p.lastName());
-Getter<String, Integer> lengthGetter = Getter.of(String::length);
-
-// Compose: Company → Person → String → Integer
-Getter<Company, Integer> ceoNameLength = ceoGetter
-    .andThen(fullNameGetter)
-    .andThen(lengthGetter);
-
-Company company = new Company("TechCorp", ceo, employees, headquarters);
-int length = ceoNameLength.get(company);
-// Result: 10 (length of "Jane Smith")
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:deep_chain}}
 ```
 
 ### Step 4: Getter as a Fold
 
 Since `Getter` extends `Fold`, you inherit all query operations, but they operate on exactly one element:
 
-<!-- verify -->
-```java
-Getter<Person, Integer> ageGetter = Getter.of(Person::age);
-Person person = new Person("Jane", "Smith", 45, address);
-
-// preview() returns Optional with the single value
-Optional<Integer> age = ageGetter.preview(person);
-// Result: Optional[45]
-
-// getAll() returns a single-element list
-List<Integer> ages = ageGetter.getAll(person);
-// Result: [45]
-
-// exists() checks if the single value matches
-boolean isExperienced = ageGetter.exists(a -> a > 40, person);
-// Result: true
-
-// all() checks the single value (always same as exists for Getter)
-boolean isSenior = ageGetter.all(a -> a >= 65, person);
-// Result: false
-
-// find() returns the value if it matches
-Optional<Integer> foundAge = ageGetter.find(a -> a > 30, person);
-// Result: Optional[45]
-
-// length() always returns 1 for Getter
-int count = ageGetter.length(person);
-// Result: 1
-
-// isEmpty() always returns false for Getter
-boolean empty = ageGetter.isEmpty(person);
-// Result: false
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:as_fold}}
 ```
 
 ### Step 5: Combining Getters with Folds
 
-Compose Getters with Folds for powerful queries. Two small tools make it work: `Fold.of` builds a fold from any function that lists the targets (here, the list itself), and `asFold()` moves a `Getter` into `Fold` position so the fold-composing `andThen` overload applies (a Getter already *is* a single-target Fold, so the conversion costs nothing):
+Compose Getters with Folds for powerful queries. Two small tools make it work: `Fold.of` builds a fold from any function that lists the targets (here, the list itself), and `asFold()` moves a `Getter` into `Fold` position so the fold-composing `andThen` overload applies (a Getter already *is* a single-target Fold, so the conversion costs nothing).
 
-<!-- verify -->
-```java
-Getter<Company, List<Person>> employeesGetter = Getter.of(Company::employees);
-Fold<List<Person>, Person> listFold = Fold.of(list -> list);
-Getter<Person, String> fullNameGetter = Getter.of(p -> p.firstName() + " " + p.lastName());
+The company here employs John Doe, Alice Johnson and Bob Williams, aged 30, 28 and 35:
 
-// Company → List<Person> → Person (multiple) → String
-Fold<Company, String> allEmployeeNames = employeesGetter
-    .asFold()  // Convert Getter to Fold
-    .andThen(listFold)
-    .andThen(fullNameGetter.asFold());
-
-List<String> names = allEmployeeNames.getAll(company);
-// Result: ["John Doe", "Alice Johnson", "Bob Williams"]
-
-boolean hasExperienced = listFold.andThen(Getter.of(Person::age).asFold())
-    .exists(age -> age > 40, employees);
-// Result: depends on employee ages
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:with_folds}}
 ```
 
 ### Step 6: Maybe-Based Getter Extension
@@ -278,51 +202,16 @@ It extracts a value using the provided `Getter` and wraps it in `Maybe`:
 
 #### Basic Usage Example
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.Getter;
-import org.higherkindedj.hkt.maybe.Maybe;
-import static org.higherkindedj.optics.extensions.GetterExtensions.getMaybe;
-
-Getter<Person, String> firstNameGetter = Getter.of(Person::firstName);
-Getter<Person, Address> addressGetter = Getter.of(Person::address);
-
-Person person = new Person("Jane", "Smith", 45,
-    new Address("123 Main St", "London", "NW1 4AB", "UK"));
-
-// Extract non-null value
-Maybe<String> name = getMaybe(firstNameGetter, person);
-// Result: Just("Jane")
-
-// Extract nullable value
-Person personWithNullAddress = new Person("Bob", "Jones", 34, null);
-Maybe<Address> missingAddress = getMaybe(addressGetter, personWithNullAddress);
-// Result: Nothing
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:get_maybe}}
 ```
 
 #### Safe Navigation with Composed Getters
 
 The real power of `getMaybe` emerges when navigating nested structures with potentially null intermediate values. By using `flatMap`, you can safely chain extractions:
 
-<!-- verify -->
-```java
-Getter<Person, Address> addressGetter = Getter.of(Person::address);
-Getter<Address, String> cityGetter = Getter.of(Address::city);
-
-// Safe navigation: Person → Maybe<Address> → Maybe<String>
-Person personWithAddress = new Person("Jane", "Smith", 45,
-    new Address("123 Main St", "London", "NW1 4AB", "UK"));
-
-Maybe<String> city = getMaybe(addressGetter, personWithAddress)
-    .flatMap(addr -> getMaybe(cityGetter, addr));
-// Result: Just("London")
-
-// Safe with null intermediate
-Person personWithNullAddress = new Person("Bob", "Jones", 34, null);
-
-Maybe<String> noCity = getMaybe(addressGetter, personWithNullAddress)
-    .flatMap(addr -> getMaybe(cityGetter, addr));
-// Result: Nothing (safely handles null address)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:safe_navigation}}
 ```
 
 **Key Pattern**: Use `flatMap` to chain `getMaybe` calls, creating a null-safe pipeline.
@@ -364,38 +253,8 @@ Maybe<String> city4 = getMaybe(addressGetter, person)
 
 Once you've extracted a value into `Maybe`, you can leverage the full power of monadic operations:
 
-<!-- verify -->
-```java
-Getter<Person, Address> addressGetter = Getter.of(Person::address);
-Getter<Address, String> cityGetter = Getter.of(Address::city);
-
-Person person = new Person("Jane", "Smith", 45,
-    new Address("123 Main St", "London", "NW1 4AB", "UK"));
-
-// Extract and transform
-Maybe<String> uppercaseCity = getMaybe(addressGetter, person)
-    .flatMap(addr -> getMaybe(cityGetter, addr))
-    .map(String::toUpperCase);
-// Result: Just("LONDON")
-
-// Extract with default
-String cityOrDefault = getMaybe(addressGetter, person)
-    .flatMap(addr -> getMaybe(cityGetter, addr))
-    .orElse("Unknown");
-// Result: "London"
-
-// Extract and keep only values passing a test (Maybe has no filter; use flatMap)
-Maybe<String> longCityName = getMaybe(addressGetter, person)
-    .flatMap(addr -> getMaybe(cityGetter, addr))
-    .flatMap(name -> name.length() > 5 ? Maybe.just(name) : Maybe.nothing());
-// Result: Just("London") (length is 6)
-
-// Chain multiple operations
-String report = getMaybe(addressGetter, person)
-    .flatMap(addr -> getMaybe(cityGetter, addr))
-    .map(city -> "Person lives in " + city)
-    .orElse("Address unknown");
-// Result: "Person lives in London"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:maybe_operations}}
 ```
 
 #### When to Use getMaybe
@@ -529,22 +388,16 @@ Higher-Kinded-J provides several utility Getters:
 
 ### **`identity()`**: Returns the Source Itself
 
-<!-- verify -->
-```java
-Getter<String, String> id = Getter.identity();
-String result = id.get("Hello");
-// Result: "Hello"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:identity}}
 ```
 
 Useful as a base case in composition or for type adaptation.
 
 ### **`constant(value)`**: Always Returns the Same Value
 
-<!-- verify -->
-```java
-Getter<String, Integer> always42 = Getter.constant(42);
-int result = always42.get("anything");
-// Result: 42
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/getters/GettersBook.java:constant}}
 ```
 
 Useful for providing default values in pipelines.
@@ -559,10 +412,10 @@ Getter<Map.Entry<Person, Address>, Person> firstGetter = Getter.first();
 Getter<Map.Entry<Person, Address>, Address> secondGetter = Getter.second();
 
 Person person = firstGetter.get(pair);
-// Result: the CEO Person
+// the entry's key, the CEO
 
 Address address = secondGetter.get(pair);
-// Result: the headquarters Address
+// the entry's value, the headquarters address
 ```
 
 ---
@@ -717,7 +570,7 @@ Person updated = nameLens.set("Jane", person);
 ```java
 // Risky: Getter doesn't handle null values specially
 Getter<NullableRecord, String> getter = Getter.of(NullableRecord::value);
-String result = getter.get(new NullableRecord(null)); // Returns null
+String result = getter.get(new NullableRecord(null)); // hands the null straight back
 ```
 
 ### Handle Nulls Explicitly

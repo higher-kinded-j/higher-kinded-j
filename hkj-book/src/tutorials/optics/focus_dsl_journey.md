@@ -170,7 +170,7 @@ Learn how generated navigators enable fluent cross-type navigation, and how SPI-
 - Path widening through Optional (AffinePath) and List (TraversalPath)
 - SPI-aware widening for Map, Either, Try, and Validated via Cardinality
 - Compound widening rules (AFFINE + TRAVERSAL = TRAVERSAL)
-- Depth limiting with `maxNavigatorDepth` and fallback to `.via()`
+- Making a navigator's own hops return plain paths with `maxNavigatorDepth = 1`, and composing further with `.via()`
 
 **Key insight**: The `TraversableGenerator` SPI declares a `Cardinality` for each container type, and one widening analysis consults it to select `AffinePath` (ZERO_OR_ONE) or `TraversalPath` (ZERO_OR_MORE, under `widenCollections` or when the element is itself navigable), so types like `Map`, `Either` and `Try` are handled without hardcoding — and a navigator method reports the same path type as the static Focus method for the same component.
 

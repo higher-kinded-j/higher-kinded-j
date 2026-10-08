@@ -10,32 +10,13 @@
 
 Most optic work is "update this nested field". Sometimes the problem is different: describe a sequence of optic operations as data, then decide later how to run it. The [Free Monad](../glossary/effect-paths.md#free-monad) DSL turns optic operations into a value you can pass around, inspect, and run under different strategies: production, audit, a checked run, or a test interpreter of your own. Interpreters are the strategies that turn the description into a result.
 
-Here is the whole idea before any of the theory. One program, described once, run three different ways. Every line compiles against the real library on every build:
+Here is the whole idea before any of the theory. One program, described once, run three different ways. Every line compiles and runs on every build, and a test holds each result:
 
-<!-- verify -->
-```java
-// A description, not an action: nothing has touched the account yet
-Free<OpticOpKind.Witness, Account> withdrawal = Fixture.withdraw(Fixture.account, 30);
-
-// Run it for real
-DirectOpticInterpreter direct = OpticInterpreters.direct();
-Account settled = direct.run(withdrawal);
-// Account[id=ACC-1, balance=70]
-
-// Run the same value again, recording every optic operation on the way
-LoggingOpticInterpreter logging = OpticInterpreters.logging();
-Account audited = logging.run(withdrawal);
-List<String> trail = logging.getLog();
-// one entry per optic operation the program performed
-
-// Or run it and get a report of what went wrong instead of the result
-ValidationOpticInterpreter validator = OpticInterpreters.validating();
-ValidationOpticInterpreter.ValidationResult check = validator.validate(withdrawal);
-boolean safeToRun = check.isValid();
-// true: no nulls written, no modifier threw
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/programs/ProgramsBook.java:payoff}}
 ```
 
-The account starts on 100 and the withdrawal is 30. Read `Free<OpticOpKind.Witness, Account>` as a program of optic operations that returns an `Account` when run; `OpticOpKind.Witness` is the [witness](../glossary/type-system.md#witness-type) that tags those operations. `Fixture` is the compiled example's own setup, not library API.
+The account starts on 100 and the withdrawal is 30. Read `Free<OpticOpKind.Witness, Account>` as a program of optic operations that returns an `Account` when run; `OpticOpKind.Witness` is the [witness](../glossary/type-system.md#witness-type) that tags those operations. `withdraw` is the compiled example's own method, not library API.
 
 ~~~admonish warning title="`validating()` is a checked run, not a dry run"
 Despite the name, `validate` **executes** the program. Its own javadoc is explicit: operations are run so that `flatMap` chaining produces the right values, and the validation is collected alongside. A `modify` modifier is applied twice, once to check it and once to perform it. So it is safe for pure modifiers over immutable data, and unsafe for anything with a side effect.

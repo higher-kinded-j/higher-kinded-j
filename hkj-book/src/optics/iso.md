@@ -34,13 +34,11 @@ Let us explore that last case. Imagine we have a `Point` record and want to conv
 
 **The Data Model:**
 
-```java
-public record Point(int x, int y) {}
-
-public record Tuple2<A, B>(A _1, B _2) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/iso/IsoBook.java:point}}
 ```
 
-These two records can hold the same information. An `Iso` is the perfect way to formalise this relationship.
+`Tuple2` is the library's own pair, the record `Tuple2<A, B>(A _1, B _2)` in `org.higherkindedj.hkt.tuple`, and `Tuple.of(a, b)` builds one. The two records can hold the same information. An `Iso` is the perfect way to formalise this relationship.
 
 ---
 
@@ -52,22 +50,8 @@ Unlike Lenses and Prisms, which are often generated from annotations, Isos are a
 
 You create an `Iso` using the static `Iso.of(get, reverseGet)` constructor.
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.Iso;
-import org.higherkindedj.hkt.tuple.Tuple;
-import org.higherkindedj.hkt.tuple.Tuple2;
-
-public class Converters {
-    public static Iso<Point, Tuple2<Integer, Integer>> pointToTuple() {
-      return Iso.of(
-          // Function to get the Tuple from the Point
-          point -> Tuple.of(point.x(), point.y()),
-          // Function to get the Point from the Tuple
-          tuple -> new Point(tuple._1(), tuple._2())
-      );
-    }
-}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/iso/IsoBook.java:converters}}
 ```
 
 #### Using `@GenerateIsos` for Method-Based Isos
@@ -102,19 +86,8 @@ An `Iso` provides two fundamental, lossless operations:
 
 Furthermore, every `Iso` is trivially reversible using the **`.reverse()`** method, which returns a new `Iso` with the "get" and "reverseGet" functions swapped.
 
-<!-- verify -->
-```java
-var pointToTupleIso = Converters.pointToTuple();
-var myPoint = new Point(10, 20);
-
-// Forward conversion
-Tuple2<Integer, Integer> myTuple = pointToTupleIso.get(myPoint); // -> Tuple2[10, 20]
-
-// Backward conversion using the reversed Iso
-Point convertedBack = pointToTupleIso.reverse().get(myTuple); // -> Point[10, 20]
-
-// Demonstrate perfect round-trip
-assert myPoint.equals(convertedBack); // Always true for lawful Isos
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/iso/IsoBook.java:core_operations}}
 ```
 
 ### Step 3: Composing Isos as a Bridge
@@ -129,17 +102,8 @@ The most powerful feature of an `Iso` is its ability to act as an adapter or "gl
 
 This second rule is incredibly useful. We can compose our `Iso<Point, Tuple2>` with a `Lens` that operates on a `Tuple2` to create a brand new `Lens` that operates directly on our `Point`:
 
-<!-- verify -->
-```java
-// A standard Lens that gets the first element of any Tuple2
-Lens<Tuple2<Integer, Integer>, Integer> tupleFirstElementLens =
-    Lens.of(Tuple2::_1, (t, v) -> Tuple.of(v, t._2()));
-
-// The composition: Iso<Point, Tuple2> + Lens<Tuple2, Integer> = Lens<Point, Integer>
-Lens<Point, Integer> pointToX = pointToTupleIso.andThen(tupleFirstElementLens);
-
-// We can now use this new Lens to modify the 'x' coordinate of our Point
-Point movedPoint = pointToX.modify(x -> x + 5, myPoint); // -> Point[15, 20]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/iso/IsoBook.java:compose}}
 ```
 
 The `Iso` acted as a bridge, allowing a generic `Lens` for tuples to work on our specific `Point` record.
@@ -150,19 +114,8 @@ Composition with individual lenses is useful, but Isos truly come into their own
 
 The `For` comprehension's `through()` method does exactly this. It converts the currently bound value via an Iso and accumulates both the original and the converted value, so you can reason in whichever representation suits each step:
 
-<!-- verify -->
-```java
-// Whole cents, and the same amount in dollars to two decimal places
-Iso<Integer, BigDecimal> centsToDollars =
-    Iso.of(cents -> BigDecimal.valueOf(cents, 2),
-           dollars -> dollars.movePointRight(2).intValueExact());
-
-Kind<IdKind.Witness, String> result =
-    For.from(idMonad, Id.of(50000))
-        .through(centsToDollars)
-        .yield((cents, dollars) ->
-            "Budget: " + cents + " cents = $" + dollars);
-// Result: "Budget: 50000 cents = $500.00"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/iso/IsoBook.java:through}}
 ```
 
 This Iso is lossless only for amounts in whole cents: `intValueExact` refuses a value with more than two decimal places. That is why the `ForState` example in this section rounds back to whole cents before it stores the result.
@@ -291,12 +244,8 @@ Iso<Point, Tuple2<Integer, Integer>> goodPointIso = Iso.of(
     tuple -> new Point(tuple._1(), tuple._2())
 );
 
-// Test your isomorphisms
-public static <A, B> void testIsomorphism(Iso<A, B> iso, A original) {
-    B converted = iso.get(original);
-    A roundTrip = iso.reverse().get(converted);
-    assert original.equals(roundTrip) : "Iso failed round-trip test";
-}
+// Test your isomorphisms, in a unit test, with IsoLaws from hkj-test
+IsoLaws.assertIsoLaws(goodPointIso, new Point(10, 20), Tuple.of(10, 20));
 
 // Reuse Isos as constants
 public static final Iso<Point, Tuple2<Integer, Integer>> POINT_TO_TUPLE =
@@ -305,6 +254,8 @@ public static final Iso<Point, Tuple2<Integer, Integer>> POINT_TO_TUPLE =
         tuple -> new Point(tuple._1(), tuple._2())
     );
 ```
+
+`IsoLaws.assertIsoLaws(iso, s, a)`, from the `hkj-test` [law harness](../tooling/test_assertions.md#optic-laws), checks both round trips: `reverseGet(get(s))` must give back `s`, and `get(reverseGet(a))` must give back `a`.
 
 ---
 

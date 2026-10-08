@@ -44,57 +44,8 @@ Each item arrives carrying the whole path that reached it, outer index first:
 | `(1, 1)` | `Monitor` |
 | `(1, 2)` | `Cable` |
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.indexed.Pair;
-
-// Nested structure: List of Orders, each with List of Items
-record Order(String id, List<LineItem> items) {}
-
-// First level: indexed traversal for orders
-IndexedTraversal<Integer, List<Order>, Order> ordersIndexed =
-    IndexedTraversals.forList();
-
-// Second level: lens to items field
-Lens<Order, List<LineItem>> itemsLens =
-    Lens.of(Order::items, (order, items) -> new Order(order.id(), items));
-
-// Third level: indexed traversal for items
-IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
-    IndexedTraversals.forList();
-
-// Compose: orders → items field → each item with PAIRED indices
-IndexedTraversal<Pair<Integer, Integer>, List<Order>, LineItem> composed =
-    ordersIndexed
-        .andThen(itemsLens.asTraversal())
-        .iandThen(itemsIndexed);
-
-List<Order> orders = List.of(
-    new Order("ORD-1", List.of(
-        new LineItem("Laptop", 1, 999.99),
-        new LineItem("Mouse", 1, 24.99)
-    )),
-    new Order("ORD-2", List.of(
-        new LineItem("Keyboard", 1, 79.99),
-        new LineItem("Monitor", 1, 299.99)
-    ))
-);
-
-// Access with paired indices: (order index, item index)
-List<Pair<Pair<Integer, Integer>, LineItem>> all =
-    IndexedTraversals.toIndexedList(composed, orders);
-
-for (Pair<Pair<Integer, Integer>, LineItem> entry : all) {
-    Pair<Integer, Integer> indices = entry.first();
-    LineItem item = entry.second();
-    System.out.printf("Order %d, Item %d: %s%n",
-        indices.first(), indices.second(), item.productName());
-}
-// Output:
-// Order 0, Item 0: Laptop
-// Order 0, Item 1: Mouse
-// Order 1, Item 0: Keyboard
-// Order 1, Item 1: Monitor
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedAdvancedBook.java:paired_indices}}
 ```
 
 **Use case**: Generating globally unique identifiers like "Order 3, Item 5" or "Row 2, Column 7".
@@ -105,17 +56,8 @@ for (Pair<Pair<Integer, Integer>, LineItem> entry : all) {
 
 There is no separate re-indexing combinator; transform the index inside the `imodify` function. Converting zero-based positions to one-based display numbers looks like this:
 
-<!-- verify -->
-```java
-IndexedTraversal<Integer, List<LineItem>, LineItem> zeroIndexed =
-    IndexedTraversals.forList();
-
-List<LineItem> numbered = IndexedTraversals.imodify(zeroIndexed, (zeroBasedIndex, item) -> {
-    int oneBasedIndex = zeroBasedIndex + 1;
-    return new LineItem("Item " + oneBasedIndex + ": " + item.productName(),
-                        item.quantity(), item.price());
-}, items);
-// productNames: ["Item 1: Laptop", "Item 2: Mouse", "Item 3: Keyboard"]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedAdvancedBook.java:index_transformation}}
 ```
 
 ---
@@ -124,98 +66,24 @@ List<LineItem> numbered = IndexedTraversals.imodify(zeroIndexed, (zeroBasedIndex
 
 You can layer multiple filters for precise control.
 
-<!-- verify -->
-```java
-IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
-    IndexedTraversals.forList();
-
-// Filter: even positions AND expensive items
-IndexedTraversal<Integer, List<LineItem>, LineItem> targeted =
-    itemsIndexed
-        .filterIndex(i -> i % 2 == 0)              // Even positions only
-        .filtered(item -> item.price() > 50);       // Expensive items only
-
-List<LineItem> items = List.of(
-    new LineItem("Laptop", 1, 999.99),    // Index 0, expensive ✓
-    new LineItem("Pen", 1, 2.99),         // Index 1, cheap ✗
-    new LineItem("Keyboard", 1, 79.99),   // Index 2, expensive ✓
-    new LineItem("Mouse", 1, 24.99),      // Index 3, cheap ✗
-    new LineItem("Monitor", 1, 299.99)    // Index 4, expensive ✓
-);
-
-List<Pair<Integer, LineItem>> results =
-    IndexedTraversals.toIndexedList(targeted, items);
-// Returns: [(0, Laptop), (2, Keyboard), (4, Monitor)]
-// All at even positions AND expensive
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedAdvancedBook.java:layered_filters}}
 ```
 
 ---
 
 ### Audit Trail Pattern: Field Change Tracking
 
-A powerful real-world pattern is tracking *which* fields change in your domain objects.
+A powerful real-world pattern is tracking *which* fields change in your domain objects. A small logger wraps a change so that it records the field's name, both values and the moment:
 
-<!-- verify -->
-```java
-// Generic field audit logger
-public class AuditLog {
-    public record FieldChange<A>(
-        String fieldName,
-        A oldValue,
-        A newValue,
-        Instant timestamp
-    ) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedAdvancedBook.java:audit_log}}
+```
 
-    public static <A> BiFunction<String, A, A> loggedModification(
-        Function<A, A> transformation,
-        List<FieldChange<?>> auditLog
-    ) {
-        return (fieldName, oldValue) -> {
-            A newValue = transformation.apply(oldValue);
+An indexed lens hands the logger the field's name with each change:
 
-            if (!oldValue.equals(newValue)) {
-                auditLog.add(new FieldChange<>(
-                    fieldName,
-                    oldValue,
-                    newValue,
-                    Instant.now()
-                ));
-            }
-
-            return newValue;
-        };
-    }
-}
-
-// Usage with indexed lens
-IndexedLens<String, Customer, String> emailLens = IndexedLens.of(
-    "email",
-    Customer::email,
-    (c, email) -> new Customer(c.name(), email)
-);
-
-List<AuditLog.FieldChange<?>> audit = new ArrayList<>();
-
-Customer customer = new Customer("Alice", "alice@old.com");
-
-Customer updated = emailLens.imodify(
-    AuditLog.loggedModification(
-        email -> "alice@new.com",
-        audit
-    ),
-    customer
-);
-
-// Check audit log
-for (AuditLog.FieldChange<?> change : audit) {
-    System.out.printf("Field '%s' changed from %s to %s at %s%n",
-        change.fieldName(),
-        change.oldValue(),
-        change.newValue(),
-        change.timestamp()
-    );
-}
-// Output: Field 'email' changed from alice@old.com to alice@new.com at 2025-01-15T10:30:00Z
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedAdvancedBook.java:audit_usage}}
 ```
 
 ---
@@ -224,95 +92,18 @@ for (AuditLog.FieldChange<?> change : audit) {
 
 When debugging complex nested updates, indexed optics reveal the complete path to each modification.
 
-<!-- verify -->
-```java
-// Nested structure with multiple levels
-record Item(String name, double price) {}
-record Order(List<Item> items) {}
-record Buyer(String name, List<Order> orders) {}
-
-// Build an indexed path through the structure
-IndexedTraversal<Integer, List<Buyer>, Buyer> buyersIdx =
-    IndexedTraversals.forList();
-
-Lens<Buyer, List<Order>> ordersLens =
-    Lens.of(Buyer::orders, (b, o) -> new Buyer(b.name(), o));
-
-IndexedTraversal<Integer, List<Order>, Order> ordersIdx =
-    IndexedTraversals.forList();
-
-Lens<Order, List<Item>> itemsLens =
-    Lens.of(Order::items, (order, items) -> new Order(items));
-
-IndexedTraversal<Integer, List<Item>, Item> itemsIdx =
-    IndexedTraversals.forList();
-
-Lens<Item, Double> priceLens =
-    Lens.of(Item::price, (item, price) -> new Item(item.name(), price));
-
-// Compose the full indexed path
-IndexedTraversal<Pair<Pair<Integer, Integer>, Integer>, List<Buyer>, Double> fullPath =
-    buyersIdx
-        .andThen(ordersLens.asTraversal())
-        .iandThen(ordersIdx)
-        .andThen(itemsLens.asTraversal())
-        .iandThen(itemsIdx)
-        .andThen(priceLens.asTraversal());
-
-List<Buyer> buyers = List.of(/* ... */);
-
-// Modify with full path visibility
-List<Buyer> updated = IndexedTraversals.imodify(fullPath,
-    (indices, price) -> {
-        int buyerIdx = indices.first().first();
-        int orderIdx = indices.first().second();
-        int itemIdx = indices.second();
-
-        System.out.printf(
-            "Updating price at [buyer=%d, order=%d, item=%d]: %.2f -> %.2f%n",
-            buyerIdx, orderIdx, itemIdx, price, price * 1.1
-        );
-
-        return price * 1.1;  // 10% increase
-    },
-    buyers
-);
-// Output shows complete path to every modified price:
-// Updating price at [buyer=0, order=0, item=0]: 999.99 -> 1099.99
-// Updating price at [buyer=0, order=0, item=1]: 24.99 -> 27.49
-// Updating price at [buyer=0, order=1, item=0]: 79.99 -> 87.99
-// ...
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedAdvancedBook.java:path_tracking}}
 ```
 
 ---
 
 ### Working with Pair Utilities
 
-The `Pair<A, B>` type provides utility methods for manipulation.
+The `Pair<A, B>` type provides utility methods for manipulation. Import `org.higherkindedj.optics.indexed.Pair`, the one indexed optics hand back: `org.higherkindedj.hkt.Pair` has no `withFirst`, `withSecond` or `swap`.
 
-<!-- verify -->
-```java
-import org.higherkindedj.optics.indexed.Pair;
-
-Pair<Integer, String> pair = new Pair<>(1, "Hello");
-
-// Access components
-int first = pair.first();       // 1
-String second = pair.second();  // "Hello"
-
-// Transform components
-Pair<Integer, String> modified = pair.withSecond("World");
-// Result: Pair(1, "World")
-
-Pair<String, String> transformed = pair.withFirst("One");
-// Result: Pair("One", "Hello")
-
-// Swap
-Pair<String, Integer> swapped = pair.swap();
-// Result: Pair("Hello", 1)
-
-// Factory method
-Pair<String, Integer> created = Pair.of("Key", 42);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedAdvancedBook.java:pair_utilities}}
 ```
 
 For converting to/from `Tuple2` (when working with hkj-core utilities):

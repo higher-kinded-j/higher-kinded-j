@@ -19,9 +19,10 @@ import org.higherkindedj.optics.focus.FocusPath;
  *   <li>Enabling navigator generation with {@code generateNavigators = true}
  *   <li>Fluent cross-type navigation: {@code CompanyFocus.headquarters().city()}
  *   <li>Navigator delegate methods: {@code get()}, {@code set()}, {@code modify()}
- *   <li>Controlling navigator generation with {@code maxNavigatorDepth}, {@code includeFields}, and
- *       {@code excludeFields}
- *   <li>Falling back to {@code .via()} for deeper navigation beyond the depth limit
+ *   <li>Choosing which fields get navigators with {@code includeFields} and {@code excludeFields}
+ *   <li>What {@code maxNavigatorDepth} changes: only {@code maxNavigatorDepth = 1} changes the
+ *       generated code
+ *   <li>Composing with {@code .via()} from a navigator's underlying path
  *   <li>Using {@code widenCollections = true} to auto-widen SPI ZERO_OR_MORE types
  *   <li>SPI generator priority for resolving conflicts between overlapping generators
  * </ul>
@@ -67,13 +68,18 @@ public class NavigatorExample {
   @GenerateFocus(generateNavigators = true)
   public record Address(String street, String city, String postcode) {}
 
-  // ============= Domain Model with Depth Limiting =============
+  // ============= Domain Model with a Navigator Depth Setting =============
 
   /**
    * An organisation with nested department structure.
    *
-   * <p>The {@code maxNavigatorDepth = 2} limits how deep navigator generation goes. At depth 2, the
-   * navigation returns plain {@code FocusPath} instances instead of further navigators.
+   * <p>It sets {@code maxNavigatorDepth = 2}, which leaves the chain unbroken. Each hop returns the
+   * navigator that the {@code Focus} class of the record it leaves declares for that field: {@code
+   * mainDivision()} returns {@code OrganisationFocus.MainDivisionNavigator}, and its {@code
+   * department()} returns {@code DivisionFocus.DepartmentNavigator}. Each navigator is generated
+   * once, in that one class, so the generated code is the same at every value above 1. Only {@code
+   * maxNavigatorDepth = 1} changes the generated code: it makes a navigator's own navigation
+   * methods return plain paths.
    */
   @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
   public record Organisation(String name, Division mainDivision) {}
@@ -158,7 +164,7 @@ public class NavigatorExample {
     spiAwareNavigationExample();
     widenCollectionsExample();
     spiPriorityExample();
-    depthLimitingExample();
+    navigatorDepthExample();
     fieldFilteringExample();
   }
 
@@ -388,53 +394,58 @@ public class NavigatorExample {
   }
 
   /**
-   * Demonstrates depth limiting with {@code maxNavigatorDepth}.
+   * Demonstrates what {@code maxNavigatorDepth} does, and does not, change.
    *
-   * <p>Navigator generation stops at the specified depth. Beyond this, navigation returns plain
-   * {@code FocusPath} instances. For deeper access, use {@code .via()} composition.
+   * <p>With any value above 1, the default 3 included, each hop into another navigable record
+   * returns the navigator declared in the {@code Focus} class of the record the hop leaves, so the
+   * chain runs on to the leaf. Only {@code maxNavigatorDepth = 1} changes the generated code: a
+   * navigator's own navigation methods then return plain paths, and a further hop is composed with
+   * {@code .via()}.
    *
    * <pre>{@code
    * @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
    * record Organisation(Division mainDivision) {}
    *
-   * // Depth 1: Returns MainDivisionNavigator (has nested navigators)
+   * // Hop 1: returns OrganisationFocus.MainDivisionNavigator, over the Division
    * OrganisationFocus.mainDivision()
    *
-   * // Depth 2: Returns DepartmentNavigator (delegate methods only, no deeper navigators)
+   * // Hop 2: returns DivisionFocus.DepartmentNavigator, over the Department
    * OrganisationFocus.mainDivision().department()
    *
-   * // Use .toPath() to access the underlying FocusPath for .via() composition
+   * // Hop 3: returns a plain FocusPath to the department's name, which is a leaf
+   * OrganisationFocus.mainDivision().department().name()
+   *
+   * // .toPath() hands over the underlying FocusPath, for composing with .via()
    * OrganisationFocus.mainDivision().department().toPath().via(DepartmentFocus.managerName().toLens())
    * }</pre>
    */
-  static void depthLimitingExample() {
-    System.out.println("--- Depth Limiting ---");
+  static void navigatorDepthExample() {
+    System.out.println("--- Navigator Depth ---");
 
     Department engineering = new Department("Engineering", "Alice");
     Division rd = new Division("R&D", engineering);
     Organisation org = new Organisation("Acme Corp", rd);
 
-    // Depth 1: mainDivision() returns a MainDivisionNavigator
+    // mainDivision() returns a navigator over the Division, which offers its name()
     String divisionName = OrganisationFocus.mainDivision().name().get(org);
-    System.out.println("Depth 1 - division name: " + divisionName);
+    System.out.println("Division name:    " + divisionName);
 
-    // Depth 2: department() returns a DepartmentNavigator with delegate methods
-    // but no further nested navigators (depth exhausted)
+    // department() returns DivisionFocus.DepartmentNavigator: Division is the record it leaves
     Department dept = OrganisationFocus.mainDivision().department().get(org);
-    System.out.println("Depth 2 - department:    " + dept.name());
+    System.out.println("Department:       " + dept.name());
 
-    // Access leaf fields directly through the navigator's delegate methods
+    // maxNavigatorDepth = 2 does not stop the chain: the Department's fields are one hop further
     String deptName = OrganisationFocus.mainDivision().department().name().get(org);
-    System.out.println("Depth 2 - dept name:     " + deptName);
+    System.out.println("Department name:  " + deptName);
 
-    // Or use .toPath() to get the underlying FocusPath for .via() composition
+    // Or use .toPath() to hand over the underlying FocusPath, for composing with .via()
     String manager =
         OrganisationFocus.mainDivision()
             .department()
             .toPath()
             .via(DepartmentFocus.managerName().toLens())
             .get(org);
-    System.out.println("Via toPath().via():       " + manager);
+    System.out.println("Via toPath().via(): " + manager);
 
     System.out.println();
   }

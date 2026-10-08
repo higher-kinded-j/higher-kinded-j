@@ -39,11 +39,9 @@ flowchart LR
 | `parse("ada@corp.example")` | `Valid(EmailAddress)` |
 | `build(addr)` | `"ada@corp.example"`, never fails |
 
-In code:
+In code, with `ValidatedPrism` from `org.higherkindedj.optics.validated`:
 
 ``` java
-import org.higherkindedj.optics.validated.ValidatedPrism;
-
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/ValidatedPrismBook.java:prism}}
 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/ValidatedPrismBook.java:usage}}

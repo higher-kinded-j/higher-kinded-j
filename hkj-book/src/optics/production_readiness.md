@@ -86,6 +86,7 @@ A Focus path holds the optic it was built from, and its reads and writes delegat
 
 A lens or focus path is a value, not a function. Building the path has a one-off allocation cost, which caching removes; applying it still allocates the rebuilt structure, which nothing removes. For paths used repeatedly, store them as `static final`:
 
+<!-- verify -->
 ```java
 private static final Lens<Company, String> COMPANY_NAME =
     CompanyLenses.name();
