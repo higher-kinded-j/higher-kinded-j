@@ -1,11 +1,11 @@
 # Advanced Prism Patterns: Recipes
 
-## _Optimisation and testing recipes_
+_Cache composed prisms, split a mixed list by case, and test what a prism matches and misses._
 
 ~~~admonish info title="What You'll Learn"
-- Caching strategies for expensive prism compositions in long-running applications.
-- Bulk-processing helpers for extracting and partitioning items by prism match.
-- Test patterns for prism matching, composed prisms, and conditional operations.
+- Cache a prism composition keyed by a value known only at runtime, such as a settings key
+- Extract every match from a list with `getOptional`, or split the list in two with `matches`
+- Test what a prism matches and misses, a composed prism, and a `modifyWhen` update
 ~~~
 
 This page collects copy-paste-ready recipes for the production concerns that come up once you have prisms running in real systems. The narrative explanations live in [Advanced Prism Patterns](advanced_prism_patterns.md); these are the lookup snippets you return to when you need them.

@@ -66,7 +66,7 @@ The smart-constructor optic: a `Prism` whose match says *why not*, and all the r
 - Nesting short-circuits; sibling fields accumulate through `Validated.fields()`
 - Verifying both round-trip laws with `ValidatedPrismLaws`
 
-**Key insight**: the section law forbids a normalising `build`; the prism's parse is exactly the leaf shape the mapper and the `Edits` builder consume.
+**Key insight**: the section law forbids a `parse` that normalises; the prism's parse is exactly the leaf shape the mapper and the `Edits` builder consume.
 
 ---
 

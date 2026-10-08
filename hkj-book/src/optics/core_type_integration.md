@@ -1,22 +1,22 @@
 # Working with Core Types and Optics
 
-## _Prisms and Traversals for Maybe, Either, Validated and Try_
+_Match, extract and modify the value inside a `Maybe`, `Either`, `Validated` or `Try` with optics._
 
 ![Diagram illustrating optics integration with functional core types like Maybe, Either, and Validated](../images/optics.jpg)
+
+~~~admonish info title="What You'll Learn"
+- Extract a case of `Maybe`, `Either`, `Validated` or `Try` with a prism from `Prisms`, and build one back
+- Modify the value inside a `Just` or a `Right` with `MaybeTraversals` and `EitherTraversals`, leaving the other case untouched
+- Compose `MaybeTraversals.just()` into a lens path to read through a `Maybe` midway along it
+- Filter and count a list of `Try` results with a prism's `getOptional` and `matches`
+- Choose between core type prisms and Optics Extensions for the task in hand
+~~~
 
 As you've learnt from the previous chapters, optics provide a powerful way to focus on and modify immutable data structures. But what happens when the data you're working with is wrapped in Higher-Kinded-J's core types (`Maybe`, `Either`, `Validated`, or `Try`)?
 
 Traditional optics work brilliantly with straightforward, deterministic data. However, real-world applications rarely deal with such certainty. Fields might be `null`, operations might fail, validation might produce errors, and database calls might throw exceptions. Handling these scenarios whilst maintaining clean, composable optics code requires a bridge between these two powerful abstractions.
 
 This is where **Core Type Integration** comes in.
-
-~~~admonish info title="What You'll Learn"
-- How to use Core Type Prisms to extract values from `Maybe`, `Either`, `Validated`, and `Try` without verbose pattern matching
-- How Optics Extensions add null safety, validation, and exception handling to lenses and traversals
-- Composing core type optics with lenses for deep navigation into nested structures
-- Processing collections of core type values using prisms for filtering and extraction
-- When to use Core Type Prisms versus Optics Extensions based on your use case
-~~~
 
 ---
 
@@ -345,13 +345,13 @@ dbResults.stream()
 
 ## When to Use Each Approach
 
-### Use Core Type Prisms when:
+### Use Core Type Prisms when
 - Extracting values from `Maybe`, `Either`, `Validated`, or `Try`
 - Pattern matching on functional types without `instanceof`
 - Composing core types with other optics for deep navigation
 - Processing collections of core type values
 
-### Use Optics Extensions when:
+### Use Optics Extensions when
 - Accessing potentially null fields
 - Validating single field or bulk updates
 - Performing operations that might throw exceptions

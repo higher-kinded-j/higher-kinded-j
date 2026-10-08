@@ -1,14 +1,13 @@
 # String Traversals: Declarative Text Processing
 
-## _Type-Safe Text Manipulation Without Regex Complexity_
+_Change each character, word or line of a string through one traversal, and get the string back._
 
 ~~~admonish info title="What You'll Learn"
-- Breaking strings into traversable units (characters, words, lines)
-- Declarative text normalisation and validation
-- Composing string traversals with filtered optics for pattern matching
-- Real-world text processing: logs, CSV, configuration files
-- When to use string traversals vs Stream API vs regex
-- Performance characteristics and best practices
+- Split a string into characters, words or lines with `chars()`, `worded()` and `lined()`, and rebuild it after a change
+- Predict how `worded()` collapses whitespace and `lined()` normalises line endings, so an identity `modify` can change the text
+- Change only the lines or words that match with `filtered`, such as the `ERROR` lines of a log
+- Validate every word with `modifyF` and `Validated`, collecting each failure
+- Decide between a string traversal, the Stream API and a regular expression
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -43,16 +42,7 @@ String normaliseEmail(String email) {
 
 **String traversals** let you separate the "what" (the structure) from the "how" (the transformation), making your text processing logic reusable and composable.
 
----
-
-## Think of String Traversals Like...
-
-* **Java Stream's split() + map()**: Like `text.lines().map(...)` but integrated into optic composition
-* **IntelliJ's "Replace in Selection"**: Focus on text units, transform them, reassemble automatically
-* **Unix text tools**: Similar to `awk` and `sed` pipelines, but type-safe and composable
-* **SQL's string functions**: Like `UPPER()`, `TRIM()`, `SPLIT_PART()`, but for immutable Java strings
-
-The key insight: text structure (characters, words, lines) becomes part of your optic's identity, not preprocessing before the real work.
+A string traversal plays the part of splitting a string, mapping each piece and joining the pieces back, as `text.lines().map(f).collect(joining("\n"))` does. Unlike the hand-written version, it composes into a longer path. Like it, the traversal rejoins with one separator, so `worded()` and `lined()` normalise the whitespace between pieces.
 
 ---
 
@@ -363,7 +353,7 @@ String normalised = Traversals.modify(
 
 ## When to Use String Traversals vs Other Approaches
 
-### Use String Traversals When:
+### Use String Traversals When
 
 * **Reusable text transformations** - Define once, apply across multiple strings
 * **Composable pipelines** - Building complex optic chains with lenses and prisms
@@ -382,7 +372,7 @@ Traversal<Config, String> allPropertyValues =
 Config trimmed = Traversals.modify(allPropertyValues, String::trim, config);
 ```
 
-### Use Stream API When:
+### Use Stream API When
 
 * **Complex filtering** - Multiple conditions with short-circuiting
 * **Aggregations** - Counting, collecting to new structures
@@ -398,7 +388,7 @@ long wordCount = text.lines()
     .count();
 ```
 
-### Use Regular Expressions When:
+### Use Regular Expressions When
 
 * **Complex pattern matching** - Extracting structured data (emails, URLs, dates)
 * **Search and replace** - Simple find-and-replace operations
@@ -418,7 +408,7 @@ while (matcher.find()) {
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 <!-- verify -->
 ```java
@@ -440,7 +430,7 @@ String result = Traversals.modify(allChars.filtered(c -> c != 'a'), c -> c, "ban
 // Filtered traversals preserve structure!
 ```
 
-### Do This Instead:
+### Do This Instead
 
 <!-- verify -->
 ```java
@@ -536,5 +526,5 @@ Validated<List<String>, String> result = VALIDATED.narrow(
 
 ---
 
-**Previous:** [Each Typeclass](each_typeclass.md)
+**Previous:** [Each Type Class](each_typeclass.md)
 **Next:** [Indexed Access](indexed_access.md)

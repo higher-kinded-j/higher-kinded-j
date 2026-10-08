@@ -1,19 +1,17 @@
 # Validated Prisms
 
-## _The smart-constructor optic: a `Prism` whose match says why not, and all the reasons at once_
-
-~~~admonish example title="See Example Code"
-**The code on this page is [ValidatedPrismBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/ValidatedPrismBook.java)** - the page includes it directly, so it is compiled and run by the build.
-~~~
+_Parse a wire value into a domain value with every reason it fails, and always build it back._
 
 ~~~admonish info title="What You'll Learn"
-- Why a validated boundary needs a fallible, accumulating `parse` and a total `build`: the "parse, don't validate" asymmetry captured as an optic
-- Constructing a `ValidatedPrism` with `ValidatedPrism.of`, wrapping a throwing parser with the section law guarded via `ValidatedPrism.canonical`, and landing on the railway with `parsePath`
-- How composition splits: `andThen` short-circuits into structure while sibling fields accumulate every reason
-- Which compositions preserve the total build (`ValidatedPrism`, `Iso`, and `Prism`-with-a-reason) and why `Lens` cannot
-- Bridging the optic lattice with `fromIso`, `fromPrism`, `toPrism`, and `toAffine`
-- The two halves, `ValidatedParse` and `ValidatedBuild`, for a boundary crossed one way only
-- The two round-trip laws, and why the second forbids a lossy, normalising `build`
+- Write a `ValidatedPrism` with `ValidatedPrism.of`, or with `ValidatedPrism.canonical` around a throwing parser, and parse straight into a `ValidationPath` with `parsePath`
+- Predict what a composition gives: `andThen` stops at the first reason, sibling fields accumulate, and a `Lens` yields no `ValidatedPrism`
+- Ask for only the half you need, `ValidatedParse` or `ValidatedBuild`, at a boundary crossed one way
+- Check both round-trip laws with `ValidatedPrismLaws`, and say why a normalising parse breaks the second
+- Parse a whole `List`, `Set`, array or `Map` with the bulk forms, locating each failure by index or key
+~~~
+
+~~~admonish example title="See Example Code"
+**The code on this page is [ValidatedPrismBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/ValidatedPrismBook.java)**: the page includes it directly, so it is compiled and run by the build.
 ~~~
 
 A `Prism<S, A>` answers one question about a value: does it match this shape, yes or no? Its match returns `Optional<A>`, present or empty. At a **validated boundary**, where a raw wire value (a `String` off the network) must become an always-valid domain value (an `EmailAddress`), yes/no is too blunt. A rejected value needs to say *why*, and ideally give *every* reason at once (`"not an email"`, `"too long"`), each located to the field it came from. The reverse direction is never in doubt: a domain value you already hold always renders back to a string.
@@ -166,7 +164,7 @@ Mapping is not injective, so a container can **collapse**: a prism mapping both 
 * **`parse` is fallible and accumulating** (`Validated<NonEmptyList<FieldError>, A>`); **`build` is total**: the parse-don't-validate asymmetry as an optic
 * **Nesting short-circuits; siblings accumulate** via the assembly builders or `Edits`
 * **Only build-preserving compositions exist**: `ValidatedPrism`, `Iso`, and `Prism`-with-a-reason; `Lens` deliberately not
-* **Both round-trip laws are published** in `hkj-test`; the section law forbids lossy build-normalisation
+* **Both round-trip laws are published** in `hkj-test`; the section law forbids a normalising parse
 * **`canonical(message, parse, render)` guards the section law per value**: the render defines the canonical form and every spelling it cannot reproduce is rejected; that the parse accepts the renderings, injectively, stays your obligation (check with `ValidatedPrismLaws`)
 * **One prism lifts over containers**: The bulk forms accumulate every element failure, located by index or key
 * **`parsePath` lands on the railway** (`ValidationPath`) directly

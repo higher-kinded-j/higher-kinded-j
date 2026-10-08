@@ -1,14 +1,13 @@
 # Common Data Structure Traversals
 
-## _Extending Traversal Power to Optional, Map, and Tuple Types_
+_Update the value inside an `Optional`, every value of a `Map`, or both halves of a `Tuple2`._
 
 ~~~admonish info title="What You'll Learn"
-- Traversing Optional values with affine traversals (0-1 cardinality)
-- Bulk transformations on Map values whilst preserving keys
-- Parallel operations on Tuple2 pairs when elements share a type
-- Composing structure traversals with lenses and filtered optics
-- Real-world patterns: configuration management, feature flags, coordinate transforms
-- When to use structure traversals vs direct access vs Stream API
+- Update an optional value with `Traversals.forOptional()`, leaving an empty `Optional` alone
+- Change every value of a map with `Traversals.forMapValues()`, keeping its keys and its iteration order
+- Traverse a persistent or third-party map's values with `forMapValuesCollecting`, choosing the map type it rebuilds
+- Update both elements of a same-typed pair with `TupleTraversals.both()`
+- Compose these traversals with lenses into deeper paths, and decide when direct access or a stream is clearer
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -23,14 +22,9 @@ These structures share a common need: **apply a transformation uniformly across 
 
 ---
 
-## Think of Structure Traversals Like...
+## How many values each one reaches {#how-many-values-each-one-reaches}
 
-* **Java Stream's `Optional.map()`**: Like `optional.map(transform)` but composable with other optics
-* **Scala's for-comprehensions**: Similar to `for { x <- option } yield transform(x)`, but integrated into optic pipelines
-* **Database UPDATE statements**: Like `UPDATE config SET value = transform(value)`, preserving structure
-* **Functional map operations**: Like `fmap` in Haskell, lifting pure functions into wrapped contexts
-
-The key insight: these aren't special cases; they're **traversals with specific cardinality**:
+`forOptional` and `forMapValues` play the part of `Optional.map`, and of streaming a map's entries and collecting them back under the same keys. Unlike those, each is an optic, so it composes into a longer path, and `forMapValues` keeps the map's iteration order, which `Collectors.toMap` does not. None of them is a special case. Each is a traversal, and what differs is how many values it reaches:
 - `Optional<A>`: 0 or 1 element (affine traversal)
 - `Map<K, V>`: 0 to N values, preserving keys
 - `Tuple2<A, A>`: Exactly 2 elements (when same type)
@@ -281,7 +275,7 @@ ServiceRegistry updated = Traversals.modify(
 
 ### Persistent and Third-Party Maps: `forMapValuesCollecting()`
 
-`forMapValues()` hands back a plain `java.util.Map` whatever map it was given: the source's iteration order survives, its type does not. To traverse the values of a *persistent* or *specialised* map (PCollections `PMap` / `PSortedMap`, Guava `ImmutableMap`, Eclipse Collections `ImmutableMap`, Vavr `io.vavr.collection.Map`), use `forMapValuesCollecting()`. It is the map-shaped companion to `forIterableCollecting()`, which does the same job for non-`Iterable` collections.
+`forMapValues()` hands back a plain `java.util.Map` whatever map it was given: the source's iteration order survives, its type does not. To traverse the values of a *persistent* or *specialised* map (PCollections `PMap` / `PSortedMap`, Guava `ImmutableMap`, Eclipse Collections `ImmutableMap`, Vavr `io.vavr.collection.Map`), use `forMapValuesCollecting()`. It is the map-shaped companion to `forIterableCollecting()`, which does the same job for collections.
 
 For any map type that *implements* `java.util.Map` (PCollections maps, Guava `ImmutableMap`, Apache Commons map decorators, …), pass a single rebuild function:
 
@@ -431,7 +425,7 @@ BoundingBox scaled = Traversals.modify(topLeftCoords, coord -> coord * 2, box);
 
 ## When to Use Structure Traversals vs Other Approaches
 
-### Use Structure Traversals When:
+### Use Structure Traversals When
 
 * **Reusable transformations** - Define once, compose with other optics
 * **Nested optionals** - Avoiding `.map().map().map()` chains
@@ -451,7 +445,7 @@ Traversal<ServiceConfig, Integer> allTimeouts =
 ServiceConfig increased = Traversals.modify(allTimeouts, t -> t + 1000, serviceConfig);
 ```
 
-### Use Direct Access When:
+### Use Direct Access When
 
 * **Single Optional** - Simple `map()` or `orElse()` is clearer
 * **Specific Map key** - `map.get(key)` is more direct
@@ -472,7 +466,7 @@ Tuple2<Integer, String> result = new Tuple2<>(
 );
 ```
 
-### Use Stream API When:
+### Use Stream API When
 
 * **Complex filtering** - Multiple conditions
 * **Aggregations** - Collecting to new structures
@@ -491,7 +485,7 @@ List<Integer> values = map.values().stream()
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 <!-- verify -->
 ```java
@@ -511,7 +505,7 @@ Tuple2<Integer, String> mixed = new Tuple2<>(42, "hello");
 // TupleTraversals.both() won't work here; types must match!
 ```
 
-### Do This Instead:
+### Do This Instead
 
 <!-- verify -->
 ```java

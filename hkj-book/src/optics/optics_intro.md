@@ -104,7 +104,7 @@ Each plays the part of a Java idiom you already write:
 | Iso | a wrapper record's constructor and accessor, such as `new EmailAddress(value)` and `email.value()`, which lose nothing | composes, and turns around with `reverse()` |
 | Traversal | `stream().map(f).toList()` over a list field, put back with a wither | does the rebuild for you, at any depth |
 | Fold | a `Stream` over the same values, which only reads | composes, and says in its type that it never writes |
-| Getter | a derived accessor, such as a `fullName()` computed from two fields | composes with other getters, and with any optic through `asFold()` |
+| Getter | a derived accessor, such as a `fullName()` computed from two fields | composes with other getters, and as a fold, through `asFold()`, with any optic's fold |
 | Setter | `stream().map(f).toList()` put back with a wither, with nothing read out first | composes, for a value you change without reading |
 
 An iso keeps a stronger promise than a lens: converting there and back, either way round, returns what you started with, and hkj-test's `IsoLaws` checks it.

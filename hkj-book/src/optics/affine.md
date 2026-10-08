@@ -1,14 +1,13 @@
 # Affines: A Practical Guide
 
-## _Working with Optional Fields_
+_Read and update a field that may be absent, such as an `Optional` component, without `flatMap` chains._
 
 ~~~admonish info title="What You'll Learn"
-- How to safely work with optional fields and nullable properties
-- The difference between Affine, Lens, and Prism
-- Why `Lens.andThen(Prism)` produces an Affine, not a Traversal
-- Composing affines with other optics for deep optional access
-- Handling zero-or-one element focus without boilerplate
-- When to use Affines vs Prisms vs Lenses
+- Build an affine with `Affines.some()`, `Affines.nullable()` or `Affines.listAt`, or by composing a lens with a prism
+- Predict why `Lens.andThen(Prism)` gives an `Affine` rather than a `Traversal`
+- Update a nested optional field with `modify` and `modifyWhen`, which leave an absent value alone
+- Predict what `set` does on an absent focus, and check an affine with `AffineLaws.assertAffineLaws`
+- Choose between an affine, a prism, a lens and a traversal for a field
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -18,6 +17,8 @@
 We've seen how a **Lens** focuses on exactly one value that is guaranteed to exist, and how a **Prism** focuses on a value that may or may not exist depending on the variant.
 
 But what about fields that are *sometimes* there? Optional fields in records, nullable properties in legacy APIs, or the result of composing a Lens with a Prism? This is the domain of the **Affine**.
+
+An affine plays the part of an accessor that returns `Optional`, paired with a copy that writes the value back. Unlike the hand-written pair, it composes with other optics, and `modify` leaves an absent value alone. [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
 ---
 
@@ -32,15 +33,6 @@ record ContactInfo(String email, Optional<String> phone) {}
 ```
 
 **Our Goal:** We need to safely access and update the phone number, which is doubly optional: the contact info might not exist, and even if it does, the phone number might be absent.
-
----
-
-## Think of Affines Like...
-
-- **A Lens with uncertainty**: Gets exactly one value *if* it exists
-- **A Prism without construction**: Can update but not build from scratch
-- **An optional field accessor**: Perfect for `Optional<T>` fields
-- **A Lens + Prism composition**: The natural result of combining them
 
 ---
 
@@ -402,7 +394,7 @@ Affine<S, B> affine = Affine.fromPrismAndLens(
 
 ## When to Use Affines vs Other Optics
 
-### Use Affine When:
+### Use Affine When
 
 * **Optional fields** in records or classes (`Optional<T>`)
 * **Nullable properties** in legacy or interop code
@@ -421,7 +413,7 @@ Affine<ApiConfig, String> apiKeyAffine =
 Optional<String> key = apiKeyAffine.getOptional(new ApiConfig(Optional.of("secret")));
 ```
 
-### Use Lens When:
+### Use Lens When
 
 * The field is **always present** (guaranteed to exist)
 * You're working with **product types** (records, classes)
@@ -433,7 +425,7 @@ record Point(int x, int y) {}
 Lens<Point, Integer> xLens = Lens.of(Point::x, (p, x) -> new Point(x, p.y()));
 ```
 
-### Use Prism When:
+### Use Prism When
 
 * Working with **sum types** (sealed interfaces, enums)
 * You need to **construct** the whole from a part
@@ -446,7 +438,7 @@ Prism<Shape, Circle> circlePrism = ...;
 Shape circle = circlePrism.build(new Circle(5.0));  // Can construct!
 ```
 
-### Use Traversal When:
+### Use Traversal When
 
 * Focusing on **multiple elements** (lists, sets)
 * You need to work with **collections**
@@ -462,7 +454,7 @@ List<String> upper = Traversals.modify(listTraversal, String::toUpperCase, names
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 ```java
 // Overly complex: manual Optional handling
@@ -482,7 +474,7 @@ if (user.address() != null && user.address().postcode() != null) {
 }
 ```
 
-### Do This Instead:
+### Do This Instead
 
 <!-- verify -->
 ```java

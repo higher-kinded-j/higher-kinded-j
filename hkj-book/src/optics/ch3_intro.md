@@ -35,7 +35,7 @@ Most readers only need filtered traversals, covered first. The rest solve specif
 1. [Filtered Optics](filtered_optics.md): A predicate that travels with the path
 2. [Indexed Optics](indexed_optics.md): Position-aware operations on collections
    - [Indexed Optics: Advanced Patterns](indexed_optics_advanced.md): Paired indices and audit trails
-3. [Each Typeclass](each_typeclass.md): One canonical traversal per container
+3. [Each Type Class](each_typeclass.md): One canonical traversal per container
 4. [String Traversals](string_traversals.md): Characters, words and lines
 5. [Indexed Access](indexed_access.md): `At` and `Ixed` for keys and indices
 

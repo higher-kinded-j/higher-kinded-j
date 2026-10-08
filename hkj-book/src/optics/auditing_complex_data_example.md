@@ -1,24 +1,23 @@
 # Auditing Complex Data with Optics
 
-## _A Real-World Deep Dive into Conditional Config Auditing_
+_Find and decode every live GCP password in a config with one composed optic, not nested loops._
 
 ~~~admonish info title="What You'll Learn"
-- Solving complex, real-world data processing challenges with optics
-- Building conditional filtering and transformation pipelines
-- Combining all four core optic types in a single, powerful composition
-- Creating declarative, type-safe alternatives to nested loops and type casting
-- Advanced patterns like safe decoding, profunctor adaptations, and audit trails
-- When optic composition provides superior solutions to imperative approaches
+- Compose lenses, prisms and a traversal into one `Traversal<AppConfig, byte[]>` that filters and decodes as it goes
+- Put a condition in the path with a filtering `Prism`, so only live GCP configs are audited
+- Decode through a `Prism` rather than an `Iso` when decoding can fail, and keep the reason with a `ValidatedPrism`
+- Reuse the same optic to re-encrypt with `Traversals.modify`, or adapt it to a DTO with an `Iso` or `dimap`
+- Decide when optic composition beats a stream pipeline or a manual loop
 ~~~
-
-In modern software, we often work with complex, nested data structures. Performing a seemingly simple task, like "find and decode all production database passwords", can lead to messy, error-prone code with nested loops, `if` statements, and manual type casting.
-
-This page builds a single, declarative, type-safe optic that performs a deep, conditional data transformation.
 
 ~~~admonish example title="See Example Code"
 - [Config Audit example](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/configaudit): the worked audit this page builds
 - [Optics examples](https://github.com/higher-kinded-j/higher-kinded-j/tree/main/hkj-examples/src/main/java/org/higherkindedj/example/optics): the wider optics example set
 ~~~
+
+In modern software, we often work with complex, nested data structures. Performing a seemingly simple task, like "find and decode all production database passwords", can lead to messy, error-prone code with nested loops, `if` statements, and manual type casting.
+
+This page builds a single, declarative, type-safe optic that performs a deep, conditional data transformation.
 
 ---
 
@@ -39,40 +38,31 @@ Doing this imperatively is a recipe for complexity. Let's build it with optics i
 
 ---
 
-## Think of This Problem Like...
-
-- **A treasure hunt with conditional maps**: Only certain maps (GCP/Live configs) contain the treasures (encrypted passwords)
-- **A selective mining operation**: Drill down only into the right geological formations (config types) to extract specific minerals (encrypted data)
-- **A security scanner with filters**: Only scan certain types of systems (matching deployment criteria) for specific vulnerabilities (encrypted values)
-- **A data archaeology expedition**: Excavate only specific sites (qualified configs) to uncover particular artefacts (encoded passwords)
-
----
-
 ## The Four Tools for the Job
 
-Our solution will compose the four primary optic types, each solving a specific part of the problem.
+Our solution will compose the four primary optic types, each solving a specific part of the problem. [Choosing an optic](optics_intro.md#choosing-an-optic) gives the Java idiom each one stands in for.
 
-### 1. **Lens**: The Magnifying Glass
+### 1. **Lens**: one field of a record {#1-lens-the-magnifying-glass}
 
 A `Lens` provides focused access to a field within a product type (like a Java `record`). We'll use lenses to look inside our configuration objects.
 
 * `AppConfigLenses.settings()`: Zooms from an `AppConfig` to its `List<Setting>`.
 * `SettingLenses.value()`: Zooms from a `Setting` to its `SettingValue`.
 
-### 2. **Iso**: The Universal Translator
+### 2. **Iso**: a conversion that loses nothing {#2-iso-the-universal-translator}
 
 An `Iso` (Isomorphism) defines a lossless, two-way conversion between two types. It's perfect for handling different representations of the same data.
 
 * `DeploymentTarget <-> String`: the example renders a structured target as a raw string like `"gcp|live"`, and only reads that way. Parsing a string from outside could fail, which is a [Validated Prism](validated_prism.md)'s job.
 * `String -> byte[]` looks like a second Iso, but decoding fails on malformed Base64, so the solution decodes through a **prism**: a bad value is skipped rather than thrown. [Safe Decoding with a `ValidatedPrism`](#1-safe-decoding-with-a-validatedprism) also keeps the reason.
 
-### 3. **Prism**: The Safe Filter
+### 3. **Prism**: one case of a sealed type {#3-prism-the-safe-filter}
 
 A `Prism` provides focused access to a specific case within a sum type (like a `sealed interface`). It lets us safely attempt to "zoom in" on one variant, failing gracefully if the data is of a different kind.
 
 * `SettingValuePrisms.encryptedValue()`: This is our key filter. It will look at a `SettingValue` and only succeed if it's the `EncryptedValue` variant.
 
-### 4. **Traversal**: The Bulk Operator
+### 4. **Traversal**: every element of a list {#4-traversal-the-bulk-operator}
 
 A `Traversal` lets us operate on zero or more targets within a larger structure. It's the ideal optic for working with collections.
 
@@ -82,7 +72,7 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 
 ## When to Use This Approach vs Alternatives
 
-### Use Optic Composition When:
+### Use Optic Composition When
 
 - **Complex conditional filtering** - Multiple levels of filtering based on different criteria
 - **Reusable audit logic** - The same audit pattern applies to different config types
@@ -101,7 +91,7 @@ Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
         .andThen(base64Decoded);   // decoding can fail, so a prism
 ```
 
-### Use Stream Processing When:
+### Use Stream Processing When
 
 - **Simple filtering** - Basic collection operations without complex nesting
 - **Performance critical paths** - Minimal abstraction overhead needed
@@ -116,7 +106,7 @@ List<String> allConfigNames = configs.stream()
     .collect(toList());
 ```
 
-### Use Manual Iteration When:
+### Use Manual Iteration When
 
 - **Early termination** - You might want to stop processing on first match
 - **Complex business logic** - Multiple conditions and branches that don't map cleanly
@@ -137,7 +127,7 @@ for (AppConfig config : configs) {
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 <!-- verify -->
 ```java
@@ -163,7 +153,7 @@ Iso<String, byte[]> unsafeBase64 = Iso.of(
 // nothing verifies that encode(decode(x)) == x
 ```
 
-### Do This Instead:
+### Do This Instead
 
 <!-- verify -->
 ```java

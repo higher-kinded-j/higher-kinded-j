@@ -1,10 +1,24 @@
 # Taming JSON with Jackson
 
-## _Spec Interfaces for Jackson and Beyond_
+_Declare the shapes a `JsonNode` can take, and read and write JSON through generated prisms with no casts._
 
 > *"The art of programming is the art of organising complexity, of mastering multitude and avoiding its bastard chaos."*
 >
 > – Edsger W. Dijkstra
+
+~~~admonish info title="What You'll Learn"
+- Write a spec interface for `JsonNode` whose annotated methods generate a class of static prisms
+- Choose `@InstanceOf` for real subtypes, or `@MatchWhen` for a check-and-extract API
+- Compose field access and array traversal from the generated prisms in a plain class, not a `default` method
+- Predict which type arguments an `@InstanceOf` prism over a generic target may promise
+- Declare a generic spec interface, and predict which type parameters each generated method carries
+~~~
+
+~~~admonish example title="See Example Code"
+[JsonNodeOpticsSpec.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/JsonNodeOpticsSpec.java) | [JsonPaths.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/JsonPaths.java) | [JsonApiBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/JsonApiBook.java)
+
+The page includes these directly, so the build compiles the code it shows from them. The output comments were produced by running the class.
+~~~
 
 ---
 
@@ -21,19 +35,6 @@ No null checks, no casts, no nested conditionals. And the write direction is the
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/JsonApiBook.java:write}}
 ```
-
-~~~admonish info title="What You'll Learn"
-- How a spec interface gives you precise control over an external type
-- Building a complete optics toolkit for Jackson's `JsonNode`
-- `@InstanceOf` and `@MatchWhen`, and when each applies
-- Where composed helpers belong, and why not in the spec interface
-~~~
-
-~~~admonish example title="See Example Code"
-[JsonNodeOpticsSpec.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/JsonNodeOpticsSpec.java) | [JsonPaths.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/JsonPaths.java) | [JsonApiBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/JsonApiBook.java)
-
-The page includes these directly, so the build compiles every line above. The output comments were produced by running the class.
-~~~
 
 ---
 

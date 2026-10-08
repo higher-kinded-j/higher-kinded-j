@@ -1,12 +1,12 @@
 # Profunctor Optics: Recipes
 
-## _Wrapper adapters, migration recipes, and a complete worked example_
+_Copy a wrapper `Iso` or a schema-migration adapter, and keep tested optics working through a format change._
 
 ~~~admonish info title="What You'll Learn"
-- How to build reusable wrapper-type lenses for strongly-typed value classes (`UserId`, `Email`, etc.)
-- Migration patterns: exposing an old schema's view of new data, and when an `Iso` bridge is honest
-- Where the runnable example demonstrates the adaptation styles end to end
-- How adapted optics interact with effectful updates and deep composition
+- Give a single-field wrapper such as `UserId` an `Iso`, and compose it after a lens to edit the raw value
+- Expose an old schema's view of new data with `Lens.of`, where a lossy bridge cannot be an `Iso`
+- Keep migration adapters in one class, so finishing the migration deletes one file
+- Decide when a raw `Optic.dimap` bridge run through `modifyF` is the right tool
 ~~~
 
 This page is a recipe shelf for the production-shaped problems that optic adaptation solves. The conceptual material, including the crucial distinction between the raw `Optic`-level operations and the typed routes (composition, `Iso`, `Lens.of`), lives in [Profunctor Optics](profunctor_optics.md); use this page when you need a copy-paste recipe.

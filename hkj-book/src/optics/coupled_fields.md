@@ -1,7 +1,9 @@
 # When Lenses Assume Too Much
 
-## _Atomic Updates for Fields with Shared Invariants_
+_Update two fields a constructor checks together, such as a range's bounds, in one step._
+
 <img src="../images/coupled_mr_robot.png" alt="Illustration for coupled fields and atomic updates" style="width: 100%;" />
+
 > *"A bug is never just a mistake. It represents something bigger. An error of thinking that makes you who you are."*
 >
 > – Elliot Alderson, *Mr. Robot*
@@ -13,12 +15,10 @@ Consider a familiar scenario: you have a record with validation in its construct
 The hidden culprit? Standard lens composition assumes fields are independent, that you can update `lo` without caring about `hi`. But some fields are *coupled* by invariants. They do not just coexist; they constrain each other. Lenses, in their elegant simplicity, do not know this.
 
 ~~~admonish info title="What You'll Learn"
-- Why standard lens updates can fail with invariant-protected records
-- The hidden assumption of field independence in lens composition
-- How to use `Lens.paired` for atomic multi-field updates
-- How `CoupledLenses.coupled3` ... `coupled9` extend the same shape to N fields
-- When to define paired lenses vs individual field lenses
-- Limitations and alternative approaches
+- Predict when two lens writes in a row fail on a record whose constructor checks two fields together
+- Update coupled fields in one step with `Lens.paired`, keeping the record's other components with the `Function3` form
+- Update three to nine coupled fields the same way with `CoupledLenses.coupled3` to `coupled9`
+- Decide when a field needs a paired lens, a domain method, or no lens at all
 ~~~
 
 ~~~admonish example title="See Example Code"

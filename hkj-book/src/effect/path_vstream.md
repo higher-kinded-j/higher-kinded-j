@@ -423,7 +423,7 @@ Try<List<String>> result = task.runSafe();
 - [StreamPath](../monads/stream_monad.md) - Eager list-based streaming path
 - [Effect Path Overview](effect_path_overview.md) - How all path types fit together
 - [Focus-Effect Integration](focus_integration.md) - Optics meet Effect Path
-- [Each Typeclass](../optics/each_typeclass.md) - Canonical element-wise traversal (includes VStream)
+- [Each Type Class](../optics/each_typeclass.md) - Canonical element-wise traversal (includes VStream)
 ~~~
 
 ---

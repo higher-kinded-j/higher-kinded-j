@@ -1,16 +1,13 @@
 # Limiting Traversals: Focusing on List Portions
 
-## _Declarative Slicing for Targeted Operations_
+_Update the first or last few elements of a list, or a slice, and leave the rest alone._
 
 ~~~admonish info title="What You'll Learn"
-- How to focus on specific portions of lists (first n, last n, slices)
-- Using `ListTraversals` factory methods for index-based operations
-- Predicate-based slicing with `takingWhile`/`droppingWhile`, and single elements with `element`
-- The difference between limiting traversals and Stream's `limit()`/`skip()`
-- Composing limiting traversals with lenses, prisms, and filtered optics
-- Understanding edge case handling (negative indices, bounds exceeding list size)
-- Real-world patterns for pagination, batch processing, and time-series windowing
-- When to use limiting traversals vs Stream API vs manual loops
+- Focus part of a list by position with `taking`, `dropping`, `takingLast`, `droppingLast` and `slicing`
+- Focus the leading run that meets a condition with `takingWhile`, everything after it with `droppingWhile`, or one index with `element`
+- Predict what `modify` and `getAll` do outside the slice, and with a negative or oversized count
+- Compose a slice with lenses and filters, and apply two slices in sequence where `andThen` cannot chain them
+- Decide between a limiting traversal, a stream and a loop
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -85,16 +82,7 @@ List<Order> chunk = orders.subList(startIndex, Math.min(startIndex + chunkSize, 
 
 This approach forces you to abandon the declarative power of optics, manually managing indices, bounds checking, and list reconstruction. **Limiting traversals** let you express this intent directly within your optic composition.
 
----
-
-## Think of Limiting Traversals Like...
-
-* **Java Stream's `limit()` and `skip()`**: Like `stream.limit(n)` and `stream.skip(n)`, but composable with immutable data transformations and integrated into optic pipelines
-* **SQL's LIMIT and OFFSET clauses**: Like database pagination (`LIMIT 10 OFFSET 20`), but for in-memory immutable structures, enabling declarative pagination logic
-* **Spring Batch chunk processing**: Similar to Spring Batch's chunk-oriented processing: divide a list into manageable segments for targeted transformation whilst preserving the complete dataset
-* **ArrayList.subList() but better**: Like `List.subList(from, to)`, but instead of a mutable view, you get an immutable optic that composes with lenses, prisms, and filtered traversals
-
-The key insight: positional focus becomes part of your optic's *identity*, not an external slicing operation applied afterwards.
+A limiting traversal plays the part of a stream's `limit(n)` and `skip(n)`. Unlike the stream, which drops the elements outside the range, a write through it keeps them, and returns a new list with only the chosen part changed.
 
 ---
 
@@ -496,7 +484,7 @@ List<Order> processed = Traversals.modify(
 
 ## When to Use Limiting Traversals vs Other Approaches
 
-### Use Limiting Traversals When:
+### Use Limiting Traversals When
 
 * **Positional focus** - You need to operate on elements by index position
 * **Structural preservation** - Non-focused elements must remain in the list
@@ -515,7 +503,7 @@ Traversal<Catalogue, Double> first10Prices =
 Catalogue updated = Traversals.modify(first10Prices, p -> p * 0.9, catalogue);
 ```
 
-### Use Stream API When:
+### Use Stream API When
 
 * **Terminal operations** - Counting, finding, collecting to new structures
 * **Complex transformations** - Multiple chained operations with sorting/grouping
@@ -531,7 +519,7 @@ int totalStock = products.stream()
     .sum();
 ```
 
-### Use Manual Loops When:
+### Use Manual Loops When
 
 * **Early termination with side effects** - Need to break out of loop
 * **Index-dependent logic** - Processing depends on knowing the exact index
@@ -552,7 +540,7 @@ for (int i = 0; i < Math.min(10, products.size()); i++) {
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 <!-- verify -->
 ```java
@@ -578,7 +566,7 @@ Traversal<List<Product>, Product> atIndex5 = ListTraversals.slicing(5, 6);
 // Consider using Ixed type class for single-element access instead
 ```
 
-### Do This Instead:
+### Do This Instead
 
 <!-- verify -->
 ```java

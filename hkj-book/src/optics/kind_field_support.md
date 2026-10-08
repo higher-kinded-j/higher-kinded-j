@@ -1,13 +1,13 @@
 # Kind Field Support in Focus DSL
 
-## _Automatic Traversal for Higher-Kinded Type Fields_
+_Navigate a `Kind<F, A>` record field as you would a plain `List` field, with the traversal generated for you._
 
 ~~~admonish info title="What You'll Learn"
-- How the Focus DSL handles `Kind<F, A>` record fields without any extra annotation
-- Convention-based detection for the library witnesses (`ListKind`, `MaybeKind`, and the rest)
-- Using `@TraverseField` for your own `Kind` types
-- What the semantic classifications (`EXACTLY_ONE`, `ZERO_OR_ONE`, `ZERO_OR_MORE`) decide
-- How `traverseOver()` and `headOption()` work together, and the one surprise in `headOption`'s set
+- Read and modify a `Kind<F, A>` field through its generated path, with no `Traverse` passed by hand
+- Predict the path type each library witness generates, from `ListKind` to `IdKind`, by its `KindSemantics`
+- Write `@TraverseField` to give a witness of your own its `Traverse` instance and cardinality
+- Predict when a `Kind` field falls back to a plain `FocusPath`, and apply `traverseOver` yourself
+- Narrow a traversal with `headOption()`, knowing it reads the first element but writes to every one
 ~~~
 
 ~~~admonish example title="See Example Code"

@@ -1,15 +1,13 @@
 # Isomorphisms: A Practical Guide
 
-## _Data Equivalence with Isos_
+_Convert between two types that hold the same information, losslessly in both directions._
 
 ~~~admonish info title="What You'll Learn"
-- How to define lossless, reversible conversions between equivalent types
-- Creating isomorphisms with `Iso.of(get, reverseGet)`
-- Using `reverse()` to flip conversion directions
-- Composing Isos with lenses, prisms, and comprehensions
-- Step-by-step transformation workflows for data format conversion
-- Testing round-trip properties to ensure conversion correctness
-- When to use isos vs direct conversion methods vs manual adapters
+- Define a lossless conversion with `Iso.of(get, reverseGet)`, and flip it with `reverse()`
+- Compose an iso with a lens, prism, affine or traversal, and keep that optic's type
+- Convert through an iso inside a `For` or `ForState` workflow with `through`, `modifyVia` and `updateVia`
+- Check an iso's round trip, and choose a one-way method or a Validated Prism when a conversion loses data or can fail
+- Generate a static iso field with `@GenerateIsos`, and fix a method it refuses
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -24,7 +22,7 @@ This leaves one final, fundamental question: what if you have two data types tha
 
 ## The Scenario: Translating Between Equivalent Types
 
-An **`Iso`** (Isomorphism) is a "two-way street." It is an optic that represents a perfectly reversible, lossless conversion between two equivalent types. Think of it as a **universal translator** or a type-safe adapter that you can compose with other optics.
+An **`Iso`** (Isomorphism) is an optic that represents a perfectly reversible, lossless conversion between two equivalent types. It plays the part of a wrapper record's constructor and accessor, such as `new UserId(value)` and `id.value()`: two functions that undo each other. Unlike a loose pair of functions, it is one value that composes with other optics and turns around with `reverse()`, and `IsoLaws` checks that nothing is lost. [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
 An `Iso` is the right tool when you need to:
 
@@ -43,15 +41,6 @@ public record Tuple2<A, B>(A _1, B _2) {}
 ```
 
 These two records can hold the same information. An `Iso` is the perfect way to formalise this relationship.
-
----
-
-## Think of Isos Like...
-
-* **A universal translator**: Perfect two-way conversion between equivalent representations
-* **A reversible adapter**: Converts between formats without losing information
-* **A bridge**: Connects two different structures that represent the same data
-* **A unit conversion**: The same quantity in two units, convertible both ways with nothing lost
 
 ---
 
@@ -215,7 +204,7 @@ For the full range of optics operations within comprehensions (including travers
 
 ## When to Use Isos vs Other Approaches
 
-### Use Isos When:
+### Use Isos When
 
 * **Data format conversion** - Converting between equivalent representations
 * **Legacy system integration** - Bridging old and new data formats
@@ -232,7 +221,7 @@ Iso<UserId, Long> userIdIso = Iso.of(UserId::value, UserId::new);
 Lens<Account, Long> rawAccountId = AccountLenses.id().andThen(userIdIso);
 ```
 
-### Use Direct Conversion Methods When:
+### Use Direct Conversion Methods When
 
 * **One-way conversion** - You do not need the reverse operation
 * **Non-lossless conversion** - Information is lost in the conversion
@@ -244,7 +233,7 @@ Lens<Account, Long> rawAccountId = AccountLenses.id().andThen(userIdIso);
 String pointDescription = point.x() + "," + point.y();
 ```
 
-### Use Manual Adapters When:
+### Use Manual Adapters When
 
 * **Complex conversion logic** - Multi-step or conditional conversions
 * **Validation required** - Conversion might fail
@@ -270,7 +259,7 @@ public Optional<Point> parsePoint(String input) {
 
 ## Common Pitfalls
 
-### Do Not Do This:
+### Do Not Do This
 
 <!-- verify -->
 ```java
@@ -292,7 +281,7 @@ var iso2 = Iso.of(Point::x, x -> new Point(x, 0));
 var iso3 = Iso.of(Point::x, x -> new Point(x, 0));
 ```
 
-### Do This Instead:
+### Do This Instead
 
 <!-- verify -->
 ```java

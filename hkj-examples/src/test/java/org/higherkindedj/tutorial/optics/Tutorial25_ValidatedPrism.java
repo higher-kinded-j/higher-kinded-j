@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
  *       {@code Validated.fields()} fed by {@code prism::parse};
  *   <li>{@code fromPrism(prism, reason)} lifts a plain prism; {@code toPrism()} forgets reasons;
  *   <li>both round-trip laws ship in {@code ValidatedPrismLaws} — the section law forbids a {@code
- *       build} that normalises.
+ *       parse} that normalises.
  * </ul>
  *
  * <p>Limits, stated up front: only build-preserving compositions exist ({@code ValidatedPrism},

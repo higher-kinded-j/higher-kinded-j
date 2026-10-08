@@ -1,11 +1,13 @@
 # Focus DSL: Custom Containers and Code Generation
 
+_Predict which path type a container field generates, and teach the processor a container of your own._
+
 ~~~admonish info title="What You'll Learn"
-- What the annotation processor emits for each field shape
-- How container cardinality (`ZERO_OR_ONE` versus `ZERO_OR_MORE`) determines the generated path type
-- What `widenCollections = true` changes, and when you want it
-- The container types supported out of the box, across HKJ, the JDK, Eclipse Collections, Guava, Vavr, Apache Commons, and PCollections
-- How to register your own container type through the `TraversableGenerator` SPI
+- Predict a field's path type from its container's cardinality: exactly one, zero or one, or zero or more
+- Decide whether to set `widenCollections = true`, and say why a `Map` field stops at the container without it
+- Check whether a JDK, HKJ, Eclipse Collections, Guava, Vavr, Apache Commons or PCollections container works out of the box
+- Predict when `@GenerateFocus` rejects a raw or wildcard container type argument
+- Register your own container type by implementing the `TraversableGenerator` SPI
 ~~~
 
 The Focus DSL never asks you which path type you want. It reads the field's type and picks: exactly one, zero or one, or zero or more. This page is the rule book for that choice.

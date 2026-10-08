@@ -1,20 +1,19 @@
 # Database Records with JOOQ
 
-## _Copy Strategies for Builder-Based Types_
+_Get lenses for a JOOQ record, or any type that copies through a builder, wither or constructor._
 
 > *"First, solve the problem. Then, write the code."*
 >
 > – attributed to John Johnson
 
----
-
 The problem is not "how do I update a field in a JOOQ record". It is "how do I express a domain transformation clearly while respecting immutability". Builders solve the immutability half; optics solve the composition half. A copy strategy is how you tell the processor which builder-shaped door this particular type opens.
 
 ~~~admonish info title="What You'll Learn"
-- How `@ViaBuilder` turns a builder-pattern type into lenses
-- The other three strategies (`@Wither`, `@ViaConstructor`, `@ViaCopyAndSet`) and when each applies
-- `@ThroughField`, which gives you a traversal into a collection field
-- Which types need no strategy at all
+- Generate lenses for a builder-pattern type with `@ViaBuilder`, naming the getter, setter, `toBuilder` and `build` where conventions differ
+- Choose `@ViaBuilder`, `@Wither`, `@ViaConstructor` or `@ViaCopyAndSet` from how a type makes a modified copy
+- Traverse a collection field's elements with `@ThroughField`, and fix the refusal of a concrete container type
+- Check a `@ViaCopyAndSet` lens with `LensLaws` where a shallow or supertype copy constructor can lose state
+- Read through a type that already implements `List`, such as JOOQ's `Result`, with no strategy at all
 ~~~
 
 ---

@@ -1,19 +1,17 @@
 # Each: Canonical Element-Wise Traversal
 
-## _One Canonical Traversal per Container_
+_Get a container's natural traversal from one `each()` call, and give your own containers one too._
 
 > *"Simplicity is the ultimate sophistication."*
 >
 > – Leonardo da Vinci
 
 ~~~admonish info title="What You'll Learn"
-- How the `Each` type class provides canonical traversals for container types
-- Using `EachInstances` for Java collections (List, Set, Collection, Map, Optional, arrays, Stream, VStream, String)
-- Using `EachExtensions` for HKT types (Maybe, Either, Try, Validated)
-- Indexed traversal support via `EachIndexed.indexedTraversal()` for position-aware operations
-- Integration with Focus DSL using `.each(Each)` method
-- Creating custom `Each` instances for your own types
-- When to use `Each` vs direct `Traversal` creation
+- Get a traversal for a JDK container from `EachInstances`, or for `Maybe`, `Either`, `Try` and `Validated` from `EachExtensions`
+- Number list elements, or adjust map values by key, through `EachIndexed.indexedTraversal()`
+- Traverse a container a Focus path does not recognise with `.each(Each)`
+- Write an `Each` instance for your own container, or wrap an existing traversal with `Each.fromTraversal`
+- Decide between `Each` and a hand-built `Traversal`
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -22,7 +20,7 @@
 
 Every container type has a natural way to traverse its elements. A `List` iterates from first to last. A `Map` visits each value. An `Optional` yields zero or one element. The **Each** type class captures this canonical traversal pattern, providing a uniform interface across diverse container types.
 
-Rather than writing traversal logic repeatedly for each container, `Each` gives you a single method: `each()`. Call it, receive a `Traversal`, and you're ready to read or modify all elements.
+Rather than writing traversal logic repeatedly for each container, `Each` gives you a single method: `each()`. Call it, receive a `Traversal`, and you're ready to read or modify all elements. `Each` plays the part of `Iterable`: Java's enhanced `for` loop works on anything that supplies an iterator, and `each()` works on any container with an `Each` instance. Unlike `Iterable`, whose iterator only reads, the traversal `each()` returns also writes, giving back a new container.
 
 ---
 
@@ -55,17 +53,6 @@ Traversal<Optional<String>, String> optTrav = EachInstances.<String>optionalEach
 ```
 
 More importantly, `Each` integrates with the Focus DSL, enabling fluent navigation through any container type.
-
----
-
-## Think of Each Like...
-
-* **A universal remote**: One interface controls many devices
-* **An iterator factory**: Each container knows how to produce its own iterator
-* **A catalogue index**: Every library has a standard way to browse its contents
-* **The "for-each" loop**: Java's enhanced for loop works on any `Iterable`; `Each` works on any container
-
-The key insight: `Each` abstracts the *how* of traversal, letting you focus on the *what*.
 
 ---
 

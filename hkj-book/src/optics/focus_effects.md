@@ -1,12 +1,13 @@
 # Focus DSL: Type Class and Effect Integration
 
+_Run an update through an effect, fold a traversal into one value, and cross between Focus and Effect paths._
+
 ~~~admonish info title="What You'll Learn"
-- Effectful modification with `modifyF()` using an `Applicative` or `Monad` instance
-- Monoid-based aggregation with `foldMap()` on traversal paths
-- Generic collection traversal with `traverseOver()` for `Kind<F, A>` fields
-- Conditional modification with `modifyWhen()`
-- Path debugging with `traced()`
-- Bridging between Focus paths and Effect paths in both directions
+- Validate or fetch inside an update with `modifyF`, choosing the effect by the `Applicative` you pass
+- Sum or join every value a traversal reaches with `foldMap` and a `Monoid`
+- Traverse a `Kind<F, A>` field with `traverseOver`, giving the type witnesses Java cannot infer
+- Change only the elements that match with `modifyWhen`, and print what a path focused with `traced`
+- Cross between Focus and Effect paths in either direction, and predict when an `AffinePath` must name its absent case
 ~~~
 
 ~~~admonish example title="See Example Code"

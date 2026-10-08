@@ -510,7 +510,7 @@ See [Benchmarks & Performance](../benchmarks.md) for full details and how to int
 - [VTask](vtask_monad.md) - The single-value effect type that powers VStream pulls
 - [VTaskPath](../effect/path_vtask.md) - Fluent Path API wrapper for VTask
 - [Stream](stream_monad.md) - Eager list-based streaming
-- [Each Typeclass](../optics/each_typeclass.md) - Canonical element-wise traversal (includes VStream)
+- [Each Type Class](../optics/each_typeclass.md) - Canonical element-wise traversal (includes VStream)
 ~~~
 
 ---

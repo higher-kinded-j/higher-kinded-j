@@ -88,7 +88,7 @@
     - [Filtered Optics](optics/filtered_optics.md)
     - [Indexed Optics](optics/indexed_optics.md)
       - [Indexed Optics: Advanced Patterns](optics/indexed_optics_advanced.md)
-    - [Each Typeclass](optics/each_typeclass.md)
+    - [Each Type Class](optics/each_typeclass.md)
     - [String Traversals](optics/string_traversals.md)
     - [Indexed Access](optics/indexed_access.md)
   - [The Focus DSL in Depth](optics/ch4_intro.md)

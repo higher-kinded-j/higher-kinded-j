@@ -1,13 +1,12 @@
 # Profunctor Optics: Advanced Data Transformation
 
-## *Adapting Optics to Different Data Types*
+_Reuse an optic on a related type, through `dimap`, composition, an `Iso` or `Lens.of`._
 
 ~~~admonish info title="What You'll Learn"
-- Why every optic is a profunctor, and what `contramap`, `map`, and `dimap` really adapt
-- The write-side asymmetry: why `contramap` alone changes where reads come from but not what updates produce
-- Getting a fully-typed optic back: composition for nested sources, `Iso` for equivalent shapes, `Lens.of` for hand-rolled adapters
-- When the raw `Optic`-level operations are the right tool (one-way conversions, effectful pipelines)
-- When to adapt an existing optic versus creating a new one from scratch
+- Adapt an optic to a new source or result type with `contramap`, `map` and `dimap`
+- Predict why `contramap` alone changes where reads come from but not what an update produces
+- Run an adapted `Optic` through `modifyF`, since it has no `get` or `set`
+- Choose composition, an `Iso` or `Lens.of` to get a typed `Lens` back
 ~~~
 
 ~~~admonish example title="See Example Code"
@@ -31,12 +30,7 @@ In real-world applications, you frequently encounter situations where:
 
 Consider this scenario: you have a well-tested `Lens` that operates on a `Person` record, but you need to use it with an `Employee` record that contains a `Person` as a nested field. Rather than rewriting the lens, you can **adapt** it.
 
-## Think of Profunctor Adaptations Like...
-
-* **Universal adapters**: Like electrical plug adapters that make devices work in different countries
-* **Translation layers**: Converting between different "languages" of data representation
-* **Lens filters**: Modifying what the optic sees (input) and what it produces (output)
-* **Pipeline adapters**: Connecting optics that weren't originally designed to work together
+Adapting an optic with `contramap`, `map` or `dimap` plays the part of `Function.compose` and `Function.andThen` around a function: a conversion runs before the optic reads, or after it writes. Unlike composed functions, the result is a plain `Optic`, which is why the typed routes later on this page are often the better choice.
 
 ---
 
@@ -146,7 +140,7 @@ flowchart TD
 
 ## Common Pitfalls
 
-### Don't Do This:
+### Don't Do This
 
 <!-- verify -->
 ```java
@@ -164,7 +158,7 @@ Iso<PersonDto, Person> lossy = Iso.of(
     person -> new PersonDto(person.firstName(), "", List.of()));  // Round trip loses data!
 ```
 
-### Do This Instead:
+### Do This Instead
 
 <!-- verify -->
 ```java
