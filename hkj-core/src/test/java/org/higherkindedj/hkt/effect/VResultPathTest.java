@@ -1476,6 +1476,29 @@ class VResultPathTest {
               () -> VResultPath.<String, String>pure("x").withTimeout(Duration.ofSeconds(1), null))
           .withMessage("onTimeout must not be null");
     }
+
+    @Test
+    @DisplayName("allSucceed, allSucceedAccumulating and firstSuccess answer each run on its own")
+    void scopeCombinatorsAnswerEachRunOnItsOwn() {
+      VResultPath<String, List<String>> all =
+          VResultPath.allSucceed(
+              List.of(VResultPath.<String, String>pure("one"), VResultPath.pure("two")));
+      VResultPath<NonEmptyList<String>, List<String>> accumulated =
+          VResultPath.allSucceedAccumulating(
+              List.of(VResultPath.<String, String>raiseError("broke"), VResultPath.pure("fine")));
+      AtomicInteger calls = new AtomicInteger();
+      VResultPath<NonEmptyList<String>, Integer> race =
+          VResultPath.firstSuccess(
+              List.of(
+                  VResultPath.<String, Integer>fromVTask(
+                      VTask.of(() -> Either.right(calls.incrementAndGet())))));
+
+      for (int run = 1; run <= 2; run++) {
+        assertThatEither(all.run().run()).isRight().hasRight(List.of("one", "two"));
+        assertThatEither(accumulated.run().run()).isLeft().hasLeft(NonEmptyList.of("broke"));
+        assertThatEither(race.run().run()).isRight().hasRight(run);
+      }
+    }
   }
 
   @Nested

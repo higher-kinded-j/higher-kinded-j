@@ -55,6 +55,13 @@ import org.higherkindedj.hkt.validated.Validated;
  *     .join();
  * }</pre>
  *
+ * <h2>Running a Scope Again</h2>
+ *
+ * <p>A {@code Scope} is a description. Each run of the {@link VTask} that {@link #join()} returns
+ * opens a {@code StructuredTaskScope} of its own, with a new {@code Joiner} from the {@link
+ * ScopeJoiner}. So a {@code Scope} can be run again, retried, or run from several threads at once,
+ * and each run joins only the subtasks it forked.
+ *
  * <h2>Preview API Notice</h2>
  *
  * <p><b>Note:</b> This class uses Java 25's structured concurrency APIs which are currently in
@@ -110,6 +117,8 @@ public final class Scope<T, R> {
 
   /**
    * Creates a scope that returns the first completed result (success or failure).
+   *
+   * <p>As soon as one subtask completes, the others are cancelled.
    *
    * @param <T> the type of values produced by subtasks
    * @return a new Scope builder configured for first-complete semantics
@@ -211,10 +220,10 @@ public final class Scope<T, R> {
   /**
    * Joins all forked tasks and returns the result as a VTask.
    *
-   * <p>The returned VTask, when executed, will:
+   * <p>Each run of the returned VTask will:
    *
    * <ol>
-   *   <li>Open a StructuredTaskScope with the configured joiner
+   *   <li>Open a StructuredTaskScope with a new Joiner from the configured ScopeJoiner
    *   <li>Fork all added tasks
    *   <li>Wait for completion according to the joiner's semantics
    *   <li>Return the joined result

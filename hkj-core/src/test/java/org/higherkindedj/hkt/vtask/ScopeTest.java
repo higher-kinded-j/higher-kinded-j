@@ -6,10 +6,18 @@ import static org.assertj.core.api.Assertions.*;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.hkt.resilience.Retry;
+import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
@@ -552,6 +560,164 @@ class ScopeTest {
 
       assertThat(value).isEqualTo("fast-response");
       // Note: The slow task may or may not complete depending on timing
+    }
+  }
+
+  @Nested
+  @DisplayName("Each run of join() has its own joiner")
+  class EachRunHasItsOwnJoinerTests {
+
+    @Test
+    @DisplayName("allSucceed gives the same list on a second run")
+    void allSucceedGivesTheSameListOnASecondRun() {
+      VTask<List<Integer>> join =
+          Scope.<Integer>allSucceed().fork(VTask.succeed(1)).fork(VTask.succeed(2)).join();
+
+      assertThat(join.run()).containsExactly(1, 2);
+      assertThat(join.run()).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("accumulating gives the same errors on a second run")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
+    void accumulatingGivesTheSameErrorsOnASecondRun() {
+      VTask<Validated<List<String>, List<String>>> join =
+          Scope.<String, String>accumulating(Throwable::getMessage)
+              .fork(VTask.succeed("fine"))
+              .fork(VTask.fail(new RuntimeException("broke")))
+              .join();
+
+      assertThat(join.run().getError()).containsExactly("broke");
+      assertThat(join.run().getError()).containsExactly("broke");
+    }
+
+    @Test
+    @DisplayName("anySucceed and firstComplete answer from the run that asked")
+    void racesAnswerFromTheRunThatAsked() {
+      AtomicInteger anyCalls = new AtomicInteger();
+      VTask<Integer> any =
+          Scope.<Integer>anySucceed().fork(VTask.of(anyCalls::incrementAndGet)).join();
+      AtomicInteger firstCalls = new AtomicInteger();
+      VTask<Integer> first =
+          Scope.<Integer>firstComplete().fork(VTask.of(firstCalls::incrementAndGet)).join();
+
+      assertThat(List.of(any.run(), any.run())).containsExactly(1, 2);
+      assertThat(List.of(first.run(), first.run())).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("withJoiner answers from the run that asked")
+    void withJoinerAnswersFromTheRunThatAsked() {
+      AtomicInteger calls = new AtomicInteger();
+      VTask<Either<List<String>, Integer>> race =
+          Scope.withJoiner(ScopeJoiner.<String, Integer>firstSuccessEither())
+              .fork(VTask.of(() -> Either.<String, Integer>right(calls.incrementAndGet())))
+              .join();
+
+      assertThat(List.of(race.run(), race.run())).containsExactly(Either.right(1), Either.right(2));
+    }
+
+    @Test
+    @DisplayName("a run after a failed one gives its own answer")
+    void aRunAfterAFailedOneGivesItsOwnAnswer() {
+      VTask<List<Integer>> join =
+          Scope.<Integer>allSucceed().fork(failsOnFirstCall()).fork(VTask.succeed(2)).join();
+
+      assertThatThrownBy(join::run)
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("transient");
+      assertThat(join.run()).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("a retried join recovers from a transient failure")
+    void aRetriedJoinRecoversFromATransientFailure() {
+      VTask<List<Integer>> join =
+          Scope.<Integer>allSucceed().fork(failsOnFirstCall()).fork(VTask.succeed(2)).join();
+
+      List<Integer> retried = Retry.retryTask(join, RetryPolicy.fixed(3, Duration.ZERO)).run();
+
+      assertThat(retried).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("runs at the same time each get their own result")
+    void runsAtTheSameTimeEachGetTheirOwnResult() throws Exception {
+      int runs = 8;
+      CountDownLatch everySubtaskStarted = new CountDownLatch(runs * 2);
+      VTask<Integer> one = waitingForEveryOther(everySubtaskStarted, 1);
+      VTask<Integer> two = waitingForEveryOther(everySubtaskStarted, 2);
+      VTask<List<Integer>> join = Scope.<Integer>allSucceed().fork(one).fork(two).join();
+
+      try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        List<Future<List<Integer>>> results =
+            IntStream.range(0, runs).mapToObj(_ -> executor.submit(() -> join.run())).toList();
+        for (Future<List<Integer>> result : results) {
+          assertThat(result.get(10, TimeUnit.SECONDS)).containsExactly(1, 2);
+        }
+      }
+    }
+
+    @Test
+    @DisplayName("firstComplete cancels the subtasks still running")
+    void firstCompleteCancelsTheSubtasksStillRunning() {
+      CountDownLatch slowStarted = new CountDownLatch(1);
+      CountDownLatch neverReleased = new CountDownLatch(1);
+      AtomicBoolean slowCancelled = new AtomicBoolean();
+      VTask<String> fast =
+          VTask.of(
+              () -> {
+                slowStarted.await();
+                return "fast";
+              });
+      VTask<String> slow =
+          VTask.of(
+              () -> {
+                slowStarted.countDown();
+                try {
+                  neverReleased.await();
+                  return "slow";
+                } catch (InterruptedException e) {
+                  slowCancelled.set(true);
+                  throw e;
+                }
+              });
+
+      try {
+        String winner =
+            Scope.<String>firstComplete()
+                .fork(fast)
+                .fork(slow)
+                .join()
+                .timeout(Duration.ofSeconds(10))
+                .run();
+
+        assertThat(winner).isEqualTo("fast");
+        assertThat(slowCancelled).isTrue();
+      } finally {
+        neverReleased.countDown();
+      }
+    }
+
+    private static VTask<Integer> failsOnFirstCall() {
+      AtomicInteger calls = new AtomicInteger();
+      return VTask.of(
+          () -> {
+            if (calls.incrementAndGet() == 1) {
+              throw new IllegalStateException("transient");
+            }
+            return 1;
+          });
+    }
+
+    private static VTask<Integer> waitingForEveryOther(
+        CountDownLatch everySubtaskStarted, int value) {
+      return VTask.of(
+          () -> {
+            everySubtaskStarted.countDown();
+            assertThat(everySubtaskStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            return value;
+          });
     }
   }
 }

@@ -92,7 +92,7 @@ VTask<String> any = Scope.<String>anySucceed()
 |--------|----------|-------------|----------|
 | `allSucceed` | Wait for all; fail on first failure | `List<T>` | Parallel fetches that all must complete |
 | `anySucceed` | Return first success; cancel others | `T` | Racing redundant requests |
-| `firstComplete` | Return first result (success or failure) | `T` | Fast-path with fallback |
+| `firstComplete` | Return first result (success or failure); cancel others | `T` | Fast-path with fallback |
 
 **Exercise 3**: Use `firstComplete` to race a fast but risky operation against a slow but safe one
 **Exercise 4**: Add a timeout to a scope operation

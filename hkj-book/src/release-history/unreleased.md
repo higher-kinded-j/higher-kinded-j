@@ -34,6 +34,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **A `VStream` releases its resources when it stops early or fails** ([#1024](https://github.com/higher-kinded-j/higher-kinded-j/issues/1024)): closing reaches every finaliser upstream that the stream has started reading, through any operator, innermost first. `takeWhile`, `zipWith`, `headOption`, `find`, `exists`, `forAll` and a failing terminal operation close what they leave unread. So `bracket(...).map(f).headOption()` releases at once. `VStream.closeAfterFailure` closes a failed manual pull. See [onFinalize: Lightweight Cleanup](../monads/vstream_resources.md#onfinalize-lightweight-cleanup).
 - **One `Resource` can serve overlapping uses** ([#1019](https://github.com/higher-kinded-j/higher-kinded-j/issues/1019)): each `use` releases exactly what it acquired, however the `Resource` was composed. So a `Resource` built once with `map` or `flatMap` and used nested, or once per concurrent request, no longer releases one resource twice and leaks the other. See [Using One Resource Many Times](../monads/vtask_resource.md#using-one-resource-many-times).
 - **`VStreamReactive` passes cancellation across the bridge** ([#1024](https://github.com/higher-kinded-j/higher-kinded-j/issues/1024)): a `toPublisher` subscription closes the rest of its stream when it cancels or the stream fails, once it has requested elements. Closing a `fromPublisher` stream cancels its subscription, so `take(n)` stops the publisher. See [Reactive Interop: Flow.Publisher Bridge](../monads/vstream_advanced.md#reactive-interop-flowpublisher-bridge).
+- **A `Scope` gives the same answer each time its `join()` runs** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): each run opens its own `StructuredTaskScope` with a new `Joiner`. A second run, a retry or a run on another thread no longer sees another run's subtasks. `VResultPath.allSucceed`, `allSucceedAccumulating` and `firstSuccess` are fixed too. See [Running a Scope Again](../monads/vtask_scope.md#running-a-scope-again).
 
 ---
 
@@ -123,6 +124,8 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **`and(second, third)` releases its first resource when two releases throw one exception** ([#1019](https://github.com/higher-kinded-j/higher-kinded-j/issues/1019)): the same exception instance from both used to fail with `IllegalArgumentException` and leave the first resource acquired.
 - **Cleanup after a failed or cancelled use runs with the interrupt status cleared** ([#1019](https://github.com/higher-kinded-j/higher-kinded-j/issues/1019)): releases, finalisers and `onFailure` actions, so a blocking close is not cut short. The status is restored afterwards.
 - **A `bracket` whose `use` function throws releases the resource** ([#1024](https://github.com/higher-kinded-j/higher-kinded-j/issues/1024)): before the failure reaches the caller. It used to leave the resource acquired.
+- **`Scope.firstComplete` cancels the other subtasks when one completes** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): it used to wait for every subtask, so a slow subtask now sees an interrupt instead of running to the end.
+- **`ScopeJoiner.joiner()` returns a new `Joiner` on each call** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): code that opened a scope with one call and read `result()` from another now reads a `Joiner` no scope has used. Keep the `Joiner` from the call that opened the scope.
 
 #### Testing {#runtime-testing}
 
@@ -145,6 +148,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 
 | Deprecated | Replacement | Recipe |
 |---|---|---|
+| `ScopeJoiner.resultEither()` | `Scope.joinEither()`; for a `StructuredTaskScope` you open yourself, wrap the result of its `join()` in an `Either` | None |
 
 ---
 

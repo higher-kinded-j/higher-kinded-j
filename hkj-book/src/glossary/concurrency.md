@@ -160,7 +160,7 @@ Resource<Lock> lock = Resource.make(
 |--------|-----------|
 | `allSucceed()` | Wait for all tasks; fail on first failure |
 | `anySucceed()` | Return first success; cancel others |
-| `firstComplete()` | Return first result (success or failure) |
+| `firstComplete()` | Return first result (success or failure); cancel others |
 | `accumulating(mapper)` | Collect all errors using `Validated` |
 | `withJoiner(joiner)` | Use custom `ScopeJoiner` |
 
@@ -202,7 +202,7 @@ VTask<Try<List<String>>> safe = Scope.<String>allSucceed()
 |--------|-------------|-----------|
 | `allSucceed()` | `List<T>` | Collect all successful results |
 | `anySucceed()` | `T` | First successful result |
-| `firstComplete()` | `T` | First result regardless of outcome |
+| `firstComplete()` | `T` | First result regardless of outcome; cancels the rest |
 | `accumulating(mapper)` | `Validated<List<E>, List<T>>` | Collect all errors and successes |
 
 **Example:**
@@ -221,13 +221,12 @@ VTask<List<String>> result = Scope.withJoiner(allSucceed)
     .fork(task2())
     .join();
 
-// Access underlying Java 25 Joiner for interop
+// Access a Java 25 Joiner for interop: a new one for each StructuredTaskScope
 StructuredTaskScope.Joiner<String, List<String>> java25Joiner =
     allSucceed.joiner();
-
-// Get result wrapped in Either
-Either<Throwable, List<String>> eitherResult = allSucceed.resultEither();
 ```
+
+A `ScopeJoiner` holds only its configuration, so one can serve any number of scopes.
 
 **Related:** [Scope](#scope), [Validated](data-effects.md#validated), [ScopeJoiner Documentation](../monads/vtask_scope.md)
 

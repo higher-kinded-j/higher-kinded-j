@@ -23,7 +23,7 @@ import org.higherkindedj.hkt.vtask.VTask;
  * <ul>
  *   <li>allSucceed - wait for all tasks to complete successfully
  *   <li>anySucceed - return first success, cancel others
- *   <li>firstComplete - return first result regardless of outcome
+ *   <li>firstComplete - return first result regardless of outcome, cancel others
  *   <li>accumulating - collect all errors using Validated
  *   <li>Timeout handling with scopes
  *   <li>Safe result handling with joinSafe, joinEither, joinMaybe

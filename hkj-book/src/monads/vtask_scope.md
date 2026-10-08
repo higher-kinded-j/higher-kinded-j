@@ -6,6 +6,7 @@
 - Choosing between `allSucceed`, `anySucceed`, `firstComplete`, and `accumulating` joiners
 - Error accumulation using `Validated` for validation scenarios
 - Safe result handling with `Try`, `Either`, and `Maybe` wrappers
+- Running one `Scope` again, retrying it, or running it from several threads
 - Understanding the `ScopeJoiner` interface for custom joining behaviour
 ~~~
 
@@ -93,7 +94,7 @@ VTask<List<Integer>> all = Scope.<Integer>allSucceed()
 |--------|----------|----------|
 | `allSucceed()` | Wait for all to succeed; fail on first failure | Parallel fetches that all must complete |
 | `anySucceed()` | Return first success; cancel others | Racing redundant requests |
-| `firstComplete()` | Return first result (success or failure) | Fast-path with fallback |
+| `firstComplete()` | Return first result (success or failure); cancel others | Fast-path with fallback |
 | `accumulating(mapper)` | Collect all errors; never fail-fast | Validation scenarios |
 | `withJoiner(joiner)` | Custom joiner behaviour | Advanced use cases |
 
@@ -123,7 +124,7 @@ VTask<Package> download = Scope.<Package>anySucceed()
     .join();
 ```
 
-**firstComplete** captures the first result regardless of success or failure:
+**firstComplete** captures the first result regardless of success or failure, and cancels the tasks still running:
 
 <!-- verify -->
 ```java
@@ -133,6 +134,20 @@ VTask<Result> result = Scope.<Result>firstComplete()
     .fork(VTask.of(() -> slowButSafe()))
     .join();
 ```
+
+---
+
+## Running a Scope Again {#running-a-scope-again}
+
+A `Scope` is a description, like the `VTask` its `join()` returns. Each run of that `VTask` opens a `StructuredTaskScope` of its own, with a new `Joiner`. So you can run it again, retry it, or run it from several threads at once, and each run joins only the subtasks it forked.
+
+Here the quote service is busy on its first call, and [`Retry`](../resilience/retry.md) runs the same `prices` task again:
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/scope/ScopeBook.java:run_again}}
+```
+
+The first attempt fails, and the second joins only its own two subtasks. Running `prices` once more gives the same answer.
 
 ---
 
@@ -245,20 +260,19 @@ VTask<List<String>> result = Scope.withJoiner(allSucceed)
     .fork(task2())
     .join();
 
-// Access underlying Java 25 Joiner when needed
+// Access a Java 25 Joiner when needed: a new one for each StructuredTaskScope
 StructuredTaskScope.Joiner<String, List<String>> java25Joiner =
     allSucceed.joiner();
-
-// Get result wrapped in Either (functional error handling)
-Either<Throwable, List<String>> eitherResult = allSucceed.resultEither();
 ```
+
+A `ScopeJoiner` holds only its configuration. Each call to `joiner()` returns a new `Joiner`, because a `StructuredTaskScope` needs one that no other scope has used. So one `ScopeJoiner` can serve any number of scopes.
 
 ### ScopeJoiner Methods
 
 | Method | Return Type | Description |
 |--------|-------------|-------------|
-| `joiner()` | `StructuredTaskScope.Joiner<T, R>` | Access underlying Java 25 Joiner |
-| `resultEither()` | `Either<Throwable, R>` | Get result wrapped in Either |
+| `joiner()` | `StructuredTaskScope.Joiner<T, R>` | A new Java 25 Joiner, for one `StructuredTaskScope` |
+| `resultEither()` | `Either<Throwable, R>` | Deprecated for removal in 0.6.0; use `Scope.joinEither()` |
 
 ---
 
@@ -266,9 +280,10 @@ Either<Throwable, List<String>> eitherResult = allSucceed.resultEither();
 * **Scope** provides a fluent builder for structured concurrency with configurable joining strategies
 * **allSucceed** waits for all tasks and fails fast on any failure
 * **anySucceed** returns the first success and cancels remaining tasks
-* **firstComplete** returns the first result regardless of success or failure
+* **firstComplete** returns the first result regardless of success or failure, and cancels the rest
 * **accumulating** collects all errors using `Validated`, ideal for validation
 * **Safe wrappers** (`joinSafe`, `joinEither`, `joinMaybe`) capture failures functionally
+* **One Scope runs any number of times**: each run joins only its own subtasks, so a `Scope` can be retried or shared between threads
 * **ScopeJoiner** bridges HKJ types with Java 25's native Joiner interface
 ~~~
 

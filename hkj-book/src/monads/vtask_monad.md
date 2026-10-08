@@ -360,7 +360,7 @@ For more complex concurrent patterns, VTask provides additional APIs documented 
 **[Scope and ScopeJoiner](vtask_scope.md)** - Fluent API for coordinating concurrent tasks with configurable joining strategies:
 - `allSucceed` - Wait for all tasks to complete successfully
 - `anySucceed` - Return first success, cancel others
-- `firstComplete` - Return first result regardless of outcome
+- `firstComplete` - Return first result regardless of outcome, and cancel the rest
 - `accumulating` - Collect all errors using `Validated`
 ~~~
 
