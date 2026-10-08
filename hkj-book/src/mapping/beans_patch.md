@@ -264,7 +264,7 @@ Practise the sparse identity law in [Tutorial 27: Boundary Edge Cases](https://g
 
 ~~~admonish tip title="See Also"
 - [Bean-Shaped Wires](beans.md): What counts as a bean, and how its getters and setters are read and written
-- [Multi-Edit and Sparse Updates](../optics/multi_edit.md): The hand-written `Edits.accumulate` this tier generates
+- [Many Edits at Once](../optics/multi_edit.md): The hand-written `Edits.accumulate` this tier generates
 - [Sparse PATCH at the Spring boundary](../spring/spring_boot_integration.md#sparse-patch): The controller story
 - [What Your Spec Generates](tiers.md): Where `updateFrom` sits among the surfaces
 ~~~

@@ -19,6 +19,7 @@ input-404 = "404.md"
 enable = true
 level = 1
 [output.html.redirect]
+"/optics/fluent_api_field_guide.html" = "fluent_api.html#field-notes"
 "/usage-guide.html" = "https://higher-kinded-j.github.io/hkts/usage-guide.html"
 "/core-concepts.html" = "https://higher-kinded-j.github.io/hkts/core-concepts.html"
 "/draughts.html" = "https://higher-kinded-j.github.io/hkts/draughts.html"

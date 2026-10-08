@@ -110,7 +110,7 @@ Compile-time domain ↔ wire codecs, generated from a spec interface you own:
 | `updateFrom(wire)` | Sparse PATCH fold: absent means "leave unchanged" | [`UpdateSpec`](mapping/beans_patch.md#sparse-patch-write-back-updatespec) |
 | `updateFrom(message, mask)` | A protobuf-java message's update: applies the fields its `FieldMask` names | [`UpdateSpec`](mapping/beans.md#a-patch-through-its-fieldmask) |
 | `StandardCodecs.uuid()`, `localDate()`, `enumByName(...)`, ... | Stock `ValidatedPrism` leaves for identifiers, dates, enums, money | [Standard codecs](mapping/codecs.md#standard-codecs) |
-| `Edits.accumulate(...)` | Hand-written validated multi-edit (irregular PATCH shapes) | [Multi-Edit](optics/multi_edit.md) |
+| `Edits.accumulate(...)` | Hand-written validated multi-edit (irregular PATCH shapes) | [Many Edits at Once](optics/multi_edit.md) |
 | `MappingLaws.assertMappingLaws(...)` | Law-check any generated mapping in one test call | [hkj-test](tooling/test_assertions.md#optic-laws) |
 
 ---

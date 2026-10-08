@@ -698,7 +698,7 @@ See [FluentValidationExample.java](https://github.com/higher-kinded-j/higher-kin
 ~~~
 
 ~~~admonish tip title="See Also"
-- [Fluent API for Optics](fluent_api.md#part-2-validation-aware-modification): the four validation strategies, the builders, and when to drop to `modifyF`
+- [Updates That Can Fail](fluent_api.md#part-2-validation-aware-modification): the four validation strategies, the builders, and when to drop to `modifyF`
 - [Composition Rules](composition_rules.md): why a chain of mixed optics widens to a `Traversal`
 - [Core Type Integration](core_type_integration.md): the prisms that let a core type sit mid-path
 ~~~

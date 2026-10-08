@@ -119,7 +119,7 @@ For one read like this, Jackson's own `response.at("/items/0/name")` is shorter.
 - [Annotations at a Glance](annotations_at_a_glance.md): every `@Generate*` and spec hint, with its target and what it produces
 - [Focus DSL](focus_dsl.md): the path-based API this page previews, in full
 - [Decision Trees](decision_trees.md#tree-2-which-api-style): choosing between the Focus DSL, the Fluent API and the Free Monad DSL
-- [What Are Optics?](optics_intro.md): the conceptual introduction, if you would rather start with the idea
+- [What a Path Is Made Of](optics_intro.md): the optics a path wraps, and when you need one
 - [Record Mapping](../mapping/ch_intro.md): the domain to wire boundary, which needs none of this chapter first
 ~~~
 

@@ -113,7 +113,7 @@ A real request is rarely just a bad value. It leaves a field out, sends a list w
 - [Nesting a spec, and a list of them](../../mapping/structure.md#nesting-containers-and-recursion): How a list element is located
 - [Absent Fields and Record Invariants](../../mapping/absence.md): Tutorial 27's `@OptionalBridge` and invariant rules in full
 - [A PATCH getter must answer `null` until set](../../mapping/beans_patch.md#patch-getters-answer-null): Why a PATCH bean must leave its fields uninitialised
-- [Multi-Edit and Sparse Updates](../../optics/multi_edit.md): Tutorial 24's reference page
+- [Many Edits at Once](../../optics/multi_edit.md): Tutorial 24's reference page
 - [Validated Prisms](../../optics/validated_prism.md): Tutorial 25's reference page
 ~~~
 

@@ -37,7 +37,7 @@ Kind<IOKind.Witness, Agency> deferred =
 ```
 
 ~~~admonish warning title="`modifyF` speaks `Kind`, not the concrete type"
-The function must return `Kind<F, A>` and the result is `Kind<F, S>`, so an `IO` goes in through `IO_OP.widen(...)` and a `Validated` comes out through `VALIDATED.narrow(...)`. The [Fluent API](fluent_api.md#part-2-validation-aware-modification)'s four validation methods do that widening for you for `Either`, `Maybe` and `Validated`; reach for `modifyF` when the effect is something else, or when you already hold the `Applicative`.
+The function must return `Kind<F, A>` and the result is `Kind<F, S>`, so an `IO` goes in through `IO_OP.widen(...)` and a `Validated` comes out through `VALIDATED.narrow(...)`. The four validation methods on [Updates That Can Fail](fluent_api.md#part-2-validation-aware-modification) do that widening for you for `Either`, `Maybe` and `Validated`; reach for `modifyF` when the effect is something else, or when you already hold the `Applicative`.
 ~~~
 
 Accumulating validation is the same call with a `Validated` applicative, and shows the one piece of ceremony worth knowing about: the witness has to be written out, because nothing in the argument list mentions `List<String>`.
@@ -279,7 +279,7 @@ EitherPath<String, Integer> salary =
 - [Effect Path Overview](../effect/effect_path_overview.md): railway model and effect composition
 - [Focus-Effect Integration](../effect/focus_integration.md): the complete bridging guide
 - [Capability Interfaces](../effect/capabilities.md): the powers behind effect operations
-- [Fluent API](fluent_api.md): validation-aware modification without hand-wiring an `Applicative`
+- [Updates That Can Fail](fluent_api.md): validation-aware modification without hand-wiring an `Applicative`
 ~~~
 
 ---

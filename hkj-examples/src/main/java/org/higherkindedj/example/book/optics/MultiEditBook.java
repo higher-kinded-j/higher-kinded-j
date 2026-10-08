@@ -21,8 +21,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The code shown on the book's <a
- * href="https://higher-kinded-j.github.io/optics/multi_edit.html">Multi-Edit and Sparse Updates</a>
- * page. The page {@code {{#include}}}s the anchored regions, so it cannot drift from the API.
+ * href="https://higher-kinded-j.github.io/optics/multi_edit.html">Many Edits at Once</a> page. The
+ * page {@code {{#include}}}s the anchored regions, so it cannot drift from the API.
  *
  * <p>The paths come from the generated {@code OrderFocus} companion, not hand-rolled optics: their
  * labels are what let a failed parse locate itself, which is precisely what the page claims.
@@ -45,7 +45,7 @@ public final class MultiEditBook {
 
   public static void main(String[] args) {
     Order order = new Order("ORD-1", "A@B.COM", " sku ", 1);
-    PatchRequest req = new PatchRequest("ORD-2", "not-an-address", null, 3);
+    PatchRequest req = new PatchRequest("2", "not-an-address", null, 3);
 
     // ANCHOR: before
     Order updated = order;
@@ -83,11 +83,11 @@ public final class MultiEditBook {
     // ANCHOR: accumulate
     Validated<NonEmptyList<FieldError>, Order> patched =
         Edits.accumulate(
-                setIfPresent(ORDER_NUMBER, req.orderNumber()),
+                parseIfPresent(ORDER_NUMBER, req.orderNumber(), OrderNumber::parse),
                 parseIfPresent(EMAIL, req.email(), Email::parse),
                 modifyIfPresent(QUANTITY, req.qtyDelta(), (delta, qty) -> qty + delta))
             .apply(order);
-    // Invalid(NonEmptyList[email: not an address])
+    // Invalid(NonEmptyList[orderNumber: not an order number, email: not an address])
     //   <- or Valid(order) with only the present fields changed
     // ANCHOR_END: accumulate
     System.out.println(patched);
@@ -152,7 +152,18 @@ record Ends(int lo, int hi) {} // the fields the edits set, with no check of the
 /** A sparse request moving a range's ends: a null component means "not supplied". */
 record MoveRequest(@Nullable Integer lo, @Nullable Integer hi) {}
 
-/** The boundary parser the page hands to {@code parseIfPresent}. */
+// ANCHOR: parsers
+/** The boundary parsers the page hands to {@code parseIfPresent}. */
+final class OrderNumber {
+  static Validated<NonEmptyList<FieldError>, String> parse(String raw) {
+    return raw.matches("ORD-\\d+")
+        ? Validated.validNel(raw)
+        : Validated.invalidNel(FieldError.of("not an order number"));
+  }
+
+  private OrderNumber() {}
+}
+
 final class Email {
   static Validated<NonEmptyList<FieldError>, String> parse(String raw) {
     return raw.contains("@")
@@ -162,3 +173,4 @@ final class Email {
 
   private Email() {}
 }
+// ANCHOR_END: parsers

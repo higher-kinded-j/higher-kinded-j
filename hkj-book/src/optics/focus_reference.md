@@ -271,7 +271,7 @@ Focus paths are designed for compile-time type safety. When the path is only kno
 ~~~admonish tip title="See Also"
 - [Focus DSL](focus_dsl.md): core concepts and path types
 - [Lenses](lenses.md): the optic underneath a `FocusPath`
-- [Fluent API](fluent_api.md): validation-aware modification through `OpticOps`
+- [Updates That Can Fail](fluent_api.md): validation-aware modification through `OpticOps`
 - [Free Monad DSL](free_monad_dsl.md): optic programs and interpreters
 ~~~
 

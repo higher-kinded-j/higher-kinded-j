@@ -450,9 +450,9 @@ If you want working code immediately, start with the **[Quickstart](quickstart.m
 2. **[Quickstart](optics/quickstart.md):** Three runnable examples covering generated lenses, prisms and traversals, plus `@ImportOptics` for Jackson
 3. **[Focus DSL](optics/focus_dsl.md):** Generated, compile-checked paths through your own records
 4. **[Collections, Optionals and Sealed Types](optics/focus_navigation.md):** Collections, optionals, sealed variants and `.via()`
-5. **[What Are Optics?](optics/optics_intro.md):** The lenses, prisms and traversals a path is made of
-6. **[Fluent API](optics/fluent_api.md):** Updates that can fail, with every bad value reported
-7. **[Multi-Edit and Sparse Updates](optics/multi_edit.md):** Several edits applied as one, including a REST PATCH
+5. **[What a Path Is Made Of](optics/optics_intro.md):** The lenses, prisms and traversals a path wraps, and when you need one
+6. **[Updates That Can Fail](optics/fluent_api.md):** Validated updates, with every bad value reported
+7. **[Many Edits at Once](optics/multi_edit.md):** Several edits applied as one, including a REST PATCH
 
 **On demand**, when a task calls for it:
 

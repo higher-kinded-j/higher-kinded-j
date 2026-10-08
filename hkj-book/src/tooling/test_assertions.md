@@ -377,7 +377,7 @@ For asserting on the located failures themselves, `assertThatValidated(...).hasF
 ~~~admonish tip title="See Also"
 - [Manual Gradle and Maven Setup](manual_setup.md) - Adding hkj-test to projects that do not use the HKJ build plugin
 - [Build Plugins](gradle_plugin.md) - Other test-time tooling
-- [What Are Optics?](../optics/optics_intro.md) - The optic families these laws define
+- [What a Path Is Made Of](../optics/optics_intro.md#choosing-an-optic) - The optic families these laws define
 ~~~
 
 ---

@@ -180,7 +180,7 @@ Practise the boundary in [Tutorial 25: ValidatedPrism](https://github.com/higher
 ~~~admonish tip title="See Also"
 - [Prisms](prisms.md): the yes/no match this type upgrades
 - [Accumulating Assembly](../monads/validated_assembly.md): sibling-field accumulation for multi-field parses
-- [Multi-Edit and Sparse Updates](multi_edit.md): the update-side counterpart
+- [Many Edits at Once](multi_edit.md): the update-side counterpart
 - [Record Mapping](../mapping/ch_intro.md): `@GenerateMapping` derives whole-record `parse`/`build` from these leaves
 ~~~
 

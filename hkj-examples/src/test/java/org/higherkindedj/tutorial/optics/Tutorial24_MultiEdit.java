@@ -54,7 +54,7 @@ import org.junit.jupiter.api.Test;
  * one atomic edit - that is Tutorial 23's {@code CoupledLenses} territory.
  *
  * <p>Prerequisites: Tutorial 01 (Lens Basics); Tutorial 12 (Accumulating Assembly) is the
- * construction-side twin of Part 3. Read the Multi-Edit and Sparse Updates chapter.
+ * construction-side twin of Part 3. Read the Many Edits at Once page.
  *
  * <p>Replace each {@code answerRequired()} placeholder with the correct code to make the tests
  * pass.
@@ -236,7 +236,7 @@ public class Tutorial24_MultiEdit {
 
   /*
    * Where to next?
-   *   • Multi-Edit and Sparse Updates (Optics chapter) — the full story: two-phase semantics,
+   *   • Many Edits at Once (Optics chapter) — the full story: two-phase semantics,
    *     the ValidationPath twin (applyPath), and reusing one accumulated patch across sources.
    *   • Tutorial 23 — genuinely coupled fields (a cross-field invariant) belong in one atomic
    *     edit: CoupledLenses, not independent edits.

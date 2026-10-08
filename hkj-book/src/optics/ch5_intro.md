@@ -8,7 +8,7 @@
 
 ---
 
-This group covers the edges of a service, and you can skip it until one of them comes up. A value is parsed at a boundary, an update is checked by a validating effect, a batch of reads goes out as one call, and a record keeps what changed. The everyday versions are among the chapter's first pages: [Fluent API](fluent_api.md) for an update that can fail, and [Multi-Edit and Sparse Updates](multi_edit.md) for a PATCH. Here is the mechanism under the first of those, before any theory. One path runs from a form, through a sealed principal, across a list of permissions, down to each permission's name; one call validates every one of them and collects the failures. Every line compiles against the real library on every build:
+This group covers the edges of a service, and you can skip it until one of them comes up. A value is parsed at a boundary, an update is checked by a validating effect, a batch of reads goes out as one call, and a record keeps what changed. The everyday versions are among the chapter's first pages: [Updates That Can Fail](fluent_api.md) for one checked update, and [Many Edits at Once](multi_edit.md) for a PATCH. Here is the mechanism under the first of those, before any theory. One path runs from a form, through a sealed principal, across a list of permissions, down to each permission's name; one call validates every one of them and collects the failures. Every line compiles against the real library on every build:
 
 <!-- verify -->
 ```java

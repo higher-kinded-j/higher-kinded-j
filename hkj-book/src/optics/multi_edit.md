@@ -1,32 +1,31 @@
-# Multi-Edit and Sparse Updates
+# Many Edits at Once
 
-## _N Edits in One Operation, and the REST PATCH Shape_
-
-~~~admonish example title="See Example Code"
-**The code on this page is [MultiEditBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java)** - the page includes it directly, so it is compiled and run by the build.
-~~~
-
-
-_Apply N independent edits at different paths in one reusable operation, including the sparse, all-errors-at-once REST `PATCH` shape._
+_Apply several edits as one update, or check a REST `PATCH` and report every bad field at once._
 
 ~~~admonish info title="What You'll Learn"
-- Combining several edits at different paths into one reusable operation with `Edits.combine`
-- Writing sparse updates where a `null` field means "leave it alone", with no `if` per field
-- Building a REST `PATCH` with `Edits.accumulate` that validates every field and reports all the bad ones at once, not just the first
-- The two-phase model: validate everything first, then apply the writes only if all of them passed
-- Editing fields a record's constructor checks together, so it sees only the values the edits end on
-- How the pure and validating edits are kept apart at compile time, and when overlapping paths need one atomic edit instead
+- Combine edits at different paths into one reusable update with `Edits.combine`
+- Write a sparse update, where a `null` field means "leave it alone", with no `if` per field
+- Check every field of a REST `PATCH` with `Edits.accumulate`, and report all the bad ones together
+- Edit fields a record's constructor checks together, so it sees only the final values
 ~~~
+
+~~~admonish example title="See Example Code"
+**The code on this page is [MultiEditBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java)**: the page includes it directly, so the build compiles and runs it.
+~~~
+
+---
 
 ## The problem
 
-An optic edits one path at a time (`FocusPath.set`, `Setter.modify`). But the everyday case is applying **several** edits at once, the classic example being a REST `PATCH` that tidies the email, trims the SKU, and bumps the quantity. By hand that means threading the value through every step, guarding each optional field with an `if`, and (if you validate at all) throwing on the first bad field:
+A path makes one edit at a time. The everyday case is several edits at once, and the classic one is a REST `PATCH` that tidies the email, trims the SKU, and bumps the quantity. By hand that means threading the value through every step, guarding each optional field with an `if`, and, if you validate at all, throwing on the first bad field:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:before}}
 ```
 
-Three pains recur: one `if` per optional field, the value re-threaded by hand at every step, and validation that stops at the first error instead of collecting them all.
+Three pains recur: one `if` per optional field, the value re-threaded by hand at every step, and validation that stops at the first error instead of collecting them all. If you use MapStruct for this, its answer is `@MappingTarget` with `NullValuePropertyMappingStrategy.IGNORE`, and [Coming from MapStruct](../mapping/from_mapstruct.md#from-mapstruct) sets the two side by side.
+
+---
 
 ## The solution: two entry points
 
@@ -41,9 +40,9 @@ Those are the whole API, with one more form of `accumulate` for [fields a constr
 
 ---
 
-## Pure multi-edit: `Edits.combine`
+## Edits that cannot fail: `Edits.combine` {#pure-multi-edit-editscombine}
 
-Each `Edit` factory pairs an optic (a `FocusPath` or a `Setter`) with a value or function. `combine` folds them (via the [`Update` monoid](../functional/semigroup_and_monoid.md)) into one named, reusable transformation:
+Each `Edit` factory pairs an optic (a `FocusPath` or a `Setter`) with a value or function. `combine` joins them, in order, into one `Update<Order>`: a function from order to order that you can name and reuse.
 
 ``` java
 import static org.higherkindedj.optics.edit.Edit.*;
@@ -57,7 +56,7 @@ Only pure `Edit`s fit `combine`'s signature; a fallible edit is rejected **at co
 
 ## Sparse updates: absent means "leave it alone"
 
-The `…IfPresent` factories treat `null` as *absent*: the edit contributes the identity update, so a sparse request DTO lands one-to-one with no `if` ceremony:
+The `…IfPresent` factories treat `null` as *absent*: the edit changes nothing, so a sparse request DTO lands one-to-one with no `if` ceremony:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:sparse}}
@@ -67,9 +66,11 @@ Each request field maps to exactly one slot; an absent field simply contributes 
 
 ```mermaid
 flowchart TD
+    accTitle: A sparse request, field by field
+    accDescr: A request with an email, no SKU and a quantity delta of 3. The email is written, the absent SKU changes nothing, and the quantity grows by 3, so the order comes back with its email and quantity changed and its SKU untouched.
     Req(["PatchRequest<br/>email: a@b.example, sku: null, qtyDelta: 3"])
     Req --> E(["email present<br/>write it"])
-    Req --> S(["sku absent<br/>identity, no change"])
+    Req --> S(["sku absent<br/>no change"])
     Req --> Q(["qtyDelta present<br/>qty += 3"])
     E --> Out(["order': email and quantity changed,<br/>sku untouched"])
     S --> Out
@@ -89,22 +90,28 @@ A sparse edit cannot *clear* a field: `setIfPresent(path, null)` means "no chang
 
 ## Validated PATCH: `Edits.accumulate`
 
-`parseIfPresent` parses the incoming value first, and a generated path locates any failure **automatically** from its own label (`.at(label)` prepends further context, exactly as `FieldError.at` composes paths). The parser you hand it has exactly the shape of a [`ValidatedPrism`](validated_prism.md)'s `parse`: define the boundary once as a prism (gaining the total render-back and the round-trip laws) and pass `Email::parse` here. `accumulate` validates **every** edit independently and reports **all** bad fields at once:
+`parseIfPresent` parses the incoming value first, and a generated path locates any failure **automatically** from its own label. The parser you hand it has exactly the shape of a [`ValidatedPrism`](validated_prism.md)'s `parse`, so a boundary defined once as a prism passes its `parse` here. This request's order number and email are both bad:
+
+~~~admonish example title="The two parsers" collapsible=true
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:parsers}}
+```
+~~~
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:accumulate}}
 ```
 
-Errors accumulate in edit order on the `NonEmptyList` channel, exactly like the [accumulating assembly](../monads/validated_assembly.md), but as a homogeneous fold, so there is **no arity ceiling**.
+`accumulate` checks **every** edit independently and reports **all** the bad fields at once, each named by its path. The errors arrive in edit order on the `NonEmptyList`, as in the [accumulating assembly](../monads/validated_assembly.md), and one patch can hold any number of edits.
 
 ~~~admonish tip title="Generated paths label themselves"
-A path from a `@GenerateFocus` companion carries its record-component name as a **segment** (`OrderFocus.email()` → `"email"`); composing paths concatenates segments (`customer.via(address).via(zip)` → `"customer.address.zip"`, surfaced by `segments()`/`pathString()`), and `parseIfPresent` locates failures with them **automatically**: no `.at(...)` needed for generated paths. An explicit `.at(label)` still prepends outward, for hand-written optics or extra context.
+A path from a `@GenerateFocus` companion carries its record-component name as a **segment**: `OrderFocus.email()` is labelled `"email"`. Composing paths joins the segments, so `customer.via(address).via(zip)` is `"customer.address.zip"`, which `segments()` and `pathString()` return. `parseIfPresent` locates failures with them **automatically**, so a generated path needs no `.at(...)`. An explicit `.at(label)` still prepends outward, for a hand-written optic or extra context, as `FieldError.at` does.
 ~~~
 
-For the railway, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
+To carry on in an Effect Path, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
 
 ~~~admonish tip title="Generate this when the shape is regular"
-When the request DTO's fields line up one-to-one with a domain record (the common REST PATCH case), you need not hand-write the fold at all: `@GenerateMapping` on an [`UpdateSpec<Domain, Wire>`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) generates this `Edits.accumulate` over the present fields, in its [construct-once form](#fields-a-constructor-checks-together), as `updateFrom(wire) : Edits.Accumulated<Domain>` (the same `apply`/`applyPath`/`toValidated` surface). Reach for the hand-written `Edits` here when the edits are irregular (a `qtyDelta` that *modifies*, coupled fields, a computed target); reach for `UpdateSpec` when each present field maps to one slot.
+When the request DTO's fields line up one-to-one with a domain record, the common REST PATCH case, you need not hand-write the fold at all. `@GenerateMapping` on an [`UpdateSpec<Domain, Wire>`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) generates this `Edits.accumulate` over the present fields, in its [construct-once form](#fields-a-constructor-checks-together). It returns `updateFrom(wire) : Edits.Accumulated<Domain>`, with the same `apply`, `applyPath` and `toValidated`. Reach for the hand-written `Edits` here when the edits are irregular (a `qtyDelta` that *modifies*, coupled fields, a computed target); reach for `UpdateSpec` when each present field maps to one slot.
 ~~~
 
 ---
@@ -115,6 +122,8 @@ When the request DTO's fields line up one-to-one with a domain record (the commo
 
 ```mermaid
 flowchart TD
+    accTitle: How combine and accumulate tell the edits apart
+    accDescr: parseIfPresent makes a FallibleEdit, which may fail. set, modify and the IfPresent forms make an Edit, which cannot fail, and every Edit is also a FallibleEdit. Edits.combine takes only Edits, so a FallibleEdit there is a compile error; Edits.accumulate takes both.
     FE(["FallibleEdit&lt;S&gt;<br/>may fail: carries Validated&lt;NEL&lt;FieldError&gt;, Update&lt;S&gt;&gt;"])
     ED(["Edit&lt;S&gt;<br/>cannot fail: carries the Update&lt;S&gt; directly"])
     P(["FallibleEdit.Parsed<br/>from parseIfPresent"]) --> FE
@@ -138,14 +147,16 @@ flowchart TD
 
 An accumulated patch works in two phases:
 
-1. **Validate**: each edit's incoming value is checked independently. Validation never sees a source, which is what makes accumulation sound *and* lets one patch apply to many sources.
+1. **Validate**: each edit's incoming value is checked independently. Validation never sees a source, so every check runs, and one patch applies to many sources.
 2. **Apply**: only if every edit validated, the writes run as a single left-to-right fold.
 
 ```mermaid
 flowchart TD
+    accTitle: Validate everything, then write once
+    accDescr: In phase 1 each edit is checked on its own, with no source: an absent SKU is a valid no-op, the email is parsed, and a present quantity delta is a valid write. If every edit is valid, phase 2 runs the writes as one left-to-right fold; otherwise the result is Invalid with every bad field located.
     subgraph one["Phase 1: validate each edit independently, no source involved"]
         direction TB
-        S1(["setIfPresent(SKU, null)<br/>absent → identity"]) --> V1(["Valid, a no-op"])
+        S1(["setIfPresent(SKU, null)<br/>absent, so no change"]) --> V1(["Valid, a no-op"])
         S2(["parseIfPresent(EMAIL, raw)<br/>the parser runs"]) --> V2(["Valid(write)<br/>or Invalid(errors)"])
         S3(["modifyIfPresent(QTY, 3)<br/>present → write"]) --> V3(["Valid(write)"])
     end
@@ -169,7 +180,7 @@ Application order is observable only when paths overlap: disjoint paths commute;
 
 ## Fields a constructor checks together {#fields-a-constructor-checks-together}
 
-Each write through a record's path builds a new record, so the constructor sees every value the fold passes through. A range whose constructor refuses `lo > hi` cannot move from `Range(1, 3)` to `Range(5, 10)` one end at a time: writing `lo` first builds `Range(5, 3)`, and the constructor throws before `hi` is written, although the final range is valid.
+Each write through a record's path builds a new record, so the constructor sees every value the fold passes through. Take a range whose constructor refuses `lo > hi`. It cannot move from `Range(1, 3)` to `Range(5, 10)` one end at a time: writing `lo` first builds `Range(5, 3)`, and the constructor throws before `hi` is written, although the final range is valid.
 
 `Edits.accumulate(focus, edits...)` takes a `Lens` to a value carrying the fields the edits set, with no check of its own. The edits write onto that value, and the lens sets it back once, so the constructor sees only the final values:
 
@@ -183,6 +194,8 @@ Each write through a record's path builds a new record, so the constructor sees 
 
 ```mermaid
 flowchart LR
+    accTitle: One record per edit, or one record in all
+    accDescr: With plain accumulate, setting lo to 5 on Range(1, 3) builds Range(5, 3), which the constructor refuses. With accumulate onto the Ends focus, lo and hi are written onto Ends(1, 3) in turn, giving Ends(5, 10), and the lens sets it back once as Range(5, 10).
     subgraph each["accumulate(edits…): one record per edit"]
         direction LR
         A1(["Range(1, 3)"]) -->|"lo = 5"| A2(["Range(5, 3)<br/>the constructor throws"])
@@ -198,21 +211,39 @@ flowchart LR
     class A2 bad
 ```
 
-The edits validate exactly as they do in `accumulate`, and their errors are reported alone: the record is constructed only once every edit validated. A `RuntimeException` that setting the focus back throws is the constructor refusing the final values, and `apply` reports it as an unlabelled `FieldError` carrying the exception's message; an exception without a message, or with a blank one, reads `not a valid Range`. Only that call is guarded: an exception from an edit's own function, or from reading the focus, still propagates. When every edit is absent, the source comes back as it is and the focus is never set. `toValidated()` hands back an `Update` that writes onto the focus and sets it back once, and since an `Update` has no error channel, a refusal throws from it.
+`@GenerateMapping` on an [`UpdateSpec`](../mapping/beans_patch.md#fields-a-constructor-checks-together) generates exactly this: its `updateFrom` writes onto the components a PATCH can set and constructs the domain record once.
+
+~~~admonish tip title="You can ship now"
+You can now update nested records, check what you write, and apply a PATCH that reports every bad field. The On demand groups that follow are for when a task needs them, and [When the constructor refuses](#when-the-constructor-refuses) is the fine print of this page.
+~~~
+
+---
+
+## The fine print {#the-fine-print}
+
+### When the constructor refuses {#when-the-constructor-refuses}
+
+The edits validate exactly as they do in `accumulate`, and their errors are reported alone: the record is constructed only once every edit validated. After that, `apply` treats each kind of exception its own way:
+
+| What happens | What `apply` returns |
+|---|---|
+| Setting the focus back throws a `RuntimeException`: the constructor refusing the final values | An unlabelled `FieldError` carrying the exception's message, or `not a valid Range` when the message is missing or blank |
+| An edit's own function, or reading the focus, throws | Nothing: the exception propagates, since only setting the focus back is guarded |
+| Every edit is absent | The source as it is, without setting the focus |
+
+`toValidated()` hands back an `Update` that writes onto the focus and sets it back once. An `Update` has no error channel, so a refusal throws from it.
 
 The edits' errors are located relative to the focus. Where the focus is a nested component rather than the source's own fields, add the component's name to each edit with `.at("range")`, so their errors and the source agree on where they are.
-
-`@GenerateMapping` on an [`UpdateSpec`](../mapping/beans_patch.md#fields-a-constructor-checks-together) generates exactly this: its `updateFrom` writes onto the components a PATCH can set and constructs the domain record once.
 
 ---
 
 ~~~admonish info title="Key Takeaways"
-* **`Edits.combine`** folds pure edits into one reusable `Update<S>`; compile-time purity
-* **`…IfPresent` + null-as-absent** gives sparse updates with no `if` ceremony: absent contributes the monoid identity
-* **`Edits.accumulate`** validates every edit independently and reports all located failures at once, in edit order, with no arity ceiling
-* **Two phases**: validation is source-independent; writes run left-to-right only when everything validated
-* **Overlapping paths see earlier writes**; coupled fields should be one atomic edit (`Lens.paired`)
-* **`Edits.accumulate(focus, …)`** writes onto one focus and sets it back once, so a constructor checking fields against each other sees only the final values, and its refusal is an `Invalid`
+* **`Edits.combine` joins edits that cannot fail into one reusable `Update<S>`.** A fallible edit does not compile there.
+* **An absent value changes nothing.** The `…IfPresent` forms take a sparse request field by field, with no `if`.
+* **`Edits.accumulate` checks every edit and reports every bad field.** The errors arrive located and in edit order, and a patch holds any number of edits.
+* **A patch validates first, then writes once.** Validation never sees the source, and the writes run left to right only when every edit passed.
+* **Overlapping paths see earlier writes.** Fields that must change together belong in one atomic edit, such as `Lens.paired`.
+* **`Edits.accumulate(focus, …)` builds the record once.** A constructor that checks fields against each other sees only the final values, and its refusal is an `Invalid`.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
@@ -220,6 +251,7 @@ Practise the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https:/
 ~~~
 
 ~~~admonish tip title="See Also"
+- [Updates That Can Fail](fluent_api.md): one field or one list at a time, through `OpticOps`
 - [Semigroup and Monoid](../functional/semigroup_and_monoid.md): the `Update` monoid that powers `combine`
 - [Accumulating Assembly](../monads/validated_assembly.md): the same all-errors-at-once model for *constructing* values
 - [Coupled Fields](coupled_fields.md): atomic updates of interdependent fields
@@ -228,5 +260,5 @@ Practise the whole model in [Tutorial 24: Multi-Edit and Sparse Updates](https:/
 
 ---
 
-**Previous:** [Fluent API Field Guide](fluent_api_field_guide.md)
+**Previous:** [Updates That Can Fail](fluent_api.md)
 **Next:** [The Optic Types](ch1_intro.md)

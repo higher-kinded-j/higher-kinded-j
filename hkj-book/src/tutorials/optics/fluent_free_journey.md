@@ -55,7 +55,7 @@ boolean hasAdmin = OpticOps.exists(user, rolesTraversal, Role::isAdmin);
 
 **Real-world application**: Form validation, data querying, conditional updates, batch processing.
 
-**Links to documentation**: [Fluent API Guide](../../optics/fluent_api.md)
+**Links to documentation**: [Updates That Can Fail](../../optics/fluent_api.md)
 
 [Hands On Practice](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial09_FluentOpticsAPI.java)
 
