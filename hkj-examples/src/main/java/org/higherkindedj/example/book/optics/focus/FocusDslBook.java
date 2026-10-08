@@ -6,10 +6,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.higherkindedj.example.book.optics.JsonNodeOptics;
+import org.higherkindedj.example.book.optics.cast.Card;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerFocus;
+import org.higherkindedj.example.book.optics.cast.CustomerProfile;
+import org.higherkindedj.example.book.optics.cast.CustomerProfileFocus;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemFocus;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
+import org.higherkindedj.example.book.optics.cast.Payment;
+import org.higherkindedj.example.book.optics.cast.PaymentPrisms;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.annotations.GenerateFocus;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
 import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -22,158 +33,162 @@ import tools.jackson.databind.node.ObjectNode;
  * The code shown on the book's <a
  * href="https://higher-kinded-j.github.io/latest/optics/focus_dsl.html">Focus DSL</a> page. The
  * page {@code {{#include}}}s the anchored regions, and {@code FocusDslBookTest} holds the claims
- * the page makes about this code.
+ * the page makes about this code. The records are the chapter's cast, and {@link Basket} is a
+ * supporting type holding one field of every kind the "Find your field" table covers.
  */
 public final class FocusDslBook {
 
   private FocusDslBook() {}
 
   /** What the page's first use computes, so the test can read each value. */
-  record FirstUse(String city, User moved, User shouty) {}
+  record FirstUse(String name, Order renamed, Order tidied) {}
 
-  static FirstUse firstUse(User alice) {
+  static FirstUse firstUse(Order order) {
     // ANCHOR: first_use
-    String city = UserFocus.address().city().get(alice);
+    String name = OrderFocus.customer().name().get(order);
 
-    User moved = UserFocus.address().city().set("Paris", alice);
+    Order renamed = OrderFocus.customer().name().set("Ada Lovelace", order);
 
-    User shouty = UserFocus.address().city().modify(String::toUpperCase, alice);
+    Order tidied = OrderFocus.customer().name().modify(String::strip, order);
     // ANCHOR_END: first_use
-    return new FirstUse(city, moved, shouty);
+    return new FirstUse(name, renamed, tidied);
   }
 
   /** The values the page's path-per-component block reads. */
-  record PerComponent(String companyName, List<Department> departments, Optional<String> email) {}
+  record PerComponent(OrderStatus status, List<LineItem> lines, Optional<String> nickname) {}
 
-  static PerComponent perComponent(Company company, Employee employee) {
+  static PerComponent perComponent(Order order, CustomerProfile profile) {
     // ANCHOR: per_component
     // A plain field: exactly one focus
-    FocusPath<Company, String> namePath = CompanyFocus.name();
-    String companyName = namePath.get(company);
+    FocusPath<Order, OrderStatus> statusPath = OrderFocus.status();
+    OrderStatus status = statusPath.get(order);
 
     // A List field: the processor has already stepped into the elements
-    TraversalPath<Company, Department> deptPath = CompanyFocus.departments();
-    List<Department> allDepts = deptPath.getAll(company);
+    TraversalPath<Order, LineItem> linePath = OrderFocus.lines();
+    List<LineItem> lines = linePath.getAll(order);
 
     // An Optional field: zero or one focus
-    AffinePath<Employee, String> emailPath = EmployeeFocus.email();
-    Optional<String> email = emailPath.getOptional(employee);
+    AffinePath<CustomerProfile, String> nicknamePath = CustomerProfileFocus.nickname();
+    Optional<String> nickname = nicknamePath.getOptional(profile);
     // ANCHOR_END: per_component
-    return new PerComponent(companyName, allDepts, email);
+    return new PerComponent(status, lines, nickname);
   }
 
   /** The values the page's chained path reads and writes. */
-  record Chained(List<String> names, Company updated) {}
+  record Chained(List<String> skus, Order lowered) {}
 
-  static Chained chained(Company company) {
+  static Chained chained(Order order) {
     // ANCHOR: chained
-    TraversalPath<Company, String> allEmployeeNames =
-        CompanyFocus.departments().via(DepartmentFocus.employees()).via(EmployeeFocus.name());
+    TraversalPath<Order, String> skus = OrderFocus.lines().via(LineItemFocus.sku());
 
     // Read every one of them
-    List<String> names = allEmployeeNames.getAll(company);
+    List<String> all = skus.getAll(order);
 
     // Or update every one of them
-    Company updated = allEmployeeNames.modifyAll(String::toUpperCase, company);
+    Order lowered = skus.modifyAll(String::toLowerCase, order);
     // ANCHOR_END: chained
-    return new Chained(names, updated);
+    return new Chained(all, lowered);
   }
 
   /** The values the page's FocusPath block computes. */
-  record FocusOps(String name, Employee updated, Employee modified) {}
+  record FocusOps(String name, Customer updated, Customer modified) {}
 
-  static FocusOps focusOps(Employee employee) {
+  static FocusOps focusOps(Customer customer) {
     // ANCHOR: focus_ops
-    FocusPath<Employee, String> namePath = EmployeeFocus.name();
+    FocusPath<Customer, String> namePath = CustomerFocus.name();
 
-    String name = namePath.get(employee); // always a value
-    Employee updated = namePath.set("Bob", employee); // always succeeds
-    Employee modified = namePath.modify(String::toUpperCase, employee);
+    String name = namePath.get(customer); // always a value
+    Customer updated = namePath.set("Grace", customer); // always succeeds
+    Customer modified = namePath.modify(String::toUpperCase, customer);
     // ANCHOR_END: focus_ops
     return new FocusOps(name, updated, modified);
   }
 
   /** The values the page's AffinePath block computes. */
-  record AffineOps(Optional<String> email, Employee updated, Employee modified, boolean hasEmail) {}
+  record AffineOps(
+      Optional<String> nickname,
+      CustomerProfile updated,
+      CustomerProfile modified,
+      boolean hasNickname) {}
 
-  static AffineOps affineOps(Employee employee) {
+  static AffineOps affineOps(CustomerProfile profile) {
     // ANCHOR: affine_ops
-    AffinePath<Employee, String> emailPath = EmployeeFocus.email();
+    AffinePath<CustomerProfile, String> nicknamePath = CustomerProfileFocus.nickname();
 
-    Optional<String> email = emailPath.getOptional(employee); // may be empty
-    Employee updated = emailPath.set("new@example.com", employee); // writes even when absent
-    Employee modified = emailPath.modify(String::toLowerCase, employee);
-    boolean hasEmail = emailPath.matches(employee);
+    Optional<String> nickname = nicknamePath.getOptional(profile); // may be empty
+    CustomerProfile updated = nicknamePath.set("Countess", profile); // writes even when absent
+    CustomerProfile modified = nicknamePath.modify(String::toUpperCase, profile);
+    boolean hasNickname = nicknamePath.matches(profile);
     // ANCHOR_END: affine_ops
-    return new AffineOps(email, updated, modified, hasEmail);
+    return new AffineOps(nickname, updated, modified, hasNickname);
   }
 
   /** The values the page's TraversalPath block computes. */
-  record TraversalOps(List<Employee> all, Department updated, Department modified, int headcount) {}
+  record TraversalOps(List<LineItem> all, Order updated, Order modified, int lineCount) {}
 
-  static TraversalOps traversalOps(Department department, Employee replacement) {
+  static TraversalOps traversalOps(Order order, LineItem replacement) {
     // ANCHOR: traversal_ops
-    TraversalPath<Department, Employee> employeesPath = DepartmentFocus.employees();
+    TraversalPath<Order, LineItem> linesPath = OrderFocus.lines();
 
-    List<Employee> all = employeesPath.getAll(department);
-    Department updated = employeesPath.setAll(replacement, department);
-    Department modified =
-        employeesPath.modifyAll(
-            employee -> EmployeeLenses.age().modify(age -> age + 1, employee), department);
-    int headcount = employeesPath.count(department);
+    List<LineItem> all = linesPath.getAll(order);
+    Order updated = linesPath.setAll(replacement, order);
+    Order modified =
+        linesPath.modifyAll(line -> LineItemLenses.quantity().modify(q -> q + 1, line), order);
+    int lineCount = linesPath.count(order);
     // ANCHOR_END: traversal_ops
-    return new TraversalOps(all, updated, modified, headcount);
+    return new TraversalOps(all, updated, modified, lineCount);
   }
 
   /** Every row of the page's "Find your field" table, each spelled as the row says. */
   record Fields(
-      FocusPath<Order, String> customerEmail,
-      FocusPath<Order, String> reference,
-      TraversalPath<Order, Integer> quantities,
-      AffinePath<Order, String> giftMessage,
-      AffinePath<Order, String> couponCode,
-      AffinePath<Order, String> legacyNote,
-      AffinePath<Order, String> channel,
-      TraversalPath<Order, String> tags,
-      AffinePath<Order, String> approvedBy,
-      AffinePath<Order, Payment.Card> card,
-      AffinePath<Order, Payment.Card> sameCard,
-      AffinePath<Order, ObjectNode> payloadObject) {}
+      FocusPath<Basket, String> customerEmail,
+      FocusPath<Basket, String> reference,
+      TraversalPath<Basket, Integer> quantities,
+      AffinePath<Basket, String> giftMessage,
+      AffinePath<Basket, String> couponCode,
+      AffinePath<Basket, String> legacyNote,
+      AffinePath<Basket, String> channel,
+      TraversalPath<Basket, String> tags,
+      AffinePath<Basket, String> approvedBy,
+      AffinePath<Basket, Card> card,
+      AffinePath<Basket, Card> sameCard,
+      AffinePath<Basket, ObjectNode> payloadObject) {}
 
   static Fields findYourField() {
     // ANCHOR: find_your_field
     // A record with @GenerateFocus: with navigators on, the next field chains straight on
-    FocusPath<Order, String> customerEmail = OrderFocus.customer().email();
+    FocusPath<Basket, String> customerEmail = BasketFocus.customer().email().value();
 
     // A plain value: read and write it
-    FocusPath<Order, String> reference = OrderFocus.reference();
+    FocusPath<Basket, String> reference = BasketFocus.reference();
 
     // A List, Set or Collection: already on the elements, so the next hop is .via(...)
-    TraversalPath<Order, Integer> quantities = OrderFocus.lines().via(LineItemFocus.quantity());
+    TraversalPath<Basket, Integer> quantities = BasketFocus.lines().via(LineItemFocus.quantity());
 
     // An Optional, or a component with a recognised @Nullable: zero or one
-    AffinePath<Order, String> giftMessage = OrderFocus.giftMessage();
-    AffinePath<Order, String> couponCode = OrderFocus.couponCode();
+    AffinePath<Basket, String> giftMessage = BasketFocus.giftMessage();
+    AffinePath<Basket, String> couponCode = BasketFocus.couponCode();
 
     // A reference that may hold null, with no annotation: say so with .nullable()
-    AffinePath<Order, String> legacyNote = OrderFocus.legacyNote().nullable();
+    AffinePath<Basket, String> legacyNote = BasketFocus.legacyNote().nullable();
 
     // A Map: the path focuses the whole map, and .atKey(k) picks one value
-    AffinePath<Order, String> channel = OrderFocus.attributes().atKey("channel");
+    AffinePath<Basket, String> channel = BasketFocus.attributes().atKey("channel");
 
     // An array: the path focuses the whole array, and .each(...) steps into it
-    TraversalPath<Order, String> tags = OrderFocus.tags().each(EachInstances.arrayEach());
+    TraversalPath<Basket, String> tags = BasketFocus.tags().each(EachInstances.arrayEach());
 
     // An Either, Maybe, Try or Validated: zero or one, on the success side
-    AffinePath<Order, String> approvedBy = OrderFocus.approvedBy();
+    AffinePath<Basket, String> approvedBy = BasketFocus.approvedBy();
 
     // A sealed type: a generated prism picks one variant, or instanceOf by runtime type
-    AffinePath<Order, Payment.Card> card = OrderFocus.payment().via(PaymentPrisms.card());
-    AffinePath<Order, Payment.Card> sameCard =
-        OrderFocus.payment().via(AffinePath.instanceOf(Payment.Card.class));
+    AffinePath<Basket, Card> card = BasketFocus.payment().via(PaymentPrisms.card());
+    AffinePath<Basket, Card> sameCard =
+        BasketFocus.payment().via(AffinePath.instanceOf(Card.class));
 
     // A type you cannot annotate: compose the optics @ImportOptics generated for it
-    AffinePath<Order, ObjectNode> payloadObject = OrderFocus.payload().via(JsonNodeOptics.object());
+    AffinePath<Basket, ObjectNode> payloadObject =
+        BasketFocus.payload().via(JsonNodeOptics.object());
     // ANCHOR_END: find_your_field
     return new Fields(
         customerEmail,
@@ -191,48 +206,10 @@ public final class FocusDslBook {
   }
 }
 
-// ANCHOR: first_records
-@GenerateLenses
+// ANCHOR: basket
+// The basket a customer pays for before it becomes an Order, with a field of every kind
 @GenerateFocus(generateNavigators = true)
-record Address(String street, String city) {}
-
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record User(String name, Address address) {}
-
-// ANCHOR_END: first_records
-
-// ANCHOR: company_records
-@GenerateLenses
-@GenerateFocus
-record Company(String name, List<Department> departments) {}
-
-@GenerateLenses
-@GenerateFocus
-record Department(String name, List<Employee> employees) {}
-
-@GenerateLenses
-@GenerateFocus
-record Employee(String name, int age, Optional<String> email) {}
-
-// ANCHOR_END: company_records
-
-// ANCHOR: field_records
-@GenerateFocus(generateNavigators = true)
-record Customer(String name, String email) {}
-
-@GenerateFocus
-record LineItem(String sku, int quantity) {}
-
-@GeneratePrisms
-sealed interface Payment permits Payment.Card, Payment.Invoice {
-  record Card(String last4) implements Payment {}
-
-  record Invoice(String terms) implements Payment {}
-}
-
-@GenerateFocus(generateNavigators = true)
-record Order(
+record Basket(
     Customer customer,
     String reference,
     List<LineItem> lines,
@@ -244,4 +221,4 @@ record Order(
     Either<String, String> approvedBy,
     Payment payment,
     JsonNode payload) {}
-// ANCHOR_END: field_records
+// ANCHOR_END: basket

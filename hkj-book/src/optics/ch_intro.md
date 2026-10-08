@@ -10,30 +10,24 @@
 
 ---
 
-Immutable records in Java are safer, easier to reason about, and, when you need to change something three layers down, a bit of an ordeal. Here is that ordeal as many Spring teams write it, with a wither on each record, the method Lombok's `@With` generates:
+Immutable records in Java are safer, easier to reason about, and, when you need to change something inside them, a bit of an ordeal. Here is a 10% discount on every line of an order, as many Spring teams write it, with a wither on each record, the method Lombok's `@With` generates:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/intro/IntroBook.java:cascade}}
 ```
 
-A wither knows only its own record, so every enclosing layer is threaded through by hand, and each level of nesting adds another. Here is the same change through a generated path:
+A wither knows only its own record, so the list is streamed, each line rebuilt, and the order rebuilt around the new list by hand, and every other operation on the prices repeats that plumbing. Here is the same change through a generated path:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/intro/IntroBook.java:focus}}
 ```
 
-The annotation processor writes `EmployeeFocus` from one annotation on each record, which can sit beside Lombok's `@With` when Lombok comes first on the processor path:
+For Ada's order of a £40.00 lamp and four £2.50 bulbs, both versions price the lines at 36.000 and 2.250. The difference is what you can do next: name `OrderFocus.lines().via(LineItemFocus.price())` once, and the same path rounds the prices on the [Quickstart](quickstart.md) and checks them on [Updates That Can Fail](fluent_api.md).
 
-<!-- verify -->
-```java
-@GenerateFocus(generateNavigators = true)
-record Address(String street, String city) {}
+The annotation processor writes `OrderFocus` and `LineItemFocus` from `@GenerateFocus` on each record, which can sit beside Lombok's `@With` when Lombok comes first on the processor path. These records are the chapter's running cast, the order service the [Mapping chapter's capstone](../mapping/capstone.md) also uses:
 
-@GenerateFocus(generateNavigators = true)
-record Company(String name, Address address) {}
-
-@GenerateFocus(generateNavigators = true)
-record Employee(String name, Company company) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Order.java:order}}
 ```
 
 Every hop is an ordinary generated method, so the compiler checks the whole path and the IDE completes it for you. The path is also a value: store it in a field, pass it to a method, and reuse it to read, update, change every element of a list, or validate.
@@ -41,7 +35,7 @@ Every hop is an ordinary generated method, so the compiler checks the whole path
 That path is an **optic**: a first-class, composable route from a whole structure to one or more of its parts. Lenses, prisms and traversals are the optics underneath, and the generated Focus paths are how you use them day to day. Sealed types (`@GeneratePrisms`), collections, and types you cannot modify (`@ImportOptics`, for Jackson, JOOQ and JDK types) get the same treatment. There is no reflection at runtime, and no hand-written composition unless you want it.
 
 ~~~admonish warning title="Before you start"
-Your project builds and runs on **Java 25**. Higher-Kinded-J is built on it today, and parts of the library use preview features, which tie the build to that one release. Most optics need no preview flag of their own, and [Prerequisites](../quickstart.md#prerequisites) lists the code that does. The [HKJ Gradle or Maven plugin](../tooling/gradle_plugin.md) sets the flags and wires in the annotation processor. With Lombok in the build as well, its processor goes ahead of `hkj-processor`, as [Build-time impact](production_readiness.md#build-time-impact) explains. The processor writes `EmployeeFocus` and its siblings when the project compiles, so until the first build an IDE shows them as missing.
+Your project builds and runs on **Java 25**. Higher-Kinded-J is built on it today, and parts of the library use preview features, which tie the build to that one release. Most optics need no preview flag of their own, and [Prerequisites](../quickstart.md#prerequisites) lists the code that does. The [HKJ Gradle or Maven plugin](../tooling/gradle_plugin.md) sets the flags and wires in the annotation processor. With Lombok in the build as well, its processor goes ahead of `hkj-processor`, as [Build-time impact](production_readiness.md#build-time-impact) explains. The processor writes `OrderFocus` and its siblings when the project compiles, so until the first build an IDE shows them as missing.
 ~~~
 
 ---

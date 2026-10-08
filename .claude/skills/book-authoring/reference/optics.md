@@ -23,7 +23,7 @@ file adds the order to work in and the traps the chapter has met.
 Where a trap names a page, the book states and proves it there. Check that page before repeating
 the claim, since the library can change under it.
 
-- **Navigators are off by default.** A chained hop such as `UserFocus.address().street()` compiles
+- **Navigators are off by default.** A chained hop such as `OrderFocus.customer().email()` compiles
   only with `@GenerateFocus(generateNavigators = true)` on every record a hop leaves.
   `maxNavigatorDepth` limits nothing above 1, so never document a deeper limit.
 - **`andThen` has an overload for every pair** of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal`,

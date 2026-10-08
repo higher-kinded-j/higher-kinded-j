@@ -2,16 +2,26 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.optics.parts;
 
-import java.util.List;
 import java.util.Optional;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.ConsignmentFocus;
+import org.higherkindedj.example.book.optics.cast.ConsignmentLenses;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.CustomerLenses;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.EmailAddressLenses;
+import org.higherkindedj.example.book.optics.cast.LineItemFocus;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
+import org.higherkindedj.example.book.optics.cast.OrderTraversals;
 import org.higherkindedj.hkt.Monoids;
 import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.annotations.GenerateFocus;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
@@ -21,7 +31,7 @@ import org.higherkindedj.optics.util.Traversals;
  * The code shown on the book's <a
  * href="https://higher-kinded-j.github.io/latest/optics/optics_intro.html">What a Path Is Made
  * Of</a> page. The page {@code {{#include}}}s the anchored regions, and {@code PathPartsBookTest}
- * holds the claims the page makes about this code.
+ * holds the claims the page makes about this code. The records are the chapter's cast.
  */
 public final class PathPartsBook {
 
@@ -29,96 +39,65 @@ public final class PathPartsBook {
 
   /** Three optics, one for each result type: taken out of paths, or composed with andThen. */
   record Optics(
-      Lens<User, String> streetName,
-      Affine<Order, Payment.Card> card,
+      Lens<Order, String> emailValue,
+      Affine<Consignment, ConsignmentState.Dispatched> dispatched,
       Traversal<Order, Integer> quantities) {}
 
   static Optics toOptic() {
     // ANCHOR: to_optic
-    FocusPath<User, String> streetPath = UserFocus.address().street().name();
-    Lens<User, String> streetName = streetPath.toLens();
+    FocusPath<Order, String> emailPath = OrderFocus.customer().email().value();
+    Lens<Order, String> emailValue = emailPath.toLens();
 
-    AffinePath<Order, Payment.Card> cardPath = OrderFocus.payment().via(PaymentPrisms.card());
-    Affine<Order, Payment.Card> card = cardPath.toAffine();
+    AffinePath<Consignment, ConsignmentState.Dispatched> dispatchedPath =
+        ConsignmentFocus.state().via(ConsignmentStatePrisms.dispatched());
+    Affine<Consignment, ConsignmentState.Dispatched> dispatched = dispatchedPath.toAffine();
 
     TraversalPath<Order, Integer> quantityPath = OrderFocus.lines().via(LineItemFocus.quantity());
     Traversal<Order, Integer> quantities = quantityPath.toTraversal();
     // ANCHOR_END: to_optic
-    return new Optics(streetName, card, quantities);
+    return new Optics(emailValue, dispatched, quantities);
   }
 
-  static Lens<User, Address> addressByHand() {
+  static Lens<Customer, EmailAddress> emailByHand() {
     // ANCHOR: by_hand
-    Lens<User, Address> address =
-        Lens.of(User::address, (user, newAddress) -> new User(user.name(), newAddress));
+    Lens<Customer, EmailAddress> email =
+        Lens.of(Customer::email, (customer, newEmail) -> new Customer(customer.name(), newEmail));
     // ANCHOR_END: by_hand
-    return address;
+    return email;
   }
 
   static Optics andThen() {
     // ANCHOR: and_then
     // exactly one, then exactly one: still exactly one
-    Lens<User, String> streetName =
-        UserLenses.address().andThen(AddressLenses.street()).andThen(StreetLenses.name());
+    Lens<Order, String> emailValue =
+        OrderLenses.customer().andThen(CustomerLenses.email()).andThen(EmailAddressLenses.value());
 
     // exactly one, then one variant: zero or one
-    Affine<Order, Payment.Card> card = OrderLenses.payment().andThen(PaymentPrisms.card());
+    Affine<Consignment, ConsignmentState.Dispatched> dispatched =
+        ConsignmentLenses.state().andThen(ConsignmentStatePrisms.dispatched());
 
     // zero or more, then exactly one: zero or more
     Traversal<Order, Integer> quantities =
         OrderTraversals.lines().andThen(LineItemLenses.quantity());
     // ANCHOR_END: and_then
-    return new Optics(streetName, card, quantities);
+    return new Optics(emailValue, dispatched, quantities);
   }
 
   /** What the page's raw-optic block computes, so the test can read each value. */
-  record Raw(Order doubled, int totalQuantity, Optional<Payment.Card> paidByCard) {}
+  record Raw(Order doubled, int totalQuantity, Optional<ConsignmentState.Dispatched> dispatch) {}
 
-  static Raw useRawOptics(Order order) {
+  static Raw useRawOptics(Order order, Consignment consignment) {
     Optics composed = andThen();
     Traversal<Order, Integer> quantities = composed.quantities();
-    Affine<Order, Payment.Card> card = composed.card();
+    Affine<Consignment, ConsignmentState.Dispatched> dispatched = composed.dispatched();
     // ANCHOR: raw_use
     Order doubled = Traversals.modify(quantities, quantity -> quantity * 2, order);
 
     int totalQuantity =
         quantities.asFold().foldMap(Monoids.integerAddition(), quantity -> quantity, order);
 
-    Optional<Payment.Card> paidByCard = card.getOptional(order);
+    Optional<ConsignmentState.Dispatched> dispatch = dispatched.getOptional(consignment);
     // ANCHOR_END: raw_use
-    return new Raw(doubled, totalQuantity, paidByCard);
+    return new Raw(doubled, totalQuantity, dispatch);
   }
 }
-
-// ANCHOR: records
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record Street(String name, int number) {}
-
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record Address(Street street, String city) {}
-
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record User(String name, Address address) {}
-
-// ANCHOR_END: records
-
-// ANCHOR: order_records
-@GeneratePrisms
-sealed interface Payment permits Payment.Card, Payment.Invoice {
-  record Card(String last4) implements Payment {}
-
-  record Invoice(String terms) implements Payment {}
-}
-
-@GenerateLenses
-@GenerateFocus
-record LineItem(String sku, int quantity) {}
-
-@GenerateLenses
-@GenerateFocus
-@GenerateTraversals
-record Order(String id, Payment payment, List<LineItem> lines) {}
-// ANCHOR_END: order_records

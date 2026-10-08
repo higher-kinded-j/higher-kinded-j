@@ -45,7 +45,7 @@ class BookIncludeTest {
    * <p>It counts the anchored includes and the whole-file golden ones together, so dropping either
    * kind fails.
    */
-  private static final int MINIMUM_INCLUDES = 317;
+  private static final int MINIMUM_INCLUDES = 339;
 
   /** Any include, in any form, so an unanchored one cannot slip past unchecked. */
   private static final Pattern ANY_INCLUDE = Pattern.compile("\\{\\{#include\\s+([^}]+)}}");

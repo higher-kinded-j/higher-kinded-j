@@ -21,11 +21,25 @@ A path's `modify` takes a function that always succeeds. A real update often has
 
 ## Every element, every error {#every-element-every-error}
 
-The records are an order of priced line items and a user:
+The records are the chapter's cast: an order of priced line items, placed by a customer.
+
+~~~admonish example title="The cast these examples use" collapsible=true
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Order.java:order}}
+```
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:records}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/LineItem.java:line_item}}
 ```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Customer.java:customer}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/EmailAddress.java:email_address}}
+```
+~~~
 
 Checking every price on an order by hand is a loop that collects the errors:
 
@@ -90,7 +104,7 @@ The rest of this section uses three more checks, each as short as `checkPrice`:
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:fail_fast}}
 ```
 
-For `alice@example.com`, `message` is `"accepted: alice@example.com"`; for `bob.example.com`, `result` is `Left("Invalid email: bob.example.com")`.
+For `ada@example.com`, `message` is `"accepted: ada@example.com"`; for `bob.example.com`, `result` is `Left("Invalid email: bob.example.com")`.
 
 ### One field, no detail {#one-field-silent-failure}
 
@@ -98,7 +112,7 @@ For `alice@example.com`, `message` is `"accepted: alice@example.com"`; for `bob.
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:no_detail}}
 ```
 
-A username of `"  alice  "` comes back trimmed in a `Just`; one of two letters gives `Nothing`, and `safe` falls back to the user as they were. `modifyMaybe` has the shape of `modifyEither`, minus the explanation, so use it when the caller's next move is a fallback rather than a message.
+A name of `"  Ada  "` comes back trimmed in a `Just`; a one-letter name gives `Nothing`, and `safe` falls back to the customer as they were. `modifyMaybe` has the shape of `modifyEither`, minus the explanation, so use it when the caller's next move is a fallback rather than a message.
 
 ### Every element, first error only {#every-element-first-error-only}
 
@@ -120,7 +134,7 @@ The difference between `modifyAllValidated` and `modifyAllEither` is a product d
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:sequential}}
 ```
 
-A bad email stops the chain with `Left("Invalid email: ...")` before the username is looked at; a good email and a two-letter username give `Left("Username must be at least 3 characters")`.
+A bad email stops the chain with `Left("Invalid email: ...")` before the name is looked at; a good email and a one-letter name give `Left("Name must be at least 2 characters")`.
 
 ~~~admonish tip title="You can ship now"
 You can now check a field or every element of a list as you update it, and choose whether the caller hears the first error or every one. The rest of this page is for an effect other than these three, and for code that holds an optic rather than a path.
@@ -130,22 +144,18 @@ You can now check a field or every element of a list as you update it, and choos
 
 ## Any other effect: `modifyF` {#part-3-arbitrary-effects-with-modifyf}
 
-The four methods cover `Either`, `Maybe` and `Validated`. For any other effect, such as fetching a bonus asynchronously, every optic that writes and every path has `modifyF`. It takes an `Applicative`, the object that knows how to combine results inside that effect, and it speaks `Kind`, the library's encoding of a generic container such as `CompletableFuture<A>`. That makes it the mechanism behind `modifyAllValidated` and `modifyAllEither`, at the price of some ceremony at the call site:
+The four methods cover `Either`, `Maybe` and `Validated`. For any other effect, such as fetching current prices asynchronously, every optic that writes and every path has `modifyF`. It takes an `Applicative`, the object that knows how to combine results inside that effect, and it speaks `Kind`, the library's encoding of a generic container such as `CompletableFuture<A>`. That makes it the mechanism behind `modifyAllValidated` and `modifyAllEither`, at the price of some ceremony at the call site:
 
-~~~admonish example title="Bonuses fetched asynchronously, with `modifyF`" collapsible=true
+~~~admonish example title="Current prices fetched asynchronously, with `modifyF`" collapsible=true
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:team_records}}
-```
-
-``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:fetch_bonus}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:current_price}}
 ```
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:modify_f}}
 ```
 
-For scores of 100 and 85, the future completes with scores of 110 and 95. `FUTURE.widen` and `FUTURE.narrow` convert between `CompletableFuture` and its `Kind`. `modifyAllValidated` is the same call with a `Validated` applicative over a list of errors, each check's error wrapped in a list, and it does that conversion out of sight.
+`currentPrice` is a stub standing in for a price service. For prices of 40.00 and 2.50, the future completes with prices of 41.00 and 3.50. `FUTURE.widen` and `FUTURE.narrow` convert between `CompletableFuture` and its `Kind`. `modifyAllValidated` is the same call with a `Validated` applicative over a list of errors, each check's error wrapped in a list, and it does that conversion out of sight.
 ~~~
 
 Reach for `modifyF` for an effect beyond the three, such as `IO`, `CompletableFuture`, `VTask` or your own. Reach for it too for a check that is itself an effect, such as a lookup over the network, and anywhere you already hold an `Applicative`. `OpticOps.modifyF` and `OpticOps.modifyAllF` take the same arguments, source first, for a raw optic. [Type Class and Effect Integration](focus_effects.md) has more.
@@ -158,11 +168,7 @@ The rest of this page is for code that holds an optic rather than a path, and fo
 
 ### Reads, writes and queries {#part-1-reading-writing-querying}
 
-`OpticOps` restates every read and write, source first, and is overloaded on the optic type, so the same names work whatever you hand them. If you know optics from Haskell or Scala, `get` is `view`, `modify` is `over`, and `preview` keeps its name. These examples use generated `Lenses` and `Traversals` classes:
-
-``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:team_records}}
-```
+`OpticOps` restates every read and write, source first, and is overloaded on the optic type, so the same names work whatever you hand them. If you know optics from Haskell or Scala, `get` is `view`, `modify` is `over`, and `preview` keeps its name. These examples use the cast's generated `Lenses` and `Traversals` classes:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:reads_and_writes}}
@@ -212,7 +218,7 @@ The validation methods have a builder too:
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/fluent/FluentBook.java:filtered}}
 ```
 
-For Alice on 100 and Bob on 85, only Alice is starred, and reading `topPerformers` back from `starred` finds her alone.
+For one lamp and four bulbs, only the bulbs are discounted, and reading `bulk` back from `discounted` finds that line alone.
 
 **An aggregate.** A `Fold` collapses every focused value through a `Monoid`, and a `Traversal` reads as a `Fold` through `asFold()`. For a one-off, `getAll(...).stream()` reads as well; a fold earns its place when the aggregate is itself a value you pass around:
 
@@ -238,7 +244,7 @@ A builder adds one short-lived object to what the operation allocates anyway, wh
 
 ### Pitfalls {#pitfalls}
 
-- **Reading, then setting, when you mean `modify`.** `OpticOps.modify(person, PersonLenses.age(), a -> a + 1)` names the path once, and keeps the read and the write in one expression.
+- **Reading, then setting, when you mean `modify`.** `OpticOps.modify(lamp, LineItemLenses.quantity(), q -> q + 1)` names the path once, and keeps the read and the write in one expression.
 - **Recomposing an optic in a loop.** Hoist the composition, as [Performance](#performance) shows.
 - **Asking `querying` for the elements.** It answers questions; `getting(...).allThrough(...)` returns the values.
 - **Expecting `modify` on a bare `Traversal`.** Its reads and writes go through the `Traversals` utility or `OpticOps`, as [Using an optic directly](optics_intro.md#using-an-optic-directly) shows. A `TraversalPath` carries `getAll` and `modifyAll` itself.

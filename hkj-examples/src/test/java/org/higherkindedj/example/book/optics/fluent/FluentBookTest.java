@@ -3,10 +3,24 @@
 package org.higherkindedj.example.book.optics.fluent;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.ADA;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.BULB;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.LAMP;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.ORDER;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.line;
+import static org.higherkindedj.example.book.optics.cast.CastFixtures.order;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemFocus;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
+import org.higherkindedj.example.book.optics.cast.OrderStatus;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
@@ -20,19 +34,8 @@ import org.junit.jupiter.api.Test;
 class FluentBookTest {
 
   private static final Order BAD_PRICES =
-      new Order(
-          "ORD-1",
-          List.of(
-              new LineItem("A", new BigDecimal("-10.00")),
-              new LineItem("B", new BigDecimal("25.00")),
-              new LineItem("C", new BigDecimal("15000.00"))));
-  private static final Order GOOD_PRICES =
-      new Order("ORD-2", List.of(new LineItem("A", new BigDecimal("25.00"))));
-  private static final User ALICE = new User("  alice  ", "alice@example.com");
-  private static final Person PERSON = new Person("Alice", 25, "ACTIVE");
-  private static final Team TEAM =
-      new Team(
-          "Wildcats", List.of(new Player("Alice", 100, "ACTIVE"), new Player("Bob", 85, "ACTIVE")));
+      order(List.of(line("LAMP", "-10.00"), line("BULB", "25.00"), line("SOFA", "15000.00")));
+  private static final Order GOOD_PRICES = order(List.of(line("LAMP", "25.00")));
 
   @Test
   @DisplayName("every bad price is reported, in order, and a good order comes back unchanged")
@@ -61,18 +64,19 @@ class FluentBookTest {
   @Test
   @DisplayName("modifyEither accepts a good email and rejects a bad one with its reason")
   void failFast() {
-    assertThat(FluentBook.failFast(ALICE).message()).isEqualTo("accepted: alice@example.com");
-    assertThat(FluentBook.failFast(new User("bob", "bob.example.com")).result())
+    assertThat(FluentBook.failFast(ADA).message()).isEqualTo("accepted: ada@example.com");
+    assertThat(
+            FluentBook.failFast(new Customer("Bob", new EmailAddress("bob.example.com"))).result())
         .isEqualTo(Either.left("Invalid email: bob.example.com"));
   }
 
   @Test
-  @DisplayName("modifyMaybe trims a good username, and gives Nothing for one of the wrong length")
+  @DisplayName("modifyMaybe trims a good name, and gives Nothing for one of the wrong length")
   void noDetail() {
-    FluentBook.NoDetail trimmed = FluentBook.noDetail(ALICE);
-    User tooShort = new User("al", "al@example.com");
+    Customer padded = new Customer("  Ada  ", ADA.email());
+    Customer tooShort = new Customer("A", ADA.email());
 
-    assertThat(trimmed.normalised()).isEqualTo(Maybe.just(new User("alice", "alice@example.com")));
+    assertThat(FluentBook.noDetail(padded).normalised()).isEqualTo(Maybe.just(ADA));
     assertThat(FluentBook.noDetail(tooShort).normalised()).isEqualTo(Maybe.nothing());
     assertThat(FluentBook.noDetail(tooShort).safe()).isEqualTo(tooShort);
   }
@@ -82,7 +86,7 @@ class FluentBookTest {
   void firstError() {
     List<BigDecimal> seen = new ArrayList<>();
     Traversal<Order, BigDecimal> prices =
-        OrderFocus.items().via(LineItemFocus.price()).toTraversal();
+        OrderFocus.lines().via(LineItemFocus.price()).toTraversal();
 
     Either<String, Order> firstFailure =
         OpticOps.modifyAllEither(
@@ -102,104 +106,106 @@ class FluentBookTest {
   }
 
   @Test
-  @DisplayName("registration checks the email, then the username, and stops at the first failure")
+  @DisplayName("registration checks the email, then the name, and stops at the first failure")
   void sequential() {
-    assertThat(FluentBook.register(new User("alice", "alice@example.com")))
-        .isEqualTo(Either.right(new User("alice", "alice@example.com")));
-    assertThat(FluentBook.register(new User("al", "al@example.com")))
-        .isEqualTo(Either.left("Username must be at least 3 characters"));
-    assertThat(FluentBook.register(new User("al", "al.example.com")))
-        .isEqualTo(Either.left("Invalid email: al.example.com"));
+    assertThat(FluentBook.register(ADA)).isEqualTo(Either.right(ADA));
+    assertThat(FluentBook.register(new Customer("A", ADA.email())))
+        .isEqualTo(Either.left("Name must be at least 2 characters"));
+    assertThat(FluentBook.register(new Customer("A", new EmailAddress("a.example.com"))))
+        .isEqualTo(Either.left("Invalid email: a.example.com"));
   }
 
   @Test
   @DisplayName("the builders give the same results as the static methods")
   void builders() {
-    FluentBook.Builders builders = FluentBook.builders(ALICE, BAD_PRICES);
+    FluentBook.Builders builders = FluentBook.builders(ADA, BAD_PRICES);
 
-    assertThat(builders.email()).isEqualTo(FluentBook.failFast(ALICE).result());
+    assertThat(builders.email()).isEqualTo(FluentBook.failFast(ADA).result());
     assertThat(builders.prices()).isEqualTo(FluentBook.everyError(BAD_PRICES).checked());
   }
 
   @Test
-  @DisplayName("modifyF on a path adds each bonus inside a CompletableFuture")
+  @DisplayName("modifyF on a path fetches every current price inside a CompletableFuture")
   void modifyF() {
-    assertThat(FluentBook.withBonuses(TEAM).join().players())
-        .extracting(Player::score)
-        .containsExactly(110, 95);
+    assertThat(FluentBook.repriced(ORDER).join().lines())
+        .extracting(LineItem::price)
+        .containsExactly(new BigDecimal("41.00"), new BigDecimal("3.50"));
   }
 
   @Test
   @DisplayName("OpticOps reads, writes and queries through generated optics")
   void readsAndWrites() {
-    FluentBook.ReadsAndWrites result = FluentBook.readsAndWrites(PERSON, TEAM);
+    FluentBook.ReadsAndWrites result = FluentBook.readsAndWrites(ADA, ORDER);
 
-    assertThat(result.name()).isEqualTo("Alice");
-    assertThat(result.scores()).containsExactly(100, 85);
-    assertThat(result.firstScore()).contains(100);
-    assertThat(result.updated().age()).isEqualTo(30);
-    assertThat(result.doubled().players()).extracting(Player::score).containsExactly(200, 170);
-    assertThat(result.hasHighScorer()).isTrue();
-    assertThat(result.allPassed()).isTrue();
-    assertThat(result.playerCount()).isEqualTo(2);
-    assertThat(result.noPlayers()).isFalse();
-    assertThat(result.top()).map(Player::name).contains("Alice");
+    assertThat(result.name()).isEqualTo("Ada");
+    assertThat(result.quantities()).containsExactly(1, 4);
+    assertThat(result.firstQuantity()).contains(1);
+    assertThat(result.paid().status()).isEqualTo(OrderStatus.PAID);
+    assertThat(result.doubled().lines()).extracting(LineItem::quantity).containsExactly(2, 8);
+    assertThat(result.anyBulk()).isTrue();
+    assertThat(result.allOrdered()).isTrue();
+    assertThat(result.lineCount()).isEqualTo(2);
+    assertThat(result.noLines()).isFalse();
+    assertThat(result.overTen()).contains(LAMP);
   }
 
   @Test
   @DisplayName("the static and builder styles compute the same values")
   void styles() {
-    FluentBook.Styles styles = FluentBook.styles(PERSON);
+    FluentBook.Styles styles = FluentBook.styles(LAMP);
 
-    assertThat(styles.age()).isEqualTo(styles.sameAge()).isEqualTo(25);
-    assertThat(styles.older()).isEqualTo(styles.alsoOlder());
-    assertThat(styles.older().age()).isEqualTo(26);
+    assertThat(styles.quantity()).isEqualTo(styles.sameQuantity()).isEqualTo(1);
+    assertThat(styles.more()).isEqualTo(styles.alsoMore());
+    assertThat(styles.more().quantity()).isEqualTo(2);
   }
 
   @Test
-  @DisplayName("the four builders read, set, modify and query every score")
+  @DisplayName("the four builders read, set, modify and query every quantity")
   void builderVerbs() {
-    FluentBook.Verbs verbs = FluentBook.builderVerbs(TEAM);
+    FluentBook.Verbs verbs = FluentBook.builderVerbs(ORDER);
 
-    assertThat(verbs.allScores()).containsExactly(100, 85);
-    assertThat(verbs.reset().players()).extracting(Player::score).containsExactly(0, 0);
-    assertThat(verbs.bumped().players()).extracting(Player::score).containsExactly(105, 90);
+    assertThat(verbs.all()).containsExactly(1, 4);
+    assertThat(verbs.reset().lines()).extracting(LineItem::quantity).containsExactly(1, 1);
+    assertThat(verbs.bumped().lines()).extracting(LineItem::quantity).containsExactly(2, 5);
     assertThat(verbs.any()).isTrue();
   }
 
   @Test
-  @DisplayName("an adult's status is set, and a minor comes back as it was")
+  @DisplayName("a new order is stamped, and a paid one comes back as it was")
   void conditional() {
-    Person minor = new Person("Tom", 12, "ACTIVE");
+    Instant now = Instant.parse("2026-10-07T12:00:00Z");
+    Order paid =
+        new Order(
+            ORDER.id(), ADA, ORDER.lines(), ORDER.placedAt(), ORDER.currency(), OrderStatus.PAID);
 
-    assertThat(FluentBook.classify(PERSON).status()).isEqualTo("ADULT");
-    assertThat(FluentBook.classify(minor)).isEqualTo(minor);
+    assertThat(FluentBook.stampIfNew(ORDER, now).placedAt()).isEqualTo(now);
+    assertThat(FluentBook.stampIfNew(paid, now)).isEqualTo(paid);
   }
 
   @Test
-  @DisplayName("a filtered traversal stars only the top performers")
+  @DisplayName("a filtered traversal discounts only the bulk lines")
   void filtered() {
-    FluentBook.Starred result = FluentBook.starTopPerformers(TEAM);
+    FluentBook.BulkDiscount result = FluentBook.discountBulkLines(ORDER);
 
-    assertThat(result.starred().players())
-        .extracting(Player::status)
-        .containsExactly("STAR", "ACTIVE");
-    assertThat(result.stars()).extracting(Player::name).containsExactly("Alice");
+    assertThat(result.discounted().lines())
+        .extracting(LineItem::price)
+        .containsExactly(new BigDecimal("40.00"), new BigDecimal("2.250"));
+    assertThat(result.bulkLines()).extracting(LineItem::sku).containsExactly("BULB");
   }
 
   @Test
-  @DisplayName("a fold sums the scores, and a stream picks the high scorers' names")
+  @DisplayName("a fold sums the quantities, and a stream picks the dear lines' SKUs")
   void aggregateAndStream() {
-    assertThat(FluentBook.totalScore(TEAM)).isEqualTo(185);
-    assertThat(FluentBook.highScorerNames(TEAM)).containsExactly("Alice");
+    assertThat(FluentBook.totalQuantity(ORDER)).isEqualTo(5);
+    assertThat(FluentBook.dearSkus(ORDER)).containsExactly("LAMP");
   }
 
   @Test
-  @DisplayName("an optic composed once above the loop reads every team")
+  @DisplayName("an optic composed once before the loop reads every order")
   void composeOnce() {
-    Team other = new Team("Owls", List.of(new Player("Cara", 70, "ACTIVE")));
+    Order other = order(List.of(BULB));
 
-    assertThat(FluentBook.composeOnce(List.of(TEAM, other)))
-        .containsExactly(List.of(100, 85), List.of(70));
+    assertThat(FluentBook.composeOnce(List.of(ORDER, other)))
+        .containsExactly(List.of(1, 4), List.of(4));
   }
 }

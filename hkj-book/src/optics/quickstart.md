@@ -21,24 +21,32 @@ You do **not** need to understand higher-kinded types, profunctors, or `Applicat
 
 ## 1. Annotate, then update
 
-Annotate each record:
+The chapter's running cast is an order service. Annotate each record:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:records}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Order.java:order}}
 ```
 
-Then a field three records deep is one line:
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Customer.java:customer}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/EmailAddress.java:email_address}}
+```
+
+Then a field three records deep, the customer's email address, is one line:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:one_liner}}
 ```
 
-The annotation processor runs at compile time and produces `StreetLenses`, `StreetFocus`, `AddressLenses`, `AddressFocus`, `UserLenses`, and `UserFocus` for you. There is no reflection at runtime; the path you wrote is just a chain of typed method calls.
+The annotation processor runs at compile time and produces `OrderLenses`, `OrderFocus`, `CustomerLenses`, `CustomerFocus`, `EmailAddressLenses` and `EmailAddressFocus` for you, and `OrderTraversals` for the list of lines. There is no reflection at runtime; the path you wrote is just a chain of typed method calls.
 
 Each of those methods returns a *lens*: a record's accessor paired with a copy that replaces that one component through the canonical constructor. A path joins lenses end to end, so a write three records down rebuilds each record on the way, and reuses everything off the path.
 
 ~~~admonish example title="What the processor wrote" collapsible=true
-A generated lens class is plain Java. For a four-field `Customer` record it holds one static method per component and a `withX` helper per component. The processor's tests compare this file line for line against what it generates. It was generated through `@ImportOptics`, which is why it has a package of its own; `@GenerateLenses` writes the same class into the record's package.
+A generated lens class is plain Java. This one comes from the processor's own tests, for a four-field `Customer(id, name, email, loyaltyPoints)` rather than the cast's: it holds one static method per component and a `withX` helper per component. The processor's tests compare this file line for line against what it generates. It was generated through `@ImportOptics`, which is why it has a package of its own; `@GenerateLenses` writes the same class into the record's package.
 
 ``` java
 {{#include ../../../hkj-processor/src/test/resources/golden/CustomerLenses.java.golden}}
@@ -46,40 +54,48 @@ A generated lens class is plain Java. For a four-field `Customer` record it hold
 ~~~
 
 ~~~admonish tip title="Why two annotations?"
-`@GenerateLenses` produces classic lenses (`UserLenses.address()`) plus `withFoo` helpers for shallow updates. `@GenerateFocus` adds the path-based DSL (`UserFocus.address()`) for deep navigation, and `generateNavigators = true` is what lets the next hop chain off it as `.street()` rather than `.via(AddressFocus.street())`. Most records benefit from both annotations.
+`@GenerateLenses` produces classic lenses (`OrderLenses.customer()`) plus `withFoo` helpers for shallow updates. `@GenerateFocus` adds the path-based DSL (`OrderFocus.customer()`) for deep navigation, and `generateNavigators = true` is what lets the next hop chain off it as `.email()` rather than `.via(CustomerFocus.email())`. Most records benefit from both annotations.
 ~~~
 
 ---
 
 ## 2. Sum types and collections, the same way
 
-Sealed interfaces and collection fields use the same annotation-driven pattern:
+Collection fields and sealed interfaces use the same annotation-driven pattern. An order's lines are a `List<LineItem>`:
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:order_types}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/LineItem.java:line_item}}
 ```
 
-**Apply a 10% discount to every line item:**
+**Round every price to pence:**
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:discount}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:round}}
 ```
 
-`OrderFocus.items()` already walks every element of the `List<LineItem>`: the generated accessor ends in `.each()` for you, so it hands back a path focused on a `LineItem`, not on the list. `.via(LineItemFocus.price())` zooms each element down to the price field, and `modifyAll` applies the function in one pass to return a new `Order`.
+`OrderFocus.lines()` already walks every element of the `List<LineItem>`: the generated accessor ends in `.each()` for you, so it hands back a path focused on a `LineItem`, not on the list. `.via(LineItemFocus.price())` zooms each element down to the price field, and `modifyAll` applies the function in one pass to return a new `Order`. The introduction's discount left the lines at 36.000 and 2.250; rounding gives 36.00 and 2.25.
 
-A hop from a `List` field is always `.via(...)`, navigators or not: `generateNavigators = true` shortens a hop into a single record field, as `.street()` does in section 1.
+A hop from a `List` field is always `.via(...)`, navigators or not: `generateNavigators = true` shortens a hop into a single record field, as `.email()` does in section 1.
 
 ~~~admonish warning title="Do not add your own `.each()`"
-`OrderFocus.items().each()` compiles and then fails at run time. The extra `each()` tries to read a `LineItem` as a `List`; its type parameter is inferred from whatever you assign it to, which is why the compiler lets it through. `TraversalPath.each()` is for a focus that is *itself* a list, and its javadoc documents the `ClassCastException`.
+`OrderFocus.lines().each()` compiles and then fails at run time. The extra `each()` tries to read a `LineItem` as a `List`; its type parameter is inferred from whatever you assign it to, which is why the compiler lets it through. `TraversalPath.each()` is for a focus that is *itself* a list, and its javadoc documents the `ClassCastException`.
 ~~~
 
-**Match a variant, and move to another:**
+**Match a variant, and move to another.** A consignment's state is a sealed interface, and `@GeneratePrisms` writes one prism per variant:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/ConsignmentState.java:consignment_state}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Consignment.java:consignment}}
+```
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/quickstart/QuickstartBook.java:prism}}
 ```
 
-A `Prism` is the sum-type counterpart of a lens: it succeeds when the variant matches and is a no-op otherwise. Note what `modify` will and will not do. Its function is `A -> A`, so it rebuilds the *same* variant; changing `Pending` into `Shipped` is a read followed by a build, not a modification.
+A `Prism` is the sum-type counterpart of a lens: it succeeds when the variant matches and is a no-op otherwise. Note what `modify` will and will not do. Its function is `A -> A`, so it rebuilds the *same* variant; changing `Pending` into `Dispatched` is a read followed by a build, not a modification.
 
 ~~~admonish note title="Two views of the same record"
 We added three annotations to `Order`. They don't conflict; each generates its own companion class (`OrderLenses`, `OrderFocus`, `OrderTraversals`) and you pick the entry point that matches your task.
@@ -110,8 +126,8 @@ For one read like this, Jackson's own `response.at("/items/0/name")` is shorter.
 ~~~admonish info title="Key Takeaways"
 * **The annotations generate plain Java at compile time.** `XLenses`, `XFocus`, `XPrisms` and `XTraversals` are ordinary classes you call with ordinary method chains. Nothing here uses runtime reflection.
 * **`@GenerateLenses` and `@GenerateFocus` are the pair to reach for.** Lenses give you `withFoo` and the classic optics; Focus gives you the path DSL, and `generateNavigators = true` lets a hop into another record chain as a method call.
-* **A collection accessor is already element-level.** `OrderFocus.items()` focuses a `LineItem`, because the generated method ends in `.each()` for you. Adding another `.each()` compiles and then fails at run time.
-* **A prism rebuilds the variant it narrowed to.** `modify` is `A -> A`, so it cannot turn a `Pending` into a `Shipped`; that is a read through the prism followed by building the new variant.
+* **A collection accessor is already element-level.** `OrderFocus.lines()` focuses a `LineItem`, because the generated method ends in `.each()` for you. Adding another `.each()` compiles and then fails at run time.
+* **A prism rebuilds the variant it narrowed to.** `modify` is `A -> A`, so it cannot turn a `Pending` into a `Dispatched`; that is a read through the prism followed by building the new variant.
 * **Types you do not own join the same vocabulary.** An `OpticsSpec` interface plus `@ImportOptics` generates optics for `JsonNode`, JOOQ records or JDK types, and they compose with everything else.
 ~~~
 

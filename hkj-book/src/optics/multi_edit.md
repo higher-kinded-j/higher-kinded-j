@@ -17,7 +17,7 @@ _Apply several edits as one update, or check a REST `PATCH` and report every bad
 
 ## The problem
 
-A path makes one edit at a time. The everyday case is several edits at once, and the classic one is a REST `PATCH` that tidies the email, trims the SKU, and bumps the quantity. By hand that means threading the value through every step, guarding each optional field with an `if`, and, if you validate at all, throwing on the first bad field:
+A path makes one edit at a time. The everyday case is several edits at once, and the classic one is a REST `PATCH` of an order line that trims the SKU, bumps the quantity and sets a new price. The request body is a `LineItemPatch(sku, qtyDelta, price)`, each component `null` when the client did not send it. By hand that means threading the value through every step, guarding each optional field with an `if`, and, if you validate at all, throwing on the first bad field:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:before}}
@@ -42,7 +42,7 @@ Those are the whole API, with one more form of `accumulate` for [fields a constr
 
 ## Edits that cannot fail: `Edits.combine` {#pure-multi-edit-editscombine}
 
-Each `Edit` factory pairs an optic (a `FocusPath` or a `Setter`) with a value or function. `combine` joins them, in order, into one `Update<Order>`: a function from order to order that you can name and reuse.
+Each `Edit` factory pairs an optic (a `FocusPath` or a `Setter`) with a value or function. `combine` joins them, in order, into one `Update<LineItem>`: a function from line to line that you can name and reuse.
 
 ``` java
 import static org.higherkindedj.optics.edit.Edit.*;
@@ -67,18 +67,16 @@ Each request field maps to exactly one slot; an absent field simply contributes 
 ```mermaid
 flowchart TD
     accTitle: A sparse request, field by field
-    accDescr: A request with an email, no SKU and a quantity delta of 3. The email is written, the absent SKU changes nothing, and the quantity grows by 3, so the order comes back with its email and quantity changed and its SKU untouched.
-    Req(["PatchRequest<br/>email: a@b.example, sku: null, qtyDelta: 3"])
-    Req --> E(["email present<br/>write it"])
+    accDescr: A request with no SKU and a quantity delta of 3. The absent SKU changes nothing and the quantity grows by 3, so the line comes back with its quantity changed and its SKU untouched.
+    Req(["LineItemPatch<br/>sku: null, qtyDelta: 3"])
     Req --> S(["sku absent<br/>no change"])
-    Req --> Q(["qtyDelta present<br/>qty += 3"])
-    E --> Out(["order': email and quantity changed,<br/>sku untouched"])
-    S --> Out
+    Req --> Q(["qtyDelta present<br/>quantity += 3"])
+    S --> Out(["line': quantity changed,<br/>SKU untouched"])
     Q --> Out
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
-    class Req,E,S,Q tier
+    class Req,S,Q tier
     class Out out
 ```
 
@@ -90,7 +88,7 @@ A sparse edit cannot *clear* a field: `setIfPresent(path, null)` means "no chang
 
 ## Validated PATCH: `Edits.accumulate`
 
-`parseIfPresent` parses the incoming value first, and a generated path locates any failure **automatically** from its own label. The parser you hand it has exactly the shape of a [`ValidatedPrism`](validated_prism.md)'s `parse`, so a boundary defined once as a prism passes its `parse` here. This request's order number and email are both bad:
+`parseIfPresent` parses the incoming value first, and a generated path locates any failure **automatically** from its own label. The parser you hand it has exactly the shape of a [`ValidatedPrism`](validated_prism.md)'s `parse`, so a boundary defined once as a prism passes its `parse` here. This request's SKU and price are both bad:
 
 ~~~admonish example title="The two parsers" collapsible=true
 ``` java
@@ -105,10 +103,10 @@ A sparse edit cannot *clear* a field: `setIfPresent(path, null)` means "no chang
 `accumulate` checks **every** edit independently and reports **all** the bad fields at once, each named by its path. The errors arrive in edit order on the `NonEmptyList`, as in the [accumulating assembly](../monads/validated_assembly.md), and one patch can hold any number of edits.
 
 ~~~admonish tip title="Generated paths label themselves"
-A path from a `@GenerateFocus` companion carries its record-component name as a **segment**: `OrderFocus.email()` is labelled `"email"`. Composing paths joins the segments, so `customer.via(address).via(zip)` is `"customer.address.zip"`, which `segments()` and `pathString()` return. `parseIfPresent` locates failures with them **automatically**, so a generated path needs no `.at(...)`. An explicit `.at(label)` still prepends outward, for a hand-written optic or extra context, as `FieldError.at` does.
+A path from a `@GenerateFocus` companion carries its record-component name as a **segment**: `LineItemFocus.sku()` is labelled `"sku"`. Composing paths joins the segments, so `OrderFocus.customer().email().value()` is `"customer.email.value"`, which `segments()` and `pathString()` return. `parseIfPresent` locates failures with them **automatically**, so a generated path needs no `.at(...)`. An explicit `.at(label)` still prepends outward, for a hand-written optic or extra context, as `FieldError.at` does.
 ~~~
 
-To carry on in an Effect Path, `applyPath(order)` is the `ValidationPath` twin of `apply(order)`, and `toValidated()` exposes the folded `Update` itself for reuse.
+To carry on in an Effect Path, `applyPath(line)` is the `ValidationPath` twin of `apply(line)`, and `toValidated()` exposes the folded `Update` itself for reuse.
 
 ~~~admonish tip title="Generate this when the shape is regular"
 When the request DTO's fields line up one-to-one with a domain record, the common REST PATCH case, you need not hand-write the fold at all. `@GenerateMapping` on an [`UpdateSpec<Domain, Wire>`](../mapping/beans_patch.md#sparse-patch-write-back-updatespec) generates this `Edits.accumulate` over the present fields, in its [construct-once form](#fields-a-constructor-checks-together). It returns `updateFrom(wire) : Edits.Accumulated<Domain>`, with the same `apply`, `applyPath` and `toValidated`. Reach for the hand-written `Edits` here when the edits are irregular (a `qtyDelta` that *modifies*, coupled fields, a computed target); reach for `UpdateSpec` when each present field maps to one slot.
@@ -153,18 +151,18 @@ An accumulated patch works in two phases:
 ```mermaid
 flowchart TD
     accTitle: Validate everything, then write once
-    accDescr: In phase 1 each edit is checked on its own, with no source: an absent SKU is a valid no-op, the email is parsed, and a present quantity delta is a valid write. If every edit is valid, phase 2 runs the writes as one left-to-right fold; otherwise the result is Invalid with every bad field located.
+    accDescr: In phase 1 each edit is checked on its own, with no source: an absent SKU is a valid no-op, the price is parsed, and a present quantity delta is a valid write. If every edit is valid, phase 2 runs the writes as one left-to-right fold; otherwise the result is Invalid with every bad field located.
     subgraph one["Phase 1: validate each edit independently, no source involved"]
         direction TB
         S1(["setIfPresent(SKU, null)<br/>absent, so no change"]) --> V1(["Valid, a no-op"])
-        S2(["parseIfPresent(EMAIL, raw)<br/>the parser runs"]) --> V2(["Valid(write)<br/>or Invalid(errors)"])
+        S2(["parseIfPresent(PRICE, raw)<br/>the parser runs"]) --> V2(["Valid(write)<br/>or Invalid(errors)"])
         S3(["modifyIfPresent(QTY, 3)<br/>present → write"]) --> V3(["Valid(write)"])
     end
     V1 --> Q{"every edit Valid?"}
     V2 --> Q
     V3 --> Q
-    Q -->|"yes"| Ok(["Phase 2: one left-to-right fold<br/>Valid(order'), only the present fields written"])
-    Q -->|"no"| Bad(["Invalid(NEL[email: …])<br/>every bad field, located"])
+    Q -->|"yes"| Ok(["Phase 2: one left-to-right fold<br/>Valid(line'), only the present fields written"])
+    Q -->|"no"| Bad(["Invalid(NEL[price: …])<br/>every bad field, located"])
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
@@ -180,9 +178,9 @@ Application order is observable only when paths overlap: disjoint paths commute;
 
 ## Fields a constructor checks together {#fields-a-constructor-checks-together}
 
-Each write through a record's path builds a new record, so the constructor sees every value the fold passes through. Take a range whose constructor refuses `lo > hi`. It cannot move from `Range(1, 3)` to `Range(5, 10)` one end at a time: writing `lo` first builds `Range(5, 3)`, and the constructor throws before `hi` is written, although the final range is valid.
+Each write through a record's path builds a new record, so the constructor sees every value the fold passes through. Take a `PriceBand`, a catalogue price band in pence, whose constructor refuses `floor > ceiling`. It cannot move from `PriceBand(100, 300)` to `PriceBand(500, 1000)` one end at a time: writing the floor first builds `PriceBand(500, 300)`, and the constructor throws before the ceiling is written, although the final band is valid.
 
-`Edits.accumulate(focus, edits...)` takes a `Lens` to a value carrying the fields the edits set, with no check of its own. The edits write onto that value, and the lens sets it back once, so the constructor sees only the final values:
+`Edits.accumulate(focus, edits...)` takes a `Lens` to a value carrying the fields the edits set, with no check of its own, here `Bounds`. The request `move` asks for a floor of 500 and a ceiling of 1000. The edits write onto that value, and the lens sets it back once, so the constructor sees only the final values:
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/MultiEditBook.java:focus_records}}
@@ -195,14 +193,14 @@ Each write through a record's path builds a new record, so the constructor sees 
 ```mermaid
 flowchart LR
     accTitle: One record per edit, or one record in all
-    accDescr: With plain accumulate, setting lo to 5 on Range(1, 3) builds Range(5, 3), which the constructor refuses. With accumulate onto the Ends focus, lo and hi are written onto Ends(1, 3) in turn, giving Ends(5, 10), and the lens sets it back once as Range(5, 10).
+    accDescr: With plain accumulate, setting the floor to 500 on PriceBand(100, 300) builds PriceBand(500, 300), which the constructor refuses. With accumulate onto the Bounds focus, the floor and ceiling are written onto Bounds(100, 300) in turn, giving Bounds(500, 1000), and the lens sets it back once as PriceBand(500, 1000).
     subgraph each["accumulate(edits…): one record per edit"]
         direction LR
-        A1(["Range(1, 3)"]) -->|"lo = 5"| A2(["Range(5, 3)<br/>the constructor throws"])
+        A1(["PriceBand(100, 300)"]) -->|"floor = 500"| A2(["PriceBand(500, 300)<br/>the constructor throws"])
     end
-    subgraph once["accumulate(ends, edits…): one Range in all"]
+    subgraph once["accumulate(bounds, edits…): one PriceBand in all"]
         direction LR
-        B1(["Ends(1, 3)"]) -->|"lo = 5"| B2(["Ends(5, 3)"]) -->|"hi = 10"| B3(["Ends(5, 10)"]) -->|"set once"| B4(["Range(5, 10)"])
+        B1(["Bounds(100, 300)"]) -->|"floor = 500"| B2(["Bounds(500, 300)"]) -->|"ceiling = 1000"| B3(["Bounds(500, 1000)"]) -->|"set once"| B4(["PriceBand(500, 1000)"])
     end
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
@@ -227,13 +225,13 @@ The edits validate exactly as they do in `accumulate`, and their errors are repo
 
 | What happens | What `apply` returns |
 |---|---|
-| Setting the focus back throws a `RuntimeException`: the constructor refusing the final values | An unlabelled `FieldError` carrying the exception's message, or `not a valid Range` when the message is missing or blank |
+| Setting the focus back throws a `RuntimeException`: the constructor refusing the final values | An unlabelled `FieldError` carrying the exception's message, or `not a valid PriceBand` when the message is missing or blank |
 | An edit's own function, or reading the focus, throws | Nothing: the exception propagates, since only setting the focus back is guarded |
 | Every edit is absent | The source as it is, without setting the focus |
 
 `toValidated()` hands back an `Update` that writes onto the focus and sets it back once. An `Update` has no error channel, so a refusal throws from it.
 
-The edits' errors are located relative to the focus. Where the focus is a nested component rather than the source's own fields, add the component's name to each edit with `.at("range")`, so their errors and the source agree on where they are.
+The edits' errors are located relative to the focus. Where the focus is a nested component rather than the source's own fields, add the component's name to each edit with `.at("band")`, so their errors and the source agree on where they are.
 
 ---
 

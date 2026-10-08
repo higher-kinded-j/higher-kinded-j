@@ -2,15 +2,16 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.example.book.optics.quickstart;
 
-import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.example.book.optics.JsonNodeOptics;
-import org.higherkindedj.optics.annotations.GenerateFocus;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GeneratePrisms;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
+import org.higherkindedj.example.book.optics.cast.LineItemFocus;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderFocus;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
@@ -20,49 +21,52 @@ import tools.jackson.databind.node.StringNode;
  * The code shown on the book's <a
  * href="https://higher-kinded-j.github.io/latest/optics/quickstart.html">Optics Quickstart</a>. The
  * page {@code {{#include}}}s the anchored regions, and {@code QuickstartBookTest} holds the claims
- * the page makes about this code.
+ * the page makes about this code. The records are the chapter's cast, from {@code
+ * org.higherkindedj.example.book.optics.cast}.
  */
 public final class QuickstartBook {
 
   private QuickstartBook() {}
 
-  static User rename(User user) {
+  static Order changeEmail(Order order) {
     // ANCHOR: one_liner
-    User updated = UserFocus.address().street().name().set("New Street", user);
+    Order updated = OrderFocus.customer().email().value().set("ada@example.org", order);
     // ANCHOR_END: one_liner
     return updated;
   }
 
-  static Order discount(Order order) {
-    // ANCHOR: discount
-    Order discounted =
-        OrderFocus.items()
+  static Order roundPrices(Order order) {
+    // ANCHOR: round
+    Order rounded =
+        OrderFocus.lines()
             .via(LineItemFocus.price())
-            .modifyAll(price -> price.multiply(new BigDecimal("0.9")), order);
-    // ANCHOR_END: discount
-    return discounted;
+            .modifyAll(price -> price.setScale(2, RoundingMode.HALF_EVEN), order);
+    // ANCHOR_END: round
+    return rounded;
   }
 
   /** What the page's prism block computes, so the test can read each value. */
-  record PrismResults(boolean isPending, Status tidied, Status fulfilled) {}
+  record PrismResults(boolean isPending, ConsignmentState tidied, ConsignmentState dispatched) {}
 
-  static PrismResults matchAndMove(Order order, Instant shippedAt) {
+  static PrismResults matchAndMove(Consignment consignment, Instant dispatchedAt) {
     // ANCHOR: prism
-    boolean isPending = StatusPrisms.pending().matches(order.status());
+    boolean isPending = ConsignmentStatePrisms.pending().matches(consignment.state());
 
-    // modify rebuilds the variant it narrowed to, so the function is Cancelled -> Cancelled.
-    Status tidied =
-        StatusPrisms.cancelled()
-            .modify(cancelled -> new Status.Cancelled(cancelled.reason().strip()), order.status());
+    // modify rebuilds the variant it narrowed to, so the function is Returned -> Returned
+    ConsignmentState tidied =
+        ConsignmentStatePrisms.returned()
+            .modify(
+                returned -> new ConsignmentState.Returned(returned.reason().strip()),
+                consignment.state());
 
     // Moving to a different variant is not a modify. Read through the prism, then build.
-    Status fulfilled =
-        StatusPrisms.pending()
-            .getOptional(order.status())
-            .<Status>map(_ -> new Status.Shipped(shippedAt))
-            .orElse(order.status());
+    ConsignmentState dispatched =
+        ConsignmentStatePrisms.pending()
+            .getOptional(consignment.state())
+            .<ConsignmentState>map(_ -> new ConsignmentState.Dispatched(dispatchedAt))
+            .orElse(consignment.state());
     // ANCHOR_END: prism
-    return new PrismResults(isPending, tidied, fulfilled);
+    return new PrismResults(isPending, tidied, dispatched);
   }
 
   static Optional<StringNode> firstName(String json) {
@@ -79,38 +83,3 @@ public final class QuickstartBook {
     return firstName;
   }
 }
-
-// ANCHOR: records
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record Street(String name, int number) {}
-
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record Address(Street street, String city) {}
-
-@GenerateLenses
-@GenerateFocus(generateNavigators = true)
-record User(String name, Address address) {}
-
-// ANCHOR_END: records
-
-// ANCHOR: order_types
-@GeneratePrisms
-sealed interface Status permits Status.Pending, Status.Shipped, Status.Cancelled {
-  record Pending() implements Status {}
-
-  record Shipped(Instant at) implements Status {}
-
-  record Cancelled(String reason) implements Status {}
-}
-
-@GenerateLenses
-@GenerateFocus
-record LineItem(String sku, BigDecimal price) {}
-
-@GenerateLenses
-@GenerateFocus
-@GenerateTraversals
-record Order(String id, Status status, List<LineItem> items) {}
-// ANCHOR_END: order_types

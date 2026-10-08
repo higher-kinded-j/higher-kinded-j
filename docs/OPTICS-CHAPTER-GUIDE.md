@@ -68,7 +68,27 @@ covering every page in the group.
 - **The chapter's optic anchors live in one table.** "Choosing an optic" on What a Path Is Made Of
   gives one row per optic type, and the Focus DSL page anchors the Focus path itself. A page that
   introduces an optic links to that table rather than coining a metaphor of its own.
-- **A chained Focus hop needs navigators.** `UserFocus.address().street()` compiles only when every
+- **The chapter's running cast is the order service**, in `org.higherkindedj.example.book.optics.cast`:
+  `Order`, `Customer`, `EmailAddress`, `LineItem`, `OrderStatus`, a sealed `Payment` (`Card`,
+  `Bank`), `Address`, a `Consignment` with a sealed `ConsignmentState`, and `CustomerProfile`.
+  `Order`, `Customer`, `EmailAddress` and `LineItem` have the Mapping capstone's shapes, `Payment`
+  Structure's, `CustomerProfile` Absence's and `Address` Basics', so a reader moving between the
+  chapters meets the same records. Names the Mapping chapter gives other shapes (`Shipment`,
+  `Fulfilment`, `Checkout`, `Delivery`) stay out of this chapter. Each
+  lane book imports the cast, unless it redeclares a member as a "before" half, a page includes the
+  declarations it shows from the cast's files, and
+  `CastFixtures` in the test tree holds the sample values. The Style Guide's
+  [One Cast per Chapter](STYLE-GUIDE.md#one-cast-per-chapter) says when a page may add a type.
+  - **A name keeps one shape across both chapters.** A field one page needs goes on a supporting
+    type named for its role beside the cast, such as `Basket`, `Catalogue`, `PaymentHistory` or
+    `PriceBand`, declared in that page's package.
+  - **The "before" half of a before-and-after pair may redeclare a cast member** in its own package
+    with the withers it calls, as Lombok's `@With` would generate them, but with the cast's
+    components: the chapter introduction's `Order` and `LineItem`, and Many Edits at Once's
+    `LineItem`, do.
+  - **A width proof keeps placeholder components**, such as the nested-container records on
+    Collections, Optionals and Sealed Types, with a comment saying so.
+- **A chained Focus hop needs navigators.** `OrderFocus.customer().email()` compiles only when every
   record a hop leaves carries `@GenerateFocus(generateNavigators = true)`; without it, the hop is
   `.via(...)`.
 
