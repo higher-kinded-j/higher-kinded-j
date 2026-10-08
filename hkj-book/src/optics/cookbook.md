@@ -1,898 +1,366 @@
 # Optics Cookbook
 
-_Recipes for the nested-update problems you meet in production, each a problem and its solution._
+_Find the problem you hold, then copy its recipe: a Focus path first, raw optics collapsed._
 
----
+## Find your recipe {#find-your-recipe}
 
-## Recipe 1: Updating Nested Optional Fields
+| You want to | Recipe |
+|---|---|
+| Update a field nested several records deep, such as an order's customer email | [1: A field several records deep](#deep-field) |
+| Change a value inside an `Optional`, only when one is present | [2: A field inside an `Optional`](#optional-field) |
+| Change every element of a list inside a list, such as every price in an order history | [3: Every element, at any depth](#every-element) |
+| Change only the list elements that match a condition | [4: Only the elements that match](#matching-elements) |
+| Change one case of a sealed interface (a sum type), and leave the others | [5: One variant of a sealed type](#one-variant) |
+| Read or change one subtype in a list of mixed types, as `instanceof` would | [6: One variant in a list of mixed types](#variants-in-a-list) |
+| Read a `Map` value with a default for a missing key, or set one key | [7: A map entry, with a fallback](#map-entry) |
+| Change the `Right` of an `Either` field, and leave a `Left` alone | [8: The value inside an `Either` field](#either-field) |
+| Validate a PATCH and report every bad field by name | [9: A PATCH that reports every bad field](#patch) |
+| Validate every element, collecting every error or stopping at the first | [10: Every value a path reaches, checked](#check-values) |
+| Sum, count or test the values in a list | [11: Totals, counts and tests](#totals) |
+| Read values from several fields as one list | [12: Values from several places](#several-places) |
+| Sort or reverse a list's elements in place | [13: Sorting and reversing](#sort) |
+| Log what a path reads, to debug it | [14: Tracing a path](#trace) |
 
-### Problem
+The recipes use the chapter's order-service cast, and declare any supporting type they need. Most also show their raw-optics form in a collapsed block, for a codebase that composes generated lenses by hand.
 
-You have a deeply nested structure with optional fields and need to update a value that may or may not exist.
-
-### Solution
-
-<!-- verify -->
-```java
-@GenerateLenses record User(String name, Optional<Profile> profile) {}
-@GenerateLenses record Profile(String bio, Optional<Settings> settings) {}
-@GenerateLenses record Settings(boolean darkMode, int fontSize) {}
-
-// Build the path: zero or one font size, so the type is an Affine
-Affine<User, Integer> userFontSize =
-    UserLenses.profile()              // Lens<User, Optional<Profile>>
-        .andThen(Prisms.some())       // Prism<Optional<Profile>, Profile>
-        .andThen(ProfileLenses.settings())  // Lens<Profile, Optional<Settings>>
-        .andThen(Prisms.<Settings>some())    // Prism<Optional<Settings>, Settings>
-        .andThen(SettingsLenses.fontSize()); // Lens<Settings, Integer>
-
-// Usage
-User user = new User("Alice", Optional.of(
-    new Profile("Developer", Optional.of(new Settings(true, 14)))
-));
-
-// Increase font size if it exists, otherwise leave unchanged
-User updated = userFontSize.modify(size -> size + 2, user);
+~~~admonish example title="The cast these recipes use" collapsible=true
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Order.java:order}}
 ```
 
-### Why It Works
-
-Each `Prisms.some()` safely handles the Optional: if any Optional is empty, `modify` leaves the structure unchanged, and so does `set` here, because the path ends in a lens. A path that *ends* in an optional step writes even when it is empty: see [When the focus is absent](affine.md#when-the-focus-is-absent).
-
----
-
-## Recipe 2: Modifying a Specific Variant of a Sum Type
-
-### Problem
-
-You have a sealed interface and want to modify only one specific variant whilst leaving others unchanged.
-
-### Solution
-
-<!-- verify -->
-```java
-record Data(String value) {}
-
-sealed interface ApiResponse permits Success, Failure, Loading {}
-@GenerateLenses record Success(Data data, String timestamp) implements ApiResponse {}
-record Failure(String message, int code) implements ApiResponse {}
-record Loading(int progress) implements ApiResponse {}
-
-// Create prism for the Success case
-Prism<ApiResponse, Success> successPrism = Prism.of(
-    resp -> resp instanceof Success s ? Optional.of(s) : Optional.empty(),
-    s -> s
-);
-
-// Compose with a lens to reach the data: prism.andThen(lens) returns an Affine,
-// the focus may be absent, but there is at most one of it.
-Affine<ApiResponse, Data> successData =
-    successPrism.andThen(SuccessLenses.data());
-
-// Usage: transform data only for Success responses
-ApiResponse response = new Success(new Data("original"), "2024-01-01");
-ApiResponse modified = successData.modify(
-    data -> new Data(data.value().toUpperCase()),
-    response
-);
-// Result: Success[data=Data[value=ORIGINAL], timestamp=2024-01-01]
-
-// Failure responses pass through unchanged
-ApiResponse failure = new Failure("Not found", 404);
-ApiResponse unchanged = successData.modify(
-    data -> new Data(data.value().toUpperCase()),
-    failure);
-// Result: Failure[message=Not found, code=404] (unchanged)
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Customer.java:customer}}
 ```
 
----
-
-## Recipe 3: Bulk Updates Across Collections
-
-### Problem
-
-You need to update all items in a collection that match certain criteria.
-
-### Solution
-
-<!-- verify -->
-```java
-@GenerateLenses record Order(String id, List<LineItem> items) {}
-record LineItem(String productId, int quantity, Money price) {}
-
-// Traversal to all line items
-Traversal<Order, LineItem> allItems =
-    OrderLenses.items()
-        .andThen(Traversals.forList());
-
-// Traversal to high-quantity items only
-Traversal<Order, LineItem> bulkItems =
-    allItems.andThen(Traversals.filtered(item -> item.quantity() > 10));
-
-// Apply 10% discount to bulk items
-Order order = new Order("ORD-001", List.of(
-    new LineItem("PROD-1", 5, new Money(100)),
-    new LineItem("PROD-2", 15, new Money(200)),
-    new LineItem("PROD-3", 20, new Money(150))
-));
-
-Order discounted = Traversals.modify(
-    bulkItems,
-    item -> new LineItem(
-        item.productId(),
-        item.quantity(),
-        item.price().multiply(0.9)
-    ),
-    order
-);
-// Only items with quantity > 10 get the discount
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/EmailAddress.java:email_address}}
 ```
 
----
-
-## Recipe 4: Extracting Values from Polymorphic Structures
-
-### Problem
-
-You have a list of mixed types and need to extract values from specific types only.
-
-### Solution
-
-<!-- verify -->
-```java
-sealed interface Event permits UserEvent, SystemEvent {}
-@GenerateLenses record UserEvent(String userId, String action) implements Event {}
-record SystemEvent(String level, String message) implements Event {}
-
-// Prism to focus on UserEvents
-Prism<Event, UserEvent> userEventPrism = Prism.of(
-    e -> e instanceof UserEvent u ? Optional.of(u) : Optional.empty(),
-    u -> u
-);
-
-// Traversal from list of events to user actions
-Traversal<List<Event>, String> userActions =
-    Traversals.<Event>forList()
-        .andThen(userEventPrism)
-        .andThen(UserEventLenses.action());
-
-// Usage
-List<Event> events = List.of(
-    new UserEvent("user-1", "LOGIN"),
-    new SystemEvent("INFO", "Server started"),
-    new UserEvent("user-2", "LOGOUT"),
-    new SystemEvent("WARN", "High memory usage")
-);
-
-List<String> actions = Traversals.getAll(userActions, events);
-// Result: ["LOGIN", "LOGOUT"]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/LineItem.java:line_item}}
 ```
 
----
-
-## Recipe 5: Safe Map Access with Fallback
-
-### Problem
-
-You need to access a value in a Map that may not exist, with a sensible default.
-
-### Solution
-
-<!-- verify -->
-```java
-@GenerateLenses record Config(Map<String, String> settings) {}
-
-// Traversal to a specific key
-Traversal<Config, String> databaseUrl =
-    ConfigLenses.settings()
-        .andThen(Traversals.forMap("database.url"));
-
-// Get with default
-Config config = new Config(Map.of("app.name", "MyApp"));
-
-List<String> urls = Traversals.getAll(databaseUrl, config);
-String url = urls.isEmpty() ? "jdbc:postgresql://localhost/default" : urls.get(0);
-
-// Or use Optional pattern
-Optional<String> maybeUrl = urls.stream().findFirst();
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/CustomerProfile.java:customer_profile}}
 ```
 
----
-
-## Recipe 6: Composing Multiple Validations
-
-### Problem
-
-You need to validate multiple fields and accumulate all errors.
-
-### Solution
-
-Use the `Edits` builder: each field becomes a fallible edit, every incoming value is validated independently, and **all** failures are reported at once, located by field:
-
-<!-- verify -->
-```java
-import static org.higherkindedj.optics.edit.Edit.parseIfPresent;
-
-@GenerateLenses record Registration(String email, String password, int age) {}
-
-static final FocusPath<Registration, String> emailPath =
-    FocusPath.of(RegistrationLenses.email());
-static final FocusPath<Registration, String> passwordPath =
-    FocusPath.of(RegistrationLenses.password());
-static final FocusPath<Registration, Integer> agePath = FocusPath.of(RegistrationLenses.age());
-
-// Leaf validators stay plain - no path parameter, no error-list plumbing
-static final Function<String, Validated<NonEmptyList<FieldError>, String>> validateEmail = email ->
-    email.contains("@")
-        ? Validated.validNel(email)
-        : Validated.invalidNel(FieldError.of("invalid email format"));
-
-static final Function<String, Validated<NonEmptyList<FieldError>, String>> validatePassword =
-    password ->
-        password.length() >= 8
-            ? Validated.validNel(password)
-            : Validated.invalidNel(FieldError.of("must be at least 8 characters"));
-
-static final Function<Integer, Validated<NonEmptyList<FieldError>, Integer>> validateAge = age ->
-    age >= 18
-        ? Validated.validNel(age)
-        : Validated.invalidNel(FieldError.of("must be 18 or older"));
-
-public Validated<NonEmptyList<FieldError>, Registration> validateRegistration(Registration reg) {
-    return Edits.accumulate(
-            parseIfPresent(emailPath,    reg.email(),    validateEmail).at("email"),
-            parseIfPresent(passwordPath, reg.password(), validatePassword).at("password"),
-            parseIfPresent(agePath,      reg.age(),      validateAge).at("age"))
-        .apply(reg);
-}
-// Invalid(NonEmptyList[email: invalid email format, password: must be at least 8 characters])
-// - every bad field reported at once, located, in edit order
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Consignment.java:consignment}}
 ```
 
-~~~admonish warning title="Why not flatMap?"
-Chaining per-field `Validated` results with `flatMap` short-circuits: the first failure hides all the others, and earlier writes are discarded. `Edits.accumulate` validates every field independently and applies every write in one pass: see [Many Edits at Once](multi_edit.md).
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/ConsignmentState.java:consignment_state}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Payment.java:payment}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Card.java:card}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Bank.java:bank}}
+```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Address.java:address}}
+```
 ~~~
 
 ---
 
-## Recipe 7: Transforming Nested Collections
+## Recipe 1: A field several records deep {#deep-field}
 
-### Problem
+You want to replace one value three records down, such as the email on an order's customer, without rebuilding each record by hand.
 
-You have nested collections and need to transform items at the innermost level.
-
-### Solution
-
-<!-- verify -->
-```java
-@GenerateLenses record Company(List<Department> departments) {}
-@GenerateLenses record Department(String name, List<Employee> employees) {}
-@GenerateLenses record Employee(String name, int salary) {}
-
-// Traversal to all employee salaries across all departments
-Traversal<Company, Integer> allSalaries =
-    CompanyLenses.departments()
-        .andThen(Traversals.forList())
-        .andThen(DepartmentLenses.employees())
-        .andThen(Traversals.forList())
-        .andThen(EmployeeLenses.salary());
-
-// Give everyone a 5% raise
-Company company = new Company(List.of(
-    new Department("Engineering", List.of(new Employee("Alice", 50_000)))));
-Company afterRaise = Traversals.modify(
-    allSalaries,
-    salary -> (int) (salary * 1.05),
-    company
-);
-
-// Get total payroll
-List<Integer> salaries = Traversals.getAll(allSalaries, company);
-int totalPayroll = salaries.stream().mapToInt(Integer::intValue).sum();
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:deep_field}}
 ```
+
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:deep_field_raw}}
+```
+~~~
+
+`set` returns a new `Order`: it rebuilds the records on the path and reuses everything off it, the lines included. Chaining `.email().value()` straight on needs generated navigators, which `@GenerateFocus(generateNavigators = true)` turns on, here on `Order` and `Customer`. Without them, each hop is a `.via(...)`.
 
 ---
 
-## Recipe 8: Conditional Updates Based on Related Data
+## Recipe 2: A field inside an `Optional` {#optional-field}
 
-### Problem
+A customer profile's alternative email is an `Optional<EmailAddress>`, and you want to change the address when there is one.
 
-You need to update a field based on the value of another field in the same structure.
-
-### Solution
-
-<!-- verify -->
-```java
-@GenerateLenses record Product(String name, Money price, boolean onSale) {}
-
-// Create a lens for the price
-static final Lens<Product, Money> priceLens = ProductLenses.price();
-
-// Conditional discount based on onSale flag
-public Product applyDiscount(Product product, double discountRate) {
-    if (product.onSale()) {
-        return priceLens.modify(
-            price -> price.multiply(1 - discountRate),
-            product
-        );
-    }
-    return product;
-}
-
-// Or using Traversal with filter
-Traversal<List<Product>, Money> salePrices =
-    Traversals.<Product>forList()
-        .andThen(Traversals.filtered(Product::onSale))
-        .andThen(priceLens);
-
-List<Product> products = List.of(new Product("Widget", new Money(100), true));
-List<Product> discounted = Traversals.modify(
-    salePrices,
-    price -> price.multiply(0.8),
-    products
-);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:optional_field}}
 ```
+
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:optional_field_raw}}
+```
+~~~
+
+An `Optional` component makes the generated path an `AffinePath`, which focuses zero or one value. `modify` leaves an empty `Optional` alone, and so does `set` here, because the path ends in a lens. A path whose last step is the `Optional`'s prism, such as `CustomerProfileFocus.altEmail()`, writes even when the `Optional` is empty: see [When the focus is absent](affine.md#when-the-focus-is-absent).
 
 ---
 
-## Recipe 9: Working with Either for Error Handling
+## Recipe 3: Every element, at any depth {#every-element}
 
-### Problem
+An order history holds orders, and each order holds lines. You want to round every line's price to pence, across all of them.
 
-You have an `Either<Error, Success>` and need to transform the success case whilst preserving errors.
-
-### Solution
-
-<!-- verify -->
-```java
-record ValidationError(String field, String message) {}
-record UserData(String name, String email) {}
-
-// Prism to focus on the Right (success) case
-Prism<Either<ValidationError, UserData>, UserData> rightPrism = Prisms.right();
-
-// Transform user data only on success
-Either<ValidationError, UserData> result =
-    Either.right(new UserData("alice", "alice@example.com"));
-
-Either<ValidationError, UserData> transformed = rightPrism.modify(
-    user -> new UserData(user.name().toUpperCase(), user.email()),
-    result
-);
-// Result: Right(UserData[name=ALICE, email=alice@example.com])
-
-// Errors pass through unchanged
-Either<ValidationError, UserData> errorResult =
-    Either.left(new ValidationError("email", "Invalid format"));
-
-Either<ValidationError, UserData> stillError = rightPrism.modify(
-    user -> new UserData(user.name().toUpperCase(), user.email()),
-    errorResult
-);
-// Result: Left(ValidationError[field=email, message=Invalid format])
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:order_history}}
 ```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:every_element}}
+```
+
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:every_element_raw}}
+```
+~~~
+
+A `List` component's generated method already steps into the elements, so `OrderHistoryFocus.orders()` focuses each `Order`. Each `.via(...)` goes one level deeper, and `modifyAll` returns a new history with every price rounded. In plain Java the same change is two nested streams, each ending in a record's constructor.
 
 ---
 
-## Recipe 10: Sorting or Reversing Traversed Elements
+## Recipe 4: Only the elements that match {#matching-elements}
 
-### Problem
+You want to discount only the order lines of four or more items, and leave the others as they are.
 
-You need to sort or reorder the elements focused by a Traversal.
-
-### Solution
-
-<!-- verify -->
-```java
-@GenerateLenses record Scoreboard(List<Player> players) {}
-@GenerateLenses record Player(String name, int score) {}
-
-// Traversal to all scores
-Traversal<Scoreboard, Integer> scores =
-    ScoreboardLenses.players()
-        .andThen(Traversals.forList())
-        .andThen(PlayerLenses.score());
-
-// Sort scores (highest first)
-Scoreboard board = new Scoreboard(List.of(
-    new Player("Alice", 100),
-    new Player("Bob", 150),
-    new Player("Charlie", 75)
-));
-
-Scoreboard sorted = Traversals.sorted(
-    scores,
-    Comparator.reverseOrder(),
-    board
-);
-// Result: Players now have scores [150, 100, 75] respectively
-
-// Reverse the order
-Scoreboard reversed = Traversals.reversed(scores, board);
-// Result: Players now have scores [75, 150, 100]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:matching}}
 ```
+
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:matching_raw}}
+```
+~~~
+
+`filter` narrows the path to the matching lines, so the hops after it reach only those, and the other lines come back unchanged. `modifyWhen(condition, f, order)` is `filter` followed by `modifyAll`, for a change to the whole element.
+
+~~~admonish tip title="Plain Java wins here"
+For a condition on one record rather than on the elements of a list, an `if` around a single `set` reads best. A filter earns its place when the condition picks elements out of a list.
+~~~
 
 ---
 
-## Best Practices
+## Recipe 5: One variant of a sealed type {#one-variant}
 
-The recipes below reach the customer on an order, so they read this model rather than the
-reduced one the earlier recipes declare:
+A consignment's state is the sealed `ConsignmentState`: `Pending`, `Dispatched` or `Returned`. You want to tidy the reason on a returned consignment, and leave every other state alone.
 
-<!-- verify -->
-```java
-@GenerateLenses record Money(BigDecimal amount) {}
-@GenerateLenses record LineItem(String productId, int quantity, Money price) {}
-@GenerateLenses record Promotion(String code, boolean isActive) {}
-
-@GeneratePrisms sealed interface Customer permits Verified, LoyaltyMember {}
-@GenerateLenses record Verified(String email) implements Customer {}
-@GenerateLenses record LoyaltyMember(String id, List<Promotion> promotions) implements Customer {}
-
-@GenerateLenses record Order(String id, List<LineItem> items, Customer customer) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:one_variant}}
 ```
 
-### 1. Create Reusable Optic Constants
-
-<!-- verify -->
-```java
-public final class OrderOptics {
-    public static final Traversal<Order, Money> ALL_PRICES =
-        OrderLenses.items()
-            .andThen(Traversals.forList())
-            .andThen(LineItemLenses.price());
-
-    // The prism narrows Customer to Verified, so the next hop is a lens on
-    // Verified, not on Customer.
-    public static final Affine<Order, String> CUSTOMER_EMAIL =
-        OrderLenses.customer()
-            .andThen(CustomerPrisms.verified())
-            .andThen(VerifiedLenses.email());
-}
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:one_variant_raw}}
 ```
+~~~
 
-### 2. Use Direct Composition Methods
-
-<!-- verify -->
-```java
-// Direct composition: lens.andThen(prism) returns an Affine, since the prism may not match
-Affine<Config, Settings> direct = configLens.andThen(settingsPrism);
-
-// Widen only where the call site actually needs a Traversal
-Traversal<Config, Settings> asTraversal = direct.asTraversal();
-
-// Fallback: when you need maximum flexibility
-Traversal<Config, Settings> manual =
-    configLens.asTraversal().andThen(settingsPrism.asTraversal());
-```
-
-### 3. Document Complex Compositions
-
-<!-- verify -->
-```java
-/**
- * Traverses from an Order to all active promotion codes.
- *
- * Path: Order -> Customer -> Loyalty (if exists) -> Promotions list -> Active only
- */
-public static final Traversal<Order, String> ACTIVE_PROMO_CODES =
-    OrderLenses.customer()
-        .andThen(CustomerPrisms.loyaltyMember())
-        .andThen(LoyaltyMemberLenses.promotions())
-        .andThen(Traversals.forList())
-        .andThen(Traversals.filtered(Promotion::isActive))
-        .andThen(PromotionLenses.code());
-```
-
-### 4. Prefer Specific Types When Available
-
-<!-- verify -->
-```java
-// If you know it's always present, use Lens directly
-Lens<User, String> name = UserLenses.name();
-String userName = name.get(user);
-
-// A value that may be absent, such as a bio on an optional profile, is an Affine
-Affine<User, String> optionalBio =
-    UserLenses.profile()
-        .andThen(Prisms.<Profile>some())
-        .andThen(ProfileLenses.bio());
-Optional<String> bio = optionalBio.getOptional(user);
-
-// Reach for a Traversal only when there can be many values
-```
+The generated prism `ConsignmentStatePrisms.returned()` matches one variant, so the path is an `AffinePath` that is empty for any other state. `modify` keeps the variant it matched. Moving a consignment to another state is a read followed by a build, as [the Quickstart's sealed type](quickstart.md#2-sum-types-and-collections-the-same-way) shows.
 
 ---
 
-## Recipe 10b: Extracting Values from Multiple Paths
+## Recipe 6: One variant in a list of mixed types {#variants-in-a-list}
 
-### Problem
+A payment history holds a list of `Payment`, each a `Card` or a `Bank`. You want every card number, or every card number masked, and the bank payments skipped.
 
-You have values scattered across different fields or branches of a data structure and need to extract them all into a single collection.
-
-### Solution
-
-<!-- verify -->
-```java
-record Team(String name, Employee lead, List<Employee> members) {}
-record Employee(String name, String email) {}
-
-// Folds for different paths
-Fold<Team, String> leadEmail = teamLeadLens.asFold()
-    .andThen(employeeEmailLens.asFold());
-Fold<Team, String> memberEmails = Fold.<Team, Employee>of(Team::members)
-    .andThen(employeeEmailLens.asFold());
-
-// Combine with plus
-Fold<Team, String> allEmails = leadEmail.plus(memberEmails);
-
-// Or use sum for three or more paths
-Fold<Team, String> allNames = Fold.sum(
-    Fold.of(t -> List.of(t.name())),
-    teamLeadLens.asFold().andThen(employeeNameLens.asFold()),
-    Fold.<Team, Employee>of(Team::members).andThen(employeeNameLens.asFold())
-);
-
-// Usage
-Team team = new Team("Backend",
-    new Employee("Alice", "alice@co"),
-    List.of(new Employee("Bob", "bob@co")));
-
-List<String> emails = allEmails.getAll(team);
-// Result: ["alice@co", "bob@co"]
-
-List<String> names = allNames.getAll(team);
-// Result: ["Backend", "Alice", "Bob"]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:payment_history}}
 ```
 
-### Why It Works
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:variants_in_list}}
+```
 
-`Fold.plus()` delegates `foldMap` to both constituent folds and combines results via the monoid. This means all fold operations (`getAll`, `exists`, `foldMap`, `length`, etc.) work correctly across the combined paths. The ordering is deterministic: results from the first fold appear before results from the second.
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:variants_in_list_raw}}
+```
+~~~
+
+After `payments()` steps into the list, the prism keeps the cards and passes over the rest. The read skips the bank payments, and the write leaves them as they were. For a sealed type you cannot annotate, `AffinePath.instanceOf(Card.class)` takes the prism's place.
 
 ---
 
-## Recipe 10c: Traversal-Derived Folds for Read-Only Queries
+## Recipe 7: A map entry, with a fallback {#map-entry}
 
-### Problem
+A stockroom keeps its stock by SKU in a `Map<String, Integer>`. You want a count that is zero for a SKU it has never held, and to change one entry.
 
-You have a `Traversal` built for modifications, but now need to perform read-only aggregation, counting, or existence checks on the same path.
-
-### Solution
-
-<!-- verify -->
-```java
-@GenerateLenses record Order(String id, List<LineItem> items) {}
-// Prices in pence, so sums are exact
-@GenerateLenses record LineItem(String product, int quantity, int pricePence) {}
-
-// Existing traversal for modifications
-Traversal<Order, Integer> allPrices =
-    OrderLenses.items()
-        .andThen(Traversals.forList())
-        .andThen(LineItemLenses.pricePence());
-
-// Convert to fold for read-only queries
-Fold<Order, Integer> pricesFold = allPrices.asFold();
-
-Order order = new Order("ORD-1", List.of(
-    new LineItem("Widget", 2, 2999),
-    new LineItem("Gadget", 1, 14999),
-    new LineItem("Gizmo", 3, 999)
-));
-
-// Aggregation with foldMap
-int total = pricesFold.foldMap(Monoids.integerAddition(), p -> p, order);
-// Result: 18997
-
-// Query operations
-boolean hasExpensive = pricesFold.exists(p -> p > 10000, order);
-// Result: true
-
-boolean allAffordable = pricesFold.all(p -> p < 20000, order);
-// Result: true
-
-int itemCount = pricesFold.length(order);
-// Result: 3
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:stockroom}}
 ```
 
-### Why It Works
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:map_entry}}
+```
 
-`Traversal.asFold()` reuses the traversal's `modifyF` with a `Const` applicative that accumulates monoidal values instead of modifying the structure. This gives you the full Fold API (`foldMap`, `exists`, `all`, `length`, `preview`, `plus`) whilst traversing the structure only once. Use this pattern when you need richer query operations than `Traversals.getAll()` provides, or when combining traversal paths with `Fold.plus()` for multi-path extraction.
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:map_entry_raw}}
+```
+~~~
+
+A `Map` component's path focuses the whole map, and `.atKey(key)` narrows it to one value that may be missing. `getOrElse` supplies the fallback for a missing key.
 
 ---
 
-## Focus DSL Recipes
+## Recipe 8: The value inside an `Either` field {#either-field}
 
-The following recipes demonstrate the Focus DSL for more ergonomic optic usage.
+A stockroom's `verifiedName` is an `Either<String, String>`: a `Right` once a check has passed, and a `Left` holding the reason when it has not. You want to tidy the name only when it was verified.
 
-### Recipe 11: Nested Record Updates with Focus DSL
-
-#### Problem
-
-You have deeply nested records and want to update values without verbose composition.
-
-#### Solution
-
-<!-- verify -->
-```java
-@GenerateLenses @GenerateFocus record Company(String name, List<Department> departments) {}
-@GenerateLenses @GenerateFocus record Department(String name, List<Employee> employees) {}
-@GenerateLenses @GenerateFocus record Employee(String name, int salary) {}
-
-// Starting from a lens, each hop is spelled out. Only the FINAL each() can infer
-// its element type from the target, so the intermediate one needs a witness.
-TraversalPath<Company, Integer> allSalaries =
-    FocusPath.of(CompanyLenses.departments())
-        .<Department>each()
-        .via(DepartmentLenses.employees())
-        .<Employee>each()
-        .via(EmployeeLenses.salary());
-
-// Give everyone a 5% raise
-Company updated = allSalaries.modifyAll(s -> (int) (s * 1.05), company);
-
-// Or use generated Focus classes (with @GenerateFocus). A List field is already
-// element-level, so each hop across a record boundary is a .via(...)
-Company raised = CompanyFocus.departments()
-    .via(DepartmentFocus.employees())
-    .via(EmployeeFocus.salary())
-    .modifyAll(s -> (int) (s * 1.05), company);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:either_field}}
 ```
 
-#### Why It Works
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:either_field_raw}}
+```
+~~~
 
-The Focus DSL tracks path type transitions automatically, from `FocusPath` through collections to `TraversalPath`, whilst maintaining full type safety.
+The processor generates an `Either` component's path on its `Right` side, as an `AffinePath`, so a `Left` comes back unchanged.
+
+~~~admonish tip title="Plain Java wins here"
+For an `Either` on its own rather than a field inside a record, `either.map(String::strip)` does what the path's `modify` does. The path earns its place when the `Either` sits inside a record.
+~~~
 
 ---
 
-### Recipe 12: Sum Type Handling with instanceOf()
+## Recipe 9: A PATCH that reports every bad field {#patch}
 
-#### Problem
+A PATCH request may carry a new name, a new email, both or neither. You want to apply what it carries, and to report every bad field at once, each by its name.
 
-You have a sealed interface and want to work with specific variants using the Focus DSL.
-
-#### Solution
-
-<!-- verify -->
-```java
-sealed interface Notification permits Email, SMS, Push {}
-record Email(String address, String subject, String body) implements Notification {}
-record SMS(String phone, String message) implements Notification {}
-record Push(String token, String title) implements Notification {}
-
-record User(String name, List<Notification> notifications) {}
-
-// Focus on Email notifications only
-TraversalPath<User, Notification> allNotifications =
-    FocusPath.of(userNotificationsLens).each();
-
-TraversalPath<User, Email> emailsOnly =
-    allNotifications.via(AffinePath.instanceOf(Email.class));
-
-// Get all email addresses
-List<String> emailAddresses = emailsOnly
-    .via(emailAddressLens)
-    .getAll(user);
-
-// Update all email subjects
-User updated = emailsOnly
-    .via(emailSubjectLens)
-    .modifyAll(subject -> "[URGENT] " + subject, user);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:customer_patch}}
 ```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:patch}}
+```
+
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:patch_raw}}
+```
+~~~
+
+For a patch with a blank name and an email that has no `@`, `patched` is `Invalid(NonEmptyList[name: must not be blank, email: not an address])`. A patch that supplies only a good email changes only the email.
+
+`parseIfPresent` does nothing for a `null` field. `Edits.accumulate` collects every failure in edit order, and writes only when every edit has parsed. A generated path carries its component's name, which is where `name:` and `email:` come from. A navigator hop such as `CustomerFocus.email()` hands over its path with `toPath()`. [Many Edits at Once](multi_edit.md) covers the rest of the builder.
 
 ---
 
-### Recipe 13: Generic Collection Traversal with traverseOver()
+## Recipe 10: Every value a path reaches, checked {#check-values}
 
-#### Problem
+Every line of an order must hold at least one item. You want to check every quantity, and report either each bad one or only the first.
 
-Your data contains Kind-wrapped collections (e.g., `Kind<ListKind.Witness, T>`) rather than raw `List<T>`.
-
-#### Solution
-
-<!-- verify -->
-```java
-record Team(String name, Kind<ListKind.Witness, Member> members) {}
-record Member(String name, Kind<ListKind.Witness, Role> roles) {}
-record Role(String name, int level) {}
-
-// Path to all roles across all members
-FocusPath<Team, Kind<ListKind.Witness, Member>> membersPath =
-    FocusPath.of(teamMembersLens);
-
-TraversalPath<Team, Member> allMembers =
-    membersPath.<ListKind.Witness, Member>traverseOver(ListTraverse.INSTANCE);
-
-TraversalPath<Team, Kind<ListKind.Witness, Role>> memberRoles =
-    allMembers.via(memberRolesLens);
-
-TraversalPath<Team, Role> allRoles =
-    memberRoles.<ListKind.Witness, Role>traverseOver(ListTraverse.INSTANCE);
-
-// Promote all high-level roles
-Team updated = allRoles.modifyWhen(
-    r -> r.level() >= 5,
-    r -> new Role(r.name(), r.level() + 1),
-    team
-);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:check_quantity}}
 ```
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:check_values}}
+```
+
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:check_values_raw}}
+```
+~~~
+
+For an order whose lines hold 0 and -1 items, `checked` is `Invalid([No items: 0, No items: -1])` and `firstFailure` is `Left(No items: 0)`. A good order comes back valid and unchanged.
+
+`OpticOps` takes a `Traversal`, which a `TraversalPath` hands over with `toTraversal()`. `modifyAllEither` keeps only the first error, but it still runs the check on every value. [Updates That Can Fail](fluent_api.md) has the forms for one field, and `modifyF` for an effect such as a remote price lookup.
 
 ---
 
-### Recipe 14: Validation Pipelines with modifyF()
+## Recipe 11: Totals, counts and tests {#totals}
 
-#### Problem
+You want the number of items on an order, whether any line is a bulk line, and the order's total.
 
-You need to validate and transform data, accumulating errors or short-circuiting on failure.
-
-#### Solution
-
-<!-- verify -->
-```java
-record Config(String apiKey, String dbUrl, int timeout) {}
-
-FocusPath<Config, String> apiKeyPath = FocusPath.of(configApiKeyLens);
-FocusPath<Config, String> dbUrlPath = FocusPath.of(configDbUrlLens);
-
-// Validation function returning Maybe (short-circuits on Nothing)
-Function<String, Kind<MaybeKind.Witness, String>> validateApiKey = key -> {
-    if (key != null && key.length() >= 10) {
-        return MaybeKindHelper.MAYBE.widen(Maybe.just(key.toUpperCase()));
-    }
-    return MaybeKindHelper.MAYBE.widen(Maybe.nothing());
-};
-
-// Apply validation (MaybeMonad extends Applicative)
-Kind<MaybeKind.Witness, Config> result =
-    apiKeyPath.modifyF(validateApiKey, config, Instances.monadError(maybe()));
-
-Maybe<Config> validated = MaybeKindHelper.MAYBE.narrow(result);
-if (validated.isJust()) {
-    Config validConfig = validated.get();
-    // Proceed with valid config
-} else {
-    // Handle validation failure
-}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:totals}}
 ```
+
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:totals_raw}}
+```
+~~~
+
+For Ada's order of one lamp at 40.00 and four bulbs at 2.50, `items` is 5, `lineCount` is 2 and `total` is 50.00. A `TraversalPath` answers `exists`, `all`, `count` and `find` itself, and `foldMap` combines the values with a monoid such as `Monoids.integerAddition()`.
+
+~~~admonish tip title="Plain Java wins here"
+For a read of one list field, a stream over `order.lines()` is as short. The path earns its place when the values sit deeper, or when the same path also writes.
+~~~
 
 ---
 
-### Recipe 15: Aggregation with foldMap()
+## Recipe 12: Values from several places {#several-places}
 
-#### Problem
+A customer profile always has a name, and sometimes a nickname. You want them as one list, or to ask one question of all of them.
 
-You need to aggregate values across a traversal (sum, max, concatenate, etc.).
-
-#### Solution
-
-<!-- verify -->
-```java
-record Order(List<LineItem> items) {}
-record LineItem(String name, int quantity, BigDecimal price) {}
-
-TraversalPath<Order, LineItem> allItems = FocusPath.of(orderItemsLens).each();
-
-// Sum quantities using integer addition monoid
-Monoid<Integer> intSum = new Monoid<>() {
-    @Override public Integer empty() { return 0; }
-    @Override public Integer combine(Integer a, Integer b) { return a + b; }
-};
-
-int totalQuantity = allItems
-    .via(lineItemQuantityLens)
-    .foldMap(intSum, q -> q, order);
-
-// Sum prices using BigDecimal monoid
-Monoid<BigDecimal> decimalSum = new Monoid<>() {
-    @Override public BigDecimal empty() { return BigDecimal.ZERO; }
-    @Override public BigDecimal combine(BigDecimal a, BigDecimal b) { return a.add(b); }
-};
-
-BigDecimal totalPrice = allItems
-    .via(lineItemPriceLens)
-    .foldMap(decimalSum, p -> p, order);
-
-// Collect all item names
-Monoid<List<String>> listConcat = new Monoid<>() {
-    @Override public List<String> empty() { return List.of(); }
-    @Override public List<String> combine(List<String> a, List<String> b) {
-        var result = new ArrayList<>(a);
-        result.addAll(b);
-        return result;
-    }
-};
-
-List<String> allNames = allItems.foldMap(
-    listConcat,
-    item -> List.of(item.name()),
-    order
-);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:several_places}}
 ```
+
+~~~admonish example collapsible=true title="The same with raw optics"
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:several_places_raw}}
+```
+~~~
+
+For a profile named Ada Lovelace with the nickname Countess, `all` is `[Ada Lovelace, Countess]`. `asFold()` turns a path into a read-only `Fold`, and `plus` joins two folds, the first one's values coming first. `Fold.sum` joins three or more, so `searchTerms` adds the alternative email when there is one.
+
+~~~admonish tip title="Plain Java wins here"
+For one read, `Stream.concat(Stream.of(profile.name()), profile.nickname().stream()).toList()` is as short. A `Fold` earns its place as a value you hand to other code, which can ask it `exists`, `all` or `foldMap`.
+~~~
 
 ---
 
-### Recipe 16: Debugging Complex Paths with traced()
+## Recipe 13: Sorting and reversing {#sort}
 
-#### Problem
+You want an order's lines in price order, or in reverse order.
 
-You have a complex path composition and need to understand what values are being accessed.
+No Focus path sorts. `Traversals.sorted` and `Traversals.reversed` take a `Traversal`, such as the generated `OrderTraversals.lines()`, or a `TraversalPath`'s `toTraversal()`.
 
-#### Solution
-
-<!-- verify -->
-```java
-@GenerateLenses record Estate(List<Server> servers) {}
-@GenerateLenses record Server(String hostname, List<Service> services) {}
-record Service(String name, Status status) {}
-
-// The intermediate each() needs a witness; the final one infers from the target.
-TraversalPath<Estate, Service> allServices =
-    FocusPath.of(EstateLenses.servers())
-        .<Server>each()
-        .via(ServerLenses.services())
-        .<Service>each();
-
-// Add tracing to observe navigation
-TraversalPath<Estate, Service> tracedServices = allServices.traced(
-    (estate, services) -> {
-        System.out.println("Accessing " + services.size() + " services");
-        for (Service s : services) {
-            System.out.println("  - " + s.name() + ": " + s.status());
-        }
-    }
-);
-
-// Every getAll() now logs
-List<Service> services = tracedServices.getAll(estate);
-// Output:
-// Accessing 5 services
-//   - api: RUNNING
-//   - db: RUNNING
-//   - cache: STOPPED
-//   - ...
-
-// Note: traced() only observes getAll(), not modifyAll(). Composing further with
-// .via(...) returns the underlying path, so the tracing is dropped: trace last.
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:sort}}
 ```
+
+Both read every focused value into a list, reorder the list, and write the values back to the places the traversal visits, in turn. A filtered traversal therefore sorts only the elements it keeps, and the others stay where they were. Sorting a traversal of prices, rather than of lines, moves the prices between lines.
 
 ---
 
-### Recipe 17: Conditional Updates with modifyWhen()
+## Recipe 14: Tracing a path {#trace}
 
-#### Problem
+A path reads fewer values than you expected, and you want to see what it finds.
 
-You need to update only elements that match a predicate, leaving others unchanged.
-
-#### Solution
-
-<!-- verify -->
-```java
-record Inventory(List<Product> products) {}
-record Product(String name, int stock, BigDecimal price, Category category) {}
-enum Category { ELECTRONICS, CLOTHING, FOOD }
-
-TraversalPath<Inventory, Product> allProducts =
-    FocusPath.of(inventoryProductsLens).each();
-
-// Apply 20% discount to electronics with low stock
-Inventory updated = allProducts.modifyWhen(
-    p -> p.category() == Category.ELECTRONICS && p.stock() < 10,
-    p -> new Product(p.name(), p.stock(), p.price().multiply(new BigDecimal("0.80")), p.category()),
-    inventory
-);
-
-// Clear stock only for food items
-Inventory cleared = allProducts.modifyWhen(
-    p -> p.category() == Category.FOOD,
-    p -> new Product(p.name(), 0, p.price(), p.category()),
-    inventory
-);
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java:trace}}
 ```
+
+On a `TraversalPath`, the observer runs on every read built on `getAll`, such as `count` and `exists`. A write such as `modifyAll` does not call it, and nor does `foldMap`, which reads through the traversal. A `via` or `filter` after `traced` returns a path without the observer, so trace last. Tracing belongs to the Focus paths, and has no raw-optics form.
+
+---
+
+The recipes are [CookbookBook.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cookbook/CookbookBook.java), and [CookbookBookTest.java](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/example/book/optics/cookbook/CookbookBookTest.java) holds every result this page states.
 
 ~~~admonish tip title="See Also"
-- [Deep Validation with `modifyF`](composing_optics.md): the longer example these recipes are miniatures of
-- [Optics Extensions](optics_extensions.md): the validated variants of the operations used here
-- [Focus DSL](focus_dsl.md): the fluent path syntax several recipes use
+- [Collections, Optionals and Sealed Types](focus_navigation.md): every navigation step these recipes take
+- [Many Edits at Once](multi_edit.md): the PATCH recipe in full, with combined and sparse edits
+- [Updates That Can Fail](fluent_api.md): checks on one field, and effects with `modifyF`
+- [Composition Rules](composition_rules.md): the type each raw `andThen` returns
+- [Production Readiness](production_readiness.md): caching a path, and the team conventions that keep paths readable
 ~~~
 
 ~~~admonish info title="Hands-On Learning"
