@@ -4,6 +4,21 @@ _What optics cost at run time and build time, and the conventions that keep a te
 
 This page does not offer a marketing case for using optics in production; it offers honest answers to the questions a senior engineer asks before adopting a new abstraction in a codebase others must maintain.
 
+Find your question, then follow its link:
+
+| You are asking | Go to |
+|---|---|
+| Does a lens update allocate more than a hand-written `with*` cascade? | [What `set` and `modify` allocate](#what-set-and-modify-allocate) |
+| Does a traversal rebuild its container on every call, even to read it? | [What reads cost](#read-cost) and [Traversal allocation](#traversal-allocation) |
+| Which collection optic copies the whole map, and which hands back the source unchanged? | [What each collection optic builds](#collection-optics) |
+| What does a prism or affine cost when it does not match? | [Prisms and affines on a miss](#prisms-and-affines) |
+| Does validating every value cost more with `Validated` than with `Either`? | [`modifyF` and effect handlers](#modifyf-and-effect-handlers) |
+| Does an adapter or a Focus path add work on every call? | [Adapters and Focus paths](#adapters-and-paths) |
+| Should I store a composed optic in a constant, and where? | [Caching optics](#caching-optics) and [When to extract optics](#when-to-extract-optics) |
+| What does the processor add to the build: time, incremental compilation, `-Werror`, coverage, Lombok beside it? | [Build-time impact](#build-time-impact) |
+| Will generated classes and the Focus DSL stay stable across versions? | [Versioning and stability](#versioning-and-stability) |
+| What should a team agree on before using optics widely? | [Team conventions that work](#team-conventions-that-work) |
+
 ---
 
 ## Runtime cost
