@@ -28,8 +28,8 @@ the claim, since the library can change under it.
   `maxNavigatorDepth` limits nothing above 1, so never document a deeper limit.
 - **`andThen` has an overload for every pair** of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal`,
   so no chain needs `asTraversal()` first. Composition Rules' table is generated from the overloads
-  by `BookCompositionTableTest`, which also checks every `X >>> Y = Z` claim on the page and in the
-  `hkj-optics` skill.
+  by `BookCompositionTableTest`, which also checks every `X.andThen(Y) = Z` claim on the page and in the
+  `hkj-optics` skill, and refuses the Haskell `X >>> Y` notation there.
 - **An affine's `set` on an absent focus** writes the value only when its last step can build it and
   every step before that is present; otherwise it returns the source unchanged.
   (`affine.md#when-the-focus-is-absent`)

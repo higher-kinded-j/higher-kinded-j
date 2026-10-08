@@ -28,7 +28,7 @@ User shouted = streetName.modify(String::toUpperCase, user);
 A **Lens** focuses a field that is always there. A **Prism** focuses one variant of a sealed type, which might not match. An **Affine** focuses a value that may be absent, such as an `Optional` field. An **Iso** converts between two shapes of the same information. [Decision Trees](decision_trees.md#tree-1-which-optic-do-i-need) picks one for your data, and [Composition Rules](composition_rules.md) says what type two of them compose to.
 
 ~~~admonish tip title="Why this matters"
-Three things separate these optics from a bag of getter helpers. They are **generated**: annotate a record and the boilerplate is the processor's problem, forever in sync with the fields. They are **effect-ready**: the same path that does a pure `set` today runs a validating, accumulating, or asynchronous update tomorrow through `modifyF`, because every settable optic is generic over an `Applicative`. And they are **lawful**: the round-trip laws each optic must satisfy are published in `hkj-test` and checked, not assumed.
+Three things separate these optics from a bag of getter helpers. They are **generated**: annotate a record and the boilerplate is the processor's problem, forever in sync with the fields. They are **effect-ready**: the same path that does a pure `set` today runs a validating, accumulating, or asynchronous update tomorrow through [`modifyF`](../glossary/optics.md#modifyf), because every settable optic is generic over an [`Applicative`](../glossary/type-classes.md#applicative). And they are **lawful**: the round-trip laws each optic must satisfy are published in `hkj-test` and checked, not assumed.
 ~~~
 
 ---

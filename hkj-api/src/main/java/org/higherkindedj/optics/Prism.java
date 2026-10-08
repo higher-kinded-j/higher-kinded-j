@@ -181,9 +181,9 @@ public interface Prism<S extends @Nullable Object, A extends @Nullable Object>
   /**
    * Composes this {@code Prism<S, A>} with a {@code Lens<A, B>} to create an {@code Affine<S, B>}.
    *
-   * <p>The composition follows the standard optic composition rule: Prism >>> Lens = Affine. The
-   * result is an Affine because the Prism may not match (resulting in zero-or-one focus), but once
-   * matched, the Lens guarantees access to the field.
+   * <p>The composition follows the standard optic composition rule: Prism.andThen(Lens) = Affine.
+   * The result is an Affine because the Prism may not match (resulting in zero-or-one focus), but
+   * once matched, the Lens guarantees access to the field.
    *
    * <p>This composition is useful when navigating from sum types into their components:
    *
@@ -216,7 +216,7 @@ public interface Prism<S extends @Nullable Object, A extends @Nullable Object>
    *     (data, msg) -> new ResponseData(msg, data.count())
    * );
    *
-   * // Compose: Prism >>> Lens = Affine
+   * // Compose: Prism.andThen(Lens) = Affine
    * Affine<ApiResponse, ResponseData> dataAffine = successPrism.andThen(dataLens);
    *
    * // Use the affine
@@ -283,7 +283,7 @@ public interface Prism<S extends @Nullable Object, A extends @Nullable Object>
    * Composes this {@code Prism<S, A>} with a {@code Traversal<A, B>} to create a {@code
    * Traversal<S, B>}.
    *
-   * <p>The composition follows the standard optic composition rule: Prism >>> Traversal =
+   * <p>The composition follows the standard optic composition rule: Prism.andThen(Traversal) =
    * Traversal. The result is a Traversal because both the Prism may not match and the Traversal may
    * focus on zero or more elements.
    *
@@ -312,11 +312,11 @@ public interface Prism<S extends @Nullable Object, A extends @Nullable Object>
    * Traversal<List<Item>, Item> allItems = Traversals.forList();
    * Lens<Full, List<Item>> itemsLens = Lens.of(Full::items, (f, items) -> new Full(items));
    *
-   * // Compose: Prism >>> Lens >>> Traversal chain
+   * // Compose: Prism.andThen(Lens).andThen(Traversal) chain
    * Traversal<Container, Item> containerItems =
    *     fullPrism.andThen(itemsLens).andThen(allItems);
    *
-   * // Direct: Prism >>> Traversal
+   * // Direct: Prism.andThen(Traversal)
    * Traversal<Full, Item> fullToItems = itemsLens.andThen(allItems);
    * Traversal<Container, Item> allContainerItems = fullPrism.andThen(fullToItems);
    * }</pre>

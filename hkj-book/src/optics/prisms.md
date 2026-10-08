@@ -137,7 +137,7 @@ Prism<JsonValue, JsonString> jsonStringPrism = JsonValuePrisms.jsonString();
 Lens<JsonObject, Map<String, JsonValue>> fieldsLens = JsonObjectLenses.fields();
 Lens<JsonString, String> valueLens = JsonStringLenses.value();
 
-// Direct composition: Prism >>> Lens = Affine
+// Direct composition: Prism.andThen(Lens) = Affine
 Affine<JsonValue, String> jsonStringValue =
     jsonStringPrism.andThen(valueLens);
 

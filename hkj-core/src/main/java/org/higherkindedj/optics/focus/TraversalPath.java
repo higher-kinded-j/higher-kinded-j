@@ -576,7 +576,7 @@ public sealed interface TraversalPath<S extends @Nullable Object, A extends @Nul
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> TraversalPath<S, E> at(int index) {
-    // Compose with affine, which gives us a Traversal (Traversal >>> Affine = Traversal)
+    // The index affine joins as a traversal, so the path stays a TraversalPath
     Affine<A, E> indexAffine = (Affine<A, E>) FocusPaths.listAt(index);
     return via(indexAffine.asTraversal());
   }

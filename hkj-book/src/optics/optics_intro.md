@@ -84,10 +84,10 @@ Each plays the part of a Java idiom you already write:
 | Affine | an accessor that returns `Optional`, with a copy that writes the value | composes, and `modify` leaves an absent value alone |
 | Prism | an `instanceof` pattern, and the variant's constructor | composes, and builds the variant back |
 | Iso | a wrapper record's constructor and accessor, such as `new Sku(text)` and `sku.text()`, which lose nothing | composes, and turns around with `reverse()` |
-| Traversal | `replaceAll` over a list inside a record, returning a new record | reaches every element in one pass, through nested lists |
+| Traversal | `stream().map(f).toList()` over a list field, put back with a wither | does the rebuild for you, at any depth |
 | Fold | a `Stream` over the same values, which only reads | composes, and says in its type that it never writes |
 | Getter | a derived accessor, such as a `fullName()` computed from two fields | composes with other getters, and with any optic through `asFold()` |
-| Setter | `replaceAll` with nothing to read back | composes, for a value you change without reading |
+| Setter | `stream().map(f).toList()` put back with a wither, with nothing read out first | composes, for a value you change without reading |
 
 The [chapter introduction](ch_intro.md#how-the-optic-types-relate) draws how the eight types relate, and [Decision Trees](decision_trees.md#tree-1-which-optic-do-i-need) asks the same two questions as a tree.
 

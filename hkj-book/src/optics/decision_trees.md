@@ -105,7 +105,7 @@ flowchart TD
 | "Apply over every element of a custom container" | [Each Typeclass](each_typeclass.md) |
 | "Operate on individual characters of a `String`" | [String Traversals](string_traversals.md) |
 | "Adapt a lens for a different source record type" | Compose: `outerLens.andThen(innerLens)` ([Profunctor Optics](profunctor_optics.md)) |
-| "The two shapes hold the same information" | An [`Iso`](iso.md), then compose: `Iso >>> Lens = Lens` |
+| "The two shapes hold the same information" | An [`Iso`](iso.md), then compose: `Iso.andThen(Lens) = Lens` |
 | "One-way conversion inside an effectful pipeline" | `optic.dimap(...)` ([Profunctor Optics](profunctor_optics.md)) |
 | "Match a value by a predicate, not by type" | [`Prisms.nearly`](advanced_prism_patterns.md#predicate-matching-with-prismsnearly) |
 

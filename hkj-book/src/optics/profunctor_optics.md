@@ -94,7 +94,7 @@ Employee shouted = employeeFirstName.modify(String::toUpperCase, employee);
 
 ### Route 2: An `Iso`, when the two shapes hold the same information
 
-If your conversion functions form a lossless pair, they are an [Iso](iso.md), and composing with one keeps the whole API in either direction (`Lens >>> Iso = Lens`, and `Iso >>> Lens = Lens`). This is `dimap` with the power retained:
+If your conversion functions form a lossless pair, they are an [Iso](iso.md), and composing with one keeps the whole API in either direction (`Lens.andThen(Iso) = Lens`, and `Iso.andThen(Lens) = Lens`). This is `dimap` with the power retained:
 
 <!-- verify -->
 ```java

@@ -317,7 +317,7 @@ Four rules keep the budget honest:
 
 ### Java Idiom Anchors
 
-Most readers arrive from everyday Java, not from this library. When a page introduces an abstraction or a house coinage, name the closest familiar Java idiom in one or two sentences, then say what the new shape adds. An anchor is a bridge, not a definition: it may be approximate, provided the "what it adds" sentence names the difference.
+Most readers arrive from everyday Java, not from this library. When a page introduces an abstraction or a house coinage, name the closest familiar Java idiom in one or two sentences, then say what the new shape adds. An anchor is a bridge, not a definition: it may be approximate on reads, provided the "what it adds" sentence names the difference.
 
 | Abstraction | Familiar Java idiom | What it adds |
 |---|---|---|
@@ -326,12 +326,17 @@ Most readers arrive from everyday Java, not from this library. When a page intro
 | `Lens.modify` | a record "with" copy method | composes through nested records |
 | a mapping spec | a MapStruct `@Mapper` interface | one declaration gives both directions, and a failed parse locates every bad field |
 | a leaf (`ValidatedPrism`) | a Jackson serialiser and deserialiser pair for one field | a failed parse is a value carrying the field's name, not an exception |
+| a Focus path | a JPA metamodel or QueryDSL path, such as `QUser.user.address.city` | it writes as well as reads, returning a new record |
+| a `Prism` | an `instanceof` pattern and the variant's constructor | composes with other optics, and builds the variant back |
+| a `Traversal` | `stream().map(f).toList()` over a list field, put back with a wither | does the rebuild for you, at any depth |
 
 Guidelines:
+- One anchor per concept, not a list of metaphors: a reader carries one picture away, and a list asks them to choose
+- An anchor must agree with the abstraction on a write. A lens returns a new record, so "a JavaBean property", which mutates in place, is a defect, not an approximation
 - Anchor at the concept's first appearance on the page, before its precise definition; later mentions link back rather than anchor again
 - Prefer idioms from the JDK, Spring, Jackson, Bean Validation and MapStruct, which readers already use
 - Say where the analogy breaks ("unlike a MapStruct mapper, the spec interface is never injected")
-- A chapter with many coinages keeps its own anchor table in one place (its introduction, or its glossary entries) and links to it
+- A chapter with many coinages keeps its own anchor table in one place (such as its introduction, its glossary entries or one teaching page) and links to it
 - Tutorials keep the same rule in their class javadoc (`docs/TUTORIAL-STYLE-GUIDE.md`, "Java Idiom Anchors"); keep the two tables consistent
 
 ### Prose Limits
@@ -587,7 +592,7 @@ Use the following admonition types consistently:
 | Type | Usage |
 |------|-------|
 | `info` | "What You'll Learn", "Key Takeaways", "Hands-On Learning", "In This Chapter" |
-| `tip` | "Further Reading", "See Also", "Why this matters", "At the Spring boundary", "You can ship now" |
+| `tip` | "Further Reading", "See Also", "Why this matters", "At the Spring boundary", "You can ship now", "Plain Java wins here" |
 | `example` | Links to example code |
 | `note` | Important clarifications, "Related Types", additional context |
 | `warning` | Potential pitfalls or common mistakes |
@@ -702,6 +707,8 @@ Pages in advanced topic chapters should lead with a concrete problem before intr
 4. **Explain**: How and why the solution works
 
 This structure ensures readers understand *why* they need a concept before learning *how* it works. Reference material (type signatures, witness types, helper utilities) should still be present but positioned after the narrative arc, typically inside admonitions so the teaching flow is not interrupted.
+
+**The pain is the reader's best Java, not a strawman**, on any page that shows the pain. Show the code a careful developer would write today: a Lombok `@With` chain rather than a hand-written constructor cascade, Jackson's JSON Pointer rather than a hand-rolled tree walk. A reader who knows a better way stops trusting the page at the weak example. Where plain Java wins, say so in a tip titled "Plain Java wins here", and say what the library adds anyway, if anything.
 
 ## Monad Transformer Pages
 

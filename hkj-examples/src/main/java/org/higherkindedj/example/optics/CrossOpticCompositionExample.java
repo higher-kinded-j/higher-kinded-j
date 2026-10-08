@@ -28,14 +28,14 @@ import org.higherkindedj.optics.util.Traversals;
  */
 public class CrossOpticCompositionExample {
 
-  // --- Domain models for Lens >>> Prism example ---
+  // --- Domain models for Lens.andThen(Prism) example ---
   @GenerateLenses
   record Config(String name, Optional<DatabaseSettings> database) {}
 
   @GenerateLenses
   record DatabaseSettings(String host, int port, String username) {}
 
-  // --- Domain models for Prism >>> Lens example ---
+  // --- Domain models for Prism.andThen(Lens) example ---
   sealed interface ApiResponse permits Success, Failure {}
 
   @GenerateLenses
@@ -65,7 +65,7 @@ public class CrossOpticCompositionExample {
   }
 
   /**
-   * Demonstrates Lens >>> Prism = Affine.
+   * Demonstrates Lens.andThen(Prism) = Affine.
    *
    * <p>When you have a product type (record) containing an optional field, you can compose a Lens
    * with the {@code Prisms.some()} prism to get an Affine that focuses on the value when present.
@@ -80,7 +80,7 @@ public class CrossOpticCompositionExample {
 
     Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
-    // Direct composition: Lens >>> Prism = Affine
+    // Direct composition: Lens.andThen(Prism) = Affine
     Affine<Config, DatabaseSettings> databaseAffine = databaseLens.andThen(somePrism);
 
     // Test data
@@ -122,7 +122,7 @@ public class CrossOpticCompositionExample {
   }
 
   /**
-   * Demonstrates Prism >>> Lens = Affine.
+   * Demonstrates Prism.andThen(Lens) = Affine.
    *
    * <p>When you have a sum type (sealed interface) and want to access a field from a specific case,
    * compose a Prism with a Lens to get an Affine.
@@ -138,7 +138,7 @@ public class CrossOpticCompositionExample {
     Lens<Success, ResponseData> dataLens =
         Lens.of(Success::data, (success, data) -> new Success(data, success.timestamp()));
 
-    // Direct composition: Prism >>> Lens = Affine
+    // Direct composition: Prism.andThen(Lens) = Affine
     Affine<ApiResponse, ResponseData> successDataAffine = successPrism.andThen(dataLens);
 
     // Test data
@@ -195,8 +195,8 @@ public class CrossOpticCompositionExample {
             DatabaseSettings::host,
             (db, host) -> new DatabaseSettings(host, db.port(), db.username()));
 
-    // Chain: Lens >>> Prism = Affine, then Affine >>> Lens = Affine, viewed as a Traversal
-    // so Traversals.getAll and Traversals.modify can take it
+    // Chain: Lens.andThen(Prism) = Affine, then Affine.andThen(Lens) = Affine,
+    // viewed as a Traversal so Traversals.getAll and Traversals.modify can take it
     Traversal<Config, String> hostTraversal =
         databaseLens.andThen(somePrism).andThen(hostLens).asTraversal();
 
@@ -233,7 +233,7 @@ public class CrossOpticCompositionExample {
     Lens<Circle, String> colourLens =
         Lens.of(Circle::colour, (circle, c) -> new Circle(circle.radius(), c));
 
-    // Prism >>> Lens = Affine
+    // Prism.andThen(Lens) = Affine
     Affine<Shape, Double> circleRadiusAffine = circlePrism.andThen(radiusLens);
     Affine<Shape, String> circleColourAffine = circlePrism.andThen(colourLens);
 

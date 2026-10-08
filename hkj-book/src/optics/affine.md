@@ -134,7 +134,7 @@ Lens<Config, Optional<DatabaseSettings>> databaseLens =
 // Prism to extract from Optional
 Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
-// Composition: Lens >>> Prism = Affine
+// Composition: Lens.andThen(Prism) = Affine
 Affine<Config, DatabaseSettings> databaseAffine =
     databaseLens.andThen(somePrism);
 
@@ -302,19 +302,19 @@ Not all affines support the `remove` operation. Calling `remove` on an affine th
 Affines compose with other optics following precise rules:
 
 ```java
-// Affine >>> Affine = Affine
+// Affine.andThen(Affine) = Affine
 Affine<A, C> result = affineAB.andThen(affineBC);
 
-// Affine >>> Lens = Affine
+// Affine.andThen(Lens) = Affine
 Affine<A, C> result = affineAB.andThen(lensBC);
 
-// Affine >>> Prism = Affine
+// Affine.andThen(Prism) = Affine
 Affine<A, C> result = affineAB.andThen(prismBC);
 
-// Affine >>> Iso = Affine
+// Affine.andThen(Iso) = Affine
 Affine<A, C> result = affineAB.andThen(isoBC);
 
-// Affine >>> Traversal = Traversal
+// Affine.andThen(Traversal) = Traversal
 Traversal<A, C> result = affineAB.andThen(traversalBC);
 ```
 
@@ -338,9 +338,9 @@ Prism<Optional<String>, String> postcodePrism = Prisms.some();
 // Compose to access nested optional
 Affine<User, String> userPostcode =
     addressLens
-        .andThen(addressPrism)           // Lens >>> Prism = Affine
-        .andThen(postcodeLens)           // Affine >>> Lens = Affine
-        .andThen(postcodePrism);         // Affine >>> Prism = Affine
+        .andThen(addressPrism)           // Lens.andThen(Prism) = Affine
+        .andThen(postcodeLens)           // Affine.andThen(Lens) = Affine
+        .andThen(postcodePrism);         // Affine.andThen(Prism) = Affine
 
 // Usage
 User user1 = new User("Alice", Optional.of(
@@ -681,7 +681,7 @@ public class UserOptics {
 
 ~~~admonish tip title="See Also"
 - [Prisms](prisms.md): the constructing sibling for sum types
-- [Composition Rules](composition_rules.md): why `Lens >>> Prism = Affine`, and everything else
+- [Composition Rules](composition_rules.md): why `Lens.andThen(Prism) = Affine`, and everything else
 - [Coupled Fields](coupled_fields.md): when sibling fields must change together
 ~~~
 

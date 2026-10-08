@@ -42,7 +42,7 @@ These arrows rank what each optic can do; they are not `extends` edges. `Getter 
 
 ## Composition Rules Table {#composition-rules-table}
 
-Read each cell as what `first.andThen(second)` returns, with the row as `first`. A test in the examples module reads this table from the `andThen` overloads themselves, so it cannot promise a composition the library does not have:
+Read each cell as what `first.andThen(second)` returns, with the row as `first`. The rest of this page writes that as `Lens.andThen(Prism) = Affine`, a lens's `andThen` given a prism returns an `Affine`, and `Any` stands for any of the five. A test in the examples module reads this table from the `andThen` overloads themselves, so it cannot promise a composition the library does not have:
 
 {{#include ../../../hkj-examples/src/test/resources/golden/optics-composition-table.md.golden}}
 
@@ -60,7 +60,7 @@ A composition reaches the wider of its two steps' reaches, and can build only if
 
 ---
 
-## Why Lens >>> Prism = Affine
+## Why Lens.andThen(Prism) = Affine {#why-lens--prism--affine}
 
 This is perhaps the most important composition rule to understand.
 
@@ -89,7 +89,7 @@ Lens<Config, Optional<DatabaseSettings>> databaseLens =
 // The Prism may or may not extract the DatabaseSettings
 Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
-// Composition: Lens >>> Prism = Affine
+// Composition: Lens.andThen(Prism) = Affine
 Affine<Config, DatabaseSettings> databaseAffine =
     databaseLens.andThen(somePrism);
 
@@ -109,7 +109,7 @@ Config updated = databaseAffine.set(new DatabaseSettings("newhost", 3306), confi
 
 ---
 
-## Why Prism >>> Lens = Affine
+## Why Prism.andThen(Lens) = Affine {#why-prism--lens--affine}
 
 Similarly, composing a Prism first and then a Lens also yields an Affine.
 
@@ -138,7 +138,7 @@ Prism<Shape, Circle> circlePrism = Prism.of(
 Lens<Circle, Double> radiusLens =
     Lens.of(Circle::radius, (c, r) -> new Circle(r, c.colour()));
 
-// Composition: Prism >>> Lens = Affine
+// Composition: Prism.andThen(Lens) = Affine
 Affine<Shape, Double> circleRadiusAffine = circlePrism.andThen(radiusLens);
 
 // Usage
@@ -167,25 +167,25 @@ Shape unchanged = circleRadiusAffine.modify(r -> r * 2, rectangle);
 higher-kinded-j provides direct `andThen` methods that automatically return the correct type:
 
 ```java
-// Lens >>> Lens = Lens
+// Lens.andThen(Lens) = Lens
 Lens<A, C> result = lensAB.andThen(lensBC);
 
-// Lens >>> Prism = Affine
+// Lens.andThen(Prism) = Affine
 Affine<A, C> result = lensAB.andThen(prismBC);
 
-// Prism >>> Prism = Prism
+// Prism.andThen(Prism) = Prism
 Prism<A, C> result = prismAB.andThen(prismBC);
 
-// Prism >>> Lens = Affine
+// Prism.andThen(Lens) = Affine
 Affine<A, C> result = prismAB.andThen(lensBC);
 
-// Affine >>> Affine = Affine
+// Affine.andThen(Affine) = Affine
 Affine<A, C> result = affineAB.andThen(affineBC);
 
-// Affine >>> Lens = Affine
+// Affine.andThen(Lens) = Affine
 Affine<A, C> result = affineAB.andThen(lensBC);
 
-// Traversal >>> Traversal = Traversal
+// Traversal.andThen(Traversal) = Traversal
 Traversal<A, C> result = traversalAB.andThen(traversalBC);
 ```
 
@@ -326,18 +326,18 @@ Traversal<List<Order>, Order> activeOrders =
 
 | Composition | Result | Use Case |
 |-------------|--------|----------|
-| Lens >>> Lens | Lens | Nested product types (records) |
-| Lens >>> Prism | Affine | Product containing sum type |
-| Prism >>> Lens | Affine | Sum type containing product |
-| Prism >>> Prism | Prism | Nested sum types |
-| Affine >>> Affine | Affine | Chained optional access |
-| Affine >>> Lens | Affine | Optional then field access |
-| Affine >>> Prism | Affine | Optional then variant match |
-| Any >>> Traversal | Traversal | Collection access |
-| Iso >>> Any | Same as second | Type conversion first |
+| Lens.andThen(Lens) | Lens | Nested product types (records) |
+| Lens.andThen(Prism) | Affine | Product containing sum type |
+| Prism.andThen(Lens) | Affine | Sum type containing product |
+| Prism.andThen(Prism) | Prism | Nested sum types |
+| Affine.andThen(Affine) | Affine | Chained optional access |
+| Affine.andThen(Lens) | Affine | Optional then field access |
+| Affine.andThen(Prism) | Affine | Optional then variant match |
+| Any.andThen(Traversal) | Traversal | Collection access |
+| Iso.andThen(Any) | Same as second | Type conversion first |
 
 ~~~admonish tip title="Why this matters"
-The result type of a composition is not a convenience, it is a promise. When `Lens >>> Prism` hands you an `Affine`, the type is telling you the focus can be absent, and the compiler will not let you forget it; when a chain stays a `Lens`, totality survived every step and no absence handling is needed. That is the same discipline the mapping chapter later formalises as [truthful tiers](../mapping/tiers.md): the API only ever offers what the composition can lawfully support, so a whole class of "worked in the demo, failed in production" bugs becomes unrepresentable.
+The result type of a composition is not a convenience, it is a promise. When `Lens.andThen(Prism)` hands you an `Affine`, the type is telling you the focus can be absent, and the compiler will not let you forget it; when a chain stays a `Lens`, totality survived every step and no absence handling is needed. That is the same discipline the mapping chapter later formalises as [truthful tiers](../mapping/tiers.md): the API only ever offers what the composition can lawfully support, so a whole class of "worked in the demo, failed in production" bugs becomes unrepresentable.
 ~~~
 
 ~~~admonish tip title="See Also"

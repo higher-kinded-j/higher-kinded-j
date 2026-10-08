@@ -334,7 +334,7 @@ List prisms compose naturally with other optics for deep list manipulation:
 <!-- verify -->
 ```java
 // Focus on the name of the first player in a team
-// (Lens >>> Affine and Affine >>> Lens both compose to Affine)
+// (Lens.andThen(Affine) and Affine.andThen(Lens) both compose to Affine)
 Affine<Team, String> firstPlayerName =
     TeamLenses.players()
         .andThen(ListPrisms.head())

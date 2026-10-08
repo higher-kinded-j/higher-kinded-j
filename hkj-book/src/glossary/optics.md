@@ -44,6 +44,14 @@ List<String> stillEmpty = firstElement.set("X", empty);  // [] (unchanged)
 
 ---
 
+## andThen
+
+**Definition:** The method that joins two optics end to end, named and read like `Function.andThen`: the first optic runs first, and the second focuses inside what it reaches. `UserLenses.address().andThen(AddressLenses.city())` is a `Lens<User, String>`. Every pair of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal` has an overload. The result reaches as many values as the two steps allow together: a lens then a prism is an `Affine`, and any of the five then a traversal is a `Traversal`. On a Focus path the same join is spelled `.via(...)`.
+
+**Related:** [Composition Rules](../optics/composition_rules.md), [What a Path Is Made Of](../optics/optics_intro.md#composing-optics-with-andthen), [Affine](#affine)
+
+---
+
 ## At
 
 **Definition:** A type class for structures that support indexed access with insertion and deletion semantics. Provides a `Lens<S, Optional<A>>` where setting to `Optional.empty()` deletes the entry and setting to `Optional.of(value)` inserts or updates it.
@@ -184,6 +192,22 @@ EitherPath<AppError, String> effectfulCity = employeeService.findById(id)
 - Effect integration: Seamlessly works with Effect Paths
 
 **Related:** [FocusPath](#focuspath), [Lens](#lens), [Effect-Optics Bridge](effect-paths.md#effect-optics-bridge), [Focus DSL Documentation](../optics/focus_dsl.md)
+
+---
+
+## Focus path type
+
+**Definition:** The type of a Focus path, fixed by how many values it reaches:
+
+| Path type | Reaches | Wraps |
+|---|---|---|
+| `FocusPath` | exactly one value | `Lens` |
+| `AffinePath` | zero or one value | `Affine` |
+| `TraversalPath` | zero or more values | `Traversal` |
+
+`toLens()`, `toAffine()` and `toTraversal()` hand over the optic inside, and [Path widening](#path-widening) decides which type a generated method returns.
+
+**Related:** [FocusPath](#focuspath), [What a Path Is Made Of](../optics/optics_intro.md#each-path-type-wraps-an-optic)
 
 ---
 
@@ -459,11 +483,43 @@ public interface UserMapping extends MappingSpec<User, UserDto> {}
 
 ---
 
+## modifyF
+
+**Definition:** The general form of `modify`, on every optic that writes and on every Focus path. The function returns its new value inside an effect, such as a `CompletableFuture` or a `Validated`, and `modifyF` returns the whole updated structure inside that effect. It takes the effect's [Applicative](type-classes.md#applicative), the object that combines results inside that effect (a `Functor` is enough for a `Lens` or a `FocusPath`), and works in [Kind](type-system.md#kind), the library's encoding of a generic container. For a lens or a traversal, `OpticOps.modifyEither`, `modifyMaybe`, `modifyAllEither` and `modifyAllValidated` are the shorter call.
+
+**Related:** [Updates That Can Fail](../optics/fluent_api.md#part-3-arbitrary-effects-with-modifyf), [Type Class and Effect Integration](../optics/focus_effects.md), [Traversal](#traversal)
+
+---
+
+## Navigator
+
+**Definition:** A small class the Focus processor generates, under `@GenerateFocus(generateNavigators = true)`, for a field whose type is another non-generic `@GenerateFocus` record. A `Map`, an `Either` or a similar container of such a record gets one too. It wraps the field's path and adds one method per field of that record, so `UserFocus.address().city()` chains where the plain path needs `.via(AddressFocus.city())`. A navigator carries the core reads and writes of the path it wraps:
+
+| Wrapped path | Operations on the navigator |
+|---|---|
+| `FocusPath` | `get`, `set`, `modify`, `toLens`, `toPath` |
+| `AffinePath` | `getOptional`, `set`, `modify`, `matches`, `toPath` |
+| `TraversalPath` | `getAll`, `setAll`, `modifyAll`, `count`, `isEmpty`, `toPath` |
+
+`toPath()` returns the path it wraps, for everything else.
+
+**Related:** [Collections, Optionals and Sealed Types](../optics/focus_navigation.md#fluent-navigation-with-generated-navigators), [Focus DSL](#focus-dsl), [Focus path type](#focus-path-type)
+
+---
+
 ## Parse, Don't Validate
 
 **Definition:** The principle that a boundary should turn unstructured input into a typed value **once**, at the edge, and keep that guarantee in the type thereafter, rather than re-checking the same data repeatedly downstream. Higher-Kinded-J expresses it with types whose *parse* is fallible and accumulating and whose *build* is total: [ValidatedPrism](#validatedprism) for a single value, [Validated Assembly](#validated-assembly) for a whole record, and [@GenerateMapping](#generatemapping) for a record-to-DTO boundary. Failures are [FieldError](#fielderror)s, so a rejected input reports every bad field at once, each located.
 
 **Related:** [Record Mapping](../mapping/ch_intro.md), [ValidatedPrism](#validatedprism), [Validated](data-effects.md#validated)
+
+---
+
+## Path widening
+
+**Definition:** How a path's type follows the shape of the field it reaches. A field that may hold nothing, such as an `Optional` or a component with a recognised `@Nullable`, widens a path to an `AffinePath`. One that may hold many, such as a `List`, widens it to a `TraversalPath`. Composing keeps the wider of the two types. The processor settles it at compile time from the declared type, so a nullable field nobody annotated with a recognised `@Nullable` stays a `FocusPath`, and you chain `.nullable()` for it. A `Map` or an array stays a `FocusPath` too, unless the annotation sets `widenCollections = true`.
+
+**Related:** [Focus path type](#focus-path-type), [Collections, Optionals and Sealed Types](../optics/focus_navigation.md#path-widening)
 
 ---
 

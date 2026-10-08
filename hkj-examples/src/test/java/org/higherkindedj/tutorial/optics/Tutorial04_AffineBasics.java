@@ -261,7 +261,7 @@ public class Tutorial04_AffineBasics {
     Prism<Optional<String>, String> phonePrism = Prisms.some();
 
     // TODO: Create an Affine from UserProfile to phone number
-    // by composing: contactLens >>> contactPrism >>> phoneLens >>> phonePrism
+    // by composing: contactLens.andThen(contactPrism).andThen(phoneLens).andThen(phonePrism)
     // Hint: contactLens.andThen(contactPrism).andThen(phoneLens).andThen(phonePrism)
     Affine<UserProfile, String> userToPhone = answerRequired();
 

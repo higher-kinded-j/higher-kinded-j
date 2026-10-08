@@ -205,9 +205,9 @@ public interface Lens<S extends @Nullable Object, A extends @Nullable Object>
   /**
    * Composes this {@code Lens<S, A>} with a {@code Prism<A, B>} to create an {@code Affine<S, B>}.
    *
-   * <p>The composition follows the standard optic composition rule: Lens >>> Prism = Affine. The
-   * result is an Affine because the Prism may not match (resulting in zero-or-one focus), but the
-   * Lens guarantees we can always set a value.
+   * <p>The composition follows the standard optic composition rule: Lens.andThen(Prism) = Affine.
+   * The result is an Affine because the Prism may not match (resulting in zero-or-one focus), but
+   * the Lens guarantees we can always set a value.
    *
    * <p>This composition is useful when navigating into optional parts of a structure:
    *
@@ -235,7 +235,7 @@ public interface Lens<S extends @Nullable Object, A extends @Nullable Object>
    *     (db, url) -> new DatabaseConfig(url, db.port())
    * );
    *
-   * // Compose: Lens >>> Prism = Affine
+   * // Compose: Lens.andThen(Prism) = Affine
    * Affine<Config, DatabaseConfig> dbAffine = databaseLens.andThen(somePrism);
    *
    * // Use the affine
@@ -300,8 +300,9 @@ public interface Lens<S extends @Nullable Object, A extends @Nullable Object>
    * Composes this {@code Lens<S, A>} with a {@code Traversal<A, B>} to create a {@code Traversal<S,
    * B>}.
    *
-   * <p>The composition follows the standard optic composition rule: Lens >>> Traversal = Traversal.
-   * The result is a Traversal because the inner Traversal may focus on zero or more elements.
+   * <p>The composition follows the standard optic composition rule: Lens.andThen(Traversal) =
+   * Traversal. The result is a Traversal because the inner Traversal may focus on zero or more
+   * elements.
    *
    * <p>This composition is useful when navigating into collections or multiple targets:
    *
@@ -325,7 +326,7 @@ public interface Lens<S extends @Nullable Object, A extends @Nullable Object>
    * );
    * Traversal<List<Player>, Player> allPlayers = Traversals.forList();
    *
-   * // Compose: Lens >>> Traversal = Traversal
+   * // Compose: Lens.andThen(Traversal) = Traversal
    * Traversal<Team, Player> teamPlayersTraversal = playersLens.andThen(allPlayers);
    *
    * // Use the traversal

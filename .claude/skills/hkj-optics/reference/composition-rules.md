@@ -26,17 +26,19 @@ pair of these five composes directly with `andThen`; no `asTraversal()` is neede
 
 ## Summary by Use Case
 
-| Composition         | Result    | Use Case                         |
-|---------------------|-----------|----------------------------------|
-| Lens >>> Lens       | Lens      | Nested product types (records)   |
-| Lens >>> Prism      | Affine    | Product containing sum type      |
-| Prism >>> Lens      | Affine    | Sum type containing product      |
-| Prism >>> Prism     | Prism     | Nested sum types                 |
-| Affine >>> Affine   | Affine    | Chained optional access          |
-| Affine >>> Lens     | Affine    | Optional then field access       |
-| Affine >>> Prism    | Affine    | Optional then variant match      |
-| Any >>> Traversal   | Traversal | Collection access                |
-| Iso >>> Any         | Same as 2nd | Type conversion first          |
+Read `Lens.andThen(Prism) = Affine` as: a lens's `andThen` given a prism returns an `Affine`. `Any` stands for any of `Iso`, `Lens`, `Prism`, `Affine` and `Traversal`.
+
+| Composition            | Result      | Use Case                       |
+|------------------------|-------------|--------------------------------|
+| Lens.andThen(Lens)     | Lens        | Nested product types (records) |
+| Lens.andThen(Prism)    | Affine      | Product containing sum type    |
+| Prism.andThen(Lens)    | Affine      | Sum type containing product    |
+| Prism.andThen(Prism)   | Prism       | Nested sum types               |
+| Affine.andThen(Affine) | Affine      | Chained optional access        |
+| Affine.andThen(Lens)   | Affine      | Optional then field access     |
+| Affine.andThen(Prism)  | Affine      | Optional then variant match    |
+| Any.andThen(Traversal) | Traversal   | Collection access              |
+| Iso.andThen(Any)       | Same as 2nd | Type conversion first          |
 
 ## Affine Explained
 
@@ -49,22 +51,22 @@ Common for: `Optional<T>` fields, nullable properties, optional intermediate str
 ## Direct Composition (andThen)
 
 ```java
-// Lens >>> Lens = Lens
+// Lens.andThen(Lens) = Lens
 Lens<A, C> result = lensAB.andThen(lensBC);
 
-// Lens >>> Prism = Affine
+// Lens.andThen(Prism) = Affine
 Affine<A, C> result = lensAB.andThen(prismBC);
 
-// Prism >>> Prism = Prism
+// Prism.andThen(Prism) = Prism
 Prism<A, C> result = prismAB.andThen(prismBC);
 
-// Prism >>> Lens = Affine
+// Prism.andThen(Lens) = Affine
 Affine<A, C> result = prismAB.andThen(lensBC);
 
-// Affine >>> Affine = Affine
+// Affine.andThen(Affine) = Affine
 Affine<A, C> result = affineAB.andThen(affineBC);
 
-// Traversal >>> Traversal = Traversal
+// Traversal.andThen(Traversal) = Traversal
 Traversal<A, C> result = traversalAB.andThen(traversalBC);
 ```
 
