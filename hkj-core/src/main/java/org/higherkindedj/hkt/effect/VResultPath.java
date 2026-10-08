@@ -422,10 +422,9 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
   /**
    * {@inheritDoc}
    *
-   * <p>Deviation note (#606): the issue sketched a {@code recoverWith(predicate, handler)}
-   * overload; the single-argument family form ships instead - no Path-family member has a predicate
-   * overload, and selective recovery reads naturally as {@code recoverWith(e -> pred.test(e) ?
-   * handler.apply(e) : VResultPath.raiseError(e))}.
+   * <p>There is no {@code recoverWith(predicate, handler)} overload: no Path-family member has a
+   * predicate overload, and selective recovery reads naturally as {@code recoverWith(e ->
+   * pred.test(e) ? handler.apply(e) : VResultPath.raiseError(e))}.
    */
   @Override
   public VResultPath<E, A> recoverWith(Function<? super E, ? extends Recoverable<E, A>> recovery) {
@@ -571,8 +570,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
     return "VResultPath(" + PathToString.DEFERRED + ")";
   }
 
-  // ==================== Outcome-aware structured concurrency (#606 slice 2) ====================
-  // The issue sketches Scope.firstSuccess(...), but Scope lives in hkt.vtask and hkt.effect
+  // ==================== Outcome-aware structured concurrency ====================
+  // Scope.firstSuccess(...) would read naturally, but Scope lives in hkt.vtask and hkt.effect
   // depends on hkt.vtask - statics on Scope referencing VResultPath would create a package
   // cycle, so the combinators live here, implemented over the Scope/ScopeJoiner substrate.
 
@@ -622,8 +621,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
 
   /**
    * Races the candidates with emptiness made unrepresentable - the {@link NonEmptyList} overload of
-   * {@link #firstSuccess(List)}, preferred when at least one candidate is statically known (the
-   * race-family precedent from #585).
+   * {@link #firstSuccess(List)}, preferred when at least one candidate is statically known, as with
+   * the other race combinators.
    *
    * @param candidates the racing paths; must not be null or contain nulls
    * @param <E> the typed error type

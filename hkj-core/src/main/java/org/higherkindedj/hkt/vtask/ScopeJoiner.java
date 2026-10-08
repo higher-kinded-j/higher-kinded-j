@@ -285,9 +285,9 @@ final class FirstSuccessEitherJoiner<E, T>
         }
         // No winner: every subtask here ran to completion, so UNAVAILABLE (and a Right)
         // is impossible in this loop. The only cancellation path through this joiner is
-        // a successful winner CAS (returned above); Scope applies timeouts at the VTask
-        // layer, not as a scope deadline; and a raw StructuredTaskScope configured with
-        // a timeout throws TimeoutException from join() without consulting result().
+        // a successful winner CAS (returned above), and a scope whose timeout expires,
+        // whether Scope configured it or the caller did, throws TimeoutException from
+        // join() without consulting result().
         List<E> errors = new ArrayList<>();
         // Iterating a synchronizedList requires holding its monitor; forking is already done
         // by the time result() runs, but this keeps the contract explicit.

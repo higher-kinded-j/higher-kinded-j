@@ -13,6 +13,7 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent builder for structured concurrent computations using Java 25's {@link
@@ -77,11 +78,14 @@ public final class Scope<T, R> {
 
   private final ScopeJoiner<T, R> joiner;
   private final List<VTask<? extends T>> tasks;
-  private final Duration timeout;
-  private final String name;
+  private final @Nullable Duration timeout;
+  private final @Nullable String name;
 
   private Scope(
-      ScopeJoiner<T, R> joiner, List<VTask<? extends T>> tasks, Duration timeout, String name) {
+      ScopeJoiner<T, R> joiner,
+      List<VTask<? extends T>> tasks,
+      @Nullable Duration timeout,
+      @Nullable String name) {
     this.joiner = joiner;
     this.tasks = tasks;
     this.timeout = timeout;
@@ -165,7 +169,9 @@ public final class Scope<T, R> {
   /**
    * Sets a timeout for the scope.
    *
-   * <p>If the tasks don't complete within the timeout, a {@link TimeoutException} is thrown.
+   * <p>If the subtasks have not all completed within the timeout, the scope is cancelled: those
+   * still running are interrupted, and the run fails with a {@link TimeoutException} once they have
+   * stopped.
    *
    * @param timeout the maximum time to wait; must not be null
    * @return a new Scope with the timeout configured
@@ -177,12 +183,14 @@ public final class Scope<T, R> {
   }
 
   /**
-   * Sets a name for the scope (useful for debugging).
+   * Sets a name for the scope, which a thread dump shows for it (useful for debugging).
    *
-   * @param name the name for this scope
+   * @param name the name for this scope; must not be null
    * @return a new Scope with the name configured
+   * @throws NullPointerException if name is null
    */
   public Scope<T, R> named(String name) {
+    Objects.requireNonNull(name, "name must not be null");
     return new Scope<>(joiner, tasks, timeout, name);
   }
 
@@ -205,14 +213,16 @@ public final class Scope<T, R> {
   /**
    * Forks multiple VTasks to run as subtasks within this scope.
    *
-   * @param tasksToFork the tasks to fork; must not be null
+   * @param tasksToFork the tasks to fork; must not be null or contain nulls
    * @return a new Scope with all tasks added
-   * @throws NullPointerException if tasksToFork is null
+   * @throws NullPointerException if tasksToFork is null or contains null
    */
   public Scope<T, R> forkAll(List<? extends VTask<? extends T>> tasksToFork) {
     Objects.requireNonNull(tasksToFork, "tasksToFork must not be null");
     List<VTask<? extends T>> newTasks = new ArrayList<>(tasks);
-    newTasks.addAll(tasksToFork);
+    for (VTask<? extends T> task : tasksToFork) {
+      newTasks.add(Objects.requireNonNull(task, "tasksToFork must not contain null"));
+    }
     return new Scope<>(joiner, newTasks, timeout, name);
   }
 
@@ -224,32 +234,48 @@ public final class Scope<T, R> {
    * <p>Each run of the returned VTask will:
    *
    * <ol>
-   *   <li>Open a StructuredTaskScope with a new Joiner from the configured ScopeJoiner
+   *   <li>Open a StructuredTaskScope with a new Joiner from the configured ScopeJoiner, and the
+   *       configured timeout and name
    *   <li>Fork all added tasks
    *   <li>Wait for completion according to the joiner's semantics
    *   <li>Return the joined result
    * </ol>
    *
+   * <p>The scope is opened on the thread that runs the VTask, so its subtasks see that thread's
+   * {@link ScopedValue} bindings.
+   *
    * @return a VTask that executes the scope and returns the result
    */
   @SuppressWarnings("preview")
   public VTask<R> join() {
-    VTask<R> joinTask =
-        () -> {
-          try (var scope = StructuredTaskScope.open(joiner.joiner())) {
-            for (VTask<? extends T> task : tasks) {
-              scope.fork(task.asCallable());
-            }
+    return () -> {
+      try (var scope = StructuredTaskScope.open(joiner.joiner(), this::configure)) {
+        for (VTask<? extends T> task : tasks) {
+          scope.fork(task.asCallable());
+        }
 
-            // StructuredTaskScope with custom Joiner returns result directly from join()
-            return scope.join();
-          } catch (StructuredTaskScope.FailedException e) {
-            throw e.getCause();
-          }
-        };
+        // StructuredTaskScope with custom Joiner returns result directly from join()
+        return scope.join();
+      } catch (StructuredTaskScope.FailedException e) {
+        throw e.getCause();
+      } catch (StructuredTaskScope.TimeoutException e) {
+        TimeoutException timedOut = new TimeoutException("Scope timed out after " + timeout);
+        timedOut.initCause(e);
+        throw timedOut;
+      }
+    };
+  }
 
-    // Apply timeout if configured
-    return timeout != null ? joinTask.timeout(timeout) : joinTask;
+  @SuppressWarnings("preview")
+  private StructuredTaskScope.Configuration configure(StructuredTaskScope.Configuration config) {
+    StructuredTaskScope.Configuration configured = config;
+    if (timeout != null) {
+      configured = configured.withTimeout(timeout);
+    }
+    if (name != null) {
+      configured = configured.withName(name);
+    }
+    return configured;
   }
 
   /**

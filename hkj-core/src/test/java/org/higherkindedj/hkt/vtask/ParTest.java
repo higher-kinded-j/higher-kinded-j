@@ -7,6 +7,7 @@ import static org.awaitility.Awaitility.await;
 import static org.higherkindedj.hkt.assertions.VTaskAssert.assertThatVTask;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -366,6 +367,25 @@ class ParTest {
     }
 
     @Test
+    @DisplayName("race() rejects a null task when called")
+    void raceRejectsANullTaskWhenCalled() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Par.race(withNull()))
+          .withMessage("tasks cannot contain null");
+    }
+
+    @Test
+    @DisplayName("race() races the list as it was when called")
+    void raceRacesTheListAsItWasWhenCalled() {
+      List<VTask<String>> tasks = new ArrayList<>(List.of(VTask.succeed("only")));
+      VTask<String> race = Par.race(tasks);
+
+      tasks.clear();
+
+      assertThat(race.run()).isEqualTo("only");
+    }
+
+    @Test
     @DisplayName("race() returns result even if others fail")
     void raceReturnsResultEvenIfOthersFail() {
       VTask<Integer> failing1 =
@@ -483,6 +503,25 @@ class ParTest {
     void allWithNullListThrows() {
       assertThatThrownBy(() -> Par.all(null)).isInstanceOf(NullPointerException.class);
     }
+
+    @Test
+    @DisplayName("all() rejects a null task when called")
+    void allRejectsANullTaskWhenCalled() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> Par.all(withNull()))
+          .withMessage("tasks cannot contain null");
+    }
+
+    @Test
+    @DisplayName("all() forks the list as it was when called")
+    void allForksTheListAsItWasWhenCalled() {
+      List<VTask<Integer>> tasks = new ArrayList<>(List.of(VTask.succeed(1), VTask.succeed(2)));
+      VTask<List<Integer>> all = Par.all(tasks);
+
+      tasks.add(VTask.succeed(3));
+
+      assertThat(all.run()).containsExactly(1, 2);
+    }
   }
 
   @Nested
@@ -497,6 +536,17 @@ class ParTest {
       VTask<List<Integer>> result = Par.traverse(items, i -> VTask.succeed(i * 2));
 
       assertThat(result.run()).containsExactly(2, 4, 6);
+    }
+
+    @Test
+    @DisplayName("traverse() processes the list as it was when called")
+    void traverseProcessesTheListAsItWasWhenCalled() {
+      List<Integer> items = new ArrayList<>(List.of(1, 2));
+      VTask<List<Integer>> doubled = Par.traverse(items, i -> VTask.succeed(i * 2));
+
+      items.add(3);
+
+      assertThat(doubled.run()).containsExactly(2, 4);
     }
 
     @Test
@@ -626,5 +676,12 @@ class ParTest {
           .during(Duration.ofMillis(150))
           .untilAsserted(() -> assertThat(taskBCompleted.get()).isFalse());
     }
+  }
+
+  private static List<VTask<String>> withNull() {
+    List<VTask<String>> tasks = new ArrayList<>();
+    tasks.add(VTask.succeed("fine"));
+    tasks.add(null);
+    return tasks;
   }
 }

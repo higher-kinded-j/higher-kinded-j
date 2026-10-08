@@ -4,7 +4,13 @@ package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.*;
 
+import com.sun.management.HotSpotDiagnosticMXBean;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -21,10 +27,13 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Test suite for Scope - the fluent builder for structured concurrent computations. */
 @DisplayName("Scope<T, R> Test Suite")
 class ScopeTest {
+
+  private static final ScopedValue<String> REQUEST = ScopedValue.newInstance();
 
   @Nested
   @DisplayName("Factory Methods")
@@ -149,6 +158,18 @@ class ScopeTest {
           .isThrownBy(() -> scope.forkAll(null))
           .withMessageContaining("tasksToFork must not be null");
     }
+
+    @Test
+    @DisplayName("forkAll() rejects a null task")
+    void forkAllRejectsANullTask() {
+      List<VTask<String>> withNull = new ArrayList<>();
+      withNull.add(VTask.succeed("fine"));
+      withNull.add(null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> Scope.<String>allSucceed().forkAll(withNull))
+          .withMessage("tasksToFork must not contain null");
+    }
   }
 
   @Nested
@@ -194,12 +215,33 @@ class ScopeTest {
     }
 
     @Test
-    @DisplayName("named() sets the scope name")
-    void namedSetsName() {
-      Scope<String, List<String>> scope = Scope.<String>allSucceed().named("test-scope");
+    @DisplayName("named() names the scope in a thread dump")
+    void namedNamesTheScopeInAThreadDump(@TempDir Path dir) throws IOException {
+      Path dump = dir.resolve("threads.json");
+      HotSpotDiagnosticMXBean diagnostics =
+          ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+      VTask<String> dumpThreads =
+          VTask.of(
+              () -> {
+                diagnostics.dumpThreads(
+                    dump.toString(), HotSpotDiagnosticMXBean.ThreadDumpFormat.JSON);
+                return "dumped";
+              });
 
-      // Name is used internally for debugging; verify method works
-      assertThat(scope).isNotNull();
+      Scope.<String>allSucceed().named("quote-fan-out").fork(dumpThreads).join().run();
+
+      assertThat(Files.readString(dump)).contains("quote-fan-out");
+    }
+
+    @Test
+    @DisplayName("named() validates non-null name")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void namedValidatesNonNull() {
+      Scope<String, List<String>> scope = Scope.allSucceed();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> scope.named(null))
+          .withMessage("name must not be null");
     }
   }
 
@@ -410,6 +452,53 @@ class ScopeTest {
       assertThatThrownBy(result::run)
           .isInstanceOf(VTaskExecutionException.class)
           .hasCauseInstanceOf(TimeoutException.class);
+    }
+
+    @Test
+    @DisplayName("a timeout cancels the subtasks still running")
+    void aTimeoutCancelsTheSubtasksStillRunning() {
+      CountDownLatch neverReleased = new CountDownLatch(1);
+      AtomicBoolean cancelled = new AtomicBoolean();
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofMillis(50))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        try {
+                          neverReleased.await();
+                          return "slow";
+                        } catch (InterruptedException e) {
+                          cancelled.set(true);
+                          throw e;
+                        }
+                      }))
+              .join();
+
+      try {
+        assertThatThrownBy(join::run)
+            .isInstanceOf(VTaskExecutionException.class)
+            .cause()
+            .isInstanceOf(TimeoutException.class)
+            .hasMessage("Scope timed out after PT0.05S");
+        assertThat(cancelled).isTrue();
+      } finally {
+        neverReleased.countDown();
+      }
+    }
+
+    @Test
+    @DisplayName("the subtasks of a timed scope see the caller's scoped values")
+    void theSubtasksOfATimedScopeSeeTheCallersScopedValues() {
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofSeconds(5))
+              .fork(VTask.of(REQUEST::get))
+              .join();
+
+      List<String> seen = ScopedValue.where(REQUEST, "request-1").call(join::run);
+
+      assertThat(seen).containsExactly("request-1");
     }
 
     @Test
