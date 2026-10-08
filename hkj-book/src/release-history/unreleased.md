@@ -34,6 +34,7 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **A `VStream` releases its resources when it stops early or fails** ([#1024](https://github.com/higher-kinded-j/higher-kinded-j/issues/1024)): closing reaches every finaliser upstream that the stream has started reading, through any operator, innermost first. `takeWhile`, `zipWith`, `headOption`, `find`, `exists`, `forAll` and a failing terminal operation close what they leave unread. So `bracket(...).map(f).headOption()` releases at once. `VStream.closeAfterFailure` closes a failed manual pull. See [onFinalize: Lightweight Cleanup](../monads/vstream_resources.md#onfinalize-lightweight-cleanup).
 - **One `Resource` can serve overlapping uses** ([#1019](https://github.com/higher-kinded-j/higher-kinded-j/issues/1019)): each `use` releases exactly what it acquired, however the `Resource` was composed. So a `Resource` built once with `map` or `flatMap` and used nested, or once per concurrent request, no longer releases one resource twice and leaks the other. See [Using One Resource Many Times](../monads/vtask_resource.md#using-one-resource-many-times).
 - **`VStreamReactive` passes cancellation across the bridge** ([#1024](https://github.com/higher-kinded-j/higher-kinded-j/issues/1024)): a `toPublisher` subscription closes the rest of its stream when it cancels or the stream fails, once it has requested elements. Closing a `fromPublisher` stream cancels its subscription, so `take(n)` stops the publisher. See [Reactive Interop: Flow.Publisher Bridge](../monads/vstream_advanced.md#reactive-interop-flowpublisher-bridge).
+- **A `Scope` can run again, be retried, or run on several threads** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): each run of the `VTask` from `join()` opens its own `StructuredTaskScope` with a new `Joiner`. A second run used to see the first run's results, and a retry kept failing with the first attempt's error. `VResultPath.allSucceed`, `allSucceedAccumulating` and `firstSuccess` are fixed too. See [Running a Scope Again](../monads/vtask_scope.md#running-a-scope-again).
 
 ---
 
@@ -123,6 +124,12 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 - **`and(second, third)` releases its first resource when two releases throw one exception** ([#1019](https://github.com/higher-kinded-j/higher-kinded-j/issues/1019)): the same exception instance from both used to fail with `IllegalArgumentException` and leave the first resource acquired.
 - **Cleanup after a failed or cancelled use runs with the interrupt status cleared** ([#1019](https://github.com/higher-kinded-j/higher-kinded-j/issues/1019)): releases, finalisers and `onFailure` actions, so a blocking close is not cut short. The status is restored afterwards.
 - **A `bracket` whose `use` function throws releases the resource** ([#1024](https://github.com/higher-kinded-j/higher-kinded-j/issues/1024)): before the failure reaches the caller. It used to leave the resource acquired.
+- **`Scope.firstComplete` and `ScopeJoiner.firstComplete()` cancel the other subtasks once one completes** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): they used to wait for every subtask. Those still running are interrupted and those not yet started never start, so work a slower subtask does afterwards, such as writing a cache, no longer happens. Move work that must finish out of the race.
+- **`ScopeJoiner.joiner()` returns a new `Joiner` on each call** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): code that opened a scope with one call and read `result()` from another now reads a `Joiner` no scope has used. That gives an empty result or an exception, so use the value the scope's `join()` returns.
+- **A `Scope`'s timeout cancels its subtasks** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): when it expires, those still running are interrupted, and the run fails with a `TimeoutException` once they have stopped. They used to keep running unobserved, so a subtask that ignores interrupts now delays the failure. Its subtasks now see the caller's `ScopedValue` bindings, which they used to find unbound.
+- **An interrupt while a timed `Scope` waits fails the run** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): with an `InterruptedException`, as it does for an untimed `Scope`. A timed one used to ignore it and keep waiting.
+- **`Par` and `PathOps` copy the list they are given when called** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): `Par.race`, `all` and `traverse`, and `PathOps.sequenceVTask`, `traverseVTask`, `firstVTaskSuccess`, `parSequenceIO` and `raceIO`. Changing the list afterwards no longer changes what a run does. A null task or path in a list, or in `Scope.forkAll`'s, is rejected then, not when it runs.
+- **`Scope.named` names the scope in a JSON thread dump** ([#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052)): the name used to be dropped. `named(null)` now throws `NullPointerException`, where it was accepted.
 
 #### Testing {#runtime-testing}
 
@@ -140,11 +147,13 @@ To try them, depend on `0.5.0-SNAPSHOT` from the snapshots repository, as [Gradl
 | Effect Paths | A `StateT` in `var` or a chained call over a witness with a type argument, such as `EitherKind.Witness<E>`, which now infers `Object` for it | Name the types, as in `StateT.<S, EitherKind.Witness<E>, A>create(fn)`, or declare the variable | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
 | Effect Paths | `evalStateT` and `execStateT` without a `Monad`, deprecated since 0.4.6 | Pass the outer `Monad<F>`, the one `Instances.stateT` took, as the last argument | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
 | Effect Paths | `StateT.monadF()`, deprecated since 0.4.6 | Keep a reference to the outer `Monad<F>` you built the stack with, and use it in place of the call | [#445](https://github.com/higher-kinded-j/higher-kinded-j/issues/445) |
+| Effect Paths | A call to `ScopeJoiner.resultEither()` (a `[removal]` warning) | Use `joinEither()` on the `Scope`, as [Deprecated for removal in 0.6.0](#deprecated) says | [#1052](https://github.com/higher-kinded-j/higher-kinded-j/issues/1052) |
 
 ### Deprecated for removal in 0.6.0 {#deprecated}
 
 | Deprecated | Replacement | Recipe |
 |---|---|---|
+| `ScopeJoiner.resultEither()` | `joinEither()` on the `Scope`, in place of `join()`; for a `StructuredTaskScope` you open yourself, the value its `join()` returns, or the cause of the `FailedException` it throws | By hand |
 
 ---
 

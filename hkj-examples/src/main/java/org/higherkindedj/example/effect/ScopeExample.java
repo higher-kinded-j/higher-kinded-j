@@ -23,7 +23,7 @@ import org.higherkindedj.hkt.vtask.VTask;
  * <ul>
  *   <li>allSucceed - wait for all tasks to complete successfully
  *   <li>anySucceed - return first success, cancel others
- *   <li>firstComplete - return first result regardless of outcome
+ *   <li>firstComplete - return first result regardless of outcome, cancel others
  *   <li>accumulating - collect all errors using Validated
  *   <li>Timeout handling with scopes
  *   <li>Safe result handling with joinSafe, joinEither, joinMaybe
@@ -142,10 +142,10 @@ public class ScopeExample {
   // ============================================================
 
   private static void firstCompleteExample() {
-    System.out.println("--- firstComplete: Fast Path with Fallback ---\n");
+    System.out.println("--- firstComplete: Fastest Answer Wins ---\n");
 
-    // Use firstComplete when you want the first result regardless of outcome
-    // Useful for fast-path/slow-path patterns
+    // Use firstComplete when the first answer should decide, success or failure;
+    // the slower task is cancelled
 
     VTask<String> fastButRisky =
         VTask.of(
@@ -251,7 +251,7 @@ public class ScopeExample {
               return "Slow result 2";
             });
 
-    // This will timeout before tasks complete
+    // This will time out before tasks complete
     VTask<List<String>> withTimeout =
         Scope.<String>allSucceed()
             .timeout(Duration.ofMillis(200))

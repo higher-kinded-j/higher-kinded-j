@@ -3,11 +3,29 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
+import com.sun.management.HotSpotDiagnosticMXBean;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.IntStream;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.trymonad.Try;
@@ -15,10 +33,13 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Test suite for Scope - the fluent builder for structured concurrent computations. */
 @DisplayName("Scope<T, R> Test Suite")
 class ScopeTest {
+
+  private static final ScopedValue<String> REQUEST = ScopedValue.newInstance();
 
   @Nested
   @DisplayName("Factory Methods")
@@ -143,6 +164,18 @@ class ScopeTest {
           .isThrownBy(() -> scope.forkAll(null))
           .withMessageContaining("tasksToFork must not be null");
     }
+
+    @Test
+    @DisplayName("forkAll() rejects a null task")
+    void forkAllRejectsANullTask() {
+      List<VTask<String>> withNull = new ArrayList<>();
+      withNull.add(VTask.succeed("fine"));
+      withNull.add(null);
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> Scope.<String>allSucceed().forkAll(withNull))
+          .withMessage("tasksToFork must not contain null");
+    }
   }
 
   @Nested
@@ -188,12 +221,34 @@ class ScopeTest {
     }
 
     @Test
-    @DisplayName("named() sets the scope name")
-    void namedSetsName() {
-      Scope<String, List<String>> scope = Scope.<String>allSucceed().named("test-scope");
+    @DisplayName("named() names the scope in a thread dump")
+    void namedNamesTheScopeInAThreadDump(@TempDir Path dir) throws IOException {
+      Path dump = dir.resolve("threads.json");
+      HotSpotDiagnosticMXBean diagnostics =
+          ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+      VTask<String> dumpThreads =
+          VTask.of(
+              () -> {
+                diagnostics.dumpThreads(
+                    dump.toAbsolutePath().toString(),
+                    HotSpotDiagnosticMXBean.ThreadDumpFormat.JSON);
+                return "dumped";
+              });
 
-      // Name is used internally for debugging; verify method works
-      assertThat(scope).isNotNull();
+      Scope.<String>allSucceed().named("quote-fan-out").fork(dumpThreads).join().run();
+
+      assertThat(Files.readString(dump)).contains("quote-fan-out");
+    }
+
+    @Test
+    @DisplayName("named() validates non-null name")
+    @SuppressWarnings("DataFlowIssue") // null is passed deliberately to verify rejection
+    void namedValidatesNonNull() {
+      Scope<String, List<String>> scope = Scope.allSucceed();
+
+      assertThatNullPointerException()
+          .isThrownBy(() -> scope.named(null))
+          .withMessage("name must not be null");
     }
   }
 
@@ -340,6 +395,47 @@ class ScopeTest {
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("fast failure");
     }
+
+    @Test
+    @DisplayName("firstComplete cancels the subtasks still running")
+    void firstCompleteCancelsTheSubtasksStillRunning() {
+      CountDownLatch slowStarted = new CountDownLatch(1);
+      CountDownLatch neverReleased = new CountDownLatch(1);
+      AtomicBoolean slowCancelled = new AtomicBoolean();
+      VTask<String> fast =
+          VTask.of(
+              () -> {
+                slowStarted.await();
+                return "fast";
+              });
+      VTask<String> slow =
+          VTask.of(
+              () -> {
+                slowStarted.countDown();
+                try {
+                  neverReleased.await();
+                  return "slow";
+                } catch (InterruptedException e) {
+                  slowCancelled.set(true);
+                  throw e;
+                }
+              });
+
+      try {
+        String winner =
+            Scope.<String>firstComplete()
+                .fork(fast)
+                .fork(slow)
+                .join()
+                .timeout(Duration.ofSeconds(10))
+                .run();
+
+        assertThat(winner).isEqualTo("fast");
+        assertThat(slowCancelled).isTrue();
+      } finally {
+        neverReleased.countDown();
+      }
+    }
   }
 
   @Nested
@@ -363,6 +459,214 @@ class ScopeTest {
       assertThatThrownBy(result::run)
           .isInstanceOf(VTaskExecutionException.class)
           .hasCauseInstanceOf(TimeoutException.class);
+    }
+
+    @Test
+    @DisplayName("a timeout cancels the subtasks still running")
+    void aTimeoutCancelsTheSubtasksStillRunning() {
+      CountDownLatch neverReleased = new CountDownLatch(1);
+      AtomicBoolean cancelled = new AtomicBoolean();
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofMillis(200))
+              .fork(VTask.succeed("fast"))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        try {
+                          neverReleased.await();
+                          return "slow";
+                        } catch (InterruptedException e) {
+                          cancelled.set(true);
+                          throw e;
+                        }
+                      }))
+              .join();
+
+      try {
+        assertThatThrownBy(join::run)
+            .isInstanceOf(VTaskExecutionException.class)
+            .cause()
+            .isInstanceOf(TimeoutException.class)
+            .hasMessage("Scope timed out after PT0.2S");
+        assertThat(cancelled).isTrue();
+      } finally {
+        neverReleased.countDown();
+      }
+    }
+
+    @Test
+    @DisplayName("a timeout fires while every common-pool thread waits on a timed scope")
+    void aTimeoutFiresWhileEveryCommonPoolThreadWaits() throws Exception {
+      CountDownLatch neverReleased = new CountDownLatch(1);
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofMillis(200))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        neverReleased.await();
+                        return "slow";
+                      }))
+              .join();
+      List<ForkJoinTask<Try<List<String>>>> runs = new ArrayList<>();
+
+      try {
+        for (int i = 0; i < ForkJoinPool.getCommonPoolParallelism(); i++) {
+          runs.add(ForkJoinPool.commonPool().submit(() -> join.runSafe()));
+        }
+        for (ForkJoinTask<Try<List<String>>> run : runs) {
+          assertThat(run.get(10, TimeUnit.SECONDS))
+              .isInstanceOfSatisfying(
+                  Try.Failure.class,
+                  failure -> assertThat(failure.cause()).isInstanceOf(TimeoutException.class));
+        }
+      } finally {
+        neverReleased.countDown();
+      }
+    }
+
+    @Test
+    @DisplayName("a timeout fires while CPU-bound subtasks keep every carrier busy")
+    void aTimeoutFiresWhileCpuBoundSubtasksKeepEveryCarrierBusy() {
+      VTask<Integer> spin =
+          VTask.of(
+              () -> {
+                long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                while (System.nanoTime() < end) {
+                  if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException();
+                  }
+                }
+                return 1;
+              });
+      Scope<Integer, List<Integer>> scope =
+          Scope.<Integer>allSucceed().timeout(Duration.ofMillis(200));
+      for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
+        scope = scope.fork(spin);
+      }
+      VTask<List<Integer>> join = scope.join();
+
+      assertThatThrownBy(() -> assertTimeoutPreemptively(Duration.ofSeconds(4), join::run))
+          .isInstanceOf(VTaskExecutionException.class)
+          .hasCauseInstanceOf(TimeoutException.class);
+    }
+
+    @Test
+    @DisplayName("the last subtask to complete cancels the timeout")
+    void theLastSubtaskToCompleteCancelsTheTimeout() throws Exception {
+      AtomicReference<Thread> owner = new AtomicReference<>();
+      VTask<String> waitsForTheOwnerToJoin =
+          VTask.of(
+              () -> {
+                // The owner parks in join only after it has forked every subtask
+                while (owner.get().getState() != Thread.State.WAITING) {
+                  Thread.sleep(1);
+                }
+                return "done";
+              });
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofMinutes(1))
+              .fork(waitsForTheOwnerToJoin)
+              .join();
+      FutureTask<List<String>> run = new FutureTask<>(join::run);
+      Thread thread = Thread.ofPlatform().unstarted(run);
+      owner.set(thread);
+
+      thread.start();
+
+      assertThat(run.get(10, TimeUnit.SECONDS)).containsExactly("done");
+    }
+
+    @Test
+    @DisplayName("a joiner that throws is reported, and the run does not wait out its timeout")
+    @SuppressWarnings("DataFlowIssue") // the subtask deliberately returns null
+    void aJoinerThatThrowsIsReported() {
+      List<Throwable> reported = new CopyOnWriteArrayList<>();
+      Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+      Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> reported.add(failure));
+      VTask<Either<List<String>, String>> race =
+          Scope.withJoiner(ScopeJoiner.<String, String>firstSuccessEither())
+              .timeout(Duration.ofMinutes(1))
+              .fork(VTask.<Either<String, String>>of(() -> null))
+              .join();
+
+      try {
+        assertThatThrownBy(() -> assertTimeoutPreemptively(Duration.ofSeconds(10), race::run))
+            .isInstanceOf(NullPointerException.class);
+        assertThat(reported).singleElement().isInstanceOf(NullPointerException.class);
+      } finally {
+        Thread.setDefaultUncaughtExceptionHandler(previous);
+      }
+    }
+
+    @Test
+    @DisplayName("a timed scope that finishes early does not wait for its timeout")
+    void aTimedScopeThatFinishesEarlyDoesNotWaitForItsTimeout() {
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofMinutes(1))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(50);
+                        return "done";
+                      }))
+              .join();
+
+      List<String> result = assertTimeoutPreemptively(Duration.ofSeconds(10), join::run);
+
+      assertThat(result).containsExactly("done");
+    }
+
+    @Test
+    @DisplayName("a timed scope with nothing forked returns at once")
+    void aTimedScopeWithNothingForkedReturnsAtOnce() {
+      VTask<List<String>> join = Scope.<String>allSucceed().timeout(Duration.ofMinutes(1)).join();
+
+      List<String> result = assertTimeoutPreemptively(Duration.ofSeconds(10), join::run);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a timed race returns its winner and cancels the rest")
+    void aTimedRaceReturnsItsWinnerAndCancelsTheRest() {
+      CountDownLatch neverReleased = new CountDownLatch(1);
+      VTask<String> race =
+          Scope.<String>anySucceed()
+              .timeout(Duration.ofMinutes(1))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        neverReleased.await();
+                        return "slow";
+                      }))
+              .fork(VTask.succeed("fast"))
+              .join();
+
+      try {
+        String winner = assertTimeoutPreemptively(Duration.ofSeconds(10), race::run);
+
+        assertThat(winner).isEqualTo("fast");
+      } finally {
+        neverReleased.countDown();
+      }
+    }
+
+    @Test
+    @DisplayName("the subtasks of a timed scope see the caller's scoped values")
+    void theSubtasksOfATimedScopeSeeTheCallersScopedValues() {
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofSeconds(5))
+              .fork(VTask.of(REQUEST::get))
+              .join();
+
+      List<String> seen = ScopedValue.where(REQUEST, "request-1").call(join::run);
+
+      assertThat(seen).containsExactly("request-1");
     }
 
     @Test
@@ -552,6 +856,112 @@ class ScopeTest {
 
       assertThat(value).isEqualTo("fast-response");
       // Note: The slow task may or may not complete depending on timing
+    }
+  }
+
+  @Nested
+  @DisplayName("Each run of the VTask from join() has its own Joiner")
+  class EachRunHasItsOwnJoinerTests {
+
+    @Test
+    @DisplayName("allSucceed gives the same list on a second run")
+    void allSucceedGivesTheSameListOnASecondRun() {
+      VTask<List<Integer>> join =
+          Scope.<Integer>allSucceed().fork(VTask.succeed(1)).fork(VTask.succeed(2)).join();
+
+      assertThat(join.run()).containsExactly(1, 2);
+      assertThat(join.run()).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("accumulating gives the same errors on a second run")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
+    void accumulatingGivesTheSameErrorsOnASecondRun() {
+      VTask<Validated<List<String>, List<String>>> join =
+          Scope.<String, String>accumulating(Throwable::getMessage)
+              .fork(VTask.succeed("fine"))
+              .fork(VTask.fail(new RuntimeException("broke")))
+              .join();
+
+      assertThat(join.run().getError()).containsExactly("broke");
+      assertThat(join.run().getError()).containsExactly("broke");
+    }
+
+    @Test
+    @DisplayName("anySucceed and firstComplete answer from the run that asked")
+    void racesAnswerFromTheRunThatAsked() {
+      AtomicInteger anyCalls = new AtomicInteger();
+      VTask<Integer> any =
+          Scope.<Integer>anySucceed().fork(VTask.of(anyCalls::incrementAndGet)).join();
+      AtomicInteger firstCalls = new AtomicInteger();
+      VTask<Integer> first =
+          Scope.<Integer>firstComplete().fork(VTask.of(firstCalls::incrementAndGet)).join();
+
+      assertThat(List.of(any.run(), any.run())).containsExactly(1, 2);
+      assertThat(List.of(first.run(), first.run())).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("withJoiner answers from the run that asked")
+    void withJoinerAnswersFromTheRunThatAsked() {
+      AtomicInteger calls = new AtomicInteger();
+      VTask<Either<List<String>, Integer>> race =
+          Scope.withJoiner(ScopeJoiner.<String, Integer>firstSuccessEither())
+              .fork(VTask.of(() -> Either.<String, Integer>right(calls.incrementAndGet())))
+              .join();
+
+      assertThat(List.of(race.run(), race.run())).containsExactly(Either.right(1), Either.right(2));
+    }
+
+    @Test
+    @DisplayName("a run after a failed one gives its own answer")
+    void aRunAfterAFailedOneGivesItsOwnAnswer() {
+      VTask<List<Integer>> join =
+          Scope.<Integer>allSucceed().fork(failsOnFirstCall()).fork(VTask.succeed(2)).join();
+
+      assertThatThrownBy(join::run)
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("transient");
+      assertThat(join.run()).containsExactly(1, 2);
+    }
+
+    @Test
+    @DisplayName("runs at the same time each get their own result")
+    void runsAtTheSameTimeEachGetTheirOwnResult() throws Exception {
+      int runs = 8;
+      CountDownLatch everySubtaskStarted = new CountDownLatch(runs * 2);
+      VTask<Integer> one = waitingForEveryOther(everySubtaskStarted, 1);
+      VTask<Integer> two = waitingForEveryOther(everySubtaskStarted, 2);
+      VTask<List<Integer>> join = Scope.<Integer>allSucceed().fork(one).fork(two).join();
+
+      try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        List<Future<List<Integer>>> results =
+            IntStream.range(0, runs).mapToObj(_ -> executor.submit(() -> join.run())).toList();
+        for (Future<List<Integer>> result : results) {
+          assertThat(result.get(10, TimeUnit.SECONDS)).containsExactly(1, 2);
+        }
+      }
+    }
+
+    private static VTask<Integer> failsOnFirstCall() {
+      AtomicInteger calls = new AtomicInteger();
+      return VTask.of(
+          () -> {
+            if (calls.incrementAndGet() == 1) {
+              throw new IllegalStateException("transient");
+            }
+            return 1;
+          });
+    }
+
+    private static VTask<Integer> waitingForEveryOther(
+        CountDownLatch everySubtaskStarted, int value) {
+      return VTask.of(
+          () -> {
+            everySubtaskStarted.countDown();
+            assertThat(everySubtaskStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            return value;
+          });
     }
   }
 }

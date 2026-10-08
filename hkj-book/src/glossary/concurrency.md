@@ -153,16 +153,16 @@ Resource<Lock> lock = Resource.make(
 
 ## Scope
 
-**Definition:** A fluent builder for structured concurrent computations in Higher-Kinded-J. Scope wraps Java's `StructuredTaskScope` with functional result handling, providing factory methods for common joining strategies.
+**Definition:** A fluent builder for structured concurrent computations in Higher-Kinded-J. Scope wraps Java's `StructuredTaskScope` with functional result handling, providing factory methods for common joining strategies. The `VTask` from `join()` can run any number of times, and each run joins only its own subtasks.
 
 **Factory Methods:**
 | Method | Behaviour |
 |--------|-----------|
 | `allSucceed()` | Wait for all tasks; fail on first failure |
 | `anySucceed()` | Return first success; cancel others |
-| `firstComplete()` | Return first result (success or failure) |
+| `firstComplete()` | Return first result (success or failure); cancel others |
 | `accumulating(mapper)` | Collect all errors using `Validated` |
-| `withJoiner(joiner)` | Use custom `ScopeJoiner` |
+| `withJoiner(joiner)` | Use a `ScopeJoiner` built elsewhere |
 
 **Example:**
 <!-- verify -->
@@ -195,14 +195,14 @@ VTask<Try<List<String>>> safe = Scope.<String>allSucceed()
 
 ## ScopeJoiner
 
-**Definition:** A functional wrapper around Java 25's `StructuredTaskScope.Joiner` interface. ScopeJoiner provides HKJ-friendly result accessors via `Either` and `Validated`, bridging Java's preview APIs with functional error handling.
+**Definition:** A reusable joining policy for Java 25's `StructuredTaskScope`. A `Scope` takes one to decide how its subtasks' results combine, and `joiner()` builds a new `StructuredTaskScope.Joiner` from it for each scope.
 
 **Available Joiners:**
 | Joiner | Result Type | Behaviour |
 |--------|-------------|-----------|
 | `allSucceed()` | `List<T>` | Collect all successful results |
 | `anySucceed()` | `T` | First successful result |
-| `firstComplete()` | `T` | First result regardless of outcome |
+| `firstComplete()` | `T` | First result regardless of outcome; cancels the rest |
 | `accumulating(mapper)` | `Validated<List<E>, List<T>>` | Collect all errors and successes |
 
 **Example:**
@@ -221,13 +221,12 @@ VTask<List<String>> result = Scope.withJoiner(allSucceed)
     .fork(task2())
     .join();
 
-// Access underlying Java 25 Joiner for interop
+// Access a Java 25 Joiner for interop: a new one for each StructuredTaskScope
 StructuredTaskScope.Joiner<String, List<String>> java25Joiner =
     allSucceed.joiner();
-
-// Get result wrapped in Either
-Either<Throwable, List<String>> eitherResult = allSucceed.resultEither();
 ```
+
+Each call to `joiner()` returns a new `Joiner`, so one `ScopeJoiner` can serve any number of scopes.
 
 **Related:** [Scope](#scope), [Validated](data-effects.md#validated), [ScopeJoiner Documentation](../monads/vtask_scope.md)
 
@@ -257,7 +256,7 @@ VTask<List<UserData>> results = Scope.<UserData>allSucceed()
 // If any task fails or times out:
 // - Other tasks are cancelled
 // - Resources are cleaned up
-// - AppError propagates to caller
+// - the failure, or a TimeoutException, reaches the caller
 ```
 
 **Contrast with Unstructured Concurrency:**

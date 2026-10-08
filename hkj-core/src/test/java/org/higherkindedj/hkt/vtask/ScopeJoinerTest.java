@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.vtask;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.StructuredTaskScope;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.validated.Validated;
@@ -233,15 +234,16 @@ class ScopeJoinerTest {
     @DisplayName("result() returns success value directly")
     @SuppressWarnings("preview")
     void resultReturnsSuccessValueDirectly() throws Throwable {
-      ScopeJoiner<String, String> joiner = ScopeJoiner.firstComplete();
+      StructuredTaskScope.Joiner<String, String> joiner =
+          ScopeJoiner.<String>firstComplete().joiner();
 
-      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+      try (var scope = StructuredTaskScope.open(joiner)) {
         scope.fork(() -> "result");
         scope.join();
       }
 
-      // Call result() directly on the underlying joiner
-      String result = joiner.joiner().result();
+      // Call result() directly on the Joiner the scope used
+      String result = joiner.result();
       assertThat(result).isEqualTo("result");
     }
 
@@ -249,9 +251,10 @@ class ScopeJoinerTest {
     @DisplayName("result() throws on failure")
     @SuppressWarnings("preview")
     void resultThrowsOnFailure() {
-      ScopeJoiner<String, String> joiner = ScopeJoiner.firstComplete();
+      StructuredTaskScope.Joiner<String, String> joiner =
+          ScopeJoiner.<String>firstComplete().joiner();
 
-      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+      try (var scope = StructuredTaskScope.open(joiner)) {
         scope.fork(
             () -> {
               throw new RuntimeException("task failed");
@@ -263,34 +266,56 @@ class ScopeJoinerTest {
         }
       }
 
-      // Call result() directly - should throw
-      assertThatThrownBy(() -> joiner.joiner().result())
+      // Calling result() directly on the Joiner the scope used throws
+      assertThatThrownBy(joiner::result)
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("task failed");
     }
 
     @Test
-    @DisplayName("onFork short-circuits once a subtask has completed (deterministic)")
+    @DisplayName("the first completion cancels the scope, and a later one does not displace it")
     @SuppressWarnings("preview")
-    void onForkShortCircuitsAfterFirstCompletion() throws InterruptedException {
-      // Subtask is a sealed type, so we obtain a real, already-completed one from a throwaway,
-      // fully-joined scope rather than stubbing it.
-      StructuredTaskScope.Subtask<String> completed;
+    void firstCompletionCancelsTheScope() throws Throwable {
+      // Subtask is a sealed type, so we obtain real, already-completed ones from a throwaway,
+      // fully-joined scope rather than stubbing them.
+      StructuredTaskScope.Subtask<String> first;
+      StructuredTaskScope.Subtask<String> later;
       try (var scope = StructuredTaskScope.open(ScopeJoiner.<String>allSucceed().joiner())) {
-        completed = scope.fork(() -> "winner");
+        first = scope.fork(() -> "winner");
+        later = scope.fork(() -> "too late");
         scope.join();
       }
 
       StructuredTaskScope.Joiner<String, String> joiner =
           ScopeJoiner.<String>firstComplete().joiner();
 
-      // First completion records the winner and cancels the scope (onComplete returns false).
-      assertThat(joiner.onComplete(completed)).isFalse();
+      // Returning true is how a Joiner cancels its scope.
+      assertThat(joiner.onComplete(first)).isTrue();
+      // A completion racing the cancellation finds the winner already set. This deterministically
+      // exercises the CAS-false branch that a live race hits only intermittently.
+      assertThat(joiner.onComplete(later)).isFalse();
+      assertThat(joiner.result()).isEqualTo("winner");
+    }
 
-      // Deterministically exercises onFork's "already have a result, don't fork" branch, which is
-      // otherwise only reached by a fork/completion race in the concurrent tests above and so had
-      // intermittent (flaky) coverage.
-      assertThat(joiner.onFork(completed)).isFalse();
+    @Test
+    @DisplayName("a first completion that failed cancels the scope too")
+    @SuppressWarnings("preview")
+    void aFirstCompletionThatFailedCancelsTheScope() throws Throwable {
+      StructuredTaskScope.Subtask<String> failed;
+      try (var scope = StructuredTaskScope.open(StructuredTaskScope.Joiner.<String>awaitAll())) {
+        failed =
+            scope.fork(
+                () -> {
+                  throw new IllegalStateException("failed first");
+                });
+        scope.join();
+      }
+
+      StructuredTaskScope.Joiner<String, String> joiner =
+          ScopeJoiner.<String>firstComplete().joiner();
+
+      assertThat(joiner.onComplete(failed)).isTrue();
+      assertThatThrownBy(joiner::result).hasMessage("failed first");
     }
   }
 
@@ -432,16 +457,16 @@ class ScopeJoinerTest {
     @DisplayName("result() returns Valid directly when called on joiner")
     @SuppressWarnings("preview")
     void resultReturnsValidDirectly() throws Throwable {
-      ScopeJoiner<String, Validated<List<String>, List<String>>> joiner =
-          ScopeJoiner.accumulating(Throwable::getMessage);
+      StructuredTaskScope.Joiner<String, Validated<List<String>, List<String>>> joiner =
+          ScopeJoiner.<String, String>accumulating(Throwable::getMessage).joiner();
 
-      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+      try (var scope = StructuredTaskScope.open(joiner)) {
         scope.fork(() -> "value");
         scope.join();
       }
 
-      // Call result() directly on underlying joiner
-      Validated<List<String>, List<String>> result = joiner.joiner().result();
+      // Call result() directly on the Joiner the scope used
+      Validated<List<String>, List<String>> result = joiner.result();
       assertThat(result.isValid()).isTrue();
       assertThat(result.get()).containsExactly("value");
     }
@@ -450,10 +475,10 @@ class ScopeJoinerTest {
     @DisplayName("result() returns Invalid directly when called on joiner")
     @SuppressWarnings("preview")
     void resultReturnsInvalidDirectly() throws Throwable {
-      ScopeJoiner<String, Validated<List<String>, List<String>>> joiner =
-          ScopeJoiner.accumulating(Throwable::getMessage);
+      StructuredTaskScope.Joiner<String, Validated<List<String>, List<String>>> joiner =
+          ScopeJoiner.<String, String>accumulating(Throwable::getMessage).joiner();
 
-      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+      try (var scope = StructuredTaskScope.open(joiner)) {
         scope.fork(
             () -> {
               throw new RuntimeException("error");
@@ -461,8 +486,8 @@ class ScopeJoinerTest {
         scope.join();
       }
 
-      // Call result() directly on underlying joiner
-      Validated<List<String>, List<String>> result = joiner.joiner().result();
+      // Call result() directly on the Joiner the scope used
+      Validated<List<String>, List<String>> result = joiner.result();
       assertThat(result.isInvalid()).isTrue();
       assertThat(result.getError()).containsExactly("error");
     }
@@ -470,6 +495,7 @@ class ScopeJoinerTest {
 
   @Nested
   @DisplayName("ResultEither Method")
+  @SuppressWarnings("removal") // exercises the deprecated method until its removal
   class ResultEitherTests {
 
     @Test
@@ -527,6 +553,85 @@ class ScopeJoinerTest {
 
       assertThat(result.isRight()).isTrue();
       assertThat(result.getRight().isValid()).isTrue();
+    }
+
+    @Test
+    @DisplayName("reads the Joiner handed out most recently")
+    @SuppressWarnings("preview")
+    void readsTheJoinerHandedOutMostRecently() throws InterruptedException {
+      ScopeJoiner<String, List<String>> joiner = ScopeJoiner.allSucceed();
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(() -> "earlier");
+        scope.join();
+      }
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(() -> "latest");
+        scope.join();
+      }
+
+      assertThat(joiner.resultEither().getRight()).containsExactly("latest");
+    }
+
+    @Test
+    @DisplayName("reads an unused Joiner before joiner() is called")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
+    void readsAnUnusedJoinerBeforeJoinerIsCalled() {
+      assertThat(ScopeJoiner.<String>allSucceed().resultEither().getRight()).isEmpty();
+      assertThat(
+              ScopeJoiner.<String, String>accumulating(Throwable::getMessage)
+                  .resultEither()
+                  .getRight())
+          .isEqualTo(Validated.valid(List.of()));
+      assertThat(ScopeJoiner.<String, String>firstSuccessEither().resultEither().getRight())
+          .isEqualTo(Either.left(List.of()));
+      assertThat(ScopeJoiner.<String>anySucceed().resultEither().getLeft())
+          .isInstanceOf(NoSuchElementException.class);
+      assertThat(ScopeJoiner.<String>firstComplete().resultEither().getLeft())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("No subtask completed");
+    }
+  }
+
+  @Nested
+  @DisplayName("One ScopeJoiner, many scopes")
+  class OneScopeJoinerManyScopesTests {
+
+    @Test
+    @DisplayName("joiner() returns a new Joiner on each call")
+    void joinerReturnsANewJoinerOnEachCall() {
+      List<ScopeJoiner<?, ?>> joiners =
+          List.of(
+              ScopeJoiner.allSucceed(),
+              ScopeJoiner.anySucceed(),
+              ScopeJoiner.firstComplete(),
+              ScopeJoiner.accumulating(Throwable::getMessage),
+              ScopeJoiner.firstSuccessEither());
+
+      for (ScopeJoiner<?, ?> joiner : joiners) {
+        assertThat(joiner.joiner()).isNotSameAs(joiner.joiner());
+      }
+    }
+
+    @Test
+    @DisplayName("two scopes opened from one ScopeJoiner each join their own subtasks")
+    @SuppressWarnings("preview")
+    void twoScopesEachJoinTheirOwnSubtasks() throws InterruptedException {
+      ScopeJoiner<String, List<String>> joiner = ScopeJoiner.allSucceed();
+      List<String> first;
+      List<String> second;
+
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(() -> "first");
+        first = scope.join();
+      }
+      try (var scope = StructuredTaskScope.open(joiner.joiner())) {
+        scope.fork(() -> "second");
+        second = scope.join();
+      }
+
+      assertThat(first).containsExactly("first");
+      assertThat(second).containsExactly("second");
     }
   }
 }

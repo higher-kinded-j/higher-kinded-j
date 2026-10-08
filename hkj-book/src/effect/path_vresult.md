@@ -78,7 +78,7 @@ VResultPath<OrderError, OrderResult> fulfilled =
 - **`bracketOutcome`**: once the resource is acquired, release *always* runs and receives the `Either` outcome (a typed failure from `acquire` skips both `use` and `release`, since nothing was acquired), so confirm-vs-compensate is decided from the result. Defects inside `use` are typed through `onDefect` first, so release observes a typed outcome whenever `onDefect` can build one. If `onDefect` throws or returns null, release still runs and sees `Left(null)`, so decide on `isRight()` or `fold`, not on the error's value. The path then fails with what `onDefect` threw, or with a `NullPointerException` whose cause is the defect. This is the substrate the order example's deferred compensation Saga hangs on.
 
 ~~~admonish note title="Why these live on VResultPath, not Scope"
-The issue sketched `Scope.firstSuccess(...)`, but `Scope` lives in `hkt.vtask`, which `hkt.effect` depends on; statics there referencing `VResultPath` would create a package cycle. The combinators sit on `VResultPath`, implemented over the same `Scope`/`ScopeJoiner` substrate (which gained an `Either`-aware `firstSuccessEither` joiner).
+`Scope.firstSuccess(...)` would read naturally, but `Scope` lives in `hkt.vtask`, which `hkt.effect` depends on; statics there referencing `VResultPath` would create a package cycle. The combinators sit on `VResultPath`, implemented over the same `Scope`/`ScopeJoiner` substrate, where `ScopeJoiner.firstSuccessEither()` is the `Either`-aware joiner.
 ~~~
 
 ---

@@ -23,7 +23,7 @@ import org.higherkindedj.hkt.function.Function3;
  *   <li>{@link #zip(VTask, VTask)} - Execute two tasks in parallel, combine results
  *   <li>{@link #zip3(VTask, VTask, VTask)} - Execute three tasks in parallel, combine results
  *   <li>{@link #map2(VTask, VTask, BiFunction)} - Execute two tasks in parallel, apply function
- *   <li>{@link #race(List)} - Return the first task to complete
+ *   <li>{@link #race(List)} - Return the first task to succeed
  *   <li>{@link #all(List)} - Wait for all tasks to complete
  *   <li>{@link #traverse(List, Function)} - Apply function to list, execute results in parallel
  * </ul>
@@ -200,26 +200,27 @@ public final class Par {
    * Races multiple tasks, returning the result of the first one to complete successfully.
    *
    * <p>All tasks are started in parallel. As soon as one task completes successfully, its result is
-   * returned and other tasks are cancelled. If all tasks fail, the exception from the last task to
-   * fail is thrown.
+   * returned and other tasks are cancelled. If all tasks fail, the exception from one of them is
+   * thrown. The list is copied when this method is called, so changing it afterwards does not
+   * change what a run races.
    *
    * @param <A> The type of the tasks' results.
-   * @param tasks The list of tasks to race. Must not be null or empty.
+   * @param tasks The list of tasks to race. Must not be null or empty, and must not contain nulls.
    * @return A {@code VTask} that produces the first successful result. Never null.
-   * @throws NullPointerException if {@code tasks} is null.
+   * @throws NullPointerException if {@code tasks} is null or contains null.
    * @throws IllegalArgumentException if {@code tasks} is empty.
    */
   @SuppressWarnings("preview")
   public static <A> VTask<A> race(List<VTask<A>> tasks) {
-    Objects.requireNonNull(tasks, "tasks cannot be null");
-    if (tasks.isEmpty()) {
+    List<VTask<A>> racing = copyOfTasks(tasks);
+    if (racing.isEmpty()) {
       throw new IllegalArgumentException("tasks cannot be empty");
     }
 
     return () -> {
       try (var scope =
           StructuredTaskScope.open(StructuredTaskScope.Joiner.<A>anySuccessfulResultOrThrow())) {
-        for (VTask<A> task : tasks) {
+        for (VTask<A> task : racing) {
           scope.fork(task.asCallable());
         }
 
@@ -234,26 +235,27 @@ public final class Par {
    * Executes all tasks in parallel and collects their results into a list.
    *
    * <p>All tasks are forked simultaneously. If any task fails, the entire operation fails and other
-   * tasks are cancelled. Results are collected in the same order as the input tasks.
+   * tasks are cancelled. Results are collected in the same order as the input tasks. The list is
+   * copied when this method is called, so changing it afterwards does not change what a run forks.
    *
    * @param <A> The type of the tasks' results.
-   * @param tasks The list of tasks to execute. Must not be null.
+   * @param tasks The list of tasks to execute. Must not be null or contain nulls.
    * @return A {@code VTask} that produces a list of all results. Never null.
-   * @throws NullPointerException if {@code tasks} is null.
+   * @throws NullPointerException if {@code tasks} is null or contains null.
    */
   @SuppressWarnings("preview")
   public static <A> VTask<List<A>> all(List<VTask<A>> tasks) {
-    Objects.requireNonNull(tasks, "tasks cannot be null");
+    List<VTask<A>> forking = copyOfTasks(tasks);
 
-    if (tasks.isEmpty()) {
+    if (forking.isEmpty()) {
       return VTask.succeed(List.of());
     }
 
     return () -> {
       try (var scope = StructuredTaskScope.open()) {
-        List<StructuredTaskScope.Subtask<A>> subtasks = new ArrayList<>(tasks.size());
+        List<StructuredTaskScope.Subtask<A>> subtasks = new ArrayList<>(forking.size());
 
-        for (VTask<A> task : tasks) {
+        for (VTask<A> task : forking) {
           subtasks.add(scope.fork(task.asCallable()));
         }
 
@@ -274,7 +276,8 @@ public final class Par {
    * Applies a function to each element in a list and executes the resulting tasks in parallel.
    *
    * <p>This is equivalent to mapping a function over a list to produce tasks, then executing all
-   * tasks in parallel with {@link #all(List)}.
+   * tasks in parallel with {@link #all(List)}. The list is copied when this method is called, so
+   * changing it afterwards does not change what a run processes.
    *
    * @param <A> The type of elements in the input list.
    * @param <B> The type of results from the tasks.
@@ -287,16 +290,17 @@ public final class Par {
   public static <A, B> VTask<List<B>> traverse(List<A> items, Function<A, VTask<B>> f) {
     Objects.requireNonNull(items, "items cannot be null");
     Objects.requireNonNull(f, "f cannot be null");
+    List<A> processing = new ArrayList<>(items);
 
-    if (items.isEmpty()) {
+    if (processing.isEmpty()) {
       return VTask.succeed(List.of());
     }
 
     return () -> {
       try (var scope = StructuredTaskScope.open()) {
-        List<StructuredTaskScope.Subtask<B>> subtasks = new ArrayList<>(items.size());
+        List<StructuredTaskScope.Subtask<B>> subtasks = new ArrayList<>(processing.size());
 
-        for (A item : items) {
+        for (A item : processing) {
           VTask<B> task = f.apply(item);
           Objects.requireNonNull(task, "function returned null task for item: " + item);
           subtasks.add(scope.fork(task.asCallable()));
@@ -313,6 +317,14 @@ public final class Par {
         throw e.getCause();
       }
     };
+  }
+
+  private static <A> List<VTask<A>> copyOfTasks(List<VTask<A>> tasks) {
+    Objects.requireNonNull(tasks, "tasks cannot be null");
+    for (VTask<A> task : tasks) {
+      Objects.requireNonNull(task, "tasks cannot contain null");
+    }
+    return List.copyOf(tasks);
   }
 
   /**

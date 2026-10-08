@@ -136,8 +136,8 @@ public class TutorialScope {
     /**
      * Exercise 3: Use firstComplete for racing strategies
      *
-     * <p>Scope.firstComplete() returns the first result regardless of success or failure. This is
-     * useful when you want to race a fast-but-risky operation against a slow-but-safe fallback.
+     * <p>Scope.firstComplete() returns the first result regardless of success or failure, and
+     * cancels the slower operation. Use it when the fastest answer should win, even a failure.
      *
      * <p>Task: Create a scope that returns the first completed result
      */
@@ -171,8 +171,9 @@ public class TutorialScope {
     /**
      * Exercise 4: Add a timeout to a scope
      *
-     * <p>Scopes support timeouts via the timeout() method. If the timeout expires before tasks
-     * complete, the scope fails with a TimeoutException.
+     * <p>Scopes support timeouts via the timeout() method. If the timeout expires before the tasks
+     * complete, the tasks still running are interrupted and the scope fails with a
+     * TimeoutException.
      *
      * <p>Task: Create a scope with a timeout that will trigger before the slow task completes
      */

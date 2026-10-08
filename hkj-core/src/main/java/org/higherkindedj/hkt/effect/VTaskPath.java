@@ -376,10 +376,12 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
       VTaskPath<B> other, BiFunction<? super A, ? super B, ? extends C> combiner);
 
   /**
-   * Races this path against another, returning the first to complete.
+   * Races this path against another, returning the first to succeed.
+   *
+   * <p>The slower path is cancelled. If both fail, the failure of one of them is propagated.
    *
    * @param other the other VTaskPath; must not be null
-   * @return a new VTaskPath that returns the first result
+   * @return a new VTaskPath that returns the first successful result
    */
   VTaskPath<A> race(VTaskPath<A> other);
 
