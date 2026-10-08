@@ -259,5 +259,5 @@ Focus paths are designed for compile-time type safety. When the path is only kno
 
 ---
 
-**Previous:** [Composition Rules](composition_rules.md)
+**Previous:** [Coming from Monocle or Haskell lens](from_monocle.md)
 **Next:** [Common Compiler Errors](compiler_errors.md)

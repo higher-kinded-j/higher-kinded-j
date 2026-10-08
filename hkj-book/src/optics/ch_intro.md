@@ -54,6 +54,7 @@ Start from what you came for.
 | A lens, prism, affine or iso explained in depth | [The Optic Types](ch1_intro.md) |
 | A traversal, fold, getter or setter explained in depth | [Collections](ch2_intro.md) |
 | To judge whether optics fit your codebase | [Production Readiness](production_readiness.md) |
+| To bring a Lombok, stream, `switch` or Monocle habit across | [Coming from Lombok, Streams and Switch](from_java.md), or [Coming from Monocle or Haskell lens](from_monocle.md) |
 | An answer to a specific question | [Look It Up](ch7_intro.md) |
 | A domain record mapped to and from a wire DTO | [Mapping at the Boundary](../mapping/ch_intro.md), which needs none of this chapter first |
 
