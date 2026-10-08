@@ -169,8 +169,12 @@ Where this lives: [Sum types and collections, the same way](#2-sum-types-and-col
 - [Record Mapping](../mapping/ch_intro.md): the domain to wire boundary, which needs none of this chapter first
 ~~~
 
+~~~admonish info title="Hands-On Learning"
+Practise this page on the same order in [Tutorial 00: Your First Path](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial00_FirstPath.java) (3 exercises), which also checks that your build is set up.
+~~~
+
 ~~~admonish tip title="Ready for hands-on?"
-The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) (202 exercises) is exercise-driven. Six journeys run from Lens & Prism through the Focus DSL to batching, coupled updates, and the generated DTO boundary. Recommended once you've finished this Quickstart.
+The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) (210 exercises) is exercise-driven. Six journeys run from Lens & Prism through the Focus DSL to batching, coupled updates, and the generated DTO boundary. Recommended once you've finished this Quickstart.
 ~~~
 
 ---

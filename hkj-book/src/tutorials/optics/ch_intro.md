@@ -10,7 +10,7 @@ The `.focus().attributes().at(key)` token in [One Line, Six Layers](../../hkts/o
 ~~~
 
 ~~~admonish info title="In This Chapter"
-- **Lens & Prism** – The foundations: focusing on one field of a record, one variant of a sealed type, and composing the two. Everything later builds on these thirty exercises.
+- **Lens & Prism** – The foundations: focusing on one field of a record, one variant of a sealed type, and composing the two. Everything later builds on these exercises.
 - **Traversals & Practice** – Zero-or-more focus: bulk operations over collections, composition with lenses and prisms, and the real-world shapes they unlock.
 - **Fluent & Free DSL** – The ergonomic layer for validation-aware updates, advanced prism patterns, and optics as programs-as-data with multiple interpreters.
 - **Focus DSL** – Type-safe path navigation with automatic type widening through optional values and collections; the way most day-to-day optics code is written.
@@ -33,12 +33,13 @@ The Optics chapter's first pages each reach a "You can ship now" tip. These tuto
 
 | After reading | Practise with |
 |---|---|
-| [Quickstart](../../optics/quickstart.md) | [Tutorial 07: Generated Optics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial07_GeneratedOptics.java) |
+| [Quickstart](../../optics/quickstart.md) | [Tutorial 00: Your First Path](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial00_FirstPath.java), [Tutorial 07: Generated Optics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial07_GeneratedOptics.java) |
 | [Focus DSL](../../optics/focus_dsl.md) | [Tutorial 12: Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial12_FocusDSL.java), [Tutorial 19: Navigator Generation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial19_NavigatorGeneration.java) |
 | [Collections, Optionals and Sealed Types](../../optics/focus_navigation.md) | [Tutorial 13: Advanced Focus DSL](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial13_AdvancedFocusDSL.java), [Tutorial 20: Container Navigation](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial20_ContainerNavigation.java) |
 | [What a Path Is Made Of](../../optics/optics_intro.md) | [Tutorial 01: Lens Basics](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial01_LensBasics.java), [Tutorial 06: Optics Composition](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial06_OpticsComposition.java) |
 | [Updates That Can Fail](../../optics/fluent_api.md) | [Tutorial 09: Fluent Optics API](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial09_FluentOpticsAPI.java) |
 | [Many Edits at Once](../../optics/multi_edit.md) | [Tutorial 24: Multi-Edit and Sparse Updates](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/Tutorial24_MultiEdit.java) |
+| [Capstone: An Order Desk](../../optics/capstone.md) | [Capstone: The Order Desk](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-examples/src/test/java/org/higherkindedj/tutorial/optics/TutorialCapstone_OrderDesk.java) |
 
 ---
 
@@ -46,12 +47,12 @@ At a glance:
 
 | Journey | Exercises |
 |---------|-----------|
-| [Lens & Prism](lens_prism_journey.md) | 30 |
+| [Lens & Prism](lens_prism_journey.md) | 33 |
 | [Traversals & Practice](traversals_journey.md) | 28 |
 | [Fluent & Free DSL](fluent_free_journey.md) | 22 |
 | [Focus DSL](focus_dsl_journey.md) | 90 |
 | [Batching & Coupled Updates](batching_journey.md) | 13 |
-| [Boundary Mapping](boundary_mapping_journey.md) | 19 |
+| [Boundary Mapping](boundary_mapping_journey.md) | 24 |
 
 ---
 

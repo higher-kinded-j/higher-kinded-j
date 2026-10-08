@@ -87,7 +87,7 @@ Each arrow reads *extends*: `Fold extends Optic`, and `Getter extends Fold`. Tha
 ---
 
 ~~~admonish info title="Hands-On Learning"
-The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) (202 exercises) practises the chapter as exercises, from Lens & Prism through the Focus DSL to batching and the generated DTO boundary.
+The [Optics Tutorial Track](../tutorials/optics/ch_intro.md) (210 exercises) practises the chapter as exercises, from Lens & Prism through the Focus DSL to batching and the generated DTO boundary.
 ~~~
 
 ## Chapter Contents

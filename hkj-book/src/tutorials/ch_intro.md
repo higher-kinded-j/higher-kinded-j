@@ -82,12 +82,12 @@ We can take the journeys bottom-up (Foundations → Effect API → applications)
 | **[Concurrency: Scope & Resource](concurrency/scope_resource_journey.md)** | Structured concurrency, resource bracket, cleanup | 20 |
 | **[Context](context/ch_intro.md)** | `ScopedValue` contexts for requests, security and tracing | 59 |
 | **[Effect Handlers](effecthandlers/ch_intro.md)** | Effect algebras, programs as values, several interpreters | 19 |
-| **[Optics: Lens & Prism](optics/lens_prism_journey.md)** | Lens basics, Prism, Affine | 30 |
+| **[Optics: Lens & Prism](optics/lens_prism_journey.md)** | Lens basics, Prism, Affine | 33 |
 | **[Optics: Traversals](optics/traversals_journey.md)** | Traversals, composition, practical applications | 28 |
 | **[Optics: Fluent & Free](optics/fluent_free_journey.md)** | Fluent API, Free Monad DSL | 22 |
 | **[Optics: Focus DSL](optics/focus_dsl_journey.md)** | Type-safe path navigation, container widening | 90 |
 | **[Optics: Batching & Coupled Updates](optics/batching_journey.md)** | Request batching, plan guardrails, coupled lenses | 13 |
-| **[Optics: Boundary Mapping](optics/boundary_mapping_journey.md)** | Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases | 19 |
+| **[Optics: Boundary Mapping](optics/boundary_mapping_journey.md)** | Multi-edit, ValidatedPrism, generated record mapping, boundary edge cases | 24 |
 | **[Expression: ForState](expression/forstate_journey.md)** | Named record state, lens threading, zoom | 13 |
 | **[Expression: ForPath Parallel](expression/forpath_parallel_journey.md)** | Applicative parallel composition for Path types | 9 |
 | **[Resilience Patterns](resilience/resilience_journey.md)** | Circuit Breaker, Saga, Retry, Bulkhead, Path API resilience | 24 |

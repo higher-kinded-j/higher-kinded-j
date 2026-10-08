@@ -47,7 +47,7 @@ Three things separate these optics from a bag of getter helpers. They are **gene
      - [Profunctor Optics: Recipes](profunctor_optics_recipes.md): Wrapper and migration adapters
 
 ~~~admonish info title="Hands-On Learning"
-Practise this group in the [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md) (30 exercises).
+Practise this group in the [Lens & Prism Journey](../tutorials/optics/lens_prism_journey.md) (33 exercises).
 ~~~
 
 ---

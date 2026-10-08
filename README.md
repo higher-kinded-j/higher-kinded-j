@@ -257,7 +257,7 @@ Nineteen interactive tutorial journeys with hands-on exercises and immediate tes
 | [Monad Transformers](https://higher-kinded-j.github.io/latest/tutorials/transformers/transformers_journey.html) | When Path isn't enough, async + absence, MTL | 29 |
 | [Concurrency: VTask](https://higher-kinded-j.github.io/latest/tutorials/concurrency/vtask_journey.html) | Virtual threads, VTaskPath, Par | 28 |
 | [Optics: Focus DSL](https://higher-kinded-j.github.io/latest/tutorials/optics/focus_dsl_journey.html) | Type-safe path navigation | 90 |
-| [Optics: Boundary Mapping](https://higher-kinded-j.github.io/latest/tutorials/optics/boundary_mapping_journey.html) | Sparse updates, `@GenerateMapping`, the 422 leg, edge cases | 19 |
+| [Optics: Boundary Mapping](https://higher-kinded-j.github.io/latest/tutorials/optics/boundary_mapping_journey.html) | Sparse updates, `@GenerateMapping`, the 422 leg, edge cases | 24 |
 
 [View all nineteen →](https://higher-kinded-j.github.io/latest/tutorials/tutorials_intro.html)
 
