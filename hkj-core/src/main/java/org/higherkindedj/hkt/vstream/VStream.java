@@ -11,6 +11,7 @@ import java.util.function.*;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.jspecify.annotations.Nullable;
 
@@ -1874,7 +1875,7 @@ final class FinalizedStream<A> implements VStream<A> {
           finalizer.run();
         }
       } catch (Throwable t) {
-        failure = Closing.keep(failure, t);
+        failure = Cleanup.keep(failure, t);
       }
       if (failure != null) {
         throw failure;

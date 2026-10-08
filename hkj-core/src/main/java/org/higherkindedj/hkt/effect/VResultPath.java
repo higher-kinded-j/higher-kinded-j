@@ -4,11 +4,8 @@ package org.higherkindedj.hkt.effect;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -31,6 +28,7 @@ import org.higherkindedj.hkt.resilience.CircuitOpenException;
 import org.higherkindedj.hkt.resilience.Retry;
 import org.higherkindedj.hkt.resilience.RetryExhaustedException;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.ScopeJoiner;
 import org.higherkindedj.hkt.vtask.VTask;
@@ -993,7 +991,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
     }
 
     Throwable carriedBy(Throwable releaseDefect) {
-      return pending.isJust() ? suppress(releaseDefect, pending.get()) : releaseDefect;
+      return pending.isJust() ? Cleanup.keep(releaseDefect, pending.get()) : releaseDefect;
     }
   }
 
@@ -1007,7 +1005,7 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
     try {
       error = onDefect.apply(defect);
     } catch (Throwable broken) {
-      return new Settled<>(Either.left(null), Maybe.just(suppress(broken, defect)));
+      return new Settled<>(Either.left(null), Maybe.just(Cleanup.keep(broken, defect)));
     }
     if (error == null) {
       NullPointerException refused = new NullPointerException("onDefect must not return null");
@@ -1015,28 +1013,6 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
       return new Settled<>(Either.left(null), Maybe.just(refused));
     }
     return new Settled<>(Either.left(error), Maybe.nothing());
-  }
-
-  /**
-   * Suppresses {@code secondary} on {@code primary}, as try-with-resources does, unless {@code
-   * secondary} is already in {@code primary}'s cause chain, where it would appear twice.
-   */
-  private static Throwable suppress(Throwable primary, Throwable secondary) {
-    if (!inCauseChain(primary, secondary)) {
-      primary.addSuppressed(secondary);
-    }
-    return primary;
-  }
-
-  /** Whether {@code target} is {@code start} or one of its causes; a cyclic chain ends the walk. */
-  private static boolean inCauseChain(Throwable start, Throwable target) {
-    Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-    for (Throwable t = start; t != null && seen.add(t); t = t.getCause()) {
-      if (t == target) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /** Smuggles a typed error through the scope's failure channel for fail-fast joining. */

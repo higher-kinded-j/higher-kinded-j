@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.hkt.vtask.VTaskExecutionException;
 import org.jspecify.annotations.Nullable;
@@ -14,7 +15,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * How the streams in this package close what they read, and how they report a failure to close. The
  * rule is that whatever holds the rest of a stream when a failure happens closes it. One failure
- * does not stop the rest of the cleanup; a later failure is suppressed onto the first.
+ * does not stop the rest of the cleanup; a later failure is suppressed onto the first, as {@link
+ * Cleanup} reports it.
  */
 final class Closing {
 
@@ -28,7 +30,7 @@ final class Closing {
         try {
           stream.close().execute();
         } catch (Throwable t) {
-          failure = keep(failure, t);
+          failure = Cleanup.keep(failure, t);
         }
       }
       if (failure != null) {
@@ -78,22 +80,12 @@ final class Closing {
   }
 
   /**
-   * Runs a cleanup after a failure, suppressing a failure of the cleanup onto the original, which
-   * the caller goes on to throw. The cleanup runs with the thread's interrupt status cleared, so an
-   * interrupt that stopped the reading does not cut the cleanup short; the status is restored
-   * afterwards.
+   * Runs a cleanup task after a failure, as {@link Cleanup#afterFailure} runs cleanup: a failure of
+   * the cleanup is suppressed onto the original, which the caller goes on to throw, and an
+   * interrupt that stopped the reading does not cut the cleanup short.
    */
   static void runAfterFailure(VTask<?> cleanup, Throwable failure) {
-    boolean interrupted = Thread.interrupted();
-    try {
-      cleanup.run();
-    } catch (Throwable cleanupFailure) {
-      suppress(failure, cleanupFailure);
-    } finally {
-      if (interrupted) {
-        Thread.currentThread().interrupt();
-      }
-    }
+    Cleanup.afterFailure(failure, cleanup::run);
   }
 
   /**
@@ -163,25 +155,6 @@ final class Closing {
     } catch (Throwable t) {
       closeAfterFailure(rest, t);
       throw t;
-    }
-  }
-
-  /**
-   * The failure to report: the first one, with a later one suppressed onto it. The same instance
-   * thrown twice, as a shared {@code VTask.fail} throws it, is kept once.
-   */
-  static Throwable keep(@Nullable Throwable first, Throwable later) {
-    if (first == null) {
-      return later;
-    }
-    suppress(first, later);
-    return first;
-  }
-
-  /** Suppresses a later failure onto the first, unless it is the same instance. */
-  static void suppress(Throwable first, Throwable later) {
-    if (later != first) {
-      first.addSuppressed(later);
     }
   }
 

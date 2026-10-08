@@ -5,7 +5,6 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
@@ -714,21 +713,6 @@ class IOPathTest {
 
       assertThatRuntimeException().isThrownBy(path::unsafeRun);
       assertThat(closed).isTrue();
-    }
-
-    @Test
-    @DisplayName("withResource() silently ignores close exceptions")
-    void withResourceSilentlyIgnoresCloseExceptions() {
-      Closeable resource =
-          () -> {
-            throw new IOException("close failed");
-          };
-
-      IOPath<String> path = IOPath.withResource(() -> resource, r -> "result");
-
-      // Should not throw despite close failure
-      String result = path.unsafeRun();
-      assertThat(result).isEqualTo("result");
     }
 
     @Test

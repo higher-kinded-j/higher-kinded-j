@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.hkt.effect;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +30,7 @@ import org.higherkindedj.hkt.resilience.CircuitOpenException;
 import org.higherkindedj.hkt.resilience.Retry;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
@@ -313,13 +316,25 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * <p>This is the fundamental pattern for safe resource management. The release function is
    * guaranteed to be called even if the use function throws an exception.
    *
+   * <p>A failure is reported as try-with-resources reports it. If the use throws and the release
+   * throws too, the use's exception is the one thrown, with the release's suppressed onto it; if
+   * only the release throws, its exception is thrown. After a failed use, the release runs with the
+   * thread's interrupt status cleared, so a blocking release is not cut short, and the status is
+   * restored afterwards.
+   *
    * <p>Example:
    *
    * <pre>{@code
    * IOPath<String> content = IOPath.bracket(
-   *     () -> Files.newInputStream(path),      // acquire
-   *     in -> new String(in.readAllBytes()),   // use
-   *     in -> { try { in.close(); } catch (IOException e) { } }  // release
+   *     () -> openStream(path),                // acquire
+   *     in -> readAll(in),                     // use
+   *     in -> {                                // release
+   *       try {
+   *         in.close();
+   *       } catch (IOException e) {
+   *         throw new UncheckedIOException(e);
+   *       }
+   *     }
    * );
    * }</pre>
    *
@@ -343,11 +358,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               R resource = acquire.get();
-              try {
-                return use.apply(resource);
-              } finally {
-                release.accept(resource);
-              }
+              return Cleanup.guarantee(() -> use.apply(resource), () -> release.accept(resource));
             }));
   }
 
@@ -355,7 +366,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * Bracket pattern where the use function returns an IOPath.
    *
    * <p>Similar to {@link #bracket} but the use function returns an IOPath instead of a plain value.
-   * This is useful when the use operation itself is effectful.
+   * This is useful when the use operation itself is effectful. A failure is reported as {@link
+   * #bracket} reports it.
    *
    * @param acquire supplies the resource; must not be null
    * @param useIO function that uses the resource and returns an IOPath; must not be null
@@ -377,20 +389,21 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
         IO.delay(
             () -> {
               R resource = acquire.get();
-              try {
-                IOPath<A> result = useIO.apply(resource);
-                Objects.requireNonNull(result, "useIO must not return null");
-                return result.unsafeRun();
-              } finally {
-                release.accept(resource);
-              }
+              return Cleanup.guarantee(
+                  () -> runUseIO(useIO, resource), () -> release.accept(resource));
             }));
   }
 
   /**
    * Convenience method for AutoCloseable resources.
    *
-   * <p>The resource is automatically closed after use, even if an exception is thrown.
+   * <p>The resource is closed after use, even if the use throws, and an exception from {@code
+   * close()} is reported as try-with-resources reports it. When the use succeeds, the exception
+   * from {@code close()} fails the path: an {@link IOException} as an {@link UncheckedIOException},
+   * another checked exception as a {@link RuntimeException} whose cause it is, and an unchecked one
+   * as it is. An {@link InterruptedException} restores the thread's interrupt status. When the use
+   * fails, its exception is the one thrown, with the exception from {@code close()} suppressed onto
+   * it as {@code close()} threw it.
    *
    * <p>Example:
    *
@@ -413,20 +426,13 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
     Objects.requireNonNull(resourceSupplier, "resourceSupplier must not be null");
     Objects.requireNonNull(use, "use must not be null");
 
-    return bracket(
-        resourceSupplier,
-        use,
-        resource -> {
-          try {
-            resource.close();
-          } catch (Exception e) {
-            // Silently ignore close exceptions, as is standard with try-with-resources
-          }
-        });
+    return new IOPath<>(IO.delay(() -> useThenClose(resourceSupplier.get(), use)));
   }
 
   /**
    * Convenience method for AutoCloseable resources where the use function returns an IOPath.
+   *
+   * <p>An exception from {@code close()} is reported as {@link #withResource} reports it.
    *
    * @param resourceSupplier supplies the AutoCloseable resource; must not be null
    * @param useIO function that uses the resource and returns an IOPath; must not be null
@@ -440,23 +446,64 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
     Objects.requireNonNull(resourceSupplier, "resourceSupplier must not be null");
     Objects.requireNonNull(useIO, "useIO must not be null");
 
-    return bracketIO(
-        resourceSupplier,
-        useIO,
-        resource -> {
-          try {
-            resource.close();
-          } catch (Exception e) {
-            // Silently ignore close exceptions, as is standard with try-with-resources
-          }
-        });
+    return new IOPath<>(
+        IO.delay(
+            () -> useThenClose(resourceSupplier.get(), resource -> runUseIO(useIO, resource))));
+  }
+
+  /** Runs the IOPath that {@code useIO} builds for the resource. */
+  private static <R, A> A runUseIO(Function<? super R, ? extends IOPath<A>> useIO, R resource) {
+    IOPath<A> result = useIO.apply(resource);
+    Objects.requireNonNull(result, "useIO must not return null");
+    return result.unsafeRun();
+  }
+
+  /**
+   * Uses a resource, then closes it. A failure of the use is rethrown with an exception from {@code
+   * close()} suppressed onto it; after a successful use, {@link #close} reports it.
+   */
+  private static <R extends AutoCloseable, A> A useThenClose(
+      R resource, Function<? super R, ? extends A> use) {
+    A result;
+    try {
+      result = use.apply(resource);
+    } catch (Throwable failure) {
+      Cleanup.afterFailure(failure, resource::close);
+      throw failure;
+    }
+    close(resource);
+    return result;
+  }
+
+  /**
+   * Closes a resource after a successful use, failing with an exception from {@code close()}: an
+   * {@link IOException} as an {@link UncheckedIOException}, another checked exception as a {@link
+   * RuntimeException} whose cause it is, after restoring the interrupt status for an {@link
+   * InterruptedException}.
+   */
+  private static void close(AutoCloseable resource) {
+    try {
+      resource.close();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      throw new RuntimeException(e);
+    }
   }
 
   /**
    * Ensures a finaliser runs regardless of success or failure.
    *
-   * <p>The finaliser is guaranteed to run even if this IOPath throws an exception. The original
-   * exception (if any) is preserved and rethrown after the finaliser runs.
+   * <p>The finaliser is guaranteed to run even if this IOPath throws an exception. If this IOPath
+   * throws and the finaliser throws too, this IOPath's exception is the one thrown, with the
+   * finaliser's suppressed onto it; if only the finaliser throws, its exception is thrown. After a
+   * failure, the finaliser runs with the thread's interrupt status cleared, which is restored
+   * afterwards.
    *
    * <p>Example:
    *
@@ -472,21 +519,14 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   @Override
   public IOPath<A> guarantee(Runnable finalizer) {
     Objects.requireNonNull(finalizer, "finalizer must not be null");
-    return new IOPath<>(
-        IO.delay(
-            () -> {
-              try {
-                return this.value.unsafeRunSync();
-              } finally {
-                finalizer.run();
-              }
-            }));
+    return new IOPath<>(IO.delay(() -> Cleanup.guarantee(this.value::unsafeRunSync, finalizer)));
   }
 
   /**
    * Ensures an IOPath finaliser runs regardless of success or failure.
    *
-   * <p>Similar to {@link #guarantee} but the finaliser is itself an IOPath.
+   * <p>Similar to {@link #guarantee} but the finaliser is itself an IOPath. A failure is reported
+   * as {@link #guarantee} reports it.
    *
    * @param finalizerIO the IOPath to run as finaliser; must not be null
    * @return an IOPath that runs the finaliser after this computation
@@ -495,14 +535,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   public IOPath<A> guaranteeIO(IOPath<?> finalizerIO) {
     Objects.requireNonNull(finalizerIO, "finalizerIO must not be null");
     return new IOPath<>(
-        IO.delay(
-            () -> {
-              try {
-                return this.value.unsafeRunSync();
-              } finally {
-                finalizerIO.unsafeRun();
-              }
-            }));
+        IO.delay(() -> Cleanup.guarantee(this.value::unsafeRunSync, finalizerIO::unsafeRun)));
   }
 
   // ===== Parallel Execution =====

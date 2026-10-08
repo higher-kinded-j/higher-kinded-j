@@ -134,10 +134,11 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
   Effectful<A> handleErrorWith(Function<? super Throwable, ? extends Effectful<A>> recovery);
 
   /**
-   * Runs a finaliser after this effect completes, regardless of whether it succeeded or threw. The
-   * finaliser runs even if the effect throws, but any exception thrown by the finaliser itself will
-   * mask (or follow, depending on implementation) the original failure. The returned effect has the
-   * same concrete type as this one.
+   * Runs a finaliser after this effect completes, regardless of whether it succeeded or threw. A
+   * failure is reported as try-with-resources reports it: if the effect throws and the finaliser
+   * throws too, the effect's exception is the one thrown, with the finaliser's suppressed onto it;
+   * if only the finaliser throws, its exception is thrown. The returned effect has the same
+   * concrete type as this one.
    *
    * <p>Example:
    *

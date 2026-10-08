@@ -76,13 +76,13 @@ Resource<Config> configResource = Resource.pure(loadedConfig);
 
 | Method | Description | Use Case |
 |--------|-------------|----------|
-| `fromAutoCloseable(supplier)` | Wraps an `AutoCloseable`, ignoring an exception from `close()` | Database connections, streams, channels |
+| `fromAutoCloseable(supplier)` | Wraps an `AutoCloseable`, closing it after each use | Database connections, streams, channels |
 | `make(acquire, release)` | Explicit acquire and release functions | Custom resources, locks, external handles |
 | `pure(value)` | Wraps a value with no cleanup | Configuration, constants, pre-initialised values |
 
 A `Resource` never holds null. An `acquire` that returns null, `pure(null)`, or a `map` function that returns null fails the use with `NullPointerException`. Hold a value that may be absent as a `Maybe`, and acquire it with `make`.
 
-To see a failed `close()`, use `make` with a release that calls `close()` and handles its exception.
+An exception from `close()` fails the use, so a writer whose final flush fails does not report success. [Exception Safety](#exception-safety) says how it is reported.
 
 ---
 
@@ -134,7 +134,9 @@ Try<String> result = riskyOperation.runSafe();
 // connection is closed
 ```
 
-If the release throws as well, the use's exception is still the one reported. The release's exception is added to it as a suppressed exception, as try-with-resources does. A `Resource` from `fromAutoCloseable` ignores an exception from `close()`, so this applies to a release written with `make`.
+If the release throws as well, the use's exception is still the one reported. The release's exception is added to it as a suppressed exception, as try-with-resources does. After a successful use, a release that throws fails the use with its own exception.
+
+For `fromAutoCloseable`, the release is `close()`, which may throw a checked exception. It fails the use as a failure of the task does: `run()` wraps it in a `VTaskExecutionException`, and `runSafe()` holds it as `close()` threw it.
 
 ### Using One Resource Many Times {#using-one-resource-many-times}
 

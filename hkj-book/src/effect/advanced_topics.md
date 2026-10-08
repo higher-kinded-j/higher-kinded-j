@@ -392,8 +392,21 @@ IOPath<String> readFile = IOPath.bracket(
 );
 ```
 
-If `readAllBytes()` throws, the stream still closes. The exception propagates
-after cleanup completes.
+If `readAll` throws, the stream still closes, and the exception propagates once
+the release has run.
+
+A release that throws is reported as try-with-resources reports it. When the use
+has failed, its exception is still the one thrown, with the release's exception
+suppressed onto it, so the log keeps the reason the program failed. After a
+successful use, the release's exception fails the path on its own.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/advanced/ResourceSafetyBook.java:cleanup_fails}}
+```
+
+After a failed use, the release runs with the thread's interrupt status cleared,
+so a blocking close is not cut short. The status is restored afterwards. Every
+method in this section reports a failing cleanup this way.
 
 #### bracketIO for Effectful Use
 
@@ -421,7 +434,19 @@ IOPath<List<String>> lines = IOPath.withResource(
 );
 ```
 
-The reader is automatically closed after use, with proper exception handling.
+The reader is closed after use, and an exception from `close()` is reported as
+[a failing release](#the-bracket-pattern) is. So a writer whose final flush
+fails does not report success. `IOPath` has no channel for a checked exception,
+so after a successful use one from `close()` is wrapped. An `IOException`
+becomes an `UncheckedIOException`, and any other checked exception the cause of
+a `RuntimeException`.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/advanced/ResourceSafetyBook.java:close_fails}}
+```
+
+After a failed use, the exception from `close()` is suppressed onto the use's
+exception, as `close()` threw it.
 
 #### withResourceIO Variant
 
@@ -448,7 +473,8 @@ IOPath<Result> computation = fetchData()
     .guarantee(() -> log.info("Fetch completed"));
 ```
 
-The guarantee runs whether `fetchData()` succeeds or fails.
+The guarantee runs whether `fetchData()` succeeds or fails. A finaliser that
+throws is reported as [a failing release](#the-bracket-pattern) is.
 
 #### guaranteeIO for Effectful Cleanup
 
