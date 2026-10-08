@@ -412,8 +412,6 @@ Maybe<String> backToMaybe = value
 
 ---
 
-## Summary
-
 ~~~admonish info title="Key Takeaways"
 * **A core type is just another sum type.** `Maybe`, `Either`, `Validated` and `Try` each get prisms for their cases, so matching one is the same operation as matching any sealed hierarchy.
 * **Prisms answer, traversals act.** `matches()` and `getOptional()` interrogate a case; the matching traversal modifies the value inside it and leaves the other case untouched.

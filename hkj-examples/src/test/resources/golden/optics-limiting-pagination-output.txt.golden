@@ -1,0 +1,27 @@
+--- Scenario 2: Featured Products (Hero Section) ---
+Hero section products:
+  ⭐ Premium Electronics Item 1 [HOT] - Featured: true
+  ⭐ Standard Home Item 2 [HOT] - Featured: true
+  ⭐ Budget Garden Item 3 [HOT] - Featured: true
+
+After 15% hero discount:
+  ★ Premium Electronics Item 1: £17.50 → £14.88
+  ★ Standard Home Item 2: £25.00 → £21.25
+  ★ Budget Garden Item 3: £25.00 → £21.25
+    Deluxe Sports Item 4: £32.50 → £32.50
+    Basic Books Item 5: £40.00 → £40.00
+
+--- Scenario 3: Clearance Section ---
+Clearance items (last 4):
+  🏷️ Standard Home Item 17 - £100.00
+  🏷️ Budget Garden Item 18 - £100.00
+  🏷️ Deluxe Sports Item 19 - £107.50
+  🏷️ Basic Books Item 20 - £115.00
+
+After 30% clearance discount:
+  🏷️ Standard Home Item 17 [CLEARANCE] - £70.00
+  🏷️ Budget Garden Item 18 [CLEARANCE] - £70.00
+  🏷️ Deluxe Sports Item 19 [CLEARANCE] - £75.25
+  🏷️ Basic Books Item 20 [CLEARANCE] - £80.50
+
+Regular items (excluding clearance): 16 products

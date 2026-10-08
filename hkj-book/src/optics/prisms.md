@@ -165,7 +165,7 @@ Optional<String> errorMessage = DomainErrorPrisms.validationError()
 
 * **One-off type checks** - Not building reusable logic
 * **Imperative control flow** - You need if/else branching
-* **Performance critical paths** - Minimal abstraction overhead needed
+* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 <!-- verify -->
 ```java
@@ -253,40 +253,6 @@ var name3 = stringPrism.getOptional(value3);
 
 ---
 
-## Performance Notes
-
-Prisms are optimised for type safety and composability:
-
-* **Fast type checking**: Prisms use `instanceof` under the hood, which is optimised by the JVM
-* **Memory efficient**: No boxing or wrapper allocation for failed matches
-* **Composable**: Complex type-safe paths can be built once and reused
-
-**Best Practice**: For frequently used prism combinations, create them once and store as constants:
-
-
-<!-- verify -->
-```java
-public class JsonOptics {
-    private static final Lens<JsonObject, Map<String, JsonValue>> fieldsLens =
-        JsonObjectLenses.fields();
-
-    public static final Prism<JsonValue, JsonString> STRING = 
-        JsonValuePrisms.jsonString();
-  
-    public static final Affine<JsonValue, String> STRING_VALUE =
-        STRING.andThen(JsonStringLenses.value());
-  
-    public static final Traversal<JsonObject, String> USER_NAME = 
-        fieldsLens
-            .andThen(Traversals.forMap("userLogin"))
-            .andThen(JsonValuePrisms.jsonObject())
-            .andThen(fieldsLens)
-            .andThen(Traversals.forMap("name"))
-            .andThen(STRING)
-            .andThen(JsonStringLenses.value());
-}
-```
-
 ## Real-World Example: API Response Handling
 
 Here's a practical example of using prisms to handle different API response types safely:
@@ -362,6 +328,7 @@ Validation Result: Invalid(A string field was empty)
 ~~~admonish tip title="See Also"
 - [Prism Toolkit](prism_toolkit.md): the full convenience-method catalogue and the `Prisms` utility factory methods for `Optional`, `Either`, `Maybe`, `Try`, and list decomposition
 - [Validated Prisms](validated_prism.md): when the *no* needs to carry located, accumulated reasons (a validated boundary)
+- [Production Readiness](production_readiness.md#prisms-and-affines): what a prism costs on a miss, and when to cache a composed optic
 ~~~
 
 ~~~admonish tip title="Ready for More?"

@@ -335,197 +335,16 @@ Pair<String, Integer> converted = IndexedTraversals.tuple2ToPair(tuple);
 
 Here's a comprehensive example demonstrating indexed optics in a business context.
 
-<!-- verify -->
-```java
-package org.higherkindedj.example.optics;
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/OrderFulfilmentDashboard.java:imports}}
 
-import java.time.Instant;
-import java.util.*;
-import org.higherkindedj.optics.indexed.*;
-import org.higherkindedj.optics.util.IndexedTraversals;
-
-public class OrderFulfilmentDashboard {
-
-    public record LineItem(String productName, int quantity, double price) {}
-
-    public record Order(
-        String orderId,
-        List<LineItem> items,
-        Map<String, String> metadata
-    ) {}
-
-    private static Map<String, String> metadataInOrder() {
-        Map<String, String> metadata = new LinkedHashMap<>();
-        metadata.put("priority", "express");
-        metadata.put("gift-wrap", "true");
-        metadata.put("delivery-note", "Leave at door");
-        return metadata;
-    }
-
-    public static void main(String[] args) {
-        Order order = new Order(
-            "ORD-12345",
-            List.of(
-                new LineItem("Laptop", 1, 999.99),
-                new LineItem("Mouse", 2, 24.99),
-                new LineItem("Keyboard", 1, 79.99),
-                new LineItem("Monitor", 1, 299.99)
-            ),
-            // Insertion order matters for the output below, so put() in order:
-            // wrapping Map.of would inherit its randomised iteration order.
-            metadataInOrder()
-        );
-
-        System.out.println("=== ORDER FULFILMENT DASHBOARD ===\n");
-
-        // --- Task 1: Generate Packing Slip ---
-        System.out.println("--- Packing Slip ---");
-        generatePackingSlip(order);
-
-        // --- Task 2: Apply Position-Based Discounts ---
-        System.out.println("\n--- Position-Based Discounts ---");
-        Order discounted = applyPositionDiscounts(order);
-        System.out.printf("Original total: £%.2f%n", calculateTotal(order));
-        System.out.printf("Discounted total: £%.2f%n", calculateTotal(discounted));
-
-        // --- Task 3: Process Metadata with Key Awareness ---
-        System.out.println("\n--- Metadata Processing ---");
-        processMetadata(order);
-
-        // --- Task 4: Identify High-Value Positions ---
-        System.out.println("\n--- High-Value Items ---");
-        identifyHighValuePositions(order);
-
-        System.out.println("\n=== END OF DASHBOARD ===");
-    }
-
-    private static void generatePackingSlip(Order order) {
-        IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
-            IndexedTraversals.forList();
-
-        List<Pair<Integer, LineItem>> indexedItems =
-            IndexedTraversals.toIndexedList(itemsIndexed, order.items());
-
-        System.out.println("Order: " + order.orderId());
-        for (Pair<Integer, LineItem> pair : indexedItems) {
-            int position = pair.first() + 1;  // 1-based for display
-            LineItem item = pair.second();
-            System.out.printf("  Item %d: %s (Qty: %d) - £%.2f%n",
-                position,
-                item.productName(),
-                item.quantity(),
-                item.price() * item.quantity()
-            );
-        }
-    }
-
-    private static Order applyPositionDiscounts(Order order) {
-        IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
-            IndexedTraversals.forList();
-
-        // Every 3rd item gets 15% off (positions 2, 5, 8...)
-        List<LineItem> discounted = IndexedTraversals.imodify(
-            itemsIndexed,
-            (index, item) -> {
-                if ((index + 1) % 3 == 0) {
-                    double newPrice = item.price() * 0.85;
-                    System.out.printf("  Position %d (%s): £%.2f → £%.2f (15%% off)%n",
-                        index + 1, item.productName(), item.price(), newPrice);
-                    return new LineItem(item.productName(), item.quantity(), newPrice);
-                }
-                return item;
-            },
-            order.items()
-        );
-
-        return new Order(order.orderId(), discounted, order.metadata());
-    }
-
-    private static void processMetadata(Order order) {
-        IndexedTraversal<String, Map<String, String>, String> metadataIndexed =
-            IndexedTraversals.forMap();
-
-        IndexedFold<String, Map<String, String>, String> fold =
-            metadataIndexed.asIndexedFold();
-
-        List<Pair<String, String>> entries = fold.toIndexedList(order.metadata());
-
-        for (Pair<String, String> entry : entries) {
-            String key = entry.first();
-            String value = entry.second();
-
-            // Process based on key
-            switch (key) {
-                case "priority" ->
-                    System.out.println("  Shipping priority: " + value.toUpperCase());
-                case "gift-wrap" ->
-                    System.out.println("  Gift wrapping: " +
-                        (value.equals("true") ? "Required" : "Not required"));
-                case "delivery-note" ->
-                    System.out.println("  Special instructions: " + value);
-                default ->
-                    System.out.println("  " + key + ": " + value);
-            }
-        }
-    }
-
-    private static void identifyHighValuePositions(Order order) {
-        IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed =
-            IndexedTraversals.forList();
-
-        // Filter to items over £100
-        IndexedTraversal<Integer, List<LineItem>, LineItem> highValue =
-            itemsIndexed.filteredWithIndex((index, item) -> item.price() > 100);
-
-        List<Pair<Integer, LineItem>> expensive =
-            IndexedTraversals.toIndexedList(highValue, order.items());
-
-        System.out.println("  Items over £100 (require special handling):");
-        for (Pair<Integer, LineItem> pair : expensive) {
-            System.out.printf("    Position %d: %s (£%.2f)%n",
-                pair.first() + 1,
-                pair.second().productName(),
-                pair.second().price()
-            );
-        }
-    }
-
-    private static double calculateTotal(Order order) {
-        return order.items().stream()
-            .mapToDouble(item -> item.price() * item.quantity())
-            .sum();
-    }
-}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/OrderFulfilmentDashboard.java:dashboard}}
 ```
 
 **Expected Output:**
 
 ```
-=== ORDER FULFILMENT DASHBOARD ===
-
---- Packing Slip ---
-Order: ORD-12345
-  Item 1: Laptop (Qty: 1) - £999.99
-  Item 2: Mouse (Qty: 2) - £49.98
-  Item 3: Keyboard (Qty: 1) - £79.99
-  Item 4: Monitor (Qty: 1) - £299.99
-
---- Position-Based Discounts ---
-  Position 3 (Keyboard): £79.99 → £67.99 (15% off)
-Original total: £1429.95
-Discounted total: £1417.95
-
---- Metadata Processing ---
-  Shipping priority: EXPRESS
-  Gift wrapping: Required
-  Special instructions: Leave at door
-
---- High-Value Items ---
-  Items over £100 (require special handling):
-    Position 1: Laptop (£999.99)
-    Position 4: Monitor (£299.99)
-
-=== END OF DASHBOARD ===
+{{#include ../../../hkj-examples/src/test/resources/golden/optics-indexed-dashboard-output.txt.golden}}
 ```
 
 ---
@@ -549,15 +368,9 @@ This creates an indexed traversal over lists where the index is an integer: exac
 
 ---
 
-## Summary: The Power of Indexed Optics
+## Before and after {#summary-the-power-of-indexed-optics}
 
-Indexed optics bring **position awareness** into your functional data transformations:
-
-* **IndexedTraversal\<I, S, A>**: Bulk operations with index tracking
-* **IndexedFold\<I, S, A>**: Read-only queries with position information
-* **IndexedLens\<I, S, A>**: Single-field access with field name tracking
-
-These tools transform how you work with collections and records:
+What each manual pattern becomes with indexed optics:
 
 | Before (Manual Index Tracking) | After (Declarative Indexed Optics) |
 |-------------------------------|-----------------------------------|

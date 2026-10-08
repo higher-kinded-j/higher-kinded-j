@@ -94,7 +94,7 @@ Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
 ### Use Stream Processing When
 
 - **Simple filtering** - Basic collection operations without complex nesting
-- **Performance critical paths** - Minimal abstraction overhead needed
+- **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 - **Aggregation logic** - Computing statistics or summaries
 
 <!-- verify -->
@@ -192,45 +192,6 @@ public void testBase64RoundTrip() {
 
 ---
 
-## Performance Notes
-
-Optic compositions trade a little throughput for composability, and it is worth being precise about which:
-
-- **Element references are shared**: values a transformation leaves alone are reused, not copied; the containers along the path are rebuilt
-- **A prism that does not match costs nothing further**: a non-matching branch puts nothing in focus, so the rest of the chain is never entered for that element
-- **No hidden laziness**: every element the path reaches is visited when you call `getAll` or `modify`, so cost is proportional to the number of foci
-- **The composition is not free**: a deep chain is a chain of objects, and a hot loop over a flat structure will still favour a stream
-
-**Best Practice**: Profile your specific use case and compare with stream-based alternatives:
-
-```java
-public class AuditPerformance {
-
-    // For frequent auditing, create the optic once and reuse it
-    private static final Traversal<AppConfig, byte[]> AUDIT_TRAVERSAL = createAuditTraversal();
-
-    @Benchmark
-    public List<byte[]> opticBasedAudit(List<AppConfig> configs) {
-        return configs.stream()
-            .flatMap(config -> Traversals.getAll(AUDIT_TRAVERSAL, config).stream())
-            .collect(toList());
-    }
-  
-    @Benchmark  
-    public List<byte[]> streamBasedAudit(List<AppConfig> configs) {
-        return configs.stream()
-            .filter(this::isGcpLive)
-            .flatMap(config -> config.settings().stream())
-            .map(Setting::value)
-            .filter(EncryptedValue.class::isInstance)
-            .map(EncryptedValue.class::cast)
-            .map(encrypted -> Base64.getDecoder().decode(encrypted.base64Value()))
-            .collect(toList());
-    }
-
-}
-```
-
 ## Composing the Solution
 
 Here's how we chain these optics together. Each `andThen` returns the most precise optic its two steps allow, and the chain starts from a traversal over the settings, so the result is a `Traversal`, with no conversions along the way. The last step decodes the Base64 through a prism, so a malformed value drops out of the audit rather than throwing.
@@ -286,7 +247,7 @@ When we call `Traversals.getAll(finalAuditor, config)`, it performs the entire, 
 * **Declarative & Readable**: The optic chain describes *what* data to get, not *how* to loop and check for it. The logic reads like a path, making it self-documenting.
 * **Composable & Reusable**: Every optic, and every composition, is a reusable component. We could reuse `gcpLiveOnlyPrism` for other tasks, or swap out the final decoding prism to perform a different transformation.
 * **Type-Safe**: The entire operation is checked by the Java compiler. It's impossible to, for example, try to decode a `StringValue` as if it were encrypted. A mismatch in the optic chain results in a compile-time error, not a runtime `ClassCastException`.
-* **Architectural Purity**: By having all optics share a common abstract parent (`Optic`), the library provides universal, lawful composition while allowing for specialised, efficient implementations.
+* **Architectural Purity**: By having all optics share a common abstract parent (`Optic`), the library provides universal, lawful composition while each optic type keeps its own implementation.
 * **Testable**: Each component can be tested independently, and the composition can be tested as a whole.
 
 ---
@@ -461,6 +422,7 @@ public static AuditReport generateAuditReport(List<AppConfig> configs, String au
 - [Deep Validation with `modifyF`](composing_optics.md): the same four-optic composition, used for validation instead of reporting
 - [Filtered Optics](filtered_optics.md): the predicate narrowing this example depends on
 - [Folds](folds.md): the read-only optic to reach for when nothing will be written
+- [Production Readiness](production_readiness.md#runtime-cost): what each optic allocates, and when to cache a composed optic
 ~~~
 
 ---

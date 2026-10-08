@@ -173,7 +173,7 @@ Validated<String, Form> rechecked = validatePermissions(updatedForm);
 
 * **Simple, flat structures** - No deep nesting or conditional access needed
 * **One-off validation** - Logic won't be reused elsewhere
-* **Performance critical** - Minimal abstraction overhead required
+* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 
 <!-- verify -->
@@ -258,59 +258,6 @@ var result = FORM_TO_PERMISSION_NAMES.modifyF(
 
 // Be specific about what you're validating
 // This traversal has clear semantics: Form -> User permissions -> permission names
-```
-
----
-
-## Performance Notes
-
-Optic composition trades a little throughput for composability, and it is worth being precise about which:
-
-* **Element references are shared**: values a modification leaves alone are reused, not copied; the containers along the path are rebuilt
-* **No hidden laziness**: every focus the path reaches is visited, so cost is proportional to the number of foci
-* **Single pass**: one `modifyF` walks the structure once, whatever the effect
-* **A prism that does not match costs nothing further**: the rest of the chain is never entered for that element
-
-**Best Practice**: Create composed optics as constants for reuse:
-
-
-<!-- verify -->
-```java
-public class ValidationOptics {
-    private static final Set<String> VALID_PERMISSIONS =
-        Set.of("PERM_READ", "PERM_WRITE", "PERM_DELETE");
-
-    private static Applicative<ValidatedKind.Witness<String>> getValidatedApplicative() {
-        return Instances.validated(Semigroups.string("; "));
-    }
-
-    public static Kind<ValidatedKind.Witness<String>, String> validatePermissionName(String name) {
-        return VALID_PERMISSIONS.contains(name)
-            ? VALIDATED.widen(Validated.valid(name))
-            : VALIDATED.widen(Validated.invalid("Invalid permission: " + name));
-    }
-
-    // Reusable validation paths
-    public static final Traversal<Form, String> USER_PERMISSION_NAMES =
-        FormLenses.principal()
-            .andThen(PrincipalPrisms.user())
-            .andThen(UserTraversals.permissions())
-            .andThen(PermissionLenses.name());
-
-    public static final Affine<Form, String> USERNAMES =
-        FormLenses.principal()
-            .andThen(PrincipalPrisms.user())
-            .andThen(UserLenses.username());
-
-    // Helper methods for common validations
-    public static Validated<String, Form> validatePermissions(Form form) {
-        return VALIDATED.narrow(USER_PERMISSION_NAMES.modifyF(
-            ValidationOptics::validatePermissionName,
-            form,
-            getValidatedApplicative()
-        ));
-    }
-}
 ```
 
 ---
@@ -475,7 +422,7 @@ Each individual optic (Lens, Prism, Traversal) can be tested and reasoned about 
 
 The composition automatically handles empty collections, missing data, and type mismatches without special case code.
 
-By mastering optic composition, you gain a powerful tool for building robust, maintainable data processing pipelines that are both expressive and efficient.
+By mastering optic composition, you gain a powerful tool for building robust, maintainable data processing pipelines that read as the path they follow.
 
 ---
 
@@ -696,6 +643,7 @@ See [FluentValidationExample.java](https://github.com/higher-kinded-j/higher-kin
 - [Updates That Can Fail](fluent_api.md#part-2-validation-aware-modification): the four validation strategies, the builders, and when to drop to `modifyF`
 - [Composition Rules](composition_rules.md): why a chain of mixed optics widens to a `Traversal`
 - [Core Type Integration](core_type_integration.md): the prisms that let a core type sit mid-path
+- [Production Readiness](production_readiness.md#runtime-cost): what each optic allocates, and when to cache a composed optic
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

@@ -478,7 +478,7 @@ Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
 
 ---
 
-## Summary
+## Every extension at a glance {#summary}
 
 | Method | Returns | Use Case |
 |--------|---------|----------|

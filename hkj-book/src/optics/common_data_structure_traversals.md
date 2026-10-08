@@ -527,41 +527,6 @@ Tuple2<Integer, String> updatedPair = new Tuple2<>(
 
 ---
 
-## Performance Notes
-
-Structure traversals are optimised for immutability, not for raw throughput:
-
-* **Structural sharing**: values the function leaves alone are reused by reference; only the container is rebuilt
-* **Zero targets cost nothing**: an empty `Optional` or an empty map never calls the function, so `modify` reduces to a single `of`
-* **No hidden laziness**: every present value is visited, and `forMapValues()` reassembles the map inside the applicative, so a large map allocates more than a hand-written `stream().collect()` would
-* **They earn their keep by nesting**: the win is composing the map or optional into a deeper path, not out-running a stream over a flat structure
-
-**Best Practice**: Store commonly-used structure traversals as constants:
-
-<!-- verify -->
-```java
-public class ConfigOptics {
-    // Reusable structure traversals
-    public static final Traversal<Optional<String>, String> OPTIONAL_STRING =
-        Traversals.forOptional();
-
-    public static final Traversal<Map<String, Integer>, Integer> MAP_INT_VALUES =
-        Traversals.forMapValues();
-
-    public static final Traversal<Tuple2<Double, Double>, Double> COORDINATE_PAIR =
-        TupleTraversals.both();
-
-    // Domain-specific compositions
-    public static final Traversal<ServiceConfig, Integer> ALL_PORTS =
-        ServiceConfigLenses.ports()
-            .andThen(MAP_INT_VALUES);
-}
-```
-
----
-
-## Summary
-
 ~~~admonish info title="Key Takeaways"
 * **`forOptional()` treats absence as zero targets**: modifications on an empty `Optional` are safe no-ops, so nested optional fields compose without `.map()` chains
 * **`forMapValues()` rewrites values, never keys**: the key set survives a bulk transformation intact, and the result keeps the source's iteration order, so a `TreeMap` keeps its order but not its type
@@ -574,6 +539,7 @@ public class ConfigOptics {
 - [Traversals](traversals.md): the core bulk-update optic these combinators extend
 - [Affines](affine.md): the zero-or-one optic behind `Optional` field access
 - [Limiting Traversals](limiting_traversals.md): slicing lists instead of traversing every element
+- [Production Readiness](production_readiness.md#collection-optics): what each of these traversals builds, and when to cache a composed optic
 ~~~
 
 ~~~admonish tip title="Further Reading"

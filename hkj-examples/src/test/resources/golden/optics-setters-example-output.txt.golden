@@ -1,0 +1,14 @@
+Normalised: john_doe
+Login count: 11
+Theme: dark
+Doubled: [2, 4, 6, 8, 10]
+Discounted prices:
+  Laptop: £899.99
+  Keyboard: £71.99
+  Monitor: £269.99
+Valid username: john_doe
+Invalid username: INVALID
+Normalised product names:
+  - Laptop
+  - Keyboard
+  - Monitor

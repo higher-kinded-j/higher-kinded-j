@@ -1,0 +1,39 @@
+=== ISO USAGE EXAMPLE ===
+Original Point: Point[x=10, y=20]
+Original Circle: Circle[centre=Point[x=10, y=20], radius=5]
+------------------------------------------
+--- Scenario 1: Direct Conversions ---
+Point to Tuple conversion:
+  Original:  Point[x=10, y=20]
+  Converted: Tuple2[_1=10, _2=20]
+  Round-trip: Point[x=10, y=20]
+  Success: true
+
+Point to String conversion:
+  Original:  Point[x=10, y=20]
+  Converted: 10,20
+  Round-trip: Point[x=10, y=20]
+  Success: true
+
+--- Scenario 2: Reverse Operations ---
+Tuple: Tuple2[_1=30, _2=40] -> Point: Point[x=30, y=40]
+
+--- Scenario 3: Composition with Lenses ---
+Original point: Point[x=10, y=20]
+After moving X by 5: Point[x=15, y=20]
+
+--- Scenario 4: Iso Composition ---
+Point as tuple: Tuple2[_1=10, _2=20]
+Modified tuple: Tuple2[_1=20, _2=20]
+Back to point: Point[x=20, y=20]
+
+--- Scenario 5: String Format Conversions ---
+Point as string: 10,20
+Recovered from string: Point[x=10, y=20]
+Perfect round-trip: true
+
+--- Scenario 6: Circle Centre Manipulation ---
+Original circle: Circle[centre=Point[x=10, y=20], radius=5]
+Centre as tuple: Tuple2[_1=10, _2=20]
+Shifted centre tuple: Tuple2[_1=20, _2=30]
+New circle: Circle[centre=Point[x=20, y=30], radius=5]

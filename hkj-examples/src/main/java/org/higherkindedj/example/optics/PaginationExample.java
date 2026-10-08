@@ -33,7 +33,7 @@ import org.higherkindedj.optics.util.Traversals;
  */
 public class PaginationExample {
 
-  // Domain models
+  // ANCHOR: model
   public record Product(
       String sku, String name, double price, int stock, boolean featured, String badge) {
     Product withBadge(String newBadge) {
@@ -52,6 +52,8 @@ public class PaginationExample {
   public record PageInfo(int pageNumber, int pageSize, int totalItems, int totalPages) {}
 
   public record PagedResponse(List<Product> items, PageInfo pageInfo) {}
+
+  // ANCHOR_END: model
 
   // Constants
   private static final int DEFAULT_PAGE_SIZE = 5;
@@ -88,6 +90,7 @@ public class PaginationExample {
     }
   }
 
+  // ANCHOR: hero
   private static void demonstrateFeaturedProducts(List<Product> catalogue) {
     System.out.println("--- Scenario 2: Featured Products (Hero Section) ---");
 
@@ -118,7 +121,7 @@ public class PaginationExample {
                     prod.featured(),
                     prod.badge()));
 
-    Traversal<List<Product>, Double> heroPrices = heroProducts.andThen(priceLens.asTraversal());
+    Traversal<List<Product>, Double> heroPrices = heroProducts.andThen(priceLens);
 
     List<Product> discountedHero = Traversals.modify(heroPrices, price -> price * 0.85, catalogue);
 
@@ -134,6 +137,9 @@ public class PaginationExample {
     System.out.println();
   }
 
+  // ANCHOR_END: hero
+
+  // ANCHOR: clearance
   private static void demonstrateClearanceSection(List<Product> catalogue) {
     System.out.println("--- Scenario 3: Clearance Section ---");
 
@@ -160,6 +166,8 @@ public class PaginationExample {
 
     System.out.println();
   }
+
+  // ANCHOR_END: clearance
 
   private static void demonstrateBulkPageUpdate(List<Product> catalogue) {
     System.out.println("--- Scenario 4: Bulk Update Specific Pages ---");
@@ -229,6 +237,7 @@ public class PaginationExample {
   }
 
   // Helper methods
+  // ANCHOR: get_page
   private static PagedResponse getPage(List<Product> catalogue, int pageNumber, int pageSize) {
     Traversal<List<Product>, Product> pageTraversal =
         ListTraversals.slicing(pageNumber * pageSize, (pageNumber + 1) * pageSize);
@@ -240,6 +249,8 @@ public class PaginationExample {
 
     return new PagedResponse(items, pageInfo);
   }
+
+  // ANCHOR_END: get_page
 
   private static List<Product> createCatalogue() {
     List<Product> products = new ArrayList<>();

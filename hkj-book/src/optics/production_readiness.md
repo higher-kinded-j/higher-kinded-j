@@ -8,13 +8,23 @@ This page does not offer a marketing case for using optics in production; it off
 
 ## Runtime cost
 
+In short, with the method that decides each named in its own subsection:
+
+| You call | It costs |
+|---|---|
+| A lens `set` or `modify` | What a hand-written `with*` cascade allocates |
+| A traversal `modify`, or a read through `Traversals.getAll` | A rebuilt container, on every call |
+| A read through `asFold()` | No rebuild |
+| An `At` edit | A copy of the whole map or list |
+| A prism or affine `modify` that misses | Nothing: no allocation and no rebuild |
+
 ### What `set` and `modify` allocate
 
-Every `set` or `modify` call on a `Lens` over a record allocates one new record per layer of nesting touched. A composed lens through three layers allocates three new records, plus any intermediate captures. There is no in-place mutation; that is the cost of immutability and not specific to optics.
+Every `set` or `modify` call on a `Lens` over a record allocates one new record per layer of nesting touched. A composed lens through three layers allocates three new records, plus any intermediate captures. There is no in-place mutation; that is the cost of immutability and not specific to optics. Everything off the path keeps its reference: a generated lens passes the record's other components to its constructor as they are.
 
 Compared to a hand-written `with*` cascade for the same nested update, generated optics typically incur the same allocation count. The difference is the two or three anonymous `Lens` and `FocusPath` objects the composition allocates.
 
-For a single update on a small record, the cost is unlikely to matter. For tight inner loops, see the caching note below.
+For a single update on a small record, the cost is unlikely to matter. For tight inner loops, see [Caching optics](#caching-optics).
 
 These are engineering estimates from the shape of the generated code, not benchmark output: the [JMH suite](../benchmarks.md) covers `Fold.plus` but not lens or traversal allocation.
 
@@ -25,6 +35,50 @@ These are engineering estimates from the shape of the generated code, not benchm
 ### Traversal allocation
 
 `Traversals.modify(traversal, f, source)` over a `List<A>` allocates one new list, plus a small constant number of short-lived objects *per element*: the traversal threads each result through the `Id` applicative and an immutable cons-list before flattening. Budget O(n) allocations, not O(1). (Reads and writes on a bare `Traversal` go through the `Traversals` utility; the interface itself declares no plain read or write.) If the function returns the same value for every element (a no-op modify), the list is still rebuilt; optics do not compare references to skip rebuilding.
+
+### What each collection optic builds {#collection-optics}
+
+Each collection optic rebuilds its container in its own way, and several return the source itself when there is nothing to change. The third column says which, and the last names the method that decides it.
+
+| Optic | What it builds | When nothing changes | Implemented in |
+|---|---|---|---|
+| `Traversals.forMapValues()` | Copies the keys and values into two lists, traverses the values, then builds one new `LinkedHashMap` in the source's order. | An empty map still gets a new, empty map. | `Traversals.traverseMapValues` |
+| `Traversals.forMap(key)` | Copies the whole map to replace one value. | An absent key returns the source itself. | `Traversals.forMap` |
+| `filtered(p)`, `filterBy(query, p)` | Tests each element once, in the same pass as the update; `filterBy`'s test is a `Fold.exists`, which visits every queried focus. | A rejected element passes through with `of`, keeping its reference. | `Traversal.filtered`, `Traversal.filterBy` |
+| `ListTraversals.taking(n)`, `slicing(from, to)` and the other limits | Run the function on the slice only, then copy the elements outside it by reference into one new list; `takingWhile` and `droppingWhile` first scan for the split point. | An empty slice returns the source itself. | `ListTraversals.slicing` |
+| `StringTraversals.chars()`, `worded()`, `lined()` | Split the string into a list, one boxed `Character` per character or a regular-expression split into words or lines, then join one new string. | A new string is joined anyway. | `StringTraversals.chars`, `StringTraversals.worded` |
+| `Traversals.partsOf(t)` | `get` collects the foci into one list through `getAll`, and `set` walks the traversal again, so a `modify` walks it twice. `sorted` and `reversed` copy that list once more, and `distinct` twice. | The traversal is still walked twice. | `Traversals.partsOf` |
+| `IndexedTraversals.forList()`, `forMap()` | Pass the index and the value to your function as two arguments, so no `Pair` is built per focus. | An empty list or map returns the source itself. | `IndexedTraversals.forList`, `IndexedTraversals.forMap` |
+| `IndexedTraversals.toIndexedList`, `IndexedTraversals.length`, `asIndexedFold()`, `iandThen` | Build one `Pair` per focus: the first three to collect or count the foci, and `iandThen` because its index is a pair. `asIndexedFold()` also runs the traversal in an identity applicative, so unlike `asFold()` it rebuilds the structure before it folds. | Not applicable: these read. | `IndexedTraversals.toIndexedList`, `IndexedTraversal.asIndexedFold`, `IndexedTraversal.iandThen` |
+| `Setter.forList()`, `Setter.forMapValues()` | `modify` maps straight into a new list or `LinkedHashMap`, with no applicative. `modifyF` collects the effects, sequences them from the right onto an immutable cons list, and builds the result once. | The collection is rebuilt anyway. | `Setter.forList`, `ConsList.sequence` |
+| `At`: `AtInstances.mapAt()`, `listAt()` | Every `set`, `insertOrUpdate`, `remove` and `modify` copies the whole map or list. | Copies anyway, even when the index is absent. | `AtInstances.mapAt`, `AtInstances.listAt` |
+| `Ixed`: `IxedInstances.mapIx()`, `listIx()` | Copies only when the index is present, even for a read through `IxedInstances.get`. | An absent index returns the source itself. | `IxedInstances.fromAt` |
+
+A run of `At` edits therefore copies the map once per edit. To make many edits at once, copy the map into a `LinkedHashMap` once, change that copy, and carry on with the result.
+
+### Prisms and affines on a miss {#prisms-and-affines}
+
+A generated prism tests its case with `instanceof` for a sealed subtype, `==` for an enum constant, or your predicate for `@MatchWhen`. It answers a miss with the JDK's shared `Optional.empty()`, so a miss allocates no `Optional`. On a miss, `Prism.modify` and `Affine.modify` return the source itself, so nothing is rebuilt. `Affine.andThen` chains the two reads with `Optional.flatMap`, or `map` for a lens step, so a composed affine's `getOptional` stops at the first absent step. Inside a traversal, `Traversal.andThen(Prism)` passes a non-matching element through with `of`, so the rest of the chain never runs for it.
+
+### What reads cost {#read-cost}
+
+A read through a traversal or a fold visits every focus, and some reads also rebuild what they visit.
+
+| Read | What it visits and builds | Implemented in |
+|---|---|---|
+| `Traversals.getAll(t, s)`, and a `TraversalPath`'s `getAll(s)` | Run `modifyF` in the `Id` applicative, so they rebuild the structure as a `modify` would, then discard the copy. | `Traversals.getAll`, `TraversalFocusPath.getAll` |
+| A `TraversalPath`'s `preview`, `count`, `exists`, `all` and `find` | Call `getAll` first, so each collects every focus, rebuild included, before its test runs. | `TraversalPath.exists` |
+| `t.asFold().getAll(s)` | Runs the same `modifyF` in a constant applicative, which skips every rebuild, though a traversal's own set-up, such as a map's key and value lists or a split string, still runs. | `Traversal.asFold` |
+| A `Fold`'s `preview`, `find`, `exists` and `all` | Fold a monoid over every focus, so none of them stops at the first match. | `Fold.preview`, `Fold.exists` |
+| `IxedInstances.get`, `IxedInstances.contains` | Read through `Traversals.getAll`, so a present index copies the whole map or list, as an edit would. `At.get` reads without copying. | `IxedInstances.get` |
+| A fold from `@GenerateFolds` | Loops over an iterable component directly, or applies the function to a single one, with no intermediate list. | `FoldProcessor` |
+| `getMaybe`, `previewMaybe`, `findMaybe`, `getAllMaybe` | Make the plain read, then convert it: a new `Just` for a value, the shared `Nothing` for none. | `GetterExtensions.getMaybe`, `FoldExtensions` |
+
+### Adapters and Focus paths {#adapters-and-paths}
+
+`contramap`, `map` and `dimap` each return one optic that runs your conversion functions around the wrapped optic's `modifyF`, as `Optic.dimap` shows, and add nothing else. An adapter therefore costs what your functions cost, on every call.
+
+A Focus path holds the optic it was built from, and its reads and writes delegate to that optic. Each `via` composes the two optics with `andThen` into a new path. A `via` with another path also joins the two label lists, and a `via` with a bare optic keeps this path's list, as `FocusPath.via` shows. That is a building cost, which [Caching optics](#caching-optics) removes.
 
 ---
 

@@ -659,16 +659,6 @@ Maybe<Product> firstMaybe = previewMaybe(itemsFold, order);
 Optional<Product> loweredToOptional = firstMaybe.map(Optional::of).orElse(Optional.empty());
 ```
 
-#### Performance Considerations
-
-Maybe-based extensions have minimal overhead:
-
-* **`previewMaybe`**: Same performance as `preview()`, just wraps in `Maybe` instead of `Optional`
-* **`findMaybe`**: Identical to `find()`, just wrapping the result in `Maybe` rather than `Optional`
-* **`getAllMaybe`**: Adds one extra `Maybe` wrapping over `getAll()` - negligible cost
-
-**Optimisation Tip**: For performance-critical code, prefer `getAll()` if you don't need the Maybe semantics. The extra wrapping and pattern matching adds a small but measurable cost in tight loops.
-
 #### Practical Example: Safe Navigation with Maybe
 
 Combining `getAllMaybe` with composed folds creates powerful null-safe query pipelines:
@@ -841,8 +831,8 @@ emailFirst.getAll(employee);
 // Returns: ["alice@example.com", "Alice"]
 ```
 
-~~~admonish note title="Performance Note"
-Each constituent fold in a `plus` combination performs its own pass over the source. For most use cases this is negligible, but if you are combining many folds over very large collections, consider whether a single custom `foldMap` implementation would be more appropriate.
+~~~admonish note title="Each fold makes its own pass"
+Each fold in a `plus` combination makes its own pass over the source, which `FoldPlusBenchmark` in `hkj-benchmarks` measures. To combine many folds over a very large collection in one pass, write a single `foldMap` instead.
 ~~~
 
 ---
@@ -908,7 +898,7 @@ List<String> topExpensiveItems = order.items().stream()
 ### Use Direct Field Access When
 
 * **Simple cases** - Single, straightforward field read
-* **Performance critical** - Minimal abstraction overhead
+* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 * **One-off operations** - Not building reusable logic
 
 <!-- verify -->
@@ -977,34 +967,6 @@ Fold<Order, Double> pricesFold = OrderTraversals.items()
     .andThen(ProductLenses.price())
     .asFold();
 double orderTotal = pricesFold.foldMap(Monoids.doubleAddition(), p -> p, order);
-```
-
----
-
-## Performance Notes
-
-Folds are optimised for query operations:
-
-* **Memory efficient**: Uses iterators internally, no intermediate collections for most operations
-* **Reusable**: Composed folds can be stored and reused across your application
-* **Type-safe**: All operations checked at compile time
-* **Zero allocation**: `foldMap` with monoids avoids creating intermediate collections
-
-**Best Practice**: For frequently used query paths, create them once and store as constants:
-
-<!-- verify -->
-```java
-public class OrderQueries {
-    public static final Fold<OrderHistory, Product> ALL_PRODUCTS =
-        OrderHistoryFolds.orders()
-            .andThen(OrderFolds.items());
-
-    public static final Fold<OrderHistory, Double> ALL_PRICES =
-        ALL_PRODUCTS.andThen(ProductLenses.price().asFold());
-
-    public static final Fold<Order, String> ALL_CATEGORIES =
-        OrderFolds.items().andThen(ProductLenses.category().asFold());
-}
 ```
 
 ---
@@ -1241,6 +1203,7 @@ Electronics total: £1549.99
 - [Getters](getters.md): read-only focus on exactly one value
 - [Semigroup and Monoid](../functional/semigroup_and_monoid.md): the combining structures behind `foldMap`
 - [Foldable and Traverse](../functional/foldable_and_traverse.md): the type class this optic mirrors
+- [Production Readiness](production_readiness.md#read-cost): what each fold read visits, and when to cache a composed optic
 ~~~
 
 ~~~admonish tip title="Further Reading"

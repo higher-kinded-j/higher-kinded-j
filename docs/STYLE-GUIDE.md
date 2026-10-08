@@ -615,6 +615,9 @@ code that does not build. Prefer, in this order:
    the example computes again outside the region. Only a comment in a recognised shape is a claim: a
    number, a boolean or `Nothing`, or a printed value opening with `[`, `Name(` or `Name[`. The gate
    reads any other comment as explanation and checks nothing, so shape a printed value to be claimed.
+   A page that shows a program's whole output as a block after the code includes that block from a
+   golden file too, and `BookExampleOutputTest` holds the file to what `main` prints
+   (`hkj-examples/BOOK-SNIPPETS.md` says how to register one).
 2. **Mark the fence `<!-- verify -->`.** The gate compiles a copy of it against the real library and
    the real annotation processor. Use this only when the snippet cannot be runnable code (a shape
    written against abstract type variables, for instance).
