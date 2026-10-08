@@ -64,25 +64,44 @@ Start from what you came for.
 Eight optic types, one shared supertype, and one real specialisation between them:
 
 ```mermaid
-flowchart BT
+flowchart LR
     accTitle: How the eight optic types relate
-    accDescr: Fold, Traversal, Setter, Lens, Affine, Prism and Iso each extend Optic directly. Getter extends Fold, the only inheritance between two optic types.
-    F(["Fold<br/>read, zero or more"]) --> O(["Optic"])
-    T(["Traversal<br/>read+write, zero or more"]) --> O
-    St(["Setter<br/>write, zero or more"]) --> O
-    L(["Lens<br/>read+write, exactly one"]) --> O
-    A(["Affine<br/>read+write, zero or one"]) --> O
-    P(["Prism<br/>read+write, one variant"]) --> O
-    I(["Iso<br/>read+write, reversible"]) --> O
-    G(["Getter<br/>read, exactly one"]) --> F
-
+    accDescr: Fold, Traversal, Setter, Lens, Affine, Prism and Iso each extend Optic directly. Getter extends Fold, the only inheritance between two optic types. Each optic is drawn in its legend shape.
+    L(["Lens"]) --> O["Optic"]
+    A(["Affine"]) --> O
+    P@{ shape: hex, label: "Prism" } --> O
+    I@{ shape: bow-rect, label: "Iso" } --> O
+    T@{ shape: st-rect, label: "Traversal" } --> O
+    F@{ shape: docs, label: "Fold" } --> O
+    S@{ shape: lean-r, label: "Setter" } --> O
+    G@{ shape: doc, label: "Getter" } --> F
     classDef root fill:#8caaee,stroke:#1e66f5,color:#232634
-    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef maybe fill:#a6d189,stroke:#40a02b,color:#232634,stroke-dasharray:6 4
+    classDef ro fill:#8caaee,stroke:#1e66f5,color:#232634
     class O root
-    class F,T,St,L,A,P,I,G tier
+    class L,P,T,I,S rw
+    class A maybe
+    class F,G ro
 ```
 
 Each arrow reads *extends*: `Fold extends Optic`, and `Getter extends Fold`. That last is the **only** inheritance between two optic types. Everything else extends `Optic` directly, so they are siblings: a `Lens` is not a `Fold`, and `lens.asFold()` is an explicit conversion, one of those [Conversions](conversions.md) lists. What separates the types is capability: how many values an optic focuses, and whether you may write through it. [Decision Trees](decision_trees.md) turns those two questions into a choice.
+
+Every diagram in the chapter draws an optic in the shape it has here. Fold and Getter, in blue, only read; Setter only writes; the others read and write, and the Affine's dashed outline marks a target that may be absent:
+
+```mermaid
+flowchart LR
+    accTitle: The optic legend
+    accDescr: Lens, exactly one, a rounded box; Affine, zero or one, a dashed rounded box; Prism, one variant, a hexagon; Traversal, zero or more, a stack of boxes; Iso, both ways, a box with curved ends; Getter, read one, a page; Fold, read many, a stack of pages; Setter, write many, a slanted box. Getter and Fold are blue and only read.
+    L(["Lens<br/>exactly one"]) ~~~ A(["Affine<br/>zero or one"]) ~~~ P@{ shape: hex, label: "Prism<br/>one variant" } ~~~ T@{ shape: st-rect, label: "Traversal<br/>zero or more" }
+    I@{ shape: bow-rect, label: "Iso<br/>both ways" } ~~~ G@{ shape: doc, label: "Getter<br/>read one" } ~~~ F@{ shape: docs, label: "Fold<br/>read many" } ~~~ S@{ shape: lean-r, label: "Setter<br/>write many" }
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef maybe fill:#a6d189,stroke:#40a02b,color:#232634,stroke-dasharray:6 4
+    classDef ro fill:#8caaee,stroke:#1e66f5,color:#232634
+    class L,P,T,I,S rw
+    class A maybe
+    class F,G ro
+```
 
 ---
 

@@ -20,13 +20,17 @@ A `Prism<S, A>` answers one question about a value: does it match this shape, ye
 
 ```mermaid
 flowchart LR
-    W(["wire value<br/>String, unvalidated"])
-    D(["domain value<br/>EmailAddress, always valid"])
+    accTitle: Parse one way, build the other
+    accDescr: Parse takes an unvalidated String wire value to an always-valid EmailAddress, and can fail, collecting every reason. Build takes the EmailAddress back to the String and never fails.
+    W["wire value<br/>String, unvalidated"]
+    D["domain value<br/>EmailAddress, always valid"]
     W -->|"parse: fallible, accumulating"| D
     D -->|"build: total, never fails"| W
 
+    classDef wire fill:#8caaee,stroke:#1e66f5,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    class W,D tier
+    class W wire
+    class D tier
 ```
 
 | Call | Result |
@@ -57,18 +61,21 @@ Prisms combine in two ways, and the two behave differently when a parse fails.
 
 ```mermaid
 flowchart TD
+    accTitle: Nesting short-circuits, siblings accumulate
+    accDescr: Nested with andThen, a failing outer parse stops with the first reason, and only a successful one goes on to the inner parse. Siblings combined with fields() or accumulate() are independent, so a valid name, a bad email and a bad age give one Invalid holding every reason at once.
     subgraph nest["Nesting with andThen: deeper into one value, so it short-circuits"]
         direction TB
         O{"outer.parse"}
-        O -->|"fails"| Stop(["stop, the first reason wins"])
-        O -->|"succeeds"| Inner(["inner.parse<br/>keep going"])
+        O -->|"fails"| Stop["stop, the first<br/>reason wins"]
+        O -->|"succeeds"| Inner["inner.parse<br/>keep going"]
     end
     subgraph sib["Siblings with fields() or accumulate(): independent, so they accumulate"]
         direction TB
-        N(["name ✓"]) --> All(["Invalid[ all reasons at once ]"])
-        E(["email ✗ not an email"]) --> All
-        A(["age ✗ must be positive"]) --> All
+        N["name ✓"] --> All["Invalid[ all reasons<br/>at once ]"]
+        E["email ✗<br/>not an email"] --> All
+        A["age ✗<br/>must be positive"] --> All
     end
+    nest ~~~ sib
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634

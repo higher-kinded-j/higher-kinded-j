@@ -267,14 +267,18 @@ Reading is free. Writing is where the shortcut ends: `Traversals.forList()` is a
 
 ## Choosing a Strategy
 
+How a type already makes a modified copy picks its strategy; a List, Set, Map, Optional or array needs none:
+
 ```mermaid
-flowchart TD
+flowchart LR
+    accTitle: Which copy strategy a type needs
+    accDescr: A type that copies through toBuilder, a field setter and build takes ViaBuilder; one with a withField method takes Wither; one with an all-args constructor takes ViaConstructor; and one with a copy constructor plus setters takes ViaCopyAndSet. A type that is already a List, Set, Map, Optional or array needs nothing but the standard traversals.
     Q{"How does the type<br/>make a modified copy?"}
-    Q -->|"toBuilder().field(x).build()"| B(["@ViaBuilder<br/>JOOQ, Lombok, Immutables, AutoValue"])
-    Q -->|"withField(x)"| W(["@Wither<br/>java.time, Guava, Immutables"])
-    Q -->|"an all-args constructor"| C(["@ViaConstructor<br/>simple value objects"])
-    Q -->|"a copy constructor<br/>plus setters"| S(["@ViaCopyAndSet<br/>legacy mutable types"])
-    Q -->|"it is already a List, Set,<br/>Map, Optional or array"| N(["nothing:<br/>use the standard traversals"])
+    Q -->|"toBuilder()<br/>.field(x).build()"| B["@ViaBuilder<br/>JOOQ, Lombok,<br/>Immutables, AutoValue"]
+    Q -->|"withField(x)"| W["@Wither<br/>java.time, Guava,<br/>Immutables"]
+    Q -->|"an all-args<br/>constructor"| C["@ViaConstructor<br/>simple value objects"]
+    Q -->|"a copy constructor<br/>plus setters"| S["@ViaCopyAndSet<br/>legacy mutable types"]
+    Q -->|"it is already a List, Set,<br/>Map, Optional or array"| N["nothing:<br/>use the standard traversals"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634

@@ -123,18 +123,24 @@ Lens<Employee, String> employeeFirstNameLens =
 ## Decision Guide: Which Adaptation Do You Need?
 
 ```mermaid
-flowchart TD
+flowchart LR
+    accTitle: Which adaptation to use
+    accDescr: When the new source contains the old one as a field, compose with andThen; when both types hold the same information in two lossless shapes, use an Iso and compose. A one-way conversion in an effectful modifyF pipeline takes the optic's contramap, map or dimap, and anything lopsided or one-off is hand-built with Lens.of.
     Q{"How do the two<br/>types relate?"}
-    Q -->|"new source contains<br/>the old as a field"| C(["Compose with andThen"])
-    Q -->|"same information,<br/>two lossless shapes"| I(["Iso, then compose"])
-    Q -->|"one-way conversion,<br/>effectful modifyF pipeline"| D(["Optic contramap / map / dimap"])
-    Q -->|"anything lopsided<br/>or one-off"| L(["Hand-build with Lens.of"])
+    Q -->|"new source contains<br/>the old as a field"| C["Compose with andThen"]
+    Q -->|"same information,<br/>two lossless shapes"| I@{ shape: bow-rect, label: "Iso, then compose" }
+    Q -->|"one-way conversion,<br/>effectful modifyF pipeline"| D["Optic contramap / map / dimap"]
+    Q -->|"anything lopsided<br/>or one-off"| L["Hand-build with Lens.of"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
     class Q decision
-    class C,I,D,L tier
+    class C,D tier
+    class I,L rw
 ```
+
+In words: when the new source holds the old one as a field, compose with `andThen`; when both shapes hold the same information, use an `Iso`. A one-way conversion in a `modifyF` pipeline takes `contramap`, `map` or `dimap`, and anything lopsided is hand-built with `Lens.of`.
 
 ---
 

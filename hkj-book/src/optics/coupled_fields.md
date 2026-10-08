@@ -33,21 +33,24 @@ When we compose lenses with `andThen`, we are drilling *vertically* through nest
 
 ```mermaid
 flowchart TD
-    subgraph vert["Vertical: andThen, drilling deeper"]
-        direction TB
-        V1(["Lens&lt;S, A&gt;"]) -->|"andThen"| V2(["Lens&lt;A, B&gt;"]) --> V3(["Lens&lt;S, B&gt;<br/>one nested field"])
-    end
+    accTitle: Composing lenses vertically and horizontally
+    accDescr: Vertically, andThen joins a Lens from S to A with a Lens from A to B, giving a Lens from S to B that reaches one nested field. Horizontally, paired joins a Lens from S to A and a Lens from S to B, giving a Lens from S to a Pair of A and B that reaches two sibling fields.
+    %% declared in reverse: the layout places the last subgraph on the left
     subgraph horiz["Horizontal: paired, two fields at once"]
         direction TB
         H1(["Lens&lt;S, A&gt;"]) --> H3(["Lens&lt;S, Pair&lt;A, B&gt;&gt;<br/>two sibling fields"])
         H2(["Lens&lt;S, B&gt;"]) --> H3
     end
+    subgraph vert["Vertical: andThen, drilling deeper"]
+        direction TB
+        V1(["Lens&lt;S, A&gt;"]) -->|"andThen"| V2(["Lens&lt;A, B&gt;"]) --> V3(["Lens&lt;S, B&gt;<br/>one nested field"])
+    end
 
-    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
-    class V1,V2,H1,H2 tier
-    class V3,H3 out
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
+    class V1,V2,V3,H1,H2,H3 rw
 ```
+
+In words: `andThen` chains two lenses to reach one nested field, and `paired` puts two lenses side by side to reach two sibling fields at once.
 
 Vertical composition (`andThen`) assumes that once you have focused on a field, you can update it independently. This works beautifully for nested structures like `Employee → Company → Address → Street`.
 
@@ -123,19 +126,22 @@ The "correct" order depends on the direction of change!
 
 ```mermaid
 flowchart TD
-    subgraph seq["Sequential: one field at a time"]
-        direction TB
-        S1(["Range(1, 2)"]) -->|"loLens.set(11)"| S2(["Range(11, 2)"]) --> S3(["invariant broken:<br/>11 &gt; 2"])
-    end
+    accTitle: Sequential and paired updates of a Range
+    accDescr: Sequentially, loLens.set(11) turns Range(1, 2) into Range(11, 2), which breaks the invariant because 11 is greater than 2. Paired, boundsLens.get reads Range(1, 2) as Pair(1, 2), the transform gives Pair(11, 12), and Range::new builds Range(11, 12) with the invariant held.
+    %% declared in reverse: the layout places the last subgraph on the left
     subgraph pair["Paired: both bounds together"]
         direction TB
-        P1(["Range(1, 2)"]) -->|"boundsLens.get"| P2(["Pair(1, 2)"])
-        P2 -->|"transform"| P3(["Pair(11, 12)"])
-        P3 -->|"Range::new"| P4(["Range(11, 12)<br/>invariant held"])
+        P1["Range(1, 2)"] -->|"boundsLens.get"| P2["Pair(1, 2)"]
+        P2 -->|"transform"| P3["Pair(11, 12)"]
+        P3 -->|"Range::new"| P4["Range(11, 12)<br/>invariant held"]
+    end
+    subgraph seq["Sequential: one field at a time"]
+        direction TB
+        S1["Range(1, 2)"] -->|"loLens.set(11)"| S2["Range(11, 2)"] --> S3["invariant broken:<br/>11 &gt; 2"]
     end
 
     classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
-    classDef out fill:#e5c890,stroke:#df8e1d,color:#232634
+    classDef out fill:#a6d189,stroke:#40a02b,color:#232634
     classDef bad fill:#e78284,stroke:#d20f39,color:#232634
     class S1,S2,P1,P2,P3 tier
     class P4 out

@@ -73,21 +73,25 @@ Nothing here is reflective and nothing is a string. `LocalDateLenses.year()` is 
 The processor looks at each imported type and picks a strategy from its shape:
 
 ```mermaid
-flowchart TD
-    T{"The imported type is..."}
+flowchart LR
+    accTitle: How auto-detection picks a strategy
+    accDescr: A record gets lenses through its canonical constructor, a sealed interface one prism per permitted subtype, an enum one prism per constant, and a class with withX methods lenses through getter and wither. Any other type is not supported, and needs a spec interface.
+    T{"The imported<br/>type is..."}
     T -->|"a record"| R(["Lenses, via the<br/>canonical constructor"])
-    T -->|"a sealed interface"| S(["Prisms, one per<br/>permitted subtype"])
-    T -->|"an enum"| E(["Prisms, one per<br/>constant"])
-    T -->|"a class with withX methods"| W(["Lenses, via<br/>getter and wither"])
-    T -->|"anything else"| X(["Not supported:<br/>write a spec interface"])
+    T -->|"a sealed interface"| S@{ shape: hex, label: "Prisms, one per<br/>permitted subtype" }
+    T -->|"an enum"| E@{ shape: hex, label: "Prisms, one per<br/>constant" }
+    T -->|"a class with<br/>withX methods"| W(["Lenses, via<br/>getter and wither"])
+    T -->|"anything else"| X["Not supported:<br/>write a spec interface"]
 
     classDef decision fill:#e5c890,stroke:#df8e1d,color:#232634
-    classDef tier fill:#a6d189,stroke:#40a02b,color:#232634
+    classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
     classDef error fill:#e78284,stroke:#d20f39,color:#232634
     class T decision
-    class R,S,E,W tier
+    class R,S,E,W rw
     class X error
 ```
+
+In words: records and classes with withers get lenses, sealed interfaces and enums get prisms, and any other shape needs a spec interface.
 
 ### Records to Lenses
 

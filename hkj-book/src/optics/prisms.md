@@ -104,6 +104,21 @@ JsonValue result3 = jsonStringPrism.build(new JsonString("world"));
 // -> JsonString[value=world], typed as a JsonValue
 ```
 
+The prism picks one case of the sealed type, and every other case passes through it untouched:
+
+<pre class="hkj-ascii-diagram" role="img" aria-label="The jsonString prism matches one case of the sealed JsonValue. For a JsonString, getOptional holds it; for any other case it is empty, and modify hands the value back unchanged.">
+JsonValue (sealed)
+├─ JsonString ◆        jsonString()
+├─ JsonNumber .....
+├─ JsonBoolean ....
+└─ JsonObject .....
+
+◆ the case it matches: getOptional
+  gives Optional[JsonString[...]]
+. any other case: Optional.empty,
+  and modify hands it back as it was
+</pre>
+
 ### Step 3: Composing Prisms for Deep Access
 
 The true power is composing `Prism`s with other optics. When a `Prism` meets a `Lens` or an `Affine`, the focus can be missing and nothing can build the whole from it, so the result is an `Affine`. Two prisms stay a `Prism`, and anything composed with a `Traversal`, on either side, is a `Traversal`.

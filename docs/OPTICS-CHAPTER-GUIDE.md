@@ -92,6 +92,38 @@ covering every page in the group.
   record a hop leaves carries `@GenerateFocus(generateNavigators = true)`; without it, the hop is
   `.via(...)`.
 
+## Diagrams
+
+The Style Guide's [Diagrams](STYLE-GUIDE.md#diagrams) rules hold here, and three more give the
+chapter one visual vocabulary:
+
+- **An optic is drawn in its legend shape.** The legend under "How the optic types relate" on the
+  chapter introduction gives each optic type one shape and class:
+
+  | Optic | Mermaid shape | Class |
+  |---|---|---|
+  | Lens | `X(["Lens"])`, a stadium | `rw` |
+  | Affine | `X(["Affine"])`, a stadium with a dashed outline | `maybe` |
+  | Prism | `X@{ shape: hex, label: "Prism" }` | `rw` |
+  | Traversal | `X@{ shape: st-rect, label: "Traversal" }` | `rw` |
+  | Iso | `X@{ shape: bow-rect, label: "Iso" }` | `rw` |
+  | Fold | `X@{ shape: docs, label: "Fold" }` | `ro` |
+  | Getter | `X@{ shape: doc, label: "Getter" }` | `ro` |
+  | Setter | `X@{ shape: lean-r, label: "Setter" }` | `rw` |
+
+  `rw` is `fill:#a6d189,stroke:#40a02b,color:#232634`, `maybe` the same with
+  `stroke-dasharray:6 4`, and `ro` is `fill:#8caaee,stroke:#1e66f5,color:#232634`. A node that wraps
+  one optic takes that optic's shape too: a `FocusPath` the Lens's, an `AffinePath` the Affine's,
+  and a `TraversalPath` or an `IndexedTraversal` the Traversal's. Any other node is a rectangle, a
+  decision a rhombus, in the house palette, so a stadium is always a Lens or an Affine.
+- **An optic-type page shows a focus tree** under its first example of the optic at work: an ASCII
+  tree in `<pre class="hkj-ascii-diagram" role="img" aria-label="...">`, at most 36 columns,
+  marking what a write rebuilds, what it reuses, and where the focus may be missing. Its
+  `aria-label` says the same in a sentence. The Lenses, Prisms, Affines and Traversals pages carry
+  one.
+- **Measure a diagram's width** in a render before committing it: mermaid writes its natural width
+  into the SVG's `max-width`, which a headless Chromium `--dump-dom` of the built page shows.
+
 ## Checks
 
 Run these before opening the pull request:
