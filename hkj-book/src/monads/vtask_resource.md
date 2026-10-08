@@ -5,7 +5,8 @@
 - Using `Resource` for safe resource management in concurrent computations
 - Creating resources from `AutoCloseable`, explicit acquire/release, and pure values
 - Composing multiple resources with `flatMap` and `and`
-- Adding finalisers for cleanup actions
+- Using one `Resource` many times, nested or at once
+- Adding finalisers, and cleanup that runs only when the use fails
 - Integrating resources with `Scope` for concurrent resource management
 ~~~
 
@@ -71,13 +72,17 @@ Resource<Config> configResource = Resource.pure(loadedConfig);
 ```
 ~~~
 
-### Factory Methods
+### Factory Methods {#factory-methods}
 
 | Method | Description | Use Case |
 |--------|-------------|----------|
-| `fromAutoCloseable(supplier)` | Wraps an `AutoCloseable` | Database connections, streams, channels |
+| `fromAutoCloseable(supplier)` | Wraps an `AutoCloseable`, ignoring an exception from `close()` | Database connections, streams, channels |
 | `make(acquire, release)` | Explicit acquire and release functions | Custom resources, locks, external handles |
 | `pure(value)` | Wraps a value with no cleanup | Configuration, constants, pre-initialised values |
+
+A `Resource` never holds null. An `acquire` that returns null, `pure(null)`, or a `map` function that returns null fails the use with `NullPointerException`. Hold a value that may be absent as a `Maybe`, and acquire it with `make`.
+
+To see a failed `close()`, use `make` with a release that calls `close()` and handles its exception.
 
 ---
 
@@ -108,7 +113,7 @@ VTask<Integer> count = connResource.use(conn ->
 int userCount = count.run();
 ```
 
-### Exception Safety
+### Exception Safety {#exception-safety}
 
 If the use function throws, the resource is still released:
 
@@ -129,11 +134,23 @@ Try<String> result = riskyOperation.runSafe();
 // connection is closed
 ```
 
+If the release throws as well, the use's exception is still the one reported. The release's exception is added to it as a suppressed exception, as try-with-resources does. A `Resource` from `fromAutoCloseable` ignores an exception from `close()`, so this applies to a release written with `make`.
+
+### Using One Resource Many Times {#using-one-resource-many-times}
+
+A `Resource` holds nothing itself. Each `use` acquires its own resource and releases exactly that one. So build a `Resource` once and use it wherever it is needed: once per request, on several threads at once, or one use nested inside another. This holds however the `Resource` was composed.
+
+```java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:many_uses}}
+```
+
+The nested use opens a second connection, and each use closes the one it opened, innermost first. The `map` makes this a composed `Resource`, and its release still receives the value `acquire` returned.
+
 ---
 
 ## Composing Resources
 
-Resources compose naturally, acquiring in order and releasing in reverse (LIFO):
+Resources compose naturally, acquiring in order and releasing in reverse (LIFO). A composed `Resource` can be used many times too, as [Using One Resource Many Times](#using-one-resource-many-times) shows.
 
 <!-- verify -->
 ```java
@@ -214,24 +231,14 @@ Resource<Lock> lockResource = Resource.make(
 
 ### Finaliser Behaviour {#finalizer-behaviour}
 
-- Finalisers run after the primary release function
-- Multiple finalisers can be added (they run in reverse order of addition)
-- If the primary release throws, finalisers still run
-- If a finaliser throws, subsequent finalisers still run
-- All exceptions are collected and suppressed on the original exception
+- **Finalisers run after the primary release.**
+- **Finalisers run in the order they were added.**
+- **A finaliser runs even when the release throws.**
+- **A finaliser runs even when an earlier finaliser throws.**
+- **When the release and a finaliser both throw, the release's exception is reported.** The finaliser's exception is suppressed onto it.
 
-<!-- verify -->
 ```java
-Resource<Handle> robust = Resource.make(acquire, release)
-    .withFinalizer(() -> cleanupStep1())
-    .withFinalizer(() -> cleanupStep2())
-    .withFinalizer(() -> cleanupStep3());
-
-// Execution order:
-// 1. release()
-// 2. cleanupStep3()  (most recently added)
-// 3. cleanupStep2()
-// 4. cleanupStep1()  (first added)
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:finalisers}}
 ```
 
 ---
@@ -268,10 +275,11 @@ Resource<Connection> connResource = Resource.make(
         return conn;
     },
     conn -> {
-        try { conn.rollback(); } catch (Exception e) { /* ignore */ }
         try { conn.close(); } catch (Exception e) { /* ignore */ }
     }
-);
+).onFailure(conn -> {
+    try { conn.rollback(); } catch (Exception e) { /* ignore */ }
+});
 
 VTask<OrderResult> processOrder = connResource.use(conn ->
     Scope.<Void>allSucceed()
@@ -287,7 +295,7 @@ VTask<OrderResult> processOrder = connResource.use(conn ->
 
 // If any step fails:
 // 1. Scope cancels remaining tasks
-// 2. Connection release triggers rollback
+// 2. onFailure rolls the transaction back
 // 3. Connection is closed
 Try<OrderResult> result = processOrder.runSafe();
 ```
@@ -296,18 +304,20 @@ Try<OrderResult> result = processOrder.runSafe();
 
 ## Error Handling in Resources
 
-### onFailure Callback
+### onFailure Callback {#onfailure-callback}
 
-Execute a callback when the use computation fails:
+`onFailure` adds an action that runs when the use fails, before the release. It receives the acquired resource, so it can undo partial work, such as rolling back a transaction. When the use succeeds, only the release runs.
 
-<!-- verify -->
 ```java
-Resource<Connection> connWithCleanup = connResource
-    .onFailure(conn -> {
-        // Clean up any partial state on the connection
-        try { conn.rollback(); } catch (Exception e) { /* ignore */ }
-    });
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/monads/resource/ResourceBook.java:on_failure}}
 ```
+
+The first use succeeds, so it only closes `tx-1`. The second fails, so `tx-2` is rolled back and then closed. The use fails when the function given to `use` throws, or the task it returns fails. A cancelled task fails too. A step composed after `onFailure` counts as well, when it fails while the resource is held:
+
+- **`map`'s or `flatMap`'s function throws.**
+- **The next acquire in `flatMap` or `and` fails.**
+
+The action runs before its `Resource`'s release and before the finalisers added to it. Actions added one after another run most recently added first. If an action throws, the release still runs, and the use's failure is still the one reported.
 
 ### Combining with VTask Error Handling
 
@@ -329,6 +339,8 @@ VTask<Data> robust = connResource.use(conn ->
 * **Resource** implements the bracket pattern: acquire-use-release with guaranteed cleanup
 * **fromAutoCloseable** wraps standard Java resources; **make** handles custom acquire/release
 * **Composition** with `flatMap` and `and` maintains proper release ordering (LIFO)
+* **Each use acquires its own resource**, so one `Resource` can be used many times, nested or at once
+* **onFailure** runs an action before the release when the use fails
 * **Finalisers** add cleanup actions that run even if release throws
 * **Scope integration** enables concurrent computations with safe resource management
 * **Exception safety** ensures resources are released even when computations fail

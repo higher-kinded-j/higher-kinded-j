@@ -95,7 +95,7 @@ VTask<Result> result = connResource.use(conn ->
 
 ## Resource (VTask)
 
-**Definition:** A type in Higher-Kinded-J that implements the bracket pattern for safe resource management in VTask computations. Resources encapsulate acquisition and release logic, guaranteeing cleanup even when computations fail or are cancelled.
+**Definition:** A type in Higher-Kinded-J that implements the bracket pattern for safe resource management in VTask computations. Resources encapsulate acquisition and release logic, guaranteeing cleanup even when computations fail or are cancelled. Each use acquires its own resource, so one `Resource` can be used many times, nested or at once.
 
 **Factory Methods:**
 | Method | Use Case |
@@ -112,6 +112,7 @@ VTask<Result> result = connResource.use(conn ->
 | `and(other)` | Combine two resources (releases in LIFO order) |
 | `and(r2, r3)` | Combine three resources |
 | `withFinalizer(action)` | Add cleanup that runs after release |
+| `onFailure(action)` | Add cleanup that runs before release when the use fails |
 
 **Example:**
 <!-- verify -->

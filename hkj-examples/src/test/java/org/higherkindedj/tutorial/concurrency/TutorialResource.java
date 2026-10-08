@@ -311,7 +311,7 @@ public class TutorialResource {
      * Exercise 8: Add a finaliser for cleanup actions
      *
      * <p>withFinalizer() adds a cleanup action that runs after the primary release. Finalisers run
-     * even if the primary release throws, and multiple finalisers run in reverse order.
+     * even if the primary release throws, and multiple finalisers run in the order they were added.
      *
      * <p>Task: Add a finaliser to log resource release
      */
