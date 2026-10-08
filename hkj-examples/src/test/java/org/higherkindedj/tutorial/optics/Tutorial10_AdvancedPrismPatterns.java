@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 import java.util.Optional;
 import org.higherkindedj.hkt.Unit;
+import org.higherkindedj.optics.Affine;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
@@ -29,15 +30,15 @@ import org.junit.jupiter.api.Test;
  *
  * <p>This tutorial introduces the building blocks that make those queries declarative: {@code
  * nearly} (predicate matching), {@code doesNotMatch} (exclusion), and the composition rules (Lens +
- * Prism = Traversal; Prism + Lens = Traversal).
+ * Prism = Affine; Prism + Lens = Affine).
  *
  * <p>Key Concepts:
  *
  * <ul>
  *   <li>{@code nearly}: Predicate-based matching (complement to {@code only})
  *   <li>{@code doesNotMatch}: Exclusion filtering
- *   <li>Lens + Prism = Traversal: Composing through optional paths
- *   <li>Prism + Lens = Traversal: Accessing fields of sum type variants
+ *   <li>Lens + Prism = Affine: Composing through optional paths
+ *   <li>Prism + Lens = Affine: Accessing fields of sum type variants
  * </ul>
  *
  * <p>When to use these patterns:
@@ -252,39 +253,39 @@ public class Tutorial10_AdvancedPrismPatterns {
   // =========================================================================
 
   /**
-   * Exercise 6: Lens andThen Prism = Traversal.
+   * Exercise 6: Lens andThen Prism = Affine.
    *
    * <pre>
-   *   // Nudge:    databaseLens.andThen(somePrism); use Traversals.getAll to see 0..1 results.
+   *   // Nudge:    databaseLens.andThen(somePrism); use getOptional to see the 0..1 result.
    *   // Strategy: databaseLens.andThen(somePrism)
-   *   //           Traversals.getAll(traversal, source)
+   *   //           affine.getOptional(source)
    *   // Spoiler:  exactly that for both placeholders.
    * </pre>
    */
   @Test
-  @DisplayName("Exercise 6: Lens andThen Prism produces a Traversal")
+  @DisplayName("Exercise 6: Lens andThen Prism produces an Affine")
   void exercise6_lensThenPrism() {
     Lens<Config, Optional<DatabaseSettings>> databaseLens =
         Lens.of(Config::database, (config, db) -> new Config(config.name(), db));
 
     Prism<Optional<DatabaseSettings>, DatabaseSettings> somePrism = Prisms.some();
 
-    // TODO: Compose the lens with the prism to get a Traversal
+    // TODO: Compose the lens with the prism to get an Affine
     // Hint: databaseLens.andThen(somePrism)
-    Traversal<Config, DatabaseSettings> databaseTraversal = answerRequired();
+    Affine<Config, DatabaseSettings> databaseAffine = answerRequired();
 
     Config withDb = new Config("prod", Optional.of(new DatabaseSettings("localhost", 5432)));
     Config withoutDb = new Config("dev", Optional.empty());
 
-    // TODO: Get all database settings from withDb (should have 1 element)
-    // Hint: Traversals.getAll(traversal, source)
-    List<DatabaseSettings> foundDb = answerRequired();
+    // TODO: Get the database settings from withDb (should be present)
+    // Hint: databaseAffine.getOptional(source)
+    Optional<DatabaseSettings> foundDb = answerRequired();
 
-    // TODO: Get all database settings from withoutDb (should be empty)
-    List<DatabaseSettings> notFoundDb = answerRequired();
+    // TODO: Get the database settings from withoutDb (should be empty)
+    Optional<DatabaseSettings> notFoundDb = answerRequired();
 
-    assertThat(foundDb).hasSize(1);
-    assertThat(foundDb.get(0).host()).isEqualTo("localhost");
+    assertThat(foundDb).isPresent();
+    assertThat(foundDb.get().host()).isEqualTo("localhost");
     assertThat(notFoundDb).isEmpty();
   }
 
@@ -293,17 +294,17 @@ public class Tutorial10_AdvancedPrismPatterns {
   // =========================================================================
 
   /**
-   * Exercise 7: Prism andThen Lens = Traversal.
+   * Exercise 7: Prism andThen Lens = Affine.
    *
    * <pre>
-   *   // Nudge:    successPrism.andThen(dataLens) for the Traversal; Traversals.getAll to read.
+   *   // Nudge:    successPrism.andThen(dataLens) for the Affine; getOptional to read.
    *   // Strategy: successPrism.andThen(dataLens)
-   *   //           Traversals.getAll(traversal, source)
+   *   //           affine.getOptional(source)
    *   // Spoiler:  exactly that for both placeholders.
    * </pre>
    */
   @Test
-  @DisplayName("Exercise 7: Prism andThen Lens produces a Traversal")
+  @DisplayName("Exercise 7: Prism andThen Lens produces an Affine")
   void exercise7_prismThenLens() {
     Prism<ApiResponse, Success> successPrism = ApiResponsePrisms.success();
 
@@ -313,21 +314,21 @@ public class Tutorial10_AdvancedPrismPatterns {
     Lens<ResponseData, String> contentLens =
         Lens.of(ResponseData::content, (rd, content) -> new ResponseData(content, rd.size()));
 
-    // TODO: Compose successPrism with dataLens to get a Traversal to ResponseData
+    // TODO: Compose successPrism with dataLens to get an Affine to ResponseData
     // Hint: successPrism.andThen(dataLens)
-    Traversal<ApiResponse, ResponseData> successDataTraversal = answerRequired();
+    Affine<ApiResponse, ResponseData> successDataAffine = answerRequired();
 
     ApiResponse success = new Success(new ResponseData("Hello", 5), "2024-01-01");
     ApiResponse error = new ClientError("Not Found", 404);
 
-    // TODO: Get ResponseData from success (should have 1 element)
-    List<ResponseData> successData = answerRequired();
+    // TODO: Get ResponseData from success (should be present)
+    Optional<ResponseData> successData = answerRequired();
 
     // TODO: Get ResponseData from error (should be empty)
-    List<ResponseData> errorData = answerRequired();
+    Optional<ResponseData> errorData = answerRequired();
 
-    assertThat(successData).hasSize(1);
-    assertThat(successData.get(0).content()).isEqualTo("Hello");
+    assertThat(successData).isPresent();
+    assertThat(successData.get().content()).isEqualTo("Hello");
     assertThat(errorData).isEmpty();
   }
 
@@ -335,8 +336,8 @@ public class Tutorial10_AdvancedPrismPatterns {
    * Exercise 8: Chain Prism + Lens + Lens (with asTraversal at the end).
    *
    * <pre>
-   *   // Nudge:    After Prism.andThen(Lens) we have a Traversal; chain another Lens via
-   *   //           .asTraversal().
+   *   // Nudge:    After Prism.andThen(Lens) we have an Affine; chain another Lens via
+   *   //           .asTraversal() to get a Traversal.
    *   // Strategy: successPrism.andThen(dataLens).andThen(contentLens.asTraversal())
    *   //           Traversals.modify(traversal, String::toUpperCase, source)
    *   // Spoiler:  exactly that for all three placeholders.
@@ -386,8 +387,8 @@ public class Tutorial10_AdvancedPrismPatterns {
    *   <li>✓ How to use {@code nearly} for predicate-based matching
    *   <li>✓ The difference between {@code only} (exact) and {@code nearly} (predicate)
    *   <li>✓ How to use {@code doesNotMatch} for exclusion filtering
-   *   <li>✓ Lens + Prism = Traversal composition pattern
-   *   <li>✓ Prism + Lens = Traversal composition pattern
+   *   <li>✓ Lens + Prism = Affine composition pattern
+   *   <li>✓ Prism + Lens = Affine composition pattern
    *   <li>✓ How to chain compositions using {@code lens.asTraversal()}
    * </ul>
    *

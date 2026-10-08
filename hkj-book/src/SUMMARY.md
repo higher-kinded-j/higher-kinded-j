@@ -103,7 +103,7 @@
     - [Focus DSL with External Libraries](optics/focus_external_bridging.md)
   - [Validation, Batching and Auditing](optics/ch5_intro.md)
     - [Validated Prisms](optics/validated_prism.md)
-    - [Composing Optics](optics/composing_optics.md)
+    - [Deep Validation with modifyF](optics/composing_optics.md)
     - [Optic-Driven Batching](optics/optic_batching.md)
     - [Plan Introspection and Guardrails](optics/optic_batching_guardrails.md)
     - [Auditing Complex Data](optics/auditing_complex_data_example.md)

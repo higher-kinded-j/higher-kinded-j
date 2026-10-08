@@ -420,7 +420,7 @@ Either<String, Integer> result = EITHER.narrow(
 Each solution references specific documentation sections. Follow these links to deepen understanding:
 
 - If a solution uses `Functor.map` → Read the [Functor Guide](../functional/functor.md)
-- If a solution composes optics → Read [Composing Optics](../optics/composing_optics.md)
+- If a solution composes optics → Read [Optic Composition Rules](../optics/composition_rules.md)
 - If a solution uses a specific monad → Read its dedicated guide
 
 ### Build Your Own Exercises

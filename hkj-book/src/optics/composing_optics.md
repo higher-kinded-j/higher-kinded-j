@@ -1,4 +1,4 @@
-# Capstone: Composing Optics for Deep Validation
+# Deep Validation with `modifyF`
 
 ~~~admonish info title="What You'll Learn"
 - How to compose multiple optic types into powerful processing pipelines
@@ -454,7 +454,7 @@ Scenario 7 runs the same path through `modifyWhen` with a `Selective`. The cheap
 
 ## Why This Approach is Powerful
 
-This capstone example demonstrates several key advantages of the optics approach:
+This example shows several advantages of the optics approach:
 
 ### **Declarative Composition**
 

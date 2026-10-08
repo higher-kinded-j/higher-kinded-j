@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.indexed.Pair;
+import org.higherkindedj.optics.laws.LensLaws;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -61,5 +62,33 @@ class LensesBookTest {
 
     assertThat(bounds.set(Pair.of(5, 10), RANGE)).isEqualTo(new Range(5, 10));
     assertThat(bounds.set(Pair.of(1, 3), new Range(5, 10))).isEqualTo(RANGE);
+  }
+
+  @Test
+  @DisplayName("a lowercasing constructor breaks set-get, and the law check catches it")
+  void normalisingConstructorBreaksSetGet() {
+    NormalisedEmail stored = new NormalisedEmail("ada@example.com");
+
+    assertThat(NormalisedEmailLenses.value().set("Ada@Example.com", stored).value())
+        .isEqualTo("ada@example.com");
+    assertThatThrownBy(
+            () ->
+                LensLaws.assertLensLaws(
+                    NormalisedEmailLenses.value(), stored, "Ada@Example.com", "GRACE@example.com"))
+        .isInstanceOf(AssertionError.class)
+        .hasMessageContaining("Lens set-get");
+  }
+
+  @Test
+  @DisplayName("normalising at the boundary keeps the record's lens lawful")
+  void boundaryFixKeepsTheLensLawful() {
+    // ANCHOR: law_check
+    ContactEmail stored = LensesBook.fromRequest("  Ada@Example.com ");
+    // The values set have capitals, which a lowercasing constructor would change
+    LensLaws.assertLensLaws(
+        ContactEmailLenses.value(), stored, "Ada@Example.com", "GRACE@example.com");
+    // ANCHOR_END: law_check
+
+    assertThat(stored.value()).isEqualTo("ada@example.com");
   }
 }

@@ -76,8 +76,8 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
  * </ul>
  *
  * @see <a href="https://higher-kinded-j.github.io/optics/lenses.html">Lenses Guide</a>
- * @see <a href="https://higher-kinded-j.github.io/optics/composing_optics.html">Composing
- *     Optics</a>
+ * @see <a href="https://higher-kinded-j.github.io/optics/composition_rules.html">Optic Composition
+ *     Rules</a>
  */
 public final class LensDeepUpdate {
 

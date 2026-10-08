@@ -425,7 +425,7 @@ Maybe<String> backToMaybe = value
 ~~~admonish tip title="See Also"
 - [Prisms](prisms.md): the optic these instances are built from
 - [Optics Extensions](optics_extensions.md): the validated `Lens` and `Traversal` operations that pair with them
-- [Composing Optics](composing_optics.md): the capstone that puts a prism in the middle of a longer path
+- [Deep Validation with `modifyF`](composing_optics.md): the longer example that puts a prism in the middle of a longer path
 ~~~
 
 ---

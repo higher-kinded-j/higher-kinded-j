@@ -66,12 +66,12 @@ public class CompositionRecipes {
   }
 
   /**
-   * Recipe: Lens + Prism = Traversal.
+   * Recipe: Lens + Prism = Affine.
    *
    * <p>Pattern: Navigate from a product type through an optional/sum type field.
    */
   private static void recipeLensPrismComposition() {
-    System.out.println("--- Recipe: Lens + Prism = Traversal ---");
+    System.out.println("--- Recipe: Lens + Prism = Affine ---");
 
     // Container has an Optional<Content> field
     Lens<Container, Optional<Content>> contentLens =

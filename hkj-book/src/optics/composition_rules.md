@@ -2,6 +2,28 @@
 
 _The optic type `andThen` returns for every pair of optics, and why._
 
+> **You:** A lens always finds its field. So a lens followed by a prism always finds something?
+>
+> **`andThen`:** Only when the prism matches. `ConsignmentLenses.state()` finds the state, and `ConsignmentStatePrisms.returned()` finds nothing when that state is `Pending`.
+>
+> **You:** So the pair reaches zero or one value. Why is it not a prism?
+>
+> **`andThen`:** A prism can also build the whole from its part. Hand me a `Returned`: can you build the consignment it belongs to?
+>
+> **You:** No. The lens needs a consignment to put the state into.
+>
+> **`andThen`:** Then the pair cannot build, and something that reaches zero or one without building is an `Affine`.
+>
+> **You:** And two prisms in a row?
+>
+> **`andThen`:** Each can build, so the pair can too: a `Prism`.
+>
+> **You:** So I ask two things of each step: how many values it reaches, and whether it can build.
+>
+> **`andThen`:** The pair reaches the wider of the two, and builds only if both build.
+
+The [Composition Rules Table](#composition-rules-table) works that rule out for every pair, and states it plainly beside the table.
+
 ---
 
 ## Ranking by Capability {#the-optic-hierarchy}

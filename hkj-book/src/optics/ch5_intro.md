@@ -37,7 +37,7 @@ Four optics of three different kinds compose into one value, and that value is r
 ## Pages in this group
 
 1. [Validated Prisms](validated_prism.md): Parse at a boundary, build back without failing
-2. [Composing Optics](composing_optics.md): A validation pipeline through `modifyF`
+2. [Deep Validation with `modifyF`](composing_optics.md): A validation pipeline through `modifyF`
 3. [Optic-Driven Batching](optic_batching.md): N foci, one backend call
 4. [Plan Introspection and Guardrails](optic_batching_guardrails.md): See and bound a batch before it runs
 5. [Auditing Complex Data](auditing_complex_data_example.md): An audit trail of every change
