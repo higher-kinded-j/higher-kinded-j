@@ -13,16 +13,18 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.validated.Validated;
+import org.jspecify.annotations.Nullable;
 
 /**
- * A functional wrapper around Java 25's {@link StructuredTaskScope.Joiner} interface.
+ * A reusable joining policy for Java 25's {@link StructuredTaskScope}.
  *
- * <p>ScopeJoiner provides a hybrid approach that:
+ * <p>ScopeJoiner:
  *
  * <ul>
- *   <li>Wraps Java 25's native {@code Joiner} for direct interoperability
- *   <li>Provides functional result accessors via {@link Either} and {@link Validated}
- *   <li>Offers HKJ-specific joiners like error accumulation with {@link Validated}
+ *   <li>Builds a new Java 25 {@link StructuredTaskScope.Joiner} for each scope, for direct
+ *       interoperability
+ *   <li>Offers HKJ-specific joiners, such as error accumulation with {@link Validated} and a race
+ *       to the first {@link Either} {@code Right}
  * </ul>
  *
  * <h2>Usage</h2>
@@ -41,11 +43,13 @@ import org.higherkindedj.hkt.validated.Validated;
  *
  * <h2>One ScopeJoiner, Many Scopes</h2>
  *
- * <p>A {@code ScopeJoiner} holds only its configuration, such as the error mapper given to {@link
- * #accumulating(Function)}. {@link #joiner()} builds a new {@code Joiner}, with state of its own,
- * each time it is called, because a {@code StructuredTaskScope} needs a {@code Joiner} that no
- * other scope has used. So one {@code ScopeJoiner}, and a {@link Scope} built with it, can join any
- * number of scopes, one after another or at the same time.
+ * <p>A {@code ScopeJoiner} holds its configuration, such as the error mapper given to {@link
+ * #accumulating(Function)}, and no scope's state. {@link #joiner()} builds a new {@code Joiner},
+ * with state of its own, each time it is called, because a {@code StructuredTaskScope} needs a
+ * {@code Joiner} that no other scope has used. So one {@code ScopeJoiner}, and a {@link Scope}
+ * built with it, can join any number of scopes, one after another or at the same time. Until the
+ * deprecated {@link #resultEither()} is removed, it also keeps the {@code Joiner} it handed out
+ * last, and with it that scope's results.
  *
  * <h2>Preview API Notice</h2>
  *
@@ -71,8 +75,7 @@ public sealed interface ScopeJoiner<T, R>
    *
    * <p>Use this method when you need direct access to Java's native structured concurrency API, for
    * example when passing to {@code StructuredTaskScope.open(Joiner)}. Open one scope with each
-   * {@code Joiner}, and keep it in a variable if you read its {@code result()} after the scope
-   * joins.
+   * {@code Joiner}, and take the result from that scope's {@code join()}.
    *
    * @return a new Java 25 Joiner; never null
    */
@@ -88,8 +91,9 @@ public sealed interface ScopeJoiner<T, R>
    * @return {@code Either.right(result)} on success, {@code Either.left(exception)} on failure
    * @deprecated since 0.5.0, scheduled for removal in 0.6.0. {@link #joiner()} returns a new {@code
    *     Joiner} on each call, so this reads whichever one was handed out last, which another scope
-   *     or another thread may have replaced. Use {@link Scope#joinEither()}, or wrap the result of
-   *     the scope's {@code join()} in an {@code Either}.
+   *     or another thread may have replaced. Use {@link Scope#joinEither()} in place of {@link
+   *     Scope#join()}. With a {@code StructuredTaskScope} you open yourself, use the value its
+   *     {@code join()} returns, or the cause of the {@code FailedException} it throws.
    */
   @Deprecated(since = "0.5.0", forRemoval = true)
   Either<Throwable, R> resultEither();
@@ -126,7 +130,8 @@ public sealed interface ScopeJoiner<T, R>
    * Creates a joiner that returns the first completed result (success or failure).
    *
    * <p>This is useful for racing tasks where you want the fastest response, regardless of whether
-   * it succeeded or failed. As soon as one subtask completes, the others are cancelled.
+   * it succeeded or failed. As soon as one subtask completes, the others are cancelled: those
+   * running are interrupted, and those not yet started never start.
    *
    * @param <T> the type of values produced by subtasks
    * @return a joiner that returns the first result to complete
@@ -148,6 +153,9 @@ public sealed interface ScopeJoiner<T, R>
    *
    * <p>This is particularly useful for validation scenarios where you want to report all errors at
    * once rather than stopping at the first failure.
+   *
+   * <p>Scopes that join at the same time call {@code errorMapper} from their own threads, so it
+   * must be safe to call from several threads at once.
    *
    * @param <E> the error type after mapping
    * @param <T> the type of values produced by subtasks
@@ -187,7 +195,8 @@ public sealed interface ScopeJoiner<T, R>
  * latest for the deprecated {@link ScopeJoiner#resultEither()}.
  *
  * <p>It starts with one built in advance, so {@code resultEither()} reads a {@code Joiner} that no
- * scope has used until the first is handed out, as it always has.
+ * scope has used until the first is handed out. The latest {@code Joiner} keeps its scope's
+ * subtasks, with their results or exceptions, reachable for as long as the {@code ScopeJoiner} is.
  *
  * @param <T> the type of values produced by subtasks
  * @param <R> the type of the final result after joining
@@ -249,26 +258,28 @@ final class FirstSuccessEitherJoiner<E, T>
   private static <E, T> StructuredTaskScope.Joiner<Either<E, T>, Either<List<E>, T>> newJoiner() {
     List<StructuredTaskScope.Subtask<? extends Either<E, T>>> allSubtasks =
         Collections.synchronizedList(new ArrayList<>());
-    AtomicReference<Either<E, T>> winner = new AtomicReference<>();
+    AtomicReference<@Nullable Either<E, T>> winner = new AtomicReference<>();
 
     return new StructuredTaskScope.Joiner<>() {
       @Override
       public boolean onFork(StructuredTaskScope.Subtask<? extends Either<E, T>> subtask) {
         allSubtasks.add(subtask);
-        return false;
+        return StructuredTaskScope.Joiner.super.onFork(subtask);
       }
 
       @Override
       public boolean onComplete(StructuredTaskScope.Subtask<? extends Either<E, T>> subtask) {
-        // The first Right cancels the remaining subtasks
-        return subtask.state() == StructuredTaskScope.Subtask.State.SUCCESS
+        if (subtask.state() == StructuredTaskScope.Subtask.State.SUCCESS
             && subtask.get().isRight()
-            && winner.compareAndSet(null, subtask.get());
+            && winner.compareAndSet(null, subtask.get())) {
+          return true; // the first Right cancels the remaining subtasks
+        }
+        return StructuredTaskScope.Joiner.super.onComplete(subtask);
       }
 
       @Override
       public Either<List<E>, T> result() throws Throwable {
-        Either<E, T> won = winner.get();
+        @Nullable Either<E, T> won = winner.get();
         if (won != null) {
           return Either.right(won.getRight());
         }
@@ -393,19 +404,21 @@ final class FirstCompleteJoiner<T> implements ScopeJoiner<T, T> {
   }
 
   private static <T> StructuredTaskScope.Joiner<T, T> newJoiner() {
-    AtomicReference<StructuredTaskScope.Subtask<? extends T>> firstCompleted =
+    AtomicReference<StructuredTaskScope.@Nullable Subtask<? extends T>> firstCompleted =
         new AtomicReference<>();
 
     return new StructuredTaskScope.Joiner<>() {
       @Override
       public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
-        // The first to complete cancels the rest
-        return firstCompleted.compareAndSet(null, subtask);
+        if (firstCompleted.compareAndSet(null, subtask)) {
+          return true; // the first to complete cancels the rest
+        }
+        return StructuredTaskScope.Joiner.super.onComplete(subtask);
       }
 
       @Override
       public T result() throws Throwable {
-        StructuredTaskScope.Subtask<? extends T> subtask = firstCompleted.get();
+        StructuredTaskScope.@Nullable Subtask<? extends T> subtask = firstCompleted.get();
         if (subtask == null) {
           throw new IllegalStateException("No subtask completed");
         }
@@ -457,7 +470,7 @@ final class AccumulatingJoiner<E, T> implements ScopeJoiner<T, Validated<List<E>
       @Override
       public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
         allSubtasks.add(subtask);
-        return false;
+        return StructuredTaskScope.Joiner.super.onFork(subtask);
       }
 
       @Override

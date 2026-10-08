@@ -142,10 +142,10 @@ public class ScopeExample {
   // ============================================================
 
   private static void firstCompleteExample() {
-    System.out.println("--- firstComplete: Fast Path with Fallback ---\n");
+    System.out.println("--- firstComplete: Fastest Answer Wins ---\n");
 
-    // Use firstComplete when you want the first result regardless of outcome
-    // Useful for fast-path/slow-path patterns
+    // Use firstComplete when the first answer should decide, success or failure;
+    // the slower task is cancelled
 
     VTask<String> fastButRisky =
         VTask.of(

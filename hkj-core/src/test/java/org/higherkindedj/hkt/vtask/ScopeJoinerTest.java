@@ -5,6 +5,7 @@ package org.higherkindedj.hkt.vtask;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.StructuredTaskScope;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.validated.Validated;
@@ -265,7 +266,7 @@ class ScopeJoinerTest {
         }
       }
 
-      // Call result() directly on the Joiner the scope used - should throw
+      // Calling result() directly on the Joiner the scope used throws
       assertThatThrownBy(joiner::result)
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("task failed");
@@ -294,6 +295,27 @@ class ScopeJoinerTest {
       // exercises the CAS-false branch that a live race hits only intermittently.
       assertThat(joiner.onComplete(later)).isFalse();
       assertThat(joiner.result()).isEqualTo("winner");
+    }
+
+    @Test
+    @DisplayName("a first completion that failed cancels the scope too")
+    @SuppressWarnings("preview")
+    void aFirstCompletionThatFailedCancelsTheScope() throws Throwable {
+      StructuredTaskScope.Subtask<String> failed;
+      try (var scope = StructuredTaskScope.open(StructuredTaskScope.Joiner.<String>awaitAll())) {
+        failed =
+            scope.fork(
+                () -> {
+                  throw new IllegalStateException("failed first");
+                });
+        scope.join();
+      }
+
+      StructuredTaskScope.Joiner<String, String> joiner =
+          ScopeJoiner.<String>firstComplete().joiner();
+
+      assertThat(joiner.onComplete(failed)).isTrue();
+      assertThatThrownBy(joiner::result).hasMessage("failed first");
     }
   }
 
@@ -553,8 +575,21 @@ class ScopeJoinerTest {
 
     @Test
     @DisplayName("reads an unused Joiner before joiner() is called")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
     void readsAnUnusedJoinerBeforeJoinerIsCalled() {
       assertThat(ScopeJoiner.<String>allSucceed().resultEither().getRight()).isEmpty();
+      assertThat(
+              ScopeJoiner.<String, String>accumulating(Throwable::getMessage)
+                  .resultEither()
+                  .getRight())
+          .isEqualTo(Validated.valid(List.of()));
+      assertThat(ScopeJoiner.<String, String>firstSuccessEither().resultEither().getRight())
+          .isEqualTo(Either.left(List.of()));
+      assertThat(ScopeJoiner.<String>anySucceed().resultEither().getLeft())
+          .isInstanceOf(NoSuchElementException.class);
+      assertThat(ScopeJoiner.<String>firstComplete().resultEither().getLeft())
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("No subtask completed");
     }
   }
 

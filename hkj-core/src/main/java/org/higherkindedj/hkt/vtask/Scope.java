@@ -118,7 +118,8 @@ public final class Scope<T, R> {
   /**
    * Creates a scope that returns the first completed result (success or failure).
    *
-   * <p>As soon as one subtask completes, the others are cancelled.
+   * <p>As soon as one subtask completes, the others are cancelled: those running are interrupted,
+   * and those not yet started never start. The run returns once they have stopped.
    *
    * @param <T> the type of values produced by subtasks
    * @return a new Scope builder configured for first-complete semantics

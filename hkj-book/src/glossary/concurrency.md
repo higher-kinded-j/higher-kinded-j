@@ -153,7 +153,7 @@ Resource<Lock> lock = Resource.make(
 
 ## Scope
 
-**Definition:** A fluent builder for structured concurrent computations in Higher-Kinded-J. Scope wraps Java's `StructuredTaskScope` with functional result handling, providing factory methods for common joining strategies.
+**Definition:** A fluent builder for structured concurrent computations in Higher-Kinded-J. Scope wraps Java's `StructuredTaskScope` with functional result handling, providing factory methods for common joining strategies. The `VTask` from `join()` can run any number of times, and each run joins only its own subtasks.
 
 **Factory Methods:**
 | Method | Behaviour |
@@ -162,7 +162,7 @@ Resource<Lock> lock = Resource.make(
 | `anySucceed()` | Return first success; cancel others |
 | `firstComplete()` | Return first result (success or failure); cancel others |
 | `accumulating(mapper)` | Collect all errors using `Validated` |
-| `withJoiner(joiner)` | Use custom `ScopeJoiner` |
+| `withJoiner(joiner)` | Use a `ScopeJoiner` built elsewhere |
 
 **Example:**
 <!-- verify -->
@@ -195,7 +195,7 @@ VTask<Try<List<String>>> safe = Scope.<String>allSucceed()
 
 ## ScopeJoiner
 
-**Definition:** A functional wrapper around Java 25's `StructuredTaskScope.Joiner` interface. ScopeJoiner provides HKJ-friendly result accessors via `Either` and `Validated`, bridging Java's preview APIs with functional error handling.
+**Definition:** A reusable joining policy for Java 25's `StructuredTaskScope`. A `Scope` takes one to decide how its subtasks' results combine, and `joiner()` builds a new `StructuredTaskScope.Joiner` from it for each scope.
 
 **Available Joiners:**
 | Joiner | Result Type | Behaviour |
@@ -226,7 +226,7 @@ StructuredTaskScope.Joiner<String, List<String>> java25Joiner =
     allSucceed.joiner();
 ```
 
-A `ScopeJoiner` holds only its configuration, so one can serve any number of scopes.
+Each call to `joiner()` returns a new `Joiner`, so one `ScopeJoiner` can serve any number of scopes.
 
 **Related:** [Scope](#scope), [Validated](data-effects.md#validated), [ScopeJoiner Documentation](../monads/vtask_scope.md)
 

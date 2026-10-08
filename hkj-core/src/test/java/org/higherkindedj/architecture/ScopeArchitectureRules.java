@@ -20,7 +20,7 @@ import org.junit.jupiter.api.Test;
  *
  * <ul>
  *   <li>Scope must be a final class with fluent builder pattern
- *   <li>ScopeJoiner must be a final class with factory methods
+ *   <li>ScopeJoiner must be a sealed interface with factory methods
  *   <li>Both must reside in the vtask package
  *   <li>Factory methods must return appropriate types
  * </ul>
@@ -163,7 +163,8 @@ class ScopeArchitectureRules {
                     sub.getSimpleName().equals("AllSucceedJoiner")
                         || sub.getSimpleName().equals("AnySucceedJoiner")
                         || sub.getSimpleName().equals("FirstCompleteJoiner")
-                        || sub.getSimpleName().equals("AccumulatingJoiner"));
+                        || sub.getSimpleName().equals("AccumulatingJoiner")
+                        || sub.getSimpleName().equals("FirstSuccessEitherJoiner"));
 
     assertThat(hasPermittedSubclasses)
         .as("ScopeJoiner should have permitted implementations")

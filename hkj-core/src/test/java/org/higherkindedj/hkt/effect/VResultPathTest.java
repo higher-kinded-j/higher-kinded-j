@@ -1478,7 +1478,7 @@ class VResultPathTest {
     }
 
     @Test
-    @DisplayName("allSucceed, allSucceedAccumulating and firstSuccess answer each run on its own")
+    @DisplayName("allSucceed, allSucceedAccumulating, firstSuccess: each run answers on its own")
     void scopeCombinatorsAnswerEachRunOnItsOwn() {
       VResultPath<String, List<String>> all =
           VResultPath.allSucceed(

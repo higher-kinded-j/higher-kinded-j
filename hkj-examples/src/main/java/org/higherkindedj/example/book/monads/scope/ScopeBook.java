@@ -37,7 +37,8 @@ public final class ScopeBook {
     VTask<List<String>> prices =
         Scope.<String>allSucceed().fork(quote).fork(VTask.succeed("rates")).join();
 
-    List<String> retried = Retry.retryTask(prices, RetryPolicy.fixed(3, Duration.ZERO)).run();
+    List<String> retried =
+        Retry.retryTask(prices, RetryPolicy.fixed(3, Duration.ofMillis(100))).run();
     // [quote, rates]
     List<String> runAgain = prices.run();
     // [quote, rates]

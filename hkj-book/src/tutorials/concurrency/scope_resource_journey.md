@@ -86,15 +86,15 @@ VTask<String> any = Scope.<String>anySucceed()
 - Understanding cancellation behaviour
 - Using `firstComplete` for racing strategies
 
-**Key insight**: The joiner strategy determines both the result type and the cancellation behaviour. `allSucceed` fails fast on any failure; `anySucceed` cancels siblings when one succeeds.
+**Key insight**: The joiner strategy determines both the result type and the cancellation behaviour. `allSucceed` cancels the rest when one fails, `anySucceed` when one succeeds, and `firstComplete` when one completes.
 
 | Joiner | Behaviour | Result Type | Use Case |
 |--------|----------|-------------|----------|
 | `allSucceed` | Wait for all; fail on first failure | `List<T>` | Parallel fetches that all must complete |
 | `anySucceed` | Return first success; cancel others | `T` | Racing redundant requests |
-| `firstComplete` | Return first result (success or failure); cancel others | `T` | Fast-path with fallback |
+| `firstComplete` | Return first result (success or failure); cancel others | `T` | Fastest answer wins, even a failure |
 
-**Exercise 3**: Use `firstComplete` to race a fast but risky operation against a slow but safe one
+**Exercise 3**: Use `firstComplete` to race two operations and take whichever answers first
 **Exercise 4**: Add a timeout to a scope operation
 
 ---

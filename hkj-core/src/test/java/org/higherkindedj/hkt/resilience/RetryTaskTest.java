@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.higherkindedj.hkt.vtask.Scope;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -120,6 +121,26 @@ class RetryTaskTest {
       assertThatNullPointerException()
           .isThrownBy(() -> Retry.retryTask(task, (RetryPolicy) null))
           .withMessageContaining("policy must not be null");
+    }
+
+    @Test
+    @DisplayName("retryTask() recovers a Scope's join from a transient failure")
+    void retryTaskRecoversAScopesJoinFromATransientFailure() {
+      AtomicInteger calls = new AtomicInteger();
+      VTask<Integer> failsOnFirstCall =
+          VTask.of(
+              () -> {
+                if (calls.incrementAndGet() == 1) {
+                  throw new IllegalStateException("transient");
+                }
+                return 1;
+              });
+      VTask<List<Integer>> join =
+          Scope.<Integer>allSucceed().fork(failsOnFirstCall).fork(VTask.succeed(2)).join();
+
+      List<Integer> retried = Retry.retryTask(join, RetryPolicy.fixed(3, Duration.ZERO)).run();
+
+      assertThat(retried).containsExactly(1, 2);
     }
   }
 

@@ -1,6 +1,16 @@
 # Upgrading
 
-Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.5.0](#removals-in-050) lists every API due to go in the next minor release, with the recipe that migrates it.
+Sections run newest first: start at the top and read down to the section for the release after the one you are on. Each lists what the release notes flag as able to stop a build that compiled, or to change what a program does. [Removals in 0.5.0](#removals-in-050) lists every API due to go in the next minor release, with the recipe that migrates it, and [Removals in 0.6.0](#removals-in-060) those due in the release after.
+
+---
+
+## Removals in 0.6.0 {#removals-in-060}
+
+Each of these compiles with javac's `[removal]` warning, which fails a `-Werror` build.
+
+| Deprecated | Since | Use instead | Recipe |
+|---|---|---|---|
+| `ScopeJoiner.resultEither()` | 0.5.0 | `joinEither()` on the `Scope`, in place of `join()`; for a `StructuredTaskScope` you open yourself, the value its `join()` returns, or the cause of the `FailedException` it throws | By hand |
 
 ---
 

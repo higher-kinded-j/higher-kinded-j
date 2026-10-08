@@ -16,8 +16,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
-import org.higherkindedj.hkt.resilience.Retry;
-import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.junit.jupiter.api.DisplayName;
@@ -348,6 +346,47 @@ class ScopeTest {
           .isInstanceOf(RuntimeException.class)
           .hasMessageContaining("fast failure");
     }
+
+    @Test
+    @DisplayName("firstComplete cancels the subtasks still running")
+    void firstCompleteCancelsTheSubtasksStillRunning() {
+      CountDownLatch slowStarted = new CountDownLatch(1);
+      CountDownLatch neverReleased = new CountDownLatch(1);
+      AtomicBoolean slowCancelled = new AtomicBoolean();
+      VTask<String> fast =
+          VTask.of(
+              () -> {
+                slowStarted.await();
+                return "fast";
+              });
+      VTask<String> slow =
+          VTask.of(
+              () -> {
+                slowStarted.countDown();
+                try {
+                  neverReleased.await();
+                  return "slow";
+                } catch (InterruptedException e) {
+                  slowCancelled.set(true);
+                  throw e;
+                }
+              });
+
+      try {
+        String winner =
+            Scope.<String>firstComplete()
+                .fork(fast)
+                .fork(slow)
+                .join()
+                .timeout(Duration.ofSeconds(10))
+                .run();
+
+        assertThat(winner).isEqualTo("fast");
+        assertThat(slowCancelled).isTrue();
+      } finally {
+        neverReleased.countDown();
+      }
+    }
   }
 
   @Nested
@@ -564,7 +603,7 @@ class ScopeTest {
   }
 
   @Nested
-  @DisplayName("Each run of join() has its own joiner")
+  @DisplayName("Each run of the VTask from join() has its own Joiner")
   class EachRunHasItsOwnJoinerTests {
 
     @Test
@@ -630,17 +669,6 @@ class ScopeTest {
     }
 
     @Test
-    @DisplayName("a retried join recovers from a transient failure")
-    void aRetriedJoinRecoversFromATransientFailure() {
-      VTask<List<Integer>> join =
-          Scope.<Integer>allSucceed().fork(failsOnFirstCall()).fork(VTask.succeed(2)).join();
-
-      List<Integer> retried = Retry.retryTask(join, RetryPolicy.fixed(3, Duration.ZERO)).run();
-
-      assertThat(retried).containsExactly(1, 2);
-    }
-
-    @Test
     @DisplayName("runs at the same time each get their own result")
     void runsAtTheSameTimeEachGetTheirOwnResult() throws Exception {
       int runs = 8;
@@ -655,47 +683,6 @@ class ScopeTest {
         for (Future<List<Integer>> result : results) {
           assertThat(result.get(10, TimeUnit.SECONDS)).containsExactly(1, 2);
         }
-      }
-    }
-
-    @Test
-    @DisplayName("firstComplete cancels the subtasks still running")
-    void firstCompleteCancelsTheSubtasksStillRunning() {
-      CountDownLatch slowStarted = new CountDownLatch(1);
-      CountDownLatch neverReleased = new CountDownLatch(1);
-      AtomicBoolean slowCancelled = new AtomicBoolean();
-      VTask<String> fast =
-          VTask.of(
-              () -> {
-                slowStarted.await();
-                return "fast";
-              });
-      VTask<String> slow =
-          VTask.of(
-              () -> {
-                slowStarted.countDown();
-                try {
-                  neverReleased.await();
-                  return "slow";
-                } catch (InterruptedException e) {
-                  slowCancelled.set(true);
-                  throw e;
-                }
-              });
-
-      try {
-        String winner =
-            Scope.<String>firstComplete()
-                .fork(fast)
-                .fork(slow)
-                .join()
-                .timeout(Duration.ofSeconds(10))
-                .run();
-
-        assertThat(winner).isEqualTo("fast");
-        assertThat(slowCancelled).isTrue();
-      } finally {
-        neverReleased.countDown();
       }
     }
 
