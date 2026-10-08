@@ -19,11 +19,13 @@ import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.either.EitherKind;
 import org.higherkindedj.hkt.either.EitherKindHelper;
 import org.higherkindedj.hkt.list.ListKind;
+import org.higherkindedj.hkt.list.ListTraverse;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.maybe.MaybeKind;
 import org.higherkindedj.optics.annotations.GenerateFocus;
 import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.focus.AffinePath;
+import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
 
 @GenerateLenses

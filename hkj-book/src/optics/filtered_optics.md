@@ -317,11 +317,11 @@ This behaviour is intentional: it allows you to **transform selectively** whilst
 
 ### Use Filtered Optics When
 
-* **Declarative composition** - You want filtering to be part of the optic's definition
-* **Selective modifications** - Modify only elements matching criteria
-* **Reusable filters** - Define once, compose everywhere
-* **Type-safe pipelines** - Filter as part of a larger optic chain
-* **Intent clarity** - Express "active users" as a single concept
+* **Declarative composition**: You want filtering to be part of the optic's definition
+* **Selective modifications**: Modify only elements matching criteria
+* **Reusable filters**: Define once, compose everywhere
+* **Type-safe pipelines**: Filter as part of a larger optic chain
+* **Intent clarity**: Express "active users" as a single concept
 
 <!-- verify -->
 ```java
@@ -336,10 +336,10 @@ Platform updated = Traversals.modify(activeEnterpriseUsers, User::grantBonus, pl
 
 ### Use Stream API When
 
-* **Complex transformations** - Multiple map/filter/reduce operations
-* **Collecting to different structures** - Need to change the collection type
-* **Statistical operations** - Sorting, limiting, grouping
-* **One-off queries** - Not building reusable logic
+* **Complex transformations**: Multiple map/filter/reduce operations
+* **Collecting to different structures**: Need to change the collection type
+* **Statistical operations**: Sorting, limiting, grouping
+* **One-off queries**: Not building reusable logic
 
 <!-- verify -->
 ```java
@@ -354,9 +354,9 @@ List<String> topActiveUserNames = users.stream()
 
 ### Use Conditional Logic When
 
-* **Control flow** - Early returns, exceptions, complex branching
-* **Side effects** - Logging, metrics, external calls based on conditions
-* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
+* **Control flow**: Early returns, exceptions, complex branching
+* **Side effects**: Logging, metrics, external calls based on conditions
+* **A hot loop you have measured**: [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 <!-- verify -->
 ```java

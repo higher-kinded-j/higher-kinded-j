@@ -10,19 +10,10 @@
 
 That ends the everyday pages. This group and the ones after it are On demand: read a page when a task needs it, and skip it until then.
 
-Every Focus path is built from optics, and this group gives each single-value optic a page of its own. Read one when a path does something you want to understand, or when you need an optic the Focus DSL does not generate for you. Here is the destination, before any theory: a reusable path from a `User` down to the name of the street they live on, composed by hand from generated lenses, and two one-line updates through it. Every line compiles against the real library on every build:
+Every Focus path is built from optics, and this group gives each single-value optic a page of its own. Read one when a path does something you want to understand, or when you need an optic the Focus DSL does not generate for you. Here is the destination, before any theory: a reusable path from an `Order` down to its customer's email address, composed by hand from generated lenses, and two one-line updates through it. The build compiles and runs it, and a test holds each value the comments show:
 
-<!-- verify -->
-```java
-var streetName = UserLenses.address()
-    .andThen(AddressLenses.street())
-    .andThen(StreetLenses.name());
-
-User moved = streetName.set("Baker Street", user);
-User shouted = streetName.modify(String::toUpperCase, user);
-// moved.address().street().name()   -> "Baker Street"
-// shouted.address().street().name() -> "FLEET STREET"
-// the whole graph is rebuilt for you; user itself is untouched
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/groups/GroupIntrosBook.java:optic_types}}
 ```
 
 A **Lens** focuses a field that is always there. A **Prism** focuses one variant of a sealed type, which might not match. An **Affine** focuses a value that may be absent, such as an `Optional` field. An **Iso** converts between two shapes of the same information. [Decision Trees](decision_trees.md#tree-1-which-optic-do-i-need) picks one for your data, and [Composition Rules](composition_rules.md) says what type two of them compose to.

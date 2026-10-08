@@ -153,6 +153,7 @@
     "optics/ch4_intro.html#which-api-should-i-use": "optics/decision_trees.html#tree-2-which-api-style",
     "optics/ch5_intro.html#which-optic-do-i-need": "optics/decision_trees.html#tree-1-which-optic-do-i-need",
     "optics/ch5_intro.html#the-complete-pipeline": "optics/composing_optics.html#the-scenario-validating-user-permissions",
+    "optics/advanced_prism_patterns.html#advanced-plugin-composition": "optics/advanced_prism_patterns.html#advanced-plugin-batches",
     "optics/affine.html#think-of-affines-like": "optics/affine.html",
     "optics/auditing_complex_data_example.html#think-of-this-problem-like": "optics/auditing_complex_data_example.html#the-challenge-a-conditional-config-audit",
     "optics/common_data_structure_traversals.html#think-of-structure-traversals-like": "optics/common_data_structure_traversals.html#how-many-values-each-one-reaches",

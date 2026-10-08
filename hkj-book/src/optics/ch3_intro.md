@@ -8,18 +8,10 @@
 
 ---
 
-Sometimes you don't want *all* the elements. You want the expensive ones, or the ones at certain indices, or the value at one key of a map. Filtering and indexing narrow a traversal's focus to exactly that subset. Here is the destination, before any theory: a bulk update narrowed to only the items that cost more than £100. Every line compiles against the real library on every build:
+Sometimes you don't want *all* the elements. You want the expensive ones, or the ones at certain indices, or the value at one key of a map. Filtering and indexing narrow a traversal's focus to exactly that subset. Here is the destination, before any theory: a bulk update to the chapter's `Order`, narrowed to only the lines that cost more than £10. The build compiles and runs it, and a test holds each value the comments show:
 
-<!-- verify -->
-```java
-var pricey = OrderTraversals.items()
-    .andThen(ItemLenses.price())
-    .filtered(price -> price > 100.0);
-
-Order discounted = Traversals.modify(pricey, price -> price - 50.0, order);
-// Traversals.getAll(pricey, order)      -> [500.0, 200.0]
-// Traversals.getAll(pricey, discounted) -> [450.0, 150.0]
-// the £25 mouse is untouched, and so is order itself
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/groups/GroupIntrosBook.java:precision}}
 ```
 
 ~~~admonish tip title="Why this matters"

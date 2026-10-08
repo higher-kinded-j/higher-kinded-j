@@ -355,11 +355,11 @@ String normalised = Traversals.modify(
 
 ### Use String Traversals When
 
-* **Reusable text transformations** - Define once, apply across multiple strings
-* **Composable pipelines** - Building complex optic chains with lenses and prisms
-* **Type-safe operations** - Character/word/line transformations with compile-time safety
-* **Immutable updates** - Transforming text whilst keeping data immutable
-* **Declarative intent** - Express "what" without "how" (no manual indexing)
+* **Reusable text transformations**: Define once, apply across multiple strings
+* **Composable pipelines**: Building complex optic chains with lenses and prisms
+* **Type-safe operations**: Character/word/line transformations with compile-time safety
+* **Immutable updates**: Transforming text whilst keeping data immutable
+* **Declarative intent**: Express "what" without "how" (no manual indexing)
 
 <!-- verify -->
 ```java
@@ -374,10 +374,10 @@ Config trimmed = Traversals.modify(allPropertyValues, String::trim, config);
 
 ### Use Stream API When
 
-* **Complex filtering** - Multiple conditions with short-circuiting
-* **Aggregations** - Counting, collecting to new structures
-* **No structural preservation needed** - Extracting data, not updating in place
-* **One-time operations** - Not reused across different contexts
+* **Complex filtering**: Multiple conditions with short-circuiting
+* **Aggregations**: Counting, collecting to new structures
+* **No structural preservation needed**: Extracting data, not updating in place
+* **One-time operations**: Not reused across different contexts
 
 <!-- verify -->
 ```java
@@ -390,9 +390,9 @@ long wordCount = text.lines()
 
 ### Use Regular Expressions When
 
-* **Complex pattern matching** - Extracting structured data (emails, URLs, dates)
-* **Search and replace** - Simple find-and-replace operations
-* **Validation** - Checking format compliance (phone numbers, postal codes)
+* **Complex pattern matching**: Extracting structured data (emails, URLs, dates)
+* **Search and replace**: Simple find-and-replace operations
+* **Validation**: Checking format compliance (phone numbers, postal codes)
 
 <!-- verify -->
 ```java

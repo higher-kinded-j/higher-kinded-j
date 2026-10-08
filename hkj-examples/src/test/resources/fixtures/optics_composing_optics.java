@@ -15,6 +15,7 @@ import static org.higherkindedj.optics.fluent.OpticOps.modifyAllEither;
 import static org.higherkindedj.optics.fluent.OpticOps.modifyAllValidated;
 import static org.higherkindedj.optics.fluent.OpticOps.modifyMaybe;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,6 +24,8 @@ import java.util.stream.Collectors;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroups;
+import org.higherkindedj.hkt.TypeArity;
+import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.instances.Instances;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -51,20 +54,20 @@ record Guest() implements Principal {}
 @GenerateLenses
 record Form(int formId, Principal principal) {}
 
-record OrderForm(String orderId, List<Double> prices, double discount) {}
+record OrderForm(String orderId, List<BigDecimal> prices, BigDecimal discount) {}
 
 // The rules an order form is checked against. The page names them without showing them.
 class OrderRules {
 
-  static Validated<String, Double> validatePrice(Double price) {
+  static Validated<String, BigDecimal> validatePrice(BigDecimal price) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static Either<String, Double> checkPrice(Double price) {
+  static Either<String, BigDecimal> checkPrice(BigDecimal price) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 
-  static Maybe<Double> tryApplyDiscount(Double discount) {
+  static Maybe<BigDecimal> tryApplyDiscount(BigDecimal discount) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 }
@@ -117,9 +120,9 @@ class Fixture {
 
   static final Traversal<Form, String> traversal = FORM_TO_PERMISSION_NAMES;
 
-  static final Traversal<OrderForm, Double> ORDER_TO_PRICES = sample();
+  static final Traversal<OrderForm, BigDecimal> ORDER_TO_PRICES = sample();
 
-  static final Lens<OrderForm, Double> ORDER_DISCOUNT = sample();
+  static final Lens<OrderForm, BigDecimal> ORDER_DISCOUNT = sample();
 
   static final Applicative<ValidatedKind.Witness<String>> applicative =
       Instances.validated(Semigroups.string("; "));

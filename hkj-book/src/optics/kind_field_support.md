@@ -35,6 +35,7 @@ Team levelled =
 
 Without automatic detection, every `Kind` field would need its `Traverse` instance threaded in by hand at each use site:
 
+<!-- verify -->
 ```java
 // What you would otherwise write, once per field, per call site
 TraversalPath<Team, Member> memberPath =
@@ -134,15 +135,8 @@ The same fallback applies to a witness that names no `Traverse` instance, whethe
 
 `headOption()` turns a `TraversalPath` into an `AffinePath`. Its read is the first focused element; its **write goes to every focused element**, because that is what the underlying traversal does:
 
-<!-- verify -->
-```java
-TraversalPath<Member, Skill> skills = MemberFocus.skills();
-
-AffinePath<Member, Skill> firstSkill = skills.headOption();
-Optional<Skill> first = firstSkill.getOptional(alice);   // Optional[Skill[name=Java, proficiency=95]]
-
-Member flattened = firstSkill.set(new Skill("Go", 50), alice);
-// BOTH skills are now Skill[name=Go, proficiency=50]: the set is setAll underneath
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/kindfield/KindFieldBook.java:head_option}}
 ```
 
 ~~~admonish warning title="The set is a `setAll`"

@@ -18,6 +18,7 @@ The Focus DSL never asks you which path type you want. It reads the field's type
 
 Given a record with one field of each interesting shape:
 
+<!-- verify -->
 ```java
 @GenerateLenses
 @GenerateFocus

@@ -10,6 +10,7 @@
 import static java.util.stream.Collectors.toMap;
 import static org.higherkindedj.hkt.validated.ValidatedKindHelper.VALIDATED;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -49,12 +50,17 @@ record Value(String value) {}
 
 record Order(String id, Map<String, Integer> items) {}
 
-record Product(String name, double price) {
+record Product(String name, BigDecimal price) {
 
-  Product withPrice(double newPrice) {
+  Product withPrice(BigDecimal newPrice) {
     return new Product(name, newPrice);
   }
 }
+
+// Containers of the reader's own, for the sections that wrap a traversal they already have.
+record MyContainer<A>(List<A> items) {}
+
+record MyList<A>(List<A> items) {}
 
 record Task(String title, boolean reviewed) {
 

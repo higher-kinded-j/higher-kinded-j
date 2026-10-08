@@ -170,70 +170,24 @@ Each<Validated<List<AppError>, Value>, Value> validatedEach = EachExtensions.val
 
 ### Traversing All Elements
 
-<!-- verify -->
-```java
-Each<List<String>, String> listEach = EachInstances.listEach();
-Traversal<List<String>, String> traversal = listEach.each();
-
-List<String> names = List.of("alice", "bob", "charlie");
-
-// Get all elements
-List<String> all = Traversals.getAll(traversal, names);
-// Result: ["alice", "bob", "charlie"]
-
-// Modify all elements
-List<String> upper = Traversals.modify(traversal, String::toUpperCase, names);
-// Result: ["ALICE", "BOB", "CHARLIE"]
-
-// Set all elements to the same value (set is modify with a constant)
-List<String> same = Traversals.modify(traversal, _ -> "anonymous", names);
-// Result: ["anonymous", "anonymous", "anonymous"]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/each/EachBook.java:traverse_all}}
 ```
 
 ### Using Indexed Traversal
 
 When position matters, type the instance as `EachIndexed` and call `indexedTraversal()`. The index type (`Integer` for lists) is fixed at compile time:
 
-<!-- verify -->
-```java
-EachIndexed<Integer, List<String>, String> listEach = EachInstances.listEach();
-IndexedTraversal<Integer, List<String>, String> indexed = listEach.indexedTraversal();
-
-List<String> items = List.of("apple", "banana", "cherry");
-
-// Number each element
-List<String> numbered = IndexedTraversals.imodify(
-    indexed,
-    (index, value) -> (index + 1) + ". " + value,
-    items
-);
-// Result: ["1. apple", "2. banana", "3. cherry"]
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/each/EachBook.java:indexed}}
 ```
 
 ### Map Key as Index
 
 For maps, the index is the key, so the `EachIndexed` index type is `K`:
 
-<!-- verify -->
-```java
-EachIndexed<String, Map<String, Integer>, Integer> mapEach = EachInstances.mapValuesEach();
-IndexedTraversal<String, Map<String, Integer>, Integer> indexed = mapEach.indexedTraversal();
-
-Map<String, Integer> scores = Map.of("alice", 100, "bob", 85, "charlie", 92);
-
-// Award a bonus point to one particular entrant, by key
-Map<String, Integer> adjusted = IndexedTraversals.imodify(
-    indexed,
-    (key, value) -> key.equals("bob") ? value + 5 : value,
-    scores
-);
-// Result: {"alice": 100, "bob": 90, "charlie": 92}
-
-// A traversal cannot change the value type: imodify takes A -> A and returns the
-// same map type. To build a differently-typed map, extract the pairs and collect:
-Map<String, String> labelled =
-    IndexedTraversals.toIndexedList(indexed, scores).stream()
-        .collect(toMap(Pair::first, pair -> pair.first() + ": " + pair.second()));
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/each/EachBook.java:map_key}}
 ```
 
 ---
@@ -319,22 +273,27 @@ public static <A> Each<Tree<A>, A> treeEach() {
 
 If you already have a `Traversal`, wrap it:
 
+<!-- verify -->
 ```java
-Traversal<MyContainer<A>, A> existingTraversal = ...;
-Each<MyContainer<A>, A> each = Each.fromTraversal(existingTraversal);
+<A> Each<MyContainer<A>, A> eachOf(Traversal<MyContainer<A>, A> existingTraversal) {
+    return Each.fromTraversal(existingTraversal);
+}
 ```
 
 ### From IndexedTraversal
 
 If you have an `IndexedTraversal`, `Each.fromIndexedTraversal` returns an `EachIndexed`, so you get both the element and indexed traversals with the index type preserved:
 
+<!-- verify -->
 ```java
-IndexedTraversal<Integer, MyList<A>, A> indexed = ...;
-EachIndexed<Integer, MyList<A>, A> each = Each.fromIndexedTraversal(indexed);
+<A> EachIndexed<Integer, MyList<A>, A> eachOf(IndexedTraversal<Integer, MyList<A>, A> indexed) {
+    EachIndexed<Integer, MyList<A>, A> each = Each.fromIndexedTraversal(indexed);
 
-// Both work
-Traversal<MyList<A>, A> trav = each.each();
-IndexedTraversal<Integer, MyList<A>, A> iTrav = each.indexedTraversal();
+    // Both work
+    Traversal<MyList<A>, A> trav = each.each();
+    IndexedTraversal<Integer, MyList<A>, A> iTrav = each.indexedTraversal();
+    return each;
+}
 ```
 
 ---
@@ -382,7 +341,7 @@ IndexedTraversal<Integer, List<Product>, Product> indexed = productEach.indexedT
 List<Product> discounted = IndexedTraversals.imodify(
     indexed,
     (index, product) -> index % 2 == 0
-        ? product.withPrice(product.price() * 0.9)
+        ? product.withPrice(product.price().multiply(new BigDecimal("0.9")))
         : product,
     products
 );

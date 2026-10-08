@@ -163,10 +163,10 @@ This composed `Traversal` now represents a safe, deep path that will only succee
 
 ### Use Prisms When
 
-* **Type-safe variant handling** - Working with `sealed interface` or `enum` cases
-* **Optional data extraction** - You need to safely "try" to get a specific type
-* **Composable type checking** - Building reusable type-safe paths
-* **Functional pattern matching** - Avoiding `instanceof` chains
+* **Type-safe variant handling**: Working with `sealed interface` or `enum` cases
+* **Optional data extraction**: You need to safely "try" to get a specific type
+* **Composable type checking**: Building reusable type-safe paths
+* **Functional pattern matching**: Avoiding `instanceof` chains
 
 <!-- verify -->
 ```java
@@ -178,9 +178,9 @@ Optional<String> errorMessage = DomainErrorPrisms.validationError()
 
 ### Use Traditional instanceof When
 
-* **One-off type checks** - Not building reusable logic
-* **Imperative control flow** - You need if/else branching
-* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
+* **One-off type checks**: Not building reusable logic
+* **Imperative control flow**: You need if/else branching
+* **A hot loop you have measured**: [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 <!-- verify -->
 ```java
@@ -195,9 +195,9 @@ String shout(JsonValue jsonValue) {
 
 ### Use Pattern Matching When
 
-* **Exhaustive case handling** - You need to handle all variants
-* **Complex extraction logic** - Multiple levels of pattern matching
-* **Modern codebases** - Using recent Java features
+* **Exhaustive case handling**: You need to handle all variants
+* **Complex extraction logic**: Multiple levels of pattern matching
+* **Modern codebases**: Using recent Java features
 
 <!-- verify -->
 ```java

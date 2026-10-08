@@ -206,10 +206,10 @@ For the full range of optics operations within comprehensions (including travers
 
 ### Use Isos When
 
-* **Data format conversion** - Converting between equivalent representations
-* **Legacy system integration** - Bridging old and new data formats
-* **Library interoperability** - Adapting your types to work with external libraries
-* **Composable adapters** - Building reusable conversion components
+* **Data format conversion**: Converting between equivalent representations
+* **Legacy system integration**: Bridging old and new data formats
+* **Library interoperability**: Adapting your types to work with external libraries
+* **Composable adapters**: Building reusable conversion components
 
 <!-- verify -->
 ```java
@@ -223,9 +223,9 @@ Lens<Account, Long> rawAccountId = AccountLenses.id().andThen(userIdIso);
 
 ### Use Direct Conversion Methods When
 
-* **One-way conversion** - You do not need the reverse operation
-* **Non-lossless conversion** - Information is lost in the conversion
-* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
+* **One-way conversion**: You do not need the reverse operation
+* **Non-lossless conversion**: Information is lost in the conversion
+* **A hot loop you have measured**: [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 <!-- verify -->
 ```java
@@ -235,9 +235,9 @@ String pointDescription = point.x() + "," + point.y();
 
 ### Use Manual Adapters When
 
-* **Complex conversion logic** - Multi-step or conditional conversions
-* **Validation required** - Conversion might fail
-* **Side effects needed** - Logging, caching, etc.
+* **Complex conversion logic**: Multi-step or conditional conversions
+* **Validation required**: Conversion might fail
+* **Side effects needed**: Logging, caching, etc.
 
 <!-- verify -->
 ```java

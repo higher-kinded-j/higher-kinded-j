@@ -841,11 +841,11 @@ Each fold in a `plus` combination makes its own pass over the source, which `Fol
 
 ### Use Fold When
 
-* **Read-only queries** - You only need to extract or check data
-* **Intent matters** - You want to express "this is a query, not a modification"
-* **Composable searches** - Building reusable query paths
-* **Aggregations** - Using monoids for custom combining logic
-* **CQRS patterns** - Separating queries from commands
+* **Read-only queries**: You only need to extract or check data
+* **Intent matters**: You want to express "this is a query, not a modification"
+* **Composable searches**: Building reusable query paths
+* **Aggregations**: Using monoids for custom combining logic
+* **CQRS patterns**: Separating queries from commands
 
 <!-- verify -->
 ```java
@@ -862,9 +862,9 @@ boolean hasElectronics = allProducts.exists(
 
 ### Use Traversal When
 
-* **Modifications needed** - You need to update the data
-* **Effectful updates** - Using `modifyF` for validation or async operations
-* **Bulk transformations** - Changing multiple values at once
+* **Modifications needed**: You need to update the data
+* **Effectful updates**: Using `modifyF` for validation or async operations
+* **Bulk transformations**: Changing multiple values at once
 
 <!-- verify -->
 ```java
@@ -879,10 +879,10 @@ Order discountedOrder = Traversals.modify(
 
 ### Use Stream API When
 
-* **Complex filtering** - Multiple filter/map/reduce operations
-* **Parallel processing** - Taking advantage of parallel streams
-* **Standard Java collections** - Working with flat collections
-* **Stateful operations** - Operations that require maintaining state
+* **Complex filtering**: Multiple filter/map/reduce operations
+* **Parallel processing**: Taking advantage of parallel streams
+* **Standard Java collections**: Working with flat collections
+* **Stateful operations**: Operations that require maintaining state
 
 <!-- verify -->
 ```java
@@ -897,9 +897,9 @@ List<String> topExpensiveItems = order.items().stream()
 
 ### Use Direct Field Access When
 
-* **Simple cases** - Single, straightforward field read
-* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
-* **One-off operations** - Not building reusable logic
+* **Simple cases**: Single, straightforward field read
+* **A hot loop you have measured**: [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
+* **One-off operations**: Not building reusable logic
 
 <!-- verify -->
 ```java

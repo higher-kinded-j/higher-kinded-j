@@ -242,10 +242,10 @@ In words: reach for a traversal when the structure keeps its shape and only its 
 
 ### Use Traversals When
 
-* **Bulk operations on nested collections** - Applying the same operation to many items
-* **Type-safe collection manipulation** - Working with collections inside immutable structures
-* **Reusable bulk logic** - Creating operations that can be applied across different instances
-* **Effectful operations** - Using `modifyF` for operations that might fail or have side effects
+* **Bulk operations on nested collections**: Applying the same operation to many items
+* **Type-safe collection manipulation**: Working with collections inside immutable structures
+* **Reusable bulk logic**: Creating operations that can be applied across different instances
+* **Effectful operations**: Using `modifyF` for operations that might fail or have side effects
 
 <!-- verify -->
 ```java
@@ -259,9 +259,9 @@ Company withNormalisedEmails = Traversals.modify(allEmails, String::toLowerCase,
 
 ### Use Streams When
 
-* **Complex transformations** - Multiple operations that don't map cleanly to traversals
-* **Filtering and collecting** - You need to change the collection structure
-* **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
+* **Complex transformations**: Multiple operations that don't map cleanly to traversals
+* **Filtering and collecting**: You need to change the collection structure
+* **A hot loop you have measured**: [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
 
 <!-- verify -->
 ```java
@@ -276,9 +276,9 @@ List<String> activePlayerNames = league.teams().stream()
 
 ### Use Manual Loops When
 
-* **Early termination needed** - You might want to stop processing early
-* **Complex control flow** - Multiple conditions and branches
-* **Imperative mindset** - The operation is inherently procedural
+* **Early termination needed**: You might want to stop processing early
+* **Complex control flow**: Multiple conditions and branches
+* **Imperative mindset**: The operation is inherently procedural
 
 
 <!-- verify -->

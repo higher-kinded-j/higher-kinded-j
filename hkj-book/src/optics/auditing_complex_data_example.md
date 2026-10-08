@@ -74,10 +74,10 @@ A `Traversal` lets us operate on zero or more targets within a larger structure.
 
 ### Use Optic Composition When
 
-- **Complex conditional filtering** - Multiple levels of filtering based on different criteria
-- **Reusable audit logic** - The same audit pattern applies to different config types
-- **Type-safe data extraction** - Ensuring compile-time safety for complex transformations
-- **Declarative data processing** - Building self-documenting processing pipelines
+- **Complex conditional filtering**: Multiple levels of filtering based on different criteria
+- **Reusable audit logic**: The same audit pattern applies to different config types
+- **Type-safe data extraction**: Ensuring compile-time safety for complex transformations
+- **Declarative data processing**: Building self-documenting processing pipelines
 
 <!-- verify -->
 ```java
@@ -93,9 +93,9 @@ Traversal<ServerConfig, byte[]> sensitiveDataAuditor =
 
 ### Use Stream Processing When
 
-- **Simple filtering** - Basic collection operations without complex nesting
-- **A hot loop you have measured** - [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
-- **Aggregation logic** - Computing statistics or summaries
+- **Simple filtering**: Basic collection operations without complex nesting
+- **A hot loop you have measured**: [Production Readiness](production_readiness.md#runtime-cost) says what each call allocates
+- **Aggregation logic**: Computing statistics or summaries
 
 <!-- verify -->
 ```java
@@ -108,9 +108,9 @@ List<String> allConfigNames = configs.stream()
 
 ### Use Manual Iteration When
 
-- **Early termination** - You might want to stop processing on first match
-- **Complex business logic** - Multiple conditions and branches that don't map cleanly
-- **Legacy integration** - Working with existing imperative codebases
+- **Early termination**: You might want to stop processing on first match
+- **Complex business logic**: Multiple conditions and branches that don't map cleanly
+- **Legacy integration**: Working with existing imperative codebases
 
 <!-- verify -->
 ```java

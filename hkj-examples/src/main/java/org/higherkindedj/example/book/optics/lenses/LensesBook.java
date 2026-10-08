@@ -36,7 +36,25 @@ public final class LensesBook {
   }
 
   // ANCHOR_END: boundary_fix
+
+  static Money setCents(Money money) {
+    // ANCHOR: money_set
+    // 1234 cents, through Money(long, String); never the Number constructor
+    Money updated = MoneyLenses.cents().set(1234L, money);
+    // ANCHOR_END: money_set
+    return updated;
+  }
 }
+
+// ANCHOR: money
+@GenerateLenses
+record Money(long cents, String currency) {
+  Money(Number major, String currency) {
+    this(Math.round(major.doubleValue() * 100), currency);
+  }
+}
+
+// ANCHOR_END: money
 
 // ANCHOR: normalised_email
 // The record behind the page's ticket: its constructor lowercases every address
@@ -59,6 +77,7 @@ record ContactEmail(String value) {}
 // Lombok's also return `this` when the new value is the one already held, which no claim here
 // depends on.
 
+// The page's own model: this Address is not the chapter cast's Address(street, city, postcode).
 @GenerateLenses
 record Address(String street, String city) {
   Address withStreet(String street) {

@@ -55,7 +55,7 @@ The processor analyses `LocalDate`, finds the *wither* methods it can pair with 
 // orderDate() is ours (@GenerateLenses); year() is the JDK's (@ImportOptics)
 Order nextYear =
     OrderLenses.orderDate().andThen(LocalDateLenses.year()).modify(y -> y + 1, order);
-// 2026-03-14 becomes 2027-03-14
+// the same order, dated a year later
 
 int year = OrderLenses.orderDate().andThen(LocalDateLenses.year()).get(order);
 ```
@@ -95,34 +95,37 @@ In words: records and classes with withers get lenses, sealed interfaces and enu
 
 ### Records to Lenses
 
+<!-- verify -->
 ```java
 // The external library has:
 public record Coordinate(double lat, double lon) {}
 
 // You get:
-CoordinateLenses.lat()   // Lens<Coordinate, Double>
-CoordinateLenses.lon()   // Lens<Coordinate, Double>
+Lens<Coordinate, Double> lat = CoordinateLenses.lat();
+Lens<Coordinate, Double> lon = CoordinateLenses.lon();
 ```
 
 Records are the easy case: the canonical constructor is the copy mechanism.
 
 ### Sealed Types to Prisms
 
+<!-- verify -->
 ```java
 public sealed interface PaymentMethod permits CreditCard, BankTransfer, Crypto {}
 
-PaymentMethodPrisms.creditCard()    // Prism<PaymentMethod, CreditCard>
-PaymentMethodPrisms.bankTransfer()  // Prism<PaymentMethod, BankTransfer>
-PaymentMethodPrisms.crypto()        // Prism<PaymentMethod, Crypto>
+Prism<PaymentMethod, CreditCard> creditCard = PaymentMethodPrisms.creditCard();
+Prism<PaymentMethod, BankTransfer> bankTransfer = PaymentMethodPrisms.bankTransfer();
+Prism<PaymentMethod, Crypto> crypto = PaymentMethodPrisms.crypto();
 ```
 
 ### Enums to Prisms
 
+<!-- verify -->
 ```java
 public enum OrderStatus { PENDING, SHIPPED, DELIVERED, CANCELLED }
 
-OrderStatusPrisms.pending()    // Prism<OrderStatus, OrderStatus>
-OrderStatusPrisms.shipped()    // and so on, one per constant
+Prism<OrderStatus, OrderStatus> pending = OrderStatusPrisms.pending();
+Prism<OrderStatus, OrderStatus> shipped = OrderStatusPrisms.shipped(); // and so on, one per constant
 ```
 
 ### Wither Classes to Lenses
@@ -141,14 +144,15 @@ An inner class of a generic class is imported under its enclosing class's type p
 
 When an imported record has a collection field, you get both a lens to the collection and a traversal into its elements, named `<field>Traversal`:
 
+<!-- verify -->
 ```java
 // External:
 public record Department(String name, List<Employee> staff) {}
 
 // Generated:
-DepartmentLenses.name()            // Lens<Department, String>
-DepartmentLenses.staff()           // Lens<Department, List<Employee>>
-DepartmentLenses.staffTraversal()  // Traversal<Department, Employee>
+Lens<Department, String> name = DepartmentLenses.name();
+Lens<Department, List<Employee>> staff = DepartmentLenses.staff();
+Traversal<Department, Employee> eachMember = DepartmentLenses.staffTraversal();
 ```
 
 An element type written as a wildcard is focused as the type it stands for, as `@GenerateTraversals` does: `List<? extends Employee>` gives a `Traversal<Department, Employee>`, and `List<?>` a `Traversal<Department, Object>`. See [Wildcard Element Types](traversals.md#wildcard-element-types).
