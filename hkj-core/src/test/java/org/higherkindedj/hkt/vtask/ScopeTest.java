@@ -13,15 +13,18 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -520,6 +523,81 @@ class ScopeTest {
         }
       } finally {
         neverReleased.countDown();
+      }
+    }
+
+    @Test
+    @DisplayName("a timeout fires while CPU-bound subtasks keep every carrier busy")
+    void aTimeoutFiresWhileCpuBoundSubtasksKeepEveryCarrierBusy() {
+      VTask<Integer> spin =
+          VTask.of(
+              () -> {
+                long end = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+                while (System.nanoTime() < end) {
+                  if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException();
+                  }
+                }
+                return 1;
+              });
+      Scope<Integer, List<Integer>> scope =
+          Scope.<Integer>allSucceed().timeout(Duration.ofMillis(200));
+      for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
+        scope = scope.fork(spin);
+      }
+      VTask<List<Integer>> join = scope.join();
+
+      assertThatThrownBy(() -> assertTimeoutPreemptively(Duration.ofSeconds(4), join::run))
+          .isInstanceOf(VTaskExecutionException.class)
+          .hasCauseInstanceOf(TimeoutException.class);
+    }
+
+    @Test
+    @DisplayName("the last subtask to complete cancels the timeout")
+    void theLastSubtaskToCompleteCancelsTheTimeout() throws Exception {
+      AtomicReference<Thread> owner = new AtomicReference<>();
+      VTask<String> waitsForTheOwnerToJoin =
+          VTask.of(
+              () -> {
+                // The owner parks in join only after it has forked every subtask
+                while (owner.get().getState() != Thread.State.WAITING) {
+                  Thread.sleep(1);
+                }
+                return "done";
+              });
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofMinutes(1))
+              .fork(waitsForTheOwnerToJoin)
+              .join();
+      FutureTask<List<String>> run = new FutureTask<>(join::run);
+      Thread thread = Thread.ofPlatform().unstarted(run);
+      owner.set(thread);
+
+      thread.start();
+
+      assertThat(run.get(10, TimeUnit.SECONDS)).containsExactly("done");
+    }
+
+    @Test
+    @DisplayName("a joiner that throws is reported, and the run does not wait out its timeout")
+    @SuppressWarnings("DataFlowIssue") // the subtask deliberately returns null
+    void aJoinerThatThrowsIsReported() {
+      List<Throwable> reported = new CopyOnWriteArrayList<>();
+      Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+      Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> reported.add(failure));
+      VTask<Either<List<String>, String>> race =
+          Scope.withJoiner(ScopeJoiner.<String, String>firstSuccessEither())
+              .timeout(Duration.ofMinutes(1))
+              .fork(VTask.<Either<String, String>>of(() -> null))
+              .join();
+
+      try {
+        assertThatThrownBy(() -> assertTimeoutPreemptively(Duration.ofSeconds(10), race::run))
+            .isInstanceOf(NullPointerException.class);
+        assertThat(reported).singleElement().isInstanceOf(NullPointerException.class);
+      } finally {
+        Thread.setDefaultUncaughtExceptionHandler(previous);
       }
     }
 

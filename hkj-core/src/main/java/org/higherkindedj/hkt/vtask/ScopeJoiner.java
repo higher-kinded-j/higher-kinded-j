@@ -285,9 +285,9 @@ final class FirstSuccessEitherJoiner<E, T>
         }
         // No winner: every subtask here ran to completion, so UNAVAILABLE (and a Right)
         // is impossible in this loop. The only cancellation path through this joiner is
-        // a successful winner CAS (returned above), and a scope whose timeout expires,
-        // whether Scope configured it or the caller did, throws TimeoutException from
-        // join() without consulting result().
+        // a successful winner CAS (returned above). A scope whose timeout expires fails
+        // with TimeoutException without consulting this result(), whether the JDK's timer
+        // or Scope's deadline subtask fired.
         List<E> errors = new ArrayList<>();
         // Iterating a synchronizedList requires holding its monitor; forking is already done
         // by the time result() runs, but this keeps the contract explicit.
