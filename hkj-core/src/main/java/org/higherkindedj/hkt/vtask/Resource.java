@@ -60,10 +60,7 @@ import org.jspecify.annotations.Nullable;
  *
  * // Chain resource acquisition
  * Resource<PreparedStatement> chained = connResource.flatMap(conn ->
- *     Resource.make(
- *         () -> conn.prepareStatement(sql),
- *         PreparedStatement::close
- *     )
+ *     Resource.fromAutoCloseable(() -> conn.prepareStatement(sql))
  * );
  * }</pre>
  *
@@ -155,8 +152,9 @@ public final class Resource<A> {
    * <p>The resource's close() method is called automatically after use. An exception from close()
    * fails the use as a failure of its task does: {@link VTask#run()} throws a checked one wrapped
    * in a {@link VTaskExecutionException}, and {@link VTask#runSafe()} holds it as close() threw it.
-   * When the use has failed already, its failure is the one reported, with the exception from
-   * close() suppressed onto it.
+   * Composed with {@link #flatMap} or {@link #and}, a failed release is reported as the class
+   * documentation describes. When the use has failed already, its failure is the one reported, with
+   * the exception from close() suppressed onto it.
    *
    * @param <A> the type of the AutoCloseable resource
    * @param acquire function to acquire the AutoCloseable; must not be null, and must not return

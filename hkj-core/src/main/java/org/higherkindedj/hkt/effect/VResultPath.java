@@ -904,8 +904,9 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * isRight()} or {@code fold} rather than on the error's value; the path then fails with what
    * {@code onDefect} threw, the defect suppressed, or with a {@link NullPointerException} whose
    * cause is the defect. A defect thrown by {@code release} itself propagates as a defect, carrying
-   * any such pending failure as suppressed - broken cleanup is exceptional and must be visible,
-   * even at the cost of masking the primary outcome.
+   * any such pending failure as suppressed. Unlike try-with-resources, which keeps the body's
+   * failure, this reports the release's: {@code release} has already seen the use's outcome as a
+   * value, so its defect is the failure the path has left to report.
    *
    * <p>Cancellation reaches {@code use} as an {@link InterruptedException}-style defect and is
    * therefore also typed through {@code onDefect} (release still runs - the {@code Resource}

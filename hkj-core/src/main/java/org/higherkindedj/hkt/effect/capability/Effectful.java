@@ -135,9 +135,9 @@ public sealed interface Effectful<A> extends Chainable<A> permits IOPath, VTaskP
 
   /**
    * Runs a finaliser after this effect completes, regardless of whether it succeeded or threw. A
-   * failure is reported as try-with-resources reports it: if the effect throws and the finaliser
-   * throws too, the effect's exception is the one thrown, with the finaliser's suppressed onto it;
-   * if only the finaliser throws, its exception is thrown. The returned effect has the same
+   * failure is reported as try-with-resources reports it. If the effect throws and the finaliser
+   * throws too, the effect's exception is the one thrown, with the finaliser's suppressed onto it.
+   * If only the finaliser throws, its exception is thrown. The returned effect has the same
    * concrete type as this one.
    *
    * <p>Example:

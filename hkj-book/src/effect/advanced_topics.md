@@ -378,7 +378,7 @@ management. Software faces analogous challenges: database connections, file
 handles, network sockets. Acquire them, use them, release them, and make
 absolutely certain the release happens even when something goes wrong.
 
-### The bracket Pattern
+### The bracket Pattern {#the-bracket-pattern}
 
 `bracket` is the fundamental resource pattern: acquire, use, release. The release
 *always* runs, regardless of whether the use succeeds or fails:
@@ -395,18 +395,20 @@ IOPath<String> readFile = IOPath.bracket(
 If `readAll` throws, the stream still closes, and the exception propagates once
 the release has run.
 
-A release that throws is reported as try-with-resources reports it. When the use
-has failed, its exception is still the one thrown, with the release's exception
+`bracket` reports a release that throws as try-with-resources does. When the use
+has failed, `bracket` still throws the use's exception, with the release's
 suppressed onto it, so the log keeps the reason the program failed. After a
-successful use, the release's exception fails the path on its own.
+successful use, the release's exception fails the path on its own. `bracketIO`,
+`withResource`, `withResourceIO`, `guarantee` and `guaranteeIO` follow the same
+rule.
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/advanced/ResourceSafetyBook.java:cleanup_fails}}
 ```
 
-After a failed use, the release runs with the thread's interrupt status cleared,
-so a blocking close is not cut short. The status is restored afterwards. Every
-method in this section reports a failing cleanup this way.
+After a failed use, these methods run the cleanup with the thread's interrupt
+status cleared, so a blocking close is not cut short. They restore the status
+afterwards, and set it if the cleanup throws an `InterruptedException`.
 
 #### bracketIO for Effectful Use
 
@@ -434,19 +436,21 @@ IOPath<List<String>> lines = IOPath.withResource(
 );
 ```
 
-The reader is closed after use, and an exception from `close()` is reported as
-[a failing release](#the-bracket-pattern) is. So a writer whose final flush
-fails does not report success. `IOPath` has no channel for a checked exception,
-so after a successful use one from `close()` is wrapped. An `IOException`
-becomes an `UncheckedIOException`, and any other checked exception the cause of
-a `RuntimeException`.
+`withResource` closes the reader after use, and reports an exception from
+`close()` as `bracket` reports [a failing release](#the-bracket-pattern). So a
+writer whose final flush fails does not report success. The functions an
+`IOPath` runs cannot throw a checked exception, so after a successful use
+`withResource` wraps one from `close()`. An `IOException` becomes an
+`UncheckedIOException`, and any other checked exception the cause of a
+`RuntimeException`. `getCause()` returns the original.
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/advanced/ResourceSafetyBook.java:close_fails}}
 ```
 
-After a failed use, the exception from `close()` is suppressed onto the use's
-exception, as `close()` threw it.
+After a failed use, `withResource` suppresses the exception from `close()` onto
+the use's exception, as `close()` threw it. A resource supplier that returns
+null fails the path with a `NullPointerException` before the use runs.
 
 #### withResourceIO Variant
 
@@ -473,8 +477,9 @@ IOPath<Result> computation = fetchData()
     .guarantee(() -> log.info("Fetch completed"));
 ```
 
-The guarantee runs whether `fetchData()` succeeds or fails. A finaliser that
-throws is reported as [a failing release](#the-bracket-pattern) is.
+`guarantee` runs the finaliser whether `fetchData()` succeeds or fails, and
+reports a finaliser that throws as `bracket` reports
+[a failing release](#the-bracket-pattern).
 
 #### guaranteeIO for Effectful Cleanup
 

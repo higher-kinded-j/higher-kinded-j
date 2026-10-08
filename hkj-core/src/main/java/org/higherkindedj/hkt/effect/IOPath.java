@@ -401,20 +401,24 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * close()} is reported as try-with-resources reports it. When the use succeeds, the exception
    * from {@code close()} fails the path: an {@link IOException} as an {@link UncheckedIOException},
    * another checked exception as a {@link RuntimeException} whose cause it is, and an unchecked one
-   * as it is. An {@link InterruptedException} restores the thread's interrupt status. When the use
-   * fails, its exception is the one thrown, with the exception from {@code close()} suppressed onto
-   * it as {@code close()} threw it.
+   * as it is. When the use fails, its exception is the one thrown, with the exception from {@code
+   * close()} suppressed onto it as {@code close()} threw it. Either way, an {@link
+   * InterruptedException} from {@code close()} sets the thread's interrupt status.
+   *
+   * <p>A resource supplier that returns null fails the path with a {@link NullPointerException}
+   * before the use runs.
    *
    * <p>Example:
    *
    * <pre>{@code
    * IOPath<String> content = IOPath.withResource(
-   *     () -> Files.newBufferedReader(path),
+   *     () -> openReader(path),
    *     reader -> reader.lines().collect(Collectors.joining("\n"))
    * );
    * }</pre>
    *
-   * @param resourceSupplier supplies the AutoCloseable resource; must not be null
+   * @param resourceSupplier supplies the AutoCloseable resource; must not be null, and must not
+   *     return null
    * @param use function that uses the resource; must not be null
    * @param <R> the resource type (must be AutoCloseable)
    * @param <A> the result type
@@ -426,15 +430,17 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
     Objects.requireNonNull(resourceSupplier, "resourceSupplier must not be null");
     Objects.requireNonNull(use, "use must not be null");
 
-    return new IOPath<>(IO.delay(() -> useThenClose(resourceSupplier.get(), use)));
+    return new IOPath<>(IO.delay(() -> useThenClose(resourceSupplier, use)));
   }
 
   /**
    * Convenience method for AutoCloseable resources where the use function returns an IOPath.
    *
-   * <p>An exception from {@code close()} is reported as {@link #withResource} reports it.
+   * <p>An exception from {@code close()}, and a resource supplier that returns null, are reported
+   * as {@link #withResource} reports them.
    *
-   * @param resourceSupplier supplies the AutoCloseable resource; must not be null
+   * @param resourceSupplier supplies the AutoCloseable resource; must not be null, and must not
+   *     return null
    * @param useIO function that uses the resource and returns an IOPath; must not be null
    * @param <R> the resource type (must be AutoCloseable)
    * @param <A> the result type
@@ -447,8 +453,7 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
     Objects.requireNonNull(useIO, "useIO must not be null");
 
     return new IOPath<>(
-        IO.delay(
-            () -> useThenClose(resourceSupplier.get(), resource -> runUseIO(useIO, resource))));
+        IO.delay(() -> useThenClose(resourceSupplier, resource -> runUseIO(useIO, resource))));
   }
 
   /** Runs the IOPath that {@code useIO} builds for the resource. */
@@ -459,11 +464,14 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
   }
 
   /**
-   * Uses a resource, then closes it. A failure of the use is rethrown with an exception from {@code
-   * close()} suppressed onto it; after a successful use, {@link #close} reports it.
+   * Acquires a resource, which must not be null, uses it, then closes it. A failure of the use is
+   * rethrown with an exception from {@code close()} suppressed onto it; after a successful use,
+   * {@link #closeAfterUse} reports it.
    */
   private static <R extends AutoCloseable, A> A useThenClose(
-      R resource, Function<? super R, ? extends A> use) {
+      Supplier<? extends R> resourceSupplier, Function<? super R, ? extends A> use) {
+    R resource =
+        Objects.requireNonNull(resourceSupplier.get(), "resourceSupplier must not return null");
     A result;
     try {
       result = use.apply(resource);
@@ -471,27 +479,27 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
       Cleanup.afterFailure(failure, resource::close);
       throw failure;
     }
-    close(resource);
+    closeAfterUse(resource);
     return result;
   }
 
   /**
    * Closes a resource after a successful use, failing with an exception from {@code close()}: an
-   * {@link IOException} as an {@link UncheckedIOException}, another checked exception as a {@link
-   * RuntimeException} whose cause it is, after restoring the interrupt status for an {@link
+   * {@link IOException} as an {@link UncheckedIOException}, and another checked exception as a
+   * {@link RuntimeException} whose cause it is, setting the interrupt status for an {@link
    * InterruptedException}.
    */
-  private static void close(AutoCloseable resource) {
+  private static void closeAfterUse(AutoCloseable resource) {
     try {
       resource.close();
     } catch (RuntimeException e) {
       throw e;
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
     } catch (Exception e) {
-      if (e instanceof InterruptedException) {
-        Thread.currentThread().interrupt();
-      }
       throw new RuntimeException(e);
     }
   }

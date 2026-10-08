@@ -129,6 +129,26 @@ class CleanupTest {
     }
 
     @Test
+    @DisplayName("sets the interrupt status when the cleanup throws an InterruptedException")
+    void setsInterruptStatusForInterruptedCleanup() {
+      IllegalStateException failure = new IllegalStateException("failed");
+      InterruptedException interrupted = new InterruptedException("close interrupted");
+
+      try {
+        Cleanup.afterFailure(
+            failure,
+            () -> {
+              throw interrupted;
+            });
+
+        assertThat(failure.getSuppressed()).containsExactly(interrupted);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @Test
     @DisplayName("leaves a clear interrupt status clear")
     void leavesClearInterruptStatusClear() {
       Cleanup.afterFailure(new IllegalStateException("failed"), () -> {});
@@ -184,6 +204,20 @@ class CleanupTest {
       Cleanup.suppress(wrapper, cause);
 
       assertThat(wrapper.getSuppressed()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("does not suppress a failure onto one that already holds it")
+    void doesNotSuppressTwice() {
+      IllegalStateException primary = new IllegalStateException("primary");
+      IllegalStateException secondary = new IllegalStateException("secondary");
+      IllegalStateException other = new IllegalStateException("other");
+
+      Cleanup.suppress(primary, secondary);
+      Cleanup.suppress(primary, other);
+      Cleanup.suppress(primary, secondary);
+
+      assertThat(primary.getSuppressed()).containsExactly(secondary, other);
     }
 
     @Test

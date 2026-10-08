@@ -536,6 +536,58 @@ class IOPathResourceAndParallelTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(CLOSING_USES)
+    @DisplayName(
+        "an InterruptedException from close() after a failing use is suppressed, and sets the"
+            + " interrupt status")
+    void interruptedCloseAfterFailingUseSetsInterruptStatus(ClosingUse method) {
+      IllegalStateException useFailure = new IllegalStateException("use failed");
+      InterruptedException closeFailure = new InterruptedException("close interrupted");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw closeFailure;
+                  },
+                  () -> {
+                    throw useFailure;
+                  });
+
+      try {
+        assertThatThrownBy(path::unsafeRun)
+            .isSameAs(useFailure)
+            .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(closeFailure));
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName("a resource supplier that returns null fails before the use runs")
+    void nullResourceFailsBeforeTheUse(ClosingUse method) {
+      AtomicBoolean used = new AtomicBoolean(false);
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  null,
+                  () -> {
+                    used.set(true);
+                    return "used";
+                  });
+
+      assertThatNullPointerException()
+          .isThrownBy(path::unsafeRun)
+          .withMessage("resourceSupplier must not return null");
+      assertThat(used).isFalse();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
     @DisplayName("close()'s exception, as thrown, is suppressed onto a failing use's")
     void closeFailureIsSuppressedOntoFailingUse(ClosingUse method) {
       IllegalStateException useFailure = new IllegalStateException("use failed");

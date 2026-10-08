@@ -82,10 +82,12 @@ final class Closing {
   /**
    * Runs a cleanup task after a failure, as {@link Cleanup#afterFailure} runs cleanup: a failure of
    * the cleanup is suppressed onto the original, which the caller goes on to throw, and an
-   * interrupt that stopped the reading does not cut the cleanup short.
+   * interrupt that stopped the reading does not cut the cleanup short. The task runs through {@link
+   * VTask#run()}, so a checked failure is suppressed wrapped in a {@link VTaskExecutionException},
+   * as a stream's finalisers report one when they run after a successful read.
    */
   static void runAfterFailure(VTask<?> cleanup, Throwable failure) {
-    Cleanup.afterFailure(failure, cleanup::run);
+    Cleanup.afterFailure(failure, () -> cleanup.run());
   }
 
   /**

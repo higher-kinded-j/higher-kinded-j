@@ -845,6 +845,41 @@ class VStreamCloseAndReplayTest {
     }
 
     @Test
+    @DisplayName(
+        "the function's failure is still reported when the rest's close() breaks its contract and"
+            + " returns null")
+    void functionFailureSurvivesANullClose() {
+      VStream<Integer> nullClosing =
+          new VStream<>() {
+            @Override
+            public VTask<VStream.Step<Integer>> pull() {
+              return VTask.succeed(new VStream.Step.Emit<>(1, VStream.empty()));
+            }
+
+            @Override
+            @SuppressWarnings(
+                "DataFlowIssue") // null is returned deliberately to break the contract
+            public VTask<Unit> close() {
+              return null;
+            }
+          };
+
+      VStream<Integer> mapped =
+          nullClosing.map(
+              _ -> {
+                throw new IllegalStateException("map failed");
+              });
+
+      assertThatThrownBy(() -> mapped.toList().run())
+          .hasMessage("map failed")
+          .satisfies(
+              e ->
+                  assertThat(e.getSuppressed())
+                      .isNotEmpty()
+                      .allSatisfy(s -> assertThat(s).isInstanceOf(NullPointerException.class)));
+    }
+
+    @Test
     @DisplayName("recover after a throwing map emits the recovery, and the upstream is closed")
     void recoverAfterThrowingMapCloses() {
       AtomicInteger runs = new AtomicInteger();

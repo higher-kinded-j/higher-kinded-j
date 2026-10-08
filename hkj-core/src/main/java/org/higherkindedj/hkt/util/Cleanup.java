@@ -9,14 +9,24 @@ import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 
 /**
- * How cleanup after some work reports a failure, by the rule try-with-resources follows. When the
- * work fails and its cleanup fails too, the work's failure is the one reported, with the cleanup's
- * suppressed onto it. When the work succeeds, a failure of its cleanup is reported on its own.
- * {@code IOPath}, {@code VTaskPath}, {@code Resource} and {@code VStream} report the failures of
- * their cleanup through this class, so the rule is the same for all of them.
+ * Which failure is reported when some work and the cleanup after it both fail, by the rule
+ * try-with-resources follows: the work's failure, with the cleanup's suppressed onto it. When the
+ * work succeeds, a failure of its cleanup is reported on its own. {@code IOPath}, {@code
+ * VTaskPath}, {@code Resource} and {@code VStream} report a failing cleanup through this class, so
+ * the rule is the same for all of them. Each keeps its own form for a checked exception, and its
+ * own order among several releases, such as the composed releases of a {@code Resource}. {@code
+ * VResultPath.bracketOutcome} reports its release's defect instead, since its release has already
+ * seen the work's outcome as a value.
  *
  * <p>Cleanup after a failure runs with the thread's interrupt status cleared, so cleanup after a
- * cancelled computation is not cut short, and the status is restored afterwards.
+ * cancelled computation is not cut short. The status is restored afterwards, and set if the cleanup
+ * throws an {@link InterruptedException}.
+ *
+ * <p>An exception that more than one run throws, such as the one a {@code VTask.fail} holds,
+ * gathers the suppressed exceptions of every run whose cleanup fails, as it would under
+ * try-with-resources. An exception already suppressed onto it is not added again.
+ *
+ * <p>Used internally: the package is not exported.
  */
 public final class Cleanup {
 
@@ -52,7 +62,7 @@ public final class Cleanup {
     try {
       result = work.get();
     } catch (Throwable failure) {
-      afterFailure(failure, cleanup::run);
+      afterFailure(failure, () -> cleanup.run());
       throw failure;
     }
     cleanup.run();
@@ -62,7 +72,8 @@ public final class Cleanup {
   /**
    * Runs cleanup after a failure, which stays the one reported: anything the cleanup throws is
    * suppressed onto it. The caller goes on to throw the failure. The interrupt status is cleared
-   * while the cleanup runs, and restored afterwards.
+   * while the cleanup runs. It is restored afterwards, and set if the cleanup throws an {@link
+   * InterruptedException}, so an interrupt that arrives during the cleanup is not lost.
    *
    * @param failure the failure the cleanup follows
    * @param cleanup the cleanup to run
@@ -71,8 +82,9 @@ public final class Cleanup {
     boolean interrupted = Thread.interrupted();
     try {
       cleanup.run();
-    } catch (Throwable later) {
-      suppress(failure, later);
+    } catch (Throwable secondary) {
+      interrupted |= secondary instanceof InterruptedException;
+      suppress(failure, secondary);
     } finally {
       if (interrupted) {
         Thread.currentThread().interrupt();
@@ -81,33 +93,43 @@ public final class Cleanup {
   }
 
   /**
-   * The failure to report of two: the first, with the later one suppressed onto it, or the later
-   * one when there was no first.
+   * The failure to report of two: {@code primary}, with {@code secondary} suppressed onto it, or
+   * {@code secondary} when there is no primary.
    *
-   * @param first the failure so far, or null if there was none
-   * @param later the failure that followed it
+   * @param primary the failure to report, or null if there is none yet
+   * @param secondary the failure to keep among its suppressed exceptions
    * @return the failure to report
    */
-  public static Throwable keep(@Nullable Throwable first, Throwable later) {
-    if (first == null) {
-      return later;
+  public static Throwable keep(@Nullable Throwable primary, Throwable secondary) {
+    if (primary == null) {
+      return secondary;
     }
-    suppress(first, later);
-    return first;
+    suppress(primary, secondary);
+    return primary;
   }
 
   /**
-   * Suppresses a later failure onto the first, unless it is the first or one of its causes, where
-   * it would appear twice. The same instance thrown twice, as a shared {@code VTask.fail} throws
-   * it, is kept once.
+   * Suppresses {@code secondary} onto {@code primary}, unless it would appear twice: when it is
+   * {@code primary} or one of its causes, as the same instance thrown twice by a shared {@code
+   * VTask.fail} is, or is already among {@code primary}'s suppressed exceptions.
    *
-   * @param first the failure reported
-   * @param later the failure that followed it
+   * @param primary the failure reported
+   * @param secondary the failure to keep among its suppressed exceptions
    */
-  public static void suppress(Throwable first, Throwable later) {
-    if (!inCauseChain(first, later)) {
-      first.addSuppressed(later);
+  public static void suppress(Throwable primary, Throwable secondary) {
+    if (!inCauseChain(primary, secondary) && !isSuppressedOnto(primary, secondary)) {
+      primary.addSuppressed(secondary);
     }
+  }
+
+  /** Whether {@code secondary} is already among {@code primary}'s suppressed exceptions. */
+  private static boolean isSuppressedOnto(Throwable primary, Throwable secondary) {
+    for (Throwable suppressed : primary.getSuppressed()) {
+      if (suppressed == secondary) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Whether {@code target} is {@code start} or one of its causes; a cyclic chain ends the walk. */
