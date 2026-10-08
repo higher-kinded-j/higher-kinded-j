@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.StructuredTaskScope;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
@@ -169,10 +170,12 @@ public final class Scope<T, R> {
   /**
    * Sets a timeout for the scope.
    *
-   * <p>The timeout starts when a run opens its scope. If that run has not finished joining when it
-   * expires, the scope is cancelled: the subtasks still running are interrupted, and the run fails
-   * with a {@link TimeoutException} once they have stopped. A subtask that ignores interruption
-   * delays that failure until it finishes.
+   * <p>Each run's timeout starts once it has forked its subtasks, and is kept by one more subtask
+   * of the run's own scope, so it fires however busy the common {@code ForkJoinPool} is. If the
+   * joiner has not decided the result when it expires, the scope is cancelled: the subtasks still
+   * running are interrupted, and the run fails with a {@link TimeoutException} once they have
+   * stopped. A subtask that ignores interruption holds the run back until it finishes, whether the
+   * timeout or the joiner cancelled the scope.
    *
    * @param timeout the maximum time to wait; must not be null
    * @return a new Scope with the timeout configured
@@ -237,8 +240,8 @@ public final class Scope<T, R> {
    *
    * <ol>
    *   <li>Open a StructuredTaskScope with a new Joiner from the configured ScopeJoiner, and the
-   *       configured timeout and name
-   *   <li>Fork all added tasks
+   *       configured name
+   *   <li>Fork all added tasks, then a subtask that keeps the timeout, if one is configured
    *   <li>Wait for completion according to the joiner's semantics
    *   <li>Return the joined result
    * </ol>
@@ -251,33 +254,28 @@ public final class Scope<T, R> {
   @SuppressWarnings("preview")
   public VTask<R> join() {
     return () -> {
-      try (var scope = StructuredTaskScope.open(joiner.joiner(), this::configure)) {
+      StructuredTaskScope.Joiner<T, R> joining = joiner.joiner();
+      @Nullable Deadline<T, R> deadline = timeout == null ? null : new Deadline<>(joining, timeout);
+      try (var scope =
+          StructuredTaskScope.open(deadline == null ? joining : deadline, this::configure)) {
         for (VTask<? extends T> task : tasks) {
           scope.fork(task.asCallable());
+        }
+        if (deadline != null) {
+          deadline.fork(scope);
         }
 
         // StructuredTaskScope with custom Joiner returns result directly from join()
         return scope.join();
       } catch (StructuredTaskScope.FailedException e) {
         throw e.getCause();
-      } catch (StructuredTaskScope.TimeoutException e) {
-        TimeoutException timedOut = new TimeoutException("Scope timed out after " + timeout);
-        timedOut.initCause(e);
-        throw timedOut;
       }
     };
   }
 
   @SuppressWarnings("preview")
   private StructuredTaskScope.Configuration configure(StructuredTaskScope.Configuration config) {
-    StructuredTaskScope.Configuration configured = config;
-    if (timeout != null) {
-      configured = configured.withTimeout(timeout);
-    }
-    if (name != null) {
-      configured = configured.withName(name);
-    }
-    return configured;
+    return name == null ? config : config.withName(name);
   }
 
   /**
@@ -337,5 +335,70 @@ public final class Scope<T, R> {
    */
   public Maybe<Duration> getTimeout() {
     return timeout != null ? Maybe.just(timeout) : Maybe.nothing();
+  }
+
+  /**
+   * Keeps a run's timeout as one more subtask of its scope, on a virtual thread, so the timeout
+   * fires even when every thread of the common {@code ForkJoinPool} is blocked. The JDK's own scope
+   * timeout runs on that pool. The joiner it wraps never sees the deadline subtask.
+   *
+   * @param <T> the type of values produced by subtasks
+   * @param <R> the type of the final result after joining
+   */
+  @SuppressWarnings("preview")
+  private static final class Deadline<T, R> implements StructuredTaskScope.Joiner<T, R> {
+
+    private final StructuredTaskScope.Joiner<T, R> joining;
+    private final Duration timeout;
+    // One for each subtask still running, and one held until the deadline is forked
+    private final AtomicInteger outstanding = new AtomicInteger(1);
+    // Set and read only on the thread that owns the scope
+    private boolean forkingDeadline;
+    private volatile StructuredTaskScope.@Nullable Subtask<? extends T> deadline;
+    private volatile boolean expired;
+
+    Deadline(StructuredTaskScope.Joiner<T, R> joining, Duration timeout) {
+      this.joining = joining;
+      this.timeout = timeout;
+    }
+
+    void fork(StructuredTaskScope<T, R> scope) {
+      forkingDeadline = true;
+      scope.fork(
+          () -> {
+            Thread.sleep(timeout);
+            return null;
+          });
+    }
+
+    @Override
+    public boolean onFork(StructuredTaskScope.Subtask<? extends T> subtask) {
+      if (forkingDeadline) {
+        deadline = subtask;
+        // When every subtask has already completed, cancel, so the deadline never starts
+        return outstanding.decrementAndGet() == 0;
+      }
+      outstanding.incrementAndGet();
+      return joining.onFork(subtask);
+    }
+
+    @Override
+    public boolean onComplete(StructuredTaskScope.Subtask<? extends T> subtask) {
+      if (subtask == deadline) {
+        expired = true;
+        return true;
+      }
+      boolean cancel = joining.onComplete(subtask);
+      // The last subtask to complete cancels the deadline
+      return outstanding.decrementAndGet() == 0 || cancel;
+    }
+
+    @Override
+    public R result() throws Throwable {
+      if (expired) {
+        throw new TimeoutException("Scope timed out after " + timeout);
+      }
+      return joining.result();
+    }
   }
 }

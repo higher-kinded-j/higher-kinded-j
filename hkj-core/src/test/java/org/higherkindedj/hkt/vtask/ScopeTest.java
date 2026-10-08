@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import com.sun.management.HotSpotDiagnosticMXBean;
 import java.io.IOException;
@@ -14,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -463,6 +466,7 @@ class ScopeTest {
       VTask<List<String>> join =
           Scope.<String>allSucceed()
               .timeout(Duration.ofMillis(200))
+              .fork(VTask.succeed("fast"))
               .fork(
                   VTask.of(
                       () -> {
@@ -483,6 +487,91 @@ class ScopeTest {
             .isInstanceOf(TimeoutException.class)
             .hasMessage("Scope timed out after PT0.2S");
         assertThat(cancelled).isTrue();
+      } finally {
+        neverReleased.countDown();
+      }
+    }
+
+    @Test
+    @DisplayName("a timeout fires while every common-pool thread waits on a timed scope")
+    void aTimeoutFiresWhileEveryCommonPoolThreadWaits() throws Exception {
+      CountDownLatch neverReleased = new CountDownLatch(1);
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofMillis(200))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        neverReleased.await();
+                        return "slow";
+                      }))
+              .join();
+      List<ForkJoinTask<Try<List<String>>>> runs = new ArrayList<>();
+
+      try {
+        for (int i = 0; i < ForkJoinPool.getCommonPoolParallelism(); i++) {
+          runs.add(ForkJoinPool.commonPool().submit(() -> join.runSafe()));
+        }
+        for (ForkJoinTask<Try<List<String>>> run : runs) {
+          assertThat(run.get(10, TimeUnit.SECONDS))
+              .isInstanceOfSatisfying(
+                  Try.Failure.class,
+                  failure -> assertThat(failure.cause()).isInstanceOf(TimeoutException.class));
+        }
+      } finally {
+        neverReleased.countDown();
+      }
+    }
+
+    @Test
+    @DisplayName("a timed scope that finishes early does not wait for its timeout")
+    void aTimedScopeThatFinishesEarlyDoesNotWaitForItsTimeout() {
+      VTask<List<String>> join =
+          Scope.<String>allSucceed()
+              .timeout(Duration.ofMinutes(1))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        Thread.sleep(50);
+                        return "done";
+                      }))
+              .join();
+
+      List<String> result = assertTimeoutPreemptively(Duration.ofSeconds(10), join::run);
+
+      assertThat(result).containsExactly("done");
+    }
+
+    @Test
+    @DisplayName("a timed scope with nothing forked returns at once")
+    void aTimedScopeWithNothingForkedReturnsAtOnce() {
+      VTask<List<String>> join = Scope.<String>allSucceed().timeout(Duration.ofMinutes(1)).join();
+
+      List<String> result = assertTimeoutPreemptively(Duration.ofSeconds(10), join::run);
+
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a timed race returns its winner and cancels the rest")
+    void aTimedRaceReturnsItsWinnerAndCancelsTheRest() {
+      CountDownLatch neverReleased = new CountDownLatch(1);
+      VTask<String> race =
+          Scope.<String>anySucceed()
+              .timeout(Duration.ofMinutes(1))
+              .fork(
+                  VTask.of(
+                      () -> {
+                        neverReleased.await();
+                        return "slow";
+                      }))
+              .fork(VTask.succeed("fast"))
+              .join();
+
+      try {
+        String winner = assertTimeoutPreemptively(Duration.ofSeconds(10), race::run);
+
+        assertThat(winner).isEqualTo("fast");
       } finally {
         neverReleased.countDown();
       }

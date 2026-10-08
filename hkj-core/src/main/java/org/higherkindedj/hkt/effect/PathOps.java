@@ -542,7 +542,7 @@ public final class PathOps {
    * Races multiple VTaskPaths, returning the first to complete successfully.
    *
    * <p>All VTaskPaths are executed concurrently on virtual threads. The first to complete
-   * successfully wins. If all fail, the last failure is propagated.
+   * successfully wins. If all fail, the failure of one of them is propagated.
    *
    * <p>When at least one path is statically known, prefer the {@link #raceVTask(NonEmptyList)}
    * overload, which is total and never throws {@link IllegalArgumentException}.
@@ -566,7 +566,7 @@ public final class PathOps {
    * Races multiple VTaskPaths, returning the first to complete successfully.
    *
    * <p>All VTaskPaths are executed concurrently on virtual threads. The first to complete
-   * successfully wins. If all fail, the last failure is propagated.
+   * successfully wins. If all fail, the failure of one of them is propagated.
    *
    * <p>The {@link NonEmptyList} guarantees at least one path, so this overload is total: there is
    * no empty case to guard and it never throws {@link IllegalArgumentException}.
