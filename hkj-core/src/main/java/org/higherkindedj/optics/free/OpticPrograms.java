@@ -20,7 +20,9 @@ import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.TraversalPath;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * DSL for building optic programs using the Free monad.
@@ -103,7 +105,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Getter that represents the lens
    */
-  private static <S, A> Getter<S, A> lensToGetter(Lens<S, A> lens) {
+  private static <S extends @Nullable Object, A extends @Nullable Object> Getter<S, A> lensToGetter(
+      Lens<S, A> lens) {
     return lens::get;
   }
 
@@ -115,7 +118,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Fold that represents the traversal
    */
-  private static <S, A> Fold<S, A> traversalToFold(Traversal<S, A> traversal) {
+  private static <S extends @Nullable Object, A extends @Nullable Object>
+      Fold<S, A> traversalToFold(Traversal<S, A> traversal) {
     return new Fold<>() {
       @Override
       public <M> M foldMap(Monoid<M> monoid, Function<? super A, ? extends M> f, S source) {
@@ -150,13 +154,17 @@ public final class OpticPrograms {
    *     OpticPrograms.get(person, PersonLenses.name());
    * }</pre>
    *
+   * <p>A program holds a non-null result, so this takes a focus that is never null. For one that
+   * may be, {@link #preview(Object, Fold)} reads a null focus as absent; a Getter is itself a Fold.
+   *
    * @param source The source structure
    * @param getter The optic to focus with
    * @param <S> The source type
    * @param <A> The focused value type
    * @return A Free monad program that returns the focused value
    */
-  public static <S, A> Free<OpticOpKind.Witness, A> get(S source, Getter<S, A> getter) {
+  public static <S extends @Nullable Object, A> Free<OpticOpKind.Witness, A> get(
+      S source, Getter<S, A> getter) {
     return liftOp(new OpticOp.Get<>(source, getter));
   }
 
@@ -170,13 +178,17 @@ public final class OpticPrograms {
    *     OpticPrograms.get(person, PersonLenses.name());
    * }</pre>
    *
+   * <p>A program holds a non-null result, so this takes a focus that is never null. For one that
+   * may be, {@link #preview(Object, Fold)} with {@code lens.asFold()} reads a null focus as absent.
+   *
    * @param source The source structure
    * @param lens The lens to focus with
    * @param <S> The source type
    * @param <A> The focused value type
    * @return A Free monad program that returns the focused value
    */
-  public static <S, A> Free<OpticOpKind.Witness, A> get(S source, Lens<S, A> lens) {
+  public static <S extends @Nullable Object, A> Free<OpticOpKind.Witness, A> get(
+      S source, Lens<S, A> lens) {
     return liftOp(new OpticOp.Get<>(source, lensToGetter(lens)));
   }
 
@@ -190,13 +202,16 @@ public final class OpticPrograms {
    *     OpticPrograms.preview(person, addressPrism);
    * }</pre>
    *
+   * <p>A null first focus reads as absent.
+   *
    * @param source The source structure
    * @param fold The optic to focus with
    * @param <S> The source type
    * @param <A> The focused value type
    * @return A Free monad program that returns an Optional of the first focused value
    */
-  public static <S, A> Free<OpticOpKind.Witness, Optional<A>> preview(S source, Fold<S, A> fold) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Optional<@NonNull A>> preview(S source, Fold<S, A> fold) {
     return liftOp(new OpticOp.Preview<>(source, fold));
   }
 
@@ -210,14 +225,16 @@ public final class OpticPrograms {
    *     OpticPrograms.preview(team, playerTraversal);
    * }</pre>
    *
+   * <p>A null first focus reads as absent.
+   *
    * @param source The source structure
    * @param traversal The traversal to focus with
    * @param <S> The source type
    * @param <A> The focused value type
    * @return A Free monad program that returns an Optional of the first focused value
    */
-  public static <S, A> Free<OpticOpKind.Witness, Optional<A>> preview(
-      S source, Traversal<S, A> traversal) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Optional<@NonNull A>> preview(S source, Traversal<S, A> traversal) {
     return liftOp(new OpticOp.Preview<>(source, traversalToFold(traversal)));
   }
 
@@ -237,7 +254,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns a list of all focused values
    */
-  public static <S, A> Free<OpticOpKind.Witness, List<A>> getAll(S source, Fold<S, A> fold) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, List<A>> getAll(S source, Fold<S, A> fold) {
     return liftOp(new OpticOp.GetAll<>(source, fold));
   }
 
@@ -257,8 +275,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns a list of all focused values
    */
-  public static <S, A> Free<OpticOpKind.Witness, List<A>> getAll(
-      S source, Traversal<S, A> traversal) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, List<A>> getAll(S source, Traversal<S, A> traversal) {
     return liftOp(new OpticOp.GetAll<>(source, traversalToFold(traversal)));
   }
 
@@ -283,7 +301,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the updated structure
    */
-  public static <S, A> Free<OpticOpKind.Witness, S> set(S source, Lens<S, A> lens, A value) {
+  public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> set(
+      S source, Lens<S, A> lens, A value) {
     return liftOp(new OpticOp.Set<>(source, lens, value));
   }
 
@@ -304,7 +323,7 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the updated structure
    */
-  public static <S, A> Free<OpticOpKind.Witness, S> setAll(
+  public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> setAll(
       S source, Traversal<S, A> traversal, A value) {
     return liftOp(new OpticOp.SetAll<>(source, traversal, value));
   }
@@ -330,7 +349,7 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the updated structure
    */
-  public static <S, A> Free<OpticOpKind.Witness, S> modify(
+  public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> modify(
       S source, Lens<S, A> lens, Function<A, A> modifier) {
     return liftOp(new OpticOp.Modify<>(source, lens, modifier));
   }
@@ -352,7 +371,7 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the updated structure
    */
-  public static <S, A> Free<OpticOpKind.Witness, S> modifyAll(
+  public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> modifyAll(
       S source, Traversal<S, A> traversal, Function<A, A> modifier) {
     return liftOp(new OpticOp.ModifyAll<>(source, traversal, modifier));
   }
@@ -378,8 +397,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns true if any element matches
    */
-  public static <S, A> Free<OpticOpKind.Witness, Boolean> exists(
-      S source, Fold<S, A> fold, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Boolean> exists(S source, Fold<S, A> fold, Predicate<A> predicate) {
     return liftOp(new OpticOp.Exists<>(source, fold, predicate));
   }
 
@@ -400,8 +419,9 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns true if any element matches
    */
-  public static <S, A> Free<OpticOpKind.Witness, Boolean> exists(
-      S source, Traversal<S, A> traversal, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Boolean> exists(
+          S source, Traversal<S, A> traversal, Predicate<A> predicate) {
     return liftOp(new OpticOp.Exists<>(source, traversalToFold(traversal), predicate));
   }
 
@@ -422,8 +442,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns true if all elements match
    */
-  public static <S, A> Free<OpticOpKind.Witness, Boolean> all(
-      S source, Fold<S, A> fold, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Boolean> all(S source, Fold<S, A> fold, Predicate<A> predicate) {
     return liftOp(new OpticOp.All<>(source, fold, predicate));
   }
 
@@ -444,8 +464,9 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns true if all elements match
    */
-  public static <S, A> Free<OpticOpKind.Witness, Boolean> all(
-      S source, Traversal<S, A> traversal, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Boolean> all(
+          S source, Traversal<S, A> traversal, Predicate<A> predicate) {
     return liftOp(new OpticOp.All<>(source, traversalToFold(traversal), predicate));
   }
 
@@ -465,7 +486,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the count
    */
-  public static <S, A> Free<OpticOpKind.Witness, Integer> count(S source, Fold<S, A> fold) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Integer> count(S source, Fold<S, A> fold) {
     return liftOp(new OpticOp.Count<>(source, fold));
   }
 
@@ -485,8 +507,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the count
    */
-  public static <S, A> Free<OpticOpKind.Witness, Integer> count(
-      S source, Traversal<S, A> traversal) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Integer> count(S source, Traversal<S, A> traversal) {
     return liftOp(new OpticOp.Count<>(source, traversalToFold(traversal)));
   }
 
@@ -534,13 +556,18 @@ public final class OpticPrograms {
    *     OpticPrograms.get(person, PersonFocus.name());
    * }</pre>
    *
+   * <p>A program holds a non-null result, so this takes a focus that is never null. For one that
+   * may be, {@link #preview(Object, AffinePath)} with {@code path.nullable()} reads a null focus as
+   * absent.
+   *
    * @param source The source structure
    * @param path The focus path to navigate with
    * @param <S> The source type
    * @param <A> The focused value type
    * @return A Free monad program that returns the focused value
    */
-  public static <S, A> Free<OpticOpKind.Witness, A> get(S source, FocusPath<S, A> path) {
+  public static <S extends @Nullable Object, A> Free<OpticOpKind.Witness, A> get(
+      S source, FocusPath<S, A> path) {
     return get(source, path.toLens());
   }
 
@@ -554,14 +581,16 @@ public final class OpticPrograms {
    *     OpticPrograms.preview(config, ConfigFocus.database().via(dbHostLens));
    * }</pre>
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param source The source structure
    * @param path The affine path to navigate with
    * @param <S> The source type
    * @param <A> The focused value type
    * @return A Free monad program that returns an Optional of the focused value
    */
-  public static <S, A> Free<OpticOpKind.Witness, Optional<A>> preview(
-      S source, AffinePath<S, A> path) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Optional<@NonNull A>> preview(S source, AffinePath<S, A> path) {
     return preview(source, path.toAffine().asFold());
   }
 
@@ -581,8 +610,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns a list of all focused values
    */
-  public static <S, A> Free<OpticOpKind.Witness, List<A>> getAll(
-      S source, TraversalPath<S, A> path) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, List<A>> getAll(S source, TraversalPath<S, A> path) {
     return getAll(source, path.toTraversal());
   }
 
@@ -603,7 +632,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the updated structure
    */
-  public static <S, A> Free<OpticOpKind.Witness, S> set(S source, FocusPath<S, A> path, A value) {
+  public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> set(
+      S source, FocusPath<S, A> path, A value) {
     return set(source, path.toLens(), value);
   }
 
@@ -624,7 +654,7 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the updated structure
    */
-  public static <S, A> Free<OpticOpKind.Witness, S> setAll(
+  public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> setAll(
       S source, TraversalPath<S, A> path, A value) {
     return setAll(source, path.toTraversal(), value);
   }
@@ -646,7 +676,7 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the updated structure
    */
-  public static <S, A> Free<OpticOpKind.Witness, S> modify(
+  public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> modify(
       S source, FocusPath<S, A> path, Function<A, A> modifier) {
     return modify(source, path.toLens(), modifier);
   }
@@ -668,7 +698,7 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the updated structure
    */
-  public static <S, A> Free<OpticOpKind.Witness, S> modifyAll(
+  public static <S, A extends @Nullable Object> Free<OpticOpKind.Witness, S> modifyAll(
       S source, TraversalPath<S, A> path, Function<A, A> modifier) {
     return modifyAll(source, path.toTraversal(), modifier);
   }
@@ -691,8 +721,9 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns true if any element matches
    */
-  public static <S, A> Free<OpticOpKind.Witness, Boolean> exists(
-      S source, TraversalPath<S, A> path, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Boolean> exists(
+          S source, TraversalPath<S, A> path, Predicate<A> predicate) {
     return exists(source, path.toTraversal(), predicate);
   }
 
@@ -714,8 +745,9 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns true if all elements match
    */
-  public static <S, A> Free<OpticOpKind.Witness, Boolean> all(
-      S source, TraversalPath<S, A> path, Predicate<A> predicate) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Boolean> all(
+          S source, TraversalPath<S, A> path, Predicate<A> predicate) {
     return all(source, path.toTraversal(), predicate);
   }
 
@@ -735,8 +767,8 @@ public final class OpticPrograms {
    * @param <A> The focused value type
    * @return A Free monad program that returns the count
    */
-  public static <S, A> Free<OpticOpKind.Witness, Integer> count(
-      S source, TraversalPath<S, A> path) {
+  public static <S extends @Nullable Object, A extends @Nullable Object>
+      Free<OpticOpKind.Witness, Integer> count(S source, TraversalPath<S, A> path) {
     return count(source, path.toTraversal());
   }
 }

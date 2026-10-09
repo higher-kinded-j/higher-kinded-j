@@ -57,6 +57,8 @@ import org.higherkindedj.hkt.vtask.VTaskKindHelper;
 import org.higherkindedj.hkt.vtask.VTaskMonad;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Path-native for-comprehension builder that works directly with Effect Path types.
@@ -809,6 +811,9 @@ public final class ForPath {
     /**
      * Extracts a value using a FocusPath.
      *
+     * <p>The focus is held as it is, so this takes a focus that is never null. For one that may be,
+     * {@link #match(AffinePath)} with {@code focusPath.nullable()} reads a null focus as absent.
+     *
      * @param focusPath the lens to apply
      * @param <B> the focused type
      * @return the next step
@@ -823,13 +828,16 @@ public final class ForPath {
     /**
      * Pattern matches using an AffinePath, short-circuiting if the match fails.
      *
+     * <p>A null focus reads as absent, so it short-circuits too.
+     *
      * @param affinePath the optional focus to apply
      * @param <B> the focused type
      * @return the next step
      */
-    public <B> MaybePathSteps2<A, B> match(AffinePath<A, B> affinePath) {
+    public <B extends @Nullable Object> MaybePathSteps2<A, @NonNull B> match(
+        AffinePath<A, B> affinePath) {
       Objects.requireNonNull(affinePath, "affinePath must not be null");
-      Kind<MaybeKind.Witness, Tuple2<A, B>> newComp =
+      Kind<MaybeKind.Witness, Tuple2<A, @NonNull B>> newComp =
           MONAD.flatMap(
               a ->
                   affinePath
@@ -959,6 +967,16 @@ public final class ForPath {
       return new OptionalPathSteps2<>(newComp);
     }
 
+    /**
+     * Extracts a value using a FocusPath.
+     *
+     * <p>The focus is held as it is, so this takes a focus that is never null. For one that may be,
+     * {@link #match(AffinePath)} with {@code focusPath.nullable()} reads a null focus as absent.
+     *
+     * @param focusPath the lens to apply
+     * @param <B> the focused type
+     * @return the next step
+     */
     public <B> OptionalPathSteps2<A, B> focus(FocusPath<A, B> focusPath) {
       Objects.requireNonNull(focusPath, "focusPath must not be null");
       Kind<OptionalKind.Witness, Tuple2<A, B>> newComp =
@@ -966,9 +984,10 @@ public final class ForPath {
       return new OptionalPathSteps2<>(newComp);
     }
 
-    public <B> OptionalPathSteps2<A, B> match(AffinePath<A, B> affinePath) {
+    public <B extends @Nullable Object> OptionalPathSteps2<A, @NonNull B> match(
+        AffinePath<A, B> affinePath) {
       Objects.requireNonNull(affinePath, "affinePath must not be null");
-      Kind<OptionalKind.Witness, Tuple2<A, B>> newComp =
+      Kind<OptionalKind.Witness, Tuple2<A, @NonNull B>> newComp =
           MONAD.flatMap(
               a ->
                   affinePath

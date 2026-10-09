@@ -12,6 +12,7 @@ import org.higherkindedj.hkt.TypeArity;
 import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides a fluent builder for traversal-based comprehensions, enabling bulk operations over
@@ -107,7 +108,8 @@ public final class ForTraversal {
      * @return A new builder with the modification applied.
      * @throws NullPointerException if any argument is null.
      */
-    <B> TraversalSteps<F, S, A> modify(Lens<A, B> lens, Function<B, B> modifier);
+    <B extends @Nullable Object> TraversalSteps<F, S, A> modify(
+        Lens<A, B> lens, Function<B, B> modifier);
 
     /**
      * Sets a specific field within each focused element using a lens.
@@ -118,7 +120,7 @@ public final class ForTraversal {
      * @return A new builder with the field set.
      * @throws NullPointerException if {@code lens} is null.
      */
-    <B> TraversalSteps<F, S, A> set(Lens<A, B> lens, B value);
+    <B extends @Nullable Object> TraversalSteps<F, S, A> set(Lens<A, B> lens, B value);
 
     /**
      * Completes the traversal and returns the modified structure wrapped in the applicative
@@ -178,7 +180,8 @@ public final class ForTraversal {
     }
 
     @Override
-    public <B> TraversalSteps<F, S, A> modify(Lens<A, B> lens, Function<B, B> modifier) {
+    public <B extends @Nullable Object> TraversalSteps<F, S, A> modify(
+        Lens<A, B> lens, Function<B, B> modifier) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
 
@@ -194,7 +197,7 @@ public final class ForTraversal {
     }
 
     @Override
-    public <B> TraversalSteps<F, S, A> set(Lens<A, B> lens, B value) {
+    public <B extends @Nullable Object> TraversalSteps<F, S, A> set(Lens<A, B> lens, B value) {
       Objects.requireNonNull(lens, "lens must not be null");
 
       // Only set on elements that pass the filter predicate

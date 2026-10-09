@@ -31,6 +31,8 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link IO} values.
@@ -848,6 +850,10 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
    * inside an IO context. The lens operation is deferred along with the IO computation.
    *
+   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
+   * be, pass {@code path.nullable()} to {@link #focus(AffinePath, Supplier)}, which says what a
+   * null focus becomes.
+   *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
    * @return a new IOPath containing the focused value
@@ -865,6 +871,8 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * runtime exception is thrown when the IO is executed. For safer handling, consider using {@code
    * toTryPath()} first.
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param path the AffinePath to apply; must not be null
    * @param exceptionIfAbsent supplies the exception if the path doesn't match; must not be null,
    *     and must not return null; a null result fails the path with a NullPointerException when it
@@ -873,14 +881,14 @@ public final class IOPath<A> implements Effectful<A>, Deferred<A> {
    * @return a new IOPath containing the focused value
    * @throws NullPointerException if path or exceptionIfAbsent is null
    */
-  public <B> IOPath<B> focus(
+  public <B extends @Nullable Object> IOPath<@NonNull B> focus(
       AffinePath<A, B> path, Supplier<? extends RuntimeException> exceptionIfAbsent) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(exceptionIfAbsent, "exceptionIfAbsent must not be null");
     return via(
         a ->
             path.getOptional(a)
-                .<IOPath<B>>map(Path::ioPure)
+                .<IOPath<@NonNull B>>map(Path::ioPure)
                 .orElseGet(
                     () ->
                         Path.io(

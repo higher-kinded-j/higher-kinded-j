@@ -3,13 +3,20 @@
 package org.higherkindedj.optics.focus;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
+import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
+import static org.higherkindedj.hkt.assertions.TryAssert.assertThatTry;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.effect.EitherPath;
 import org.higherkindedj.hkt.effect.IdPath;
 import org.higherkindedj.hkt.effect.MaybePath;
 import org.higherkindedj.hkt.effect.Path;
 import org.higherkindedj.hkt.effect.TryPath;
 import org.higherkindedj.optics.Lens;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -18,7 +25,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Comprehensive test suite for FocusPath bridge methods to EffectPath types.
  *
- * <p>Tests cover the bridge methods: toMaybePath, toEitherPath, toTryPath, and toIdPath.
+ * <p>Tests cover the bridge methods: toMaybePath, toEitherPath, toTryPath, and toIdPath, and the
+ * forms of toEitherPath and toTryPath that say what a null focus becomes.
  */
 @DisplayName("FocusPath Bridge Methods Tests")
 class FocusPathBridgeTest {
@@ -29,6 +37,15 @@ class FocusPathBridgeTest {
   record Address(Street street, String city) {}
 
   record Person(String name, Address address) {}
+
+  record Profile(@Nullable String nickname) {}
+
+  private static final FocusPath<Profile, @Nullable String> NICKNAME =
+      FocusPath.of(Lens.of(Profile::nickname, (_, n) -> new Profile(n)));
+
+  private static final Profile NAMED = new Profile("Al");
+
+  private static final Profile UNNAMED = new Profile(null);
 
   // Lenses
   private Lens<Street, String> streetNameLens;
@@ -257,6 +274,97 @@ class FocusPathBridgeTest {
       IdPath<String> result = path.toIdPath(street).map(String::toUpperCase);
 
       assertThat(result.run().value()).isEqualTo("PARK AVE");
+    }
+  }
+
+  @Nested
+  @DisplayName("toEitherPath() and toTryPath() over a focus that may be null")
+  class OverANullableFocus {
+
+    @Test
+    @DisplayName("toEitherPath gives a Right for a present focus and the error for a null one")
+    void toEitherPathGivesTheErrorForANullFocus() {
+      EitherPath<String, String> named = NICKNAME.toEitherPath(NAMED, "no nickname");
+      EitherPath<String, String> unnamed = NICKNAME.toEitherPath(UNNAMED, "no nickname");
+
+      assertThatEither(named.run()).hasRight("Al");
+      assertThatEither(unnamed.run()).hasLeft("no nickname");
+    }
+
+    @Test
+    @DisplayName("toEitherPath rejects a null error even when the focus is present")
+    void toEitherPathRejectsANullError() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> NICKNAME.toEitherPath(NAMED, (String) null))
+          .withMessage("errorIfNull must not be null");
+    }
+
+    @Test
+    @DisplayName("toEitherPath calls the supplier only for a null focus, and once")
+    void toEitherPathCallsTheSupplierOnlyForANullFocus() {
+      AtomicInteger calls = new AtomicInteger();
+      Supplier<String> error =
+          () -> {
+            calls.incrementAndGet();
+            return "no nickname";
+          };
+
+      EitherPath<String, String> named = NICKNAME.toEitherPath(NAMED, error);
+      assertThat(calls).hasValue(0);
+      EitherPath<String, String> unnamed = NICKNAME.toEitherPath(UNNAMED, error);
+
+      assertThatEither(named.run()).hasRight("Al");
+      assertThatEither(unnamed.run()).hasLeft("no nickname");
+      assertThat(calls).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("toEitherPath rejects a null supplier, and a supplier that returns null")
+    void toEitherPathRejectsANullSuppliedError() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> NICKNAME.toEitherPath(NAMED, (Supplier<String>) null))
+          .withMessage("errorSupplier must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> NICKNAME.<String>toEitherPath(UNNAMED, () -> null))
+          .withMessage("errorSupplier must not return null");
+    }
+
+    @Test
+    @DisplayName("toTryPath gives a Success for a present focus and the exception for a null one")
+    void toTryPathGivesTheExceptionForANullFocus() {
+      AtomicInteger calls = new AtomicInteger();
+      IllegalStateException missing = new IllegalStateException("no nickname");
+      Supplier<Throwable> exception =
+          () -> {
+            calls.incrementAndGet();
+            return missing;
+          };
+
+      TryPath<String> named = NICKNAME.toTryPath(NAMED, exception);
+      assertThat(calls).hasValue(0);
+      TryPath<String> unnamed = NICKNAME.toTryPath(UNNAMED, exception);
+
+      assertThatTry(named.run()).hasValue("Al");
+      assertThatTry(unnamed.run()).hasException(missing);
+      assertThat(calls).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("toTryPath rejects a null supplier, and a supplier that returns null")
+    void toTryPathRejectsANullSuppliedException() {
+      assertThatNullPointerException()
+          .isThrownBy(() -> NICKNAME.toTryPath(NAMED, null))
+          .withMessage("exceptionIfNull must not be null");
+      assertThatNullPointerException()
+          .isThrownBy(() -> NICKNAME.toTryPath(UNNAMED, () -> null))
+          .withMessage("exceptionIfNull must not return null");
+    }
+
+    @Test
+    @DisplayName("the one-argument forms hold a null focus as it is")
+    void oneArgumentFormsHoldTheFocus() {
+      assertThatEither(NICKNAME.<String>toEitherPath(UNNAMED).run()).hasRightNull();
+      assertThatId(NICKNAME.toIdPath(UNNAMED).run()).hasNullValue();
     }
   }
 

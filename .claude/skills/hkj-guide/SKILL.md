@@ -168,9 +168,9 @@ Additional considerations:
 | `EitherOrBoth<L, R>` | `Either<L, R>` | `.toEitherDroppingWarnings()`, `.toEitherFailingOnWarnings()` |
 | `EitherOrBoth<L, R>` | `Validated<L, R>` | `.toValidated()` |
 | `FocusPath<S, A>` | `MaybePath<A>` | `.toMaybePath(source)` |
-| `FocusPath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(source)` |
+| `FocusPath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(source)`, or `.toEitherPath(source, error)` for a focus that may be null |
 | `AffinePath<S, A>` | `MaybePath<A>` | `.toMaybePath(source)` |
-| `AffinePath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(source, errorFn)` |
+| `AffinePath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(source, error)`, `.toEitherPath(source, errorSupplier)` |
 
 ---
 

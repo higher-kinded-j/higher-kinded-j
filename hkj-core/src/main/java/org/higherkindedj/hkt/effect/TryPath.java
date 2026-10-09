@@ -19,6 +19,8 @@ import org.higherkindedj.hkt.trymonad.Try;
 import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link Try} values.
@@ -458,6 +460,10 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * // Equivalent to: configPath.map(apiKeyPath::get)
    * }</pre>
    *
+   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
+   * be, pass {@code path.nullable()} to {@link #focus(AffinePath, Supplier)}, which says what a
+   * null focus becomes.
+   *
    * @param path the FocusPath to apply
    * @param <B> the focused type
    * @return a new TryPath containing the focused value
@@ -486,6 +492,8 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * // Returns Failure if config has no API key
    * }</pre>
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param path the AffinePath to apply; must not be null
    * @param exceptionIfAbsent supplies the exception if the path doesn't match; must not be null,
    *     and must not return null, or the result is a Failure holding a NullPointerException
@@ -493,7 +501,7 @@ public final class TryPath<A> implements Recoverable<Throwable, A> {
    * @return a new TryPath containing the focused value or a Failure
    * @throws NullPointerException if path or exceptionIfAbsent is null
    */
-  public <B> TryPath<B> focus(
+  public <B extends @Nullable Object> TryPath<@NonNull B> focus(
       AffinePath<A, B> path, Supplier<? extends Throwable> exceptionIfAbsent) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(exceptionIfAbsent, "exceptionIfAbsent must not be null");

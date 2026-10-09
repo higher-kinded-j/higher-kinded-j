@@ -27,6 +27,8 @@ import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Default implementation of {@link VTaskPath}.
@@ -214,14 +216,14 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   }
 
   @Override
-  public <B> VTaskPath<B> focus(
+  public <B extends @Nullable Object> VTaskPath<@NonNull B> focus(
       AffinePath<A, B> path, Supplier<? extends RuntimeException> exceptionIfAbsent) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(exceptionIfAbsent, "exceptionIfAbsent must not be null");
     return via(
         a ->
             path.getOptional(a)
-                .<VTaskPath<B>>map(Path::vtaskPure)
+                .<VTaskPath<@NonNull B>>map(Path::vtaskPure)
                 .orElseGet(
                     () ->
                         Path.vtask(

@@ -19,6 +19,8 @@ import org.higherkindedj.hkt.tuple.Tuple5;
 import org.higherkindedj.optics.Iso;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides a statically-typed, fluent for-comprehension builder for monadic types, simulating a
@@ -773,15 +775,18 @@ public final class For {
      * // Returns Just(value) if someResult is Success, Nothing otherwise
      * }</pre>
      *
+     * <p>A null focus reads as absent, so it short-circuits too.
+     *
      * @param prism The {@link Prism} to use for pattern matching.
      * @param <B> The type of the extracted value when the prism matches.
      * @return The next step in the builder if the prism matches, or short-circuits to zero.
      * @throws NullPointerException if {@code prism} is null.
      * @see Prism
      */
-    public <B> FilterableSteps2<M, A, B> match(Prism<A, B> prism) {
+    public <B extends @Nullable Object> FilterableSteps2<M, A, @NonNull B> match(
+        Prism<A, B> prism) {
       Objects.requireNonNull(prism, "prism must not be null");
-      Kind<M, Tuple2<A, B>> newComputation =
+      Kind<M, Tuple2<A, @NonNull B>> newComputation =
           monad.flatMap(
               a -> prism.getOptional(a).map(b -> monad.of(Tuple.of(a, b))).orElseGet(monad::zero),
               this.computation);

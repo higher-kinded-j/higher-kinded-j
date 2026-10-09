@@ -77,7 +77,7 @@ String roster = employees.foldMap(Monoids.string(), Employee::name, agency);
 // "AliceBob"
 ```
 
-`fold(monoid, source)` is the same operation when the focused type is already the monoid's type.
+`fold(monoid, source)` is the same operation when the focused type is already the monoid's type, except that a null focus counts as the monoid's empty value.
 
 ---
 
@@ -150,14 +150,14 @@ The observer receives the focused values in the shape the path guarantees: an `A
 
 Focus paths and Effect paths share the `via` composition operator but navigate different domains: one moves through structure, the other through failure. The bridge runs both ways.
 
-What the crossing costs is set by the effect, not by the direction of travel. A `FocusPath` always has a value, so it enters an effect as a success either way. An `AffinePath` may not, and then the effect decides: `Maybe` and `Optional` already model absence, so they take it as it comes. The failure-carrying effects have no such slot, so they want the absent case named going in (`toEitherPath` an error, `toTryPath` a `Supplier`) and equally coming back, which is why `EitherPath.focus(path, error)` below asks for one too:
+What the crossing costs is set by the effect, not by the direction of travel. A `FocusPath` always has one focus, so it enters an effect as a success either way, unless that focus may be null (see [A focus that may be null](#a-focus-that-may-be-null)). An `AffinePath` may have none, and then the effect decides: `Maybe` and `Optional` already model absence, so they take it as it comes. The failure-carrying effects have no such slot, so they want the absent case named going in (`toEitherPath` an error, `toTryPath` a `Supplier`) and equally coming back, which is why `EitherPath.focus(path, error)` below asks for one too:
 
 ```mermaid
 flowchart TD
     accTitle: Crossing from a Focus path into an effect
-    accDescr: A FocusPath, always a value, crosses with toMaybePath, toEitherPath, toTryPath or toIdPath. A TraversalPath, zero or more, crosses with toListPath, toStreamPath or toMaybePath. An AffinePath, which may be absent, crosses into Maybe or Optional as it is, while Either and Try need the absent case named. All three arrive in the effects domain, where via and recoverWith apply.
+    accDescr: A FocusPath, always one focus, crosses with toMaybePath, toEitherPath, toTryPath or toIdPath. A TraversalPath, zero or more, crosses with toListPath, toStreamPath or toMaybePath. An AffinePath, which may be absent, crosses into Maybe or Optional as it is, while Either and Try need the absent case named. All three arrive in the effects domain, where via and recoverWith apply.
     P{"Which path is<br/>crossing over?"}
-    P -->|"FocusPath:<br/>always a value"| S["toMaybePath,<br/>toEitherPath,<br/>toTryPath, toIdPath"]
+    P -->|"FocusPath:<br/>always one focus"| S["toMaybePath,<br/>toEitherPath,<br/>toTryPath, toIdPath"]
     P -->|"TraversalPath:<br/>zero or more"| L["toListPath,<br/>toStreamPath,<br/>toMaybePath"]
     P -->|"AffinePath:<br/>may be absent"| N["Maybe, Optional:<br/>take absence as is;<br/>Either, Try:<br/>need it named"]
     S --> E["in the effects domain:<br/>via, recoverWith, ..."]
@@ -174,7 +174,7 @@ flowchart TD
 
 ### Direction 1: Focus Path to Effect Path
 
-Extract a value with optics and continue in an effect pipeline. A `FocusPath` always succeeds, so its bridges never produce the failure case; an `AffinePath` may be empty, so its bridges take the value to use when it is:
+Extract a value with optics and continue in an effect pipeline. A `FocusPath` always has one focus, so its one-argument `toEitherPath`, `toTryPath` and `toIdPath` always succeed, and `toMaybePath` gives `Just` unless that focus is null. An `AffinePath` may be empty, so its bridges take the value to use when it is:
 
 <!-- verify -->
 ```java
@@ -194,7 +194,10 @@ EitherPath<String, String> nickname =
 |--------|-------------|-------------|
 | `toMaybePath(S)` | `MaybePath<A>` | `Just(value)`, or `Nothing` for a null focus |
 | `toEitherPath(S)` | `EitherPath<E, A>` | Always `Right(value)` |
+| `toEitherPath(S, E)` | `EitherPath<E, A>` | `Right(value)`, or `Left(error)` for a null focus |
+| `toEitherPath(S, Supplier<E>)` | `EitherPath<E, A>` | `Right(value)`, or `Left(error)` built only for a null focus |
 | `toTryPath(S)` | `TryPath<A>` | Always `Success(value)` |
+| `toTryPath(S, Supplier<Throwable>)` | `TryPath<A>` | `Success(value)`, or `Failure` for a null focus |
 | `toIdPath(S)` | `IdPath<A>` | Trivial effect wrapper |
 
 **Bridge methods on `AffinePath`:**
@@ -203,6 +206,7 @@ EitherPath<String, String> nickname =
 |--------|-------------|-------------|
 | `toMaybePath(S)` | `MaybePath<A>` | `Just` if present, `Nothing` otherwise |
 | `toEitherPath(S, E)` | `EitherPath<E, A>` | `Right` if present, `Left(error)` otherwise |
+| `toEitherPath(S, Supplier<E>)` | `EitherPath<E, A>` | `Right` if present, `Left(error)` built only when absent |
 | `toTryPath(S, Supplier<Throwable>)` | `TryPath<A>` | `Success` or `Failure` |
 | `toOptionalPath(S)` | `OptionalPath<A>` | Wraps in the Java `Optional` effect |
 
@@ -210,10 +214,39 @@ EitherPath<String, String> nickname =
 
 | Method | Return Type | Description |
 |--------|-------------|-------------|
-| `toListPath(S)` | `ListPath<A>` | All focused values as a list |
-| `toStreamPath(S)` | `StreamPath<A>` | Lazy stream of the values |
-| `toVStreamPath(S)` | `VStreamPath<A>` | Virtual-thread stream of the values |
-| `toMaybePath(S)` | `MaybePath<A>` | The first value, if any |
+| `toListPath(S)` | `ListPath<A>` | The non-null focused values as a list |
+| `toNonDetPath(S)` | `NonDetPath<A>` | The non-null values, combined as a Cartesian product |
+| `toStreamPath(S)` | `StreamPath<A>` | Lazy stream of the non-null values |
+| `toVStreamPath(S)` | `VStreamPath<A>` | Virtual-thread stream of the non-null values |
+| `toMaybePath(S)` | `MaybePath<A>` | The first value, or `Nothing` if there is none or it is null |
+
+#### A focus that may be null {#a-focus-that-may-be-null}
+
+`FocusPath.of` over a generated lens to a `@Nullable` field gives a path with one focus that may be null. (A generated Focus class widens such a field to an `AffinePath` already.) An Effect Path's value type is non-null, so each bridge says what a null focus becomes:
+
+| Bridge | A null focus becomes |
+|--------|----------------------|
+| `FocusPath.toMaybePath` | `Nothing` |
+| `FocusPath.toEitherPath(S, E)`, or its `Supplier` form | `Left(error)`, the supplier called only then |
+| `FocusPath.toTryPath(S, Supplier<Throwable>)` | `Failure` |
+| `TraversalPath.toListPath`, `toNonDetPath`, `toStreamPath`, `toVStreamPath` | Left out of the result |
+| `TraversalPath.fold` | The monoid's empty value |
+| `TraversalPath.toMaybePath` | `Nothing` when it is the first focus |
+
+`find(Objects::nonNull, source)` gives the first focus that is not null, and `getAll` keeps every focus, where position matters.
+
+The one-argument `toEitherPath`, `toTryPath` and `toIdPath` hold the focus as it is. Under a nullness checker such as NullAway, their result type cannot be written for a nullable focus, though `var` hides that. For a focus that may be null, use the forms that take an error, or `toMaybePath`.
+
+<!-- verify -->
+```java
+FocusPath<Contact, @Nullable String> phone = FocusPath.of(ContactLenses.phone());
+
+EitherPath<String, String> reachable = phone.toEitherPath(carol, "No phone on file");
+// Left("No phone on file"), because Carol has none
+
+ListPath<String> named = TraversalPath.of(Traversals.<@Nullable String>forList()).toListPath(aliases);
+// holds Ace and Bee: the null between them is left out
+```
 
 ### Direction 2: `EffectPath.focus()`
 
@@ -246,6 +279,8 @@ EitherPath<String, String> firstNickname =
 
 `IdPath` is the one row that changes effect: `Id` has nowhere to record an absent focus, so focusing an `AffinePath` through one hands back a `MaybePath`.
 
+A `FocusPath` whose focus may be null reads the null as absent in the `MaybePath` and `OptionalPath` rows. The other rows take only a non-null focus: most hold a null as it is, and `ValidationPath` throws on one. Pass `path.nullable()` to the `AffinePath` column instead, which reads a null focus as absent in every row.
+
 ### Which Direction?
 
 **Start in the optics domain** when you hold the data and want an effect pipeline: extract a value, then validate or fetch.
@@ -271,7 +306,7 @@ EitherPath<String, Integer> salary =
 * **`modifyF` is the effectful `modify`.** The instance you pass picks the effect; the path is unchanged. Widen going in, narrow coming out.
 * **`foldMap` turns a traversal into a query.** Any `Monoid` will do, so sums, joins and set unions are the same call.
 * **`traverseOver` is `each` for `Kind<F, A>`.** Explicit type witnesses are required, because inference cannot recover `F` from the `Traverse` argument.
-* **The bridge runs both ways, and the effect sets the toll.** `toMaybePath`/`toEitherPath`/`toTryPath` move optics results into an effect; `focus()` moves optic navigation inside one. In either direction an `AffinePath` meeting a failure-carrying effect must name the absent case, while `Maybe` and `Optional` take absence as it comes.
+* **The bridge runs both ways, and the effect sets the toll.** `toMaybePath`/`toEitherPath`/`toTryPath` move optics results into an effect; `focus()` moves optic navigation inside one. In either direction an `AffinePath` meeting a failure-carrying effect must name the absent case, as must a focus that may be null, while `Maybe` and `Optional` take absence as it comes.
 ~~~
 
 ~~~admonish info title="Hands-On Learning"

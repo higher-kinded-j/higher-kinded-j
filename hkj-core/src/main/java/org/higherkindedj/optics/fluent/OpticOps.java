@@ -527,6 +527,9 @@ public final class OpticOps {
    * );
    * }</pre>
    *
+   * <p>The validator sees the focus as it is, a null one included, and must give back a non-null
+   * value to write.
+   *
    * @param source The source structure
    * @param lens The lens to focus with
    * @param validator Function that returns Either.right(validValue) or Either.left(error)
@@ -535,8 +538,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return Either.right(updated structure) if validation succeeds, Either.left(error) otherwise
    */
-  public static <E, S, A> Either<E, S> modifyEither(
-      S source, Lens<S, A> lens, Function<A, Either<E, A>> validator) {
+  public static <E, S, A extends @Nullable Object> Either<E, S> modifyEither(
+      S source, Lens<S, A> lens, Function<A, Either<E, @NonNull A>> validator) {
     A currentValue = lens.get(source);
     return validator.apply(currentValue).map(validatedValue -> lens.set(validatedValue, source));
   }
@@ -566,6 +569,9 @@ public final class OpticOps {
    * );
    * }</pre>
    *
+   * <p>The validator sees the focus as it is, a null one included, and must give back a non-null
+   * value to write.
+   *
    * @param source The source structure
    * @param lens The lens to focus with
    * @param validator Function that returns Maybe.just(validValue) or Maybe.nothing()
@@ -573,8 +579,8 @@ public final class OpticOps {
    * @param <A> The focused value type
    * @return Maybe.just(updated structure) if validation succeeds, Maybe.nothing() otherwise
    */
-  public static <S, A> Maybe<S> modifyMaybe(
-      S source, Lens<S, A> lens, Function<A, Maybe<A>> validator) {
+  public static <S, A extends @Nullable Object> Maybe<S> modifyMaybe(
+      S source, Lens<S, A> lens, Function<A, Maybe<@NonNull A>> validator) {
     A currentValue = lens.get(source);
     return validator.apply(currentValue).map(validatedValue -> lens.set(validatedValue, source));
   }
@@ -611,6 +617,9 @@ public final class OpticOps {
    * );
    * }</pre>
    *
+   * <p>The validator sees the focus as it is, a null one included, and must give back a non-null
+   * value to write.
+   *
    * @param source The source structure
    * @param traversal The traversal to focus with
    * @param validator Function that returns Validated.valid or Validated.invalid
@@ -620,8 +629,8 @@ public final class OpticOps {
    * @return Validated.valid(updated structure) if all validations succeed, Validated.invalid(all
    *     errors) otherwise
    */
-  public static <E, S, A> Validated<List<E>, S> modifyAllValidated(
-      S source, Traversal<S, A> traversal, Function<A, Validated<E, A>> validator) {
+  public static <E, S, A extends @Nullable Object> Validated<List<E>, S> modifyAllValidated(
+      S source, Traversal<S, A> traversal, Function<A, Validated<E, @NonNull A>> validator) {
     // Create applicative for Validated with List semigroup for error accumulation
 
     Applicative<ValidatedKind.Witness<List<E>>> applicative =
@@ -630,9 +639,9 @@ public final class OpticOps {
     // Lift the validator to work with List<E> errors
     Function<A, Kind<ValidatedKind.Witness<List<E>>, A>> liftedValidator =
         a -> {
-          Validated<E, A> validated = validator.apply(a);
+          Validated<E, @NonNull A> validated = validator.apply(a);
           // Convert Validated<E, A> to Validated<List<E>, A>
-          Validated<List<E>, A> result = validated.bimap(List::of, Function.identity());
+          Validated<List<E>, @NonNull A> result = validated.bimap(List::of, Function.identity());
           return ValidatedKindHelper.VALIDATED.widen(result);
         };
 
@@ -672,6 +681,9 @@ public final class OpticOps {
    * );
    * }</pre>
    *
+   * <p>The validator sees the focus as it is, a null one included, and must give back a non-null
+   * value to write.
+   *
    * @param source The source structure
    * @param traversal The traversal to focus with
    * @param validator Function that returns Either.right or Either.left
@@ -681,8 +693,8 @@ public final class OpticOps {
    * @return Either.right(updated structure) if all validations succeed, Either.left(first error)
    *     otherwise
    */
-  public static <E, S, A> Either<E, S> modifyAllEither(
-      S source, Traversal<S, A> traversal, Function<A, Either<E, A>> validator) {
+  public static <E, S, A extends @Nullable Object> Either<E, S> modifyAllEither(
+      S source, Traversal<S, A> traversal, Function<A, Either<E, @NonNull A>> validator) {
     // Either's applicative keeps the first Left; every element's effect is still built
     Applicative<EitherKind.Witness<E>> applicative = EitherMonad.instance();
 
@@ -1418,7 +1430,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return Either containing the updated structure or an error
      */
-    public <E, A> Either<E, S> throughEither(Lens<S, A> lens, Function<A, Either<E, A>> validator) {
+    public <E, A extends @Nullable Object> Either<E, S> throughEither(
+        Lens<S, A> lens, Function<A, Either<E, @NonNull A>> validator) {
       return modifyEither(source, lens, validator);
     }
 
@@ -1441,7 +1454,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return Maybe containing the updated structure or nothing
      */
-    public <A> Maybe<S> throughMaybe(Lens<S, A> lens, Function<A, Maybe<A>> validator) {
+    public <A extends @Nullable Object> Maybe<S> throughMaybe(
+        Lens<S, A> lens, Function<A, Maybe<@NonNull A>> validator) {
       return modifyMaybe(source, lens, validator);
     }
 
@@ -1471,8 +1485,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return Validated containing the updated structure or accumulated errors
      */
-    public <E, A> Validated<List<E>, S> allThroughValidated(
-        Traversal<S, A> traversal, Function<A, Validated<E, A>> validator) {
+    public <E, A extends @Nullable Object> Validated<List<E>, S> allThroughValidated(
+        Traversal<S, A> traversal, Function<A, Validated<E, @NonNull A>> validator) {
       return modifyAllValidated(source, traversal, validator);
     }
 
@@ -1499,8 +1513,8 @@ public final class OpticOps {
      * @param <A> The focused value type
      * @return Either containing the updated structure or first error
      */
-    public <E, A> Either<E, S> allThroughEither(
-        Traversal<S, A> traversal, Function<A, Either<E, A>> validator) {
+    public <E, A extends @Nullable Object> Either<E, S> allThroughEither(
+        Traversal<S, A> traversal, Function<A, Either<E, @NonNull A>> validator) {
       return modifyAllEither(source, traversal, validator);
     }
   }

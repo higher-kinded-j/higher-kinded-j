@@ -17,7 +17,9 @@ import org.higherkindedj.optics.Getter;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Smart constructors for {@link StateOp} operations, lifting them into the Free monad.
@@ -54,6 +56,9 @@ public final class StateOps {
   /**
    * Reads a value through a {@link Getter}.
    *
+   * <p>A program holds a non-null result, so this takes a focus that is never null. For one that
+   * may be, view a {@link Getter} that wraps it in an {@link Optional}.
+   *
    * @param optic The getter to read through. Must not be null.
    * @param <S> The state type
    * @param <A> The focused value type
@@ -68,6 +73,9 @@ public final class StateOps {
   /**
    * Reads a value through a {@link Lens} (convenience overload since Lens does not extend Getter).
    *
+   * <p>A program holds a non-null result, so this takes a focus that is never null. For one that
+   * may be, view a {@link Getter} that wraps it in an {@link Optional}.
+   *
    * @param optic The lens to read through. Must not be null.
    * @param <S> The state type
    * @param <A> The focused value type
@@ -80,6 +88,10 @@ public final class StateOps {
 
   /**
    * Modifies a focus through a {@link Lens} and returns the new value.
+   *
+   * <p>A program holds a non-null result, so this takes a focus that is never null. For one that
+   * may be, {@link #traverseOver(Traversal, Function)} with {@code optic.asTraversal()} writes it
+   * and returns the state.
    *
    * @param optic The lens to modify through. Must not be null.
    * @param f The modification function. Must not be null.
@@ -97,6 +109,10 @@ public final class StateOps {
   /**
    * Sets a focus through a {@link Lens} to a fixed value.
    *
+   * <p>A program holds a non-null result, so this takes a focus that is never null. For one that
+   * may be, {@link #traverseOver(Traversal, Function)} with {@code optic.asTraversal()} writes it
+   * and returns the state.
+   *
    * @param optic The lens to set through. Must not be null.
    * @param value The value to set. Must not be null.
    * @param <S> The state type
@@ -113,19 +129,24 @@ public final class StateOps {
   /**
    * Reads a value through a {@link Prism}, returning an {@link Optional}.
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param optic The prism to read through. Must not be null.
    * @param <S> The state type
    * @param <A> The prism's focus type
    * @return A Free program that reads through the prism
    */
-  public static <S, A> Free<StateOpKind.Witness<S>, Optional<A>> preview(Prism<S, A> optic) {
+  public static <S, A extends @Nullable Object>
+      Free<StateOpKind.Witness<S>, Optional<@NonNull A>> preview(Prism<S, A> optic) {
     Validation.function().require(optic, "optic", LIFT_F);
-    StateOp<S, Optional<A>> op = new StateOp.Preview<>(optic, Function.identity());
+    StateOp<S, Optional<@NonNull A>> op = new StateOp.Preview<>(optic, Function.identity());
     return Free.liftF(StateOpKindHelper.STATE_OP.widen(op), functor());
   }
 
   /**
    * Modifies all targets of a {@link Traversal} and returns the modified state.
+   *
+   * <p>The function sees each focus as it is, a null one included.
    *
    * @param optic The traversal to modify through. Must not be null.
    * @param f The modification function. Must not be null.
@@ -133,7 +154,7 @@ public final class StateOps {
    * @param <A> The focused element type
    * @return A Free program that modifies all traversal targets
    */
-  public static <S, A> Free<StateOpKind.Witness<S>, S> traverseOver(
+  public static <S, A extends @Nullable Object> Free<StateOpKind.Witness<S>, S> traverseOver(
       Traversal<S, A> optic, Function<A, A> f) {
     Validation.function().require(optic, "optic", LIFT_F);
     Validation.function().require(f, "f", LIFT_F);
@@ -182,37 +203,56 @@ public final class StateOps {
       this.functorG = Validation.function().require(functorG, "functorG", CONSTRUCTION);
     }
 
-    /** Reads a value through a Getter in the combined effect type. */
+    /**
+     * Reads a value through a Getter in the combined effect type. The focus must not be null, as in
+     * {@link StateOps#view(Getter)}.
+     */
     public <A> Free<G, A> view(Getter<S, A> optic) {
       Free<StateOpKind.Witness<S>, A> standalone = StateOps.view(optic);
       return Free.translate(standalone, inject::inject, functorG);
     }
 
-    /** Reads a value through a Lens in the combined effect type. */
+    /**
+     * Reads a value through a Lens in the combined effect type. The focus must not be null, as in
+     * {@link StateOps#view(Lens)}.
+     */
     public <A> Free<G, A> view(Lens<S, A> optic) {
       return view(Getter.of(optic::get));
     }
 
-    /** Modifies a focus through a Lens in the combined effect type. */
+    /**
+     * Modifies a focus through a Lens in the combined effect type. The focus must not be null, as
+     * in {@link StateOps#over(Lens, Function)}.
+     */
     public <A> Free<G, A> over(Lens<S, A> optic, Function<A, A> f) {
       Free<StateOpKind.Witness<S>, A> standalone = StateOps.over(optic, f);
       return Free.translate(standalone, inject::inject, functorG);
     }
 
-    /** Sets a focus through a Lens in the combined effect type. */
+    /**
+     * Sets a focus through a Lens in the combined effect type. The focus must not be null, as in
+     * {@link StateOps#assign(Lens, Object)}.
+     */
     public <A> Free<G, A> assign(Lens<S, A> optic, A value) {
       Free<StateOpKind.Witness<S>, A> standalone = StateOps.assign(optic, value);
       return Free.translate(standalone, inject::inject, functorG);
     }
 
-    /** Reads a value through a Prism in the combined effect type. */
-    public <A> Free<G, Optional<A>> preview(Prism<S, A> optic) {
-      Free<StateOpKind.Witness<S>, Optional<A>> standalone = StateOps.preview(optic);
+    /**
+     * Reads a value through a Prism in the combined effect type. A null focus reads as absent, as
+     * in {@link StateOps#preview(Prism)}.
+     */
+    public <A extends @Nullable Object> Free<G, Optional<@NonNull A>> preview(Prism<S, A> optic) {
+      Free<StateOpKind.Witness<S>, Optional<@NonNull A>> standalone = StateOps.preview(optic);
       return Free.translate(standalone, inject::inject, functorG);
     }
 
-    /** Modifies all Traversal targets in the combined effect type. */
-    public <A> Free<G, S> traverseOver(Traversal<S, A> optic, Function<A, A> f) {
+    /**
+     * Modifies all Traversal targets in the combined effect type. The function sees each focus as
+     * it is, a null one included.
+     */
+    public <A extends @Nullable Object> Free<G, S> traverseOver(
+        Traversal<S, A> optic, Function<A, A> f) {
       Free<StateOpKind.Witness<S>, S> standalone = StateOps.traverseOver(optic, f);
       return Free.translate(standalone, inject::inject, functorG);
     }

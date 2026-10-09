@@ -32,6 +32,8 @@ import org.higherkindedj.hkt.validated.Validated;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link Either} values.
@@ -448,6 +450,10 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    * // Equivalent to: userPath.map(namePath::get)
    * }</pre>
    *
+   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
+   * be, pass {@code path.nullable()} to {@link #focus(AffinePath, Object)}, which says what a null
+   * focus becomes.
+   *
    * @param path the FocusPath to apply
    * @param <B> the focused type
    * @return a new EitherPath containing the focused value
@@ -474,19 +480,22 @@ public final class EitherPath<E, A> implements Recoverable<E, A> {
    * // Returns Left(Error.of("Email not found")) if user has no email
    * }</pre>
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param path the AffinePath to apply; must not be null
    * @param errorIfAbsent the error to use if the path doesn't match; must not be null
    * @param <B> the focused type
    * @return a new EitherPath containing the focused value or the error
    * @throws NullPointerException if path or errorIfAbsent is null
    */
-  public <B> EitherPath<E, B> focus(AffinePath<A, B> path, E errorIfAbsent) {
+  public <B extends @Nullable Object> EitherPath<E, @NonNull B> focus(
+      AffinePath<A, B> path, E errorIfAbsent) {
     Objects.requireNonNull(path, "path must not be null");
     Objects.requireNonNull(errorIfAbsent, "errorIfAbsent must not be null");
     return via(
         a ->
             path.getOptional(a)
-                .<EitherPath<E, B>>map(Path::right)
+                .<EitherPath<E, @NonNull B>>map(Path::right)
                 .orElseGet(() -> Path.left(errorIfAbsent)));
   }
 

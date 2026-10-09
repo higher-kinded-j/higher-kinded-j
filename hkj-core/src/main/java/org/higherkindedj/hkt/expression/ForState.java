@@ -22,6 +22,8 @@ import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides a fluent builder for state-threaded comprehensions using {@link Lens} optics.
@@ -152,7 +154,8 @@ public final class ForState {
      * @return A new builder with the operation and update queued.
      * @throws NullPointerException if any argument is null.
      */
-    <A> Steps<M, S> fromThen(Function<S, Kind<M, A>> f, Lens<S, A> lens);
+    <A extends @Nullable Object> Steps<M, S> fromThen(
+        Function<S, Kind<M, @NonNull A>> f, Lens<S, A> lens);
 
     /**
      * Updates a field in the state using a lens and a pure function.
@@ -163,7 +166,7 @@ public final class ForState {
      * @return A new builder with the update queued.
      * @throws NullPointerException if any argument is null.
      */
-    <A> Steps<M, S> modify(Lens<S, A> lens, Function<A, A> modifier);
+    <A extends @Nullable Object> Steps<M, S> modify(Lens<S, A> lens, Function<A, A> modifier);
 
     /**
      * Sets a field in the state using a lens.
@@ -174,7 +177,7 @@ public final class ForState {
      * @return A new builder with the update queued.
      * @throws NullPointerException if {@code lens} is null.
      */
-    <A> Steps<M, S> update(Lens<S, A> lens, A value);
+    <A extends @Nullable Object> Steps<M, S> update(Lens<S, A> lens, A value);
 
     /**
      * Applies an effectful function to each element focused by a traversal within a state field,
@@ -184,6 +187,9 @@ public final class ForState {
      * Traversal} (to iterate over elements) and an effectful function (to transform each element
      * within the monad context).
      *
+     * <p>The function sees each element as it is, a null one included, and must give back a
+     * non-null value to write.
+     *
      * @param collectionLens The lens focusing on the collection field in the state.
      * @param traversal The traversal over elements within the collection.
      * @param f The effectful function to apply to each element.
@@ -192,8 +198,8 @@ public final class ForState {
      * @return A new builder with the traversal operation queued.
      * @throws NullPointerException if any argument is null.
      */
-    <C, A> Steps<M, S> traverse(
-        Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, A>> f);
+    <C, A extends @Nullable Object> Steps<M, S> traverse(
+        Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, @NonNull A>> f);
 
     /**
      * Applies an effectful function to every element focused by a traversal directly on the state.
@@ -203,13 +209,17 @@ public final class ForState {
      * traversal focuses on elements within the state structure and the effectful function
      * transforms each one.
      *
+     * <p>The function sees each element as it is, a null one included, and must give back a
+     * non-null value to write.
+     *
      * @param traversal The traversal focusing on elements within the state.
      * @param f The effectful function to apply to each focused element.
      * @param <A> The type of the focused elements.
      * @return A new builder with the traversal operation queued.
      * @throws NullPointerException if any argument is null.
      */
-    <A> Steps<M, S> traverseOver(Traversal<S, A> traversal, Function<A, Kind<M, A>> f);
+    <A extends @Nullable Object> Steps<M, S> traverseOver(
+        Traversal<S, A> traversal, Function<A, Kind<M, @NonNull A>> f);
 
     /**
      * Applies a pure function to every element focused by a traversal on the state.
@@ -223,7 +233,8 @@ public final class ForState {
      * @return A new builder with the modification queued.
      * @throws NullPointerException if any argument is null.
      */
-    <A> Steps<M, S> modifyThrough(Traversal<S, A> traversal, Function<A, A> modifier);
+    <A extends @Nullable Object> Steps<M, S> modifyThrough(
+        Traversal<S, A> traversal, Function<A, A> modifier);
 
     /**
      * Applies a pure function to a nested field within every element focused by a traversal.
@@ -240,7 +251,7 @@ public final class ForState {
      * @return A new builder with the modification queued.
      * @throws NullPointerException if any argument is null.
      */
-    <A, B> Steps<M, S> modifyThrough(
+    <A extends @Nullable Object, B extends @Nullable Object> Steps<M, S> modifyThrough(
         Traversal<S, A> traversal, Lens<A, B> lens, Function<B, B> modifier);
 
     /**
@@ -258,7 +269,8 @@ public final class ForState {
      * @return A new builder with the modification queued.
      * @throws NullPointerException if any argument is null.
      */
-    <A, B> Steps<M, S> modifyVia(Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier);
+    <A extends @Nullable Object, B extends @Nullable Object> Steps<M, S> modifyVia(
+        Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier);
 
     /**
      * Sets a state field through an {@link Iso} conversion.
@@ -274,7 +286,8 @@ public final class ForState {
      * @return A new builder with the update queued.
      * @throws NullPointerException if {@code lens} or {@code iso} is null.
      */
-    <A, B> Steps<M, S> updateVia(Lens<S, A> lens, Iso<A, B> iso, B value);
+    <A extends @Nullable Object, B extends @Nullable Object> Steps<M, S> updateVia(
+        Lens<S, A> lens, Iso<A, B> iso, B value);
 
     /**
      * Narrows the state scope to a sub-part of the state via a lens.
@@ -370,7 +383,9 @@ public final class ForState {
 
     /**
      * Extracts a field via a source lens, matches it with a prism, and stores the result via a
-     * target lens. Short-circuits via {@link MonadZero#zero()} when the prism does not match.
+     * target lens. Short-circuits via {@link MonadZero#zero()} when the prism does not match. The
+     * field goes to the prism as it is, a null one included, and a null the prism focuses reads as
+     * no match.
      *
      * <p>This is useful for conditional state transitions based on sum types:
      *
@@ -389,7 +404,7 @@ public final class ForState {
      * @return A new builder with the match-and-store operation queued.
      * @throws NullPointerException if any argument is null.
      */
-    <X, A> FilterableSteps<M, S> matchThen(
+    <X extends @Nullable Object, A extends @Nullable Object> FilterableSteps<M, S> matchThen(
         Lens<S, X> sourceLens, Prism<X, A> prism, Lens<S, A> targetLens);
 
     /**
@@ -406,7 +421,8 @@ public final class ForState {
      * @return A new builder with the extraction operation queued.
      * @throws NullPointerException if any argument is null.
      */
-    <A> FilterableSteps<M, S> matchThen(Function<S, Optional<A>> extractor, Lens<S, A> targetLens);
+    <A extends @Nullable Object> FilterableSteps<M, S> matchThen(
+        Function<S, Optional<@NonNull A>> extractor, Lens<S, A> targetLens);
 
     // Override return types to preserve FilterableSteps in the chain
 
@@ -414,33 +430,39 @@ public final class ForState {
     <A> FilterableSteps<M, S> from(Function<S, Kind<M, A>> f);
 
     @Override
-    <A> FilterableSteps<M, S> fromThen(Function<S, Kind<M, A>> f, Lens<S, A> lens);
+    <A extends @Nullable Object> FilterableSteps<M, S> fromThen(
+        Function<S, Kind<M, @NonNull A>> f, Lens<S, A> lens);
 
     @Override
-    <A> FilterableSteps<M, S> modify(Lens<S, A> lens, Function<A, A> modifier);
+    <A extends @Nullable Object> FilterableSteps<M, S> modify(
+        Lens<S, A> lens, Function<A, A> modifier);
 
     @Override
-    <A> FilterableSteps<M, S> update(Lens<S, A> lens, A value);
+    <A extends @Nullable Object> FilterableSteps<M, S> update(Lens<S, A> lens, A value);
 
     @Override
-    <C, A> FilterableSteps<M, S> traverse(
-        Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, A>> f);
+    <C, A extends @Nullable Object> FilterableSteps<M, S> traverse(
+        Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, @NonNull A>> f);
 
     @Override
-    <A> FilterableSteps<M, S> traverseOver(Traversal<S, A> traversal, Function<A, Kind<M, A>> f);
+    <A extends @Nullable Object> FilterableSteps<M, S> traverseOver(
+        Traversal<S, A> traversal, Function<A, Kind<M, @NonNull A>> f);
 
     @Override
-    <A> FilterableSteps<M, S> modifyThrough(Traversal<S, A> traversal, Function<A, A> modifier);
+    <A extends @Nullable Object> FilterableSteps<M, S> modifyThrough(
+        Traversal<S, A> traversal, Function<A, A> modifier);
 
     @Override
-    <A, B> FilterableSteps<M, S> modifyThrough(
+    <A extends @Nullable Object, B extends @Nullable Object> FilterableSteps<M, S> modifyThrough(
         Traversal<S, A> traversal, Lens<A, B> lens, Function<B, B> modifier);
 
     @Override
-    <A, B> FilterableSteps<M, S> modifyVia(Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier);
+    <A extends @Nullable Object, B extends @Nullable Object> FilterableSteps<M, S> modifyVia(
+        Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier);
 
     @Override
-    <A, B> FilterableSteps<M, S> updateVia(Lens<S, A> lens, Iso<A, B> iso, B value);
+    <A extends @Nullable Object, B extends @Nullable Object> FilterableSteps<M, S> updateVia(
+        Lens<S, A> lens, Iso<A, B> iso, B value);
 
     @Override
     <T> FilterableZoomedSteps<M, S, T> zoom(Lens<S, T> zoomLens);
@@ -493,7 +515,7 @@ public final class ForState {
      * @return A new zoomed builder with the update queued.
      * @throws NullPointerException if {@code lens} is null.
      */
-    <A> ZoomedSteps<M, S, T> update(Lens<T, A> lens, A value);
+    <A extends @Nullable Object> ZoomedSteps<M, S, T> update(Lens<T, A> lens, A value);
 
     /**
      * Transforms a field within the zoomed sub-state using a lens and a pure function.
@@ -504,7 +526,8 @@ public final class ForState {
      * @return A new zoomed builder with the update queued.
      * @throws NullPointerException if any argument is null.
      */
-    <A> ZoomedSteps<M, S, T> modify(Lens<T, A> lens, Function<A, A> modifier);
+    <A extends @Nullable Object> ZoomedSteps<M, S, T> modify(
+        Lens<T, A> lens, Function<A, A> modifier);
 
     /**
      * Performs a monadic operation on the zoomed sub-state and stores the result via a lens.
@@ -515,7 +538,8 @@ public final class ForState {
      * @return A new zoomed builder with the operation queued.
      * @throws NullPointerException if any argument is null.
      */
-    <A> ZoomedSteps<M, S, T> fromThen(Function<T, Kind<M, A>> f, Lens<T, A> lens);
+    <A extends @Nullable Object> ZoomedSteps<M, S, T> fromThen(
+        Function<T, Kind<M, @NonNull A>> f, Lens<T, A> lens);
 
     /**
      * Returns to the outer state scope, ending the zoom.
@@ -541,13 +565,15 @@ public final class ForState {
       extends ZoomedSteps<M, S, T> {
 
     @Override
-    <A> FilterableZoomedSteps<M, S, T> update(Lens<T, A> lens, A value);
+    <A extends @Nullable Object> FilterableZoomedSteps<M, S, T> update(Lens<T, A> lens, A value);
 
     @Override
-    <A> FilterableZoomedSteps<M, S, T> modify(Lens<T, A> lens, Function<A, A> modifier);
+    <A extends @Nullable Object> FilterableZoomedSteps<M, S, T> modify(
+        Lens<T, A> lens, Function<A, A> modifier);
 
     @Override
-    <A> FilterableZoomedSteps<M, S, T> fromThen(Function<T, Kind<M, A>> f, Lens<T, A> lens);
+    <A extends @Nullable Object> FilterableZoomedSteps<M, S, T> fromThen(
+        Function<T, Kind<M, @NonNull A>> f, Lens<T, A> lens);
 
     /**
      * Returns to the outer state scope, ending the zoom and preserving filtering capabilities.
@@ -577,7 +603,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> Steps<M, S> fromThen(Function<S, Kind<M, A>> f, Lens<S, A> lens) {
+    public <A extends @Nullable Object> Steps<M, S> fromThen(
+        Function<S, Kind<M, @NonNull A>> f, Lens<S, A> lens) {
       Objects.requireNonNull(f, "function must not be null");
       Objects.requireNonNull(lens, "lens must not be null");
       Kind<M, S> newState =
@@ -586,7 +613,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> Steps<M, S> modify(Lens<S, A> lens, Function<A, A> modifier) {
+    public <A extends @Nullable Object> Steps<M, S> modify(
+        Lens<S, A> lens, Function<A, A> modifier) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
       Kind<M, S> newState = monad.map(s -> lens.modify(modifier, s), state);
@@ -594,15 +622,15 @@ public final class ForState {
     }
 
     @Override
-    public <A> Steps<M, S> update(Lens<S, A> lens, A value) {
+    public <A extends @Nullable Object> Steps<M, S> update(Lens<S, A> lens, A value) {
       Objects.requireNonNull(lens, "lens must not be null");
       Kind<M, S> newState = monad.map(s -> lens.set(value, s), state);
       return new ForStateStepsImpl<>(monad, newState);
     }
 
     @Override
-    public <C, A> Steps<M, S> traverse(
-        Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, A>> f) {
+    public <C, A extends @Nullable Object> Steps<M, S> traverse(
+        Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, @NonNull A>> f) {
       Objects.requireNonNull(collectionLens, "collectionLens must not be null");
       Objects.requireNonNull(traversal, "traversal must not be null");
       Objects.requireNonNull(f, "function must not be null");
@@ -619,7 +647,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> Steps<M, S> traverseOver(Traversal<S, A> traversal, Function<A, Kind<M, A>> f) {
+    public <A extends @Nullable Object> Steps<M, S> traverseOver(
+        Traversal<S, A> traversal, Function<A, Kind<M, @NonNull A>> f) {
       Objects.requireNonNull(traversal, "traversal must not be null");
       Objects.requireNonNull(f, "function must not be null");
       Kind<M, S> newState = monad.flatMap(s -> traversal.modifyF(f, s, monad), state);
@@ -627,7 +656,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> Steps<M, S> modifyThrough(Traversal<S, A> traversal, Function<A, A> modifier) {
+    public <A extends @Nullable Object> Steps<M, S> modifyThrough(
+        Traversal<S, A> traversal, Function<A, A> modifier) {
       Objects.requireNonNull(traversal, "traversal must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
       Kind<M, S> newState = monad.map(s -> pureTraversalModify(traversal, modifier, s), state);
@@ -635,7 +665,7 @@ public final class ForState {
     }
 
     @Override
-    public <A, B> Steps<M, S> modifyThrough(
+    public <A extends @Nullable Object, B extends @Nullable Object> Steps<M, S> modifyThrough(
         Traversal<S, A> traversal, Lens<A, B> lens, Function<B, B> modifier) {
       Objects.requireNonNull(traversal, "traversal must not be null");
       Objects.requireNonNull(lens, "lens must not be null");
@@ -646,7 +676,8 @@ public final class ForState {
     }
 
     @Override
-    public <A, B> Steps<M, S> modifyVia(Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier) {
+    public <A extends @Nullable Object, B extends @Nullable Object> Steps<M, S> modifyVia(
+        Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(iso, "iso must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
@@ -656,7 +687,8 @@ public final class ForState {
     }
 
     @Override
-    public <A, B> Steps<M, S> updateVia(Lens<S, A> lens, Iso<A, B> iso, B value) {
+    public <A extends @Nullable Object, B extends @Nullable Object> Steps<M, S> updateVia(
+        Lens<S, A> lens, Iso<A, B> iso, B value) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(iso, "iso must not be null");
       Kind<M, S> newState = monad.map(s -> lens.set(iso.reverseGet(value), s), state);
@@ -711,7 +743,7 @@ public final class ForState {
     }
 
     @Override
-    public <X, A> FilterableSteps<M, S> matchThen(
+    public <X extends @Nullable Object, A extends @Nullable Object> FilterableSteps<M, S> matchThen(
         Lens<S, X> sourceLens, Prism<X, A> prism, Lens<S, A> targetLens) {
       Objects.requireNonNull(sourceLens, "sourceLens must not be null");
       Objects.requireNonNull(prism, "prism must not be null");
@@ -730,8 +762,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> FilterableSteps<M, S> matchThen(
-        Function<S, Optional<A>> extractor, Lens<S, A> targetLens) {
+    public <A extends @Nullable Object> FilterableSteps<M, S> matchThen(
+        Function<S, Optional<@NonNull A>> extractor, Lens<S, A> targetLens) {
       Objects.requireNonNull(extractor, "extractor must not be null");
       Objects.requireNonNull(targetLens, "targetLens must not be null");
       Kind<M, S> newState =
@@ -753,7 +785,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> FilterableSteps<M, S> fromThen(Function<S, Kind<M, A>> f, Lens<S, A> lens) {
+    public <A extends @Nullable Object> FilterableSteps<M, S> fromThen(
+        Function<S, Kind<M, @NonNull A>> f, Lens<S, A> lens) {
       Objects.requireNonNull(f, "function must not be null");
       Objects.requireNonNull(lens, "lens must not be null");
       Kind<M, S> newState =
@@ -762,7 +795,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> FilterableSteps<M, S> modify(Lens<S, A> lens, Function<A, A> modifier) {
+    public <A extends @Nullable Object> FilterableSteps<M, S> modify(
+        Lens<S, A> lens, Function<A, A> modifier) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
       Kind<M, S> newState = monad.map(s -> lens.modify(modifier, s), state);
@@ -770,15 +804,15 @@ public final class ForState {
     }
 
     @Override
-    public <A> FilterableSteps<M, S> update(Lens<S, A> lens, A value) {
+    public <A extends @Nullable Object> FilterableSteps<M, S> update(Lens<S, A> lens, A value) {
       Objects.requireNonNull(lens, "lens must not be null");
       Kind<M, S> newState = monad.map(s -> lens.set(value, s), state);
       return new ForStateFilterableStepsImpl<>(monad, newState);
     }
 
     @Override
-    public <C, A> FilterableSteps<M, S> traverse(
-        Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, A>> f) {
+    public <C, A extends @Nullable Object> FilterableSteps<M, S> traverse(
+        Lens<S, C> collectionLens, Traversal<C, A> traversal, Function<A, Kind<M, @NonNull A>> f) {
       Objects.requireNonNull(collectionLens, "collectionLens must not be null");
       Objects.requireNonNull(traversal, "traversal must not be null");
       Objects.requireNonNull(f, "function must not be null");
@@ -795,8 +829,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> FilterableSteps<M, S> traverseOver(
-        Traversal<S, A> traversal, Function<A, Kind<M, A>> f) {
+    public <A extends @Nullable Object> FilterableSteps<M, S> traverseOver(
+        Traversal<S, A> traversal, Function<A, Kind<M, @NonNull A>> f) {
       Objects.requireNonNull(traversal, "traversal must not be null");
       Objects.requireNonNull(f, "function must not be null");
       Kind<M, S> newState = monad.flatMap(s -> traversal.modifyF(f, s, monad), state);
@@ -804,7 +838,7 @@ public final class ForState {
     }
 
     @Override
-    public <A> FilterableSteps<M, S> modifyThrough(
+    public <A extends @Nullable Object> FilterableSteps<M, S> modifyThrough(
         Traversal<S, A> traversal, Function<A, A> modifier) {
       Objects.requireNonNull(traversal, "traversal must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
@@ -813,8 +847,9 @@ public final class ForState {
     }
 
     @Override
-    public <A, B> FilterableSteps<M, S> modifyThrough(
-        Traversal<S, A> traversal, Lens<A, B> lens, Function<B, B> modifier) {
+    public <A extends @Nullable Object, B extends @Nullable Object>
+        FilterableSteps<M, S> modifyThrough(
+            Traversal<S, A> traversal, Lens<A, B> lens, Function<B, B> modifier) {
       Objects.requireNonNull(traversal, "traversal must not be null");
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
@@ -824,7 +859,7 @@ public final class ForState {
     }
 
     @Override
-    public <A, B> FilterableSteps<M, S> modifyVia(
+    public <A extends @Nullable Object, B extends @Nullable Object> FilterableSteps<M, S> modifyVia(
         Lens<S, A> lens, Iso<A, B> iso, Function<B, B> modifier) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(iso, "iso must not be null");
@@ -835,7 +870,8 @@ public final class ForState {
     }
 
     @Override
-    public <A, B> FilterableSteps<M, S> updateVia(Lens<S, A> lens, Iso<A, B> iso, B value) {
+    public <A extends @Nullable Object, B extends @Nullable Object> FilterableSteps<M, S> updateVia(
+        Lens<S, A> lens, Iso<A, B> iso, B value) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(iso, "iso must not be null");
       Kind<M, S> newState = monad.map(s -> lens.set(iso.reverseGet(value), s), state);
@@ -912,7 +948,7 @@ public final class ForState {
     }
 
     @Override
-    public <A> ZoomedSteps<M, S, T> update(Lens<T, A> lens, A value) {
+    public <A extends @Nullable Object> ZoomedSteps<M, S, T> update(Lens<T, A> lens, A value) {
       Objects.requireNonNull(lens, "lens must not be null");
       Lens<S, A> composed = zoomLens.andThen(lens);
       Kind<M, S> newState = monad.map(s -> composed.set(value, s), state);
@@ -920,7 +956,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> ZoomedSteps<M, S, T> modify(Lens<T, A> lens, Function<A, A> modifier) {
+    public <A extends @Nullable Object> ZoomedSteps<M, S, T> modify(
+        Lens<T, A> lens, Function<A, A> modifier) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
       Lens<S, A> composed = zoomLens.andThen(lens);
@@ -929,7 +966,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> ZoomedSteps<M, S, T> fromThen(Function<T, Kind<M, A>> f, Lens<T, A> lens) {
+    public <A extends @Nullable Object> ZoomedSteps<M, S, T> fromThen(
+        Function<T, Kind<M, @NonNull A>> f, Lens<T, A> lens) {
       Objects.requireNonNull(f, "function must not be null");
       Objects.requireNonNull(lens, "lens must not be null");
       Lens<S, A> composedTarget = zoomLens.andThen(lens);
@@ -964,7 +1002,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> FilterableZoomedSteps<M, S, T> update(Lens<T, A> lens, A value) {
+    public <A extends @Nullable Object> FilterableZoomedSteps<M, S, T> update(
+        Lens<T, A> lens, A value) {
       Objects.requireNonNull(lens, "lens must not be null");
       Lens<S, A> composed = zoomLens.andThen(lens);
       Kind<M, S> newState = monad.map(s -> composed.set(value, s), state);
@@ -972,7 +1011,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> FilterableZoomedSteps<M, S, T> modify(Lens<T, A> lens, Function<A, A> modifier) {
+    public <A extends @Nullable Object> FilterableZoomedSteps<M, S, T> modify(
+        Lens<T, A> lens, Function<A, A> modifier) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
       Lens<S, A> composed = zoomLens.andThen(lens);
@@ -981,7 +1021,8 @@ public final class ForState {
     }
 
     @Override
-    public <A> FilterableZoomedSteps<M, S, T> fromThen(Function<T, Kind<M, A>> f, Lens<T, A> lens) {
+    public <A extends @Nullable Object> FilterableZoomedSteps<M, S, T> fromThen(
+        Function<T, Kind<M, @NonNull A>> f, Lens<T, A> lens) {
       Objects.requireNonNull(f, "function must not be null");
       Objects.requireNonNull(lens, "lens must not be null");
       Lens<S, A> composedTarget = zoomLens.andThen(lens);

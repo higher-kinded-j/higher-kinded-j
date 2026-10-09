@@ -15,6 +15,8 @@ import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A fluent path wrapper for {@link Id} values.
@@ -214,6 +216,10 @@ public final class IdPath<A> implements Chainable<A> {
    * <p>This bridges from the effect domain to the optics domain, allowing structural navigation
    * inside an Id context.
    *
+   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
+   * be, pass {@code path.nullable()} to {@link #focus(AffinePath)}, which reads a null focus as
+   * Nothing.
+   *
    * @param path the FocusPath to apply; must not be null
    * @param <B> the focused type
    * @return a new IdPath containing the focused value
@@ -230,12 +236,14 @@ public final class IdPath<A> implements Chainable<A> {
    * <p>This bridges from the effect domain to the optics domain. Since IdPath always contains a
    * value, a MaybePath is returned to handle the case where the AffinePath doesn't match.
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param path the AffinePath to apply; must not be null
    * @param <B> the focused type
    * @return a MaybePath containing the focused value if the path matches
    * @throws NullPointerException if path is null
    */
-  public <B> MaybePath<B> focus(AffinePath<A, B> path) {
+  public <B extends @Nullable Object> MaybePath<@NonNull B> focus(AffinePath<A, B> path) {
     Objects.requireNonNull(path, "path must not be null");
     return path.getOptional(value.value()).map(Path::just).orElseGet(Path::nothing);
   }

@@ -2706,4 +2706,64 @@ class PathOpsTest {
           .withMessage("paths must not contain null");
     }
   }
+
+  @Nested
+  @DisplayName("A sequenced or traversed list is unmodifiable")
+  class ResultsAreUnmodifiable {
+
+    private static final List<String> ITEMS = List.of("a", "b");
+
+    private static void assertUnmodifiable(List<?> list) {
+      assertThat(list).hasSize(2);
+      assertThatExceptionOfType(UnsupportedOperationException.class)
+          .isThrownBy(() -> list.add(null));
+    }
+
+    @Test
+    @DisplayName("the eager paths hand back a list that cannot be changed")
+    void eagerPaths() {
+      assertUnmodifiable(
+          PathOps.sequenceMaybe(List.of(Path.just("a"), Path.just("b"))).run().get());
+      assertUnmodifiable(PathOps.traverseMaybe(ITEMS, Path::just).run().get());
+      assertUnmodifiable(
+          PathOps.sequenceEither(List.of(Path.<String, String>right("a"), Path.right("b")))
+              .run()
+              .getRight());
+      assertUnmodifiable(
+          PathOps.traverseEither(ITEMS, s -> Path.<String, String>right(s)).run().getRight());
+      assertUnmodifiable(
+          PathOps.sequenceValidated(
+                  List.of(Path.valid("a", LIST_SEMIGROUP), Path.valid("b", LIST_SEMIGROUP)),
+                  LIST_SEMIGROUP)
+              .run()
+              .get());
+      assertUnmodifiable(
+          PathOps.traverseValidated(ITEMS, s -> Path.valid(s, LIST_SEMIGROUP), LIST_SEMIGROUP)
+              .run()
+              .get());
+      assertUnmodifiable(
+          PathOps.sequenceTry(List.of(Path.success("a"), Path.success("b"))).run().orElse(null));
+      assertUnmodifiable(PathOps.traverseTry(ITEMS, Path::success).run().orElse(null));
+      assertUnmodifiable(
+          PathOps.sequenceOptional(List.of(Path.present("a"), Path.present("b")))
+              .run()
+              .orElseThrow());
+      assertUnmodifiable(PathOps.traverseOptional(ITEMS, Path::present).run().orElseThrow());
+      assertUnmodifiable(
+          PathOps.traverseNonDet(ITEMS, s -> Path.list(List.of(s))).run().getFirst());
+    }
+
+    @Test
+    @DisplayName("the deferred paths hand back a list that cannot be changed, on every run")
+    void deferredPaths() {
+      var sequenced = PathOps.sequenceVTask(List.of(Path.vtaskPure("a"), Path.vtaskPure("b")));
+      var traversed = PathOps.traverseVTask(ITEMS, Path::vtaskPure);
+      var parallel = PathOps.traverseVTaskPar(ITEMS, Path::vtaskPure);
+
+      assertUnmodifiable(sequenced.unsafeRun());
+      assertUnmodifiable(traversed.unsafeRun());
+      assertUnmodifiable(parallel.unsafeRun());
+      assertThat(traversed.unsafeRun()).containsExactly("a", "b");
+    }
+  }
 }

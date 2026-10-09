@@ -684,4 +684,23 @@ class ParTest {
     tasks.add(null);
     return tasks;
   }
+
+  @Nested
+  @DisplayName("Results")
+  class Results {
+
+    @Test
+    @DisplayName("all and traverse hand back a list that cannot be changed")
+    @SuppressWarnings("DataFlowIssue") // non-null in this fixture
+    void resultsAreUnmodifiable() {
+      List<String> all = Par.all(List.of(VTask.succeed("a"), VTask.succeed("b"))).run();
+      List<String> traversed = Par.traverse(List.of("a", "b"), VTask::succeed).run();
+
+      assertThat(all).containsExactly("a", "b");
+      assertThat(traversed).containsExactly("a", "b");
+      assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> all.add("c"));
+      assertThatExceptionOfType(UnsupportedOperationException.class)
+          .isThrownBy(() -> traversed.add("c"));
+    }
+  }
 }

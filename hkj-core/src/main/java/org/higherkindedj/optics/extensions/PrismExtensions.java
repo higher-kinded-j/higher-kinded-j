@@ -68,6 +68,8 @@ public final class PrismExtensions {
    *
    * <p>If the prism doesn't match, the result will be {@code Either.left(errorValue)}.
    *
+   * <p>A null focus reads as absent, as a non-matching one does.
+   *
    * @param prism The prism to get the value from
    * @param errorValue The error value to use if the prism doesn't match
    * @param source The source structure
@@ -77,14 +79,20 @@ public final class PrismExtensions {
    * @return {@code Either.right(value)} if the prism matches, {@code Either.left(errorValue)}
    *     otherwise
    */
-  public static <E, S, A> Either<E, A> getEither(Prism<S, A> prism, E errorValue, S source) {
-    return prism.getOptional(source).map(Either::<E, A>right).orElse(Either.left(errorValue));
+  public static <E, S extends @Nullable Object, A extends @Nullable Object>
+      Either<E, @NonNull A> getEither(Prism<S, A> prism, E errorValue, S source) {
+    return prism
+        .getOptional(source)
+        .map(Either::<E, @NonNull A>right)
+        .orElse(Either.left(errorValue));
   }
 
   /**
    * Gets the value from a {@link Prism} wrapped in a {@link Validated}.
    *
    * <p>If the prism doesn't match, the result will be {@code Validated.invalid(errorValue)}.
+   *
+   * <p>A null focus reads as absent, as a non-matching one does.
    *
    * @param prism The prism to get the value from
    * @param errorValue The error value to use if the prism doesn't match
@@ -95,10 +103,11 @@ public final class PrismExtensions {
    * @return {@code Validated.valid(value)} if the prism matches, {@code
    *     Validated.invalid(errorValue)} otherwise
    */
-  public static <E, S, A> Validated<E, A> getValidated(Prism<S, A> prism, E errorValue, S source) {
+  public static <E, S extends @Nullable Object, A extends @Nullable Object>
+      Validated<E, @NonNull A> getValidated(Prism<S, A> prism, E errorValue, S source) {
     return prism
         .getOptional(source)
-        .map(Validated::<E, A>valid)
+        .map(Validated::<E, @NonNull A>valid)
         .orElse(Validated.invalid(errorValue));
   }
 
@@ -108,6 +117,9 @@ public final class PrismExtensions {
    * <p>If the prism doesn't match or the function returns {@code Maybe.nothing()}, returns {@code
    * Maybe.nothing()}.
    *
+   * <p>A null focus reads as absent, as a non-matching one does, so the function sees only a
+   * non-null focus.
+   *
    * @param prism The prism to modify through
    * @param f The modification function returning {@code Maybe}
    * @param source The source structure
@@ -115,7 +127,8 @@ public final class PrismExtensions {
    * @param <A> The type of the focused part
    * @return {@code Maybe.just(updatedSource)} if successful, {@code Maybe.nothing()} otherwise
    */
-  public static <S, A> Maybe<S> modifyMaybe(Prism<S, A> prism, Function<A, Maybe<A>> f, S source) {
+  public static <S, A extends @Nullable Object> Maybe<S> modifyMaybe(
+      Prism<S, A> prism, Function<@NonNull A, Maybe<@NonNull A>> f, S source) {
     return prism
         .getOptional(source)
         .map(Maybe::just)
@@ -130,6 +143,9 @@ public final class PrismExtensions {
    * <p>If the prism doesn't match, returns {@code Either.left(noMatchError)}. If the function
    * returns an error, that error is returned.
    *
+   * <p>A null focus reads as absent, as a non-matching one does, so the function sees only a
+   * non-null focus.
+   *
    * @param prism The prism to modify through
    * @param noMatchError Error to return if the prism doesn't match
    * @param f The modification function returning {@code Either}
@@ -139,11 +155,11 @@ public final class PrismExtensions {
    * @param <A> The type of the focused part
    * @return {@code Either.right(updatedSource)} if successful, {@code Either.left(error)} otherwise
    */
-  public static <E, S, A> Either<E, S> modifyEither(
-      Prism<S, A> prism, E noMatchError, Function<A, Either<E, A>> f, S source) {
+  public static <E, S, A extends @Nullable Object> Either<E, S> modifyEither(
+      Prism<S, A> prism, E noMatchError, Function<@NonNull A, Either<E, @NonNull A>> f, S source) {
     return prism
         .getOptional(source)
-        .map(Either::<E, A>right)
+        .map(Either::<E, @NonNull A>right)
         .orElse(Either.left(noMatchError))
         .flatMap(f)
         .map(prism::build);
@@ -153,6 +169,9 @@ public final class PrismExtensions {
    * Modifies the value with a function that returns {@link Validated}.
    *
    * <p>If the prism doesn't match, returns {@code Validated.invalid(noMatchError)}.
+   *
+   * <p>A null focus reads as absent, as a non-matching one does, so the function sees only a
+   * non-null focus.
    *
    * @param prism The prism to modify through
    * @param noMatchError Error to return if the prism doesn't match
@@ -164,11 +183,14 @@ public final class PrismExtensions {
    * @return {@code Validated.valid(updatedSource)} if successful, {@code Validated.invalid(error)}
    *     otherwise
    */
-  public static <E, S, A> Validated<E, S> modifyValidated(
-      Prism<S, A> prism, E noMatchError, Function<A, Validated<E, A>> f, S source) {
+  public static <E, S, A extends @Nullable Object> Validated<E, S> modifyValidated(
+      Prism<S, A> prism,
+      E noMatchError,
+      Function<@NonNull A, Validated<E, @NonNull A>> f,
+      S source) {
     return prism
         .getOptional(source)
-        .map(Validated::<E, A>valid)
+        .map(Validated::<E, @NonNull A>valid)
         .orElse(Validated.invalid(noMatchError))
         .flatMap(f)
         .map(prism::build);

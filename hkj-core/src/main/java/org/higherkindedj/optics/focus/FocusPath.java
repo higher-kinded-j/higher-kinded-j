@@ -3,9 +3,11 @@
 package org.higherkindedj.optics.focus;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.higherkindedj.hkt.Functor;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Traverse;
@@ -515,8 +517,8 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * <pre>{@code
    * record LegacyUser(String name, @Nullable String nickname) {}
    *
-   * // Generate focus for the record (nickname is nullable)
-   * FocusPath<LegacyUser, @Nullable String> nicknamePath = LegacyUserFocus.nickname();
+   * // A path over the record's nullable field
+   * FocusPath<LegacyUser, @Nullable String> nicknamePath = FocusPath.of(LegacyUserLenses.nickname());
    *
    * // Chain with nullable() to get null-safe access
    * AffinePath<LegacyUser, String> safeNickname = nicknamePath.nullable();
@@ -529,13 +531,13 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * Optional<String> present = safeNickname.getOptional(withNick);  // Optional.of("Bobby")
    * }</pre>
    *
-   * @param <E> the non-null element type
+   * <p>The result's focus is the same type without the null, so it needs no type argument.
+   *
    * @return an AffinePath that treats null as absent
    * @see FocusPaths#nullable()
    */
-  @SuppressWarnings("unchecked")
-  default <E> AffinePath<S, E> nullable() {
-    return via((Affine<A, E>) FocusPaths.nullable());
+  default AffinePath<S, @NonNull A> nullable() {
+    return via(FocusPaths.<@NonNull A>nullable());
   }
 
   /**
@@ -851,6 +853,9 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * Customer result = customer.unsafeRun();
    * }</pre>
    *
+   * <p>The function is applied to the focus as it is, a null one included, so it decides what a
+   * null focus becomes.
+   *
    * @param f the effectful function to apply to the focused element
    * @param source the source structure
    * @param <B> the result type of the effectful function
@@ -894,6 +899,9 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * Since FocusPath always focuses on exactly one element, the result is always a Right (success)
    * EitherPath.
    *
+   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
+   * be, {@link #toEitherPath(Object, Object)} says what a null focus becomes.
+   *
    * <h2>Example Usage</h2>
    *
    * <pre>{@code
@@ -914,11 +922,86 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
   }
 
   /**
+   * Extracts the focused value and wraps it in an {@link EitherPath}, giving a Left for a null
+   * focus.
+   *
+   * <p>Use this form when the focus may be null, as it is for a {@code @Nullable} field: the result
+   * is a Right holding the focus, or a Left holding {@code errorIfNull} when the focus is null. So
+   * the EitherPath never holds a null value. It gives the same result as {@code
+   * nullable().toEitherPath(source, errorIfNull)}.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<User, @Nullable String> nicknamePath = FocusPath.of(UserLenses.nickname());
+   *
+   * EitherPath<UserError, String> nickname =
+   *     nicknamePath.toEitherPath(user, UserError.NO_NICKNAME);
+   * }</pre>
+   *
+   * @param source the source structure
+   * @param errorIfNull the error to use if the focus is null; must not be null
+   * @param <E> the error type
+   * @return an EitherPath containing Right if the focus is non-null, Left otherwise
+   * @throws NullPointerException if errorIfNull is null
+   * @see AffinePath#toEitherPath(Object, Object)
+   */
+  default <E> EitherPath<E, @NonNull A> toEitherPath(S source, E errorIfNull) {
+    Objects.requireNonNull(errorIfNull, "errorIfNull must not be null");
+    A focus = get(source);
+    return focus != null ? Path.right(focus) : Path.left(errorIfNull);
+  }
+
+  /**
+   * Extracts the focused value and wraps it in an {@link EitherPath}, deferring construction of the
+   * error a null focus gives.
+   *
+   * <p>If the focus is non-null, the result is a Right and the supplier is never called. If it is
+   * null, the supplier is called once and its result becomes the Left value. Prefer this over
+   * {@link #toEitherPath(Object, Object)} when building the error is not free.
+   *
+   * <p>A lambda, a method reference, or an argument whose type is or implements {@link Supplier}
+   * selects this overload; every other argument selects {@link #toEitherPath(Object, Object)}, an
+   * error whose own type is another functional interface included. Neither overload takes a null
+   * error: a bare {@code null} selects this one and is rejected as a null supplier.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<User, @Nullable String> nicknamePath = FocusPath.of(UserLenses.nickname());
+   *
+   * EitherPath<UserError, String> nickname =
+   *     nicknamePath.toEitherPath(user, () -> UserError.noNickname(user.id()));
+   * }</pre>
+   *
+   * @param source the source structure
+   * @param errorSupplier supplies the error if the focus is null; must not be null, and must not
+   *     return null
+   * @param <E> the error type
+   * @return an EitherPath containing Right if the focus is non-null, Left with the supplied error
+   *     otherwise
+   * @throws NullPointerException if errorSupplier is null, or returns null when the focus is null
+   * @see AffinePath#toEitherPath(Object, Supplier)
+   */
+  default <E> EitherPath<E, @NonNull A> toEitherPath(
+      S source, Supplier<? extends E> errorSupplier) {
+    Objects.requireNonNull(errorSupplier, "errorSupplier must not be null");
+    A focus = get(source);
+    return focus != null
+        ? Path.right(focus)
+        : Path.left(
+            Objects.requireNonNull(errorSupplier.get(), "errorSupplier must not return null"));
+  }
+
+  /**
    * Extracts the focused value and wraps it in a {@link TryPath}.
    *
    * <p>This bridges from the optics domain to the effect domain for exception-handling
    * computations. Since FocusPath always focuses on exactly one element, the result is always a
    * Success TryPath.
+   *
+   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
+   * be, {@link #toTryPath(Object, Supplier)} says what a null focus becomes.
    *
    * <h2>Example Usage</h2>
    *
@@ -928,7 +1011,7 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    *
    * // Extract and parse
    * TryPath<URI> result = urlPath.toTryPath(config)
-   *     .via(url -> Path.tryOf(() -> new URI(url)));
+   *     .via(url -> Path.tryOf(() -> URI.create(url)));
    * }</pre>
    *
    * @param source the source structure
@@ -939,10 +1022,47 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
   }
 
   /**
+   * Extracts the focused value and wraps it in a {@link TryPath}, giving a Failure for a null
+   * focus.
+   *
+   * <p>Use this form when the focus may be null: the result is a Success holding the focus, or a
+   * Failure holding the exception the supplier gives when the focus is null. The supplier is called
+   * only then. So the TryPath never holds a null value.
+   *
+   * <h2>Example Usage</h2>
+   *
+   * <pre>{@code
+   * FocusPath<Config, @Nullable String> urlPath = FocusPath.of(ConfigLenses.apiUrl());
+   *
+   * TryPath<URI> uri = urlPath
+   *     .toTryPath(config, () -> new IllegalStateException("apiUrl is not set"))
+   *     .via(url -> Path.tryOf(() -> URI.create(url)));
+   * }</pre>
+   *
+   * @param source the source structure
+   * @param exceptionIfNull supplies the exception if the focus is null; must not be null, and must
+   *     not return null
+   * @return a TryPath containing Success if the focus is non-null, Failure otherwise
+   * @throws NullPointerException if exceptionIfNull is null, or returns null when the focus is null
+   * @see AffinePath#toTryPath(Object, Supplier)
+   */
+  default TryPath<@NonNull A> toTryPath(S source, Supplier<? extends Throwable> exceptionIfNull) {
+    Objects.requireNonNull(exceptionIfNull, "exceptionIfNull must not be null");
+    A focus = get(source);
+    return focus != null
+        ? Path.success(focus)
+        : Path.failure(
+            Objects.requireNonNull(exceptionIfNull.get(), "exceptionIfNull must not return null"));
+  }
+
+  /**
    * Extracts the focused value and wraps it in an {@link IdPath}.
    *
    * <p>This bridges from the optics domain to the effect domain using the identity effect. IdPath
    * is useful when you need a consistent Path interface but don't require any effect semantics.
+   *
+   * <p>The focus is held as it is, so this form is for a focus that is never null. For one that may
+   * be, {@link #toMaybePath(Object)} reads a null focus as Nothing.
    *
    * <h2>Example Usage</h2>
    *
@@ -993,7 +1113,7 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    */
   static <S extends @Nullable Object, A extends @Nullable Object> FocusPath<S, A> of(
       Lens<S, A> lens, String segment) {
-    java.util.Objects.requireNonNull(segment, "segment must not be null");
+    Objects.requireNonNull(segment, "segment must not be null");
     return new LensFocusPath<>(lens, List.of(segment));
   }
 

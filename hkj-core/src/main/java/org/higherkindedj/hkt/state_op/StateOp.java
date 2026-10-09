@@ -13,7 +13,9 @@ import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Prism;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.util.Traversals;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Effect algebra for optics-parameterised state operations within Free monad programs.
@@ -159,7 +161,8 @@ public sealed interface StateOp<S, A> extends StateOpKind<S, A>
    * @param <R> The prism's focus type
    * @param <A> The mapped result type (HKT carrier)
    */
-  record Preview<S, R, A>(Prism<S, R> optic, Function<Optional<R>, A> k) implements StateOp<S, A> {
+  record Preview<S, R extends @Nullable Object, A>(
+      Prism<S, R> optic, Function<Optional<@NonNull R>, A> k) implements StateOp<S, A> {
     public Preview {
       Validation.function().require(optic, "optic", CONSTRUCTION);
       Validation.function().require(k, "k", CONSTRUCTION);
@@ -183,8 +186,8 @@ public sealed interface StateOp<S, A> extends StateOpKind<S, A>
    * @param <R> The traversal's element type
    * @param <A> The mapped result type (HKT carrier)
    */
-  record TraverseOver<S, R, A>(Traversal<S, R> optic, Function<R, R> f, Function<S, A> k)
-      implements StateOp<S, A> {
+  record TraverseOver<S, R extends @Nullable Object, A>(
+      Traversal<S, R> optic, Function<R, R> f, Function<S, A> k) implements StateOp<S, A> {
     public TraverseOver {
       Validation.function().require(optic, "optic", CONSTRUCTION);
       Validation.function().require(f, "f", CONSTRUCTION);

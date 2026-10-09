@@ -15,6 +15,7 @@ import org.higherkindedj.hkt.WitnessArity;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.indexed.Pair;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides a fluent builder for indexed traversal-based comprehensions, enabling position-aware
@@ -125,7 +126,8 @@ public final class ForIndexed {
      * @return A new builder with the modification applied.
      * @throws NullPointerException if any argument is null.
      */
-    <B> IndexedSteps<F, I, S, A> modify(Lens<A, B> lens, BiFunction<I, B, B> modifier);
+    <B extends @Nullable Object> IndexedSteps<F, I, S, A> modify(
+        Lens<A, B> lens, BiFunction<I, B, B> modifier);
 
     /**
      * Sets a specific field within each focused element using a lens, with index-based values.
@@ -136,7 +138,8 @@ public final class ForIndexed {
      * @return A new builder with the field set.
      * @throws NullPointerException if any argument is null.
      */
-    <B> IndexedSteps<F, I, S, A> set(Lens<A, B> lens, Function<I, B> valueFunction);
+    <B extends @Nullable Object> IndexedSteps<F, I, S, A> set(
+        Lens<A, B> lens, Function<I, B> valueFunction);
 
     /**
      * Completes the traversal and returns the modified structure wrapped in the applicative
@@ -202,7 +205,8 @@ public final class ForIndexed {
     }
 
     @Override
-    public <B> IndexedSteps<F, I, S, A> modify(Lens<A, B> lens, BiFunction<I, B, B> modifier) {
+    public <B extends @Nullable Object> IndexedSteps<F, I, S, A> modify(
+        Lens<A, B> lens, BiFunction<I, B, B> modifier) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(modifier, "modifier must not be null");
 
@@ -220,7 +224,8 @@ public final class ForIndexed {
     }
 
     @Override
-    public <B> IndexedSteps<F, I, S, A> set(Lens<A, B> lens, Function<I, B> valueFunction) {
+    public <B extends @Nullable Object> IndexedSteps<F, I, S, A> set(
+        Lens<A, B> lens, Function<I, B> valueFunction) {
       Objects.requireNonNull(lens, "lens must not be null");
       Objects.requireNonNull(valueFunction, "valueFunction must not be null");
 

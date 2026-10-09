@@ -186,9 +186,9 @@ import static org.higherkindedj.hkt.instances.Witnesses.*;
 | `EitherOrBoth<L, R>` | `Either<L, R>` | `.toEitherDroppingWarnings()`, `.toEitherFailingOnWarnings()` |
 | `EitherOrBoth<L, R>` | `Validated<L, R>` | `.toValidated()` |
 | `EitherOrBoth<L, R>` | `Maybe<R>` | `.toMaybe()` |
-| `FocusPath<S, A>` | `MaybePath<A>` | `.toMaybePath()` |
-| `FocusPath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(errorFn)` |
-| `AffinePath<S, A>` | `MaybePath<A>` | `.toMaybePath()` |
+| `FocusPath<S, A>` | `MaybePath<A>` | `.toMaybePath(source)` |
+| `FocusPath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(source)`, `.toEitherPath(source, error)`, `.toEitherPath(source, errorSupplier)` |
+| `AffinePath<S, A>` | `MaybePath<A>` | `.toMaybePath(source)` |
 | `AffinePath<S, A>` | `EitherPath<E, A>` | `.toEitherPath(source, error)`, `.toEitherPath(source, errorSupplier)` |
 
 ---

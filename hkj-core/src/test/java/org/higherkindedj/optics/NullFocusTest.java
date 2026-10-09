@@ -3,8 +3,10 @@
 package org.higherkindedj.optics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.higherkindedj.hkt.assertions.EitherAssert.assertThatEither;
 import static org.higherkindedj.hkt.assertions.IdAssert.assertThatId;
 import static org.higherkindedj.hkt.assertions.MaybeAssert.assertThatMaybe;
+import static org.higherkindedj.hkt.assertions.VStreamPathAssert.assertThatVStreamPath;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -13,12 +15,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.higherkindedj.hkt.Kind;
+import org.higherkindedj.hkt.Monoids;
+import org.higherkindedj.hkt.effect.EitherPath;
+import org.higherkindedj.hkt.effect.Path;
+import org.higherkindedj.hkt.effect.PathOps;
+import org.higherkindedj.hkt.effect.VStreamPath;
+import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.id.Id;
 import org.higherkindedj.hkt.id.IdKind;
 import org.higherkindedj.hkt.id.IdMonad;
+import org.higherkindedj.hkt.maybe.Maybe;
+import org.higherkindedj.optics.each.EachInstances;
+import org.higherkindedj.optics.extensions.LensExtensions;
+import org.higherkindedj.optics.extensions.TraversalExtensions;
+import org.higherkindedj.optics.fluent.OpticOps;
+import org.higherkindedj.optics.focus.AffinePath;
 import org.higherkindedj.optics.focus.FocusPath;
 import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.focus.TraversalPath;
+import org.higherkindedj.optics.free.OpticInterpreters;
+import org.higherkindedj.optics.free.OpticPrograms;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.ixed.IxedInstances;
 import org.higherkindedj.optics.util.Affines;
@@ -34,9 +50,10 @@ import org.junit.jupiter.api.Test;
 /**
  * A null focus, as an optic over a {@code @Nullable} field or element meets it.
  *
- * <p>Two rules: a read that returns the focus in an {@code Optional} or a {@code Maybe} reads a
- * null focus as absent, because neither can hold {@code null}; every other read and write carries
- * the null through. Each case pins a read or a write that must not throw on a null focus.
+ * <p>Two rules: a read that hands the focus on in an {@code Optional}, a {@code Maybe}, or an
+ * Effect Path that says what a null focus becomes reads a null focus as absent, because none of
+ * them holds {@code null}; every other read and write carries the null through. Each case pins a
+ * read or a write that must not throw on a null focus.
  */
 @DisplayName("A null focus")
 class NullFocusTest {
@@ -156,6 +173,90 @@ class NullFocusTest {
 
       assertThat(head.getOptional(nullsAround("b"))).isEmpty();
       assertThat(head.getOptional(Arrays.asList("a", null))).contains("a");
+    }
+  }
+
+  @Nested
+  @DisplayName("handed to an effect type")
+  class HandedToAnEffect {
+
+    @Test
+    @DisplayName("the traversal and Each bridges into a stream or list, and fold, leave a null out")
+    void traversalBridgesLeaveANullFocusOut() {
+      var each = TraversalPath.of(Traversals.<@Nullable String>forList());
+      List<@Nullable String> source = Arrays.asList(null, "a", null, "b");
+
+      assertThat(each.toListPath(source).run()).containsExactly("a", "b");
+      assertThat(each.toNonDetPath(source).run()).containsExactly("a", "b");
+      assertThat(each.toStreamPath(source).run().toList()).containsExactly("a", "b");
+      assertThatVStreamPath(each.toVStreamPath(source)).producesElementsInOrder(List.of("a", "b"));
+      assertThatVStreamPath(
+              VStreamPath.fromEach(source, EachInstances.<@Nullable String>listEach()))
+          .producesElementsInOrder(List.of("a", "b"));
+      assertThat(each.fold(Monoids.string(), source)).isEqualTo("ab");
+    }
+
+    @Test
+    @DisplayName(
+        "an Effect Path's focus reads a null focus as absent wherever it is typed non-null")
+    void pathFocusReadsANullFocusAsAbsent() {
+      FocusPath<Config, @Nullable String> apiKey = FocusPath.of(API_KEY);
+      AffinePath<Config, @Nullable String> apiKeyAffine = apiKey.asAffine();
+
+      assertThatMaybe(Path.just(NO_KEY).focus(apiKey).run()).isNothing();
+      assertThat(Path.present(NO_KEY).focus(apiKey).run()).isEmpty();
+      assertThatMaybe(Path.just(NO_KEY).focus(apiKeyAffine).run()).isNothing();
+      assertThat(Path.present(NO_KEY).focus(apiKeyAffine).run()).isEmpty();
+      assertThatEither(Path.<String, Config>right(NO_KEY).focus(apiKeyAffine, "no key").run())
+          .hasLeft("no key");
+      assertThatMaybe(Path.id(NO_KEY).focus(apiKeyAffine).run()).isNothing();
+      assertThatVStreamPath(Path.vstreamOf(NO_KEY, new Config("k")).focus(apiKeyAffine))
+          .producesElementsInOrder(List.of("k"));
+    }
+
+    @Test
+    @DisplayName("OpticPrograms.preview reads a null first focus as absent")
+    void opticProgramsPreviewReadsANullFocusAsAbsent() {
+      assertThat(OpticInterpreters.direct().run(OpticPrograms.preview(NO_KEY, API_KEY.asFold())))
+          .isEmpty();
+    }
+
+    @Test
+    @DisplayName("a function sees a null focus, and writes a value or leaves the null")
+    void aFunctionSeesANullFocus() {
+      Either<String, Config> keyed =
+          LensExtensions.modifyEither(
+              API_KEY, k -> Either.right(k == null ? "default" : k), NO_KEY);
+      Either<String, List<@Nullable String>> filled =
+          OpticOps.modifyAllEither(
+              nullsAround("b"),
+              Traversals.<@Nullable String>forList(),
+              s -> Either.right(s == null ? "-" : s));
+      Either<String, List<@Nullable String>> extended =
+          TraversalExtensions.modifyAllEither(
+              Traversals.<@Nullable String>forList(),
+              s -> Either.right(s == null ? "-" : s),
+              nullsAround("b"));
+      EitherPath<String, List<String>> each =
+          PathOps.traverseEachEither(
+              nullsAround("b"),
+              EachInstances.<@Nullable String>listEach(),
+              s -> Path.right(s == null ? "-" : s));
+
+      List<@Nullable String> kept =
+          TraversalExtensions.modifyWherePossible(
+              Traversals.<@Nullable String>forList(),
+              s -> s == null ? Maybe.nothing() : Maybe.just(s.toUpperCase()),
+              nullsAround("b"));
+
+      assertThatEither(keyed).hasRight(new Config("default"));
+      assertThatEither(filled).hasRight(List.of("-", "b", "-"));
+      assertThatEither(extended).hasRight(List.of("-", "b", "-"));
+      assertThatEither(each.run()).hasRight(List.of("-", "b", "-"));
+      assertThat(kept).containsExactly(null, "B", null);
+      assertThatVStreamPath(
+              PathOps.traverseVStream(nullsAround("b"), s -> Path.vstreamPure(s == null ? "-" : s)))
+          .producesElementsInOrder(List.of("-", "b", "-"));
     }
   }
 
