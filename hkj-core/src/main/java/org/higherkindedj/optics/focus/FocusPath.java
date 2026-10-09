@@ -383,14 +383,21 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * <p>Example:
    *
    * <pre>{@code
-   * // departments() returns FocusPath<Company, List<Department>>
-   * TraversalPath<Company, Department> allDepts = CompanyFocus.departmentList().each();
+   * // A path built from a lens: FocusPath<Company, List<Department>>
+   * FocusPath<Company, List<Department>> departments = FocusPath.of(CompanyLenses.departments());
+   * TraversalPath<Company, Department> allDepts = departments.each();
    * }</pre>
+   *
+   * <p>A modification rebuilds the list once, into a new unmodifiable {@code List}. A focused type
+   * declared as a subtype such as {@code ArrayList} therefore reads, but cannot take the rebuilt
+   * list back when the path writes: declare it as {@code List}, or traverse it with {@code
+   * each(EachInstances.fromIterableCollecting(ArrayList::new))}.
    *
    * @param <E> the element type of the list
    * @return a TraversalPath over list elements
    * @throws ClassCastException when the returned path is run, if the focused type {@code A} is not
-   *     a {@code List}
+   *     a {@code List}, or, when the path writes, if it is a {@code List} subtype such as {@code
+   *     ArrayList}
    * @see #each(Each)
    */
   @SuppressWarnings("unchecked")
@@ -438,10 +445,15 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    *
    * <p>This method returns an AffinePath because the index may be out of bounds.
    *
+   * <p>Setting builds a new unmodifiable {@code List}. A focused type declared as a subtype such as
+   * {@code ArrayList} therefore reads, but cannot take the rebuilt list back when the path writes;
+   * declare it as {@code List}.
+   *
    * @param index the index to focus on
    * @param <E> the element type of the list
    * @return an AffinePath that may be empty if the index is out of bounds
-   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> AffinePath<S, E> at(int index) {
@@ -605,7 +617,8 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    *
    * @param <E> the element type of the list
    * @return an AffinePath to a (head, tail) pair
-   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    * @see #headTail() for Java-familiar alias
    * @see #snoc() for init/last decomposition
    */
@@ -648,7 +661,8 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    *
    * @param <E> the element type of the list
    * @return an AffinePath to an (init, last) pair
-   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    * @see #initLast() for Java-familiar alias
    * @see #cons() for head/tail decomposition
    */
@@ -686,9 +700,14 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * Order updated = first.modify(item -> item.withDiscount(10), order);
    * }</pre>
    *
+   * <p>Setting builds a new unmodifiable {@code List}. A focused type declared as a subtype such as
+   * {@code ArrayList} therefore reads, but cannot take the rebuilt list back when the path writes;
+   * declare it as {@code List}.
+   *
    * @param <E> the element type of the list
    * @return an AffinePath to the head element
-   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> AffinePath<S, E> head() {
@@ -710,9 +729,14 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    * Optional<Item> last = lastItem.getOptional(order);
    * }</pre>
    *
+   * <p>Setting builds a new unmodifiable {@code List}. A focused type declared as a subtype such as
+   * {@code ArrayList} therefore reads, but cannot take the rebuilt list back when the path writes;
+   * declare it as {@code List}.
+   *
    * @param <E> the element type of the list
    * @return an AffinePath to the last element
-   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> AffinePath<S, E> last() {
@@ -726,7 +750,8 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    *
    * @param <E> the element type of the list
    * @return an AffinePath to the tail
-   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> AffinePath<S, List<E>> tail() {
@@ -740,7 +765,8 @@ public sealed interface FocusPath<S extends @Nullable Object, A extends @Nullabl
    *
    * @param <E> the element type of the list
    * @return an AffinePath to the init
-   * @throws ClassCastException if the focused type {@code A} is not a {@code List}
+   * @throws ClassCastException if the focused type {@code A} is not a {@code List}, or, when the
+   *     path writes, if it is a {@code List} subtype such as {@code ArrayList}
    */
   @SuppressWarnings("unchecked")
   default <E extends @Nullable Object> AffinePath<S, List<E>> init() {

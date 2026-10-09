@@ -28,7 +28,7 @@ The suite is designed around three principles:
 
 ## What Is Measured
 
-The `hkj-benchmarks` module contains 22 benchmark classes covering every major type in the library:
+The `hkj-benchmarks` module contains 24 benchmark classes covering every major type in the library:
 
 ### Core Types
 
@@ -38,6 +38,8 @@ The `hkj-benchmarks` module contains 22 benchmark classes covering every major t
 | `MaybeBenchmark` | `Maybe<A>` | Instance reuse on Nothing, nullable interop cost |
 | `TrampolineBenchmark` | `Trampoline<A>` | Stack-safe recursion overhead vs naive recursion |
 | `FreeBenchmark` | `Free<F,A>` | Free monad interpretation cost |
+| `FreeEffectBenchmark` | `Free`, `EitherF` | Effect handler overhead: `EitherF` dispatch, `Free.translate`, error handling, combined interpreters and program analysis |
+| `FoldPlusBenchmark` | `Fold` | `Fold.plus` and `Fold.sum` against a single fold and a manual `Stream.concat` |
 
 ### Effect Types
 
@@ -67,12 +69,22 @@ The `hkj-benchmarks` module contains 22 benchmark classes covering every major t
 | `AbstractionOverheadBenchmark` | HKJ abstractions vs raw Java |
 | `ConcurrencyScalingBenchmark` | Thread scaling under concurrent load |
 | `MemoryFootprintBenchmark` | Allocation rates for VTask, IO, CompletableFuture |
+| `PCollectionsHktBenchmark` | PCollections `PVector` against `ArrayList` through `ListMonad` and `ListTraverse` |
 
 ### Mapping
 
 | Benchmark | What It Compares |
 |-----------|-----------------|
 | `MappingBenchmark` | The generated mapper's `build` and `parse` against a hand-written mapper, MapStruct, and MapStruct with Bean Validation, on a nested pair and a flat one |
+
+### Scaling
+
+Each of these runs at two sizes, ten times apart, so a test can check that the cost grows in proportion to the input.
+
+| Benchmark | What It Measures |
+|-----------|-----------------|
+| `AccumulationBenchmark` | Collecting every failure of a bulk parse, `Edits.accumulate`, `PathOps.traverseValidated` and a generated mapping's null scan |
+| `EachRebuildBenchmark` | Modifying every element through a Focus path's `.each()` on a `List`, and through `EachInstances.arrayEach()` |
 
 ---
 
@@ -284,6 +296,8 @@ The assertion tests **fail** (not skip) if benchmark results are missing. This i
 | **VStreamPerformance** | VStream map execution, construction vs execution, Java Stream baseline |
 | **VTaskVsPlatformThreads** | VTask Par.all vs platform thread pool at scale |
 | **FreeMonadPerformance** | Free monad construction, stack safety, and interpretation overhead |
+| **AccumulationScaling** | Ten times the failures cost under 30 times as long, where copying every earlier failure would cost about 100 |
+| **EachRebuildScaling** | Ten times the elements cost under 30 times as long, where copying the list built so far at each element would cost about 100 |
 
 ### Running the Tests
 
@@ -355,7 +369,7 @@ For everything else, the type safety, composability, and testability benefits fa
 
 ~~~admonish tip title="See Also"
 - [Production Readiness](effect/production_readiness.md) - stack traces, allocation analysis, and stack safety for Effect Path types
-- [hkj-benchmarks README](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-benchmarks/README.md) - full method reference for all 18 benchmark classes
+- [hkj-benchmarks README](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/hkj-benchmarks/README.md) - full method reference for the benchmark classes
 - [Performance Testing Guide](https://github.com/higher-kinded-j/higher-kinded-j/blob/main/docs/PERFORMANCE-TESTING-GUIDE.md) - benchmark categories and CI integration
 ~~~
 

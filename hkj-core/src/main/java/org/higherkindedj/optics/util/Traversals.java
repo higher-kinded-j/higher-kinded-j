@@ -138,6 +138,9 @@ public final class Traversals {
    * <p>This is a canonical traversal for the {@code List} data type, allowing an effectful function
    * to be applied to each of its elements.
    *
+   * <p>The rebuilt list is a new unmodifiable list at every size, an empty source included, and it
+   * is built in time linear in the list's length.
+   *
    * @param <A> The element type of the list.
    * @return A {@code Traversal} for the elements of a list.
    */
@@ -369,7 +372,8 @@ public final class Traversals {
    * Creates a {@code Traversal} for all elements of an array.
    *
    * <p>This is a canonical traversal for array types, allowing an effectful function to be applied
-   * to each element. The resulting array has the same length as the source array.
+   * to each element. The resulting array is a new array of the source's component type, with the
+   * same length as the source array, built in time linear in that length.
    *
    * <p>Example:
    *

@@ -482,6 +482,24 @@ class AtInstancesTest {
     }
 
     @Test
+    @DisplayName("listAt() and listAtWithPadding() should write into a new unmodifiable list")
+    void listWritesShouldReturnAnUnmodifiableList() {
+      At<List<String>, Integer, String> listAt = AtInstances.listAt();
+      At<List<String>, Integer, String> padded = AtInstances.listAtWithPadding("-");
+      List<String> original = new ArrayList<>(List.of("a", "b", "c"));
+
+      assertThat(listAt.insertOrUpdate(1, "B", original))
+          .isUnmodifiable()
+          .containsExactly("a", "B", "c");
+      assertThat(listAt.remove(1, original)).isUnmodifiable().containsExactly("a", "c");
+      assertThat(padded.insertOrUpdate(4, "e", original))
+          .isUnmodifiable()
+          .containsExactly("a", "b", "c", "-", "e");
+      assertThat(padded.remove(0, original)).isUnmodifiable().containsExactly("b", "c");
+      assertThat(original).containsExactly("a", "b", "c");
+    }
+
+    @Test
     @DisplayName("mapAt() should handle empty map operations")
     void emptyMapOperations() {
       At<Map<String, Integer>, String, Integer> mapAt = AtInstances.mapAt();

@@ -20,7 +20,6 @@ import org.higherkindedj.hkt.vstream.VStream;
 import org.higherkindedj.optics.Each;
 import org.higherkindedj.optics.EachIndexed;
 import org.higherkindedj.optics.Traversal;
-import org.higherkindedj.optics.focus.FocusPaths;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.util.IndexedTraversals;
 import org.higherkindedj.optics.util.Traversals;
@@ -236,7 +235,7 @@ public final class EachInstances {
       implements EachIndexed<Integer, A[], A> {
     @Override
     public Traversal<A[], A> each() {
-      return FocusPaths.arrayElements();
+      return Traversals.forArray();
     }
 
     @Override

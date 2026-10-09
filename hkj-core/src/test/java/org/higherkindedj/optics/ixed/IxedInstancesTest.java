@@ -217,13 +217,13 @@ class IxedInstancesTest {
     }
 
     @Test
-    @DisplayName("update() should modify element at valid index")
+    @DisplayName("update() should modify element at valid index into a new unmodifiable list")
     void updateValidIndex() {
       List<String> original = new ArrayList<>(List.of("a", "b", "c"));
 
       List<String> updated = IxedInstances.update(listIx, 1, "B", original);
 
-      assertThat(updated).containsExactly("a", "B", "c");
+      assertThat(updated).isUnmodifiable().containsExactly("a", "B", "c");
       assertThat(original).containsExactly("a", "b", "c"); // Original unchanged
     }
 
