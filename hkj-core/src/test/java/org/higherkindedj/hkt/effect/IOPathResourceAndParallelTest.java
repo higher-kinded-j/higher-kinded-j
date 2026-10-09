@@ -5,15 +5,22 @@ package org.higherkindedj.hkt.effect;
 import static org.assertj.core.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Test suite for IOPath resource management and parallel execution features.
@@ -28,6 +35,45 @@ import org.junit.jupiter.api.Test;
  */
 @DisplayName("IOPath Resource Management and Parallel Execution Tests")
 class IOPathResourceAndParallelTest {
+
+  /** One of the four methods that run a cleanup after a use, building a path from the two. */
+  record CleanedUse(String name, BiFunction<Supplier<String>, Runnable, IOPath<String>> build) {
+    @Override
+    public String toString() {
+      return name;
+    }
+  }
+
+  static Stream<CleanedUse> cleanedUses() {
+    return Stream.of(
+        new CleanedUse(
+            "bracket",
+            (use, cleanup) -> IOPath.bracket(() -> "r", _ -> use.get(), _ -> cleanup.run())),
+        new CleanedUse(
+            "bracketIO",
+            (use, cleanup) -> IOPath.bracketIO(() -> "r", _ -> Path.io(use), _ -> cleanup.run())),
+        new CleanedUse("guarantee", (use, cleanup) -> Path.io(use).guarantee(cleanup)),
+        new CleanedUse(
+            "guaranteeIO", (use, cleanup) -> Path.io(use).guaranteeIO(Path.ioRunnable(cleanup))));
+  }
+
+  /** One of the two methods that close an AutoCloseable after a use. */
+  record ClosingUse(
+      String name, BiFunction<AutoCloseable, Supplier<String>, IOPath<String>> build) {
+    @Override
+    public String toString() {
+      return name;
+    }
+  }
+
+  static Stream<ClosingUse> closingUses() {
+    return Stream.of(
+        new ClosingUse(
+            "withResource", (resource, use) -> IOPath.withResource(() -> resource, _ -> use.get())),
+        new ClosingUse(
+            "withResourceIO",
+            (resource, use) -> IOPath.withResourceIO(() -> resource, _ -> Path.io(use))));
+  }
 
   // ===== Resource Management Tests =====
 
@@ -207,30 +253,6 @@ class IOPathResourceAndParallelTest {
 
       assertThat(closed).isTrue();
     }
-
-    @Test
-    @DisplayName("withResource() silently ignores close exception")
-    void withResourceSilentlyIgnoresCloseException() {
-      AtomicBoolean used = new AtomicBoolean(false);
-
-      IOPath<String> path =
-          IOPath.withResource(
-              () ->
-                  (AutoCloseable)
-                      () -> {
-                        throw new RuntimeException("Close failed");
-                      },
-              _ -> {
-                used.set(true);
-                return "result";
-              });
-
-      // Close exception should be silently ignored
-      String result = path.unsafeRun();
-
-      assertThat(result).isEqualTo("result");
-      assertThat(used).isTrue();
-    }
   }
 
   @Nested
@@ -250,30 +272,6 @@ class IOPathResourceAndParallelTest {
 
       assertThat(result).isEqualTo("result from IO");
       assertThat(closed).isTrue();
-    }
-
-    @Test
-    @DisplayName("withResourceIO() silently ignores close exception")
-    void withResourceIOSilentlyIgnoresCloseException() {
-      AtomicBoolean used = new AtomicBoolean(false);
-
-      IOPath<String> path =
-          IOPath.withResourceIO(
-              () ->
-                  (AutoCloseable)
-                      () -> {
-                        throw new RuntimeException("Close failed");
-                      },
-              _ -> {
-                used.set(true);
-                return Path.ioPure("result from IO");
-              });
-
-      // Close exception should be silently ignored
-      String result = path.unsafeRun();
-
-      assertThat(result).isEqualTo("result from IO");
-      assertThat(used).isTrue();
     }
   }
 
@@ -338,6 +336,299 @@ class IOPathResourceAndParallelTest {
 
       assertThat(result).isEqualTo("result");
       assertThat(finalized).isTrue();
+    }
+  }
+
+  @Nested
+  @DisplayName("A cleanup that throws")
+  class CleanupFailureTests {
+
+    private static final String CLEANED_USES =
+        "org.higherkindedj.hkt.effect.IOPathResourceAndParallelTest#cleanedUses";
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLEANED_USES)
+    @DisplayName("a failing use is reported, with the cleanup's exception suppressed onto it")
+    void failingUseKeepsItsException(CleanedUse method) {
+      IllegalStateException useFailure = new IllegalStateException("use failed");
+      IllegalArgumentException cleanupFailure = new IllegalArgumentException("cleanup failed");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw useFailure;
+                  },
+                  () -> {
+                    throw cleanupFailure;
+                  });
+
+      assertThatThrownBy(path::unsafeRun)
+          .isSameAs(useFailure)
+          .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(cleanupFailure));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLEANED_USES)
+    @DisplayName("a successful use fails with the cleanup's exception")
+    void successfulUseFailsWithCleanupException(CleanedUse method) {
+      IllegalArgumentException cleanupFailure = new IllegalArgumentException("cleanup failed");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> "used",
+                  () -> {
+                    throw cleanupFailure;
+                  });
+
+      assertThatThrownBy(path::unsafeRun)
+          .isSameAs(cleanupFailure)
+          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLEANED_USES)
+    @DisplayName(
+        "one exception thrown by both the use and the cleanup is not suppressed onto itself")
+    void sharedExceptionIsNotSuppressedOntoItself(CleanedUse method) {
+      IllegalStateException shared = new IllegalStateException("shared");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw shared;
+                  },
+                  () -> {
+                    throw shared;
+                  });
+
+      assertThatThrownBy(path::unsafeRun)
+          .isSameAs(shared)
+          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLEANED_USES)
+    @DisplayName(
+        "the cleanup after an interrupted use runs with the interrupt status cleared, then restores"
+            + " it")
+    void cleanupAfterInterruptedUseRunsUninterrupted(CleanedUse method) {
+      AtomicBoolean interruptedDuringCleanup = new AtomicBoolean(true);
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("interrupted");
+                  },
+                  () -> interruptedDuringCleanup.set(Thread.currentThread().isInterrupted()));
+
+      try {
+        assertThatThrownBy(path::unsafeRun).hasMessage("interrupted");
+        assertThat(interruptedDuringCleanup).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+  }
+
+  @Nested
+  @DisplayName("A close() that throws")
+  class CloseFailureTests {
+
+    private static final String CLOSING_USES =
+        "org.higherkindedj.hkt.effect.IOPathResourceAndParallelTest#closingUses";
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName("an unchecked exception from close() fails a successful use")
+    void uncheckedCloseFailureFailsSuccessfulUse(ClosingUse method) {
+      IllegalStateException closeFailure = new IllegalStateException("close failed");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw closeFailure;
+                  },
+                  () -> "used");
+
+      assertThatThrownBy(path::unsafeRun).isSameAs(closeFailure);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName("an IOException from close() fails a successful use as an UncheckedIOException")
+    void ioExceptionFromCloseFailsAsUnchecked(ClosingUse method) {
+      IOException closeFailure = new IOException("close failed");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw closeFailure;
+                  },
+                  () -> "used");
+
+      assertThatThrownBy(path::unsafeRun)
+          .isExactlyInstanceOf(UncheckedIOException.class)
+          .cause()
+          .isSameAs(closeFailure);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName("another checked exception from close() fails a successful use as its cause")
+    void checkedExceptionFromCloseFailsAsCause(ClosingUse method) {
+      Exception closeFailure = new Exception("close failed");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw closeFailure;
+                  },
+                  () -> "used");
+
+      assertThatThrownBy(path::unsafeRun)
+          .isExactlyInstanceOf(RuntimeException.class)
+          .cause()
+          .isSameAs(closeFailure);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName(
+        "an InterruptedException from close() fails the use and restores the interrupt status")
+    void interruptedCloseRestoresInterruptStatus(ClosingUse method) {
+      InterruptedException closeFailure = new InterruptedException("close interrupted");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw closeFailure;
+                  },
+                  () -> "used");
+
+      try {
+        assertThatThrownBy(path::unsafeRun)
+            .isExactlyInstanceOf(RuntimeException.class)
+            .cause()
+            .isSameAs(closeFailure);
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName(
+        "an InterruptedException from close() after a failing use is suppressed, and sets the"
+            + " interrupt status")
+    void interruptedCloseAfterFailingUseSetsInterruptStatus(ClosingUse method) {
+      IllegalStateException useFailure = new IllegalStateException("use failed");
+      InterruptedException closeFailure = new InterruptedException("close interrupted");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw closeFailure;
+                  },
+                  () -> {
+                    throw useFailure;
+                  });
+
+      try {
+        assertThatThrownBy(path::unsafeRun)
+            .isSameAs(useFailure)
+            .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(closeFailure));
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName("a resource supplier that returns null fails before the use runs")
+    void nullResourceFailsBeforeTheUse(ClosingUse method) {
+      AtomicBoolean used = new AtomicBoolean(false);
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  null,
+                  () -> {
+                    used.set(true);
+                    return "used";
+                  });
+
+      assertThatNullPointerException()
+          .isThrownBy(path::unsafeRun)
+          .withMessage("resourceSupplier must not return null");
+      assertThat(used).isFalse();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName("close()'s exception, as thrown, is suppressed onto a failing use's")
+    void closeFailureIsSuppressedOntoFailingUse(ClosingUse method) {
+      IllegalStateException useFailure = new IllegalStateException("use failed");
+      IOException closeFailure = new IOException("close failed");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw closeFailure;
+                  },
+                  () -> {
+                    throw useFailure;
+                  });
+
+      assertThatThrownBy(path::unsafeRun)
+          .isSameAs(useFailure)
+          .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(closeFailure));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource(CLOSING_USES)
+    @DisplayName("one exception thrown by both the use and close() is not suppressed onto itself")
+    void sharedExceptionIsNotSuppressedOntoItself(ClosingUse method) {
+      IllegalStateException shared = new IllegalStateException("shared");
+
+      IOPath<String> path =
+          method
+              .build()
+              .apply(
+                  () -> {
+                    throw shared;
+                  },
+                  () -> {
+                    throw shared;
+                  });
+
+      assertThatThrownBy(path::unsafeRun)
+          .isSameAs(shared)
+          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
     }
   }
 

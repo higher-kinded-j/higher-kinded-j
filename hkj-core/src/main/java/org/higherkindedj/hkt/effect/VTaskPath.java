@@ -363,6 +363,11 @@ public sealed interface VTaskPath<A> extends VTaskKind<A>, Effectful<A>, Deferre
   /**
    * Ensures a finaliser runs whether this task succeeds or fails.
    *
+   * <p>If this task fails and the finaliser throws too, the task's exception is the one thrown,
+   * with the finaliser's suppressed onto it; if only the finaliser throws, its exception is thrown.
+   * After a failure, the finaliser runs with the thread's interrupt status cleared, which is
+   * restored afterwards.
+   *
    * @param finalizer the finaliser to run; must not be null
    * @return a new VTaskPath with guaranteed finalisation
    */

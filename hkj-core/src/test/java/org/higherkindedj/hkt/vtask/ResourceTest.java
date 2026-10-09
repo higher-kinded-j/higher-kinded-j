@@ -4,6 +4,7 @@ package org.higherkindedj.hkt.vtask;
 
 import static org.assertj.core.api.Assertions.*;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -16,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.higherkindedj.hkt.trymonad.Try;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -181,23 +183,57 @@ class ResourceTest {
     }
 
     @Test
-    @DisplayName("fromAutoCloseable() silently handles close exception")
-    void fromAutoCloseableHandlesCloseException() {
-      AtomicBoolean closeCalled = new AtomicBoolean(false);
-
+    @DisplayName("fromAutoCloseable() fails a successful use with close()'s exception")
+    void fromAutoCloseableFailsSuccessfulUseWhenCloseThrows() {
+      IllegalStateException closeFailure = new IllegalStateException("close failed");
       AutoCloseable failingCloseable =
           () -> {
-            closeCalled.set(true);
-            throw new RuntimeException("close failed");
+            throw closeFailure;
           };
 
       Resource<AutoCloseable> resource = Resource.fromAutoCloseable(() -> failingCloseable);
 
-      // Should not throw even though close fails
-      String result = resource.useSync(_ -> "success").run();
+      assertThatThrownBy(() -> resource.useSync(_ -> "success").run()).isSameAs(closeFailure);
+    }
 
-      assertThat(result).isEqualTo("success");
-      assertThat(closeCalled).isTrue();
+    @Test
+    @DisplayName(
+        "fromAutoCloseable() fails a successful use with close()'s checked exception, as a"
+            + " failing task does")
+    void fromAutoCloseableReportsCheckedCloseExceptionAsATaskFailure() {
+      IOException closeFailure = new IOException("close failed");
+      AutoCloseable failingCloseable =
+          () -> {
+            throw closeFailure;
+          };
+
+      VTask<String> task =
+          Resource.fromAutoCloseable(() -> failingCloseable).useSync(_ -> "success");
+
+      assertThat(task.runSafe()).isEqualTo(Try.failure(closeFailure));
+      assertThatThrownBy(task::run)
+          .isExactlyInstanceOf(VTaskExecutionException.class)
+          .cause()
+          .isSameAs(closeFailure);
+    }
+
+    @Test
+    @DisplayName(
+        "fromAutoCloseable() suppresses close()'s exception, as thrown, onto a failing use's")
+    void fromAutoCloseableSuppressesCloseExceptionOntoFailingUse() {
+      IllegalStateException useFailure = new IllegalStateException("use failed");
+      IOException closeFailure = new IOException("close failed");
+      AutoCloseable failingCloseable =
+          () -> {
+            throw closeFailure;
+          };
+
+      VTask<String> task =
+          Resource.fromAutoCloseable(() -> failingCloseable).use(_ -> VTask.fail(useFailure));
+
+      assertThatThrownBy(task::run)
+          .isSameAs(useFailure)
+          .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(closeFailure));
     }
 
     @Test

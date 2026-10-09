@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.util.validation.Validation;
 import org.jspecify.annotations.Nullable;
 
@@ -59,10 +60,7 @@ import org.jspecify.annotations.Nullable;
  *
  * // Chain resource acquisition
  * Resource<PreparedStatement> chained = connResource.flatMap(conn ->
- *     Resource.make(
- *         () -> conn.prepareStatement(sql),
- *         PreparedStatement::close
- *     )
+ *     Resource.fromAutoCloseable(() -> conn.prepareStatement(sql))
  * );
  * }</pre>
  *
@@ -78,7 +76,8 @@ import org.jspecify.annotations.Nullable;
  * <p>A Resource never holds null: an acquire, or a function given to {@link #map}, that returns
  * null fails with a {@link NullPointerException}. When a use fails and cleaning up after it fails
  * too, the first failure is the one reported, and every later one is kept among its suppressed
- * exceptions, directly or nested. The same holds between a release and the finalisers added to it.
+ * exceptions, directly or nested, or is already its cause. The same holds between a release and the
+ * finalisers added to it.
  *
  * <p>A Resource composed with {@link #and} or {@link #flatMap} runs every one of its releases even
  * when one throws, and reports a failed release as a {@link RuntimeException} whose cause is the
@@ -117,7 +116,16 @@ public final class Resource<A> {
    * One acquisition: the acquired value and the release for exactly that value. Each use of a
    * Resource that acquires something makes its own, so uses that overlap never share a release.
    */
-  private record Allocated<T>(T value, Consumer<Exit> release) {}
+  private record Allocated<T>(T value, Release<Exit> release) {}
+
+  /**
+   * Releases what it is given. It may throw a checked exception, as {@link AutoCloseable#close()}
+   * may, which fails the use as a failure of its task does.
+   */
+  @FunctionalInterface
+  private interface Release<T> {
+    void accept(T t) throws Exception;
+  }
 
   // ==================== Factory Methods ====================
 
@@ -136,14 +144,18 @@ public final class Resource<A> {
   public static <A> Resource<A> make(Callable<A> acquire, Consumer<A> release) {
     Validation.function().require(acquire, "acquire", CONSTRUCTION);
     Validation.function().require(release, "release", CONSTRUCTION);
-    return acquiring(acquire, release, "make");
+    return acquiring(acquire, release::accept, "make");
   }
 
   /**
    * Creates a Resource from an AutoCloseable.
    *
-   * <p>The resource's close() method is called automatically after use. An exception thrown by
-   * close() is ignored; use {@link #make} with a release that handles it to see it.
+   * <p>The resource's close() method is called automatically after use. An exception from close()
+   * fails the task that {@link #use} returns, as any failure of that task does: {@link VTask#run()}
+   * throws a checked one wrapped in a {@link VTaskExecutionException}, and {@link VTask#runSafe()}
+   * returns it unwrapped. When the use has failed already, its failure is the one reported, with
+   * the exception from close() suppressed onto it. A Resource composed with {@link #flatMap} or
+   * {@link #and} wraps a failed release as the class documentation describes.
    *
    * @param <A> the type of the AutoCloseable resource
    * @param acquire function to acquire the AutoCloseable; must not be null, and must not return
@@ -153,16 +165,7 @@ public final class Resource<A> {
    */
   public static <A extends AutoCloseable> Resource<A> fromAutoCloseable(Callable<A> acquire) {
     Validation.function().require(acquire, "acquire", CONSTRUCTION);
-    return acquiring(
-        acquire,
-        resource -> {
-          try {
-            resource.close();
-          } catch (Exception e) {
-            // An exception from close() is ignored, as the javadoc says
-          }
-        },
-        "fromAutoCloseable");
+    return acquiring(acquire, AutoCloseable::close, "fromAutoCloseable");
   }
 
   /**
@@ -185,7 +188,7 @@ public final class Resource<A> {
    * A Resource that pairs each value {@code acquire} returns with {@code release} applied to it.
    */
   private static <A> Resource<A> acquiring(
-      Callable<A> acquire, Consumer<? super A> release, String factory) {
+      Callable<A> acquire, Release<? super A> release, String factory) {
     String returnedNull = "acquire returned null in Resource." + factory + ", which is not allowed";
     return new Resource<>(
         () -> {
@@ -417,7 +420,7 @@ public final class Resource<A> {
               try {
                 allocated.release().accept(exit);
               } catch (Throwable failure) {
-                cleanUpAfter(failure, finalizer);
+                Cleanup.afterFailure(failure, finalizer::run);
                 throw failure;
               }
               finalizer.run();
@@ -453,7 +456,7 @@ public final class Resource<A> {
                 try {
                   onFailure.accept(allocated.value());
                 } catch (Throwable failure) {
-                  cleanUpAfter(failure, () -> allocated.release().accept(exit));
+                  Cleanup.afterFailure(failure, () -> allocated.release().accept(exit));
                   throw failure;
                 }
               }
@@ -464,7 +467,7 @@ public final class Resource<A> {
   // ==================== Release Plumbing ====================
 
   /** This Resource with each acquisition's release replaced by what {@code wrap} makes of it. */
-  private Resource<A> wrapRelease(Function<Allocated<A>, Consumer<Exit>> wrap) {
+  private Resource<A> wrapRelease(Function<Allocated<A>, Release<Exit>> wrap) {
     return new Resource<>(
         () -> {
           Allocated<A> allocated = allocate.call();
@@ -472,34 +475,12 @@ public final class Resource<A> {
         });
   }
 
-  /** Releases a held resource as failed, after {@code failure}, as {@link #cleanUpAfter} does. */
-  private static void releaseAfter(Throwable failure, Allocated<?> held) {
-    cleanUpAfter(failure, () -> held.release().accept(Exit.FAILED));
-  }
-
   /**
-   * Runs cleanup after a failure, which stays the one reported: anything the cleanup throws is
-   * suppressed onto it. The interrupt status is cleared while the cleanup runs, so cleanup after a
-   * cancelled use is not cut short, and restored afterwards.
+   * Releases a held resource as failed, after {@code failure}, as {@link Cleanup#afterFailure} runs
+   * cleanup.
    */
-  private static void cleanUpAfter(Throwable failure, Runnable cleanup) {
-    boolean interrupted = Thread.interrupted();
-    try {
-      cleanup.run();
-    } catch (Throwable later) {
-      suppress(failure, later);
-    } finally {
-      if (interrupted) {
-        Thread.currentThread().interrupt();
-      }
-    }
-  }
-
-  /** Suppresses a later failure onto the first, unless it is the same exception. */
-  private static void suppress(Throwable first, Throwable later) {
-    if (later != first) {
-      first.addSuppressed(later);
-    }
+  private static void releaseAfter(Throwable failure, Allocated<?> held) {
+    Cleanup.afterFailure(failure, () -> held.release().accept(Exit.FAILED));
   }
 
   /**
@@ -509,7 +490,7 @@ public final class Resource<A> {
    * reported with {@code earlierFailed}. The loop is the release itself, so a deep composition
    * releases with one stack frame per level.
    */
-  private static Consumer<Exit> releaseInTurn(
+  private static Release<Exit> releaseInTurn(
       String earlierFailed, String lastFailed, Allocated<?>... held) {
     return exit -> {
       @Nullable Throwable failure = null;
@@ -518,7 +499,7 @@ public final class Resource<A> {
           held[i].release().accept(exit);
         } catch (Throwable t) {
           if (failure != null) {
-            suppress(t, failure);
+            Cleanup.suppress(t, failure);
           }
           if (i == held.length - 1) {
             throw new RuntimeException(lastFailed, t);

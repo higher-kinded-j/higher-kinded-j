@@ -463,6 +463,89 @@ class VTaskPathResilienceTest {
           .isInstanceOf(RuntimeException.class)
           .hasMessage("original error");
     }
+
+    @Test
+    @DisplayName("keeps a failing task's exception, with the finaliser's suppressed onto it")
+    void keepsTaskFailureWhenFinalizerThrows() {
+      IllegalStateException taskFailure = new IllegalStateException("use failed");
+      IllegalArgumentException finalizerFailure = new IllegalArgumentException("cleanup failed");
+
+      VTaskPath<String> path =
+          Path.<String>vtask(
+                  () -> {
+                    throw taskFailure;
+                  })
+              .guarantee(
+                  () -> {
+                    throw finalizerFailure;
+                  });
+
+      assertThatThrownBy(path::unsafeRun)
+          .isSameAs(taskFailure)
+          .satisfies(e -> assertThat(e.getSuppressed()).containsExactly(finalizerFailure));
+    }
+
+    @Test
+    @DisplayName("fails a successful task with the finaliser's exception")
+    void failsSuccessfulTaskWithFinalizerException() {
+      IllegalArgumentException finalizerFailure = new IllegalArgumentException("cleanup failed");
+
+      VTaskPath<String> path =
+          Path.vtaskPure("ok")
+              .guarantee(
+                  () -> {
+                    throw finalizerFailure;
+                  });
+
+      assertThatThrownBy(path::unsafeRun)
+          .isSameAs(finalizerFailure)
+          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("reports one exception thrown by both the task and the finaliser once")
+    void sharedExceptionIsNotSuppressedOntoItself() {
+      IllegalStateException shared = new IllegalStateException("shared");
+
+      VTaskPath<String> path =
+          Path.<String>vtask(
+                  () -> {
+                    throw shared;
+                  })
+              .guarantee(
+                  () -> {
+                    throw shared;
+                  });
+
+      assertThatThrownBy(path::unsafeRun)
+          .isSameAs(shared)
+          .satisfies(e -> assertThat(e.getSuppressed()).isEmpty());
+    }
+
+    @Test
+    @DisplayName(
+        "runs the finaliser with the interrupt status cleared after an interrupted task, then"
+            + " restores it")
+    void runsFinalizerUninterruptedAfterInterruptedTask() {
+      AtomicBoolean interruptedDuringFinalizer = new AtomicBoolean(true);
+
+      VTaskPath<String> path =
+          Path.<String>vtask(
+                  () -> {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("interrupted");
+                  })
+              .guarantee(
+                  () -> interruptedDuringFinalizer.set(Thread.currentThread().isInterrupted()));
+
+      try {
+        assertThatThrownBy(path::unsafeRun).hasMessage("interrupted");
+        assertThat(interruptedDuringFinalizer).isFalse();
+        assertThat(Thread.currentThread().isInterrupted()).isTrue();
+      } finally {
+        Thread.interrupted();
+      }
+    }
   }
 
   @Nested

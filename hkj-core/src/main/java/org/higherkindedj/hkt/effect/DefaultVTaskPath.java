@@ -23,6 +23,7 @@ import org.higherkindedj.hkt.resilience.CircuitBreaker;
 import org.higherkindedj.hkt.resilience.Retry;
 import org.higherkindedj.hkt.resilience.RetryPolicy;
 import org.higherkindedj.hkt.trymonad.Try;
+import org.higherkindedj.hkt.util.Cleanup;
 import org.higherkindedj.hkt.vtask.Par;
 import org.higherkindedj.hkt.vtask.VTask;
 import org.higherkindedj.optics.focus.AffinePath;
@@ -315,15 +316,7 @@ final class DefaultVTaskPath<A> implements VTaskPath<A> {
   @Override
   public VTaskPath<A> guarantee(Runnable finalizer) {
     Objects.requireNonNull(finalizer, "finalizer must not be null");
-    return new DefaultVTaskPath<>(
-        VTask.delay(
-            () -> {
-              try {
-                return this.unsafeRun();
-              } finally {
-                finalizer.run();
-              }
-            }));
+    return new DefaultVTaskPath<>(VTask.delay(() -> Cleanup.guarantee(this::unsafeRun, finalizer)));
   }
 
   // ===== Parallel Combinators =====

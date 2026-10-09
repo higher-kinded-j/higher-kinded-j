@@ -147,7 +147,9 @@ IOPath<String> content = IOPath.withResource(
 All three arguments to `bracket` are plain `Supplier`, `Function` and `Consumer`, so a
 resource whose acquisition, use or release throws a checked exception needs the same wrap
 the creation section shows. `bracketIO` and `withResourceIO` take a use function that
-returns an `IOPath`, for when the body is itself an effect.
+returns an `IOPath`, for when the body is itself an effect. When a release or `close()`
+throws, [The bracket Pattern](advanced_topics.md#the-bracket-pattern) says which exception
+is reported.
 
 ---
 
