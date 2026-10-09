@@ -857,8 +857,7 @@ class VStreamCloseAndReplayTest {
             }
 
             @Override
-            @SuppressWarnings(
-                "DataFlowIssue") // null is returned deliberately to break the contract
+            @SuppressWarnings("DataFlowIssue") // close() deliberately returns null
             public VTask<Unit> close() {
               return null;
             }

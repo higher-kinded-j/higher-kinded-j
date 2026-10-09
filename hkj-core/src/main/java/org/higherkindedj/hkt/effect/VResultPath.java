@@ -896,8 +896,8 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * refund vs plain cleanup) is decided from the result, not a side flag.
    *
    * <p>Policies: a typed failure from {@code acquire} skips {@code use} and {@code release}
-   * (nothing was acquired). A defect thrown inside {@code use} - including one thrown while {@code
-   * use} is still <em>constructing</em> its path, before any task runs - is first converted to the
+   * (nothing was acquired). A defect thrown inside {@code use}, including one thrown while {@code
+   * use} is still <em>constructing</em> its path before any task runs, is first converted to the
    * typed channel through {@code onDefect}, so {@code release} observes a typed outcome whenever
    * {@code onDefect} can build one, and the resource is never leaked. If {@code onDefect} itself
    * throws, or returns null, release still runs and sees {@code Left(null)}, so decide on {@code
@@ -905,12 +905,12 @@ public final class VResultPath<E, A> implements Recoverable<E, A>, Deferred<A> {
    * {@code onDefect} threw, the defect suppressed, or with a {@link NullPointerException} whose
    * cause is the defect. A defect thrown by {@code release} itself propagates as a defect, carrying
    * any such pending failure as suppressed. Unlike try-with-resources, which keeps the body's
-   * failure, this reports the release's: {@code release} has already seen the use's outcome as a
-   * value, so its defect is the failure the path has left to report.
+   * failure, this reports the release's: whenever {@code onDefect} can type the use's outcome,
+   * {@code release} has already seen it as a value, so its defect is the failure left to report.
    *
    * <p>Cancellation reaches {@code use} as an {@link InterruptedException}-style defect and is
-   * therefore also typed through {@code onDefect} (release still runs - the {@code Resource}
-   * guarantee). If the pipeline must distinguish cancellation from domain failure, map it to a
+   * therefore also typed through {@code onDefect}, and release still runs, as a {@code Resource}
+   * guarantees. If the pipeline must distinguish cancellation from domain failure, map it to a
    * dedicated error in {@code onDefect}.
    *
    * @param acquire produces the resource; must not be null

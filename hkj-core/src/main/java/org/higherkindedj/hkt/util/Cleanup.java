@@ -15,12 +15,13 @@ import org.jspecify.annotations.Nullable;
  * VTaskPath}, {@code Resource} and {@code VStream} report a failing cleanup through this class, so
  * the rule is the same for all of them. Each keeps its own form for a checked exception, and its
  * own order among several releases, such as the composed releases of a {@code Resource}. {@code
- * VResultPath.bracketOutcome} reports its release's defect instead, since its release has already
- * seen the work's outcome as a value.
+ * VResultPath.bracketOutcome} does not use this class: it reports its release's defect, and runs
+ * its release without clearing the interrupt status.
  *
  * <p>Cleanup after a failure runs with the thread's interrupt status cleared, so cleanup after a
  * cancelled computation is not cut short. The status is restored afterwards, and set if the cleanup
- * throws an {@link InterruptedException}.
+ * itself throws an {@link InterruptedException}; one wrapped in another exception, as a composed
+ * {@code Resource} or a {@code VStream} wraps it, does not set it.
  *
  * <p>An exception that more than one run throws, such as the one a {@code VTask.fail} holds,
  * gathers the suppressed exceptions of every run whose cleanup fails, as it would under
@@ -72,8 +73,8 @@ public final class Cleanup {
   /**
    * Runs cleanup after a failure, which stays the one reported: anything the cleanup throws is
    * suppressed onto it. The caller goes on to throw the failure. The interrupt status is cleared
-   * while the cleanup runs. It is restored afterwards, and set if the cleanup throws an {@link
-   * InterruptedException}, so an interrupt that arrives during the cleanup is not lost.
+   * while the cleanup runs. It is restored afterwards, and set if the cleanup itself throws an
+   * {@link InterruptedException}, so an interrupt that arrives during the cleanup is not lost.
    *
    * @param failure the failure the cleanup follows
    * @param cleanup the cleanup to run

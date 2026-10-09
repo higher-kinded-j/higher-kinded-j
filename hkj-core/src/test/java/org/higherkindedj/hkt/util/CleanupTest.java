@@ -151,9 +151,15 @@ class CleanupTest {
     @Test
     @DisplayName("leaves a clear interrupt status clear")
     void leavesClearInterruptStatusClear() {
-      Cleanup.afterFailure(new IllegalStateException("failed"), () -> {});
+      Thread.interrupted();
 
-      assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      try {
+        Cleanup.afterFailure(new IllegalStateException("failed"), () -> {});
+
+        assertThat(Thread.currentThread().isInterrupted()).isFalse();
+      } finally {
+        Thread.interrupted();
+      }
     }
   }
 

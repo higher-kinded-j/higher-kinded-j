@@ -136,7 +136,7 @@ Try<String> result = riskyOperation.runSafe();
 
 If the release throws as well, the use's exception is still the one reported. The release's exception is added to it as a suppressed exception, as try-with-resources does. After a successful use, a release that throws fails the use with its own exception.
 
-For `fromAutoCloseable`, the release is `close()`, which may throw a checked exception. It fails the use as a failure of the task does: `run()` wraps it in a `VTaskExecutionException`, and `runSafe()` holds it as `close()` threw it. A `Resource` composed with `flatMap` or `and` reports a failed release as a `RuntimeException` instead, whose cause is the exception from the outermost release that threw.
+For `fromAutoCloseable`, the release is `close()`, which may throw a checked exception. The task that `use` returns reports it as it reports any checked failure: `run()` throws it wrapped in a `VTaskExecutionException`, and `runSafe()` returns it unwrapped in a `Try.Failure`. A `Resource` composed with `flatMap` or `and` reports a failed release as a `RuntimeException` instead, whose cause is the exception from the outermost release that threw.
 
 ### Using One Resource Many Times {#using-one-resource-many-times}
 

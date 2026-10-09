@@ -408,7 +408,12 @@ rule.
 
 After a failed use, these methods run the cleanup with the thread's interrupt
 status cleared, so a blocking close is not cut short. They restore the status
-afterwards, and set it if the cleanup throws an `InterruptedException`.
+afterwards.
+
+An exception the path holds, such as the one `Path.vtaskFail(e)` fails with, is
+the same instance on every run. So it gathers the cleanup failure of every run,
+as it would under try-with-resources. Create the exception inside the use to
+keep runs apart.
 
 #### bracketIO for Effectful Use
 
@@ -442,7 +447,9 @@ writer whose final flush fails does not report success. The functions an
 `IOPath` runs cannot throw a checked exception, so after a successful use
 `withResource` wraps one from `close()`. An `IOException` becomes an
 `UncheckedIOException`, and any other checked exception the cause of a
-`RuntimeException`. `getCause()` returns the original.
+`RuntimeException`. `getCause()` returns the original. An `InterruptedException`
+from `close()` also sets the thread's interrupt status, whether the use failed
+or succeeded.
 
 ```java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/effect/advanced/ResourceSafetyBook.java:close_fails}}
@@ -479,7 +486,8 @@ IOPath<Result> computation = fetchData()
 
 `guarantee` runs the finaliser whether `fetchData()` succeeds or fails, and
 reports a finaliser that throws as `bracket` reports
-[a failing release](#the-bracket-pattern).
+[a failing release](#the-bracket-pattern). `VTaskPath.guarantee` reports a
+failing finaliser the same way.
 
 #### guaranteeIO for Effectful Cleanup
 

@@ -76,7 +76,8 @@ import org.jspecify.annotations.Nullable;
  * <p>A Resource never holds null: an acquire, or a function given to {@link #map}, that returns
  * null fails with a {@link NullPointerException}. When a use fails and cleaning up after it fails
  * too, the first failure is the one reported, and every later one is kept among its suppressed
- * exceptions, directly or nested. The same holds between a release and the finalisers added to it.
+ * exceptions, directly or nested, or is already its cause. The same holds between a release and the
+ * finalisers added to it.
  *
  * <p>A Resource composed with {@link #and} or {@link #flatMap} runs every one of its releases even
  * when one throws, and reports a failed release as a {@link RuntimeException} whose cause is the
@@ -150,11 +151,11 @@ public final class Resource<A> {
    * Creates a Resource from an AutoCloseable.
    *
    * <p>The resource's close() method is called automatically after use. An exception from close()
-   * fails the use as a failure of its task does: {@link VTask#run()} throws a checked one wrapped
-   * in a {@link VTaskExecutionException}, and {@link VTask#runSafe()} holds it as close() threw it.
-   * Composed with {@link #flatMap} or {@link #and}, a failed release is reported as the class
-   * documentation describes. When the use has failed already, its failure is the one reported, with
-   * the exception from close() suppressed onto it.
+   * fails the task that {@link #use} returns, as any failure of that task does: {@link VTask#run()}
+   * throws a checked one wrapped in a {@link VTaskExecutionException}, and {@link VTask#runSafe()}
+   * returns it unwrapped. When the use has failed already, its failure is the one reported, with
+   * the exception from close() suppressed onto it. A Resource composed with {@link #flatMap} or
+   * {@link #and} wraps a failed release as the class documentation describes.
    *
    * @param <A> the type of the AutoCloseable resource
    * @param acquire function to acquire the AutoCloseable; must not be null, and must not return
