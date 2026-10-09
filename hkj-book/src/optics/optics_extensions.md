@@ -36,7 +36,13 @@ These extension methods are also available through the [Fluent API](fluent_api.m
 
 ### Safe Access Methods
 
-Where an example in this part reads `profile`, it is Alice's `UserProfile`, holding the id `u1`, the name `Alice`, the email `alice@example.com`, the age `30` and the bio `Software Engineer`.
+The examples in this part read an `Affiliate`, a partner paid a commission on the orders they refer. A newcomer's email, commission and bio may be `null`:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/extensions/ExtensionsBook.java:affiliate}}
+```
+
+Where an example reads `affiliate`, it is Alice, holding the id `a1`, the name `Alice`, the email `alice@example.com`, the commission `10` and the bio `Lighting blogger`.
 
 #### `getMaybe`: Null-Safe Field Access
 
@@ -78,16 +84,16 @@ Apply a modification with validation. Returns `Either.right(updated)` if valid, 
 
 <!-- verify -->
 ```java
-Lens<UserProfile, Integer> ageLens = UserProfileLenses.age();
+Lens<Affiliate, Integer> commissionLens = AffiliateLenses.commission();
 
-Either<String, UserProfile> updated = modifyEither(
-    ageLens,
-    age -> {
-        if (age < 0) return Either.left("Age cannot be negative");
-        if (age > 150) return Either.left("Age must be realistic");
-        return Either.right(age + 1);  // Birthday!
+Either<String, Affiliate> updated = modifyEither(
+    commissionLens,
+    commission -> {
+        if (commission < 0) return Either.left("Commission cannot be negative");
+        if (commission > 50) return Either.left("Commission must be realistic");
+        return Either.right(commission + 1);  // A raise!
     },
-    profile
+    affiliate
 );
 ```
 
@@ -97,16 +103,16 @@ Apply a modification that might throw exceptions. Returns `Try.success(updated)`
 
 <!-- verify -->
 ```java
-Lens<UserProfile, String> emailLens = UserProfileLenses.email();
+Lens<Affiliate, String> emailLens = AffiliateLenses.email();
 
-Try<UserProfile> updated = modifyTry(
+Try<Affiliate> updated = modifyTry(
     emailLens,
     email -> Try.of(() -> updateEmailInDatabase(email)),
-    profile
+    affiliate
 );
 
 updated.match(
-    user -> logger.info("Email updated: {}", user.email()),
+    saved -> logger.info("Email updated: {}", saved.email()),
     error -> logger.error("Update failed", error)
 );
 ```
@@ -117,9 +123,9 @@ Set a new value **only if it passes validation**. Unlike `modifyEither`, you pro
 
 <!-- verify -->
 ```java
-Lens<UserProfile, String> nameLens = UserProfileLenses.name();
+Lens<Affiliate, String> nameLens = AffiliateLenses.name();
 
-Either<String, UserProfile> updated = setIfValid(
+Either<String, Affiliate> updated = setIfValid(
     nameLens,
     name -> {
         if (name.length() < 2) return Either.left("Name must be at least 2 characters");
@@ -127,7 +133,7 @@ Either<String, UserProfile> updated = setIfValid(
         return Either.right(name);
     },
     "Robert",
-    profile
+    affiliate
 );
 ```
 
@@ -135,20 +141,20 @@ Either<String, UserProfile> updated = setIfValid(
 
 <!-- verify -->
 ```java
-Lens<UserProfile, String> nameLens = UserProfileLenses.name();
-Lens<UserProfile, String> emailLens = UserProfileLenses.email();
+Lens<Affiliate, String> nameLens = AffiliateLenses.name();
+Lens<Affiliate, String> emailLens = AffiliateLenses.email();
 
-Either<String, UserProfile> capitalised = modifyEither(
+Either<String, Affiliate> capitalised = modifyEither(
     nameLens,
     name -> Either.right(capitalize(name)),
     original
 );
 
-Either<String, UserProfile> result = capitalised.flatMap(user ->
+Either<String, Affiliate> result = capitalised.flatMap(named ->
     modifyEither(
         emailLens,
         email -> Either.right(email.toLowerCase()),
-        user
+        named
     )
 );
 ```
@@ -166,7 +172,7 @@ import static org.higherkindedj.optics.extensions.TraversalExtensions.*;
 
 ### Extraction Methods
 
-Where an example in this part reads `items`, it is a list of two `OrderItem` lines: `SKU-1`, one at 999.99, pending, and `SKU-2`, two at 29.99, shipped.
+Where an example in this part reads `items`, it is a list of two `LineItem`s: `SKU-1`, one at 999.99, and `SKU-2`, two at 29.99. Where it reads `orders`, it is a list of the chapter's `Order`s in mixed statuses.
 
 #### `getAllMaybe`: Extract All Values
 
@@ -208,7 +214,7 @@ Returns `Validated.valid(updated)` if **all** validations pass, `Validated.inval
 
 <!-- verify -->
 ```java
-Validated<List<String>, List<OrderItem>> result = modifyAllValidated(
+Validated<List<String>, List<LineItem>> result = modifyAllValidated(
     allPrices,
     price -> {
         if (price.compareTo(BigDecimal.ZERO) < 0) {
@@ -240,22 +246,22 @@ Modifies elements where the function returns `Maybe.just(value)`, leaves others 
 
 <!-- verify -->
 ```java
-Lens<OrderItem, String> statusLens = OrderItemLenses.status();
-Traversal<List<OrderItem>, String> allStatuses =
-    Traversals.<OrderItem>forList().andThen(statusLens);
+Lens<Order, OrderStatus> statusLens = OrderLenses.status();
+Traversal<List<Order>, OrderStatus> allStatuses =
+    Traversals.<Order>forList().andThen(statusLens);
 
-// Update only "pending" items
-List<OrderItem> updated = modifyWherePossible(
+// Ship only the PAID orders
+List<Order> updated = modifyWherePossible(
     allStatuses,
-    status -> status.equals("pending")
-        ? Maybe.just("processing")
-        : Maybe.nothing(),  // Leave non-pending unchanged
-    items
+    status -> status == OrderStatus.PAID
+        ? Maybe.just(OrderStatus.SHIPPED)
+        : Maybe.nothing(),  // Leave NEW and SHIPPED orders unchanged
+    orders
 );
 ```
 
 ~~~admonish tip title="When to Use modifyWherePossible"
-Use for **selective updates** where only some elements should be modified, for example, status transitions that only affect items in a certain state.
+Use for **selective updates** where only some elements should be modified, for example, status transitions that only affect orders in a certain state.
 ~~~
 
 ### Analysis Methods
@@ -310,26 +316,26 @@ record OrderApproved(Order order) implements ValidationResult {}
 record OrderRejected(List<String> errors) implements ValidationResult {}
 
 public ValidationResult validateOrder(Order order) {
-    Lens<OrderItem, BigDecimal> priceLens = OrderItemLenses.price();
-    Lens<OrderItem, Integer> quantityLens = OrderItemLenses.quantity();
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
+    Lens<LineItem, Integer> quantityLens = LineItemLenses.quantity();
 
-    Traversal<List<OrderItem>, BigDecimal> allPrices =
-        Traversals.<OrderItem>forList().andThen(priceLens);
-    Traversal<List<OrderItem>, Integer> allQuantities =
-        Traversals.<OrderItem>forList().andThen(quantityLens);
+    Traversal<List<LineItem>, BigDecimal> allPrices =
+        Traversals.<LineItem>forList().andThen(priceLens);
+    Traversal<List<LineItem>, Integer> allQuantities =
+        Traversals.<LineItem>forList().andThen(quantityLens);
 
     // Step 1: Validate all prices (accumulate errors)
     List<String> priceErrors = collectErrors(
         allPrices,
         price -> validatePrice(price),
-        order.items()
+        order.lines()
     );
 
     // Step 2: Validate all quantities (accumulate errors)
     List<String> quantityErrors = collectErrors(
         allQuantities,
         qty -> validateQuantity(qty),
-        order.items()
+        order.lines()
     );
 
     // Step 3: Combine all errors
@@ -342,15 +348,15 @@ public ValidationResult validateOrder(Order order) {
     }
 
     // Step 4: Apply discounts to valid items
-    List<OrderItem> discounted = modifyWherePossible(
+    List<LineItem> discounted = modifyWherePossible(
         allPrices,
         price -> price.compareTo(new BigDecimal("100")) > 0
             ? Maybe.just(price.multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN))
             : Maybe.nothing(),
-        order.items()
+        order.lines()
     );
 
-    return new OrderApproved(new Order(order.orderId(), discounted, order.customerEmail()));
+    return new OrderApproved(OrderLenses.lines().set(discounted, order));
 }
 
 private Either<String, BigDecimal> validatePrice(BigDecimal price) {
@@ -419,12 +425,12 @@ Lens extensions handle `null` **field values**, but not `null` **source objects*
 
 <!-- verify -->
 ```java
-UserProfile profile = null;
-Maybe<String> bio = getMaybe(bioLens, profile);  // NullPointerException!
+Affiliate affiliate = null;
+Maybe<String> bio = getMaybe(bioLens, affiliate);  // NullPointerException!
 
 // Wrap the source in Maybe first
-Maybe<UserProfile> maybeProfile = Maybe.fromNullable(profile);
-Maybe<String> safeBio = maybeProfile.flatMap(p -> getMaybe(bioLens, p));
+Maybe<Affiliate> maybeAffiliate = Maybe.fromNullable(affiliate);
+Maybe<String> safeBio = maybeAffiliate.flatMap(a -> getMaybe(bioLens, a));
 ```
 ~~~
 

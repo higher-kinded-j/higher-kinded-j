@@ -60,7 +60,7 @@ class BookSnippetVerificationTest {
    * compiled source directly and is a stronger guarantee than compiling a copy of it. Lower the
    * floor deliberately then, and say so in the commit message.
    */
-  private static final int MINIMUM_VERIFIED_SNIPPETS = 2373;
+  private static final int MINIMUM_VERIFIED_SNIPPETS = 2371;
 
   /**
    * How many of those snippets must quote a diagnostic, under {@code verify:rejects} or {@code

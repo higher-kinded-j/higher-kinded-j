@@ -154,15 +154,14 @@ Optional<Boolean> isLarge = numberPrism.mapOptional(
 @GeneratePrisms
 sealed interface SourceData permits CsvRow, JsonObject, XmlNode {}
 
-public List<CustomerRecord> extractCustomers(List<SourceData> sources) {
+public List<Customer> extractCustomers(List<SourceData> sources) {
     Prism<SourceData, CsvRow> csvPrism = SourceDataPrisms.csvRow();
 
     return sources.stream()
         .map(source -> csvPrism.mapOptional(
-            csv -> new CustomerRecord(
-                csv.column("customer_id"),
+            csv -> new Customer(
                 csv.column("name"),
-                csv.column("email")
+                new EmailAddress(csv.column("email"))
             ),
             source
         ))
@@ -176,8 +175,8 @@ public Optional<BigDecimal> extractRevenue(DomainEvent event) {
         DomainEventPrisms.orderCompleted();
 
     return orderPrism.mapOptional(
-        order -> order.lineItems().stream()
-            .map(LineItem::totalPrice)
+        order -> order.lines().stream()
+            .map(line -> line.price().multiply(BigDecimal.valueOf(line.quantity())))
             .reduce(BigDecimal.ZERO, BigDecimal::add),
         event
     );
@@ -231,39 +230,39 @@ ConfigValue validated = stringConfig.setWhen(
 );
 ```
 
-**Real-World Example**: Business rule enforcement in order processing:
+**Real-World Example**: Business rule enforcement in quote processing:
 
 <!-- verify -->
 ```java
 @GeneratePrisms
-sealed interface OrderStatus permits Draft, Submitted, Approved, Rejected {}
+sealed interface QuoteStatus permits Draft, Submitted, Approved, Rejected {}
 
-public class OrderProcessor {
+public class QuoteProcessor {
     private static final BigDecimal VIP_THRESHOLD = new BigDecimal("1000");
     private static final double VIP_DISCOUNT_RATE = 0.1;
 
-    private static final Prism<OrderStatus, Submitted> SUBMITTED =
-        OrderStatusPrisms.submitted();
+    private static final Prism<QuoteStatus, Submitted> SUBMITTED =
+        QuoteStatusPrisms.submitted();
 
-    // Only approve orders above minimum value. `setWhen` replaces the focus with
+    // Only approve quotes above minimum value. `setWhen` replaces the focus with
     // another value of the SAME variant, so a move to a different one asks the
     // prism whether it matches and builds the new status itself.
-    public OrderStatus approveIfEligible(
-        OrderStatus status,
-        BigDecimal orderValue,
+    public QuoteStatus approveIfEligible(
+        QuoteStatus status,
+        BigDecimal quoteValue,
         BigDecimal minValue
     ) {
-        return SUBMITTED.matches(status) && orderValue.compareTo(minValue) >= 0
+        return SUBMITTED.matches(status) && quoteValue.compareTo(minValue) >= 0
             ? new Approved(Instant.now(), "AUTO_APPROVED")
             : status;
     }
 
-    // Apply discount only to high-value draft orders
-    public OrderStatus applyVipDiscount(OrderStatus status, Order order) {
-        Prism<OrderStatus, Draft> draftPrism = OrderStatusPrisms.draft();
+    // Apply discount only to high-value draft quotes
+    public QuoteStatus applyVipDiscount(QuoteStatus status, BigDecimal quoteValue) {
+        Prism<QuoteStatus, Draft> draftPrism = QuoteStatusPrisms.draft();
 
         return draftPrism.modifyWhen(
-            draft -> order.totalValue().compareTo(VIP_THRESHOLD) > 0,
+            draft -> quoteValue.compareTo(VIP_THRESHOLD) > 0,
             draft -> draft.withDiscount(VIP_DISCOUNT_RATE),
             status
         );

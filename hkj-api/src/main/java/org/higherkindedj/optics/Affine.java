@@ -152,7 +152,8 @@ public interface Affine<S extends @Nullable Object, A extends @Nullable Object>
   @Override
   default <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
       Function<A, Kind<F, A>> f, S s, Applicative<F> app) {
-    return getOptional(s).map(a -> app.map(newA -> set(newA, s), f.apply(a))).orElse(app.of(s));
+    Optional<@NonNull A> focus = getOptional(s);
+    return focus.isPresent() ? app.map(newA -> set(newA, s), f.apply(focus.get())) : app.of(s);
   }
 
   /**
@@ -315,9 +316,10 @@ public interface Affine<S extends @Nullable Object, A extends @Nullable Object>
       @Override
       public <F extends WitnessArity<TypeArity.Unary>> Kind<F, S> modifyF(
           Function<B, Kind<F, B>> f, S source, Applicative<F> app) {
-        return self.getOptional(source)
-            .map(a -> app.map(newA -> self.set(newA, source), traversal.modifyF(f, a, app)))
-            .orElse(app.of(source));
+        Optional<@NonNull A> focus = self.getOptional(source);
+        return focus.isPresent()
+            ? app.map(newA -> self.set(newA, source), traversal.modifyF(f, focus.get(), app))
+            : app.of(source);
       }
     };
   }

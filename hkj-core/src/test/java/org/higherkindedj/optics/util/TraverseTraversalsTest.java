@@ -142,6 +142,20 @@ class TraverseTraversalsTest {
     }
 
     @Test
+    @DisplayName("should modify the value inside a Just Kind")
+    void shouldModifyValueInJustKind() {
+      Kind<MaybeKind.Witness, String> maybe = MaybeKindHelper.MAYBE.widen(Maybe.just("hello"));
+
+      Traversal<Kind<MaybeKind.Witness, String>, String> traversal =
+          TraverseTraversals.forMaybeKind();
+
+      Kind<MaybeKind.Witness, String> result =
+          Traversals.modify(traversal, String::toUpperCase, maybe);
+
+      assertThat(MaybeKindHelper.MAYBE.narrow(result)).isEqualTo(Maybe.just("HELLO"));
+    }
+
+    @Test
     @DisplayName("should return empty for Nothing Kind")
     void shouldReturnEmptyForNothingKind() {
       Kind<MaybeKind.Witness, String> maybe = MaybeKindHelper.MAYBE.widen(Maybe.nothing());

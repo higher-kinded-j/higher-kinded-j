@@ -9,6 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Customer;
+import org.higherkindedj.example.book.optics.cast.EmailAddress;
+import org.higherkindedj.example.book.optics.cast.LineItem;
+import org.higherkindedj.example.book.optics.cast.LineItemLenses;
+import org.higherkindedj.example.book.optics.cast.Order;
+import org.higherkindedj.example.book.optics.cast.OrderLenses;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.indexed.IndexedLens;
 import org.higherkindedj.optics.indexed.IndexedTraversal;
@@ -22,18 +28,12 @@ import org.higherkindedj.optics.util.IndexedTraversals;
  * value. The page {@code {{#include}}}s the anchored regions, and {@code IndexedAdvancedBookTest}
  * holds the claims the page makes about this code.
  *
- * <p>The page declares each nesting where it uses it, so the orders, items and buyers here are
- * local records inside the method that shows them.
+ * <p>The records are the chapter's cast, imported from its package. The path-tracking example nests
+ * the cast's orders one level deeper, in a local record inside the method that shows it.
  */
 public final class IndexedAdvancedBook {
 
   private IndexedAdvancedBook() {}
-
-  /** An order line, as the page's other examples use it. */
-  record LineItem(String productName, int quantity, BigDecimal price) {}
-
-  /** A customer whose email the audit trail tracks. */
-  record Customer(String name, String email) {}
 
   /** The audit example's updated customer, and the changes it logged. */
   record Audited(Customer updated, List<AuditLog.FieldChange<?>> audit) {}
@@ -46,74 +46,56 @@ public final class IndexedAdvancedBook {
       Pair<String, String> transformed,
       Pair<String, Integer> swapped) {}
 
-  static void pairedIndices() {
+  static void pairedIndices(List<Order> orders) {
     // ANCHOR: paired_indices
-    // Nested structure: List of Orders, each with List of Items
-    record Order(String id, List<LineItem> items) {}
+    // Nested structure: a list of orders, each with its list of lines. The orders here are two:
+    // a laptop and a mouse, then a keyboard, a monitor and two cables.
 
     // First level: indexed traversal for orders
     IndexedTraversal<Integer, List<Order>, Order> ordersIndexed = IndexedTraversals.forList();
 
-    // Second level: lens to items field
-    Lens<Order, List<LineItem>> itemsLens =
-        Lens.of(Order::items, (order, items) -> new Order(order.id(), items));
+    // Second level: lens to the lines field
+    Lens<Order, List<LineItem>> linesLens = OrderLenses.lines();
 
-    // Third level: indexed traversal for items
-    IndexedTraversal<Integer, List<LineItem>, LineItem> itemsIndexed = IndexedTraversals.forList();
+    // Third level: indexed traversal for the lines
+    IndexedTraversal<Integer, List<LineItem>, LineItem> linesIndexed = IndexedTraversals.forList();
 
-    // Compose: orders → items field → each item with PAIRED indices
+    // Compose: orders → lines field → each line with PAIRED indices
     IndexedTraversal<Pair<Integer, Integer>, List<Order>, LineItem> composed =
-        ordersIndexed.andThen(itemsLens.asTraversal()).iandThen(itemsIndexed);
+        ordersIndexed.andThen(linesLens.asTraversal()).iandThen(linesIndexed);
 
-    List<Order> orders =
-        List.of(
-            new Order(
-                "ORD-1",
-                List.of(
-                    new LineItem("Laptop", 1, new BigDecimal("999.99")),
-                    new LineItem("Mouse", 1, new BigDecimal("24.99")))),
-            new Order(
-                "ORD-2",
-                List.of(
-                    new LineItem("Keyboard", 1, new BigDecimal("79.99")),
-                    new LineItem("Monitor", 1, new BigDecimal("299.99")),
-                    new LineItem("Cable", 2, new BigDecimal("9.99")))));
-
-    // Access with paired indices: (order index, item index)
+    // Access with paired indices: (order index, line index)
     List<Pair<Pair<Integer, Integer>, LineItem>> all =
         IndexedTraversals.toIndexedList(composed, orders);
 
     for (Pair<Pair<Integer, Integer>, LineItem> entry : all) {
       Pair<Integer, Integer> indices = entry.first();
       LineItem item = entry.second();
-      System.out.printf(
-          "Order %d, Item %d: %s%n", indices.first(), indices.second(), item.productName());
+      System.out.printf("Order %d, Item %d: %s%n", indices.first(), indices.second(), item.sku());
     }
     // Output:
-    // Order 0, Item 0: Laptop
-    // Order 0, Item 1: Mouse
-    // Order 1, Item 0: Keyboard
-    // Order 1, Item 1: Monitor
-    // Order 1, Item 2: Cable
+    // Order 0, Item 0: LAPTOP
+    // Order 0, Item 1: MOUSE
+    // Order 1, Item 0: KEYBOARD
+    // Order 1, Item 1: MONITOR
+    // Order 1, Item 2: CABLE
     // ANCHOR_END: paired_indices
   }
 
-  static List<LineItem> oneBased(List<LineItem> items) {
+  static List<String> oneBased(List<LineItem> items) {
     // ANCHOR: index_transformation
-    IndexedTraversal<Integer, List<LineItem>, LineItem> zeroIndexed = IndexedTraversals.forList();
+    IndexedTraversal<Integer, List<String>, String> zeroIndexed = IndexedTraversals.forList();
+    List<String> skus = items.stream().map(LineItem::sku).toList();
 
-    List<LineItem> numbered =
+    List<String> numbered =
         IndexedTraversals.imodify(
             zeroIndexed,
-            (zeroBasedIndex, item) -> {
+            (zeroBasedIndex, sku) -> {
               int oneBasedIndex = zeroBasedIndex + 1;
-              return new LineItem(
-                  "Item " + oneBasedIndex + ": " + item.productName(),
-                  item.quantity(),
-                  item.price());
+              return "Item " + oneBasedIndex + ": " + sku;
             },
-            items);
-    // The product names become "Item 1: Laptop", "Item 2: Mouse" and "Item 3: Keyboard"
+            skus);
+    // The labels are "Item 1: LAPTOP", "Item 2: MOUSE" and "Item 3: KEYBOARD"
     // ANCHOR_END: index_transformation
     return numbered;
   }
@@ -130,14 +112,14 @@ public final class IndexedAdvancedBook {
 
     List<LineItem> items =
         List.of(
-            new LineItem("Laptop", 1, new BigDecimal("999.99")), // Index 0, expensive ✓
-            new LineItem("Pen", 1, new BigDecimal("2.99")), // Index 1, cheap ✗
-            new LineItem("Keyboard", 1, new BigDecimal("79.99")), // Index 2, expensive ✓
-            new LineItem("Mouse", 1, new BigDecimal("24.99")), // Index 3, cheap ✗
-            new LineItem("Monitor", 1, new BigDecimal("299.99"))); // Index 4, expensive ✓
+            new LineItem("LAPTOP", 1, new BigDecimal("999.99")), // Index 0, expensive ✓
+            new LineItem("PEN", 1, new BigDecimal("2.99")), // Index 1, cheap ✗
+            new LineItem("KEYBOARD", 1, new BigDecimal("79.99")), // Index 2, expensive ✓
+            new LineItem("MOUSE", 1, new BigDecimal("24.99")), // Index 3, cheap ✗
+            new LineItem("MONITOR", 1, new BigDecimal("299.99"))); // Index 4, expensive ✓
 
     List<Pair<Integer, LineItem>> results = IndexedTraversals.toIndexedList(targeted, items);
-    // Laptop at index 0, Keyboard at 2 and Monitor at 4:
+    // LAPTOP at index 0, KEYBOARD at 2 and MONITOR at 4:
     // all at even positions AND expensive
     // ANCHOR_END: layered_filters
     return results;
@@ -146,15 +128,15 @@ public final class IndexedAdvancedBook {
   static Audited auditTrail() {
     // ANCHOR: audit_usage
     // Usage with indexed lens
-    IndexedLens<String, Customer, String> emailLens =
-        IndexedLens.of("email", Customer::email, (c, email) -> new Customer(c.name(), email));
+    IndexedLens<String, Customer, String> nameLens =
+        IndexedLens.of("name", Customer::name, (c, name) -> new Customer(name, c.email()));
 
     List<AuditLog.FieldChange<?>> audit = new ArrayList<>();
 
-    Customer customer = new Customer("Alice", "alice@old.com");
+    Customer customer = new Customer("Ada", new EmailAddress("ada@example.com"));
 
     Customer updated =
-        emailLens.imodify(AuditLog.loggedModification(email -> "alice@new.com", audit), customer);
+        nameLens.imodify(AuditLog.loggedModification(name -> "Ada Lovelace", audit), customer);
 
     // Check audit log
     for (AuditLog.FieldChange<?> change : audit) {
@@ -163,58 +145,50 @@ public final class IndexedAdvancedBook {
           change.fieldName(), change.oldValue(), change.newValue(), change.timestamp());
     }
     // Output, ending with the instant the change was made, which differs on every run:
-    // Field 'email' changed from alice@old.com to alice@new.com at ...
+    // Field 'name' changed from Ada to Ada Lovelace at ...
     // ANCHOR_END: audit_usage
     return new Audited(updated, audit);
   }
 
-  static void pathTracking() {
+  static void pathTracking(List<Order> adasOrders) {
     // ANCHOR: path_tracking
-    // Nested structure with multiple levels
-    record Item(String name, BigDecimal price) {}
-    record Order(List<Item> items) {}
-    record Buyer(String name, List<Order> orders) {}
+    // Nested structure with multiple levels: each history's orders, each order's lines
+    record OrderHistory(List<Order> orders) {}
 
     // Build an indexed path through the structure
-    IndexedTraversal<Integer, List<Buyer>, Buyer> buyersIdx = IndexedTraversals.forList();
+    IndexedTraversal<Integer, List<OrderHistory>, OrderHistory> historiesIdx =
+        IndexedTraversals.forList();
 
-    Lens<Buyer, List<Order>> ordersLens = Lens.of(Buyer::orders, (b, o) -> new Buyer(b.name(), o));
+    Lens<OrderHistory, List<Order>> ordersLens =
+        Lens.of(OrderHistory::orders, (history, orders) -> new OrderHistory(orders));
 
     IndexedTraversal<Integer, List<Order>, Order> ordersIdx = IndexedTraversals.forList();
 
-    Lens<Order, List<Item>> itemsLens = Lens.of(Order::items, (order, items) -> new Order(items));
+    Lens<Order, List<LineItem>> linesLens = OrderLenses.lines();
 
-    IndexedTraversal<Integer, List<Item>, Item> itemsIdx = IndexedTraversals.forList();
+    IndexedTraversal<Integer, List<LineItem>, LineItem> linesIdx = IndexedTraversals.forList();
 
-    Lens<Item, BigDecimal> priceLens =
-        Lens.of(Item::price, (item, price) -> new Item(item.name(), price));
+    Lens<LineItem, BigDecimal> priceLens = LineItemLenses.price();
 
     // Compose the full indexed path
-    IndexedTraversal<Pair<Pair<Integer, Integer>, Integer>, List<Buyer>, BigDecimal> fullPath =
-        buyersIdx
-            .andThen(ordersLens.asTraversal())
-            .iandThen(ordersIdx)
-            .andThen(itemsLens.asTraversal())
-            .iandThen(itemsIdx)
-            .andThen(priceLens.asTraversal());
+    IndexedTraversal<Pair<Pair<Integer, Integer>, Integer>, List<OrderHistory>, BigDecimal>
+        fullPath =
+            historiesIdx
+                .andThen(ordersLens.asTraversal())
+                .iandThen(ordersIdx)
+                .andThen(linesLens.asTraversal())
+                .iandThen(linesIdx)
+                .andThen(priceLens.asTraversal());
 
-    List<Buyer> buyers =
-        List.of(
-            new Buyer(
-                "Ada",
-                List.of(
-                    new Order(
-                        List.of(
-                            new Item("Laptop", new BigDecimal("999.99")),
-                            new Item("Mouse", new BigDecimal("24.99")))),
-                    new Order(List.of(new Item("Keyboard", new BigDecimal("79.99")))))));
+    // One customer, Ada, with two orders: a laptop and a mouse, then a keyboard
+    List<OrderHistory> histories = List.of(new OrderHistory(adasOrders));
 
     // Modify with full path visibility
-    List<Buyer> updated =
+    List<OrderHistory> updated =
         IndexedTraversals.imodify(
             fullPath,
             (indices, price) -> {
-              int buyerIdx = indices.first().first();
+              int customerIdx = indices.first().first();
               int orderIdx = indices.first().second();
               int itemIdx = indices.second();
               // 10% increase, rounded back to pence
@@ -222,16 +196,16 @@ public final class IndexedAdvancedBook {
                   price.multiply(new BigDecimal("1.1")).setScale(2, RoundingMode.HALF_EVEN);
 
               System.out.printf(
-                  "Updating price at [buyer=%d, order=%d, item=%d]: %.2f -> %.2f%n",
-                  buyerIdx, orderIdx, itemIdx, price, raised);
+                  "Updating price at [history=%d, order=%d, item=%d]: %.2f -> %.2f%n",
+                  customerIdx, orderIdx, itemIdx, price, raised);
 
               return raised;
             },
-            buyers);
+            histories);
     // Output shows the complete path to every modified price:
-    // Updating price at [buyer=0, order=0, item=0]: 999.99 -> 1099.99
-    // Updating price at [buyer=0, order=0, item=1]: 24.99 -> 27.49
-    // Updating price at [buyer=0, order=1, item=0]: 79.99 -> 87.99
+    // Updating price at [history=0, order=0, item=0]: 999.99 -> 1099.99
+    // Updating price at [history=0, order=0, item=1]: 24.99 -> 27.49
+    // Updating price at [history=0, order=1, item=0]: 79.99 -> 87.99
     // ANCHOR_END: path_tracking
   }
 

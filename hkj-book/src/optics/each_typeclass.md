@@ -200,27 +200,28 @@ The Focus DSL provides an `.each(Each)` method on `FocusPath`, `AffinePath`, and
 
 <!-- verify -->
 ```java
-record User(String name, List<Order> orders) {}
-record Order(String id, Map<String, Integer> items) {}
+// A depot's bays, each holding its stock by SKU
+record Depot(String name, List<Bay> bays) {}
+record Bay(String label, Map<String, Integer> stock) {}
 
 // Create lenses
-Lens<User, List<Order>> ordersLens = Lens.of(User::orders, (u, o) -> new User(u.name(), o));
-Lens<Order, Map<String, Integer>> itemsLens = Lens.of(Order::items, (o, i) -> new Order(o.id(), i));
+Lens<Depot, List<Bay>> baysLens = Lens.of(Depot::bays, (d, s) -> new Depot(d.name(), s));
+Lens<Bay, Map<String, Integer>> stockLens = Lens.of(Bay::stock, (s, m) -> new Bay(s.label(), m));
 
 // Navigate using Each instances
-FocusPath<User, List<Order>> userOrders = FocusPath.of(ordersLens);
+FocusPath<Depot, List<Bay>> depotBays = FocusPath.of(baysLens);
 
-// Use listEach to traverse orders
-TraversalPath<User, Order> allOrders = userOrders.each(EachInstances.listEach());
+// Use listEach to traverse the bays
+TraversalPath<Depot, Bay> allBays = depotBays.each(EachInstances.listEach());
 
 // Continue navigation
-TraversalPath<User, Map<String, Integer>> allItems = allOrders.via(itemsLens);
+TraversalPath<Depot, Map<String, Integer>> allStock = allBays.via(stockLens);
 
-// Use mapValuesEach to traverse item quantities
-TraversalPath<User, Integer> allQuantities = allItems.each(EachInstances.mapValuesEach());
+// Use mapValuesEach to traverse each SKU's stock level
+TraversalPath<Depot, Integer> allLevels = allStock.each(EachInstances.mapValuesEach());
 
-// Now modify all quantities across all orders
-User updated = allQuantities.modifyAll(qty -> qty * 2, user);
+// Now restock every SKU in every bay
+Depot restocked = allLevels.modifyAll(level -> level + 10, depot);
 ```
 
 This is particularly useful when the container type isn't a standard `List` that `.each()` recognises automatically.

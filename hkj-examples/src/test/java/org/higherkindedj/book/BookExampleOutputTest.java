@@ -611,6 +611,10 @@ class BookExampleOutputTest {
               "optics-folds-example-output.txt.golden",
               false),
           new Transcript(
+              "org.higherkindedj.example.optics.LensUsageExample",
+              "optics-lenses-example-output.txt.golden",
+              false),
+          new Transcript(
               "org.higherkindedj.example.optics.IsoUsageExample",
               "optics-iso-example-output.txt.golden",
               false),

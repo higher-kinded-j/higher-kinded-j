@@ -20,8 +20,8 @@ import org.higherkindedj.optics.focus.FocusPath;
  *   <li>Fluent cross-type navigation: {@code CompanyFocus.headquarters().city()}
  *   <li>Navigator delegate methods: {@code get()}, {@code set()}, {@code modify()}
  *   <li>Choosing which fields get navigators with {@code includeFields} and {@code excludeFields}
- *   <li>What {@code maxNavigatorDepth} changes: only {@code maxNavigatorDepth = 1} changes the
- *       generated code
+ *   <li>What {@code maxNavigatorDepth} changes: only a value of 1 or less changes the generated
+ *       code
  *   <li>Composing with {@code .via()} from a navigator's underlying path
  *   <li>Using {@code widenCollections = true} to auto-widen SPI ZERO_OR_MORE types
  *   <li>SPI generator priority for resolving conflicts between overlapping generators
@@ -77,9 +77,9 @@ public class NavigatorExample {
    * navigator that the {@code Focus} class of the record it leaves declares for that field: {@code
    * mainDivision()} returns {@code OrganisationFocus.MainDivisionNavigator}, and its {@code
    * department()} returns {@code DivisionFocus.DepartmentNavigator}. Each navigator is generated
-   * once, in that one class, so the generated code is the same at every value above 1. Only {@code
-   * maxNavigatorDepth = 1} changes the generated code: it makes a navigator's own navigation
-   * methods return plain paths.
+   * once, in that one class, so the generated code is the same at every value above 1. Only a value
+   * of 1 or less changes the generated code: it makes a navigator's own navigation methods return
+   * plain paths.
    */
   @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)
   public record Organisation(String name, Division mainDivision) {}
@@ -397,10 +397,10 @@ public class NavigatorExample {
    * Demonstrates what {@code maxNavigatorDepth} does, and does not, change.
    *
    * <p>With any value above 1, the default 3 included, each hop into another navigable record
-   * returns the navigator declared in the {@code Focus} class of the record the hop leaves, so the
-   * chain runs on to the leaf. Only {@code maxNavigatorDepth = 1} changes the generated code: a
-   * navigator's own navigation methods then return plain paths, and a further hop is composed with
-   * {@code .via()}.
+   * returns the navigator declared in the {@code Focus} class of the record the hop leaves, so
+   * depth ends no chain; a hop that widens the path still does. Only a value of 1 or less changes
+   * the generated code: a navigator's own navigation methods then return plain paths, and a further
+   * hop is composed with {@code .via()}.
    *
    * <pre>{@code
    * @GenerateFocus(generateNavigators = true, maxNavigatorDepth = 2)

@@ -235,7 +235,7 @@ public class ExternalLensGenerator {
             ClassName.get(Lens.class), recordTypeName, componentTypeName.box());
 
     MethodSpec.Builder methodBuilder =
-        MethodSpec.methodBuilder(field.name())
+        MethodSpec.methodBuilder(ProcessorUtils.escapeKeyword(field.name()))
             .addJavadoc(
                 "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
                     + "@return A non-null {@code Lens<$T, $T>}.",
@@ -280,7 +280,7 @@ public class ExternalLensGenerator {
         ParameterizedTypeName.get(ClassName.get(Lens.class), classTypeName, fieldTypeName.box());
 
     MethodSpec.Builder methodBuilder =
-        MethodSpec.methodBuilder(field.name())
+        MethodSpec.methodBuilder(ProcessorUtils.escapeKeyword(field.name()))
             .addJavadoc(
                 "Creates a {@link $T} for the {@code $L} field of a {@link $T}.\n\n"
                     + "@return A non-null {@code Lens<$T, $T>}.",
@@ -340,7 +340,7 @@ public class ExternalLensGenerator {
                     + "@return A new, updated {@code $T} instance.",
                 typeName,
                 field.name(),
-                field.name(),
+                ProcessorUtils.escapeKeyword(field.name()),
                 typeName,
                 parameterName,
                 field.name(),
@@ -361,14 +361,15 @@ public class ExternalLensGenerator {
             .collect(Collectors.joining(", "));
 
     if (typeArguments.isEmpty()) {
-      methodBuilder.addStatement("return $L().set($L, source)", field.name(), parameterName);
+      methodBuilder.addStatement(
+          "return $L().set($L, source)", ProcessorUtils.escapeKeyword(field.name()), parameterName);
     } else {
       // $T, not the simple name: a type parameter named like the companion would shadow it.
       methodBuilder.addStatement(
           "return $T.<$L>$L().set($L, source)",
           lensesClass,
           typeArguments,
-          field.name(),
+          ProcessorUtils.escapeKeyword(field.name()),
           parameterName);
     }
 

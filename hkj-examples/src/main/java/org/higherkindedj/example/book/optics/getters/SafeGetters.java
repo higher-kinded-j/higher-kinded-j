@@ -5,6 +5,7 @@ package org.higherkindedj.example.book.optics.getters;
 import static org.higherkindedj.optics.extensions.GetterExtensions.getMaybe;
 
 import java.util.function.Function;
+import org.higherkindedj.example.book.optics.cast.Address;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.optics.Getter;
 import org.jspecify.annotations.Nullable;
@@ -36,9 +37,6 @@ public class SafeGetters {
 }
 
 // ANCHOR_END: safe_getters
-
-/** The page's address, as its earlier sections declare it. */
-record Address(String street, String city, String zipCode, String country) {}
 
 /** The page's person, whose address may be missing. */
 record Person(String firstName, String lastName, int age, @Nullable Address address) {}

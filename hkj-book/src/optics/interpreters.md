@@ -616,7 +616,7 @@ Dataset result = OpticInterpreters.direct().run(optimised);
 // Development: Mock interpreter
 MockOpticInterpreter mockInterp = new MockOpticInterpreter(op -> mockOrder);
 Order mockResult = mockInterp.run(orderProcessing);
-assert mockResult.status() == OrderStatus.COMPLETED;
+assert mockResult.status() == OrderStatus.SHIPPED;
 
 // Staging: Validation interpreter
 ValidationOpticInterpreter.ValidationResult validation =

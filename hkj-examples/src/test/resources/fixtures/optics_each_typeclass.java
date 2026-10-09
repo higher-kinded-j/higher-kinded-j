@@ -1,7 +1,8 @@
 // Fixture for hkj-book/src/optics/each_typeclass.md
 //
-// The page catalogues the Each instances and then walks a user's orders, products and projects
-// through them. Those models are declared here; a snippet that shows one shadows this copy.
+// The page catalogues the Each instances and then walks a depot's bays, a list of orders, products
+// and a user's projects through them. The orders are the chapter cast's Order, imported from its
+// package; the other models are declared here, and a snippet that shows one shadows this copy.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -18,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
+import org.higherkindedj.example.book.optics.cast.Order;
 import org.higherkindedj.hkt.Applicative;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Semigroups;
@@ -48,7 +50,10 @@ record AppError(String message) {}
 
 record Value(String value) {}
 
-record Order(String id, Map<String, Integer> items) {}
+// A depot's bays, each holding its stock by SKU, for the Focus DSL section.
+record Depot(String name, List<Bay> bays) {}
+
+record Bay(String label, Map<String, Integer> stock) {}
 
 record Product(String name, BigDecimal price) {
 
@@ -71,7 +76,7 @@ record Task(String title, boolean reviewed) {
 
 record Project(String name, Map<String, Task> tasks) {}
 
-record User(String name, List<Order> orders) {}
+record User(String name, List<Project> projects) {}
 
 class Fixture {
 
@@ -85,6 +90,8 @@ class Fixture {
   }
 
   static final User user = sample();
+
+  static final Depot depot = sample();
 
   static final List<Order> orders = List.of();
 

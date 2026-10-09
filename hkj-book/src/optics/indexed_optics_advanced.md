@@ -22,11 +22,11 @@ When you compose two indexed optics, the indices form a **pair** representing th
 ```mermaid
 flowchart TD
     accTitle: Two indexed traversals composed
-    accDescr: An indexed traversal over a list of orders, composed through each order's items lens and then with iandThen onto an indexed traversal over a list of line items, focuses each LineItem paired with a Pair of the outer index and the inner one.
+    accDescr: An indexed traversal over a list of orders, composed through each order's lines lens and then with iandThen onto an indexed traversal over a list of line items, focuses each LineItem paired with a Pair of the outer index and the inner one.
     A@{ shape: st-rect, label: "IndexedTraversal&lt;Integer, List&lt;Order&gt;, Order&gt;" }
     B@{ shape: st-rect, label: "IndexedTraversal&lt;Integer,<br/>List&lt;LineItem&gt;, LineItem&gt;" }
     R["Pair&lt;Pair&lt;Integer, Integer&gt;, LineItem&gt;<br/>the outer index and the inner one,<br/>kept together"]
-    A -->|"itemsLens,<br/>then iandThen"| B --> R
+    A -->|"linesLens,<br/>then iandThen"| B --> R
 
     classDef rw fill:#a6d189,stroke:#40a02b,color:#232634
     classDef out fill:#a6d189,stroke:#40a02b,color:#232634
@@ -38,11 +38,11 @@ Each item arrives carrying the whole path that reached it, outer index first:
 
 | Path | Item |
 |---|---|
-| `(0, 0)` | `Laptop` |
-| `(0, 1)` | `Mouse` |
-| `(1, 0)` | `Keyboard` |
-| `(1, 1)` | `Monitor` |
-| `(1, 2)` | `Cable` |
+| `(0, 0)` | `LAPTOP` |
+| `(0, 1)` | `MOUSE` |
+| `(1, 0)` | `KEYBOARD` |
+| `(1, 1)` | `MONITOR` |
+| `(1, 2)` | `CABLE` |
 
 ``` java
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/indexed/IndexedAdvancedBook.java:paired_indices}}
@@ -174,7 +174,7 @@ What each manual pattern becomes with indexed optics:
 | Scattered position logic | Composable indexed transformations |
 
 ~~~admonish info title="Key Takeaways"
-* **`iandThen` pairs the indices**: composing indexed traversals yields `Pair<I, J>` paths, so "customer 0, order 1, item 2" is a value, not a log line
+* **`iandThen` pairs the indices**: composing indexed traversals yields `Pair<I, J>` paths, so "history 0, order 1, item 2" is a value, not a log line
 * **Transform indices inside `imodify`**: there is no separate re-indexing combinator, and none is needed
 * **Layered filters compose**: `filterIndex` for position, `filtered` for value, `filteredWithIndex` for both at once
 * **`IndexedLens` powers audit trails**: the field name arrives with the old value, so change logging needs no reflection

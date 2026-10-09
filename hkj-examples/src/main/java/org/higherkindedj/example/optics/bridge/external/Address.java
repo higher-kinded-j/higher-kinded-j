@@ -7,7 +7,9 @@ import java.util.Objects;
 /**
  * An immutable Address value object following the Immutables library style.
  *
- * <p>This class simulates what the Immutables annotation processor generates from:
+ * <p>It is the Optics chapter's {@code Address}, with the cast's three components, in the form an
+ * Immutables module gives it. This class simulates what the Immutables annotation processor
+ * generates from:
  *
  * <pre>{@code
  * @Value.Immutable
@@ -15,7 +17,6 @@ import java.util.Objects;
  *     String street();
  *     String city();
  *     String postcode();
- *     String country();
  * }
  * }</pre>
  *
@@ -32,13 +33,11 @@ public final class Address {
   private final String street;
   private final String city;
   private final String postcode;
-  private final String country;
 
-  private Address(String street, String city, String postcode, String country) {
+  private Address(String street, String city, String postcode) {
     this.street = Objects.requireNonNull(street, "street");
     this.city = Objects.requireNonNull(city, "city");
     this.postcode = Objects.requireNonNull(postcode, "postcode");
-    this.country = Objects.requireNonNull(country, "country");
   }
 
   // Accessor methods (Immutables style - no "get" prefix)
@@ -54,25 +53,17 @@ public final class Address {
     return postcode;
   }
 
-  public String country() {
-    return country;
-  }
-
   // Wither methods - return new instance with one field changed
   public Address withStreet(String street) {
-    return new Address(street, this.city, this.postcode, this.country);
+    return new Address(street, this.city, this.postcode);
   }
 
   public Address withCity(String city) {
-    return new Address(this.street, city, this.postcode, this.country);
+    return new Address(this.street, city, this.postcode);
   }
 
   public Address withPostcode(String postcode) {
-    return new Address(this.street, this.city, postcode, this.country);
-  }
-
-  public Address withCountry(String country) {
-    return new Address(this.street, this.city, this.postcode, country);
+    return new Address(this.street, this.city, postcode);
   }
 
   // Builder pattern
@@ -86,26 +77,23 @@ public final class Address {
     if (!(o instanceof Address address)) return false;
     return street.equals(address.street)
         && city.equals(address.city)
-        && postcode.equals(address.postcode)
-        && country.equals(address.country);
+        && postcode.equals(address.postcode);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(street, city, postcode, country);
+    return Objects.hash(street, city, postcode);
   }
 
   @Override
   public String toString() {
-    return "Address{street='%s', city='%s', postcode='%s', country='%s'}"
-        .formatted(street, city, postcode, country);
+    return "Address{street='%s', city='%s', postcode='%s'}".formatted(street, city, postcode);
   }
 
   public static final class Builder {
     private String street;
     private String city;
     private String postcode;
-    private String country;
 
     public Builder street(String street) {
       this.street = street;
@@ -122,13 +110,8 @@ public final class Address {
       return this;
     }
 
-    public Builder country(String country) {
-      this.country = country;
-      return this;
-    }
-
     public Address build() {
-      return new Address(street, city, postcode, country);
+      return new Address(street, city, postcode);
     }
   }
 }

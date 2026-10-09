@@ -1,8 +1,8 @@
 // Fixture for hkj-book/src/optics/indexed_optics.md
 //
-// The page numbers the line items of an order and keys its metadata, and reaches for a product
-// list to say when the index does not matter. The models are declared here; the snippet that shows
-// them shadows this copy.
+// The page numbers the lines of the chapter cast's Order and keys the metadata kept beside it, and
+// reaches for a product list to say when the index does not matter. The cast comes from its package,
+// through the on-demand import; the product list is declared here.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -19,11 +19,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
+import org.higherkindedj.example.book.optics.cast.*;
 import org.higherkindedj.optics.EachIndexed;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.each.EachInstances;
 import org.higherkindedj.optics.indexed.IndexedFold;
 import org.higherkindedj.optics.indexed.IndexedLens;
@@ -31,16 +31,6 @@ import org.higherkindedj.optics.indexed.IndexedTraversal;
 import org.higherkindedj.optics.indexed.Pair;
 import org.higherkindedj.optics.util.IndexedTraversals;
 import org.higherkindedj.optics.util.Traversals;
-
-@GenerateLenses
-record LineItem(String productName, int quantity, BigDecimal price) {}
-
-@GenerateLenses
-@GenerateTraversals
-record Order(String orderId, List<LineItem> items, Map<String, String> metadata) {}
-
-@GenerateLenses
-record Customer(String name, String email) {}
 
 @GenerateLenses
 record Product(String name, BigDecimal price, String shipping) {
@@ -52,16 +42,21 @@ record Product(String name, BigDecimal price, String shipping) {
 
 class Fixture {
 
+  /** A value the page names but does not build: snippets are compiled, never run. */
+  static <A> A sample() {
+    throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
+  }
+
   static final List<LineItem> items =
       List.of(
-          new LineItem("Laptop", 1, new BigDecimal("999.99")),
-          new LineItem("Mouse", 2, new BigDecimal("24.99")),
-          new LineItem("Keyboard", 1, new BigDecimal("79.99")));
+          new LineItem("LAPTOP", 1, new BigDecimal("999.99")),
+          new LineItem("MOUSE", 2, new BigDecimal("24.99")),
+          new LineItem("KEYBOARD", 1, new BigDecimal("79.99")));
 
   static final Map<String, String> metadata =
       Map.of("priority", "express", "gift-wrap", "true", "delivery-note", "Leave at door");
 
-  static final Order order = new Order("ORD-1", items, metadata);
+  static final Order order = sample();
 
   static final List<Order> orders = List.of(order);
 

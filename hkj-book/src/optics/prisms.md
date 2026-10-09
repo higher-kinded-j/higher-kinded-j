@@ -71,6 +71,8 @@ Just as with lenses, we annotate our `sealed interface` with **`@GeneratePrisms`
 // JsonValuePrisms.jsonObject() -> Prism<JsonValue, JsonObject>
 ```
 
+Each method takes the camelCase form of the subtype's name, or of the constant's name on an `enum`. A form that would be a Java keyword or literal (`true`, `false`, `null`) takes a trailing underscore: `@GeneratePrisms` on an enum like the cast's `OrderStatus` would give `OrderStatusPrisms.new_()` for its `NEW` constant.
+
 #### Customising the Generated Package
 
 By default, generated classes are placed in the same package as the annotated type. You can specify a different package using the `targetPackage` attribute:

@@ -24,15 +24,20 @@ An affine plays the part of an accessor that returns `Optional`, paired with a c
 
 ## The Scenario: Optional Fields in Records
 
-Modern Java applications frequently use `Optional<T>` to represent values that may be absent. Consider a user profile with optional contact information:
+Modern Java applications frequently use `Optional<T>` to represent values that may be absent. The chapter's customer profile has an optional nickname and an optional second email:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/CustomerProfile.java:customer_profile}}
+```
+
+A product review may be anonymous, so its author is optional too:
 
 <!-- verify -->
 ```java
-record UserProfile(String username, Optional<ContactInfo> contact) {}
-record ContactInfo(String email, Optional<String> phone) {}
+record Review(String sku, Optional<CustomerProfile> author) {}
 ```
 
-**Our Goal:** We need to safely access and update the phone number, which is doubly optional: the contact info might not exist, and even if it does, the phone number might be absent.
+**Our Goal:** We need to safely access and update the reviewer's nickname, which is doubly optional: the review might be anonymous, and even if it is not, its author might have no nickname.
 
 ---
 
@@ -360,9 +365,9 @@ String hostOf(Config config) {
 }
 
 // Verbose: repeated null checks, on a legacy model whose fields may be null
-String postcodeOf(LegacyUser user) {
-    if (user.address() != null && user.address().postcode() != null) {
-        return user.address().postcode();
+String nicknameOf(LegacyReview review) {
+    if (review.author() != null && review.author().nickname() != null) {
+        return review.author().nickname();
     }
     return "";
 }
@@ -385,8 +390,8 @@ Optional<String> timeout = timeoutAffine.mapOptional(Object::toString, config);
 String value = databaseAffine.getOrElse(defaultSettings, config).host();
 
 // Composable: build reusable optics
-Affine<User, String> postcodeAffine = UserOptics.POSTCODE;
-Optional<String> postcode = postcodeAffine.getOptional(user);
+Affine<Review, String> nicknameAffine = ReviewOptics.AUTHOR_NICKNAME;
+Optional<String> nickname = nicknameAffine.getOptional(review);
 ```
 
 ---

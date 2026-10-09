@@ -81,9 +81,13 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    *
    * <pre>{@code
    * // Sum all prices
-   * Monoid<Integer> sumMonoid = Monoid.of(0, Integer::sum);
-   * int totalPrice = itemsFold.foldMap(sumMonoid, Item::price, order);
+   * int totalPrice = itemsFold.foldMap(Monoids.integerAddition(), Item::price, order);
    * }</pre>
+   *
+   * <p>{@link #preview}, {@link #find}, {@link #exists}, {@link #all} and {@link #isEmpty} stop a
+   * fold at their answer by throwing from {@code f}, so an implementation should let an exception
+   * from {@code f} pass out of {@code foldMap} unchanged. They take the first focus {@code f} is
+   * called with as the first focus, so an implementation calls {@code f} in order, on one thread.
    *
    * @param monoid The {@link Monoid} used to combine the mapped values.
    * @param f The function to map each focused part {@code A} to the monoidal type {@code M}.
@@ -173,7 +177,8 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    * Returns the first focused part, if any.
    *
    * <p>An {@link Optional} cannot hold {@code null}, so a null first focus reads as absent. For the
-   * first focus that is not null, use {@code find(Objects::nonNull, source)}.
+   * first focus that is not null, use {@code find(Objects::nonNull, source)}. The fold stops at the
+   * first focus.
    *
    * <p>Example:
    *
@@ -186,10 +191,8 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    *     there are no focuses or the first is null.
    */
   default Optional<@NonNull A> preview(S source) {
-    // The outer Optional says a focus was seen, the inner holds it: the first focus wins, null or
-    // not, and no later focus is kept.
-    return foldMap(firstOptionalMonoid(), a -> Optional.of(Optional.ofNullable(a)), source)
-        .flatMap(Function.identity());
+    // The first focus wins, null or not, so a null one reads as absent.
+    return Optional.ofNullable(FoldSearch.first(this, a -> true, source).focus());
   }
 
   /**
@@ -202,7 +205,8 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    * }</pre>
    *
    * <p>An {@link Optional} cannot hold {@code null}, so a null focus is passed over even when the
-   * predicate accepts it: the result is the first match that is not null.
+   * predicate accepts it: the result is the first match that is not null. The fold stops at that
+   * match, so the predicate is not called on any focus after it.
    *
    * @param predicate The predicate to test each focused part.
    * @param source The source structure.
@@ -210,14 +214,12 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    *     no part matches.
    */
   default Optional<@NonNull A> find(Predicate<? super A> predicate, S source) {
-    return foldMap(
-        firstOptionalMonoid(),
-        a -> predicate.test(a) ? Optional.ofNullable(a) : Optional.empty(),
-        source);
+    return Optional.ofNullable(
+        FoldSearch.first(this, a -> predicate.test(a) && a != null, source).focus());
   }
 
   /**
-   * Checks if there are no focused parts in the structure.
+   * Checks if there are no focused parts in the structure. The fold stops at the first focus.
    *
    * <p>Example:
    *
@@ -229,7 +231,7 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    * @return {@code true} if there are no focused parts, {@code false} otherwise.
    */
   default boolean isEmpty(S source) {
-    return length(source) == 0;
+    return !FoldSearch.first(this, a -> true, source).found();
   }
 
   /**
@@ -249,7 +251,8 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
   }
 
   /**
-   * Checks if any focused part matches the given predicate.
+   * Checks if any focused part matches the given predicate. The fold stops at the first match, so
+   * the predicate is not called on any focus after it.
    *
    * <p>Example:
    *
@@ -262,11 +265,12 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    * @return {@code true} if at least one focused part matches, {@code false} otherwise.
    */
   default boolean exists(Predicate<? super A> predicate, S source) {
-    return foldMap(anyBooleanMonoid(), predicate::test, source);
+    return FoldSearch.first(this, predicate, source).found();
   }
 
   /**
-   * Checks if all focused parts match the given predicate.
+   * Checks if all focused parts match the given predicate. The fold stops at the first focus that
+   * does not match, so the predicate is not called on any focus after it.
    *
    * <p>Example:
    *
@@ -280,7 +284,7 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
    *     false} otherwise.
    */
   default boolean all(Predicate<? super A> predicate, S source) {
-    return foldMap(allBooleanMonoid(), predicate::test, source);
+    return !FoldSearch.first(this, a -> !predicate.test(a), source).found();
   }
 
   /**
@@ -518,26 +522,6 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
   // Private helper monoids to reduce code duplication
 
   /**
-   * Returns a monoid that keeps the first non-empty Optional.
-   *
-   * @param <T> The type contained in the Optional.
-   * @return A monoid for finding the first element.
-   */
-  private static <T> Monoid<Optional<T>> firstOptionalMonoid() {
-    return new Monoid<>() {
-      @Override
-      public Optional<T> empty() {
-        return Optional.empty();
-      }
-
-      @Override
-      public Optional<T> combine(Optional<T> a, Optional<T> b) {
-        return a.isPresent() ? a : b;
-      }
-    };
-  }
-
-  /**
    * Returns a monoid for summing integers.
    *
    * @return A monoid for integer addition.
@@ -552,44 +536,6 @@ public interface Fold<S extends @Nullable Object, A extends @Nullable Object>
       @Override
       public Integer combine(Integer a, Integer b) {
         return a + b;
-      }
-    };
-  }
-
-  /**
-   * Returns a monoid for boolean OR (disjunction).
-   *
-   * @return A monoid that returns true if any value is true.
-   */
-  private static Monoid<Boolean> anyBooleanMonoid() {
-    return new Monoid<>() {
-      @Override
-      public Boolean empty() {
-        return false;
-      }
-
-      @Override
-      public Boolean combine(Boolean a, Boolean b) {
-        return a || b;
-      }
-    };
-  }
-
-  /**
-   * Returns a monoid for boolean AND (conjunction).
-   *
-   * @return A monoid that returns true if all values are true.
-   */
-  private static Monoid<Boolean> allBooleanMonoid() {
-    return new Monoid<>() {
-      @Override
-      public Boolean empty() {
-        return true;
-      }
-
-      @Override
-      public Boolean combine(Boolean a, Boolean b) {
-        return a && b;
       }
     };
   }

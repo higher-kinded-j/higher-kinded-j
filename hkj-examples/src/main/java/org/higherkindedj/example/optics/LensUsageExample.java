@@ -17,7 +17,7 @@ public class LensUsageExample {
   // The @GenerateLenses annotation will automatically create Lens implementations
   // and `with*` helper methods for each record component.
   @GenerateLenses
-  public record Address(String street, String city) {}
+  public record Address(String street, String city, String postcode) {}
 
   @GenerateLenses
   public record Company(String name, Address address) {}
@@ -27,7 +27,7 @@ public class LensUsageExample {
 
   public static void main(String[] args) {
     // 2. Create an initial, nested immutable object.
-    var initialAddress = new Address("123 Fake St", "Anytown");
+    var initialAddress = new Address("123 Fake St", "Anytown", "AN1 1AA");
     var initialCompany = new Company("Initech Inc.", initialAddress);
     var initialEmployee = new Employee("Alice", initialCompany);
 

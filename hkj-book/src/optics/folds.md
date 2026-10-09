@@ -20,36 +20,29 @@ But what if you need to perform read-only operations? What if you want to query,
 
 ---
 
-## The Scenario: Analysing E-Commerce Purchases {#the-scenario-analysing-e-commerce-orders}
+## The Scenario: Analysing E-Commerce Orders {#the-scenario-analysing-e-commerce-orders}
 
 A **`Fold`** is a read-only optic designed specifically for querying and data extraction. It plays the part of a `Stream` over the values it reaches, ending in `reduce`, `anyMatch` or `count`. Unlike a stream, it is a reusable value that composes with other optics, and its type says it never writes. [Choosing an optic](optics_intro.md#choosing-an-optic) sets it beside the other optic types.
 
-Consider an e-commerce system where you need to analyse purchases:
+Consider the chapter's order service, where you need to analyse orders:
 
 **The Data Model:**
 
-<!-- verify -->
-```java
-@GenerateLenses
-public record Product(String name, BigDecimal price, String category, boolean inStock) {}
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/LineItem.java:line_item}}
 
-@GenerateLenses
-@GenerateFolds        // Generate Folds for querying
-@GenerateTraversals   // And Traversals, for the read-write comparisons below
-public record Purchase(String purchaseId, List<Product> items, String customerName) {}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/Order.java:order}}
 
-@GenerateLenses
-@GenerateFolds
-public record PurchaseHistory(List<Purchase> purchases) {}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/folds/FoldsBook.java:order_history}}
 ```
 
 **Common Query Needs:**
-* "Find all products in this purchase"
-* "Get the first product or empty if none"
-* "Check if any product is out of stock"
-* "Count how many items are in the purchase"
-* "Calculate the total price of all items"
-* "Check if all items are under £100"
+* "Find all lines in this order"
+* "Get the first line or empty if none"
+* "Check if any line is for more than one unit"
+* "Count how many lines are in the order"
+* "Calculate the order's total"
+* "Check if all lines are under £100"
 
 A `Fold` makes these queries type-safe, composable, and expressive.
 
@@ -76,29 +69,21 @@ Before we dive deeper, it's crucial to understand how `Fold` relates to `Travers
 
 ### Step 1: Generating Folds
 
-Just like with other optics, we use annotations to trigger automatic code generation. Annotating a record with **`@GenerateFolds`** creates a companion class (e.g., `PurchaseFolds`) containing a `Fold` for each field.
+Just like with other optics, we use annotations to trigger automatic code generation. Annotating a record with **`@GenerateFolds`** creates a companion class (e.g., `OrderHistoryFolds`) containing a `Fold` for each field.
 
 <!-- verify -->
 ```java
 import org.higherkindedj.optics.annotations.GenerateFolds;
-import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
-import java.math.BigDecimal;
 import java.util.List;
 
-@GenerateLenses
-public record Product(String name, BigDecimal price, String category, boolean inStock) {}
-
-@GenerateLenses
 @GenerateFolds
-@GenerateTraversals
-public record Purchase(String purchaseId, List<Product> items, String customerName) {}
+public record OrderHistory(List<Order> orders) {}
 ```
 
 This generates:
-* `PurchaseFolds.items()` → `Fold<Purchase, Product>` (focuses on all products)
-* `PurchaseFolds.purchaseId()` → `Fold<Purchase, String>` (focuses on the purchase ID)
-* `PurchaseFolds.customerName()` → `Fold<Purchase, String>` (focuses on customer name)
+* `OrderHistoryFolds.orders()` → `Fold<OrderHistory, Order>` (focuses on every order)
+
+The chapter's `Order` carries no `@GenerateFolds`, so the next steps build its fold with `Fold.of`, from a function that lists the targets: `Fold.of(Order::lines)` focuses on every line. `OrderTraversals.lines().asFold()` reaches the same lines through the traversal the cast generates.
 
 As with every generator in this chapter, a `targetPackage` attribute relocates the generated class; see [Customising the Generated Package](traversals.md#customising-the-generated-package).
 
@@ -111,7 +96,7 @@ A `Fold<S, A>` provides these essential query operations:
 Returns a `List<A>` containing all the values the Fold focuses on.
 
 ``` java
-{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/folds/FoldsBook.java:purchase}}
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/folds/FoldsBook.java:order}}
 
 {{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/folds/FoldsBook.java:get_all}}
 ```
@@ -208,7 +193,7 @@ The `foldMap` method lets you:
 ```
 
 **What's happening here?**
-1. For each `Product` in the purchase, extract its `price` → `[999.99, 25.00, 350.00]`
+1. For each `LineItem` in the order, work out its total, price times quantity → `[999.99, 25.00, 350.00]`
 2. Start with `BigDecimal.ZERO` (the empty value)
 3. Combine them: `0 + 999.99 + 25.00 + 350.00 = 1374.99`
 
@@ -244,8 +229,8 @@ The collection and `Optional` monoids work for any element type; `String` and `B
 **Sum (Adding Numbers)**
 <!-- verify -->
 ```java
-// Monoids has no BigDecimal sum, so money reuses the sumMonoid from Calculate Total Price
-BigDecimal revenue = itemsFold.foldMap(sumMonoid, Product::price, purchase);
+// Monoids has no BigDecimal sum, so money reuses sumMonoid and lineTotal from Calculate Total Price
+BigDecimal revenue = linesFold.foldMap(sumMonoid, lineTotal, order);
 ```
 
 **Product (Multiplying Numbers)**
@@ -262,8 +247,8 @@ double finalMultiplier = discountsFold.foldMap(productMonoid, d -> d, discounts)
 ```java
 Monoid<String> stringMonoid = Monoids.string();
 
-// Join all product names
-String allNames = itemsFold.foldMap(stringMonoid, Product::name, purchase);
+// Join all SKUs
+String allSkus = linesFold.foldMap(stringMonoid, LineItem::sku, order);
 ```
 
 **List Accumulation**
@@ -271,9 +256,9 @@ String allNames = itemsFold.foldMap(stringMonoid, Product::name, purchase);
 ```java
 Monoid<List<String>> listMonoid = Monoids.list();
 
-// Collect all categories (with duplicates)
-List<String> categories = itemsFold.foldMap(listMonoid,
-    p -> List.of(p.category()), purchase);
+// Collect all SKUs (with duplicates)
+List<String> skus = linesFold.foldMap(listMonoid,
+    line -> List.of(line.sku()), order);
 ```
 
 **Boolean AND (All Must Be True)**
@@ -281,8 +266,8 @@ List<String> categories = itemsFold.foldMap(listMonoid,
 ```java
 Monoid<Boolean> andMonoid = Monoids.booleanAnd();
 
-// Check if all products are in stock
-boolean allInStock = itemsFold.foldMap(andMonoid, Product::inStock, purchase);
+// Check if every line is for a single unit
+boolean allSingleUnits = linesFold.foldMap(andMonoid, line -> line.quantity() == 1, order);
 ```
 
 **Boolean OR (Any Can Be True)**
@@ -290,9 +275,9 @@ boolean allInStock = itemsFold.foldMap(andMonoid, Product::inStock, purchase);
 ```java
 Monoid<Boolean> orMonoid = Monoids.booleanOr();
 
-// Check if any product is expensive
-boolean hasExpensive = itemsFold.foldMap(orMonoid,
-    p -> p.price().compareTo(new BigDecimal("1000")) > 0, purchase);
+// Check if any line is expensive
+boolean hasExpensive = linesFold.foldMap(orMonoid,
+    line -> line.price().compareTo(new BigDecimal("1000")) > 0, order);
 ```
 
 **Maximum Value**
@@ -302,8 +287,8 @@ boolean hasExpensive = itemsFold.foldMap(orMonoid,
 Monoid<Optional<BigDecimal>> maxMonoid = Monoids.maximum();
 
 // Find highest price (returns Optional to handle empty collections)
-Optional<BigDecimal> maxPrice = itemsFold.foldMap(maxMonoid,
-    p -> Optional.of(p.price()), purchase);
+Optional<BigDecimal> maxPrice = linesFold.foldMap(maxMonoid,
+    line -> Optional.of(line.price()), order);
 
 // Or, since a price is never negative, a custom one that starts from zero:
 Monoid<BigDecimal> rawMaxMonoid = new Monoid<>() {
@@ -311,7 +296,7 @@ Monoid<BigDecimal> rawMaxMonoid = new Monoid<>() {
     @Override public BigDecimal combine(BigDecimal a, BigDecimal b) { return a.max(b); }
 };
 
-BigDecimal maxPriceRaw = itemsFold.foldMap(rawMaxMonoid, Product::price, purchase);
+BigDecimal maxPriceRaw = linesFold.foldMap(rawMaxMonoid, LineItem::price, order);
 ```
 
 #### Why Monoids Matter
@@ -410,6 +395,9 @@ import org.higherkindedj.optics.annotations.GenerateFolds;
 import org.higherkindedj.hkt.maybe.Maybe;
 import static org.higherkindedj.optics.extensions.FoldExtensions.*;
 
+// A product as the catalogue lists it, with the category and stock a line item does not carry
+public record Product(String name, BigDecimal price, String category, boolean inStock) {}
+
 @GenerateFolds
 public record ProductCatalog(List<Product> products) {}
 
@@ -490,10 +478,10 @@ Here's a decision matrix to help you choose the right method:
 
 <!-- verify -->
 ```java
-// Example: Get first expensive product and calculate discount
-Maybe<BigDecimal> discountedPrice = previewMaybe(itemsFold, purchase)
-    .flatMap(p -> p.price().compareTo(new BigDecimal("100")) > 0
-        ? Maybe.just(p.price().multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN))
+// Example: Get the first line, if expensive, and calculate a discount
+Maybe<BigDecimal> discountedPrice = previewMaybe(linesFold, order)
+    .flatMap(line -> line.price().compareTo(new BigDecimal("100")) > 0
+        ? Maybe.just(line.price().multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN))
         : Maybe.nothing());
 ```
 
@@ -505,11 +493,11 @@ Maybe<BigDecimal> discountedPrice = previewMaybe(itemsFold, purchase)
 
 <!-- verify -->
 ```java
-// Example: Find first out-of-stock item
-Maybe<Product> outOfStock = findMaybe(
-    itemsFold,
-    p -> !p.inStock(),
-    purchase
+// Example: Find the first line for more than one unit
+Maybe<LineItem> multiUnit = findMaybe(
+    linesFold,
+    line -> line.quantity() > 1,
+    order
 );
 ```
 
@@ -521,10 +509,10 @@ Maybe<Product> outOfStock = findMaybe(
 
 <!-- verify -->
 ```java
-// Example: Process all products or provide default behaviour
-String report = getAllMaybe(itemsFold, purchase)
-    .map(products -> generateReport(products))
-    .orElse("No products to report");
+// Example: Process all lines or provide default behaviour
+String report = getAllMaybe(linesFold, order)
+    .map(lines -> generateReport(lines))
+    .orElse("No lines to report");
 ```
 
 #### Integration with Existing Fold Operations
@@ -533,18 +521,18 @@ Maybe-based extensions work seamlessly alongside standard Fold operations. You c
 
 <!-- verify -->
 ```java
-Fold<Purchase, Product> itemsFold = PurchaseFolds.items();
+Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
 
 // Standard Fold operations
-List<Product> allItems = itemsFold.getAll(purchase);           // Always returns list
-Optional<Product> firstOpt = itemsFold.preview(purchase);     // Optional-based
-int count = itemsFold.length(purchase);                        // Primitive int
+List<LineItem> allLines = linesFold.getAll(order);             // Always returns list
+Optional<LineItem> firstOpt = linesFold.preview(order);        // Optional-based
+int count = linesFold.length(order);                           // Primitive int
 
 // Maybe-based extensions
-Maybe<Product> firstMaybe = previewMaybe(itemsFold, purchase);     // Maybe-based
-Maybe<Product> matchMaybe =
-    findMaybe(itemsFold, p -> p.price().compareTo(new BigDecimal("500")) > 0, purchase);  // Maybe-based
-Maybe<List<Product>> allMaybe = getAllMaybe(itemsFold, purchase);      // Maybe-wrapped list
+Maybe<LineItem> firstMaybe = previewMaybe(linesFold, order);         // Maybe-based
+Maybe<LineItem> matchMaybe =
+    findMaybe(linesFold, line -> line.price().compareTo(new BigDecimal("500")) > 0, order);  // Maybe-based
+Maybe<List<LineItem>> allMaybe = getAllMaybe(linesFold, order);      // Maybe-wrapped list
 ```
 
 **Conversion Between Optional and Maybe:**
@@ -552,12 +540,12 @@ Maybe<List<Product>> allMaybe = getAllMaybe(itemsFold, purchase);      // Maybe-
 <!-- verify -->
 ```java
 // Convert Optional to Maybe
-Optional<Product> firstOptional = itemsFold.preview(purchase);
-Maybe<Product> liftedToMaybe = Maybe.fromOptional(firstOptional);
+Optional<LineItem> firstOptional = linesFold.preview(order);
+Maybe<LineItem> liftedToMaybe = Maybe.fromOptional(firstOptional);
 
 // Convert Maybe to Optional
-Maybe<Product> firstMaybe = previewMaybe(itemsFold, purchase);
-Optional<Product> loweredToOptional = firstMaybe.toOptional();
+Maybe<LineItem> firstMaybe = previewMaybe(linesFold, order);
+Optional<LineItem> loweredToOptional = firstMaybe.toOptional();
 ```
 
 #### Practical Example: Safe Navigation with Maybe
@@ -570,43 +558,49 @@ import org.higherkindedj.optics.Fold;
 import org.higherkindedj.hkt.maybe.Maybe;
 import static org.higherkindedj.optics.extensions.FoldExtensions.*;
 
+// A customer's past orders, beside the chapter's Order
 @GenerateFolds
-public record PurchaseHistory(List<Purchase> purchases) {}
+public record OrderHistory(List<Order> orders) {}
 
-public class PurchaseAnalytics {
-    private static final Fold<PurchaseHistory, Purchase> PURCHASES =
-        PurchaseHistoryFolds.purchases();
-    private static final Fold<Purchase, Product> PRODUCTS =
-        PurchaseFolds.items();
+public class OrderAnalytics {
+    private static final Fold<OrderHistory, Order> ORDERS =
+        OrderHistoryFolds.orders();
+    private static final Fold<Order, LineItem> LINES =
+        Fold.of(Order::lines);
+
+    // A line's total: its price times its quantity
+    private static BigDecimal lineTotal(LineItem line) {
+        return line.price().multiply(BigDecimal.valueOf(line.quantity()));
+    }
 
     // Calculate total revenue, handling empty history gracefully
-    public BigDecimal calculateRevenue(PurchaseHistory history) {
-        return getAllMaybe(PURCHASES, history)
-            .flatMap(purchases -> {
-                List<BigDecimal> prices = purchases.stream()
-                    .flatMap(purchase -> getAllMaybe(PRODUCTS, purchase)
-                        .map(products -> products.stream().map(Product::price))
+    public BigDecimal calculateRevenue(OrderHistory history) {
+        return getAllMaybe(ORDERS, history)
+            .flatMap(orders -> {
+                List<BigDecimal> totals = orders.stream()
+                    .flatMap(order -> getAllMaybe(LINES, order)
+                        .map(lines -> lines.stream().map(OrderAnalytics::lineTotal))
                         .orElse(Stream.empty()))
                     .toList();
-                return prices.isEmpty() ? Maybe.nothing() : Maybe.just(prices);
+                return totals.isEmpty() ? Maybe.nothing() : Maybe.just(totals);
             })
-            .map(prices -> prices.stream().reduce(BigDecimal.ZERO, BigDecimal::add))
+            .map(totals -> totals.stream().reduce(BigDecimal.ZERO, BigDecimal::add))
             .orElse(BigDecimal.ZERO);
     }
 
-    // Find most expensive product across all purchases
-    public Maybe<Product> findMostExpensive(PurchaseHistory history) {
-        return getAllMaybe(PURCHASES, history)
-            .flatMap(purchases -> {
-                List<Product> allProducts = purchases.stream()
-                    .flatMap(purchase -> getAllMaybe(PRODUCTS, purchase)
+    // Find the most expensive line across all orders
+    public Maybe<LineItem> findMostExpensive(OrderHistory history) {
+        return getAllMaybe(ORDERS, history)
+            .flatMap(orders -> {
+                List<LineItem> allLines = orders.stream()
+                    .flatMap(order -> getAllMaybe(LINES, order)
                         .map(List::stream)
                         .orElse(Stream.empty()))
                     .toList();
-                return allProducts.isEmpty()
+                return allLines.isEmpty()
                     ? Maybe.nothing()
-                    : Maybe.fromNullable(allProducts.stream()
-                        .max(Comparator.comparing(Product::price))
+                    : Maybe.fromNullable(allLines.stream()
+                        .max(Comparator.comparing(LineItem::price))
                         .orElse(null));
             });
     }
@@ -740,12 +734,12 @@ Each fold in a `plus` combination makes its own pass over the source, which `Fol
 <!-- verify -->
 ```java
 // Perfect for read-only analysis
-Fold<PurchaseHistory, Product> allProducts =
-    PurchaseHistoryFolds.purchases()
-        .andThen(PurchaseFolds.items());
+Fold<OrderHistory, LineItem> allLines =
+    OrderHistoryFolds.orders()
+        .andThen(Fold.of(Order::lines));
 
-boolean hasElectronics = allProducts.exists(
-    p -> "Electronics".equals(p.category()),
+boolean hasLaptop = allLines.exists(
+    line -> "LAPTOP".equals(line.sku()),
     history
 );
 ```
@@ -759,11 +753,11 @@ boolean hasElectronics = allProducts.exists(
 <!-- verify -->
 ```java
 // Use Traversal for modifications
-Traversal<Purchase, Product> productTraversal = PurchaseTraversals.items();
-Purchase discountedPurchase = Traversals.modify(
-    productTraversal.andThen(ProductLenses.price()),
+Traversal<Order, LineItem> lineTraversal = OrderTraversals.lines();
+Order discountedOrder = Traversals.modify(
+    lineTraversal.andThen(LineItemLenses.price()),
     price -> price.multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN),
-    purchase
+    order
 );
 ```
 
@@ -777,11 +771,11 @@ Purchase discountedPurchase = Traversals.modify(
 <!-- verify -->
 ```java
 // Better with streams for complex pipelines
-List<String> topExpensiveItems = purchase.items().stream()
-    .filter(p -> p.price().compareTo(new BigDecimal("100")) > 0)
-    .sorted(Comparator.comparing(Product::price).reversed())
+List<String> topExpensiveSkus = order.lines().stream()
+    .filter(line -> line.price().compareTo(new BigDecimal("100")) > 0)
+    .sorted(Comparator.comparing(LineItem::price).reversed())
     .limit(5)
-    .map(Product::name)
+    .map(LineItem::sku)
     .toList();
 ```
 
@@ -794,7 +788,7 @@ List<String> topExpensiveItems = purchase.items().stream()
 <!-- verify -->
 ```java
 // Just use direct access for simple cases
-String customerName = purchase.customerName();
+String customerName = order.customer().name();
 ```
 
 ---
@@ -806,25 +800,25 @@ String customerName = purchase.customerName();
 <!-- verify -->
 ```java
 // Inefficient: Creating folds repeatedly in loops
-for (Purchase purchase : purchases) {
-    Fold<Purchase, Product> fold = PurchaseFolds.items();
-    List<Product> products = fold.getAll(purchase);
-    // ... process products
+for (Order order : orders) {
+    Fold<Order, LineItem> fold = Fold.of(Order::lines);
+    List<LineItem> lines = fold.getAll(order);
+    // ... process lines
 }
 
 // Over-engineering: Using Fold for trivial single-field access
-Fold<Purchase, String> customerFold = PurchaseFolds.customerName();
-String name = customerFold.getAll(purchase).get(0); // Just use purchase.customerName()!
+Fold<Order, Customer> customerFold = OrderLenses.customer().asFold();
+String name = customerFold.getAll(order).get(0).name(); // Just use order.customer().name()!
 
 // Wrong tool: Trying to modify data with a Fold
 // Folds are read-only - this won't compile
-// Fold<Purchase, Product> items = PurchaseFolds.items();
-// Purchase updated = items.set(newProduct, purchase); // ❌ No 'set' method!
+// Fold<Order, LineItem> lines = Fold.of(Order::lines);
+// Order updated = lines.set(newLine, order); // ❌ No 'set' method!
 
 // Verbose: Unnecessary conversion when you only need getAll
-Traversal<Purchase, Product> traversal = PurchaseTraversals.items();
-Fold<Purchase, Product> fold = traversal.asFold();
-List<Product> products = fold.getAll(purchase); // Just use Traversals.getAll() directly!
+Traversal<Order, LineItem> traversal = OrderTraversals.lines();
+Fold<Order, LineItem> fold = traversal.asFold();
+List<LineItem> lines = fold.getAll(order); // Just use Traversals.getAll() directly!
 ```
 
 ### Do This Instead
@@ -832,124 +826,118 @@ List<Product> products = fold.getAll(purchase); // Just use Traversals.getAll() 
 <!-- verify -->
 ```java
 // Efficient: Create fold once, reuse many times
-Fold<Purchase, Product> itemsFold = PurchaseFolds.items();
-for (Purchase purchase : purchases) {
-    List<Product> products = itemsFold.getAll(purchase);
-    // ... process products
+Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
+for (Order order : orders) {
+    List<LineItem> lines = linesFold.getAll(order);
+    // ... process lines
 }
 
 // Right tool: Direct access for simple cases
-String name = purchase.customerName();
+String name = order.customer().name();
 
 // Clear intent: Use Traversal when you need modifications
-Traversal<Purchase, Product> itemsTraversal = PurchaseTraversals.items();
-Purchase updated = Traversals.modify(
-    itemsTraversal,
-    p -> new Product(
-        p.name(),
-        p.price().multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN),
-        p.category(),
-        p.inStock()),
-    purchase);
+Traversal<Order, LineItem> linesTraversal = OrderTraversals.lines();
+Order updated = Traversals.modify(
+    linesTraversal,
+    line -> new LineItem(
+        line.sku(),
+        line.quantity(),
+        line.price().multiply(new BigDecimal("0.9")).setScale(2, RoundingMode.HALF_EVEN)),
+    order);
 
 // Clear purpose: Use Fold when expressing query intent
-Fold<Purchase, Product> queryItems = PurchaseFolds.items();
+Fold<Order, LineItem> queryLines = Fold.of(Order::lines);
 boolean hasExpensive =
-    queryItems.exists(p -> p.price().compareTo(new BigDecimal("1000")) > 0, purchase);
+    queryLines.exists(line -> line.price().compareTo(new BigDecimal("1000")) > 0, order);
 
 // Right time for asFold(): when you need foldMap, exists, all, plus, or length
-Fold<Purchase, BigDecimal> pricesFold = PurchaseTraversals.items()
-    .andThen(ProductLenses.price())
+Fold<Order, Integer> quantitiesFold = OrderTraversals.lines()
+    .andThen(LineItemLenses.quantity())
     .asFold();
-// sumMonoid is the BigDecimal sum from Step 4's Calculate Total Price
-BigDecimal purchaseTotal = pricesFold.foldMap(sumMonoid, p -> p, purchase);
+int units = quantitiesFold.foldMap(Monoids.integerAddition(), quantity -> quantity, order);
 ```
 
 ---
 
-## Real-World Example: Purchase Analytics {#real-world-example-order-analytics}
+## Real-World Example: Order Analytics {#real-world-example-order-analytics}
 
 Here's a practical example showing comprehensive use of Fold for business analytics:
 
 <!-- verify -->
 ```java
 import org.higherkindedj.optics.Fold;
-import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.annotations.GenerateFolds;
-import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.hkt.Monoid;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
 
-@GenerateLenses
+// A customer's past orders, beside the chapter's Order
 @GenerateFolds
-public record Product(String name, BigDecimal price, String category, boolean inStock) {}
+public record OrderHistory(List<Order> orders) {}
 
-@GenerateLenses
-@GenerateFolds
-public record Purchase(String purchaseId, List<Product> items, String customerName) {}
-
-@GenerateLenses
-@GenerateFolds
-public record PurchaseHistory(List<Purchase> purchases) {}
-
-public class PurchaseAnalytics {
-    private static final Fold<Purchase, Product> PURCHASE_ITEMS = PurchaseFolds.items();
-    private static final Fold<PurchaseHistory, Purchase> HISTORY_PURCHASES = PurchaseHistoryFolds.purchases();
-    private static final Fold<PurchaseHistory, Product> ALL_PRODUCTS =
-        HISTORY_PURCHASES.andThen(PURCHASE_ITEMS);
+public class OrderAnalytics {
+    private static final Fold<Order, LineItem> ORDER_LINES = Fold.of(Order::lines);
+    private static final Fold<OrderHistory, Order> HISTORY_ORDERS = OrderHistoryFolds.orders();
+    private static final Fold<OrderHistory, LineItem> ALL_LINES =
+        HISTORY_ORDERS.andThen(ORDER_LINES);
 
     private static final Monoid<BigDecimal> SUM_MONOID = new Monoid<>() {
         @Override public BigDecimal empty() { return BigDecimal.ZERO; }
         @Override public BigDecimal combine(BigDecimal a, BigDecimal b) { return a.add(b); }
     };
 
-    // Calculate total revenue across all purchases
-    public static BigDecimal calculateRevenue(PurchaseHistory history) {
-        return ALL_PRODUCTS.foldMap(SUM_MONOID, Product::price, history);
+    // A line's total: its price times its quantity
+    private static BigDecimal lineTotal(LineItem line) {
+        return line.price().multiply(BigDecimal.valueOf(line.quantity()));
     }
 
-    // Find most expensive product across all purchases
-    public static Optional<Product> findMostExpensiveProduct(PurchaseHistory history) {
-        return ALL_PRODUCTS.getAll(history).stream()
-            .max(Comparator.comparing(Product::price));
+    // Calculate total revenue across all orders
+    public static BigDecimal calculateRevenue(OrderHistory history) {
+        return ALL_LINES.foldMap(SUM_MONOID, OrderAnalytics::lineTotal, history);
     }
 
-    // Check if any purchase has out-of-stock items
-    public static boolean hasOutOfStockIssues(PurchaseHistory history) {
-        return ALL_PRODUCTS.exists(p -> !p.inStock(), history);
+    // Find the most expensive line across all orders
+    public static Optional<LineItem> findMostExpensiveLine(OrderHistory history) {
+        return ALL_LINES.getAll(history).stream()
+            .max(Comparator.comparing(LineItem::price));
     }
 
-    // Get all unique categories
-    public static Set<String> getAllCategories(PurchaseHistory history) {
-        Fold<PurchaseHistory, String> categories =
-            ALL_PRODUCTS.andThen(ProductLenses.category().asFold());
-        return new HashSet<>(categories.getAll(history));
+    // Check if any order has a bulk line
+    public static boolean hasBulkLines(OrderHistory history) {
+        return ALL_LINES.exists(line -> line.quantity() >= 10, history);
     }
 
-    // Count products in a specific category
-    public static int countByCategory(PurchaseHistory history, String category) {
-        return (int) ALL_PRODUCTS.getAll(history).stream()
-            .filter(p -> category.equals(p.category()))
-            .count();
+    // Get all unique SKUs
+    public static Set<String> getAllSkus(OrderHistory history) {
+        Fold<OrderHistory, String> skus =
+            ALL_LINES.andThen(LineItemLenses.sku().asFold());
+        return new HashSet<>(skus.getAll(history));
     }
 
-    // Calculate average purchase value, to the penny
-    public static BigDecimal calculateAveragePurchaseValue(PurchaseHistory history) {
-        List<Purchase> allPurchases = HISTORY_PURCHASES.getAll(history);
-        if (allPurchases.isEmpty()) return BigDecimal.ZERO;
+    // Count the units ordered of one SKU
+    public static int countUnits(OrderHistory history, String sku) {
+        return ALL_LINES.getAll(history).stream()
+            .filter(line -> sku.equals(line.sku()))
+            .mapToInt(LineItem::quantity)
+            .sum();
+    }
+
+    // Calculate average order value, to the penny
+    public static BigDecimal calculateAverageOrderValue(OrderHistory history) {
+        List<Order> allOrders = HISTORY_ORDERS.getAll(history);
+        if (allOrders.isEmpty()) return BigDecimal.ZERO;
 
         BigDecimal totalRevenue = calculateRevenue(history);
-        return totalRevenue.divide(BigDecimal.valueOf(allPurchases.size()), 2, RoundingMode.HALF_EVEN);
+        return totalRevenue.divide(BigDecimal.valueOf(allOrders.size()), 2, RoundingMode.HALF_EVEN);
     }
 
-    // Find purchases with specific product
-    public static List<Purchase> findPurchasesContaining(PurchaseHistory history, String productName) {
-        return HISTORY_PURCHASES.getAll(history).stream()
-            .filter(purchase -> PURCHASE_ITEMS.exists(
-                p -> productName.equals(p.name()),
-                purchase
+    // Find orders containing a specific SKU
+    public static List<Order> findOrdersContaining(OrderHistory history, String sku) {
+        return HISTORY_ORDERS.getAll(history).stream()
+            .filter(order -> ORDER_LINES.exists(
+                line -> sku.equals(line.sku()),
+                order
             ))
             .toList();
     }
@@ -1009,10 +997,10 @@ int sum = listFoldable.foldMap(
     Monoids.integerAddition(), Function.identity(), LIST.widen(numbers));
 
 // Using a Fold optic to query nested structure
-Fold<Purchase, BigDecimal> prices = PurchaseFolds.items()
-    .andThen(ProductLenses.price().asFold());
-// sumMonoid is the BigDecimal sum from Step 4's Calculate Total Price
-BigDecimal purchaseTotal = prices.foldMap(sumMonoid, Function.identity(), purchase);
+Fold<Order, Integer> quantities = Fold.of(Order::lines)
+    .andThen(LineItemLenses.quantity().asFold());
+int units = quantities.foldMap(
+    Monoids.integerAddition(), Function.identity(), order);
 ```
 
 The `Fold` optic gives you the power of `Foldable`, but for **arbitrary access paths** through your domain model, not just direct containers.

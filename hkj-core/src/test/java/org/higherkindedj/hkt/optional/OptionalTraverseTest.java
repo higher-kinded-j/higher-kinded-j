@@ -3,6 +3,7 @@
 package org.higherkindedj.hkt.optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.higherkindedj.hkt.assertions.OptionalKindAssert.assertThatOptionalKind;
 import static org.higherkindedj.hkt.instances.Witnesses.maybe;
 import static org.higherkindedj.hkt.maybe.MaybeKindHelper.MAYBE;
@@ -100,6 +101,15 @@ class OptionalTraverseTest extends OptionalTestBase {
           traverse.traverse(maybeApplicative, failingFunc, presentKind);
 
       assertThat(MAYBE.narrow(result).isNothing()).isTrue();
+    }
+
+    @Test
+    @DisplayName("traverse() rejects a function that returns null for a present value")
+    void traversePresentRejectsANullResult() {
+      Function<Integer, Kind<MaybeKind.Witness, String>> nullReturning = _ -> null;
+
+      assertThatThrownBy(() -> traverse.traverse(maybeApplicative, nullReturning, presentKind))
+          .isInstanceOf(NullPointerException.class);
     }
 
     @Test

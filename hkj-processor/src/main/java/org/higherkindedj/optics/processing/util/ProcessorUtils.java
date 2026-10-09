@@ -25,6 +25,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import javax.lang.model.SourceVersion;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
@@ -1452,6 +1453,30 @@ public final class ProcessorUtils {
                         .toString()
                     : "source." + component.getSimpleName() + "()")
         .collect(Collectors.joining(", "));
+  }
+
+  /**
+   * The {@link #toCamelCase camelCase} form of an enum constant or type name, as a name a generated
+   * method can take: the constant {@code NEW} names {@code new_()} and a subtype {@code Default}
+   * names {@code default_()}, as {@link #escapeKeyword} says.
+   *
+   * @param s the enum constant or type name the method is named after
+   * @return the camelCase form, with a trailing underscore when it is a keyword or literal
+   */
+  public static String toMethodName(String s) {
+    return escapeKeyword(toCamelCase(s));
+  }
+
+  /**
+   * A name a generated method can take: {@code name} itself, or {@code name} with a trailing
+   * underscore when it is a Java keyword or literal ({@code true}, {@code false}, {@code null}),
+   * which no method can be called.
+   *
+   * @param name the name derived from the source, such as a property or a type's simple name
+   * @return {@code name}, escaped when it is a keyword or literal
+   */
+  public static String escapeKeyword(String name) {
+    return SourceVersion.isKeyword(name) ? name + "_" : name;
   }
 
   /**

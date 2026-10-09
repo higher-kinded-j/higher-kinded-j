@@ -1,8 +1,9 @@
 // Fixture for hkj-book/src/optics/limiting_traversals.md
 //
 // The page pages through a product catalogue, and reaches for orders, transactions and log lines
-// to show `takingWhile` and `droppingWhile` on other shapes. The models are declared here; the
-// snippet that shows them shadows this copy.
+// to show `takingWhile` and `droppingWhile` on other shapes. The orders are the chapter's cast,
+// through the on-demand import; the other models are declared here, and the snippet that shows
+// them shadows this copy.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
 // src/test/resources/fixtures so an "unused import" cleanup cannot break fixtures
@@ -18,10 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.higherkindedj.example.book.optics.cast.*;
 import org.higherkindedj.optics.Lens;
 import org.higherkindedj.optics.Traversal;
 import org.higherkindedj.optics.annotations.GenerateLenses;
-import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.ixed.IxedInstances;
 import org.higherkindedj.optics.util.ListTraversals;
 import org.higherkindedj.optics.util.Traversals;
@@ -37,13 +38,6 @@ record Product(String sku, String name, BigDecimal price, int stock) {
 
 @GenerateLenses
 record Catalogue(String name, List<Product> products) {}
-
-@GenerateLenses
-record LineItem(Product product, int quantity) {}
-
-@GenerateLenses
-@GenerateTraversals
-record Order(String id, List<LineItem> items, LocalDateTime created) {}
 
 @GenerateLenses
 record SalesMetric(LocalDate date, BigDecimal revenue, int transactions) {}
@@ -67,8 +61,7 @@ class Fixture {
 
   static final Catalogue catalogue = new Catalogue("Autumn", products);
 
-  static final List<Order> orders =
-      List.of(new Order("ORD-1", List.of(new LineItem(products.getFirst(), 2)), LocalDateTime.MIN));
+  static final List<Order> orders = List.of();
 
   static final List<Transaction> transactions =
       List.of(new Transaction(LocalDateTime.MIN, "PENDING"));

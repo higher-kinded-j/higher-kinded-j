@@ -303,6 +303,8 @@ class TraversalPathTest {
       List<String> strings = List.of("a", "b");
 
       assertThat(wrappersPath.getAll(strings)).extracting(Wrapper::value).containsExactly("a", "b");
+      assertThat(wrappersPath.modifyAll(w -> new Wrapper(w.value().toUpperCase()), strings))
+          .containsExactly("A", "B");
     }
   }
 

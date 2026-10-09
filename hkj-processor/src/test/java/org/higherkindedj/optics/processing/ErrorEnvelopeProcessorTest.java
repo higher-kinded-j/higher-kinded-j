@@ -167,7 +167,7 @@ class ErrorEnvelopeProcessorTest {
           // The all-absent context, nulls through the canonical constructor.
           .contains("new FooErrorContext((String) null, (String) null)")
           // Convenience factory delegates to the timed overload.
-          .contains("return outOfStock(TimeSource.system(), products)")
+          .contains("return FooErrors.outOfStock(TimeSource.system(), products)")
           // Timed factories: UPPER_SNAKE code, humanised message, TimeSource-read timestamp.
           .contains("ErrorEnvelope.of(time, \"OUT_OF_STOCK\", \"Out of stock\", ABSENT_CONTEXT)")
           .contains(
@@ -232,7 +232,7 @@ class ErrorEnvelopeProcessorTest {
           .contains("ErrorEnvelope.of(time, \"DB_TIMEOUT\", \"DB timeout\", ABSENT_CONTEXT)")
           .contains("ErrorEnvelope.of(time, \"X_RAY_LOST\", \"X ray lost\", ABSENT_CONTEXT)")
           // Primitive domain components pass straight through the factories.
-          .contains("return dBTimeout(TimeSource.system(), stage, millis)")
+          .contains("return BarErrors.dBTimeout(TimeSource.system(), stage, millis)")
           // The envelope keeps its mid-record position in factory and wither.
           .contains(
               "case BarError.DBTimeout v -> new BarError.DBTimeout(v.stage(),"

@@ -109,7 +109,7 @@ public class ExternalPrismGenerator {
 
   private MethodSpec createPrismMethodForEnumConstant(
       ClassName enumClassName, String constantName) {
-    String methodName = ProcessorUtils.toCamelCase(constantName);
+    String methodName = ProcessorUtils.toMethodName(constantName);
 
     ParameterizedTypeName prismTypeName =
         ParameterizedTypeName.get(ClassName.get(Prism.class), enumClassName, enumClassName);

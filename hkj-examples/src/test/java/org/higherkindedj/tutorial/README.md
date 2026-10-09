@@ -213,7 +213,7 @@ Fluent cross-type navigation with generated navigators:
 - Path widening through Optional (AffinePath) and collections (TraversalPath)
 - SPI-aware widening for Map, Either, Try, and Validated via Cardinality
 - Compound widening rules (AFFINE + TRAVERSAL = TRAVERSAL)
-- Depth limiting with `maxNavigatorDepth` and fallback to `.via()`
+- Ending a navigator chain after its first hop with `maxNavigatorDepth = 1`, and composing further with `.via()`
 
 ### Tutorial 20: Custom Container Navigation
 Navigating custom container types with Affines:

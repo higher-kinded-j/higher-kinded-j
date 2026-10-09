@@ -2,7 +2,8 @@
 //
 // The page is a run of independent patterns, each with its own sum type. The models the patterns
 // name are declared here, along with the small JSON hierarchy its `Prisms.nearly` and
-// `doesNotMatch` snippets read; the snippet that shows a model shadows this copy.
+// `doesNotMatch` snippets read; the snippet that shows a model shadows this copy. The order lines
+// and the consignment states are the chapter's cast.
 //
 // Each pattern goes on in a second class, its "Advanced" block, which declares the prisms it reads,
 // so a reader can copy it alone. PatternSupport holds only the services and constants the page
@@ -30,6 +31,13 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.higherkindedj.example.book.optics.cast.Consignment;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState.Dispatched;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState.Pending;
+import org.higherkindedj.example.book.optics.cast.ConsignmentState.Returned;
+import org.higherkindedj.example.book.optics.cast.ConsignmentStatePrisms;
+import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.hkt.Unit;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.optics.Lens;
@@ -131,8 +139,6 @@ record DoubleData(double value) implements DataValue {}
 
 record NullData() implements DataValue {}
 
-record LineItem(String sku, int quantity) {}
-
 @GeneratePrisms
 sealed interface DomainEvent
     permits UserCreated, UserDeleted, UserUpdated, OrderPlaced, OrderCancelled, PaymentProcessed {}
@@ -153,36 +159,13 @@ record PaymentProcessed(String orderId, BigDecimal amount, Instant timestamp)
     implements DomainEvent {}
 
 @GeneratePrisms
-sealed interface OrderState permits Pending, Processing, Shipped, Delivered, Cancelled {}
+sealed interface ConsignmentEvent permits PickedUp, ReturnReceived, Rebooked {}
 
-record Pending(Instant createdAt) implements OrderState {}
+record PickedUp(Instant at) implements ConsignmentEvent {}
 
-record Processing(String transactionId, Instant startedAt) implements OrderState {}
+record ReturnReceived(String reason) implements ConsignmentEvent {}
 
-record Shipped(String trackingNumber, Instant shippedAt) implements OrderState {}
-
-record Delivered(Instant deliveredAt) implements OrderState {}
-
-record Cancelled(String reason, Instant cancelledAt) implements OrderState {}
-
-@GeneratePrisms
-sealed interface OrderEvent
-    permits PaymentReceived, ShippingCompleted, DeliveryConfirmed, CancellationRequested {}
-
-record PaymentReceived(String transactionId) implements OrderEvent {}
-
-record ShippingCompleted(String trackingNumber) implements OrderEvent {}
-
-record DeliveryConfirmed() implements OrderEvent {}
-
-record CancellationRequested(String reason) implements OrderEvent {}
-
-record Order(String id, OrderState state) {
-
-  Order withState(OrderState newState) {
-    return new Order(id, newState);
-  }
-}
+record Rebooked() implements ConsignmentEvent {}
 
 // The plugin host the last pattern dispatches over.
 record DatabaseConfig(String url) {

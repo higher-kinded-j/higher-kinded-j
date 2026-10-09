@@ -1,8 +1,10 @@
 // Fixture for hkj-book/src/optics/folds.md
 //
-// The page queries one e-commerce model - product, purchase, purchase history - and then reaches for a
-// team of employees and a configuration record to show fold combination. All three domains are
-// declared here with their generators, so the page's snippets name genuinely generated folds; a
+// The page queries the chapter cast's Order and its lines, and a customer's order history beside
+// them, then reaches for a team of employees and a configuration record; its catalogue search
+// declares the product it reads. The cast comes from its package, which hkj-examples' main sources
+// put on the gate's classpath, with sample values from CastFixtures in its test sources. The rest
+// is declared here with its generators, so the page's snippets name genuinely generated folds; a
 // snippet that shows a model shadows this copy.
 //
 // NOTE: imports in a fixture serve the snippets it is spliced into. Spotless excludes
@@ -25,6 +27,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.higherkindedj.example.book.optics.cast.*;
 import org.higherkindedj.hkt.Foldable;
 import org.higherkindedj.hkt.Kind;
 import org.higherkindedj.hkt.Monoid;
@@ -42,21 +45,9 @@ import org.higherkindedj.optics.annotations.GenerateLenses;
 import org.higherkindedj.optics.annotations.GenerateTraversals;
 import org.higherkindedj.optics.util.Traversals;
 
-@GenerateLenses
+// A customer's past orders, beside the chapter's Order
 @GenerateFolds
-record Product(String name, BigDecimal price, String category, boolean inStock) {}
-
-@GenerateLenses
-@GenerateFolds
-@GenerateTraversals
-record Purchase(String purchaseId, List<Product> items, String customerName) {}
-
-@GenerateLenses
-@GenerateFolds
-record PurchaseHistory(List<Purchase> purchases) {}
-
-@GenerateFolds
-record ProductCatalog(List<Product> products) {}
+record OrderHistory(List<Order> orders) {}
 
 record Team(String name, Employee lead, List<Employee> members) {}
 
@@ -66,25 +57,20 @@ record Config(String host, Optional<String> port, Optional<String> database) {}
 
 class Fixture {
 
-  static final Product laptop = new Product("Laptop", new BigDecimal("999.99"), "Electronics", true);
+  static final LineItem laptop = new LineItem("LAPTOP", 1, new BigDecimal("999.99"));
 
-  static final Product mouse = new Product("Mouse", new BigDecimal("25.00"), "Electronics", true);
+  static final LineItem mouse = new LineItem("MOUSE", 2, new BigDecimal("12.50"));
 
-  static final Product desk = new Product("Desk", new BigDecimal("350.00"), "Furniture", false);
+  static final LineItem desk = new LineItem("DESK", 1, new BigDecimal("350.00"));
 
-  static final Purchase purchase = new Purchase("ORD-123", List.of(laptop, mouse, desk), "Alice");
+  static final Order order = CastFixtures.order(List.of(laptop, mouse, desk));
 
-  static final Purchase purchase1 = purchase;
+  static final List<Order> orders =
+      List.of(order, CastFixtures.order(List.of(mouse)), CastFixtures.order(List.of(desk)));
 
-  static final Purchase purchase2 = new Purchase("ORD-124", List.of(mouse), "Bob");
+  static final OrderHistory history = new OrderHistory(orders);
 
-  static final Purchase purchase3 = new Purchase("ORD-125", List.of(desk), "Carol");
-
-  static final List<Purchase> purchases = List.of(purchase1, purchase2, purchase3);
-
-  static final PurchaseHistory history = new PurchaseHistory(purchases);
-
-  static final Fold<Purchase, Product> itemsFold = PurchaseFolds.items();
+  static final Fold<Order, LineItem> linesFold = Fold.of(Order::lines);
 
   // The BigDecimal sum the page writes in Step 4, which later snippets reuse by name.
   static final Monoid<BigDecimal> sumMonoid =
@@ -99,6 +85,10 @@ class Fixture {
           return a.add(b);
         }
       };
+
+  // The line total the page writes in Step 4, which later snippets reuse by name.
+  static final Function<LineItem, BigDecimal> lineTotal =
+      line -> line.price().multiply(BigDecimal.valueOf(line.quantity()));
 
   static final List<Double> discounts = List.of(0.9, 0.95, 0.85);
 
@@ -139,9 +129,9 @@ class Fixture {
   static final Affine<Config, String> dbAffine =
       Affine.of(Config::database, (c, v) -> new Config(c.host(), c.port(), Optional.of(v)));
 
-  // A stand-in for the reporting the page hands its extracted products to: snippets are compiled,
-  // not run.
-  static String generateReport(List<Product> products) {
+  // A stand-in for the reporting the page hands its extracted lines to: snippets are compiled, not
+  // run.
+  static String generateReport(List<LineItem> lines) {
     throw new UnsupportedOperationException("a fixture value: snippets are compiled, not run");
   }
 }

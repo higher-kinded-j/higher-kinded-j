@@ -2,8 +2,6 @@
 // Licensed under the MIT License. See LICENSE.md in the project root for license information.
 package org.higherkindedj.optics.indexed;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -228,6 +226,9 @@ public interface IndexedTraversal<I, S extends @Nullable Object, A extends @Null
   /**
    * Views this {@code IndexedTraversal} as an {@link IndexedFold} for read-only indexed operations.
    *
+   * <p>The fold runs this traversal's {@code imodifyF} in a constant applicative, so it reads each
+   * focus without rebuilding the source.
+   *
    * @return An {@link IndexedFold} that provides read-only indexed access
    */
   default IndexedFold<I, S, A> asIndexedFold() {
@@ -236,24 +237,13 @@ public interface IndexedTraversal<I, S extends @Nullable Object, A extends @Null
       @Override
       public <M> M ifoldMap(
           Monoid<M> monoid, BiFunction<? super I, ? super A, ? extends M> f, S source) {
-        // Run the traversal purely to collect every index/value pair, using a minimal identity
-        // applicative (we cannot depend on hkj-core's Id from hkj-api).
-        final List<Pair<I, A>> collected = new ArrayList<>();
-
-        self.imodifyF(
-            (i, a) -> {
-              collected.add(new Pair<>(i, a));
-              return new IdBox<>(a);
-            },
-            source,
-            IdBox.applicative());
-
-        // Fold over the collected pairs using the provided monoid.
-        M result = monoid.empty();
-        for (Pair<I, A> pair : collected) {
-          result = monoid.combine(result, f.apply(pair.first(), pair.second()));
-        }
-        return result;
+        // The Const applicative combines each focus's value with the monoid and never runs the
+        // functions that would rebuild the source.
+        Applicative<ConstForIndexedFold.Witness<M>> constApp =
+            ConstForIndexedFold.applicative(monoid);
+        Kind<ConstForIndexedFold.Witness<M>, S> result =
+            self.imodifyF((i, a) -> new ConstForIndexedFold<>(f.apply(i, a)), source, constApp);
+        return ConstForIndexedFold.narrow(result).value();
       }
     };
   }

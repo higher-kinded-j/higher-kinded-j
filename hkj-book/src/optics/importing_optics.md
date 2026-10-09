@@ -14,7 +14,7 @@ The landscape (JDK classes, database libraries, JSON parsers) already exists. Wh
 - Generate optics for a JDK or library type with `@ImportOptics` on a `package-info.java`
 - Predict what auto-detection generates for a record, a sealed type, an enum, a wither class and a container field
 - Check the pairing rule that decides whether a `withX` method gets a lens
-- Compose an imported optic with your own, such as the year of an order's date
+- Compose an imported optic with your own, such as the year an order settled
 - Decide when to write a spec interface instead, for builders, predicates or non-standard naming
 ~~~
 
@@ -26,10 +26,11 @@ Optics work beautifully across your own records. Then you hit a type you do not 
 
 <!-- verify -->
 ```java
+// An order's settlement: our own record, dated with the JDK's LocalDate
 @GenerateLenses
-record Order(String id, LocalDate orderDate, List<String> lines) {}
+record Settlement(UUID orderId, LocalDate settledOn, BigDecimal amount) {}
 
-// How do we bump just the year inside orderDate?
+// How do we bump just the year inside settledOn?
 // LocalDate lives in java.time. We cannot annotate it.
 ```
 
@@ -52,12 +53,12 @@ The processor analyses `LocalDate`, finds the *wither* methods it can pair with 
 
 <!-- verify -->
 ```java
-// orderDate() is ours (@GenerateLenses); year() is the JDK's (@ImportOptics)
-Order nextYear =
-    OrderLenses.orderDate().andThen(LocalDateLenses.year()).modify(y -> y + 1, order);
-// the same order, dated a year later
+// settledOn() is ours (@GenerateLenses); year() is the JDK's (@ImportOptics)
+Settlement nextYear =
+    SettlementLenses.settledOn().andThen(LocalDateLenses.year()).modify(y -> y + 1, settlement);
+// the same settlement, dated a year later
 
-int year = OrderLenses.orderDate().andThen(LocalDateLenses.year()).get(order);
+int year = SettlementLenses.settledOn().andThen(LocalDateLenses.year()).get(settlement);
 ```
 
 One annotation, and a JDK type joins the pipeline.
@@ -111,22 +112,26 @@ Records are the easy case: the canonical constructor is the copy mechanism.
 
 <!-- verify -->
 ```java
-public sealed interface PaymentMethod permits CreditCard, BankTransfer, Crypto {}
+// From a payment gateway's SDK, which we cannot annotate:
+public sealed interface PaymentInstrument permits CardInstrument, BankAccount, CryptoWallet {}
 
-Prism<PaymentMethod, CreditCard> creditCard = PaymentMethodPrisms.creditCard();
-Prism<PaymentMethod, BankTransfer> bankTransfer = PaymentMethodPrisms.bankTransfer();
-Prism<PaymentMethod, Crypto> crypto = PaymentMethodPrisms.crypto();
+Prism<PaymentInstrument, CardInstrument> card = PaymentInstrumentPrisms.cardInstrument();
+Prism<PaymentInstrument, BankAccount> bankAccount = PaymentInstrumentPrisms.bankAccount();
+Prism<PaymentInstrument, CryptoWallet> wallet = PaymentInstrumentPrisms.cryptoWallet();
 ```
 
 ### Enums to Prisms
 
 <!-- verify -->
 ```java
-public enum OrderStatus { PENDING, SHIPPED, DELIVERED, CANCELLED }
+// From a courier's SDK, which we cannot annotate:
+public enum TrackingStatus { PENDING, IN_TRANSIT, DELIVERED, RETURNED }
 
-Prism<OrderStatus, OrderStatus> pending = OrderStatusPrisms.pending();
-Prism<OrderStatus, OrderStatus> shipped = OrderStatusPrisms.shipped(); // and so on, one per constant
+Prism<TrackingStatus, TrackingStatus> pending = TrackingStatusPrisms.pending();
+Prism<TrackingStatus, TrackingStatus> inTransit = TrackingStatusPrisms.inTransit(); // and so on, one per constant
 ```
+
+Each prism takes the constant's camelCase name, and a name that would be a Java keyword or literal takes a trailing underscore, as [Prisms](prisms.md) explains.
 
 ### Wither Classes to Lenses
 
@@ -165,17 +170,18 @@ Composing across the boundary reads the same as composing within it:
 
 <!-- verify -->
 ```java
-// The year of the order date, as one optic
-Lens<Order, Integer> orderYear = OrderLenses.orderDate().andThen(LocalDateLenses.year());
+// The year of the settlement date, as one optic
+Lens<Settlement, Integer> settlementYear =
+    SettlementLenses.settledOn().andThen(LocalDateLenses.year());
 
-Order normalised = orderYear.set(2027, order);
-boolean inFiscalYear = orderYear.get(order) == 2026;
+Settlement normalised = settlementYear.set(2027, settlement);
+boolean inFiscalYear = settlementYear.get(settlement) == 2026;
 
 // The generated wither helpers are there too, when a lens is more than you need
-LocalDate quarterStart = LocalDateLenses.withDayOfMonth(order.orderDate(), 1);
+LocalDate monthStart = LocalDateLenses.withDayOfMonth(settlement.settledOn(), 1);
 ```
 
-`orderDate().andThen(year())` reads as English: the year of the order date. Local and external optics are the same kind of value.
+`settledOn().andThen(year())` reads as English: the year of the settlement date. Local and external optics are the same kind of value.
 
 ---
 

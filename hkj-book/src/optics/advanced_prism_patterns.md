@@ -544,98 +544,98 @@ public class EventProcessor {
 
 ## Pattern 5: State Machines
 
-State machines with complex transition rules benefit from prisms' ability to safely match states and transform between them.
+State machines with complex transition rules benefit from prisms' ability to safely match states and transform between them. A consignment's journey is one: the courier's events move its `ConsignmentState` on.
 
 ### The Challenge
 
 <!-- verify -->
 ```java
 // Traditional approach: verbose state management
-public Order transition(Order order, OrderEvent event) {
-    if (order.state() instanceof Pending && event instanceof PaymentReceived) {
-        return order.withState(
-            new Processing(((PaymentReceived) event).transactionId(), Instant.now()));
-    } else if (order.state() instanceof Processing && event instanceof ShippingCompleted) {
-        return order.withState(
-            new Shipped(((ShippingCompleted) event).trackingNumber(), Instant.now()));
+public Consignment transition(Consignment consignment, ConsignmentEvent event) {
+    if (consignment.state() instanceof Pending && event instanceof PickedUp) {
+        return new Consignment(
+            consignment.orderId(), consignment.to(), new Dispatched(((PickedUp) event).at()));
+    } else if (consignment.state() instanceof Dispatched && event instanceof ReturnReceived) {
+        return new Consignment(
+            consignment.orderId(), consignment.to(),
+            new Returned(((ReturnReceived) event).reason()));
+    } else if (consignment.state() instanceof Returned && event instanceof Rebooked) {
+        return new Consignment(consignment.orderId(), consignment.to(), new Pending());
     }
-    // Many more transitions...
     throw new IllegalStateException("Invalid transition");
 }
 ```
 
 ### The Prism Solution
 
+The states are the chapter's sealed `ConsignmentState`, so `@GeneratePrisms` already gives each one a prism:
+
+``` java
+{{#include ../../../hkj-examples/src/main/java/org/higherkindedj/example/book/optics/cast/ConsignmentState.java:consignment_state}}
+```
+
+The events are a sealed type of their own, and the machine matches a state and an event together:
+
 <!-- verify -->
 ```java
 @GeneratePrisms
-sealed interface OrderState permits Pending, Processing, Shipped, Delivered, Cancelled {}
+sealed interface ConsignmentEvent permits PickedUp, ReturnReceived, Rebooked {}
 
-record Pending(Instant createdAt) implements OrderState {}
-record Processing(String transactionId, Instant startedAt) implements OrderState {}
-record Shipped(String trackingNumber, Instant shippedAt) implements OrderState {}
-record Delivered(Instant deliveredAt) implements OrderState {}
-record Cancelled(String reason, Instant cancelledAt) implements OrderState {}
+record PickedUp(Instant at) implements ConsignmentEvent {}
+record ReturnReceived(String reason) implements ConsignmentEvent {}
+record Rebooked() implements ConsignmentEvent {}
 
-@GeneratePrisms
-sealed interface OrderEvent permits PaymentReceived, ShippingCompleted,
-                                    DeliveryConfirmed, CancellationRequested {}
+public class ConsignmentStateMachine {
+    private static final Prism<ConsignmentState, Pending> PENDING =
+        ConsignmentStatePrisms.pending();
+    private static final Prism<ConsignmentState, Dispatched> DISPATCHED =
+        ConsignmentStatePrisms.dispatched();
+    private static final Prism<ConsignmentState, Returned> RETURNED =
+        ConsignmentStatePrisms.returned();
 
-record PaymentReceived(String transactionId) implements OrderEvent {}
-record ShippingCompleted(String trackingNumber) implements OrderEvent {}
-record DeliveryConfirmed() implements OrderEvent {}
-record CancellationRequested(String reason) implements OrderEvent {}
-
-public class OrderStateMachine {
-    private static final Prism<OrderState, Pending> PENDING =
-        OrderStatePrisms.pending();
-    private static final Prism<OrderState, Processing> PROCESSING =
-        OrderStatePrisms.processing();
-    private static final Prism<OrderState, Shipped> SHIPPED =
-        OrderStatePrisms.shipped();
-
-    private static final Prism<OrderEvent, PaymentReceived> PAYMENT =
-        OrderEventPrisms.paymentReceived();
-    private static final Prism<OrderEvent, ShippingCompleted> SHIPPING =
-        OrderEventPrisms.shippingCompleted();
-    private static final Prism<OrderEvent, DeliveryConfirmed> DELIVERY =
-        OrderEventPrisms.deliveryConfirmed();
+    private static final Prism<ConsignmentEvent, PickedUp> PICKED_UP =
+        ConsignmentEventPrisms.pickedUp();
+    private static final Prism<ConsignmentEvent, ReturnReceived> RETURN_RECEIVED =
+        ConsignmentEventPrisms.returnReceived();
+    private static final Prism<ConsignmentEvent, Rebooked> REBOOKED =
+        ConsignmentEventPrisms.rebooked();
 
     // Define valid transitions as prism combinations
-    public Optional<OrderState> transition(OrderState currentState, OrderEvent event) {
-        // Pending -> Processing (on payment)
-        if (PENDING.matches(currentState) && PAYMENT.matches(event)) {
-            return PAYMENT.mapOptional(
-                payment -> new Processing(payment.transactionId(), Instant.now()),
+    public Optional<ConsignmentState> transition(
+        ConsignmentState currentState, ConsignmentEvent event) {
+        // Pending -> Dispatched (on pickup)
+        if (PENDING.matches(currentState) && PICKED_UP.matches(event)) {
+            return PICKED_UP.mapOptional(
+                pickedUp -> new Dispatched(pickedUp.at()),
                 event
             );
         }
 
-        // Processing -> Shipped (on shipping)
-        if (PROCESSING.matches(currentState) && SHIPPING.matches(event)) {
-            return SHIPPING.mapOptional(
-                shipping -> new Shipped(shipping.trackingNumber(), Instant.now()),
+        // Dispatched -> Returned (on a return)
+        if (DISPATCHED.matches(currentState) && RETURN_RECEIVED.matches(event)) {
+            return RETURN_RECEIVED.mapOptional(
+                received -> new Returned(received.reason()),
                 event
             );
         }
 
-        // Shipped -> Delivered (on confirmation)
-        if (SHIPPED.matches(currentState) && DELIVERY.matches(event)) {
-            return Optional.of(new Delivered(Instant.now()));
+        // Returned -> Pending (on rebooking)
+        if (RETURNED.matches(currentState) && REBOOKED.matches(event)) {
+            return Optional.of(new Pending());
         }
 
         return Optional.empty(); // Invalid transition
     }
 
     // Guard conditions using prisms
-    public boolean canCancel(OrderState state) {
-        // Can cancel if Pending or Processing
-        return PENDING.matches(state) || PROCESSING.matches(state);
+    public boolean canRedirect(ConsignmentState state) {
+        // Can redirect while no courier has it: Pending or Returned
+        return PENDING.matches(state) || RETURNED.matches(state);
     }
 
     // Extract state-specific data
-    public Optional<String> getTrackingNumber(OrderState state) {
-        return SHIPPED.mapOptional(Shipped::trackingNumber, state);
+    public Optional<String> getReturnReason(ConsignmentState state) {
+        return RETURNED.mapOptional(Returned::reason, state);
     }
 }
 ```
@@ -647,30 +647,41 @@ public class OrderStateMachine {
 import org.higherkindedj.optics.indexed.Pair; // Pair record from hkj-api
 
 public class AdvancedStateMachine {
-    private static final Prism<OrderState, Pending> PENDING = OrderStatePrisms.pending();
-    private static final Prism<OrderState, Processing> PROCESSING = OrderStatePrisms.processing();
-    private static final Prism<OrderEvent, PaymentReceived> PAYMENT = OrderEventPrisms.paymentReceived();
-    private static final Prism<OrderEvent, ShippingCompleted> SHIPPING = OrderEventPrisms.shippingCompleted();
+    private static final Prism<ConsignmentState, Pending> PENDING =
+        ConsignmentStatePrisms.pending();
+    private static final Prism<ConsignmentState, Dispatched> DISPATCHED =
+        ConsignmentStatePrisms.dispatched();
+    private static final Prism<ConsignmentState, Returned> RETURNED =
+        ConsignmentStatePrisms.returned();
+    private static final Prism<ConsignmentEvent, PickedUp> PICKED_UP =
+        ConsignmentEventPrisms.pickedUp();
+    private static final Prism<ConsignmentEvent, ReturnReceived> RETURN_RECEIVED =
+        ConsignmentEventPrisms.returnReceived();
+    private static final Prism<ConsignmentEvent, Rebooked> REBOOKED =
+        ConsignmentEventPrisms.rebooked();
 
     // Define transitions as a declarative table
     private static final Map<
-        Pair<Prism<OrderState, ?>, Prism<OrderEvent, ?>>,
-        BiFunction<OrderState, OrderEvent, OrderState>
+        Pair<Prism<ConsignmentState, ?>, Prism<ConsignmentEvent, ?>>,
+        BiFunction<ConsignmentState, ConsignmentEvent, ConsignmentState>
     > TRANSITIONS = Map.of(
-        Pair.of(PENDING, PAYMENT),
-        (state, event) -> PAYMENT.<OrderState>mapOptional(
-            p -> new Processing(p.transactionId(), Instant.now()),
+        Pair.of(PENDING, PICKED_UP),
+        (state, event) -> PICKED_UP.<ConsignmentState>mapOptional(
+            c -> new Dispatched(c.at()),
             event
         ).orElse(state),
 
-        Pair.of(PROCESSING, SHIPPING),
-        (state, event) -> SHIPPING.<OrderState>mapOptional(
-            s -> new Shipped(s.trackingNumber(), Instant.now()),
+        Pair.of(DISPATCHED, RETURN_RECEIVED),
+        (state, event) -> RETURN_RECEIVED.<ConsignmentState>mapOptional(
+            r -> new Returned(r.reason()),
             event
-        ).orElse(state)
+        ).orElse(state),
+
+        Pair.of(RETURNED, REBOOKED),
+        (state, event) -> new Pending()
     );
 
-    public OrderState process(OrderState state, OrderEvent event) {
+    public ConsignmentState process(ConsignmentState state, ConsignmentEvent event) {
         return TRANSITIONS.entrySet().stream()
             .filter(entry ->
                 entry.getKey().first().matches(state) &&

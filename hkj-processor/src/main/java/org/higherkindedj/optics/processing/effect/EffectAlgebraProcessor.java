@@ -1000,10 +1000,14 @@ public class EffectAlgebraProcessor extends AbstractProcessor {
     return false;
   }
 
-  /** Converts a permit record name to a method name (lowercase first letter). */
+  /**
+   * Converts a permit record name to a method name (lowercase first letter), escaping a keyword so
+   * a permit named {@code Throw} names {@code throw_}.
+   */
   private String permitToMethodName(TypeElement permit) {
     String name = permit.getSimpleName().toString();
-    return name.substring(0, 1).toLowerCase(Locale.ROOT) + name.substring(1);
+    return ProcessorUtils.escapeKeyword(
+        name.substring(0, 1).toLowerCase(Locale.ROOT) + name.substring(1));
   }
 
   /** Converts a class name like "FooOp" to "FOO_OP" for enum singleton naming. */

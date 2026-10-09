@@ -8,6 +8,7 @@ import static org.higherkindedj.optics.extensions.TraversalExtensions.modifyAllE
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.higherkindedj.example.book.optics.cast.LineItem;
 import org.higherkindedj.hkt.either.Either;
 import org.higherkindedj.hkt.maybe.Maybe;
 import org.higherkindedj.hkt.validated.Validated;
@@ -19,42 +20,42 @@ import org.junit.jupiter.api.Test;
 class ExtensionsBookTest {
 
   @Test
-  @DisplayName("the page's profile is Alice's, and its items are two order lines")
+  @DisplayName("the page's affiliate is Alice, and its items are two order lines")
   void inputsThePageDescribes() {
-    assertThat(ExtensionsBook.PROFILE)
-        .isEqualTo(new UserProfile("u1", "Alice", "alice@example.com", 30, "Software Engineer"));
+    assertThat(ExtensionsBook.AFFILIATE)
+        .isEqualTo(new Affiliate("a1", "Alice", "alice@example.com", 10, "Lighting blogger"));
     assertThat(ExtensionsBook.ITEMS)
         .containsExactly(
-            new OrderItem("SKU-1", new BigDecimal("999.99"), 1, "pending"),
-            new OrderItem("SKU-2", new BigDecimal("29.99"), 2, "shipped"));
+            new LineItem("SKU-1", 1, new BigDecimal("999.99")),
+            new LineItem("SKU-2", 2, new BigDecimal("29.99")));
   }
 
   @Test
   @DisplayName("getMaybe gives Just for a set field and Nothing for a null one")
   void getMaybe() {
     assertThat(ExtensionsBook.getMaybeExample())
-        .containsExactly(Maybe.just("Software Engineer"), Maybe.nothing(), "Software Engineer");
-    assertThat(ExtensionsBook.getMaybeExample().get(0)).hasToString("Just(Software Engineer)");
+        .containsExactly(Maybe.just("Lighting blogger"), Maybe.nothing(), "Lighting blogger");
+    assertThat(ExtensionsBook.getMaybeExample().get(0)).hasToString("Just(Lighting blogger)");
     assertThat(ExtensionsBook.getMaybeExample().get(1)).hasToString("Nothing");
   }
 
   @Test
-  @DisplayName("getEither gives Right for a set age and Left with the message for a null one")
+  @DisplayName("getEither gives Right for a set commission and Left with the message for null")
   void getEither() {
-    List<Object> results = ExtensionsBook.getEitherExample(ExtensionsBook.PROFILE);
+    List<Object> results = ExtensionsBook.getEitherExample(ExtensionsBook.AFFILIATE);
 
-    assertThat(results.get(0)).isEqualTo(Either.right(30)).hasToString("Right(30)");
+    assertThat(results.get(0)).isEqualTo(Either.right(10)).hasToString("Right(10)");
     assertThat(results.get(1))
-        .isEqualTo(Either.left("Age not provided"))
-        .hasToString("Left(Age not provided)");
-    assertThat(results.get(2)).isEqualTo("Age: 30");
+        .isEqualTo(Either.left("Commission not agreed"))
+        .hasToString("Left(Commission not agreed)");
+    assertThat(results.get(2)).isEqualTo("Commission: 10%");
   }
 
   @Test
   @DisplayName("getValidated gives Valid for a set email and Invalid with the message for null")
   void getValidated() {
     List<Validated<String, String>> results =
-        ExtensionsBook.getValidatedExample(ExtensionsBook.PROFILE);
+        ExtensionsBook.getValidatedExample(ExtensionsBook.AFFILIATE);
 
     assertThat(results.get(0)).hasToString("Valid(alice@example.com)");
     assertThat(results.get(1)).hasToString("Invalid(Email is required)");
@@ -63,15 +64,14 @@ class ExtensionsBookTest {
   @Test
   @DisplayName("modifyMaybe uppercases a long enough name, and gives Nothing for a short one")
   void modifyMaybeUppercasesTheName() {
-    Maybe<UserProfile> updated = ExtensionsBook.modifyMaybeExample(ExtensionsBook.PROFILE);
+    Maybe<Affiliate> updated = ExtensionsBook.modifyMaybeExample(ExtensionsBook.AFFILIATE);
 
     assertThat(updated)
         .isEqualTo(
-            Maybe.just(
-                new UserProfile("u1", "ALICE", "alice@example.com", 30, "Software Engineer")));
-    assertThat(updated.toString()).startsWith("Just(UserProfile[id=u1, name=ALICE, ");
+            Maybe.just(new Affiliate("a1", "ALICE", "alice@example.com", 10, "Lighting blogger")));
+    assertThat(updated.toString()).startsWith("Just(Affiliate[id=a1, name=ALICE, ");
 
-    UserProfile shortName = new UserProfile("u5", "A", "a@example.com", 20, null);
+    Affiliate shortName = new Affiliate("a5", "A", "a@example.com", 5, null);
     assertThat(ExtensionsBook.modifyMaybeExample(shortName)).isEqualTo(Maybe.nothing());
   }
 
@@ -89,7 +89,7 @@ class ExtensionsBookTest {
   @Test
   @DisplayName("modifyAllMaybe raises every price by 10%, or gives Nothing when one is under 10")
   void modifyAllMaybe() {
-    List<Maybe<List<OrderItem>>> results =
+    List<Maybe<List<LineItem>>> results =
         ExtensionsBook.modifyAllMaybeExample(ExtensionsBook.ALL_PRICES, ExtensionsBook.ITEMS);
 
     assertThat(results.get(0))
@@ -97,8 +97,11 @@ class ExtensionsBookTest {
         .isEqualTo(
             Maybe.just(
                 List.of(
-                    new OrderItem("SKU-1", new BigDecimal("1099.99"), 1, "pending"),
-                    new OrderItem("SKU-2", new BigDecimal("32.99"), 2, "shipped"))));
+                    new LineItem("SKU-1", 1, new BigDecimal("1099.99")),
+                    new LineItem("SKU-2", 2, new BigDecimal("32.99")))))
+        .hasToString(
+            "Just([LineItem[sku=SKU-1, quantity=1, price=1099.99],"
+                + " LineItem[sku=SKU-2, quantity=2, price=32.99]])");
     assertThat(results.get(1)).isEqualTo(Maybe.nothing());
   }
 
@@ -114,13 +117,13 @@ class ExtensionsBookTest {
   @DisplayName("modifyAllEither still checks every price, past the first failure")
   void modifyAllEitherChecksEveryPrice() {
     AtomicInteger checked = new AtomicInteger();
-    List<OrderItem> withRefunds =
+    List<LineItem> withRefunds =
         List.of(
-            new OrderItem("SKU-1", new BigDecimal("999.99"), 1, "pending"),
-            new OrderItem("SKU-4", new BigDecimal("-5.00"), 1, "refund"),
-            new OrderItem("SKU-5", new BigDecimal("-1.50"), 1, "refund"));
+            new LineItem("SKU-1", 1, new BigDecimal("999.99")),
+            new LineItem("SKU-4", 1, new BigDecimal("-5.00")),
+            new LineItem("SKU-5", 1, new BigDecimal("-1.50")));
 
-    Either<String, List<OrderItem>> result =
+    Either<String, List<LineItem>> result =
         modifyAllEither(
             ExtensionsBook.ALL_PRICES,
             price -> {

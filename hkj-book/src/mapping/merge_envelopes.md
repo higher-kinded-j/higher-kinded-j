@@ -106,6 +106,8 @@ For `OrderError` the processor generates a companion named `OrderErrors` with th
 - **A fluent `context()` builder** over the context record's components, for building a context in a factory of your own.
 - **An `editContext(error, edit)` method** that returns a copy of the error with its context changed, starting from its current values.
 
+A factory takes its variant's camelCase name, with a trailing underscore where that would be a Java keyword, so a `New` variant's factory is `new_`.
+
 Add a one-line `default`, as `OrderError` does, and construction plus enrichment reads as you would write it by hand:
 
 ``` java
