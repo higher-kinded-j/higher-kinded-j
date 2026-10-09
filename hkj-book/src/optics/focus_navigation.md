@@ -398,7 +398,7 @@ Beyond three levels, compose the rest with `.via()`.
 * **A generated collection method is element-level; a generated `Map` method is not.** `.at(i)` and `ListPrisms` start from `FocusPath.of(theLens())`, because there is no generated `order.line(0)`. `.atKey(k)` applies straight to the generated path, because that path still focuses the whole map.
 * **An `Optional`, or a recognised `@Nullable`, is already an `AffinePath`.** Chain `.nullable()` yourself for a field nobody annotated, or one carrying Spring's `@Nullable`.
 * **One variant of a sealed type is a prism away.** `@GeneratePrisms` names each variant of a type you own; `AffinePath.instanceOf` matches by runtime type in one you do not.
-* **Navigators cover a field whose type is another annotated record.** A `Map` or `Either` of one gets a navigator too, but `Optional`, `List`, `Set` and `Collection` are widened first and never produce one, so those hops use `.via()`.
+* **Navigators cover a field whose type is another annotated record.** A `Map` or `Either` of one gets a navigator too, but `Optional`, `Maybe`, `List`, `Set` and `Collection` are widened first and never produce one, so those hops use `.via()`.
 * **`toPath()` is the escape hatch.** A navigator carries only the core operations; `filter`, `modifyF`, `traced` and `via` are one `toPath()` away.
 ~~~
 

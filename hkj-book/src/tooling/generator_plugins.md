@@ -28,7 +28,7 @@ These generators are always active. No additional dependencies are required.
 | Type | Focus | Behaviour |
 |------|-------|-----------|
 | `List<A>` | Each element | Traverses all elements via `Traversals.traverseList()` |
-| `Set<A>` | Each element | Traverses all elements in iteration order via `Traversals.traverseSet()` |
+| `Set<A>` | Each element | Traverses all elements in iteration order via `Traversals.traverseSet()`, keeping that order; elements that map to equal values collapse into one |
 | `Collection<A>` | Each element | Rebuilds a set source as a set and any other source as a list, via `Traversals.traverseCollection()` |
 | `Optional<A>` | 0 or 1 element | Applies function if present; returns unchanged if empty |
 | `Map<K, V>` | Each value | Traverses values whilst preserving keys |

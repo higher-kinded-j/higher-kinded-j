@@ -446,43 +446,69 @@ class FocusRecognisedContainerTest {
           .hadErrorContaining("record component 'Holder.f' has a raw " + component + ".");
     }
 
+    /** Holder over {@code component}, under the annotations the diagnostic's remedy names. */
+    private Compilation compileWithSiblings(String component, String annotations) {
+      return javac()
+          .withProcessors(new LensProcessor(), new TraversalProcessor())
+          .compile(
+              JavaFileObjects.forSourceString(
+                  "com.example.Holder",
+                  """
+                  package com.example;
+
+                  import java.util.Collection;
+                  import java.util.Set;
+                  import org.higherkindedj.hkt.maybe.Maybe;
+                  import org.higherkindedj.optics.annotations.GenerateLenses;
+                  import org.higherkindedj.optics.annotations.GenerateTraversals;
+
+                  %s
+                  @SuppressWarnings("rawtypes")
+                  public record Holder(%s f) {}
+                  """
+                      .formatted(annotations, component)));
+    }
+
     @ParameterizedTest(name = "{0}")
     @ValueSource(
         strings = {
           "Set<?>",
           "Set<? extends CharSequence>",
           "Collection<?>",
-          "Set",
           "Maybe<?>",
-          "Maybe<? extends CharSequence>",
-          "Maybe"
+          "Maybe<? extends CharSequence>"
         })
     @DisplayName(
-        "the remedy the diagnostic offers compiles: the sibling annotations take it as written")
-    void theRemedyTheDiagnosticOffersCompiles(String component) {
+        "for a wildcard, the remedy names both sibling annotations, and both take it as written")
+    void theWildcardRemedyNamesBothSiblingsAndBothTakeItAsWritten(String component) {
+      assertThat(compile(component))
+          .hadErrorContaining(
+              "@GenerateLenses and @GenerateTraversals compose no optic instance and take the"
+                  + " component as written.");
+
       Compilation compilation =
-          javac()
-              .withProcessors(new LensProcessor(), new TraversalProcessor())
-              .compile(
-                  JavaFileObjects.forSourceString(
-                      "com.example.Holder",
-                      """
-                      package com.example;
-
-                      import java.util.Collection;
-                      import java.util.Set;
-                      import org.higherkindedj.hkt.maybe.Maybe;
-                      import org.higherkindedj.optics.annotations.GenerateLenses;
-                      import org.higherkindedj.optics.annotations.GenerateTraversals;
-
-                      @GenerateLenses
-                      @GenerateTraversals
-                      @SuppressWarnings("rawtypes")
-                      public record Holder(%s f) {}
-                      """
-                          .formatted(component)));
+          compileWithSiblings(component, "@GenerateLenses\n@GenerateTraversals");
 
       assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.HolderTraversals");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"Set", "Collection", "Maybe"})
+    @DisplayName("for a raw container, the remedy names the lens alone, which takes it as written")
+    void theRawRemedyNamesTheLensAlone(String component) {
+      assertThat(compile(component))
+          .hadErrorContaining(
+              "@GenerateLenses composes no optic instance and takes the component as written.");
+      // @GenerateTraversals has no element type to focus in a raw container either: it compiles,
+      // but with a note and no traversal, which is why the remedy leaves it out.
+      assertThat(compileWithSiblings(component, "@GenerateTraversals"))
+          .hadNoteContaining("no traversal was generated for component");
+
+      Compilation compilation = compileWithSiblings(component, "@GenerateLenses");
+
+      assertThat(compilation).succeeded();
+      assertThat(compilation).generatedSourceFile("com.example.HolderLenses");
     }
   }
 }
